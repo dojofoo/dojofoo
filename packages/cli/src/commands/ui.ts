@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { findProjectRoot } from "../config";
 
 /**
  * `dojo ui` — start the dojo web UI (apps/ui) and open it in the browser.
@@ -16,6 +17,7 @@ import { fileURLToPath } from "node:url";
 export function ui(_cwd: string, args: string[]): void {
 	const port = process.env.DOJO_UI_PORT ?? "4567";
 	const uiDir = resolveUiDir();
+	const projectRoot = findProjectRoot();
 
 	if (!uiDir) {
 		console.error("Could not locate apps/ui/. The dojo UI currently requires running");
@@ -24,9 +26,10 @@ export function ui(_cwd: string, args: string[]): void {
 	}
 
 	console.error(`→ starting dojo UI from ${uiDir}`);
+	console.error(`  project: ${projectRoot}`);
 	console.error(`  http://localhost:${port}\n`);
 
-	const env = { ...process.env, PORT: port };
+	const env = { ...process.env, DOJO_PROJECT_ROOT: projectRoot, PORT: port };
 	const child = spawn("pnpm", ["dev", ...args], {
 		cwd: uiDir,
 		stdio: "inherit",

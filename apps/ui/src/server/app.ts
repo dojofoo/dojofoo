@@ -9,6 +9,7 @@ import { buildAgentCard } from "./agent-card";
 import { EchoExecutor } from "./executor";
 import { honoAgentCardHandler } from "./a2a/agent-card";
 import { honoJsonRpcHandler } from "./a2a/jsonrpc";
+import { projectRoutes } from "./project/routes";
 
 /**
  * Construct the Hono app that owns all A2A routes.
@@ -36,24 +37,35 @@ function buildApp() {
 
   const app = new Hono();
 
-  // CORS: localhost-only for now. Will revisit when we expose past the box.
+  // Same-origin browser access only. Project APIs expose local journals and
+  // cassettes, so never reflect arbitrary web origins.
   app.use("*", async (c, next) => {
+    const origin = c.req.header("Origin");
+    const selfOrigin = new URL(c.req.url).origin;
+    const allowOrigin = origin === selfOrigin ? origin : null;
+
     if (c.req.method === "OPTIONS") {
+      const headers: Record<string, string> = {
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      };
+      if (allowOrigin) headers["Access-Control-Allow-Origin"] = allowOrigin;
+
       return new Response(null, {
         status: 204,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        },
+        headers,
       });
     }
+
     await next();
-    c.res.headers.set("Access-Control-Allow-Origin", "*");
+    if (allowOrigin) c.res.headers.set("Access-Control-Allow-Origin", allowOrigin);
   });
 
   // Liveness.
   app.get("/api/health", (c) => c.json({ ok: true, version: agentCard.version }));
+
+  // Local learner project API.
+  app.route("/api/project", projectRoutes);
 
   // A2A endpoints.
   app.get("/.well-known/agent-card.json", honoAgentCardHandler(requestHandler));

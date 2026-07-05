@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { GithubIcon } from "lucide-react"
+import { GithubIcon } from "@/components/github-icon"
 import { HeroSection } from "@/components/ui/hero-1"
 import { InstallCommand } from "@/components/install-command"
 import { ThemeToggle } from "@/components/layout/theme-toggle"

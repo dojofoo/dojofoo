@@ -1,7 +1,7 @@
 # Learning Web-View
 
 - **Epic:** 0100
-- **Status:** Draft
+- **Status:** In Progress
 - **Date:** 2026-07-05
 - **Owner:** dojocho core
 

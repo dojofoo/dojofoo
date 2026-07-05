@@ -1,4 +1,4 @@
-import { GithubIcon } from 'lucide-react'
+import { GithubIcon } from '@/components/github-icon'
 import type { BaseLayoutProps } from '@/components/layout/shared'
 
 export const gitConfig = {

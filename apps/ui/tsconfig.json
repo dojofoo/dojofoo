@@ -14,6 +14,7 @@
     "skipLibCheck": true,
     "target": "ES2022",
     "allowJs": true,
+    "ignoreDeprecations": "6.0",
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {

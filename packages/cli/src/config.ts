@@ -13,6 +13,7 @@ export {
   type ResolvedRunnerConfig,
   type RegistryItem,
   type RegistryIndex,
+  type KataState,
   ManifestValidationError,
   validateManifest,
   parseManifest,
@@ -29,5 +30,10 @@ export {
   katasPath,
   resolveKata,
   resolveAllKatas,
+  kataState,
+  findCurrentKata,
+  findNextKata,
+  completedCount,
+  findKataByIdOrName,
   listDojos,
 } from "@dojocho/config";

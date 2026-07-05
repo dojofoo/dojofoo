@@ -26,6 +26,9 @@ importers:
       '@a2a-js/sdk':
         specifier: ^0.3.10
         version: 0.3.13(@grpc/grpc-js@1.14.3)(express@5.2.1)
+      '@dojocho/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@tanstack/react-router':
         specifier: ^1.170.17
         version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)

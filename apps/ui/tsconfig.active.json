@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/routeTree.gen.ts",
+    "src/router.tsx",
+    "src/routes/**/*.ts",
+    "src/routes/**/*.tsx",
+    "src/server/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", ".output"]
+}
