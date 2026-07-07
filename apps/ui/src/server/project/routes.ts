@@ -29,9 +29,9 @@ type ProjectContext = {
   rc: DojoRc;
 };
 
-type ProjectKataState = "done" | "current" | "available" | "locked";
+export type ProjectKataState = "done" | "current" | "available" | "locked";
 
-type ProjectKata = {
+export type ProjectKata = {
   name: string;
   title: string;
   description: string | null;
@@ -46,6 +46,27 @@ type ProjectKata = {
     test: string;
     sensei: string;
   };
+};
+
+export type ProjectState = {
+  root: string;
+  dojos: string[];
+  activeDojo: {
+    name: string;
+    version: string;
+    description?: string;
+  } | null;
+  summary: { completed: number; total: number };
+  currentKata: string | null;
+  nextKata: string | null;
+  katas: ProjectKata[];
+  dojoMarkdown: string;
+};
+
+export type KataBriefing = {
+  name: string;
+  path: string;
+  markdown: string;
 };
 
 type CassetteIndexItem = {
