@@ -20,7 +20,7 @@ The raw materials already exist in-repo: a working A2A broker skeleton, a polish
 
 ## Goals
 
-1. `dojo ui` opens a local web app showing the active dojo: kata list with per-kata state (done / current / locked), briefing (`SENSEI.md`), and dojo overview (`DOJO.md`).
+1. `dojo ui` opens a local web app showing the active dojo: kata list with per-kata state (done / current / locked), a learner-safe briefing (Goal + Tasks extracted from `SENSEI.md`), and dojo overview (`DOJO.md`). `SENSEI.md` is the agent's teaching contract — hints, test map, Socratic prompts, and pitfalls are never exposed to the browser.
 2. Render the learner's journal (`.dojos/<dojo>/JOURNAL.md`) and session history (`.dojo/cassettes/*.jsonl`) as readable views.
 3. Live-update the UI when CLI/agent activity changes state (kata completed, note appended, cassette refreshed).
 4. Interactive sensei chat in the browser via the A2A broker, backed by at least one real harness adapter (replacing `EchoExecutor`).
@@ -98,7 +98,7 @@ Three planes, all inside `apps/ui`, launched by `dojo ui` with the learner's pro
                 ▼
 ┌──────────────────── TanStack Start React frontend ───────────────────────┐
 │  /            dojo overview (DOJO.md, progress ring, module list)        │
-│  /kata/:name  briefing (SENSEI.md), state, test results, journal notes   │
+│  /kata/:name  learner briefing (Goal+Tasks), state, tests, journal notes │
 │  /journal     rendered JOURNAL.md                                        │
 │  /sessions    cassette list  →  /sessions/:id transcript replay          │
 │  /sensei      chat pane over A2A (message/send → message/stream)         │
@@ -112,15 +112,15 @@ Three planes, all inside `apps/ui`, launched by `dojo ui` with the learner's pro
 3. A **file watcher** (chokidar on `.dojorc`, `JOURNAL.md`, `.dojo/cassettes/`) pushes invalidation events over `GET /api/events` (SSE). The frontend uses TanStack Query with SSE-driven invalidation — when the learner completes a kata in the terminal, the browser updates within a second. Verifying SSE through Nitro here also unblocks flipping `capabilities.streaming: true` in the agent card.
 4. **Write actions** are a thin allowlist that shells out to the CLI binary (`dojo kata --start`, `dojo kata --test`, `dojo kata --note "..."`) rather than reimplementing mutations. Single writer, single source of truth; the CLI already refreshes cassettes and progress as side effects.
 5. **Sensei chat** goes through the existing A2A plumbing: the frontend calls `message/send` (later `message/stream`) on `/api/a2a/jsonrpc`; a real `HarnessExecutor` (per-agent adapter, as sketched in apps/ui/README.md) replaces `EchoExecutor` and drives the learner's configured agent, which in turn runs `dojo kata` commands and emits protocol tags. The executor parses `<dojo:sensei>`/`<dojo:status>` tags out of agent output into structured A2A message parts so the UI can render them distinctly.
-6. **Frontend** ports the course template into TanStack routes: `sidebar-layout.tsx` becomes the dojo shell, `lessons.ts`'s `Module/Lesson` types are replaced by manifest-derived `Dojo/Kata` view models (grouped by `tags` or numeric prefix), MDX rendering is reused for `SENSEI.md`/`DOJO.md`/journal, and `video-card.tsx`/VTT support is kept dormant for 0200's distilled courses (which will ship video + transcripts). Auth pages and placeholder content are deleted.
+6. **Frontend** ports the course template into TanStack routes: `sidebar-layout.tsx` becomes the dojo shell, `lessons.ts`'s `Module/Lesson` types are replaced by manifest-derived `Dojo/Kata` view models (grouped by `tags` or numeric prefix), MDX rendering is reused for the learner briefing/`DOJO.md`/journal, and `video-card.tsx`/VTT support is kept dormant for 0200's distilled courses (which will ship video + transcripts). Auth pages and placeholder content are deleted.
 
 **Packaging:** `dojo ui` gains a production path — `apps/ui` builds to a Nitro node-server output bundled into (or downloaded by) the published `dojocho` package, so `dojo ui` works outside the monorepo. Dev mode keeps the current `pnpm dev` spawn.
 
 ## Candidate Feature Breakdown
 
-- **0101 `project-api`** — Add `apps/ui/src/server/project/` Hono routes exposing read-only project state: resolved config, dojo list, active dojo manifest, per-kata state (done/current/locked via prerequisites), `SENSEI.md`/`DOJO.md` raw content, journal markdown, cassette index and single-cassette content. Server receives the project root via `DOJO_PROJECT_ROOT` from `dojo ui`. Depends on extracting kata-state derivation from `packages/cli/src/state.ts` into a shared package so CLI and UI compute identical state.
+- **0101 `project-api`** — Add `apps/ui/src/server/project/` Hono routes exposing read-only project state: resolved config, dojo list, active dojo manifest, per-kata state (done/current/locked via prerequisites), the learner-safe briefing extracted from `SENSEI.md` (Briefing section minus Hints; agent-only sections withheld), `DOJO.md` content, journal markdown, cassette index and single-cassette content. Server receives the project root via `DOJO_PROJECT_ROOT` from `dojo ui`. Depends on extracting kata-state derivation from `packages/cli/src/state.ts` into a shared package so CLI and UI compute identical state.
 
-- **0102 `dojo-shell-ui`** — Wire the unwired course template into TanStack routes: sidebar shell from `apps/ui/src/components/sidebar-layout.tsx`, dojo overview page (DOJO.md + progress summary + kata list grouped by tag/prefix), kata detail page rendering `SENSEI.md` via the template's MDX/typography pipeline, breadcrumbs and next-kata navigation from `next-page-link.tsx`. Delete `(auth)` pages and placeholder lesson/interview data; keep video/VTT components dormant for 0200 output.
+- **0102 `dojo-shell-ui`** — Wire the unwired course template into TanStack routes: sidebar shell from `apps/ui/src/components/sidebar-layout.tsx`, dojo overview page (DOJO.md + progress summary + kata list grouped by tag/prefix), kata detail page rendering the learner briefing via the template's MDX/typography pipeline, breadcrumbs and next-kata navigation from `next-page-link.tsx`. Delete `(auth)` pages and placeholder lesson/interview data; keep video/VTT components dormant for 0200 output.
 
 - **0103 `journal-view`** — Render `.dojos/<dojo>/JOURNAL.md` as a first-class page: parse the `## <kata>` sectioning produced by `packages/cli/src/journal.ts`, cross-link each section to its kata page, show per-kata notes inline on the kata detail page, and expose an "add note" affordance backed by the 0105 action endpoint.
 

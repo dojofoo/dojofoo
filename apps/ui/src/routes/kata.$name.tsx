@@ -44,7 +44,7 @@ function KataPage() {
             {briefing.markdown}
           </pre>
         ) : (
-          <p style={{ color: "#999" }}>No briefing (SENSEI.md) for this kata.</p>
+          <p style={{ color: "#999" }}>No briefing for this kata.</p>
         ))}
     </main>
   );

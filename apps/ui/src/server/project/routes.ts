@@ -149,7 +149,7 @@ app.get("/katas/:name/briefing", (c) => {
   if (!kata) return c.json({ error: `Kata not found: ${c.req.param("name")}` }, 404);
 
   const markdown = existsSync(kata.senseiPath)
-    ? readFileSync(kata.senseiPath, "utf8")
+    ? extractLearnerBriefing(readFileSync(kata.senseiPath, "utf8"))
     : "";
   return c.json({ name: kata.name, path: relative(root, kata.senseiPath), markdown });
 });
@@ -278,6 +278,27 @@ function toProjectKata(
       sensei: relative(root, kata.senseiPath),
     },
   };
+}
+
+function extractLearnerBriefing(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const out: string[] = [];
+  let inBriefing = false;
+  let inHints = false;
+
+  for (const line of lines) {
+    const h2 = /^##\s+(.+?)\s*$/.exec(line);
+    const h3 = /^###\s+(.+?)\s*$/.exec(line);
+    if (h2) {
+      inBriefing = h2[1].toLowerCase() === "briefing";
+      inHints = false;
+      continue;
+    }
+    if (inBriefing && h3) inHints = h3[1].toLowerCase() === "hints";
+    if (inBriefing && !inHints) out.push(line);
+  }
+
+  return out.join("\n").trim();
 }
 
 function parseJournalSections(markdown: string) {
