@@ -11,6 +11,8 @@ import { track } from "./commands/track";
 
 const [command, ...args] = process.argv.slice(2);
 
+process.env.DOJO_PROJECT_ROOT ??= findProjectRoot();
+
 async function main() {
   if (command === "kata") {
     kata(findProjectRoot(), args);
@@ -25,6 +27,7 @@ async function main() {
   } else if (command === "status") {
     status(findProjectRoot(), args);
   } else if (command === "ui") {
+    process.env.PORT ??= process.env.DOJO_UI_PORT ?? "4567";
     ui(process.cwd(), args);
   } else if (command === "track") {
     track(findProjectRoot(), args);

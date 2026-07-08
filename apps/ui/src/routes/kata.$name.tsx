@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 import type { KataBriefing } from "@/server/project/routes";
 
 export const Route = createFileRoute("/kata/$name")({
@@ -14,37 +15,37 @@ function KataPage() {
   useEffect(() => {
     setBriefing(null);
     setError(null);
-    fetch(`/api/project/katas/${encodeURIComponent(name)}/briefing`)
+    api.katas[":name"].briefing
+      .$get({ param: { name } })
       .then(async (res) => {
         const body = await res.json();
-        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-        setBriefing(body as KataBriefing);
+        if ("error" in body) throw new Error(body.error);
+        setBriefing(body);
       })
       .catch((err: Error) => setError(err.message));
   }, [name]);
 
   return (
-    <main style={{ padding: "1.5rem", maxWidth: 720, margin: "0 auto" }}>
+    <main className="mx-auto max-w-2xl p-6">
       <p>
-        <Link to="/">← back to dojo</Link>
+        <Link to="/" className="text-blue-600 underline">
+          ← back to dojo
+        </Link>
       </p>
-      <h1>{name}</h1>
-      {error && <p style={{ color: "#b00" }}>{error}</p>}
-      {!error && !briefing && <p>loading…</p>}
+      <h1 className="mt-2 text-2xl font-bold">{name}</h1>
+      {error && (
+        <p className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">
+          {error}
+        </p>
+      )}
+      {!error && !briefing && <p className="mt-4 text-neutral-400">loading…</p>}
       {briefing &&
         (briefing.markdown ? (
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              lineHeight: 1.5,
-              fontFamily: "inherit",
-            }}
-          >
+          <pre className="mt-4 whitespace-pre-wrap break-words font-mono leading-relaxed">
             {briefing.markdown}
           </pre>
         ) : (
-          <p style={{ color: "#999" }}>No briefing for this kata.</p>
+          <p className="mt-4 text-neutral-400">No briefing for this kata.</p>
         ))}
     </main>
   );

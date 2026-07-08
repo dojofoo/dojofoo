@@ -2,7 +2,6 @@ import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { Edit, Text } from 'lucide-react'
-import { I18nLabel } from 'fumadocs-ui/contexts/i18n'
 import {
   type BreadcrumbProps,
   type FooterProps,
@@ -158,7 +157,7 @@ export function DocsPage({
               className="inline-flex items-center gap-1.5 text-sm text-fd-muted-foreground"
             >
               <Text className="size-4" />
-              <I18nLabel label="toc" />
+              On this page
             </h3>
             <TOCScrollArea>
               {tocOptions.style === 'clerk' ? <TocClerk.TOCItems /> : <TocDefault.TOCItems />}
@@ -188,7 +187,7 @@ export function EditOnGitHub(props: ComponentProps<'a'>) {
       {props.children ?? (
         <>
           <Edit className="size-3.5" />
-          <I18nLabel label="editOnGithub" />
+          Edit on GitHub
         </>
       )}
     </a>

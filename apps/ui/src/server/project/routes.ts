@@ -79,18 +79,16 @@ type CassetteIndexItem = {
   parseError?: string;
 };
 
-const app = new Hono<{ Variables: ProjectVariables }>();
-
-app.use("*", async (c, next) => {
-  try {
-    c.set("project", readProjectContext());
-    await next();
-  } catch (error) {
-    return c.json({ error: errorMessage(error) }, 404);
-  }
-});
-
-app.get("/state", (c) => {
+const app = new Hono<{ Variables: ProjectVariables }>()
+  .use("*", async (c, next) => {
+    try {
+      c.set("project", readProjectContext());
+      await next();
+    } catch (error) {
+      return c.json({ error: errorMessage(error) }, 404);
+    }
+  })
+  .get("/state", (c) => {
   const { root, rc } = c.get("project");
   const config = loadConfig(root, { command: "kata" });
   const dojos = listDojos(root);
@@ -133,15 +131,13 @@ app.get("/state", (c) => {
     katas: view.katas,
     dojoMarkdown: readDojoMd(root, rc.currentDojo),
   });
-});
-
-app.get("/katas", (c) => {
+  })
+  .get("/katas", (c) => {
   const { root, rc } = c.get("project");
   const catalog = readActiveCatalog(root, rc);
   return c.json(buildDojoView(root, rc, catalog).katas);
-});
-
-app.get("/katas/:name/briefing", (c) => {
+  })
+  .get("/katas/:name/briefing", (c) => {
   const { root, rc } = c.get("project");
   const catalog = readActiveCatalog(root, rc);
   const view = buildDojoView(root, rc, catalog);
@@ -152,9 +148,8 @@ app.get("/katas/:name/briefing", (c) => {
     ? extractLearnerBriefing(readFileSync(kata.senseiPath, "utf8"))
     : "";
   return c.json({ name: kata.name, path: relative(root, kata.senseiPath), markdown });
-});
-
-app.get("/journal", (c) => {
+  })
+  .get("/journal", (c) => {
   const { root, rc } = c.get("project");
   if (!rc.currentDojo) return c.json({ path: null, markdown: "", sections: [] });
 
@@ -165,14 +160,12 @@ app.get("/journal", (c) => {
     markdown,
     sections: parseJournalSections(markdown),
   });
-});
-
-app.get("/cassettes", (c) => {
+  })
+  .get("/cassettes", (c) => {
   const { root } = c.get("project");
   return c.json(listCassettes(root));
-});
-
-app.get("/cassettes/:id", (c) => {
+  })
+  .get("/cassettes/:id", (c) => {
   const { root } = c.get("project");
   const cassette = findCassette(root, c.req.param("id"));
   if (!cassette) return c.json({ error: `Cassette not found: ${c.req.param("id")}` }, 404);
@@ -182,9 +175,9 @@ app.get("/cassettes/:id", (c) => {
     ...cassette,
     path: relative(root, cassette.path),
     entries: parseCassetteEntries(content),
-    raw: content,
+      raw: content,
+    });
   });
-});
 
 function readProjectContext(): ProjectContext {
   const root = process.env.DOJO_PROJECT_ROOT
@@ -375,3 +368,4 @@ function errorMessage(error: unknown): string {
 }
 
 export { app as projectRoutes };
+export type ProjectRoutes = typeof app;

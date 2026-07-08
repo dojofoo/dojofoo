@@ -4,6 +4,7 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
+import stylesUrl from "../styles.css?url";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -13,6 +14,7 @@ export const Route = createRootRoute({
       { title: "dojo" },
       { name: "description", content: "Dojo web UI" },
     ],
+    links: [{ rel: "stylesheet", href: stylesUrl }],
   }),
   component: RootLayout,
 });
@@ -25,11 +27,7 @@ function RootLayout() {
       </head>
       <body
         suppressHydrationWarning
-        style={{
-          margin: 0,
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-        }}
+        className="m-0 min-h-screen bg-white font-mono text-neutral-900"
       >
         <Outlet />
         <Scripts />
