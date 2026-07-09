@@ -23,14 +23,15 @@ Web UI: the exact same flow, replicated with interactive possibilities the termi
 
 - **Agent questions become modals/popovers** ("how do you want to proceed?") instead of inline prompts.
 - **The editor is embedded** (Monaco) on the real `katas/<name>/solution.ts` — no window swapping; the repo file stays the single source of truth, so terminal, external editor, and web workspace never diverge.
-- **Intent buttons — `Test | Ask | Submit | Finish`** — signal steps and circumvent routines. Each button emits a structured intent event, so *the agent no longer needs to track where the user is*: the interface trigger tells it what the user is doing.
+- **One intent button — `Check`** — minimal steps, no checked-vs-finished distinction. Check runs the tests: **fail → red Failed state**, the agent receives the results and advises; **pass → green Success**, the agent narrates progression to the next chapter and may review the solution and suggest improvements. The button emits a structured intent event, so *the agent no longer needs to track where the user is*: the interface trigger tells it what the user is doing.
+- **A running chat alongside** the workspace — the sensei dialogue is always visible; the learner can ask at any time without changing mode.
 - **Presentational surface**: the UI can show narration as rich text, visuals like the current kata agenda, and navigation — between kata lessons, past sessions/submissions, and switching kata or dojo altogether.
-- Finishing a kata **auto-runs the test suite** and hands the results to the agent, which narrates feedback and how to proceed.
+
 
 ## Goals
 
-1. `dojo ui` opens a local course: agenda with per-kata state — **solved / current / not-started (hidden by default; progressive disclosure is Socratic navigation)** — plus dojo overview and progress.
-2. The full kata loop in the browser: embedded Monaco on the real workspace file, `Test | Ask | Submit | Finish` intent buttons, auto test runs, agent feedback rendered as narration.
+1. `dojo ui` opens a local course: a table of contents showing chapter numbers/names **grayed out**, the **current chapter highlighted**, and **previous chapters navigable** (including history) to review earlier material — plus dojo overview and progress.
+2. The full kata loop in the browser: embedded Monaco on the real workspace file, a single `Check` intent, red Failed / green Success states, agent feedback rendered as narration in a persistent chat pane.
 3. One broker, one message API: the dojo server receives messages and sends events; **proxy adapters** connect it to opencode's and codex's own servers first, Claude Code later. Terminal and web sessions are the same sessions.
 4. Agent-driven interaction: agent questions render as modals/popovers; only the agent advances the learner, reveals feedback, or shows suggestions on request.
 5. Journal and session history (cassettes) as navigable course material — revisit past submissions and sensei exchanges.
@@ -73,8 +74,8 @@ No agenda/course shell, no embedded editor, no intent buttons, no broker adapter
                 ▼                                          │  CLI, external editor)
 ┌────────────────────────  dojo server (Hono)  ────────────┴──────────────┐
 │  Project API (0101, shipped)      Message API (one bus)                 │
-│   GET /api/project/*               in:  message | intent(test/ask/      │
-│                                         submit/finish) | navigate       │
+│   GET /api/project/*               in:  message | intent(check) |       │
+│                                         navigate                        │
 │   SSE /api/events                  out: narration | question | status | │
 │    (state + bus events)                 test-results | unlock           │
 │                                              │                          │
@@ -82,9 +83,8 @@ No agenda/course shell, no embedded editor, no intent buttons, no broker adapter
 └──────────────┬───────────────────────┬──────┴──────┬────────────────────┘
                │                       │             │
         Web UI (browser)          opencode        codex          claude (later)
-        agenda · Monaco ·         HTTP+SSE        app-server     channel / SDK
-        Test|Ask|Submit|Finish    :4096           JSON-RPC/stdio
-        modals for questions
+        toc · Monaco · Check ·    HTTP+SSE        app-server     channel / SDK
+        chat pane · modals        :4096           JSON-RPC/stdio
         sessions & dojo switch          Terminal keeps its native flow;
                                         same sessions, same cassettes.
 ```
@@ -92,7 +92,7 @@ No agenda/course shell, no embedded editor, no intent buttons, no broker adapter
 **Data flow, concretely:**
 
 1. `dojo ui` starts the server with `DOJO_PROJECT_ROOT` (set once at CLI root). Project API serves course frame data; the bus carries the conversation.
-2. **Intent buttons** post structured events (`{intent: "test", kata}` …). The broker translates them into the agent's native input (a prompt carrying the intent + test output), so the agent reacts instead of bookkeeping.
+2. **Check** posts one structured event (`{intent: "check", kata}`). The broker runs the tests, flips the UI state (red Failed / green Success), and hands the results to the agent as native input — the agent reacts (advice on fail; progression narration and optional review on pass) instead of bookkeeping.
 3. **Test runs** execute the manifest's test command server-side; results go to both the UI (raw) and the agent (context for narration).
 4. **Agent output** is normalized by adapters into typed parts (narration / question / status), reusing the `format.ts` tag vocabulary. Questions render as modals; answers post back as messages.
 5. **Monaco** edits the real file; save writes to disk; the watcher invalidates both surfaces.
@@ -101,10 +101,10 @@ No agenda/course shell, no embedded editor, no intent buttons, no broker adapter
 ## Feature Breakdown
 
 - **0101 `project-api`** — ✅ shipped. Read-only project state, learner-safe briefing, journal, cassettes; kata-state extraction into `@dojocho/config`; typed `hc` client.
-- **0102 `course-shell`** — Agenda with progressive disclosure (solved / current; not-started hidden behind a toggle), dojo overview, kata navigation, session/journal browsing, dojo/kata switching. Wire the dormant template (sidebar, MDX pipeline) to manifest data; delete placeholder content.
+- **0102 `course-shell`** — Table of contents: chapter numbers/names grayed out, current chapter highlighted, previous chapters navigable back (with history) for reviewing earlier material; dojo overview, session/journal browsing, dojo/kata switching. Wire the dormant template (sidebar, MDX pipeline) to manifest data; delete placeholder content.
 - **0103 `broker-and-adapters`** — The message API (in: message/intent/navigate; out: narration/question/status/test-results) with proxy adapters for **opencode** (HTTP+SSE) and **codex** (app-server JSON-RPC). Adapter contract normalizes events; sessions recorded to cassettes. Replaces `EchoExecutor`. (Claude adapter is 0107.)
-- **0104 `kata-workspace`** — Embedded Monaco on `katas/<name>/solution.ts`, `Test | Ask | Submit | Finish` action bar emitting intent events, server-side test execution endpoint, results pane.
-- **0105 `narrated-loop`** — Render adapter events: narration as rich text, agent questions as modals/popovers, status/unlock transitions animating the agenda. Finish flow: auto-test → results to agent → narrated feedback → next-kata handoff. SSE live-updates when terminal activity changes state.
+- **0104 `kata-workspace`** — Embedded Monaco on `katas/<name>/solution.ts`, the `Check` button with red Failed / green Success states, server-side test execution endpoint, persistent chat pane alongside the editor.
+- **0105 `narrated-loop`** — Render adapter events: narration as rich text in the chat pane, agent questions as modals/popovers, status transitions animating the table of contents. Check flow: tests → red/green state → results to agent → advice (fail) or progression narration + optional review (pass). SSE live-updates when terminal activity changes state.
 - **0106 `session-history`** — Cassette browser and transcript replay as course material (past submissions per kata, cross-linked from the agenda); requires landing `tracking.ts`.
 - **0107 `claude-adapter`** — Claude Code joins the broker: channel (MCP) into an active session where available, Agent SDK-spawned session as fallback; `/dojo start` slash command boots the server from inside a session.
 - **0108 `ui-distribution`** — `dojo ui` outside the monorepo: Nitro node-server bundle shipped with the published CLI, `--port`/`--no-open`, browser auto-open.
@@ -133,12 +133,12 @@ No agenda/course shell, no embedded editor, no intent buttons, no broker adapter
 - **Monaco vs. external editors**: concurrent edits to the same file. Mitigation: fs watcher + last-write-wins with a dirty-state warning in the workspace; the file on disk is always authoritative.
 - **Socratic contract in a richer UI**: buttons and modals must never become a "reveal answer" side-channel. Rule: every learner-visible string originates from the agent or the learner-safe briefing extraction.
 - **Local security**: test-execution and intent endpoints spawn processes. Bind 127.0.0.1, per-launch token minted by `dojo ui`, no wildcard CORS (already same-origin).
-- **Open**: how much agenda does progressive disclosure show — next-N or module-scoped? Proposal: current module visible, rest collapsed, "show all" toggle.
-- **Open**: does `Submit` differ from `Finish`? Working definition: Submit = run tests + request feedback; Finish = mark complete + sensei closes with insight + next-kata handoff.
+- **Decided (2026-07-09)**: one `Check` intent only — no checked-vs-finished distinction; pass implies progression, narrated by the agent.
+- **Decided (2026-07-09)**: TOC shows all chapter numbers/names grayed out, current highlighted, previous navigable with history; future chapters are visible but inert.
 
 ## Success Metrics
 
-- **Loop reality:** a learner completes a full kata **entirely in the browser** — intro, coding in Monaco, Test/Ask/Submit/Finish, narrated feedback — against a real agent (opencode or codex), and the session appears in `.dojo/cassettes/`.
+- **Loop reality:** a learner completes a full kata **entirely in the browser** — intro, coding in Monaco, Check to green, narrated feedback and progression — against a real agent (opencode or codex), and the session appears in `.dojo/cassettes/`.
 - **Interface parity:** the same kata completed in terminal and in web produces equivalent cassette transcripts (same protocol vocabulary).
 - **Liveness:** terminal-side kata completion reflects in the browser agenda in <2s.
 - **Adoption:** ≥40% of active learners launch `dojo ui` weekly (opt-in ping until 0300).
