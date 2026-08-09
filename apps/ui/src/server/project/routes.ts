@@ -145,7 +145,7 @@ const app = new Hono<{ Variables: ProjectVariables }>()
   if (!kata) return c.json({ error: `Kata not found: ${c.req.param("name")}` }, 404);
 
   const markdown = existsSync(kata.senseiPath)
-    ? extractLearnerBriefing(readFileSync(kata.senseiPath, "utf8"))
+    ? extractSenpaiBriefing(readFileSync(kata.senseiPath, "utf8"))
     : "";
   return c.json({ name: kata.name, path: relative(root, kata.senseiPath), markdown });
   })
@@ -273,7 +273,7 @@ function toProjectKata(
   };
 }
 
-function extractLearnerBriefing(markdown: string): string {
+function extractSenpaiBriefing(markdown: string): string {
   const lines = markdown.split(/\r?\n/);
   const out: string[] = [];
   let inBriefing = false;

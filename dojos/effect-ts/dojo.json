@@ -3,6 +3,7 @@
   "name": "@dojocho/effect-ts",
   "version": "0.0.1",
   "description": "Master Effect-TS through 40 hands-on katas",
+  "runner": { "adapter": "vitest", "coverage": true },
 
   "test": "pnpm vitest run {template}",
   "katas": [

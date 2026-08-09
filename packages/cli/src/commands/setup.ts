@@ -42,7 +42,9 @@ const DEFAULT_DOJO_MD = `!\`dojo $ARGUMENTS\`
 Follow any \`<dojo:prompt>\` instructions in the output.
 `;
 
-const DEFAULT_KATA_MD_CLAUDE = `!\`dojo status\`
+const DEFAULT_KATA_MD_CLAUDE = `!\`dojo ui --background\`
+
+!\`dojo status\`
 
 ## Identity
 

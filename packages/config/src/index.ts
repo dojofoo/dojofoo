@@ -29,10 +29,12 @@ export function defineConfig(configOrFn: DojoUserConfig | ((env: ConfigEnv) => D
 
 export interface RunnerConfig {
   adapter?: "vitest" | "exit-code";
+  coverage?: boolean;
 }
 
 export interface ResolvedRunnerConfig {
   adapter: "vitest" | "exit-code";
+  coverage: boolean;
 }
 
 export interface ResolvedConfig {
@@ -47,7 +49,10 @@ export function resolveConfig(userConfig: DojoUserConfig, root: string): Resolve
   const katasPath = userConfig.katasPath
     ? resolve(basePath, userConfig.katasPath)
     : resolve(basePath, "katas");
-  const runner: ResolvedRunnerConfig = { adapter: userConfig.runner?.adapter ?? "vitest" };
+  const runner: ResolvedRunnerConfig = {
+    adapter: userConfig.runner?.adapter ?? "vitest",
+    coverage: userConfig.runner?.coverage ?? false,
+  };
   const registries = { dojocho: "https://dojocho.ai/r/{name}.json", ...userConfig.registries };
   return { basePath, katasPath, runner, registries };
 }
@@ -195,6 +200,9 @@ export function validateManifest(data: unknown): string[] {
       const runner = obj.runner as Record<string, unknown>;
       if ("adapter" in runner && runner.adapter !== "vitest" && runner.adapter !== "exit-code") {
         errors.push('"runner.adapter" must be "vitest" or "exit-code"');
+      }
+      if ("coverage" in runner && typeof runner.coverage !== "boolean") {
+        errors.push('"runner.coverage" must be a boolean');
       }
     }
   }

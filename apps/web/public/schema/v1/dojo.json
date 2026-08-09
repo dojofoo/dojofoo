@@ -69,6 +69,11 @@
           "enum": ["vitest", "exit-code"],
           "default": "vitest",
           "description": "Test runner adapter. 'vitest' parses JSON output for per-test results. 'exit-code' uses exit code only (works with any test framework)."
+        },
+        "coverage": {
+          "type": "boolean",
+          "default": false,
+          "description": "Collect line coverage when the selected runner adapter supports it."
         }
       }
     },

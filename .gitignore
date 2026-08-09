@@ -18,6 +18,9 @@ apps/web/src/routeTree.gen.ts
 .vercel
 .tanstack
 **/.source
+apps/ui/test-results/
+apps/ui/playwright-report/
+dojos/*/coverage/
 
 # Runtime artifacts
 /logs/

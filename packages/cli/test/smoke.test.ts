@@ -465,6 +465,39 @@ describe("dojo kata --note", () => {
   });
 });
 
+describe("dojo kata --check reporting", () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = makeTmpDir();
+    writeRc(root, { currentDojo: "my-dojo", currentKata: "001-basics", editor: null });
+    writeDojoJson(root, "my-dojo", {
+      name: "my-dojo",
+      version: "1.0.0",
+      description: "test",
+      runner: { adapter: "exit-code" },
+      test: "true",
+      katas: [{ template: "katas/001-basics/solution.ts", name: "001-basics" }],
+    });
+    writeWorkspaceFile(root, "001-basics", "solution.ts");
+  });
+
+  afterEach(() => { rmSync(root, { recursive: true, force: true }); });
+
+  it("emits the normalized test report without agent prompts as JSON", () => {
+    const output = captureLog(() => kata(root, ["--check", "--reporter=json"]));
+    expect(JSON.parse(output)).toEqual({
+      total: 1,
+      passed: 1,
+      failed: 0,
+      skipped: 0,
+      tests: [{ name: "all tests", suite: [], status: "passed", failureMessages: [] }],
+      error: null,
+    });
+    expect(output).not.toContain("<dojo:prompt>");
+  });
+});
+
 describe("dojo:learnings emission", () => {
   let root: string;
 
