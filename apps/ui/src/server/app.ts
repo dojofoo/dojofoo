@@ -10,6 +10,7 @@ import { EchoExecutor } from "./executor";
 import { honoAgentCardHandler } from "./a2a/agent-card";
 import { honoJsonRpcHandler } from "./a2a/jsonrpc";
 import { projectRoutes } from "./project/routes";
+import { lessonRoutes } from "./lesson/routes";
 
 /**
  * Construct the Hono app that owns all A2A routes.
@@ -64,8 +65,9 @@ function buildApp() {
   // Liveness.
   app.get("/api/health", (c) => c.json({ ok: true, version: agentCard.version }));
 
-  // Local learner project API.
+  // Local senpai project API.
   app.route("/api/project", projectRoutes);
+  app.route("/api/lesson", lessonRoutes);
 
   // A2A endpoints.
   app.get("/.well-known/agent-card.json", honoAgentCardHandler(requestHandler));

@@ -277,6 +277,7 @@ function start(root: string): void {
 }
 
 function check(root: string, args: string[]): void {
+  const jsonReporter = args.includes("--reporter=json");
   const rc = readDojoRc(root);
 
   if (!rc.currentDojo) {
@@ -313,17 +314,26 @@ function check(root: string, args: string[]): void {
   const workspaceRel = relative(root, target.workspacePath);
 
   if (result.error) {
+    if (jsonReporter) {
+      console.log(JSON.stringify(result));
+      return;
+    }
     throw new Error(`${target.name}: error\n\n${result.error}`);
   }
 
   const lines = result.tests.map(
-    (t) => `  [${t.status === "passed" ? "x" : " "}] ${t.title}`,
+    (t) => `  [${t.status === "passed" ? "x" : " "}] ${[...t.suite, t.name].join(" > ")}`,
   );
 
   if (result.passed === result.total && result.total > 0) {
     // Record completion
     recordCompletion(rc, target.name);
     writeDojoRc(root, rc);
+
+    if (jsonReporter) {
+      console.log(JSON.stringify(result));
+      return;
+    }
 
     console.log(`${target.name}: ${result.total}/${result.total} — complete!\n\n${lines.join("\n")}`);
     console.log(prompt(`Congratulate the student! All tests are passing. Celebrate their achievement before presenting options.
@@ -332,6 +342,11 @@ Then ${invokeAsk()} to ask the student:
 - "Review" (Get feedback on idiomatic patterns and potential improvements) → read ${workspaceRel} and run: ${CLI} kata, suggest improvements (Socratic only)
 - "Move on" (Wrap up with key insight, then start next kata) → run: ${CLI} kata, follow On Completion (insight + bridge), then run: ${CLI} kata --start
 - "Pause" (Take a break, come back anytime) → give a friendly sign-off and remind them to run /kata when ready to continue`));
+    return;
+  }
+
+  if (jsonReporter) {
+    console.log(JSON.stringify(result));
     return;
   }
 
