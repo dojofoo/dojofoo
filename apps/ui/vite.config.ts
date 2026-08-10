@@ -17,11 +17,11 @@ export default defineConfig({
   },
   ssr: {
     // jiti loads supporting files relative to its package at runtime.
-    external: ["jiti"],
+    external: ["jiti", "typescript"],
   },
   build: {
     rolldownOptions: {
-      external: ["jiti"],
+      external: ["jiti", "typescript"],
     },
   },
   plugins: [

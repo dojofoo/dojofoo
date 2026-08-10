@@ -1,8 +1,10 @@
+import { autocompletion, completionKeymap, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { undo } from "@codemirror/commands";
 import { codeFolding, foldGutter, HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { Decoration, EditorView, GutterMarker, gutterLineClass, type DecorationSet } from "@codemirror/view";
+import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
+import { Decoration, EditorView, GutterMarker, gutterLineClass, keymap, type DecorationSet } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import CodeMirror, { RangeSetBuilder, StateField } from "@uiw/react-codemirror";
 
@@ -20,6 +22,33 @@ const vercelDark = EditorView.theme({
     color: "#878787",
   },
   ".cm-activeLineGutter": { backgroundColor: "#ffffff1a", color: "#a1a1a1" },
+  ".cm-tooltip": {
+    backgroundColor: "#111111",
+    border: "1px solid #333333",
+    borderRadius: "0",
+    color: "#ededed",
+    fontFamily: "Iosevka, monospace",
+  },
+  ".cm-tooltip-autocomplete > ul": { maxHeight: "16rem" },
+  ".cm-tooltip-autocomplete > ul > li": {
+    alignItems: "center",
+    cursor: "pointer",
+    display: "flex",
+    minHeight: "1.75rem",
+    padding: "0 0.625rem",
+  },
+  ".cm-tooltip-autocomplete > ul > li[aria-selected]": {
+    backgroundColor: "#0070f3",
+    color: "#ffffff",
+  },
+  ".cm-completionIcon": { color: "#878787", opacity: "1", width: "1.25rem" },
+  ".cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionIcon": { color: "#ffffff" },
+  ".cm-completionLabel": { fontSize: "0.8125rem" },
+  ".cm-completionDetail": { color: "#878787", fontStyle: "normal", marginLeft: "1rem" },
+  ".cm-diagnostic": { borderLeft: "2px solid #e5484d", padding: "0.5rem 0.75rem" },
+  ".cm-diagnosticText": { fontFamily: "Iosevka, monospace", fontSize: "0.75rem" },
+  ".cm-lintRange-error": { backgroundImage: "none", textDecoration: "underline wavy #e5484d" },
+  ".cm-lintRange-warning": { backgroundImage: "none", textDecoration: "underline wavy #f5a623" },
 }, { dark: true });
 
 const vercelHighlight = HighlightStyle.define([
@@ -58,6 +87,7 @@ export default function CodeEditor({
   const languageExtension = language === "python"
     ? python()
     : javascript({ jsx: true, typescript: language === "typescript" });
+  const languageTools = language === "typescript" ? typescriptLanguageTools(filePath) : [];
 
   return (
     <div
@@ -67,7 +97,7 @@ export default function CodeEditor({
     >
       <CodeMirror
         basicSetup={{
-          autocompletion: true,
+          autocompletion: false,
           bracketMatching: true,
           closeBrackets: true,
           foldGutter: false,
@@ -81,6 +111,7 @@ export default function CodeEditor({
         editable={!readOnly}
         extensions={[
           languageExtension,
+          languageTools,
           preciseFolding,
           coverageExtension(coverage ? lineHits : undefined, failedLines),
           EditorView.contentAttributes.of({ "aria-label": "Solution code" }),
@@ -94,6 +125,55 @@ export default function CodeEditor({
       />
     </div>
   );
+}
+
+type CompletionResponse = {
+  from: number;
+  options: Array<{ label: string; type: string }>;
+};
+
+type DiagnosticResponse = Array<Diagnostic & { code: number }>;
+
+function typescriptLanguageTools(filePath: string) {
+  return [
+    autocompletion({ override: [typescriptCompletions(filePath)] }),
+    keymap.of(completionKeymap),
+    linter(async (view) => {
+      const response = await fetch("/api/lesson/language/diagnostics", {
+        body: JSON.stringify({ code: view.state.doc.toString(), filePath }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      if (!response.ok) return [];
+      const diagnostics = await response.json() as DiagnosticResponse;
+      return diagnostics.map(({ code, ...diagnostic }) => ({
+        ...diagnostic,
+        source: `TypeScript ${code}`,
+      }));
+    }, { delay: 500 }),
+    lintGutter(),
+  ];
+}
+
+function typescriptCompletions(filePath: string) {
+  return async (context: CompletionContext): Promise<CompletionResult | null> => {
+    const word = context.matchBefore(/[\w$]*/);
+    if (!context.explicit && word?.from === word?.to && context.state.sliceDoc(Math.max(0, context.pos - 1), context.pos) !== ".") {
+      return null;
+    }
+    const response = await fetch("/api/lesson/language/completions", {
+      body: JSON.stringify({
+        code: context.state.doc.toString(),
+        filePath,
+        position: context.pos,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    if (!response.ok) return null;
+    const result = await response.json() as CompletionResponse;
+    return { ...result, validFor: /^[\w$]*$/ };
+  };
 }
 
 const preciseFolding = [

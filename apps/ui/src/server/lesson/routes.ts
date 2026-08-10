@@ -13,6 +13,7 @@ import {
   startLesson,
   streamSensei,
 } from "./service";
+import { getTypeScriptCompletions, getTypeScriptDiagnostics } from "./typescript-language-service";
 
 const root = () => resolve(process.env.DOJO_PROJECT_ROOT ?? findProjectRoot());
 
@@ -44,6 +45,14 @@ const app = new Hono()
   .post("/solution", async (c) => {
     const body = await c.req.json<{ code: string }>();
     return c.json(await saveSolution(root(), body.code));
+  })
+  .post("/language/completions", async (c) => {
+    const body = await c.req.json<{ code: string; filePath: string; position: number }>();
+    return c.json(getTypeScriptCompletions({ ...body, projectRoot: root() }));
+  })
+  .post("/language/diagnostics", async (c) => {
+    const body = await c.req.json<{ code: string; filePath: string }>();
+    return c.json(getTypeScriptDiagnostics({ ...body, projectRoot: root() }));
   })
   .post("/reset", async (c) => c.json(await resetSolution(root())))
   .post("/check", async (c) => {

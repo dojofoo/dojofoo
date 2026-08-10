@@ -167,3 +167,52 @@ test("uses the Vercel dark palette in the editor", async ({ page }) => {
   await expect(page.locator(".cm-line").first().locator("span").first()).toHaveCSS("color", "rgb(240, 91, 141)");
   await expect(page.locator(".cm-gutters")).toHaveCSS("border-right-color", "rgb(36, 36, 36)");
 });
+
+test("completes Effect members and marks unknown TypeScript names", async ({ page }) => {
+  await page.route("**/api/lesson", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      briefing: "Practice typed Effect constructors.",
+      checkpointed: false,
+      code: 'import { Effect } from "effect";\nconst answer = Effect.su',
+      dojo: "effect-ts",
+      filePath: "katas/001-hello-effect/solution.ts",
+      introduced: true,
+      isCurrent: true,
+      kata: "001-hello-effect",
+      language: "typescript",
+      lessons: [{ isCurrent: true, name: "001-hello-effect", state: "ongoing", summary: "Learn Effect constructors.", title: "Hello Effect" }],
+      result: null,
+      sessionId: null,
+      state: "ongoing",
+      title: "Hello Effect",
+      transcript: [{ role: "assistant", text: "Begin when you are ready." }],
+    }),
+  }));
+  await page.route("**/api/lesson/activity**", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ status: "idle", reasoning: "", steps: [], context: {}, questions: null }),
+  }));
+  await page.goto("/");
+  const editor = page.getByRole("textbox", { name: "Solution code" });
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText('import { Effect } from "effect";\nconst answer = Effect.');
+  await page.keyboard.type("su");
+
+  const completion = page.locator(".cm-tooltip-autocomplete");
+  await expect(completion).toBeVisible();
+  await expect(completion.getByText("succeed", { exact: true })).toBeVisible();
+  await expect(completion).toHaveCSS("background-color", "rgb(17, 17, 17)");
+  await expect(completion).toHaveCSS("border-radius", "0px");
+  await expect(completion.locator('[aria-selected="true"]')).toHaveCSS("background-color", "rgb(0, 112, 243)");
+
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText("export const answer = unknownEffectValue;");
+  const diagnostic = page.locator(".cm-lintRange-error");
+  await expect(diagnostic).toBeVisible();
+  await expect(diagnostic).toHaveCSS("text-decoration-style", "wavy");
+  await diagnostic.hover();
+  await expect(page.locator(".cm-tooltip-lint")).toContainText("Cannot find name 'unknownEffectValue'.");
+});
