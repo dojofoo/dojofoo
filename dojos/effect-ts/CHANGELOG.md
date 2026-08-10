@@ -1,5 +1,13 @@
 # @dojocho/effect-ts
 
+## 0.0.4
+
+### Patch Changes
+
+- 4e20588: Ship the production Dojo web UI inside the installable CLI, launch it without a monorepo checkout, and include machine-readable lesson checks with coverage support.
+- Updated dependencies [4e20588]
+  - @dojocho/config@0.0.4
+
 ## 0.0.3
 
 ### Patch Changes

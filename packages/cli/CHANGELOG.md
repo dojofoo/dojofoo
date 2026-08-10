@@ -1,5 +1,16 @@
 # dojocho
 
+## 1.1.0
+
+### Minor Changes
+
+- 4e20588: Ship the production Dojo web UI inside the installable CLI, launch it without a monorepo checkout, and include machine-readable lesson checks with coverage support.
+
+### Patch Changes
+
+- Updated dependencies [4e20588]
+  - @dojocho/config@0.0.4
+
 ## 1.0.1
 
 ### Patch Changes
