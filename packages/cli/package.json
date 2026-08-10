@@ -36,15 +36,18 @@
     "dojo": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/bundle-ui.mjs",
     "test": "vitest run",
+    "test:package": "node scripts/test-packed-ui.mjs",
     "test:watch": "vitest",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@dojocho/config": "workspace:*"
+    "@dojocho/config": "workspace:*",
+    "jiti": "^2.7.0"
   },
   "devDependencies": {
+    "@dojocho/ui": "workspace:*",
     "tsup": "^8.0.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
