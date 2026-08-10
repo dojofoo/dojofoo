@@ -9,6 +9,13 @@ updates:
         dependency-type: production
       development:
         dependency-type: development
+    ignore:
+      - dependency-name: "@a2a-js/sdk"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: github-actions
     directory: /
     schedule:
