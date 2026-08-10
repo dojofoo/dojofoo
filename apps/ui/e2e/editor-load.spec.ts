@@ -217,12 +217,13 @@ test("completes Effect members and marks unknown TypeScript names", async ({ pag
 
   await page.keyboard.press("Escape");
   await page.keyboard.press("ControlOrMeta+A");
-  await page.keyboard.insertText("export const answer = unknownEffectValue;");
-  const diagnostic = page.locator(".cm-lintRange-error");
+  await page.keyboard.insertText('import { Effect } from "effect";\nexport const answer = unknownEffectValue;\nEffect.');
+  await page.keyboard.type("su");
+  await expect(completion).toBeVisible();
+  const diagnostic = page.locator(".cm-lintRange-error").filter({ hasText: "unknownEffectValue" });
   await expect(diagnostic).toBeVisible();
-  await expect(diagnostic).toHaveCSS("text-decoration-style", "wavy");
-  const errorMarker = page.locator(".cm-lint-marker-error");
-  const errorLine = page.locator(".cm-line").last();
+  const errorMarker = page.locator(".cm-lint-marker-error").first();
+  const errorLine = page.locator(".cm-line").nth(1);
   const markerBox = (await errorMarker.boundingBox())!;
   const errorLineBox = (await errorLine.boundingBox())!;
   const editorFontSize = Number.parseFloat(await page.locator(".cm-editor").evaluate((editor) => getComputedStyle(editor).fontSize));
@@ -230,13 +231,23 @@ test("completes Effect members and marks unknown TypeScript names", async ({ pag
   expect(markerBox.height).toBeCloseTo(editorFontSize, 0);
   expect(markerBox.y + markerBox.height / 2).toBeCloseTo(errorLineBox.y + errorLineBox.height / 2, 0);
   await errorMarker.hover({ position: { x: 1, y: 1 } });
+  await expect(completion).toBeHidden();
   const errorTooltip = page.locator(".cm-tooltip-lint");
   await expect(errorTooltip).toContainText("Cannot find name 'unknownEffectValue'.");
-  expect((await errorTooltip.boundingBox())!.width).toBeGreaterThanOrEqual(320);
-  await expect(errorTooltip.locator(".cm-diagnosticText")).toHaveCSS("font-size", "13.5px");
+  const errorTooltipBox = (await errorTooltip.boundingBox())!;
+  expect(errorTooltipBox.width).toBeGreaterThanOrEqual(320);
+  expect(errorTooltipBox.y).toBeGreaterThanOrEqual(errorLineBox.y + errorLineBox.height);
+  await expect(errorTooltip.locator(".cm-diagnosticText")).toHaveCSS("font-size", "15px");
   expect(await errorMarker.evaluate((marker) => getComputedStyle(marker).content)).toContain("svg");
   const foldGutterLine = page.locator(".cm-foldGutter .cm-gutterElement").first();
   await expect(foldGutterLine).toHaveCSS("padding-left", "0px");
   await expect(foldGutterLine).toHaveCSS("padding-right", "4px");
   expect((await page.locator(".cm-gutters").boundingBox())!.width).toBeLessThan(52);
+
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText('import { Effect } from "effect";\nexport const answer = () => {\n  return Effect.succeed("x"\n};');
+  const punctuationDiagnostic = page.locator(".cm-lintRange-error").filter({ hasText: "};" });
+  await expect(punctuationDiagnostic).toBeVisible();
+  await expect(punctuationDiagnostic).toHaveCSS("background-repeat", "repeat-x");
+  await expect(punctuationDiagnostic).not.toHaveCSS("background-image", "none");
 });

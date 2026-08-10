@@ -77,4 +77,15 @@ describe("TypeScript lesson language service", () => {
       message: expect.stringContaining("unknownFunction"),
     }));
   });
+
+  it("underlines adjoining punctuation for punctuation diagnostics", () => {
+    const { root, source } = project();
+    const code = `import { Effect } from "effect";\nexport const answer = () => {\n  return Effect.succeed("x"\n};`;
+
+    const diagnostic = getTypeScriptDiagnostics({ code, filePath: source, projectRoot: root })
+      .find(({ code: diagnosticCode }) => diagnosticCode === 1005);
+
+    expect(diagnostic).toBeDefined();
+    expect(code.slice(diagnostic!.from, diagnostic!.to)).toBe("};");
+  });
 });

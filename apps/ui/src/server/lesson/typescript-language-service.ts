@@ -61,7 +61,7 @@ export function getTypeScriptDiagnostics(request: LanguageRequest): TypeScriptDi
   return diagnostics.flatMap((diagnostic) => {
     if (diagnostic.start === undefined) return [];
     const from = Math.min(diagnostic.start, request.code.length);
-    const to = Math.min(from + Math.max(diagnostic.length ?? 1, 1), request.code.length);
+    const to = diagnosticEnd(request.code, from, diagnostic.length ?? 0);
     return [{
       code: diagnostic.code,
       from,
@@ -70,6 +70,18 @@ export function getTypeScriptDiagnostics(request: LanguageRequest): TypeScriptDi
       to,
     }];
   });
+}
+
+function diagnosticEnd(code: string, from: number, length: number): number {
+  let to = Math.min(from + Math.max(length, 1), code.length);
+  if (length <= 1 && isPunctuation(code.slice(from, to)) && isPunctuation(code[to] ?? "")) {
+    to += 1;
+  }
+  return to;
+}
+
+function isPunctuation(value: string): boolean {
+  return value.length === 1 && /[^\w\s$]/.test(value);
 }
 
 function languageSession(projectRoot: string, filePath: string, code: string): LanguageSession {
