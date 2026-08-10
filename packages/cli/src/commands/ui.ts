@@ -3,10 +3,10 @@ import { execFileSync, spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export function ui(_cwd: string, args: string[]): void {
-  const uiDir = resolveUiDir();
-  if (!uiDir) {
-    console.error("Could not locate the bundled dojo UI.");
+export function ui(cwd: string, args: string[]): void {
+  const uiEntry = resolveUiEntry();
+  if (!uiEntry) {
+    console.error("Could not locate the bundled dojo UI server.");
     process.exit(1);
   }
 
@@ -18,7 +18,7 @@ export function ui(_cwd: string, args: string[]): void {
   const shouldOpen = !args.includes("--no-open");
   const tld = valueAfter(args, "--tld");
 
-  if (hasCommand("portless")) {
+  if (process.env.DOJO_UI_DISABLE_PORTLESS !== "1" && hasCommand("portless")) {
     const active = activePortlessUrl(name);
     if (active) {
       console.log(active);
@@ -28,9 +28,9 @@ export function ui(_cwd: string, args: string[]): void {
 
     const portlessArgs = ["--name", name];
     if (tld) portlessArgs.push("--tld", tld);
-    portlessArgs.push("--", "pnpm", "dev");
+    portlessArgs.push("--", process.execPath, uiEntry);
     const child = spawn("portless", portlessArgs, {
-      cwd: uiDir,
+      cwd,
       env: process.env,
       stdio: background ? "ignore" : "inherit",
       detached: background,
@@ -53,8 +53,8 @@ export function ui(_cwd: string, args: string[]): void {
   const port = process.env.PORT ?? process.env.DOJO_UI_PORT ?? "4567";
   const url = `http://localhost:${port}`;
   console.log(url);
-  const child = spawn("pnpm", ["dev"], {
-    cwd: uiDir,
+  const child = spawn(process.execPath, [uiEntry], {
+    cwd,
     env: { ...process.env, PORT: port },
     stdio: background ? "ignore" : "inherit",
     detached: background,
@@ -105,14 +105,11 @@ function valueAfter(args: string[], flag: string): string | undefined {
   return index >= 0 ? args[index + 1] : undefined;
 }
 
-function resolveUiDir(): string | null {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    const candidate = join(dir, "apps", "ui");
-    if (existsSync(join(candidate, "package.json"))) return candidate;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return null;
+export function resolveUiEntry(moduleUrl = import.meta.url): string | null {
+  const dir = dirname(fileURLToPath(moduleUrl));
+  const candidates = [
+    join(dir, "ui", "server", "index.mjs"),
+    join(dir, "..", "..", "..", "..", "apps", "ui", ".output", "server", "index.mjs"),
+  ];
+  return candidates.find(existsSync) ?? null;
 }

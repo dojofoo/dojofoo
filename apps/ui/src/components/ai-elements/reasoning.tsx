@@ -23,7 +23,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Streamdown } from "streamdown";
+import { Streamdown, type CodeHighlighterPlugin } from "streamdown";
 
 import { Shimmer } from "./shimmer";
 
@@ -204,7 +204,14 @@ export type ReasoningContentProps = ComponentProps<
   children: string;
 };
 
-const streamdownPlugins = { cjk, code, math, mermaid };
+// Streamdown resolves this type through the app's Shiki version, while
+// @streamdown/code currently ships the same runtime contract on Shiki 3.
+const streamdownPlugins = {
+  cjk,
+  code: code as unknown as CodeHighlighterPlugin,
+  math,
+  mermaid,
+};
 
 export const ReasoningContent = memo(
   ({ className, children, ...props }: ReasoningContentProps) => (

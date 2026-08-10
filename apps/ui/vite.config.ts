@@ -15,6 +15,15 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  ssr: {
+    // jiti loads supporting files relative to its package at runtime.
+    external: ["jiti"],
+  },
+  build: {
+    rolldownOptions: {
+      external: ["jiti"],
+    },
+  },
   plugins: [
     tailwindcss(),
     tanstackStart(),
