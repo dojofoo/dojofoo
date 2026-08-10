@@ -203,10 +203,17 @@ test("completes Effect members and marks unknown TypeScript names", async ({ pag
   const completion = page.locator(".cm-tooltip-autocomplete");
   await expect(completion).toBeVisible();
   await expect(completion.getByText("succeed", { exact: true })).toBeVisible();
-  await expect(completion).toHaveCSS("background-color", "rgb(30, 30, 30)");
+  await expect(completion).toHaveCSS("background-color", "rgb(0, 0, 0)");
   await expect(completion).toHaveCSS("border-radius", "0px");
-  await expect(completion.locator('[aria-selected="true"]')).toHaveCSS("background-color", "rgb(44, 44, 44)");
+  await expect(completion).toHaveCSS("border-left-color", "rgb(98, 166, 255)");
+  await expect(completion.locator('[aria-selected="true"]')).toHaveCSS("background-color", "rgba(255, 255, 255, 0.1)");
   await expect(completion.locator(".cm-completionMatchedText").first()).toHaveCSS("text-decoration-line", "none");
+  const editorLine = page.locator(".cm-line").last();
+  const option = completion.locator("li").first();
+  const lineBox = (await editorLine.boundingBox())!;
+  const completionBox = (await completion.boundingBox())!;
+  expect(completionBox.y).toBeGreaterThanOrEqual(lineBox.y + lineBox.height);
+  expect((await option.boundingBox())!.height).toBeCloseTo(lineBox.height, 0);
 
   await page.keyboard.press("Escape");
   await page.keyboard.press("ControlOrMeta+A");
@@ -219,4 +226,7 @@ test("completes Effect members and marks unknown TypeScript names", async ({ pag
   await expect(errorTooltip).toContainText("Cannot find name 'unknownEffectValue'.");
   expect((await errorTooltip.boundingBox())!.width).toBeGreaterThanOrEqual(320);
   expect((await page.locator(".cm-lint-marker-error").boundingBox())!.width).toBeLessThan(10);
+  await expect(errorTooltip.locator(".cm-diagnosticText")).toHaveCSS("font-size", "13.5px");
+  expect(await page.locator(".cm-lint-marker-error").evaluate((marker) => getComputedStyle(marker).content)).toContain("svg");
+  expect((await page.locator(".cm-gutters").boundingBox())!.width).toBeLessThan(52);
 });
