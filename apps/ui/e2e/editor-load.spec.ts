@@ -167,3 +167,87 @@ test("uses the Vercel dark palette in the editor", async ({ page }) => {
   await expect(page.locator(".cm-line").first().locator("span").first()).toHaveCSS("color", "rgb(240, 91, 141)");
   await expect(page.locator(".cm-gutters")).toHaveCSS("border-right-color", "rgb(36, 36, 36)");
 });
+
+test("completes Effect members and marks unknown TypeScript names", async ({ page }) => {
+  await page.route("**/api/lesson", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      briefing: "Practice typed Effect constructors.",
+      checkpointed: false,
+      code: 'import { Effect } from "effect";\nconst answer = Effect.su',
+      dojo: "effect-ts",
+      filePath: "katas/001-hello-effect/solution.ts",
+      introduced: true,
+      isCurrent: true,
+      kata: "001-hello-effect",
+      language: "typescript",
+      lessons: [{ isCurrent: true, name: "001-hello-effect", state: "ongoing", summary: "Learn Effect constructors.", title: "Hello Effect" }],
+      result: null,
+      sessionId: null,
+      state: "ongoing",
+      title: "Hello Effect",
+      transcript: [{ role: "assistant", text: "Begin when you are ready." }],
+    }),
+  }));
+  await page.route("**/api/lesson/activity**", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ status: "idle", reasoning: "", steps: [], context: {}, questions: null }),
+  }));
+  await page.goto("/");
+  const editor = page.getByRole("textbox", { name: "Solution code" });
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText('import { Effect } from "effect";\nconst answer = Effect.');
+  await page.keyboard.type("su");
+
+  const completion = page.locator(".cm-tooltip-autocomplete");
+  await expect(completion).toBeVisible();
+  await expect(completion.getByText("succeed", { exact: true })).toBeVisible();
+  await expect(completion).toHaveCSS("background-color", "rgb(0, 0, 0)");
+  await expect(completion).toHaveCSS("border-radius", "0px");
+  await expect(completion).toHaveCSS("border-left-color", "rgb(98, 166, 255)");
+  await expect(completion.locator('[aria-selected="true"]')).toHaveCSS("background-color", "rgba(255, 255, 255, 0.1)");
+  await expect(completion.locator(".cm-completionMatchedText").first()).toHaveCSS("text-decoration-line", "none");
+  const editorLine = page.locator(".cm-line").last();
+  const option = completion.locator("li").first();
+  const lineBox = (await editorLine.boundingBox())!;
+  const completionBox = (await completion.boundingBox())!;
+  expect(completionBox.y).toBeGreaterThanOrEqual(lineBox.y + lineBox.height);
+  expect((await option.boundingBox())!.height).toBeCloseTo(lineBox.height, 0);
+
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText('import { Effect } from "effect";\nexport const answer = unknownEffectValue;\nEffect.');
+  await page.keyboard.type("su");
+  await expect(completion).toBeVisible();
+  const diagnostic = page.locator(".cm-lintRange-error").filter({ hasText: "unknownEffectValue" });
+  await expect(diagnostic).toBeVisible();
+  const errorMarker = page.locator(".cm-lint-marker-error").first();
+  const errorLine = page.locator(".cm-line").nth(1);
+  const markerBox = (await errorMarker.boundingBox())!;
+  const errorLineBox = (await errorLine.boundingBox())!;
+  const editorFontSize = Number.parseFloat(await page.locator(".cm-editor").evaluate((editor) => getComputedStyle(editor).fontSize));
+  expect(markerBox.width).toBeCloseTo(editorFontSize, 0);
+  expect(markerBox.height).toBeCloseTo(editorFontSize, 0);
+  expect(markerBox.y + markerBox.height / 2).toBeCloseTo(errorLineBox.y + errorLineBox.height / 2, 0);
+  await errorMarker.hover({ position: { x: 1, y: 1 } });
+  await expect(completion).toBeHidden();
+  const errorTooltip = page.locator(".cm-tooltip-lint");
+  await expect(errorTooltip).toContainText("Cannot find name 'unknownEffectValue'.");
+  const errorTooltipBox = (await errorTooltip.boundingBox())!;
+  expect(errorTooltipBox.width).toBeGreaterThanOrEqual(320);
+  expect(errorTooltipBox.y).toBeGreaterThanOrEqual(errorLineBox.y + errorLineBox.height);
+  await expect(errorTooltip.locator(".cm-diagnosticText")).toHaveCSS("font-size", "15px");
+  expect(await errorMarker.evaluate((marker) => getComputedStyle(marker).content)).toContain("svg");
+  const foldGutterLine = page.locator(".cm-foldGutter .cm-gutterElement").first();
+  await expect(foldGutterLine).toHaveCSS("padding-left", "0px");
+  await expect(foldGutterLine).toHaveCSS("padding-right", "4px");
+  expect((await page.locator(".cm-gutters").boundingBox())!.width).toBeLessThan(52);
+
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText('import { Effect } from "effect";\nexport const answer = () => {\n  return Effect.succeed("x"\n};');
+  const punctuationDiagnostic = page.locator(".cm-lintRange-error").filter({ hasText: "};" });
+  await expect(punctuationDiagnostic).toBeVisible();
+  await expect(punctuationDiagnostic).toHaveCSS("background-repeat", "repeat-x");
+  await expect(punctuationDiagnostic).not.toHaveCSS("background-image", "none");
+});
