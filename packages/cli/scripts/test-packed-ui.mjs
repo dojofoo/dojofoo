@@ -49,8 +49,8 @@ try {
   const port = await availablePort();
   const executable = resolve(installRoot, "node_modules/.bin/dojofoo");
   const help = execFileSync(executable, ["--help"], { encoding: "utf8" });
-  if (!help.includes("Usage: npx dojofoo") || !help.includes("install [--agent]")) {
-    throw new Error("Packed dojofoo executable does not advertise the install command.");
+  if (!help.includes("Usage: npx dojofoo") || !help.includes("install [--agent]") || !help.includes("ui [--background]")) {
+    throw new Error("Packed dojofoo executable does not advertise its install and UI commands.");
   }
   child = spawn(executable, ["ui", "--no-open"], {
     cwd: projectRoot,
