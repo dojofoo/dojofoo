@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { readInstalledSource } from "./source";
 
 export type CourseEventName = "installed" | "started" | "kata_completed" | "finished";
 
@@ -10,6 +11,11 @@ interface QueuedCourseEvent {
   event: CourseEventName;
   occurredAt: string;
   kata?: string;
+  source?: {
+    type: "github";
+    repository: string;
+    integrity?: string;
+  };
 }
 
 const queuedEvents: QueuedCourseEvent[] = [];
@@ -47,14 +53,24 @@ export function queueCourseEvent(
   courseName: string,
   event: CourseEventName,
   kata?: string,
+  source?: { type: "github"; locator: string; integrity?: string },
 ) {
   if (telemetryDisabled()) return;
+  const recorded = readInstalledSource(resolve(root, ".dojos", courseName));
+  const githubSource = source ?? (recorded?.type === "github" ? recorded : undefined);
   queuedEvents.push({
     root,
-    courseId: normalizeCourseId(courseName),
+    courseId: githubSource?.type === "github" ? githubSource.locator : normalizeCourseId(courseName),
     event,
     occurredAt: new Date().toISOString(),
     ...(kata ? { kata } : {}),
+    ...(event === "installed" && githubSource ? {
+      source: {
+        type: githubSource.type,
+        repository: githubSource.locator,
+        ...(githubSource.integrity ? { integrity: githubSource.integrity } : {}),
+      },
+    } : {}),
   });
 }
 

@@ -58,6 +58,50 @@ describe("course lifecycle telemetry", () => {
     expect(state).toEqual({ version: 1, instanceId: bodies[0].instanceId });
   });
 
+  it("reports a public GitHub source so an install can register itself", async () => {
+    const root = projectRoot();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    queueCourseEvent(root, "starter", "installed", undefined, {
+      type: "github",
+      locator: "dojofoo/starter",
+      integrity: "sha256-example",
+    });
+    await flushCourseEvents();
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      courseId: "dojofoo/starter",
+      source: {
+        type: "github",
+        repository: "dojofoo/starter",
+        integrity: "sha256-example",
+      },
+    });
+  });
+
+  it("keeps later lifecycle events attached to the repository recorded in the source lock", async () => {
+    const root = projectRoot();
+    mkdirSync(resolve(root, ".dojos/starter"), { recursive: true });
+    writeFileSync(resolve(root, ".dojos/starter/.dojo-source.json"), JSON.stringify({
+      version: 1,
+      type: "github",
+      locator: "external/package",
+      integrity: "sha256-example",
+    }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    queueCourseEvent(root, "starter", "started", "001-values");
+    await flushCourseEvents();
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      courseId: "external/package",
+      event: "started",
+      kata: "001-values",
+    });
+  });
+
   it("uses the stable Vercel API while the custom domain DNS is unavailable", async () => {
     const root = projectRoot();
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  LibsqlCourseStore,
   LibsqlCourseEventStore,
   libsqlConnectionFromEnv,
 } from "../src/libsql-event-store";
@@ -53,5 +54,39 @@ describe("LibsqlCourseEventStore", () => {
     expect(stored.instanceId).not.toBe(event.instanceId);
     expect(stored.instanceId).toMatch(/^[a-f0-9]{64}$/u);
     expect(await store.list("dojofoo/another-course")).toEqual([]);
+  });
+});
+
+describe("LibsqlCourseStore", () => {
+  it("persists external course snapshots across store instances", async () => {
+    const directory = mkdtempSync(resolve(tmpdir(), "dojofoo-courses-"));
+    temporaryDirectories.push(directory);
+    const config = { url: `file:${resolve(directory, "courses.db")}` };
+    const first = await LibsqlCourseStore.create(config);
+    const externalCourse = {
+      id: "acme/typescript-basics",
+      slug: "typescript-basics",
+      name: "TypeScript Basics",
+      source: "acme",
+      description: "A small external dojo.",
+      version: "0.0.1",
+      publishedAt: "2026-08-11T10:00:00.000Z",
+      repository: "acme/typescript-basics",
+      repositoryUrl: "https://github.com/acme/typescript-basics",
+      installs: 0,
+      sourceType: "github" as const,
+      installUrl: "acme/typescript-basics",
+      url: "https://dojo.foo/courses/acme/typescript-basics",
+      categories: ["TypeScript"],
+      kataCount: 1,
+      katas: ["001-values"],
+      hash: "sha256-course",
+      files: [{ path: "dojo.json", contents: "{}" }],
+    };
+
+    await first.upsert(externalCourse);
+    const reopened = await LibsqlCourseStore.create(config);
+
+    expect(await reopened.list()).toEqual([externalCourse]);
   });
 });

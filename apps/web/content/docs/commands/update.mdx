@@ -1,0 +1,21 @@
+---
+title: npx dojofoo update
+description: Update an installed dojo from its recorded source.
+---
+
+## Usage
+
+```sh
+npx dojofoo update <owner/repository|dojo>
+```
+
+For an external GitHub dojo:
+
+```sh
+npx dojofoo update dojofoo/starter
+```
+
+The CLI reads `.dojos/<name>/.dojo-source.json`, downloads the current repository
+snapshot, and replaces the installed course material only when its content changed.
+Learner solutions under `katas/` and progress under `.dojo/` and `.dojorc` are not
+part of the installed snapshot and remain unchanged.

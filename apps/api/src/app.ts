@@ -37,10 +37,26 @@ export interface CourseEvent {
   kata?: string;
 }
 
+export interface CourseRegistrationSource {
+  type: "github";
+  repository: string;
+  integrity?: string;
+}
+
+export interface CourseRegistrar {
+  register(source: CourseRegistrationSource): Promise<Course | null>;
+}
+
+export interface CourseStore {
+  list(): Promise<Course[]>;
+}
+
 interface CoursesAppOptions {
   courses?: Course[];
   events?: CourseEvent[];
   eventStore?: CourseEventStore;
+  registrar?: CourseRegistrar;
+  courseStore?: CourseStore;
 }
 
 const listingFields = ({
@@ -160,15 +176,24 @@ function courseMetrics(course: Course, events: CourseEvent[]) {
 }
 
 export function createCoursesApp(options: CoursesAppOptions = {}) {
-  const courses = options.courses ?? [];
+  const builtInCourses = [...(options.courses ?? [])];
+  const registeredCourses: Course[] = [];
   const eventStore = options.eventStore ?? new MemoryCourseEventStore(options.events);
   const legacyCourseId = (course: Course) =>
     course.source === "dojofoo" ? `dojocho/${course.slug}` : undefined;
-  const findCourse = (source: string, slug: string) => courses.find(
-    (candidate) =>
-      candidate.slug === slug
-      && (candidate.source === source || (source === "dojocho" && candidate.source === "dojofoo")),
-  );
+  const allCourses = async () => {
+    const externalCourses = options.courseStore ? await options.courseStore.list() : [];
+    return [...new Map(
+      [...builtInCourses, ...externalCourses, ...registeredCourses]
+        .map((course) => [course.id, course]),
+    ).values()];
+  };
+  const findCourse = async (source: string, slug: string) =>
+    (await allCourses()).find(
+      (candidate) =>
+        candidate.slug === slug
+        && (candidate.source === source || (source === "dojocho" && candidate.source === "dojofoo")),
+    );
   const eventsForCourse = async (course: Course) => {
     const legacyId = legacyCourseId(course);
     const eventGroups = await Promise.all(
@@ -180,13 +205,14 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
     ...course,
     installs: courseMetrics(course, await eventsForCourse(course)).installs,
   });
-  const catalogWithRecordedInstalls = () => Promise.all(courses.map(withRecordedInstalls));
+  const catalogWithRecordedInstalls = async () =>
+    Promise.all((await allCourses()).map(withRecordedInstalls));
 
   return new Elysia()
     .get("/health", () => ({ status: "ok" }))
     .get("/api/v1/health", () => ({ status: "ok" }))
-    .get("/api/v1/course-profiles", () => ({
-      data: courses.map(({ id, description, version, publishedAt, repository, repositoryUrl, categories, kataCount }) => ({
+    .get("/api/v1/course-profiles", async () => ({
+      data: (await allCourses()).map(({ id, description, version, publishedAt, repository, repositoryUrl, categories, kataCount }) => ({
         id,
         description,
         version,
@@ -285,7 +311,8 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
     .get("/api/v1/courses/curated", async ({ set }) => {
       set.headers["cache-control"] = snapshotCacheControl;
       const owners = new Map<string, Course[]>();
-      for (const course of await catalogWithRecordedInstalls()) {
+      const currentCourses = await catalogWithRecordedInstalls();
+      for (const course of currentCourses) {
         const owner = course.source.split("/")[0];
         owners.set(owner, [...(owners.get(owner) ?? []), course]);
       }
@@ -301,12 +328,12 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
           };
         }),
         totalOwners: owners.size,
-        totalCourses: courses.length,
+        totalCourses: currentCourses.length,
         generatedAt: new Date().toISOString(),
       };
     })
     .get("/api/v1/courses/:source/:slug/metrics", async ({ params, status }) => {
-      const course = findCourse(params.source, params.slug);
+      const course = await findCourse(params.source, params.slug);
       if (!course) {
         return status(404, { error: "course_not_found", message: "Course not found." });
       }
@@ -318,7 +345,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         message: "No audits exist for this course.",
       }))
     .get("/api/v1/courses/:source/:slug", async ({ params, set, status }) => {
-      const course = findCourse(params.source, params.slug);
+      const course = await findCourse(params.source, params.slug);
       if (!course) {
         return status(404, { error: "course_not_found", message: "Course not found." });
       }
@@ -334,7 +361,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       };
     })
     .get("/api/v1/courses/*", async ({ params, set, status }) => {
-      const course = courses.find((candidate) => candidate.id === params["*"]);
+      const course = (await allCourses()).find((candidate) => candidate.id === params["*"]);
       if (!course) {
         return status(404, { error: "course_not_found", message: "Course not found." });
       }
@@ -350,14 +377,41 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       };
     })
     .post("/api/v1/events", async ({ request, status }) => {
-      const body = (await request.json()) as Partial<CourseEvent>;
+      const body = (await request.json()) as Partial<CourseEvent> & {
+        source?: Partial<CourseRegistrationSource>;
+      };
       if (!body.instanceId) {
           return status(400, { error: "invalid_event", message: "instanceId is required." });
       }
-      const course = body.courseId
-        ? courses.find((candidate) =>
+      let course = body.courseId
+        ? (await allCourses()).find((candidate) =>
             candidate.id === body.courseId || legacyCourseId(candidate) === body.courseId)
         : undefined;
+      const sourceRepository = body.source?.repository;
+      if (
+        !course
+        && body.event === "installed"
+        && options.registrar
+        && body.source?.type === "github"
+        && typeof sourceRepository === "string"
+        && sourceRepository === body.courseId
+        && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(sourceRepository)
+      ) {
+        course = await options.registrar.register({
+          type: "github",
+          repository: sourceRepository,
+          ...(typeof body.source.integrity === "string"
+            ? { integrity: body.source.integrity }
+            : {}),
+        }) ?? undefined;
+        if (course && course.id === body.courseId) {
+          const registeredCourse = course;
+          if (!registeredCourses.some((candidate) => candidate.id === registeredCourse.id)) {
+            registeredCourses.push(registeredCourse);
+          }
+        }
+        else course = undefined;
+      }
       if (!course) {
         return status(400, { error: "invalid_event", message: "courseId is invalid." });
       }

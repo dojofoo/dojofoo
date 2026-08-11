@@ -8,6 +8,7 @@ import { remove } from "./commands/remove";
 import { status } from "./commands/status";
 import { ui } from "./commands/ui";
 import { track } from "./commands/track";
+import { update } from "./commands/update";
 import { flushCourseEvents } from "./telemetry";
 
 const [command, ...args] = process.argv.slice(2);
@@ -25,6 +26,8 @@ async function main() {
     await add(process.cwd(), args);
   } else if (command === "remove") {
     remove(findProjectRoot(), args);
+  } else if (command === "update") {
+    await update(findProjectRoot(), args);
   } else if (command === "status") {
     status(findProjectRoot(), args);
   } else if (command === "ui") {

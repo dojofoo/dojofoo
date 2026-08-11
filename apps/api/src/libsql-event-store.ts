@@ -3,7 +3,7 @@ import { createClient, type Config } from "@libsql/client";
 import { asc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { index, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import type { CourseEvent } from "./app";
+import type { Course, CourseEvent } from "./app";
 import type { CourseEventStore } from "./event-store";
 
 const eventNames = ["installed", "started", "kata_completed", "finished"] as const;
@@ -24,6 +24,11 @@ const courseEvents = sqliteTable(
     index("course_events_course_id_idx").on(table.courseId),
   ],
 );
+
+const externalCourses = sqliteTable("external_courses", {
+  id: text("id").primaryKey(),
+  snapshot: text("snapshot").notNull(),
+});
 
 function hashInstanceId(instanceId: string) {
   return createHash("sha256").update(instanceId).digest("hex");
@@ -94,5 +99,36 @@ export class LibsqlCourseEventStore implements CourseEventStore {
       .get();
 
     return inserted !== undefined;
+  }
+}
+
+export class LibsqlCourseStore {
+  private constructor(private readonly db: ReturnType<typeof drizzle>) {}
+
+  static async create(config: Config) {
+    const client = createClient(config);
+    const db = drizzle(client);
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS external_courses (
+        id TEXT PRIMARY KEY,
+        snapshot TEXT NOT NULL
+      )
+    `);
+    return new LibsqlCourseStore(db);
+  }
+
+  async list(): Promise<Course[]> {
+    const rows = await this.db.select().from(externalCourses).orderBy(asc(externalCourses.id));
+    return rows.map((row) => JSON.parse(row.snapshot) as Course);
+  }
+
+  async upsert(course: Course): Promise<void> {
+    await this.db
+      .insert(externalCourses)
+      .values({ id: course.id, snapshot: JSON.stringify(course) })
+      .onConflictDoUpdate({
+        target: externalCourses.id,
+        set: { snapshot: JSON.stringify(course) },
+      });
   }
 }

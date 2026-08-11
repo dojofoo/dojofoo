@@ -58,3 +58,21 @@ Content-Type: application/json
 `event` is one of `installed`, `started`, `kata_completed`, or `finished`. Repeating the same
 course, instance, event, and kata is idempotent. The server stores a SHA-256 hash of
 `instanceId`, not the submitted identifier.
+
+The first install of an external public GitHub dojo also includes its canonical source:
+
+```json
+{
+  "courseId": "owner/repository",
+  "event": "installed",
+  "source": {
+    "type": "github",
+    "repository": "owner/repository",
+    "integrity": "sha256-..."
+  }
+}
+```
+
+The API reads `dojo.json` and the course snapshot from GitHub and validates them before
+persisting the listing. Later progress events use the source lock to retain the same
+`owner/repository` course ID. Local paths, session IDs, and chat transcripts are not sent.

@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, cpSync, renameSync, unlinkSync, symlinkSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { execSync, execFileSync } from "node:child_process";
 import { resolve, relative } from "node:path";
 import { tmpdir } from "node:os";
@@ -17,6 +18,13 @@ import { configuredAgents } from "./setup";
 import { detectPackageManager, pmCommands } from "../pm";
 import { AGENTS } from "./setup";
 import { queueCourseEvent } from "../telemetry";
+import {
+  githubArchiveUrl,
+  parseGithubSource,
+  readInstalledSource,
+  writeInstalledSource,
+  type InstalledSource,
+} from "../source";
 
 export async function add(root: string, args: string[]): Promise<void> {
   const source = args.find((a) => !a.startsWith("--"));
@@ -29,6 +37,7 @@ Source can be:
   npm package:  ${CLI} add @dojofoo/effect-ts
   Registry:     ${CLI} add effect-ts
   URL:          ${CLI} add https://example.com/dojo.tgz
+  GitHub:       ${CLI} add owner/repository
 
 Flags:
   --force       Overwrite existing dojo`);
@@ -38,15 +47,17 @@ Flags:
   switch (sourceType) {
     case "local":    addLocal(root, source, force); break;
     case "npm":      addNpm(root, source, force); break;
+    case "github":   addGithub(root, source, force); break;
     case "url":      addUrl(root, source, force); break;
     case "registry": await addFromRegistry(root, source, force); break;
   }
 }
 
-function classifySource(source: string): "local" | "npm" | "url" | "registry" {
+export function classifySource(source: string): "local" | "npm" | "github" | "url" | "registry" {
   if (source.startsWith(".") || source.startsWith("/")) return "local";
   if (source.startsWith("https://") || source.startsWith("http://")) return "url";
-  if (source.startsWith("@") || source.includes("/")) return "npm";
+  if (source.startsWith("@")) return "npm";
+  if (parseGithubSource(source)) return "github";
   return "registry";
 }
 
@@ -97,19 +108,37 @@ function addLocal(root: string, source: string, force: boolean): void {
     if (tarballs.length === 0) throw new Error(`Failed to pack ${sourcePath}`);
 
     safeExtract(tarballs[0], tmpDir);
-    installExtracted(root, resolve(tmpDir, "package"), source, force);
+    installExtracted(root, resolve(tmpDir, "package"), source, force, {
+      version: 1,
+      type: "local",
+      locator: sourcePath,
+    });
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
   }
 }
 
-function installExtracted(root: string, extractedDir: string, source: string, force: boolean): void {
+function installExtracted(
+  root: string,
+  extractedDir: string,
+  source: string,
+  force: boolean,
+  installedSource?: InstalledSource,
+): void {
   const dojoJsonPath = resolve(extractedDir, "dojo.json");
   if (!existsSync(dojoJsonPath)) {
     throw new Error(`${source} is not a dojo — missing dojo.json`);
   }
   const manifest = parseManifest(readFileSync(dojoJsonPath, "utf8"), dojoJsonPath);
   const name = manifest.name.includes("/") ? manifest.name.split("/").pop()! : manifest.name;
+  const targetPath = dojoDir(root, name);
+  const currentSource = readInstalledSource(targetPath);
+  if (force && installedSource?.integrity && currentSource?.integrity === installedSource.integrity) {
+    console.log(`Dojo "${name}" is already up to date.`);
+    return;
+  }
+
+  if (installedSource) writeInstalledSource(extractedDir, installedSource);
 
   // Install deps in staging dir (still in tmpDir)
   const pm = pmCommands(root);
@@ -131,11 +160,40 @@ function installExtracted(root: string, extractedDir: string, source: string, fo
 
   // Move to final location
   handleExisting(root, name, force);
-  const targetPath = dojoDir(root, name);
   mkdirSync(resolve(root, DOJOS_DIR), { recursive: true });
   moveDir(extractedDir, targetPath);
 
-  finalize(root, name, targetPath);
+  finalize(root, name, targetPath, installedSource);
+}
+
+function addGithub(root: string, source: string, force: boolean): void {
+  const repository = parseGithubSource(source)?.repository;
+  if (!repository) throw new Error(`Invalid GitHub repository: ${source}`);
+  const tmpDir = resolve(tmpdir(), `dojofoo-${Date.now()}`);
+  mkdirSync(tmpDir, { recursive: true });
+
+  try {
+    console.log(`Fetching ${repository}...`);
+    execFileSync("curl", ["-fsSL", "-o", "dojo.tgz", githubArchiveUrl(repository)], {
+      cwd: tmpDir,
+      stdio: "pipe",
+    });
+    const integrity = `sha256-${createHash("sha256")
+      .update(readFileSync(resolve(tmpDir, "dojo.tgz")))
+      .digest("hex")}`;
+    safeExtract("dojo.tgz", tmpDir);
+    const extracted = readdirSync(tmpDir, { withFileTypes: true })
+      .find((entry) => entry.isDirectory() && existsSync(resolve(tmpDir, entry.name, "dojo.json")));
+    if (!extracted) throw new Error(`${source} is not a dojo — missing dojo.json`);
+    installExtracted(root, resolve(tmpDir, extracted.name), source, force, {
+      version: 1,
+      type: "github",
+      locator: repository,
+      integrity,
+    });
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 function addNpm(root: string, source: string, force: boolean): void {
@@ -150,7 +208,11 @@ function addNpm(root: string, source: string, force: boolean): void {
     if (tarballs.length === 0) throw new Error(`Failed to download ${source}`);
 
     safeExtract(tarballs[0], tmpDir);
-    installExtracted(root, resolve(tmpDir, "package"), source, force);
+    installExtracted(root, resolve(tmpDir, "package"), source, force, {
+      version: 1,
+      type: "npm",
+      locator: source,
+    });
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -217,13 +279,17 @@ function addUrl(root: string, url: string, force: boolean): void {
       ? resolve(tmpDir, "package")
       : tmpDir;
 
-    installExtracted(root, extractedDir, url, force);
+    installExtracted(root, extractedDir, url, force, {
+      version: 1,
+      type: "url",
+      locator: url,
+    });
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
   }
 }
 
-function finalize(root: string, name: string, targetPath: string): void {
+function finalize(root: string, name: string, targetPath: string, source?: InstalledSource): void {
   // Update .dojorc
   const rc = readDojoRc(root);
   rc.currentDojo = name;
@@ -279,7 +345,19 @@ function finalize(root: string, name: string, targetPath: string): void {
   Command:   ${kataCmd}`);
 
   runLifecycleScript(root, targetPath, "prepare.sh");
-  queueCourseEvent(root, name, "installed");
+  queueCourseEvent(
+    root,
+    name,
+    "installed",
+    undefined,
+    source?.type === "github"
+      ? {
+          type: "github",
+          locator: source.locator,
+          ...(source.integrity ? { integrity: source.integrity } : {}),
+        }
+      : undefined,
+  );
 }
 
 
