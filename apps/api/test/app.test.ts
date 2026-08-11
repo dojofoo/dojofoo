@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createCoursesApp } from "../src/app";
 
 const course = {
@@ -381,6 +381,40 @@ describe("courses API", () => {
           kataCount: 40,
         },
       ],
+    });
+  });
+
+  it("refreshes an existing GitHub course when an install reports a newer snapshot", async () => {
+    const refreshed = {
+      ...course,
+      framework: "Effect Platform",
+      hash: "effect-ts-v2",
+    };
+    const register = vi.fn(async () => refreshed);
+    const app = createCoursesApp({
+      courses: [{ ...course, framework: null, hash: "effect-ts-v1" }],
+      registrar: { register },
+    });
+    const response = await app.handle(new Request("http://localhost/api/v1/events", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        instanceId: "refreshing-instance",
+        courseId: course.id,
+        event: "installed",
+        source: { type: "github", repository: course.id, integrity: "sha256-new" },
+      }),
+    }));
+    const profiles = await app.handle(new Request("http://localhost/api/v1/course-profiles"));
+
+    expect(response.status).toBe(202);
+    expect(register).toHaveBeenCalledWith({
+      type: "github",
+      repository: course.id,
+      integrity: "sha256-new",
+    });
+    expect(await profiles.json()).toEqual({
+      data: [expect.objectContaining({ id: course.id, framework: "Effect Platform" })],
     });
   });
 

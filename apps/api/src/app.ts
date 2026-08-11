@@ -395,28 +395,28 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         : undefined;
       const sourceRepository = body.source?.repository;
       if (
-        !course
-        && body.event === "installed"
+        body.event === "installed"
         && options.registrar
         && body.source?.type === "github"
         && typeof sourceRepository === "string"
         && sourceRepository === body.courseId
         && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(sourceRepository)
       ) {
-        course = await options.registrar.register({
+        const registered = await options.registrar.register({
           type: "github",
           repository: sourceRepository,
           ...(typeof body.source.integrity === "string"
             ? { integrity: body.source.integrity }
             : {}),
         }) ?? undefined;
-        if (course && course.id === body.courseId) {
-          const registeredCourse = course;
-          if (!registeredCourses.some((candidate) => candidate.id === registeredCourse.id)) {
-            registeredCourses.push(registeredCourse);
-          }
+        if (registered && registered.id === body.courseId) {
+          course = registered;
+          const existingIndex = registeredCourses.findIndex(
+            (candidate) => candidate.id === registered.id,
+          );
+          if (existingIndex === -1) registeredCourses.push(registered);
+          else registeredCourses[existingIndex] = registered;
         }
-        else course = undefined;
       }
       if (!course) {
         return status(400, { error: "invalid_event", message: "courseId is invalid." });
