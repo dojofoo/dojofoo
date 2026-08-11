@@ -9,6 +9,8 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
+    "@libsql/client": "0.17.4",
+    "drizzle-orm": "0.45.2",
     "elysia": "^1.4.18"
   },
   "devDependencies": {

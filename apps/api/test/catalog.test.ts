@@ -18,7 +18,7 @@ describe("course catalog", () => {
         }),
         expect.objectContaining({
           slug: "effect-ts",
-          version: "0.0.4",
+          version: "0.0.5",
           categories: ["TypeScript", "Functional programming"],
           kataCount: 40,
         }),
