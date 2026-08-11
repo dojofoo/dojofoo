@@ -1,35 +1,41 @@
 ---
 title: npx dojofoo add
-description: Install a dojo from the catalog into the current project.
+description: Install a dojo from the catalog, GitHub, npm, or a local directory.
 ---
 
 ## Usage
 
 ```sh
-npx dojofoo add <name>
+npx dojofoo add <source>
 ```
 
 Examples:
 
 ```sh
 npx dojofoo add effect-ts
-npx dojofoo add pydantic-agents
+npx dojofoo add dojofoo/starter
+npx dojofoo add @dojofoo/effect-ts
+npx dojofoo add ./my-dojo
 ```
 
-Each dojo is published as an npm package under the `@dojofoo/*` scope. `npx dojofoo
-add` is a thin wrapper that:
+An `owner/repository` source is downloaded directly from a public GitHub repository.
+After a successful first install, the CLI reports the canonical public repository to
+the dojofoo API. The API fetches and validates its `dojo.json` itself before listing
+the dojo in the marketplace. Maintainers do not submit a registry pull request.
 
-- Installs the package with your project's package manager.
-- Registers the dojo with your project's `dojocho.json` so `/kata` can find it.
-- Runs any per-dojo `prepare` script (e.g. installing Python deps via `uv`).
+- The source and content hash are recorded in `.dojos/<name>/.dojo-source.json`.
+- Dependencies are installed with the project's package manager.
+- Agent commands and skills are linked into the project.
+- Any dojo `prepare.sh` lifecycle script is run.
 
-## Listing installed dojos
+## Updating a GitHub dojo
 
 ```sh
-npx dojofoo add --list
+npx dojofoo update dojofoo/starter
 ```
 
-prints the dojos currently registered in this project.
+The update resolves the recorded source, replaces only the installed copy under
+`.dojos/`, and leaves learner work, progress, sessions, and notes in place.
 
 ## Removing a dojo
 

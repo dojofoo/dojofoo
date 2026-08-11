@@ -24,6 +24,7 @@ Commands:
   status              Show current dojo/kata state
   install [--agent]   Set up a new dojo project and configure agents
   add <source>        Add a dojo (training pack)
+  update <source>     Update an installed dojo from its recorded source
   remove <name>       Remove a dojo
   ui [--background]   Start the dojo lesson web UI (default: https://dojo.localhost)
   track               Record the active agent session as a cassette

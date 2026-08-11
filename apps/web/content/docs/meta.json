@@ -10,6 +10,7 @@
     "---Commands---",
     "commands/install",
     "commands/add",
+    "commands/update",
     "commands/ui",
     "commands/kata",
     "---Reference---",

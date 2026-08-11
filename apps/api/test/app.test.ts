@@ -450,4 +450,78 @@ describe("courses API", () => {
       ],
     });
   });
+
+  it("registers an unknown public GitHub dojo when its first install is reported", async () => {
+    const externalCourse = {
+      ...course,
+      id: "acme/typescript-basics",
+      slug: "typescript-basics",
+      name: "TypeScript Basics",
+      source: "acme",
+      repository: "acme/typescript-basics",
+      repositoryUrl: "https://github.com/acme/typescript-basics",
+      sourceType: "github" as const,
+      installUrl: "acme/typescript-basics",
+    };
+    const storedCourses: Array<typeof externalCourse> = [];
+    const courseStore = { list: async () => storedCourses };
+    const app = createCoursesApp({
+      courseStore,
+      registrar: {
+        register: async (source) => {
+          if (source.repository !== externalCourse.repository) return null;
+          storedCourses.push(externalCourse);
+          return externalCourse;
+        },
+      },
+    });
+    const otherServerInstance = createCoursesApp({ courseStore });
+
+    const installed = await app.handle(
+      new Request("http://localhost/api/v1/events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          instanceId: "first-install",
+          courseId: "acme/typescript-basics",
+          event: "installed",
+          source: {
+            type: "github",
+            repository: "acme/typescript-basics",
+            integrity: "sha256-archive",
+          },
+        }),
+      }),
+    );
+    const listing = await otherServerInstance.handle(new Request("http://localhost/api/v1/courses"));
+
+    expect(installed.status).toBe(202);
+    expect(await listing.json()).toMatchObject({
+      data: [expect.objectContaining({ id: "acme/typescript-basics" })],
+    });
+  });
+
+  it("does not use registration metadata from non-install events", async () => {
+    const app = createCoursesApp({
+      registrar: { register: async () => ({ ...course, id: "acme/course" }) },
+    });
+    const response = await app.handle(
+      new Request("http://localhost/api/v1/events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          instanceId: "unknown-course",
+          courseId: "acme/course",
+          event: "started",
+          source: { type: "github", repository: "acme/course" },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "invalid_event",
+      message: "courseId is invalid.",
+    });
+  });
 });
