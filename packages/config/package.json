@@ -1,6 +1,6 @@
 {
   "name": "@dojofoo/config",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Shared configuration and Vitest integration for dojofoo.",
   "license": "MIT",
   "homepage": "https://dojo.foo/docs",

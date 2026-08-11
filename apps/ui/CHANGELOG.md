@@ -1,5 +1,13 @@
 # @dojofoo/lesson-ui
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [34f6429]
+- Updated dependencies [abd5be2]
+  - @dojofoo/config@0.0.6
+
 ## 0.0.3
 
 ### Patch Changes
