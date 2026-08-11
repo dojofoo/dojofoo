@@ -181,10 +181,13 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("link", { name: "Get Started" })).toBeVisible();
   await expect(page.locator("[data-site-navigation]")).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Dojo instances reaching each chapter" })).toHaveAttribute("data-chapter-count", "40");
+  const chapterChart = page.getByRole("img", { name: "Dojo instances reaching each chapter" });
+  await expect(chapterChart).toHaveAttribute("data-chapter-count", "40");
+  await expect(chapterChart.locator("xpath=..")).toHaveCSS("border-top-width", "0px");
   const detailArticle = page.locator("article");
   const detailSidebar = detailArticle.getByRole("complementary", { name: "Course activity" });
   const detailInstall = detailSidebar.getByRole("button", { name: /Copy Install/ });
+  await expect(detailSidebar.locator(":scope > p")).toHaveCount(0);
   await expect(detailInstall).toBeVisible();
   await expect(detailInstall.getByText("Copy", { exact: true })).toHaveCount(0);
   await expect(detailInstall.locator("mark")).toHaveCSS("font-family", /Iosevka/);
@@ -235,7 +238,9 @@ test("server-renders course data without route loading screens", async ({ reques
   expect(course.status()).toBe(200);
   expect(course.headers()["cache-control"]).toContain("s-maxage=60");
   const courseHtml = await course.text();
-  expect(courseHtml).toContain("Chapter reach");
+  expect(courseHtml).not.toContain("Chapter reach");
+  expect(courseHtml).not.toContain("Unique dojo instances that reached each chapter.");
+  expect(courseHtml).toContain("Dojo instances reaching each chapter");
   expect(courseHtml).not.toContain("Loading course");
 });
 
@@ -277,7 +282,7 @@ test("reflects install, progress, and completion events", async ({ page, request
   }
 
   await page.goto("/courses/dojocho/effect-ts");
-  await expect(page.getByRole("paragraph").filter({ hasText: "1 finished" })).toBeVisible();
+  await expect(page.getByTestId("course-progress").getByText("1 finished", { exact: true })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toHaveAttribute(
     "aria-valuenow",
     "100",

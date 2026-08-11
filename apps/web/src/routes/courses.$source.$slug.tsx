@@ -42,10 +42,8 @@ function CourseDetailPage() {
             <div className="mt-6 flex flex-wrap gap-2">
               {course.categories.map((category) => <Badge key={category} color="gray">{category}</Badge>)}
             </div>
-            <div className="mt-12 border-y border-dashed border-border py-6">
-              <h2 className="text-sm font-medium">Chapter reach</h2>
-              <p className="mt-1 font-prose text-xs text-muted-foreground">Unique dojo instances that reached each chapter.</p>
-              <ChapterReachChart data={course.metrics.kataProgress} className="mt-6 h-64" />
+            <div className="mt-12 border-b border-dashed border-border pb-6">
+              <ChapterReachChart data={course.metrics.kataProgress} className="h-64" />
             </div>
           </div>
           <aside aria-label="Course activity" className="border-t border-dashed border-border px-6 py-14 lg:border-t-0 lg:border-l">
@@ -61,7 +59,6 @@ function CourseDetailPage() {
               <div className="flex justify-between"><dt className="text-muted-foreground">Progressing</dt><dd>{course.metrics.progressing}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Completed</dt><dd>{course.metrics.finished}</dd></div>
             </dl>
-            <p className="mt-6 text-sm text-muted-foreground">{course.metrics.finished} finished</p>
           </aside>
         </article>
       </div>
