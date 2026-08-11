@@ -27,7 +27,7 @@ export const Route = createFileRoute('/$')({
     const { title, description, ogImage, ogUrl } = loaderData
     return {
       meta: [
-        { title: `${title} — dojocho` },
+        { title: `${title} — dojofoo` },
         { name: 'description', content: description },
         { property: 'og:title', content: title },
         { property: 'og:description', content: description },
@@ -48,7 +48,7 @@ export const Route = createFileRoute('/$')({
 })
 
 const loader = createServerFn({ method: 'GET' })
-  .inputValidator((slugs: string[]) => slugs)
+  .validator((slugs: string[]) => slugs)
   .handler(async ({ data: slugs }) => {
     // Lazy import severs the static client→server dep edge so that
     // .source/server.ts (which uses node:path) never lands in the browser bundle.
@@ -92,7 +92,6 @@ const clientLoader = browserCollections.docs.createClientLoader({
 
 const sidebarTabs = [
   { title: 'Docs', url: '/docs' },
-  { title: 'Dojos', url: '/dojos' },
 ]
 
 function Page() {

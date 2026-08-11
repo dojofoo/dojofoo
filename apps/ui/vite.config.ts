@@ -29,7 +29,7 @@ export default defineConfig({
     tanstackStart(),
     react(),
     nitro({
-      // Default node-server preset for local dev / `dojo ui`.
+      // Default node-server preset for local dev / `npx dojofoo ui`.
       // Override at deploy time (e.g. preset: "vercel") if/when we host this.
       preset: "node-server",
       // Streaming responses are required for A2A `message/stream` (SSE).

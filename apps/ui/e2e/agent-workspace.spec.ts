@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createHash } from "node:crypto";
 
 test("uses the dark lesson workspace with an accessible chapter accordion", async ({ page }) => {
   await page.goto("/");
@@ -178,7 +179,7 @@ test("renders streamed Codex app-server chat events", async ({ page }) => {
       body: [
         `data: ${JSON.stringify({ type: "start", messageId: "message-test" })}\n\n`,
         `data: ${JSON.stringify({ type: "text-start", id: "text-test" })}\n\n`,
-        `data: ${JSON.stringify({ type: "text-delta", id: "text-test", delta: "Streamed from Codex." })}\n\n`,
+        `data: ${JSON.stringify({ type: "text-delta", id: "text-test", delta: "Streamed from Codex with `Effect.map`." })}\n\n`,
         `data: ${JSON.stringify({ type: "text-end", id: "text-test" })}\n\n`,
         `data: ${JSON.stringify({ type: "finish" })}\n\n`,
         "data: [DONE]\n\n",
@@ -191,17 +192,29 @@ test("renders streamed Codex app-server chat events", async ({ page }) => {
   await composer.fill("Can you clarify Effect.map?");
   await composer.press("Enter");
 
-  await expect(page.getByTestId("sensei-streaming-message")).toContainText("Streamed from Codex.");
+  await expect(page.getByTestId("sensei-streaming-message")).toContainText("Streamed from Codex");
+  const inlineCode = page.getByTestId("sensei-streaming-message").getByText("Effect.map", { exact: true });
+  await expect(inlineCode).toHaveCSS("background-color", "rgb(10, 10, 10)");
+  await expect(inlineCode).toHaveCSS("font-size", "14px");
+  await expect(inlineCode).toHaveCSS("color", "rgb(237, 237, 237)");
   await expect(page.getByTestId("senpai-streaming-message")).toContainText("Can you clarify Effect.map?");
 });
 
-test("uses the circular favicon and horizontal Dojocho wordmark in the page chrome", async ({ page }) => {
+test("uses the official favicon and horizontal Dojofoo wordmark in the page chrome", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.locator('link[rel="icon"][href="/dojocho-black.svg"]')).toHaveCount(1);
-  const wordmark = page.getByRole("img", { name: "Dojocho wordmark" });
+  await expect(page.locator('link[rel="icon"][href="/favicon.svg"]')).toHaveCount(1);
+  const favicon = await page.evaluate(() => fetch("/favicon.svg").then(async (response) => ({
+    status: response.status,
+    text: await response.text(),
+  })));
+  expect(favicon.status).toBe(200);
+  expect(favicon.text).toContain('viewBox="0 0 618 619"');
+  expect(createHash("sha256").update(favicon.text).digest("hex")).toBe("4d827eeec5b5f2876d7e9190973157c24723156c90a985a7d784fcd5bb0f6099");
+  const wordmark = page.getByRole("img", { name: "Dojofoo wordmark" });
   await expect(wordmark).toBeVisible();
-  await expect(wordmark).not.toHaveAttribute("src", "/dojocho-black.svg");
+  await expect(wordmark).toHaveAttribute("src", /dojofoo/);
+  await expect(wordmark).not.toHaveAttribute("src", "/favicon.svg");
   const box = await wordmark.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.width).toBeGreaterThan(box!.height * 3);
@@ -339,7 +352,7 @@ test("shows agent activity while sending from the message composer", async ({ pa
       contentType: "application/json",
       body: JSON.stringify(sent ? {
         status: "thinking",
-        steps: [{ id: "command", label: "Running a command", description: "dojo kata --check --reporter=json", icon: "monitor", status: "active" }],
+        steps: [{ id: "command", label: "Running a command", description: "npx dojofoo kata --check --reporter=json", icon: "monitor", status: "active" }],
         context: { usedTokens: 0, maxTokens: 1, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cachedTokens: 0 },
         questions: null,
       } : {

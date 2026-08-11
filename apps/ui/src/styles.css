@@ -1,4 +1,21 @@
 @import "tailwindcss";
+@import "@dojocho/ui/styles.css";
+
+@font-face {
+  font-family: "Iosevka";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/iosevka/files/iosevka-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2") format("woff2-variations");
+}
 
 .cm-line-covered {
   background-color: rgb(88 199 96 / 0.06);
@@ -36,6 +53,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: "Iosevka", monospace;
+  --font-mono: "Iosevka", monospace;
+  --font-prose: "Geist Variable", ui-sans-serif, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -114,6 +134,22 @@
   --shadow-2: var(--shadow-2);
   --shadow-1: var(--shadow-1);
   --color-shadow-color: var(--shadow-color)
+}
+
+.font-prose :where(h1, h2, h3, h4, h5, h6, blockquote, q, pre, code, a, button, [role="button"]),
+.font-prose :where(ol, ul) > li::marker {
+  font-family: "Iosevka", monospace;
+}
+
+.dojo-chat-message :where(code):not(:where(pre *)),
+.dojo-inline-code {
+  border: 1px solid #242424;
+  background: #0a0a0a;
+  color: #ededed;
+  padding: 0.125rem 0.3rem;
+  font-family: "Iosevka", ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.35;
 }
 .shimmer-text {
     color: transparent;

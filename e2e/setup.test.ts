@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { AGENTS_TABLE } from "./agents-table";
 import { execScript } from "./container";
 
-describe("dojo setup writes the contracted scaffold", () => {
+describe("npx dojofoo install writes the contracted scaffold", () => {
   it.each(AGENTS_TABLE)(
     "$agent: detects env, writes canonical commands + per-agent symlinks + settings",
     (row) => {
@@ -14,7 +14,7 @@ ${envExports}
 rm -rf ${project}
 mkdir -p ${project} && cd ${project}
 echo '{"name":"setup-${row.agent}","private":true,"type":"module"}' > package.json
-dojo setup
+npx dojofoo install
 echo '<<<DOJO_MD>>>'
 cat .agents/commands/dojo.md
 echo '<<<END_DOJO_MD>>>'
@@ -32,7 +32,7 @@ cat ${row.dir}/settings.json 2>/dev/null || echo '(no settings.json)'
 echo '<<<END_SETTINGS>>>'
 `;
       const { output, exitCode } = execScript(script);
-      expect(exitCode, `dojo setup for ${row.agent} failed:\n${output}`).toBe(0);
+      expect(exitCode, `npx dojofoo install for ${row.agent} failed:\n${output}`).toBe(0);
 
       const section = (name: string) => {
         const m = output.match(new RegExp(`<<<${name}>>>\\n([\\s\\S]*?)\\n<<<END_${name}>>>`));
@@ -49,7 +49,7 @@ echo '<<<END_SETTINGS>>>'
       if (row.hasSettings) {
         const parsed = JSON.parse(settings);
         expect(parsed.permissions?.allow, `${row.agent} settings missing allow list`)
-          .toContain("Bash(dojo *)");
+          .toContain("Bash(npx dojofoo *)");
       } else {
         expect(settings).toBe("(no settings.json)");
       }
@@ -65,7 +65,7 @@ ${unsets}
 rm -rf /tmp/setup-prompt
 mkdir -p /tmp/setup-prompt && cd /tmp/setup-prompt
 echo '{"name":"setup-prompt","private":true,"type":"module"}' > package.json
-dojo setup
+npx dojofoo install
 `;
     const { output, exitCode } = execScript(script);
     expect(exitCode, output).toBe(0);

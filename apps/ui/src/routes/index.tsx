@@ -1,10 +1,10 @@
 import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BundledLanguage } from "shiki";
 import { ArrowRight, Check, CheckCircle2, Circle, CircleDot, LockKeyhole, RotateCcw, Save as SaveIcon, Undo2, XCircle } from "lucide-react";
-import dojochoWordmark from "../../../../assets/dojocho.svg?url";
+import dojofooWordmark from "../../../../assets/dojofoo.svg?url";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { CodeBlock, CodeBlockCopyButton } from "@/components/ai-elements/code-block";
 import {
@@ -26,9 +26,9 @@ import {
 import {
   AskUserQuestions,
   type AskUserAnswer,
-} from "@/components/ui/ask-user-questions";
-import { Button } from "@/components/ui/button";
-import { ChatMessage } from "@/components/ui/chat-message";
+} from "@dojocho/ui/ask-user-questions";
+import { Button } from "@dojocho/ui/button";
+import { ChatMessage } from "@dojocho/ui/chat-message";
 import {
   Dialog,
   DialogClose,
@@ -37,10 +37,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { InputMessage } from "@/components/ui/input-message";
-import { InputCopy } from "@/components/ui/input-copy";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@dojocho/ui/dialog";
+import { InputMessage } from "@dojocho/ui/input-message";
+import { InputCopy } from "@dojocho/ui/input-copy";
+import { ScrollArea } from "@dojocho/ui/scroll-area";
 import type { AgentActivity } from "@/server/lesson/codex-client";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 
@@ -276,7 +276,7 @@ function LessonPage() {
     return (
       <main className="mx-auto max-w-2xl p-8">
         <h1 className="text-2xl font-semibold">Dojo</h1>
-        <p className="mt-4 text-muted-foreground">{error ?? busy}</p>
+        <p className="mt-4 font-prose text-muted-foreground">{error ?? busy}</p>
       </main>
     );
   }
@@ -379,7 +379,7 @@ function LessonPage() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Reset this lesson?</DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription className="font-prose">
                       Restore the original scaffold. Your current solution will be discarded.
                     </DialogDescription>
                   </DialogHeader>
@@ -464,6 +464,7 @@ function LessonPage() {
             <div className="flex min-h-full flex-col gap-4">
               {lesson.transcript.map((message, index) => (
                 <ChatMessage
+                  className="font-prose"
                   data-testid={message.role === "assistant" ? "sensei-message" : "senpai-message"}
                   from={message.role}
                   key={`${message.role}-${message.kind ?? "message"}-${index}`}
@@ -476,7 +477,7 @@ function LessonPage() {
               ))}
               {activity.reasoning && (
                 <Reasoning
-                  className="w-full"
+                  className="w-full font-prose"
                   data-testid="agent-reasoning"
                   isStreaming={activity.status === "thinking"}
                 >
@@ -527,6 +528,11 @@ function LessonNavigation({
   onOpenLesson: (name: string) => void | Promise<void>;
 }) {
   const [expandedLesson, setExpandedLesson] = useState(lesson.kata);
+  const openLessonRef = useRef(onOpenLesson);
+  openLessonRef.current = onOpenLesson;
+  const openLesson = useCallback((name: string) => {
+    void openLessonRef.current(name);
+  }, []);
 
   useEffect(() => {
     setExpandedLesson(lesson.kata);
@@ -535,58 +541,86 @@ function LessonNavigation({
   return (
     <aside className="flex min-h-0 flex-col border-r border-dashed bg-surface-1" data-testid="lesson-navigation">
       <div className="border-b border-dashed px-5 pb-5 pt-5">
-        <img alt="Dojocho wordmark" className="h-3.5 w-auto" src={dojochoWordmark} />
+        <img alt="Dojofoo wordmark" className="h-3.5 w-auto" src={dojofooWordmark} />
         <h1 className="mt-1.5 text-xl font-semibold">{humanTitle(lesson.dojo)}</h1>
         <h2 className="mt-7 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Chapters</h2>
       </div>
       <ScrollArea className="min-h-0 flex-1" data-testid="lesson-scroll" viewportClassName="scroll-fade pb-5">
-        <AccordionPrimitive.Root
-          className="w-full gap-0"
-          collapsible
-          onValueChange={setExpandedLesson}
-          type="single"
-          value={expandedLesson}
-        >
-          {lesson.lessons.map((item) => {
-            const accessible = item.state === "completed" || item.isCurrent;
+        <div className="w-full">
+          {lesson.lessons.map((item, index) => {
             return (
-              <AccordionPrimitive.Item
-                className="w-full rounded-none border-b border-dashed last:border-b-0"
-                data-lesson-state={item.isCurrent ? "current" : item.state === "completed" ? "completed" : "upcoming"}
+              <LessonNavigationItem
+                currentKata={lesson.kata}
+                expanded={expandedLesson === item.name}
+                item={item}
                 key={item.name}
-                value={item.name}
-              >
-                <AccordionPrimitive.Header>
-                  <AccordionPrimitive.Trigger
-                    aria-description={!accessible ? "Upcoming lesson; expand to preview its goal" : undefined}
-                    className={`flex w-full items-center gap-2.5 px-4 py-4 text-left text-[13px] outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring,#6B97FF)] ${!accessible ? "cursor-default text-muted-foreground/40" : "text-muted-foreground data-[state=open]:text-foreground"}`}
-                    data-navigation-disabled={!accessible || undefined}
-                    onClick={() => accessible && item.name !== lesson.kata && void onOpenLesson(item.name)}
-                  >
-                    <span className="flex min-w-0 flex-1 items-center gap-2">
-                      <span className="truncate">{item.title}</span>
-                    </span>
-                    <LessonStateIcon completed={item.state === "completed"} current={item.isCurrent} />
-                  </AccordionPrimitive.Trigger>
-                </AccordionPrimitive.Header>
-                <LessonAccordionContent>
-                  <div>
-                    <p className="leading-5">{item.summary}</p>
-                    {accessible && item.name !== lesson.kata && (
-                      <button className="mt-2 text-xs font-medium text-foreground underline underline-offset-4" onClick={() => void onOpenLesson(item.name)} type="button">
-                        Open lesson
-                      </button>
-                    )}
-                  </div>
-                </LessonAccordionContent>
-              </AccordionPrimitive.Item>
+                last={index === lesson.lessons.length - 1}
+                onExpandedChange={setExpandedLesson}
+                onOpenLesson={openLesson}
+              />
             );
           })}
-        </AccordionPrimitive.Root>
+        </div>
       </ScrollArea>
     </aside>
   );
 }
+
+const LessonNavigationItem = memo(function LessonNavigationItem({
+  currentKata,
+  expanded,
+  item,
+  last,
+  onExpandedChange,
+  onOpenLesson,
+}: {
+  currentKata: string;
+  expanded: boolean;
+  item: LessonSnapshot["lessons"][number];
+  last: boolean;
+  onExpandedChange: (name: string) => void;
+  onOpenLesson: (name: string) => void;
+}) {
+  const accessible = item.state === "completed" || item.isCurrent;
+  return (
+    <AccordionPrimitive.Root
+      collapsible
+      onValueChange={onExpandedChange}
+      type="single"
+      value={expanded ? item.name : ""}
+    >
+      <AccordionPrimitive.Item
+        className={`w-full rounded-none border-dashed ${last ? "border-b-0" : "border-b"}`}
+        data-lesson-state={item.isCurrent ? "current" : item.state === "completed" ? "completed" : "upcoming"}
+        value={item.name}
+      >
+        <AccordionPrimitive.Header>
+          <AccordionPrimitive.Trigger
+            aria-description={!accessible ? "Upcoming lesson; expand to preview its goal" : undefined}
+            className={`flex w-full items-center gap-2.5 px-4 py-4 text-left text-[13px] outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring,#6B97FF)] ${!accessible ? "cursor-default text-muted-foreground/40" : "text-muted-foreground data-[state=open]:text-foreground"}`}
+            data-navigation-disabled={!accessible || undefined}
+            onClick={() => accessible && item.name !== currentKata && onOpenLesson(item.name)}
+          >
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="truncate">{item.title}</span>
+            </span>
+            <LessonStateIcon completed={item.state === "completed"} current={item.isCurrent} />
+          </AccordionPrimitive.Trigger>
+        </AccordionPrimitive.Header>
+        <LessonAccordionContent>
+          <div>
+            <p className="font-prose leading-5">{item.summary}</p>
+            {accessible && item.name !== currentKata && (
+              <button className="mt-2 text-xs font-medium text-foreground underline underline-offset-4" onClick={() => onOpenLesson(item.name)} type="button">
+                Open lesson
+              </button>
+            )}
+          </div>
+        </LessonAccordionContent>
+      </AccordionPrimitive.Item>
+    </AccordionPrimitive.Root>
+  );
+});
 
 function LessonAccordionContent({ children }: { children: React.ReactNode }) {
   const contentRef = useRef<HTMLDivElement>(null);
@@ -619,6 +653,7 @@ function LessonAccordionContent({ children }: { children: React.ReactNode }) {
 function StreamedChatMessage({ message }: { message: UIMessage }) {
   return (
     <ChatMessage
+      className="dojo-chat-message font-prose"
       data-testid={message.role === "assistant" ? "sensei-streaming-message" : "senpai-streaming-message"}
       from={message.role === "assistant" ? "assistant" : "user"}
     >
@@ -694,7 +729,7 @@ function failureLines(report: TestReport | null, filePath: string): number[] {
 
 function LessonBriefing({ markdown }: { markdown: string }) {
   return (
-    <div className="mt-5 max-w-3xl space-y-2 text-[15px] leading-7 text-foreground/90">
+    <div className="mt-5 max-w-3xl space-y-2 font-prose text-[15px] leading-7 text-foreground/90">
       {markdown.split("\n").map((line, index) => {
         const value = line.trim();
         if (!value) return null;
@@ -713,7 +748,7 @@ function LessonBriefing({ markdown }: { markdown: string }) {
 
 function inlineCode(value: string) {
   return value.split(/(`[^`]+`)/g).map((part, index) => part.startsWith("`")
-    ? <code className="bg-surface-3 px-1 py-0.5 font-mono text-[0.9em]" key={index}>{part.slice(1, -1)}</code>
+    ? <code className="bg-surface-3 px-1 py-0.5 font-mono text-[14px]" key={index}>{part.slice(1, -1)}</code>
     : part);
 }
 
@@ -800,7 +835,7 @@ function MarkdownText({ text }: { text: string }) {
 function inlineMessage(value: string) {
   return value.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((part, index) => {
     if (part.startsWith("`") && part.endsWith("`")) {
-      return <code className="bg-surface-3 px-1 py-0.5 font-mono text-[0.9em]" key={index}>{part.slice(1, -1)}</code>;
+      return <code className="dojo-inline-code" key={index}>{part.slice(1, -1)}</code>;
     }
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={index}>{part.slice(2, -2)}</strong>;

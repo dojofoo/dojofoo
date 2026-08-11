@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@dojocho/ui/button'
 import { Edit, Text } from 'lucide-react'
 import {
   type BreadcrumbProps,
@@ -177,8 +177,8 @@ export function EditOnGitHub(props: ComponentProps<'a'>) {
       {...props}
       className={cn(
         buttonVariants({
-          color: 'secondary',
-          size: 'sm',
+          variant: 'secondary',
+          size: 'compact',
           className: 'gap-1.5 not-prose',
         }),
         props.className,
@@ -199,7 +199,7 @@ export function EditOnGitHub(props: ComponentProps<'a'>) {
  */
 export function DocsBody({ children, className, ...props }: ComponentProps<'div'>) {
   return (
-    <div {...props} className={cn('prose flex-1', className)}>
+    <div {...props} className={cn('prose font-prose flex-1', className)}>
       {children}
     </div>
   )
@@ -210,7 +210,7 @@ export function DocsDescription({ children, className, ...props }: ComponentProp
   if (children === undefined) return null
 
   return (
-    <p {...props} className={cn('mb-8 text-lg text-fd-muted-foreground', className)}>
+    <p {...props} className={cn('mb-8 font-prose text-lg text-fd-muted-foreground', className)}>
       {children}
     </p>
   )

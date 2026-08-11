@@ -1,6 +1,6 @@
 {
-  "name": "dojocho",
-  "version": "1.1.0",
+  "name": "dojofoo",
+  "version": "0.0.1",
   "description": "Installable coding dojos that turn your AI agent into a sensei.",
   "keywords": [
     "cli",
@@ -14,7 +14,7 @@
   ],
   "license": "MIT",
   "author": "Tomas Sivicki <tomas.sivicki@gmail.com>",
-  "homepage": "https://dojocho.ai",
+  "homepage": "https://dojo.foo",
   "bugs": {
     "url": "https://github.com/tomsiwik/dojocho/issues"
   },
@@ -33,7 +33,7 @@
     "LICENSE"
   ],
   "bin": {
-    "dojo": "./dist/index.js"
+    "dojofoo": "./dist/index.js"
   },
   "scripts": {
     "build": "tsup && node scripts/bundle-ui.mjs",
@@ -48,7 +48,7 @@
     "typescript": "6.0.3"
   },
   "devDependencies": {
-    "@dojocho/ui": "workspace:*",
+    "@dojocho/lesson-ui": "workspace:*",
     "tsup": "^8.0.0",
     "vitest": "^4.1.10"
   }

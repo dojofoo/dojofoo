@@ -1,34 +1,30 @@
 'use client'
-import type { ComponentProps } from 'react'
 import { Search } from 'lucide-react'
 import { useSearchContext } from 'fumadocs-ui/contexts/search'
-import { useI18n } from 'fumadocs-ui/contexts/i18n'
-import { cn } from '@/lib/utils'
-import { type ButtonProps, buttonVariants } from '@/components/ui/button'
+import { Button, type ButtonProps } from '@dojocho/ui/button'
 
-interface SearchToggleProps extends Omit<ComponentProps<'button'>, 'color'>, ButtonProps {
+interface SearchToggleProps extends ButtonProps {
   hideIfDisabled?: boolean
+  showShortcut?: boolean
 }
 
 export function SearchToggle({
   hideIfDisabled,
-  size = 'icon-sm',
-  color = 'ghost',
+  showShortcut = false,
+  size = 'icon-compact',
+  variant = 'ghost',
   ...props
 }: SearchToggleProps) {
-  const { setOpenSearch, enabled } = useSearchContext()
+  const { setOpenSearch, enabled, hotKey } = useSearchContext()
   if (hideIfDisabled && !enabled) return null
 
   return (
-    <button
+    <Button
+      {...props}
       type="button"
-      className={cn(
-        buttonVariants({
-          size,
-          color,
-        }),
-        props.className,
-      )}
+      size={size}
+      variant={variant}
+      className={props.className}
       data-search=""
       aria-label="Open Search"
       onClick={() => {
@@ -36,42 +32,11 @@ export function SearchToggle({
       }}
     >
       <Search />
-    </button>
-  )
-}
-
-export function LargeSearchToggle({
-  hideIfDisabled,
-  ...props
-}: ComponentProps<'button'> & {
-  hideIfDisabled?: boolean
-}) {
-  const { enabled, hotKey, setOpenSearch } = useSearchContext()
-  const { text } = useI18n()
-  if (hideIfDisabled && !enabled) return null
-
-  return (
-    <button
-      type="button"
-      data-search-full=""
-      {...props}
-      className={cn(
-        'inline-flex items-center gap-2 rounded-md border bg-fd-secondary/50 p-2 ps-2.5 text-sm text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground',
-        props.className,
-      )}
-      onClick={() => {
-        setOpenSearch(true)
-      }}
-    >
-      <Search className="size-4" />
-      {text.search}
-      <div className="ms-auto inline-flex gap-0.5">
-        {hotKey.map((k, i) => (
-          <kbd key={i} className="rounded-sm border bg-fd-background px-1.5">
-            {k.display}
-          </kbd>
-        ))}
-      </div>
-    </button>
+      {showShortcut && hotKey.length > 0 ? (
+        <kbd className="search-shortcut pointer-events-none absolute top-1/2 left-[calc(100%+2px)] -translate-y-1/2">
+          {hotKey.map((key, index) => <span key={index}>{key.display}</span>)}
+        </kbd>
+      ) : null}
+    </Button>
   )
 }

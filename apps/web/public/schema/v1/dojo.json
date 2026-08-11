@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://dojocho.ai/schema/v1/dojo.json",
+  "$id": "https://dojo.foo/schema/v1/dojo.json",
   "title": "DojoManifest",
-  "description": "Manifest file for a dojocho dojo (training package). Defines metadata, test command, and kata entries.",
+  "description": "Manifest file for a dojofoo dojo (training package). Defines metadata, test command, and kata entries.",
   "type": "object",
   "required": ["name", "version", "description", "test", "katas"],
   "additionalProperties": false,

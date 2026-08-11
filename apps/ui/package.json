@@ -1,5 +1,5 @@
 {
-  "name": "@dojocho/ui",
+  "name": "@dojocho/lesson-ui",
   "version": "0.0.2",
   "private": true,
   "license": "MIT",
@@ -24,6 +24,8 @@
     "@codemirror/lint": "^6.9.4",
     "@codemirror/view": "^6.43.8",
     "@dojocho/config": "workspace:*",
+    "@dojocho/ui": "workspace:*",
+    "@fontsource-variable/geist": "5.3.0",
     "@fontsource/iosevka": "^5.3.0",
     "@lezer/highlight": "^1.2.3",
     "@radix-ui/react-accordion": "^1.2.20",

@@ -15,7 +15,7 @@ import {
 import Link, { type LinkProps } from 'fumadocs-core/link'
 import { useOnChange } from 'fumadocs-core/utils/use-on-change'
 import { cn } from '@/lib/utils'
-import { ScrollArea, type ScrollAreaProps, ScrollViewport } from '@/components/ui/scroll-area'
+import { ScrollArea, type ScrollAreaProps } from '@dojocho/ui/scroll-area'
 import {
   Collapsible,
   CollapsibleContent,
@@ -216,19 +216,11 @@ export function SidebarDrawerContent({ className, children, ...props }: Componen
 
 export function SidebarViewport(props: ScrollAreaProps) {
   return (
-    <ScrollArea {...props} className={cn('min-h-0 flex-1', props.className)}>
-      <ScrollViewport
-        className="p-4 overscroll-contain"
-        style={
-          {
-            maskImage:
-              'linear-gradient(to bottom, transparent, white 12px, white calc(100% - 12px), transparent)',
-          } as object
-        }
-      >
-        {props.children}
-      </ScrollViewport>
-    </ScrollArea>
+    <ScrollArea
+      {...props}
+      className={cn('min-h-0 flex-1', props.className)}
+      viewportClassName="p-4 overscroll-contain [mask-image:linear-gradient(to_bottom,transparent,white_12px,white_calc(100%_-_12px),transparent)]"
+    />
   )
 }
 

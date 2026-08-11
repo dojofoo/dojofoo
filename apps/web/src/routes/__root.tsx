@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router"
 import { RootProvider } from "fumadocs-ui/provider/tanstack"
 import SearchDialog from "@/components/search"
+import { ShapeProvider } from "@dojocho/ui"
 import appCss from "../styles.css?url"
 
 export const Route = createRootRoute({
@@ -13,20 +14,20 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "dojocho" },
+      { title: "dojofoo" },
       { name: "description", content: "Installable coding dojos that turn your AI agent into a sensei." },
       // Open Graph
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://dojocho.ai" },
-      { property: "og:title", content: "dojocho" },
+      { property: "og:url", content: "https://dojo.foo" },
+      { property: "og:title", content: "dojofoo" },
       { property: "og:description", content: "Installable coding dojos that turn your AI agent into a sensei." },
-      { property: "og:image", content: "https://dojocho.ai/og/landing.webp" },
+      { property: "og:image", content: "https://dojo.foo/og/landing.webp" },
       // Twitter
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@tomhacks" },
-      { name: "twitter:title", content: "dojocho" },
+      { name: "twitter:title", content: "dojofoo" },
       { name: "twitter:description", content: "Installable coding dojos that turn your AI agent into a sensei." },
-      { name: "twitter:image", content: "https://dojocho.ai/og/landing.webp" },
+      { name: "twitter:image", content: "https://dojo.foo/og/landing.webp" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -47,7 +48,9 @@ function RootLayout() {
           theme={{ defaultTheme: "dark" }}
           search={{ SearchDialog }}
         >
-          <Outlet />
+          <ShapeProvider defaultShape="square">
+            <Outlet />
+          </ShapeProvider>
         </RootProvider>
         <Scripts />
       </body>

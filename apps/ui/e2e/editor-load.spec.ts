@@ -161,6 +161,15 @@ test("uses the Vercel dark palette in the editor", async ({ page }) => {
   await page.goto("/");
 
   expect((await bundledFont).ok()).toBe(true);
+  await expect(page.locator("body")).toHaveCSS("font-family", /Iosevka/);
+  await expect(page.getByTestId("lesson-pane").getByRole("heading", { name: "002 Transform With Map" })).toHaveCSS("font-family", /Iosevka/);
+  const briefing = page.getByTestId("lesson-pane").locator("h2 + div");
+  await expect(briefing).toHaveCSS("font-family", /Geist Variable/);
+  await expect(briefing.locator("h3").first()).toHaveCSS("font-family", /Iosevka/);
+  await expect(briefing.locator("code").first()).toHaveCSS("font-family", /Iosevka/);
+  await expect(briefing.getByText("1.", { exact: true })).toHaveCSS("font-family", /Iosevka/);
+  await expect(page.locator(".lesson-accordion-content p").first()).toHaveCSS("font-family", /Geist Variable/);
+  await expect(page.getByTestId("sensei-message").first()).toHaveCSS("font-family", /Geist Variable/);
   await expect(page.locator(".cm-editor")).toHaveCSS("background-color", "rgb(10, 10, 10)");
   await expect(page.locator(".cm-editor")).toHaveCSS("font-family", /Iosevka/);
   await expect(page.locator(".cm-editor")).toHaveCSS("font-size", "16.5px");

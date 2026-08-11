@@ -19,7 +19,7 @@ import {
 } from './sidebar'
 import { TreeContextProvider } from 'fumadocs-ui/contexts/tree'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@dojocho/ui/button'
 import { Languages, Sidebar as SidebarIcon, X } from 'lucide-react'
 import { LanguageToggle } from '../language-toggle'
 import { ThemeToggle } from '../theme-toggle'
@@ -29,10 +29,9 @@ import {
   LayoutContextProvider,
   LayoutHeader,
   LayoutHeaderTabs,
-  NavbarLinkItem,
 } from './client'
-import { LargeSearchToggle, SearchToggle } from '../search-toggle'
-import { LinkItem, type LinkItemType } from '../link-item'
+import { LinkItem } from '../link-item'
+import { SiteNavigation } from '../site-navigation'
 import type { SidebarPageTreeComponents } from '../sidebar/page-tree'
 import { getSidebarTabs, type GetSidebarTabsOptions } from '../sidebar/tabs'
 import { SidebarTabsDropdown, type SidebarTabWithProps } from '../sidebar/tabs/dropdown'
@@ -82,7 +81,7 @@ export function DocsLayout(props: DocsLayoutProps) {
   } = props
 
   const navMode = nav.mode ?? 'auto'
-  const { menuItems, navItems } = useLinkItems(props)
+  const { menuItems } = useLinkItems(props)
   const tabs = useMemo(() => {
     if (Array.isArray(tabOptions)) {
       return tabOptions
@@ -157,8 +156,8 @@ export function DocsLayout(props: DocsLayoutProps) {
                   <SidebarCollapseTrigger
                     className={cn(
                       buttonVariants({
-                        color: 'ghost',
-                        size: 'icon-sm',
+                        variant: 'ghost',
+                        size: 'icon-compact',
                         className: 'mt-px mb-auto text-fd-muted-foreground',
                       }),
                     )}
@@ -183,8 +182,8 @@ export function DocsLayout(props: DocsLayoutProps) {
                 item={item}
                 className={cn(
                   buttonVariants({
-                    size: 'icon-sm',
-                    color: 'ghost',
+                    size: 'icon-compact',
+                    variant: 'ghost',
                     className: 'lg:hidden',
                   }),
                 )}
@@ -200,8 +199,8 @@ export function DocsLayout(props: DocsLayoutProps) {
             <SidebarTrigger
               className={cn(
                 buttonVariants({
-                  size: 'icon-sm',
-                  color: 'ghost',
+                  size: 'icon-compact',
+                  variant: 'ghost',
                   className: 'ms-auto text-fd-muted-foreground',
                 }),
               )}
@@ -231,8 +230,8 @@ export function DocsLayout(props: DocsLayoutProps) {
                 item={item}
                 className={cn(
                   buttonVariants({
-                    size: 'icon-sm',
-                    color: 'ghost',
+                    size: 'icon-compact',
+                    variant: 'ghost',
                   }),
                   'text-fd-muted-foreground lg:hidden',
                   i === iconLinks.length - 1 && 'me-auto',
@@ -258,7 +257,7 @@ export function DocsLayout(props: DocsLayoutProps) {
         <Sidebar defaultOpenLevel={defaultOpenLevel} prefetch={prefetch}>
           <LayoutBody {...props.containerProps}>
             {sidebar()}
-            <DocsNavbar {...props} links={navItems} tabs={tabs} />
+            <DocsNavbar {...props} tabs={tabs} />
             {props.children}
           </LayoutBody>
         </Sidebar>
@@ -268,16 +267,12 @@ export function DocsLayout(props: DocsLayoutProps) {
 }
 
 function DocsNavbar({
-  links,
   tabs,
   tabMode = 'sidebar',
   sidebar: { collapsible: sidebarCollapsible = true } = {},
-  searchToggle = {},
-  themeSwitch = {},
   nav = {},
   i18n,
 }: DocsLayoutProps & {
-  links: LinkItemType[]
   tabs: SidebarTabWithProps[]
 }) {
   const navMode = nav.mode ?? 'auto'
@@ -287,140 +282,32 @@ function DocsNavbar({
     <LayoutHeader
       id="nd-subnav"
       className={cn(
-        'sticky [grid-area:header] flex flex-col top-(--fd-docs-row-1) z-10 overflow-x-clip backdrop-blur-sm transition-colors data-[transparent=false]:bg-fd-background/80 layout:[--fd-header-height:--spacing(18)]',
-        showLayoutTabs && 'lg:layout:[--fd-header-height:--spacing(32)]',
+        'sticky [grid-area:header] flex flex-col top-(--fd-docs-row-1) z-30 overflow-x-clip backdrop-blur-sm transition-colors data-[transparent=false]:bg-fd-background/80 layout:[--fd-header-height:--spacing(16)]',
+        showLayoutTabs && 'lg:layout:[--fd-header-height:--spacing(30)]',
       )}
     >
-      <div
-        data-header-body=""
-        className="relative flex px-4 md:px-6 gap-2 h-18 border-b border-fd-border/50"
-      >
-        <div
-          className={cn(
-            'items-center',
-            navMode === 'top' && 'flex flex-1',
-            navMode === 'auto' && 'hidden has-data-[collapsed=true]:md:flex max-md:flex',
-          )}
-        >
-          {sidebarCollapsible && navMode === 'auto' && (
-            <SidebarCollapseTrigger
-              className={cn(
-                buttonVariants({
-                  color: 'ghost',
-                  size: 'icon-sm',
-                }),
-                'text-fd-muted-foreground data-[collapsed=false]:hidden max-md:hidden',
-              )}
-            >
-              <SidebarIcon />
-            </SidebarCollapseTrigger>
-          )}
-          {renderTitleNav(nav, {
-            className: cn(
-              'inline-flex items-center gap-2.5 font-semibold',
-              navMode === 'auto' && 'md:hidden',
-            ),
-          })}
-          {nav.children}
-        </div>
-        {searchToggle.enabled !== false &&
-          (searchToggle.components?.lg ? (
-            <div
-              className={cn(
-                'w-full my-auto max-md:hidden',
-                navMode === 'top' ? 'rounded-xl max-w-sm' : 'max-w-[240px]',
-              )}
-            >
-              {searchToggle.components.lg}
-            </div>
-          ) : (
-            <LargeSearchToggle
-              hideIfDisabled
-              className={cn(
-                'w-full my-auto max-md:hidden',
-                navMode === 'top' ? 'rounded-xl max-w-sm ps-2.5' : 'max-w-[240px]',
-              )}
-            />
-          ))}
-        <div className="flex flex-1 items-center justify-end md:gap-2">
-          <div className="flex items-center gap-6 empty:hidden max-lg:hidden">
-            {links
-              .filter((item) => item.type !== 'icon')
-              .map((item, i) => (
-                <NavbarLinkItem key={i} item={item} />
-              ))}
-          </div>
-          {themeSwitch.enabled !== false &&
-            (themeSwitch.component ?? (
-              <ThemeToggle className="max-lg:hidden" />
-            ))}
-          {links
-            .filter((item) => item.type === 'icon')
-            .map((item, i) => (
-              <LinkItem
-                key={i}
-                item={item}
-                className={cn(
-                  buttonVariants({ size: 'icon-sm', color: 'ghost' }),
-                  'text-fd-muted-foreground max-lg:hidden',
-                )}
-                aria-label={item.label}
-              >
-                {item.icon}
-              </LinkItem>
-            ))}
-
-          <div className="flex items-center lg:hidden">
-            {searchToggle.enabled !== false &&
-              (searchToggle.components?.sm ?? (
-                <SearchToggle hideIfDisabled className="p-2 md:hidden" />
-              ))}
-            <SidebarTrigger
-              className={cn(
-                buttonVariants({
-                  color: 'ghost',
-                  size: 'icon-sm',
-                  className: 'p-2 -me-1.5',
-                }),
-              )}
-            >
-              <SidebarIcon />
-            </SidebarTrigger>
-          </div>
-
-          {!showLayoutTabs && (
-            <div className="flex items-center gap-2 max-md:hidden">
-              <div id="nd-page-actions" className="flex items-center gap-2" />
-              {i18n && (
-                <LanguageToggle>
-                  <Languages className="size-4.5 text-fd-muted-foreground" />
-                </LanguageToggle>
-              )}
-              {sidebarCollapsible && navMode === 'top' && (
-                <SidebarCollapseTrigger
-                  className={cn(
-                    buttonVariants({
-                      color: 'secondary',
-                      size: 'icon-sm',
-                    }),
-                    'text-fd-muted-foreground rounded-full -me-1.5',
-                  )}
-                >
-                  <SidebarIcon />
-                </SidebarCollapseTrigger>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      <SiteNavigation
+        as="div"
+        mobileAction={(
+          <SidebarTrigger
+            aria-label="Open navigation"
+            className={cn(
+              buttonVariants({ variant: 'ghost', size: 'icon' }),
+              'text-muted-foreground lg:hidden',
+            )}
+          >
+            <SidebarIcon />
+          </SidebarTrigger>
+        )}
+      />
       {showLayoutTabs && (
         <div className="relative flex items-center px-4 md:px-6 h-14 max-lg:hidden after:absolute after:bottom-0 after:-left-[100vw] after:-right-[100vw] after:border-b after:border-fd-border after:pointer-events-none after:-z-10">
           {sidebarCollapsible && navMode === 'top' && (
             <SidebarCollapseTrigger
               className={cn(
                 buttonVariants({
-                  color: 'ghost',
-                  size: 'icon-sm',
+                  variant: 'ghost',
+                  size: 'icon-compact',
                 }),
                 'text-fd-muted-foreground -ms-1.5 me-4',
               )}

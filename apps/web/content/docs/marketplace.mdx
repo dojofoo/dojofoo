@@ -1,0 +1,26 @@
+---
+title: Course marketplace
+description: Find a dojo by topic and see how senpais progress through it.
+---
+
+The [course marketplace](/) lists the dojos currently published by dojofoo.
+Categories are catalog metadata derived from the subject matter covered by each course's katas.
+
+Each course shows:
+
+- installs: distinct project installations;
+- progressing: projects that started but have not finished;
+- finished: projects that completed every kata;
+- starts versus finishes; and
+- active projects at each reached kata, which helps course authors find lessons where senpais get stuck.
+
+Open a course to copy its `npx dojofoo add` command and inspect its detailed progress.
+
+## Lifecycle metrics
+
+The CLI creates one opaque ID in `.dojo/instance.json` for the local project. It reports only
+that ID, the course ID, lifecycle event, kata name, and timestamp. It does not send the project
+path, source code, agent session ID, or transcript. The API hashes the instance ID before storing it.
+
+Set `DO_NOT_TRACK=1` or `DOJO_TELEMETRY_DISABLED=1` to disable reporting. Metrics requests are
+best-effort and never change the result of an install, kata, or test command.

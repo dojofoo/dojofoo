@@ -23,7 +23,7 @@ def _find_workspace_file(kata_dir_name: str, filename: str = "solution.py") -> P
         return workspace
     raise FileNotFoundError(
         f"Workspace file not found: {workspace}\n"
-        f"Run `dojo kata --start` to scaffold the kata first."
+        f"Run `npx dojofoo kata --start` to scaffold the kata first."
     )
 
 

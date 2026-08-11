@@ -9,9 +9,7 @@ export interface InstallCommandProps {
 }
 
 const DEFAULT_COMMANDS = [
-  { label: 'npm', cmd: 'npm install -g dojocho' },
-  { label: 'pnpm', cmd: 'pnpm add -g dojocho' },
-  { label: 'bun', cmd: 'bun add -g dojocho' },
+  { label: 'npx', cmd: 'npx dojofoo install' },
 ] as const;
 
 /**

@@ -20,6 +20,8 @@ apps/web/src/routeTree.gen.ts
 **/.source
 apps/ui/test-results/
 apps/ui/playwright-report/
+apps/web/test-results/
+apps/web/playwright-report/
 dojos/*/coverage/
 
 # Runtime artifacts

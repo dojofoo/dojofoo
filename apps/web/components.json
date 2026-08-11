@@ -19,5 +19,7 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "registries": {}
+  "registries": {
+    "@evilcharts": "https://evilcharts.com/r/{name}.json"
+  }
 }

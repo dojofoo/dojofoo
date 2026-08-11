@@ -1,0 +1,91 @@
+export interface CourseListing {
+  id: string;
+  slug: string;
+  name: string;
+  source: string;
+  installs: number;
+  sourceType: "github" | "well-known" | "npm";
+  installUrl: string | null;
+  url: string;
+}
+
+export interface CourseProfile {
+  id: string;
+  description: string;
+  version: string;
+  publishedAt: string;
+  repository: string;
+  repositoryUrl: string;
+  categories: string[];
+  kataCount: number;
+}
+
+export interface KataProgressMetric {
+  kata: string;
+  started: number;
+  finished: number;
+  active: number;
+}
+
+export interface WeeklyActivityMetric {
+  week: string;
+  installs: number;
+  started: number;
+  finished: number;
+}
+
+export interface CourseMetrics {
+  installs: number;
+  started: number;
+  progressing: number;
+  finished: number;
+  completionRate: number;
+  kataProgress: KataProgressMetric[];
+  weeklyActivity: WeeklyActivityMetric[];
+}
+
+export interface MarketplaceCourse extends CourseListing, CourseProfile {
+  metrics: CourseMetrics;
+  trendingRank: number;
+}
+
+async function getJson<T>(path: string, origin?: string): Promise<T> {
+  const response = await fetch(origin ? new URL(path, origin) : path);
+  if (!response.ok) throw new Error(`Courses API returned ${response.status}.`);
+  return response.json() as Promise<T>;
+}
+
+export async function getMarketplaceCourses(origin?: string): Promise<MarketplaceCourse[]> {
+  const [listing, trending, profiles] = await Promise.all([
+    getJson<{ data: CourseListing[] }>("/api/v1/courses?view=all-time&per_page=100", origin),
+    getJson<{ data: CourseListing[] }>("/api/v1/courses?view=trending&per_page=100", origin),
+    getJson<{ data: CourseProfile[] }>("/api/v1/course-profiles", origin),
+  ]);
+  const profilesById = new Map(profiles.data.map((profile) => [profile.id, profile]));
+  const trendingRankById = new Map(trending.data.map((course, index) => [course.id, index]));
+
+  return Promise.all(
+    listing.data.map(async (course) => {
+      const profile = profilesById.get(course.id);
+      if (!profile) throw new Error(`Missing profile for ${course.id}.`);
+      const metrics = await getJson<CourseMetrics>(
+        `/api/v1/courses/${course.source}/${course.slug}/metrics`,
+        origin,
+      );
+      return {
+        ...course,
+        ...profile,
+        installs: metrics.installs,
+        metrics,
+        trendingRank: trendingRankById.get(course.id) ?? Number.MAX_SAFE_INTEGER,
+      };
+    }),
+  );
+}
+
+export async function searchMarketplaceCourses(query: string): Promise<CourseListing[]> {
+  const result = await getJson<{ data: CourseListing[] }>(
+    `/api/v1/courses/search?q=${encodeURIComponent(query)}&limit=20`,
+  );
+  return result.data;
+}

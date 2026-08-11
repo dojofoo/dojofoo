@@ -121,7 +121,9 @@ describe("setupAgents", () => {
     setupAgents(root, ["claude"]);
     expect(existsSync(resolve(root, ".agents/commands/dojo.md"))).toBe(true);
     expect(existsSync(resolve(root, ".agents/commands/kata.md"))).toBe(true);
-    expect(readFileSync(resolve(root, ".agents/commands/kata.md"), "utf8")).toContain("dojo status");
+    const kataCommand = readFileSync(resolve(root, ".agents/commands/kata.md"), "utf8");
+    expect(kataCommand).toContain("npx dojofoo status");
+    expect(kataCommand).not.toContain("`dojo status`");
   });
 
   it("all configured agents serve identical kata content via symlink", () => {
@@ -148,6 +150,7 @@ describe("setupAgents", () => {
     setupAgents(root, ["claude"]);
     const settings = JSON.parse(readFileSync(resolve(root, ".claude/settings.json"), "utf8"));
     expect(settings.permissions.allow).not.toContain("Agent(sensei)");
+    expect(settings.permissions.allow).toContain("Bash(npx dojofoo *)");
   });
 });
 

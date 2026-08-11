@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
@@ -30,8 +30,28 @@ try {
     stdio: "pipe",
   });
 
+  const installedPackage = JSON.parse(
+    readFileSync(resolve(installRoot, "node_modules/dojofoo/package.json"), "utf8"),
+  );
+  if (installedPackage.name !== "dojofoo" || installedPackage.version !== "0.0.1") {
+    throw new Error(`Expected packed dojofoo@0.0.1, received ${installedPackage.name}@${installedPackage.version}.`);
+  }
+  if (installedPackage.bin?.dojofoo !== "./dist/index.js") {
+    throw new Error("Packed package does not expose the dojofoo executable.");
+  }
+  if (existsSync(resolve(installRoot, "node_modules/.bin/dojo"))) {
+    throw new Error("Packed package still exposes the legacy dojo executable.");
+  }
+  if (existsSync(resolve(installRoot, "node_modules/.bin/dojos"))) {
+    throw new Error("Packed package still exposes the rejected dojos executable.");
+  }
+
   const port = await availablePort();
-  const executable = resolve(installRoot, "node_modules/.bin/dojo");
+  const executable = resolve(installRoot, "node_modules/.bin/dojofoo");
+  const help = execFileSync(executable, ["--help"], { encoding: "utf8" });
+  if (!help.includes("Usage: npx dojofoo") || !help.includes("install [--agent]") || !help.includes("ui [--background]") || !help.includes("https://dojo.localhost")) {
+    throw new Error("Packed dojofoo executable does not advertise its install command and default UI URL.");
+  }
   child = spawn(executable, ["ui", "--no-open"], {
     cwd: projectRoot,
     detached: process.platform !== "win32",

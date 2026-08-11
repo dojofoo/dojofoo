@@ -128,7 +128,7 @@ export default function DocumentationTemplate({
         {logoUrl ? (
           <img
             src={logoUrl}
-            alt="dojocho"
+            alt="dojofoo"
             style={{ height: 64, width: 'auto' }}
           />
         ) : (
@@ -141,7 +141,7 @@ export default function DocumentationTemplate({
               textShadow: '0 2px 8px rgba(0,0,0,0.6)',
             }}
           >
-            dojocho
+            dojofoo
           </span>
         )}
       </div>

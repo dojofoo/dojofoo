@@ -1,0 +1,42 @@
+---
+title: npx dojofoo install
+description: One-time wiring of a project so your agent can run katas.
+---
+
+## Usage
+
+```sh
+npx dojofoo install
+```
+
+`npx dojofoo install` prepares the current directory to host one or more dojos.
+It is idempotent — running it twice is harmless. `setup` remains available as
+a compatibility alias.
+
+## What it does
+
+- Detects which coding agent you're in via env vars (e.g. `CLAUDECODE=1`
+  for Claude Code) and registers the `/kata` slash command there.
+- Writes the sensei rules — the agent-side instructions that enforce Socratic
+  teaching: ask questions, never spoil solutions, narrow scope to the next
+  failing test.
+- Creates the expected workspace layout so installed dojos drop in cleanly.
+
+## Specifying the agent explicitly
+
+If `npx dojofoo install` can't detect your agent, or you want to wire up multiple,
+pass one or more flags:
+
+```sh
+npx dojofoo install --claude          # Claude Code
+npx dojofoo install --opencode        # OpenCode
+npx dojofoo install --codex           # OpenAI Codex CLI
+npx dojofoo install --gemini          # Gemini CLI
+npx dojofoo install --pi              # Pi
+npx dojofoo install --claude --codex  # multiple at once
+```
+
+## Re-running install
+
+Re-run `npx dojofoo install` if you've upgraded the CLI, switched agents, or want
+to reset the agent rules to defaults. Your code is untouched.

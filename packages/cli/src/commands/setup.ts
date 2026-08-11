@@ -26,8 +26,8 @@ function detectAgentsFromEnv(): AgentName[] {
 const CLAUDE_SETTINGS = {
   permissions: {
     allow: [
-      "Bash(dojo *)",
-      "Bash(dojo)",
+      "Bash(npx dojofoo *)",
+      "Bash(npx dojofoo)",
     ],
     deny: [
       "Read(.dojos/**)",
@@ -37,14 +37,14 @@ const CLAUDE_SETTINGS = {
   },
 };
 
-const DEFAULT_DOJO_MD = `!\`dojo $ARGUMENTS\`
+const DEFAULT_DOJO_MD = `!\`npx dojofoo $ARGUMENTS\`
 
 Follow any \`<dojo:prompt>\` instructions in the output.
 `;
 
-const DEFAULT_KATA_MD_CLAUDE = `!\`dojo ui --background\`
+const DEFAULT_KATA_MD_CLAUDE = `!\`npx dojofoo ui --background\`
 
-!\`dojo status\`
+!\`npx dojofoo status\`
 
 ## Identity
 
@@ -64,33 +64,33 @@ CLI output uses XML tags to separate directives from student content:
 
 1. Parse \`<dojo:status>\` above.
 2. If state is \`complete\`, congratulate the student.
-3. If state is \`no-dojo\`, tell them to run \`dojo add <source>\`.
+3. If state is \`no-dojo\`, tell them to run \`npx dojofoo add <source>\`.
 4. Otherwise, execute the \`run:\` command via Bash.
 5. Parse the output. Display any unwrapped student-facing text.
 6. Internalize \`<dojo:sensei>\` as your teaching material — teach exclusively from it, do NOT rely on outside knowledge.
 7. If \`<dojo:learnings>\` is present, personalize: build on what the student knows, skip mastered concepts, address past struggles.
 8. Follow \`<dojo:prompt>\` instructions. If there is no \`<dojo:prompt>\`, present the content and ask what the student would like to do.
 9. **Use AskUserQuestion** for ALL student interactions — present choices, ask questions, gather responses. Never list numbered options as plain text.
-10. When the task or student responses require CLI commands (\`dojo kata --check\`, \`dojo kata intro --done\`, \`dojo kata --open\`, etc.), run them via Bash.
+10. When the task or student responses require CLI commands (\`npx dojofoo kata --check\`, \`npx dojofoo kata intro --done\`, \`npx dojofoo kata --open\`, etc.), run them via Bash.
 11. If the teaching material contains Reference URLs, surface them to the student.
-12. Before finishing, record 1–3 key observations about the student by running \`dojo kata --note "observation"\` for each.
+12. Before finishing, record 1–3 key observations about the student by running \`npx dojofoo kata --note "observation"\` for each.
 13. Drive the full session: AskUserQuestion → process response → run commands if needed → AskUserQuestion again. Do not stop after one exchange.
 `;
 
-const ROOT_DOJO_MD = `# Welcome to Dojocho
+const ROOT_DOJO_MD = `# Welcome to dojofoo
 
 Your dojo is set up and ready. You just need a dojo (training pack) to start practicing.
 
 ## Add a dojo
 
 \`\`\`bash
-dojo add <source>
+npx dojofoo add <source>
 \`\`\`
 
 Source can be:
-- A local path: \`dojo add ./path/to/dojo\`
-- A git repo: \`dojo add org/repo\`
-- Official dojos: \`dojo add effect-ts\`
+- A local path: \`npx dojofoo add ./path/to/dojo\`
+- A git repo: \`npx dojofoo add org/repo\`
+- Official dojos: \`npx dojofoo add effect-ts\`
 
 ## Start practicing
 
@@ -145,7 +145,7 @@ function promptAgents(): void {
 Which coding agents do you use?
 ${options}
 
-Then run: ${CLI} setup --<agent1> --<agent2> ...`));
+Then run: ${CLI} install --<agent1> --<agent2> ...`));
 }
 
 function scaffold(root: string): void {
