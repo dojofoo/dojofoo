@@ -17,7 +17,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: stylesUrl },
-      { rel: "icon", href: "/dojocho-black.svg", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     ],
   }),
   component: RootLayout,

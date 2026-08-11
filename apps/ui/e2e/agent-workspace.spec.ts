@@ -199,14 +199,20 @@ test("renders streamed Codex app-server chat events", async ({ page }) => {
   await expect(page.getByTestId("senpai-streaming-message")).toContainText("Can you clarify Effect.map?");
 });
 
-test("uses the circular favicon and horizontal Dojofoo wordmark in the page chrome", async ({ page }) => {
+test("uses the official favicon and horizontal Dojofoo wordmark in the page chrome", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.locator('link[rel="icon"][href="/dojocho-black.svg"]')).toHaveCount(1);
+  await expect(page.locator('link[rel="icon"][href="/favicon.svg"]')).toHaveCount(1);
+  const favicon = await page.evaluate(() => fetch("/favicon.svg").then(async (response) => ({
+    status: response.status,
+    text: await response.text(),
+  })));
+  expect(favicon.status).toBe(200);
+  expect(favicon.text).toContain('viewBox="0 0 618 619"');
   const wordmark = page.getByRole("img", { name: "Dojofoo wordmark" });
   await expect(wordmark).toBeVisible();
   await expect(wordmark).toHaveAttribute("src", /dojofoo/);
-  await expect(wordmark).not.toHaveAttribute("src", "/dojocho-black.svg");
+  await expect(wordmark).not.toHaveAttribute("src", "/favicon.svg");
   const box = await wordmark.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.width).toBeGreaterThan(box!.height * 3);

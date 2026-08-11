@@ -42,6 +42,13 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
     };
   })).toEqual({ radius: 2, insetMatchesText: true });
   await expect(page.locator("[data-site-navigation]")).toBeVisible();
+  await expect(page.locator('link[rel="icon"][href="/favicon.svg"]')).toHaveCount(1);
+  const favicon = await page.evaluate(() => fetch("/favicon.svg").then(async (response) => ({
+    status: response.status,
+    text: await response.text(),
+  })));
+  expect(favicon.status).toBe(200);
+  expect(favicon.text).toContain('viewBox="0 0 618 619"');
   const wordmark = page.getByRole("img", { name: "dojofoo" });
   await expect(wordmark).toBeVisible();
   await expect(wordmark).toHaveAttribute("src", /dojofoo/);
