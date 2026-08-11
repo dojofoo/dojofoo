@@ -33,7 +33,7 @@ export function SearchToggle({
     >
       <Search />
       {showShortcut && hotKey.length > 0 ? (
-        <kbd className="pointer-events-none absolute -right-1 -bottom-1 flex items-center bg-black px-1 py-0.5 text-[9px] leading-none font-medium text-white shadow-sm">
+        <kbd className="search-shortcut pointer-events-none absolute top-1/2 left-[calc(100%+2px)] -translate-y-1/2">
           {hotKey.map((key, index) => <span key={index}>{key.display}</span>)}
         </kbd>
       ) : null}

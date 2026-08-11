@@ -27,11 +27,11 @@ function DocsSearchDialog(props: SharedProps) {
   return (
     <SearchDialog search={search} onSearchChange={setSearch} isLoading={query.isLoading} {...props}>
       <SearchDialogOverlay />
-      <SearchDialogContent>
-        <SearchDialogHeader>
+      <SearchDialogContent className="dojo-search-dialog">
+        <SearchDialogHeader className="bg-surface-2">
           <SearchDialogIcon />
           <SearchDialogInput />
-          <SearchDialogClose />
+          <SearchDialogClose className="search-shortcut" />
         </SearchDialogHeader>
         <SearchDialogList items={query.data !== 'empty' ? query.data : null} />
       </SearchDialogContent>
@@ -84,11 +84,11 @@ function CourseSearchDialog(props: SharedProps) {
       {...props}
     >
       <SearchDialogOverlay />
-      <SearchDialogContent>
-        <SearchDialogHeader>
+      <SearchDialogContent className="dojo-search-dialog">
+        <SearchDialogHeader className="bg-surface-2">
           <SearchDialogIcon />
           <SearchDialogInput aria-label="Search courses" />
-          <SearchDialogClose />
+          <SearchDialogClose className="search-shortcut" />
         </SearchDialogHeader>
         <SearchDialogList items={items} />
       </SearchDialogContent>

@@ -16,7 +16,17 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("button", { name: "TypeScript" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open Search" })).toBeVisible();
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
+  const getStarted = page.getByRole("link", { name: "Get Started" });
+  await expect(getStarted).toBeVisible();
+  await expect(getStarted.locator("svg")).toHaveCount(0);
+  expect(await getStarted.evaluate((element) => {
+    const inset = element.querySelector<HTMLElement>("[data-cta-inset]");
+    const styles = getComputedStyle(element);
+    return {
+      radius: Number.parseFloat(styles.borderRadius),
+      insetMatchesText: inset ? getComputedStyle(inset).borderColor === styles.color : false,
+    };
+  })).toEqual({ radius: 2, insetMatchesText: true });
   await expect(page.locator("[data-site-navigation]")).toBeVisible();
   await expect(page.getByRole("searchbox", { name: "Search courses" })).toHaveCount(0);
 
@@ -32,6 +42,18 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   expect(sidebarBox!.width).toBe(304);
   expect(categoryBox!.width).toBeGreaterThanOrEqual(sidebarBox!.width - 1);
   expect(headingBox!.x).toBeGreaterThanOrEqual(sidebarBox!.x + sidebarBox!.width);
+  expect(await page.evaluate(() => {
+    const sidebar = document.querySelector("aside");
+    const frame = document.querySelector(".marketplace-lined-frame");
+    return {
+      bodyMatchesSidebar: sidebar
+        ? getComputedStyle(document.body).backgroundColor === getComputedStyle(sidebar).backgroundColor
+        : false,
+      stripedFrame: frame
+        ? getComputedStyle(frame).backgroundImage.includes("0.055")
+        : false,
+    };
+  })).toEqual({ bodyMatchesSidebar: true, stripedFrame: true });
   await expect(selectedCategory.getByRole("img", { name: "Selected category" })).toBeVisible();
   const pythonCategory = page.getByRole("button", { name: "Python", exact: true });
   await pythonCategory.hover();
@@ -74,8 +96,21 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
     return getComputedStyle(element).borderTopColor === primary;
   })).toBe(true);
 
-  await page.locator("[data-site-navigation]").getByRole("button", { name: "Open Search" }).click();
+  const searchTrigger = page.locator("[data-site-navigation]").getByRole("button", { name: "Open Search" });
+  const [searchIconBox, shortcutBox] = await Promise.all([
+    searchTrigger.locator("svg").boundingBox(),
+    searchTrigger.locator("kbd").boundingBox(),
+  ]);
+  expect(shortcutBox!.x).toBeGreaterThan(searchIconBox!.x + searchIconBox!.width);
+  expect(Math.abs(
+    shortcutBox!.y + shortcutBox!.height / 2 - (searchIconBox!.y + searchIconBox!.height / 2),
+  )).toBeLessThanOrEqual(1);
+  await searchTrigger.click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCSS("border-radius", "0px");
+  const closeSearch = page.getByRole("button", { name: "Close Search" });
+  await expect(closeSearch).toHaveCSS("border-radius", "0px");
+  await expect(closeSearch).toHaveCSS("background-color", "rgb(0, 0, 0)");
   const search = page.getByPlaceholder("Search");
   await search.fill("pydantic");
   await expect(page.getByRole("button", { name: /Pydantic Agents/i })).toBeVisible();
@@ -85,7 +120,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await page.getByRole("link", { name: /Effect TS/i }).click();
   await expect(page.getByRole("heading", { name: "Effect TS" })).toBeVisible();
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Get Started" })).toBeVisible();
   await expect(page.locator("[data-site-navigation]")).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Dojo instances reaching each chapter" })).toHaveAttribute("data-chapter-count", "40");
@@ -116,8 +151,14 @@ test("uses the same site navigation on marketplace and docs", async ({ page }) =
     await expect(navigation).toBeVisible();
     await expect(navigation.getByRole("button", { name: "Open Search" })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "GitHub" })).toBeVisible();
-    await expect(navigation.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Get Started" })).toBeVisible();
     await expect(navigation.locator("[data-cta-inset]")).toBeVisible();
+    expect(await page.evaluate(() => {
+      const sidebar = document.querySelector("aside");
+      return sidebar
+        ? getComputedStyle(document.body).backgroundColor === getComputedStyle(sidebar).backgroundColor
+        : false;
+    })).toBe(true);
     const box = await navigation.boundingBox();
     expect(box).not.toBeNull();
     measurements.push({ width: box!.width, height: box!.height });

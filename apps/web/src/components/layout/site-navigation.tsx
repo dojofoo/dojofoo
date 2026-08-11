@@ -2,7 +2,6 @@
 
 import { Button, buttonVariants } from '@dojocho/ui/button'
 import { Link } from '@tanstack/react-router'
-import { Award } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { GithubIcon } from '@/components/github-icon'
 import { cn } from '@/lib/utils'
@@ -65,11 +64,10 @@ export function SiteNavigation({
           <Button
             asChild
             variant="cta"
-            leadingIcon={Award}
-            className="ml-1 max-sm:w-10.5 max-sm:px-0"
+            className="ml-1 rounded-[2px]"
           >
             <Link to="/$" params={{ _splat: 'docs/installation' }}>
-              <span className="max-sm:hidden">Get Dojocho</span>
+              <span>Get Started</span>
             </Link>
           </Button>
           {mobileAction}

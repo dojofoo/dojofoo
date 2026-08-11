@@ -171,7 +171,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           <span
             data-cta-inset=""
             aria-hidden
-            className="pointer-events-none absolute inset-0.75 rounded-sm border border-dashed border-background/40"
+            className="pointer-events-none absolute inset-0.75 rounded-[1px] border border-dashed border-primary-foreground"
           />
         )}
         <span className="relative inline-flex items-center justify-center gap-[inherit]">
@@ -247,7 +247,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             iconLeft: !isIconOnly && !!LeadingIcon,
             iconRight: !isIconOnly && !!TrailingIcon,
           }),
-          variant === "cta" ? "rounded-md" : shape.button,
+          variant === "cta" ? "rounded-[2px]" : shape.button,
           className
         )}
         // asChild roots (e.g. an anchor) don't take the disabled attribute —
