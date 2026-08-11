@@ -9,7 +9,8 @@ import {
 } from '@/components/layout/notebook/page'
 import browserCollections from 'collections/browser'
 import { Suspense } from 'react'
-import { SITE_URL, getPageImage } from '@/lib/site'
+import { SITE_URL } from '@/lib/site'
+import { DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from '@/lib/social-metadata'
 import { useMDXComponents } from '@/components/mdx'
 import { baseOptions } from '@/lib/layout.shared'
 import { useFumadocsLoader } from 'fumadocs-core/source/client'
@@ -24,24 +25,12 @@ export const Route = createFileRoute('/$')({
   },
   head: ({ loaderData }) => {
     if (!loaderData) return {}
-    const { title, description, ogImage, ogUrl } = loaderData
+    const { title, ogUrl } = loaderData
+    const description = loaderData.description ?? DEFAULT_SOCIAL_DESCRIPTION
     return {
       meta: [
         { title: `${title} — dojofoo` },
-        { name: 'description', content: description },
-        { property: 'og:title', content: title },
-        { property: 'og:description', content: description },
-        { property: 'og:url', content: ogUrl },
-        { property: 'og:type', content: 'article' },
-        { property: 'og:image', content: ogImage },
-        { property: 'og:image:type', content: 'image/webp' },
-        { property: 'og:image:width', content: '1200' },
-        { property: 'og:image:height', content: '630' },
-        { property: 'og:image:alt', content: title },
-        { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: title },
-        { name: 'twitter:description', content: description },
-        { name: 'twitter:image', content: ogImage },
+        ...socialMetadata({ title, description, url: ogUrl, type: 'article' }),
       ],
     }
   },
@@ -61,7 +50,6 @@ const loader = createServerFn({ method: 'GET' })
       path: page.path,
       title: page.data.title,
       description: page.data.description,
-      ogImage: getPageImage(page.slugs).url,
       ogUrl: SITE_URL + page.url,
       pageTree: await source.serializePageTree(source.getPageTree()),
     }

@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router"
 import { RootProvider } from "fumadocs-ui/provider/tanstack"
 import SearchDialog from "@/components/search"
+import { DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from "@/lib/social-metadata"
 import { ShapeProvider } from "@dojofoo/ui"
 import appCss from "../styles.css?url"
 
@@ -15,19 +16,11 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "dojofoo" },
-      { name: "description", content: "Installable coding dojos that turn your AI agent into a sensei." },
-      // Open Graph
-      { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://dojo.foo" },
-      { property: "og:title", content: "dojofoo" },
-      { property: "og:description", content: "Installable coding dojos that turn your AI agent into a sensei." },
-      { property: "og:image", content: "https://dojo.foo/og/landing.webp" },
-      // Twitter
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@tomhacks" },
-      { name: "twitter:title", content: "dojofoo" },
-      { name: "twitter:description", content: "Installable coding dojos that turn your AI agent into a sensei." },
-      { name: "twitter:image", content: "https://dojo.foo/og/landing.webp" },
+      ...socialMetadata({
+        title: "dojofoo",
+        description: DEFAULT_SOCIAL_DESCRIPTION,
+        url: "https://dojo.foo",
+      }),
     ],
     links: [
       { rel: "stylesheet", href: appCss },
