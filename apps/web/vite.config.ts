@@ -10,12 +10,15 @@ export default defineConfig({
     port: Number(process.env.PORT) || 3000,
     host: process.env.HOST || 'localhost',
     allowedHosts: ['dojocho.td', 'host.docker.internal', 'localhost', '127.0.0.1'],
+    proxy: {
+      '/api/v1': process.env.DOJO_API_ORIGIN ?? 'http://127.0.0.1:4311',
+    },
   },
   resolve: {
     tsconfigPaths: true,
   },
   plugins: [
-    mdx(await import('./source.config')),
+    mdx(await import('./source.config.js')),
     tailwindcss(),
     tanstackStart(),
     react(),

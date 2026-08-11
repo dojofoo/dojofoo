@@ -18,7 +18,13 @@ export function ThemeToggle({ className, ...props }: ComponentProps<'button'>) {
   const effective = mounted ? resolvedTheme : 'light'
   const Resolved = effective === 'dark' ? Moon : Sun
 
-  const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
+  const next = !mounted
+    ? 'light'
+    : theme === 'light'
+      ? 'dark'
+      : theme === 'dark'
+        ? 'system'
+        : 'light'
 
   const currentLabel = !mounted
     ? 'system'

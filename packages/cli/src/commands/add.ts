@@ -15,6 +15,7 @@ import { remove as removeDojo } from "./remove";
 import { configuredAgents } from "./setup";
 import { detectPackageManager, pmCommands } from "../pm";
 import { AGENTS } from "./setup";
+import { queueCourseEvent } from "../telemetry";
 
 export async function add(root: string, args: string[]): Promise<void> {
   const source = args.find((a) => !a.startsWith("--"));
@@ -277,6 +278,7 @@ function finalize(root: string, name: string, targetPath: string): void {
   Command:   ${kataCmd}`);
 
   runLifecycleScript(root, targetPath, "prepare.sh");
+  queueCourseEvent(root, name, "installed");
 }
 
 

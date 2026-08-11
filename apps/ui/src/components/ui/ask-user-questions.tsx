@@ -24,7 +24,7 @@ import { useShape } from "@/lib/shape-context";
 import { useIcon } from "@/lib/icon-context";
 import { useProximityHover } from "@/hooks/use-proximity-hover";
 import { useMergeSplitBlocks, SelectionBackgrounds } from "@/hooks/use-merge-split";
-import { Button } from "@/components/ui/button";
+import { Button } from "@dojocho/ui/button";
 
 export interface AskUserOption {
   id?: string;

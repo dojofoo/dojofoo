@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router";
 import "@fontsource/iosevka/400.css";
 import stylesUrl from "../styles.css?url";
-import { ShapeProvider } from "@/lib/shape-context";
+import { ShapeProvider } from "@dojocho/ui";
 
 export const Route = createRootRoute({
   head: () => ({

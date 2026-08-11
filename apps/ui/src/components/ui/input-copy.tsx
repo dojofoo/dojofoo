@@ -7,7 +7,7 @@ import { useIcon } from "@/lib/icon-context";
 import { fontWeights } from "@/lib/font-weight";
 import { useShape } from "@/lib/shape-context";
 import { spring } from "@/lib/springs";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Tooltip } from "@dojocho/ui/tooltip";
 
 type InputCopyVariant = "icon" | "button";
 type InputCopyAlign = "right" | "left";

@@ -6,9 +6,12 @@
     "---Getting Started---",
     "installation",
     "quickstart",
+    "marketplace",
     "---Commands---",
     "commands/setup",
     "commands/add",
-    "commands/kata"
+    "commands/kata",
+    "---Reference---",
+    "api"
   ]
 }

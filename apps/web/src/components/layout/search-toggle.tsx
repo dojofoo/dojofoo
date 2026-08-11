@@ -1,8 +1,8 @@
 'use client'
 import type { ComponentProps } from 'react'
+import { useTranslations } from '@fuma-translate/react'
 import { Search } from 'lucide-react'
 import { useSearchContext } from 'fumadocs-ui/contexts/search'
-import { useI18n } from 'fumadocs-ui/contexts/i18n'
 import { cn } from '@/lib/utils'
 import { type ButtonProps, buttonVariants } from '@/components/ui/button'
 
@@ -47,7 +47,7 @@ export function LargeSearchToggle({
   hideIfDisabled?: boolean
 }) {
   const { enabled, hotKey, setOpenSearch } = useSearchContext()
-  const { text } = useI18n()
+  const t = useTranslations({ note: 'search trigger' })
   if (hideIfDisabled && !enabled) return null
 
   return (
@@ -64,7 +64,7 @@ export function LargeSearchToggle({
       }}
     >
       <Search className="size-4" />
-      {text.search}
+      {t('Search')}
       <div className="ms-auto inline-flex gap-0.5">
         {hotKey.map((k, i) => (
           <kbd key={i} className="rounded-sm border bg-fd-background px-1.5">

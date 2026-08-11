@@ -1,5 +1,5 @@
 'use client'
-import { useI18n } from 'fumadocs-ui/contexts/i18n'
+import { useTranslations } from '@fuma-translate/react'
 import { cn } from '@/lib/utils'
 import { type ComponentProps, useEffect, useRef, useState } from 'react'
 import { mergeRefs } from '@/lib/merge-refs'
@@ -9,7 +9,7 @@ import * as Primitive from 'fumadocs-core/toc'
 export function TOCItems({ ref, className, ...props }: ComponentProps<'div'>) {
   const containerRef = useRef<HTMLDivElement>(null)
   const items = useTOCItems()
-  const { text } = useI18n()
+  const t = useTranslations({ note: 'table of contents' })
   const primaryAnchor = Primitive.useActiveAnchor()
   const [clickedAnchor, setClickedAnchor] = useState<string | null>(null)
   const clickTimeRef = useRef(0)
@@ -35,7 +35,7 @@ export function TOCItems({ ref, className, ...props }: ComponentProps<'div'>) {
   if (items.length === 0)
     return (
       <div className="rounded-lg border bg-fd-card p-3 text-xs text-fd-muted-foreground">
-        {text.tocNoHeadings}
+        {t('No Headings')}
       </div>
     )
 

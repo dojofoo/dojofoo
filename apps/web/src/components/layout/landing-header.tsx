@@ -44,7 +44,7 @@ export function LandingHeader() {
           >
             <GitHubIcon className="size-4" />
           </a>
-          <ThemeToggle mode="light-dark-system" />
+          <ThemeToggle />
           <Button asChild size="sm">
             <a href="/docs">
               <span>Documentation</span>

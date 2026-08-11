@@ -8,6 +8,7 @@ import { remove } from "./commands/remove";
 import { status } from "./commands/status";
 import { ui } from "./commands/ui";
 import { track } from "./commands/track";
+import { flushCourseEvents } from "./telemetry";
 
 const [command, ...args] = process.argv.slice(2);
 
@@ -35,6 +36,7 @@ async function main() {
     // Everything else is root-level flags
     root(process.cwd(), [command, ...args].filter(Boolean));
   }
+  await flushCourseEvents();
 }
 
 main().catch((err: unknown) => {

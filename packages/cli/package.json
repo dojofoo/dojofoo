@@ -48,7 +48,7 @@
     "typescript": "6.0.3"
   },
   "devDependencies": {
-    "@dojocho/ui": "workspace:*",
+    "@dojocho/lesson-ui": "workspace:*",
     "tsup": "^8.0.0",
     "vitest": "^4.1.10"
   }

@@ -1,0 +1,15 @@
+FROM oven/bun:1-alpine
+
+WORKDIR /app
+
+COPY apps/api/package.json ./package.json
+RUN bun install --production
+
+COPY apps/api/src ./src
+
+ENV NODE_ENV=production
+ENV PORT=80
+EXPOSE 80
+
+USER bun
+CMD ["bun", "src/index.ts"]

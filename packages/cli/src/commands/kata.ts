@@ -38,6 +38,7 @@ import { runTests } from "../runner";
 import { sensei, prompt, invokeAsk, learnings } from "../format";
 import { appendNote, readLearnings } from "../journal";
 import { refreshCassette } from "../tracking";
+import { queueCourseEvent } from "../telemetry";
 
 const USAGE = `Usage: ${CLI} kata [flags]
 
@@ -273,6 +274,7 @@ function start(root: string): void {
   }
 
   scaffold(root, rc, dojoPath, target);
+  queueCourseEvent(root, catalog.name, "started", target.name);
   refreshCassette(root);
 }
 
@@ -329,6 +331,10 @@ function check(root: string, args: string[]): void {
     // Record completion
     recordCompletion(rc, target.name);
     writeDojoRc(root, rc);
+    queueCourseEvent(root, catalog.name, "kata_completed", target.name);
+    if (completedCount(katas, getProgress(rc)) === katas.length) {
+      queueCourseEvent(root, catalog.name, "finished", target.name);
+    }
 
     if (jsonReporter) {
       console.log(JSON.stringify(result));
@@ -409,6 +415,7 @@ function change(root: string, name: string): void {
   }
 
   scaffold(root, rc, dojoPath, target);
+  queueCourseEvent(root, catalog.name, "started", target.name);
   refreshCassette(root);
 }
 

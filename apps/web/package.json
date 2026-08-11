@@ -9,11 +9,13 @@
     "dev": "portless dojocho vite dev",
     "build": "vite build",
     "preview": "vite preview",
+    "test:e2e": "playwright test",
     "types:check": "fumadocs-mdx && tsc --noEmit",
     "postinstall": "fumadocs-mdx && ([ -n \"$CI\" ] || [ -f ~/.portless/ca.trusted ] || portless trust)"
   },
   "dependencies": {
-    "@orama/orama": "^3.1.18",
+    "@dojocho/ui": "workspace:*",
+    "@fuma-translate/react": "^1.0.2",
     "@radix-ui/react-slot": "^1.3.3",
     "@takumi-rs/core": "^2.5.11",
     "@takumi-rs/core-darwin-arm64": "^2.5.11",
@@ -40,6 +42,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.1.2",

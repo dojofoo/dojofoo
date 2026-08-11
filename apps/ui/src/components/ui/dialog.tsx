@@ -13,7 +13,7 @@ import { spring } from "@/lib/springs";
 import { useShape } from "@/lib/shape-context";
 import { SurfaceProvider, useSurface } from "@/lib/surface-context";
 import { surfaceClasses } from "@/lib/surface-classes";
-import { Button } from "@/components/ui/button";
+import { Button } from "@dojocho/ui/button";
 
 const DIALOG_OFFSET = 4;
 

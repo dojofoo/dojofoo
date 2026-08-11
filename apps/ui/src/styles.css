@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@dojocho/ui/styles.css";
 
 .cm-line-covered {
   background-color: rgb(88 199 96 / 0.06);
