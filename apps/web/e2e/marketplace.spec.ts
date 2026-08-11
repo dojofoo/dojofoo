@@ -30,10 +30,16 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
   const language = page.getByRole("combobox", { name: "Filter by language" });
   const framework = page.getByRole("combobox", { name: "Filter by framework" });
+  const filterSidebar = page.getByRole("complementary", { name: "Dojo filters" });
+  await expect(filterSidebar).toBeVisible();
+  await expect(filterSidebar.getByText("Filters", { exact: true })).toBeVisible();
+  await expect(filterSidebar.getByRole("combobox", { name: "Filter by language" })).toBeVisible();
+  await expect(filterSidebar.getByRole("combobox", { name: "Filter by framework" })).toBeVisible();
   await expect(language).toHaveText(/All languages/);
   await expect(framework).toHaveText(/All frameworks/);
   await expect(page.getByRole("button", { name: "Open Search" })).toBeVisible();
   const sort = page.getByRole("combobox", { name: "Sort dojos" });
+  await expect(filterSidebar.getByRole("combobox", { name: "Sort dojos" })).toHaveCount(0);
   await expect(sort).toHaveText(/Popularity/);
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
   const getStarted = page.getByRole("link", { name: "Get Started" });

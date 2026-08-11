@@ -50,18 +50,17 @@ function DojosPage() {
       <SiteNavigation />
 
       <section className="marketplace-lined-frame mx-auto max-w-(--fd-layout-width) px-4 sm:px-5">
-        <div className="marketplace-lined-surface min-h-[calc(100vh-4rem)]">
-          <div className="min-w-0 px-5 py-12 lg:px-8">
-            <div className="flex flex-wrap items-start justify-between gap-5">
-              <div className="max-w-2xl">
-                <h1 className="text-4xl font-medium tracking-tight">Dojos</h1>
-                <p className="mt-3 font-prose text-base leading-7 text-muted-foreground">
-                  Dojos are AI-assisted courses. Add them via CLI and let your agent guide you through katas, learning material, and interactive teaching dialogues.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
+        <div className="marketplace-lined-surface grid min-h-[calc(100vh-4rem)] md:grid-cols-[19rem_minmax(0,1fr)]">
+          <aside
+            aria-label="Dojo filters"
+            className="border-b border-dashed border-border bg-surface-1 px-4 py-6 md:border-b-0 md:border-r md:py-12"
+          >
+            <p className="pb-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Filters</p>
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="block text-[13px] text-muted-foreground">Language</label>
                 <Select value={language} onValueChange={selectLanguage} size="compact">
-                  <SelectTrigger aria-label="Filter by language" className="min-w-[10rem]" />
+                  <SelectTrigger aria-label="Filter by language" className="w-full" />
                   <SelectContent>
                     <SelectItem index={0} value="all">All languages</SelectItem>
                     {languages.map((item, index) => (
@@ -69,6 +68,9 @@ function DojosPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[13px] text-muted-foreground">Framework</label>
                 <Select value={framework} onValueChange={setFramework} size="compact">
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.div
@@ -78,7 +80,7 @@ function DojosPage() {
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.16 }}
                     >
-                      <SelectTrigger aria-label="Filter by framework" className="min-w-[10rem]" />
+                      <SelectTrigger aria-label="Filter by framework" className="w-full" />
                     </motion.div>
                   </AnimatePresence>
                   <SelectContent>
@@ -88,6 +90,19 @@ function DojosPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+          </aside>
+
+          <div className="min-w-0 px-5 py-12 lg:px-8">
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div className="max-w-2xl">
+                <h1 className="text-4xl font-medium tracking-tight">Dojos</h1>
+                <p className="mt-3 font-prose text-base leading-7 text-muted-foreground">
+                  Dojos are AI-assisted courses. Add them via CLI and let your agent guide you through katas, learning material, and interactive teaching dialogues.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 <Select value={sortBy} onValueChange={setSortBy} size="compact">
                   <SelectTrigger
                     aria-label="Sort dojos"
