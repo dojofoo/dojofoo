@@ -26,7 +26,7 @@ export async function add(root: string, args: string[]): Promise<void> {
 
 Source can be:
   Local path:   ${CLI} add ./path/to/dojo
-  npm package:  ${CLI} add @dojocho/effect-ts
+  npm package:  ${CLI} add @dojofoo/effect-ts
   Registry:     ${CLI} add effect-ts
   URL:          ${CLI} add https://example.com/dojo.tgz
 
@@ -85,7 +85,7 @@ function addLocal(root: string, source: string, force: boolean): void {
     throw new Error(`Source not found: ${sourcePath}`);
   }
 
-  const tmpDir = resolve(tmpdir(), `dojocho-${Date.now()}`);
+  const tmpDir = resolve(tmpdir(), `dojofoo-${Date.now()}`);
   mkdirSync(tmpDir, { recursive: true });
 
   try {
@@ -139,7 +139,7 @@ function installExtracted(root: string, extractedDir: string, source: string, fo
 }
 
 function addNpm(root: string, source: string, force: boolean): void {
-  const tmpDir = resolve(tmpdir(), `dojocho-${Date.now()}`);
+  const tmpDir = resolve(tmpdir(), `dojofoo-${Date.now()}`);
   mkdirSync(tmpDir, { recursive: true });
 
   try {
@@ -199,12 +199,12 @@ async function addFromRegistry(root: string, name: string, force: boolean): Prom
   throw new Error(`"${name}" not found in any registry.
 
 Try:
-  npm package:  ${CLI} add @dojocho/${name}
+  npm package:  ${CLI} add @dojofoo/${name}
   Local path:   ${CLI} add ./path/to/${name}`);
 }
 
 function addUrl(root: string, url: string, force: boolean): void {
-  const tmpDir = resolve(tmpdir(), `dojocho-${Date.now()}`);
+  const tmpDir = resolve(tmpdir(), `dojofoo-${Date.now()}`);
   mkdirSync(tmpDir, { recursive: true });
 
   try {

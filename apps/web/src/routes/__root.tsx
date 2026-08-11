@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router"
 import { RootProvider } from "fumadocs-ui/provider/tanstack"
 import SearchDialog from "@/components/search"
-import { ShapeProvider } from "@dojocho/ui"
+import { ShapeProvider } from "@dojofoo/ui"
 import appCss from "../styles.css?url"
 
 export const Route = createRootRoute({

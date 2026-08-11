@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { Badge, InputCopy } from "@dojocho/ui";
+import { Badge, InputCopy } from "@dojofoo/ui";
 import { StartsFinishesProgress } from "@/components/marketplace/course-progress";
 import { ChapterReachChart } from "@/components/marketplace/chapter-reach-chart";
 import { SiteNavigation } from "@/components/layout/site-navigation";
@@ -8,8 +8,9 @@ import { loadMarketplaceCourses } from "@/lib/courses.functions";
 export const Route = createFileRoute("/courses/$source/$slug")({
   loader: async ({ params }) => {
     const courses = await loadMarketplaceCourses();
+    const source = params.source === "dojocho" ? "dojofoo" : params.source;
     const course = courses.find(
-      (item) => item.source === params.source && item.slug === params.slug,
+      (item) => item.source === source && item.slug === params.slug,
     );
     if (!course) throw notFound();
     return course;

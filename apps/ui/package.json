@@ -1,5 +1,5 @@
 {
-  "name": "@dojocho/lesson-ui",
+  "name": "@dojofoo/lesson-ui",
   "version": "0.0.3",
   "private": true,
   "license": "MIT",
@@ -23,8 +23,8 @@
     "@codemirror/language": "^6.12.4",
     "@codemirror/lint": "^6.9.4",
     "@codemirror/view": "^6.43.8",
-    "@dojocho/config": "workspace:*",
-    "@dojocho/ui": "workspace:*",
+    "@dojofoo/config": "workspace:*",
+    "@dojofoo/ui": "workspace:*",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource/iosevka": "^5.3.0",
     "@lezer/highlight": "^1.2.3",

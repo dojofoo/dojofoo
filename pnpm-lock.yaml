@@ -78,10 +78,10 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.8
         version: 6.43.8
-      '@dojocho/config':
+      '@dojofoo/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@dojocho/ui':
+      '@dojofoo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@fontsource-variable/geist':
@@ -211,7 +211,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@dojocho/ui':
+      '@dojofoo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@fontsource-variable/geist':
@@ -350,13 +350,13 @@ importers:
 
   dojos/build-llm:
     dependencies:
-      '@dojocho/config':
+      '@dojofoo/config':
         specifier: workspace:*
         version: link:../../packages/config
 
   dojos/effect-ts:
     dependencies:
-      '@dojocho/config':
+      '@dojofoo/config':
         specifier: workspace:*
         version: link:../../packages/config
       effect:
@@ -378,13 +378,13 @@ importers:
 
   dojos/pydantic-agents:
     dependencies:
-      '@dojocho/config':
+      '@dojofoo/config':
         specifier: workspace:*
         version: link:../../packages/config
 
   packages/cli:
     dependencies:
-      '@dojocho/config':
+      '@dojofoo/config':
         specifier: workspace:*
         version: link:../config
       jiti:
@@ -394,7 +394,7 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
     devDependencies:
-      '@dojocho/lesson-ui':
+      '@dojofoo/lesson-ui':
         specifier: workspace:*
         version: link:../../apps/ui
       tsup:

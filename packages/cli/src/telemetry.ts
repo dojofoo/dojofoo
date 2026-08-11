@@ -21,7 +21,7 @@ function telemetryDisabled() {
 
 function normalizeCourseId(name: string) {
   const unscoped = name.replace(/^@/u, "");
-  return unscoped.includes("/") ? unscoped : `dojocho/${unscoped}`;
+  return unscoped.includes("/") ? unscoped : `dojofoo/${unscoped}`;
 }
 
 function instanceId(root: string) {
@@ -61,7 +61,7 @@ export function queueCourseEvent(
 export async function flushCourseEvents() {
   const events = queuedEvents.splice(0);
   if (telemetryDisabled()) return;
-  const origin = (process.env.DOJO_API_URL ?? "https://dojo.foo").replace(/\/$/u, "");
+  const origin = (process.env.DOJO_API_URL || "https://dojofoo.vercel.app").replace(/\/$/u, "");
 
   await Promise.all(events.map(async ({ root, ...event }) => {
     try {

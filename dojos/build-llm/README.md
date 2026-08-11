@@ -1,4 +1,4 @@
-# @dojocho/build-llm
+# @dojofoo/build-llm
 
 > Build a Large Language Model — and a Reasoning Model — from scratch.
 

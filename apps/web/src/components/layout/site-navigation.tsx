@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, buttonVariants } from '@dojocho/ui/button'
+import { Button, buttonVariants } from '@dojofoo/ui/button'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { GithubIcon } from '@/components/github-icon'

@@ -34,7 +34,7 @@ function course(
   categories: string[],
   kataCount: number,
 ): Course {
-  const packageName = `@dojocho/${slug}`;
+  const packageName = `@dojofoo/${slug}`;
   const files = snapshotCourse(slug);
   const packageFile = files.find((file) => file.path === "package.json");
   const manifestFile = files.find((file) => file.path === "dojo.json");
@@ -55,19 +55,19 @@ function course(
     : [];
 
   return {
-    id: `dojocho/${slug}`,
+    id: `dojofoo/${slug}`,
     slug,
     name,
-    source: "dojocho",
+    source: "dojofoo",
     description,
     version,
     publishedAt,
-    repository: "tomsiwik/dojocho",
-    repositoryUrl: `https://github.com/tomsiwik/dojocho/tree/main/dojos/${slug}`,
+    repository: "dojofoo/dojofoo",
+    repositoryUrl: `https://github.com/dojofoo/dojofoo/tree/main/dojos/${slug}`,
     installs: 0,
     sourceType: "npm",
     installUrl: packageName,
-    url: `https://dojo.foo/courses/dojocho/${slug}`,
+    url: `https://dojo.foo/courses/dojofoo/${slug}`,
     categories,
     kataCount: katas.length || kataCount,
     katas,

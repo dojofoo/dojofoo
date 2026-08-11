@@ -19,7 +19,7 @@ import {
 } from './sidebar'
 import { TreeContextProvider } from 'fumadocs-ui/contexts/tree'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@dojocho/ui/button'
+import { buttonVariants } from '@dojofoo/ui/button'
 import { Languages, Sidebar as SidebarIcon, X } from 'lucide-react'
 import { LanguageToggle } from '../language-toggle'
 import { ThemeToggle } from '../theme-toggle'

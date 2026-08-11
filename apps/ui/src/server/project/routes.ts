@@ -18,7 +18,7 @@ import {
   type KataEntry,
   type KataProgress,
   type ResolvedKata,
-} from "@dojocho/config";
+} from "@dojofoo/config";
 
 type ProjectVariables = {
   project: ProjectContext;

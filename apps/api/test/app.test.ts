@@ -2,19 +2,19 @@ import { describe, expect, it } from "vitest";
 import { createCoursesApp } from "../src/app";
 
 const course = {
-  id: "dojocho/effect-ts",
+  id: "dojofoo/effect-ts",
   slug: "effect-ts",
   name: "Effect TS",
-  source: "dojocho",
+  source: "dojofoo",
   description: "Master Effect through hands-on katas",
   version: "0.0.4",
   publishedAt: "2026-02-14T01:32:25.000Z",
-  repository: "tomsiwik/dojocho",
-  repositoryUrl: "https://github.com/tomsiwik/dojocho/tree/main/dojos/effect-ts",
+  repository: "dojofoo/dojofoo",
+  repositoryUrl: "https://github.com/dojofoo/dojofoo/tree/main/dojos/effect-ts",
   installs: 4,
   sourceType: "npm" as const,
-  installUrl: "@dojocho/effect-ts",
-  url: "https://dojo.foo/courses/dojocho/effect-ts",
+  installUrl: "@dojofoo/effect-ts",
+  url: "https://dojo.foo/courses/dojofoo/effect-ts",
   categories: ["TypeScript", "Functional programming"],
   kataCount: 40,
   katas: [],
@@ -42,14 +42,14 @@ describe("courses API", () => {
     expect(await response.json()).toEqual({
       data: [
         {
-          id: "dojocho/effect-ts",
+          id: "dojofoo/effect-ts",
           slug: "effect-ts",
           name: "Effect TS",
-          source: "dojocho",
+          source: "dojofoo",
           installs: 4,
           sourceType: "npm",
-          installUrl: "@dojocho/effect-ts",
-          url: "https://dojo.foo/courses/dojocho/effect-ts",
+          installUrl: "@dojofoo/effect-ts",
+          url: "https://dojo.foo/courses/dojofoo/effect-ts",
         },
       ],
       pagination: { page: 0, perPage: 10, total: 1, hasMore: false },
@@ -125,7 +125,7 @@ describe("courses API", () => {
       app.handle(new Request("http://localhost/api/v1/courses")),
       app.handle(new Request("http://localhost/api/v1/courses/search?q=effect")),
       app.handle(new Request("http://localhost/api/v1/courses/curated")),
-      app.handle(new Request("http://localhost/api/v1/courses/dojocho/effect-ts")),
+      app.handle(new Request("http://localhost/api/v1/courses/dojofoo/effect-ts")),
     ]);
 
     expect(responses.map((response) => response.headers.get("cache-control"))).toEqual([
@@ -136,9 +136,57 @@ describe("courses API", () => {
     ]);
   });
 
+  it("keeps legacy course URLs and telemetry attached to the renamed course", async () => {
+    const app = createCoursesApp({
+      courses: [{ ...course, installs: 0 }],
+      events: [
+        {
+          instanceId: "legacy-instance",
+          courseId: "dojocho/effect-ts",
+          event: "started",
+          kata: "001-hello-effect",
+          occurredAt: "2026-08-01T10:00:00Z",
+        },
+      ],
+    });
+
+    const legacyCourse = await app.handle(
+      new Request("http://localhost/api/v1/courses/dojocho/effect-ts"),
+    );
+    const legacyMetrics = await app.handle(
+      new Request("http://localhost/api/v1/courses/dojocho/effect-ts/metrics"),
+    );
+    const acceptedLegacyEvent = await app.handle(
+      new Request("http://localhost/api/v1/events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          instanceId: "legacy-instance",
+          courseId: "dojocho/effect-ts",
+          event: "kata_completed",
+          kata: "001-hello-effect",
+        }),
+      }),
+    );
+    const canonicalMetrics = await app.handle(
+      new Request("http://localhost/api/v1/courses/dojofoo/effect-ts/metrics"),
+    );
+
+    expect(legacyCourse.status).toBe(200);
+    expect(await legacyCourse.json()).toMatchObject({ id: "dojofoo/effect-ts", source: "dojofoo" });
+    expect(legacyMetrics.status).toBe(200);
+    expect(await legacyMetrics.json()).toMatchObject({ started: 1 });
+    expect(acceptedLegacyEvent.status).toBe(202);
+    expect(await canonicalMetrics.json()).toMatchObject({
+      kataProgress: [
+        { kata: "001-hello-effect", started: 1, finished: 1, active: 0 },
+      ],
+    });
+  });
+
   it("renames the documented audit endpoint and returns the standard missing-audit error", async () => {
     const response = await createCoursesApp({ courses: [course] }).handle(
-      new Request("http://localhost/api/v1/courses/audit/dojocho/effect-ts"),
+      new Request("http://localhost/api/v1/courses/audit/dojofoo/effect-ts"),
     );
 
     expect(response.status).toBe(404);
@@ -159,7 +207,7 @@ describe("courses API", () => {
       ],
     });
     const response = await app.handle(
-      new Request("http://localhost/api/v1/courses/dojocho/effect-ts/metrics"),
+      new Request("http://localhost/api/v1/courses/dojofoo/effect-ts/metrics"),
     );
 
     expect(response.status).toBe(200);
@@ -194,7 +242,7 @@ describe("courses API", () => {
     });
 
     const response = await app.handle(
-      new Request("http://localhost/api/v1/courses/dojocho/effect-ts/metrics"),
+      new Request("http://localhost/api/v1/courses/dojofoo/effect-ts/metrics"),
     );
 
     expect(await response.json()).toMatchObject({
@@ -219,7 +267,7 @@ describe("courses API", () => {
     });
 
     const response = await app.handle(
-      new Request("http://localhost/api/v1/courses/dojocho/effect-ts/metrics"),
+      new Request("http://localhost/api/v1/courses/dojofoo/effect-ts/metrics"),
     );
 
     expect(await response.json()).toMatchObject({
@@ -240,14 +288,14 @@ describe("courses API", () => {
     expect(await response.json()).toEqual({
       data: [
         {
-          id: "dojocho/effect-ts",
+          id: "dojofoo/effect-ts",
           slug: "effect-ts",
           name: "Effect TS",
-          source: "dojocho",
+          source: "dojofoo",
           installs: 4,
           sourceType: "npm",
-          installUrl: "@dojocho/effect-ts",
-          url: "https://dojo.foo/courses/dojocho/effect-ts",
+          installUrl: "@dojofoo/effect-ts",
+          url: "https://dojo.foo/courses/dojofoo/effect-ts",
         },
       ],
       query: "effect",
@@ -275,13 +323,13 @@ describe("courses API", () => {
   it("returns a minimal detail object and file snapshot", async () => {
     const app = createCoursesApp({ courses: [course] });
     const response = await app.handle(
-      new Request("http://localhost/api/v1/courses/dojocho/effect-ts"),
+      new Request("http://localhost/api/v1/courses/dojofoo/effect-ts"),
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      id: "dojocho/effect-ts",
-      source: "dojocho",
+      id: "dojofoo/effect-ts",
+      source: "dojofoo",
       slug: "effect-ts",
       installs: 4,
       hash: "effect-ts-v1",
@@ -292,11 +340,11 @@ describe("courses API", () => {
   it("uses a complete multi-segment source from the stable course id in detail paths", async () => {
     const repositoryCourse = {
       ...course,
-      id: "dojocho/courses/effect-ts",
-      source: "dojocho/courses",
+      id: "dojofoo/courses/effect-ts",
+      source: "dojofoo/courses",
     };
     const response = await createCoursesApp({ courses: [repositoryCourse] }).handle(
-      new Request("http://localhost/api/v1/courses/dojocho/courses/effect-ts"),
+      new Request("http://localhost/api/v1/courses/dojofoo/courses/effect-ts"),
     );
 
     expect(response.status).toBe(200);
@@ -317,12 +365,12 @@ describe("courses API", () => {
     expect(await response.json()).toEqual({
       data: [
         {
-          id: "dojocho/effect-ts",
+          id: "dojofoo/effect-ts",
           description: "Master Effect through hands-on katas",
           version: "0.0.4",
           publishedAt: "2026-02-14T01:32:25.000Z",
-          repository: "tomsiwik/dojocho",
-          repositoryUrl: "https://github.com/tomsiwik/dojocho/tree/main/dojos/effect-ts",
+          repository: "dojofoo/dojofoo",
+          repositoryUrl: "https://github.com/dojofoo/dojofoo/tree/main/dojos/effect-ts",
           categories: ["TypeScript", "Functional programming"],
           kataCount: 40,
         },
@@ -340,11 +388,11 @@ describe("courses API", () => {
     expect(await response.json()).toEqual({
       data: [
         {
-          owner: "dojocho",
+          owner: "dojofoo",
           totalInstalls: 4,
-          featuredRepo: "dojocho",
+          featuredRepo: "dojofoo",
           featuredCourse: "effect-ts",
-          courses: [expect.objectContaining({ id: "dojocho/effect-ts" })],
+          courses: [expect.objectContaining({ id: "dojofoo/effect-ts" })],
         },
       ],
       totalOwners: 1,
@@ -391,7 +439,7 @@ describe("courses API", () => {
     }
 
     const metrics = await app.handle(
-      new Request("http://localhost/api/v1/courses/dojocho/effect-ts/metrics"),
+      new Request("http://localhost/api/v1/courses/dojofoo/effect-ts/metrics"),
     );
     expect(await metrics.json()).toMatchObject({
       started: 1,

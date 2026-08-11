@@ -2,7 +2,7 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { type ComponentProps, useEffect, useState } from 'react'
-import { buttonVariants } from '@dojocho/ui/button'
+import { buttonVariants } from '@dojofoo/ui/button'
 import { cn } from '@/lib/utils'
 
 /**

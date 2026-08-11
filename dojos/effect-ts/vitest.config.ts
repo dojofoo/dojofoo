@@ -1,3 +1,3 @@
-import { defineConfig } from "@dojocho/config/vitest"
+import { defineConfig } from "@dojofoo/config/vitest"
 
 export default defineConfig()

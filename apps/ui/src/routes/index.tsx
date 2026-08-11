@@ -26,9 +26,9 @@ import {
 import {
   AskUserQuestions,
   type AskUserAnswer,
-} from "@dojocho/ui/ask-user-questions";
-import { Button } from "@dojocho/ui/button";
-import { ChatMessage } from "@dojocho/ui/chat-message";
+} from "@dojofoo/ui/ask-user-questions";
+import { Button } from "@dojofoo/ui/button";
+import { ChatMessage } from "@dojofoo/ui/chat-message";
 import {
   Dialog,
   DialogClose,
@@ -37,10 +37,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@dojocho/ui/dialog";
-import { InputMessage } from "@dojocho/ui/input-message";
-import { InputCopy } from "@dojocho/ui/input-copy";
-import { ScrollArea } from "@dojocho/ui/scroll-area";
+} from "@dojofoo/ui/dialog";
+import { InputMessage } from "@dojofoo/ui/input-message";
+import { InputCopy } from "@dojofoo/ui/input-copy";
+import { ScrollArea } from "@dojofoo/ui/scroll-area";
 import type { AgentActivity } from "@/server/lesson/codex-client";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 

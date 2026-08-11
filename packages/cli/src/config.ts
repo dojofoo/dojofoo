@@ -35,6 +35,6 @@ export {
   completedCount,
   findKataByIdOrName,
   listDojos,
-} from "@dojocho/config";
+} from "@dojofoo/config";
 
 export const CLI = "npx dojofoo";

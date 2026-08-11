@@ -1,7 +1,7 @@
 "use client";
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
-import { Button } from "@dojocho/ui/button";
+import { Button } from "@dojofoo/ui/button";
 import {
   Collapsible,
   CollapsibleContent,

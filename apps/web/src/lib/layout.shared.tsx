@@ -2,8 +2,8 @@ import { GithubIcon } from '@/components/github-icon'
 import type { BaseLayoutProps } from '@/components/layout/shared'
 
 export const gitConfig = {
-  user: 'tomsiwik',
-  repo: 'dojocho',
+  user: 'dojofoo',
+  repo: 'dojofoo',
   branch: 'main',
 }
 

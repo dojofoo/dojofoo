@@ -1,6 +1,6 @@
 {
   "$schema": "https://dojo.foo/schema/v1/dojo.json",
-  "name": "@dojocho/build-llm",
+  "name": "@dojofoo/build-llm",
   "version": "0.0.1",
   "description": "Build a Large Language Model \u2014 and a Reasoning Model \u2014 from scratch. 23 chapters / appendices, ~114 katas. Companion to Raschka's two books.",
   "runner": {

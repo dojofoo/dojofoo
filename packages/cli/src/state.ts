@@ -5,4 +5,4 @@ export {
   findNextKata,
   completedCount,
   findKataByIdOrName,
-} from "@dojocho/config";
+} from "@dojofoo/config";

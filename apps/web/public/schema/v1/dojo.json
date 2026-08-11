@@ -14,8 +14,8 @@
     "name": {
       "type": "string",
       "minLength": 1,
-      "description": "Package name of the dojo (e.g. \"@dojocho/effect-ts\").",
-      "examples": ["@dojocho/effect-ts"]
+      "description": "Package name of the dojo (e.g. \"@dojofoo/effect-ts\").",
+      "examples": ["@dojofoo/effect-ts"]
     },
     "version": {
       "type": "string",

@@ -1,10 +1,10 @@
 {
-  "name": "@dojocho/build-llm",
+  "name": "@dojofoo/build-llm",
   "version": "0.0.3",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tomsiwik/dojocho",
+    "url": "https://github.com/dojofoo/dojofoo",
     "directory": "dojos/build-llm"
   },
   "license": "MIT",
@@ -25,6 +25,6 @@
     "teardown.sh"
   ],
   "peerDependencies": {
-    "@dojocho/config": "workspace:*"
+    "@dojofoo/config": "workspace:*"
   }
 }
