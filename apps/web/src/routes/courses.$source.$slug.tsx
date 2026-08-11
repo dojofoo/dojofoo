@@ -37,14 +37,14 @@ function CourseDetailPage() {
               {course.repository}
             </a>
             <h1 className="mt-3 text-4xl font-medium tracking-tight">{course.name}</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">{course.description}</p>
+            <p className="mt-5 max-w-2xl font-prose text-lg leading-8 text-muted-foreground">{course.description}</p>
             <p className="mt-3 font-mono text-xs text-muted-foreground">v{course.version}</p>
             <div className="mt-6 flex flex-wrap gap-2">
               {course.categories.map((category) => <Badge key={category} color="gray">{category}</Badge>)}
             </div>
             <div className="mt-12 border-y border-dashed border-border py-6">
               <h2 className="text-sm font-medium">Chapter reach</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Unique dojo instances that reached each chapter.</p>
+              <p className="mt-1 font-prose text-xs text-muted-foreground">Unique dojo instances that reached each chapter.</p>
               <ChapterReachChart data={course.metrics.kataProgress} className="mt-6 h-64" />
             </div>
           </div>

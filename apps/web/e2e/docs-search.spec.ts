@@ -9,6 +9,12 @@ test("docs hydrate and search opens", async ({ page }) => {
   });
 
   await page.goto("/docs", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Documentation", level: 1 })).toHaveCSS("font-family", /Iosevka/);
+  await expect(page.getByText("dojocho is a kata-driven training framework", { exact: false })).toHaveCSS("font-family", /Geist Variable/);
+  await expect(page.locator("pre").first()).toHaveCSS("font-family", /Iosevka/);
+  expect(await page.locator(".prose li").first().evaluate((element) =>
+    getComputedStyle(element, "::marker").fontFamily,
+  )).toMatch(/Iosevka/);
   await expect(page.locator("[data-header-tabs]").getByText("Dojos", { exact: true })).toHaveCount(0);
   await page.locator("[data-site-navigation]").getByRole("button", { name: "Open Search" }).click();
 
@@ -28,4 +34,16 @@ test("docs hydrate and search opens", async ({ page }) => {
   await page.goto("/docs/api");
   await expect(page.getByRole("heading", { name: "Courses API", level: 1 })).toBeVisible();
   await expect(page.getByText("POST /api/v1/events", { exact: false })).toBeVisible();
+
+  expect(await page.evaluate(() => {
+    const prose = document.createElement("div");
+    prose.className = "font-prose";
+    const quote = document.createElement("blockquote");
+    quote.textContent = "A quoted lesson rule";
+    prose.append(quote);
+    document.body.append(prose);
+    const family = getComputedStyle(quote).fontFamily;
+    prose.remove();
+    return family;
+  })).toMatch(/Iosevka/);
 });

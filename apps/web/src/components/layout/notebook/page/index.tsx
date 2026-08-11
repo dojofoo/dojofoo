@@ -199,7 +199,7 @@ export function EditOnGitHub(props: ComponentProps<'a'>) {
  */
 export function DocsBody({ children, className, ...props }: ComponentProps<'div'>) {
   return (
-    <div {...props} className={cn('prose flex-1', className)}>
+    <div {...props} className={cn('prose font-prose flex-1', className)}>
       {children}
     </div>
   )
@@ -210,7 +210,7 @@ export function DocsDescription({ children, className, ...props }: ComponentProp
   if (children === undefined) return null
 
   return (
-    <p {...props} className={cn('mb-8 text-lg text-fd-muted-foreground', className)}>
+    <p {...props} className={cn('mb-8 font-prose text-lg text-fd-muted-foreground', className)}>
       {children}
     </p>
   )

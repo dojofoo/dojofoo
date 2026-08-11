@@ -20,7 +20,7 @@ export function CourseCard({ course }: { course: MarketplaceCourse }) {
     >
       <CardHeader className="px-4 pt-4">
         <CardTitle className="text-[15px]">{course.name}</CardTitle>
-        <CardDescription>{course.description}</CardDescription>
+        <CardDescription className="font-prose">{course.description}</CardDescription>
         <CardAction>
           <span className="font-mono text-[11px] text-muted-foreground">v{course.version}</span>
         </CardAction>

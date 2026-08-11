@@ -276,7 +276,7 @@ function LessonPage() {
     return (
       <main className="mx-auto max-w-2xl p-8">
         <h1 className="text-2xl font-semibold">Dojo</h1>
-        <p className="mt-4 text-muted-foreground">{error ?? busy}</p>
+        <p className="mt-4 font-prose text-muted-foreground">{error ?? busy}</p>
       </main>
     );
   }
@@ -379,7 +379,7 @@ function LessonPage() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Reset this lesson?</DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription className="font-prose">
                       Restore the original scaffold. Your current solution will be discarded.
                     </DialogDescription>
                   </DialogHeader>
@@ -464,6 +464,7 @@ function LessonPage() {
             <div className="flex min-h-full flex-col gap-4">
               {lesson.transcript.map((message, index) => (
                 <ChatMessage
+                  className="font-prose"
                   data-testid={message.role === "assistant" ? "sensei-message" : "senpai-message"}
                   from={message.role}
                   key={`${message.role}-${message.kind ?? "message"}-${index}`}
@@ -476,7 +477,7 @@ function LessonPage() {
               ))}
               {activity.reasoning && (
                 <Reasoning
-                  className="w-full"
+                  className="w-full font-prose"
                   data-testid="agent-reasoning"
                   isStreaming={activity.status === "thinking"}
                 >
@@ -608,7 +609,7 @@ const LessonNavigationItem = memo(function LessonNavigationItem({
         </AccordionPrimitive.Header>
         <LessonAccordionContent>
           <div>
-            <p className="leading-5">{item.summary}</p>
+            <p className="font-prose leading-5">{item.summary}</p>
             {accessible && item.name !== currentKata && (
               <button className="mt-2 text-xs font-medium text-foreground underline underline-offset-4" onClick={() => onOpenLesson(item.name)} type="button">
                 Open lesson
@@ -652,6 +653,7 @@ function LessonAccordionContent({ children }: { children: React.ReactNode }) {
 function StreamedChatMessage({ message }: { message: UIMessage }) {
   return (
     <ChatMessage
+      className="font-prose"
       data-testid={message.role === "assistant" ? "sensei-streaming-message" : "senpai-streaming-message"}
       from={message.role === "assistant" ? "assistant" : "user"}
     >
@@ -727,7 +729,7 @@ function failureLines(report: TestReport | null, filePath: string): number[] {
 
 function LessonBriefing({ markdown }: { markdown: string }) {
   return (
-    <div className="mt-5 max-w-3xl space-y-2 text-[15px] leading-7 text-foreground/90">
+    <div className="mt-5 max-w-3xl space-y-2 font-prose text-[15px] leading-7 text-foreground/90">
       {markdown.split("\n").map((line, index) => {
         const value = line.trim();
         if (!value) return null;

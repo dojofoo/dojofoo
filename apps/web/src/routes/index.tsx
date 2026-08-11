@@ -76,7 +76,7 @@ function DojosPage() {
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="max-w-2xl">
                 <h1 className="text-4xl font-medium tracking-tight">Dojos</h1>
-                <p className="mt-3 text-base leading-7 text-muted-foreground">
+                <p className="mt-3 font-prose text-base leading-7 text-muted-foreground">
                   Dojos are AI-assisted courses you work through with your coding agent.
                 </p>
               </div>

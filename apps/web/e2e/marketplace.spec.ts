@@ -45,6 +45,8 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("searchbox", { name: "Search courses" })).toHaveCount(0);
 
   const effectCard = page.getByTestId("course-effect-ts");
+  await expect(effectCard.locator('[data-slot="card-title"]')).toHaveCSS("font-family", /Iosevka/);
+  await expect(effectCard.locator('[data-slot="card-description"]')).toHaveCSS("font-family", /Geist Variable/);
   const cards = page.locator('[data-testid^="course-"]');
   await expect(cards.first()).toHaveAttribute("data-testid", "course-effect-ts");
   await sort.click();
@@ -182,6 +184,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(detailInstall).toBeVisible();
   await expect(detailInstall.getByText("Copy", { exact: true })).toHaveCount(0);
   await expect(detailInstall.locator("mark")).toHaveCSS("font-family", /Iosevka/);
+  await expect(page.getByText("Master Effect through 40 hands-on katas.", { exact: true })).toHaveCSS("font-family", /Geist Variable/);
   const eyebrow = page.getByTestId("course-source");
   await expect(eyebrow).toHaveText("tomsiwik/dojocho");
   await expect(eyebrow).toHaveCSS("text-transform", "uppercase");
