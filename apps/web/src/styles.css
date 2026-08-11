@@ -1,4 +1,3 @@
-@import url('https://cdnjs.cloudflare.com/ajax/libs/Iosevka/11.1.1/iosevka/iosevka.min.css');
 @import "tailwindcss";
 @import "@dojocho/ui/styles.css";
 @import "tw-animate-css";
@@ -6,11 +5,19 @@
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
 
+@font-face {
+  font-family: "Iosevka";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/iosevka/files/iosevka-latin-400-normal.woff2") format("woff2");
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: 'Iosevka Web', monospace;
-  --font-mono: 'Iosevka Web', monospace;
+  --font-sans: 'Iosevka', monospace;
+  --font-mono: 'Iosevka', monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -138,7 +145,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Iosevka Web', monospace;
+    font-family: 'Iosevka', monospace;
   }
 
   /* Make the docs sidebar share the page background instead of inheriting

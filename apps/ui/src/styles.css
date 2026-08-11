@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "@dojocho/ui/styles.css";
 
+@font-face {
+  font-family: "Iosevka";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/iosevka/files/iosevka-latin-400-normal.woff2") format("woff2");
+}
+
 .cm-line-covered {
   background-color: rgb(88 199 96 / 0.06);
 }
@@ -37,6 +45,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: "Iosevka", monospace;
+  --font-mono: "Iosevka", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

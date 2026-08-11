@@ -4,7 +4,6 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
-import "@fontsource/iosevka/400.css";
 import stylesUrl from "../styles.css?url";
 import { ShapeProvider } from "@dojocho/ui";
 

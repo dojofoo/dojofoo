@@ -114,6 +114,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   expect((await cardTitle.boundingBox())!.x - (await effectCard.boundingBox())!.x).toBe(17);
   const copyButton = effectCard.getByRole("button", { name: "Copy to clipboard" });
   const installText = copyButton.locator("mark");
+  await expect(installText).toHaveCSS("font-family", /Iosevka/);
   const restingInstallColor = await installText.evaluate((element) => getComputedStyle(element).color);
   await copyButton.hover();
   await expect(installText).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
@@ -165,9 +166,9 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
 
   await page.getByRole("link", { name: /Effect TS/i }).click();
   await expect(page.getByRole("heading", { name: "Effect TS" })).toBeVisible();
-  await expect(page.locator("body")).toHaveCSS("font-family", /Iosevka Web/);
+  await expect(page.locator("body")).toHaveCSS("font-family", /Iosevka/);
   expect(await page.evaluate(async () => {
-    const faces = await document.fonts.load('400 16px "Iosevka Web"');
+    const faces = await document.fonts.load('400 16px "Iosevka"');
     return faces.some((face) => face.status === "loaded");
   })).toBe(true);
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
@@ -180,6 +181,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   const detailInstall = detailSidebar.getByRole("button", { name: /Copy Install/ });
   await expect(detailInstall).toBeVisible();
   await expect(detailInstall.getByText("Copy", { exact: true })).toHaveCount(0);
+  await expect(detailInstall.locator("mark")).toHaveCSS("font-family", /Iosevka/);
   const eyebrow = page.getByTestId("course-source");
   await expect(eyebrow).toHaveText("tomsiwik/dojocho");
   await expect(eyebrow).toHaveCSS("text-transform", "uppercase");

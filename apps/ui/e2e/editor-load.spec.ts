@@ -161,6 +161,7 @@ test("uses the Vercel dark palette in the editor", async ({ page }) => {
   await page.goto("/");
 
   expect((await bundledFont).ok()).toBe(true);
+  await expect(page.locator("body")).toHaveCSS("font-family", /Iosevka/);
   await expect(page.locator(".cm-editor")).toHaveCSS("background-color", "rgb(10, 10, 10)");
   await expect(page.locator(".cm-editor")).toHaveCSS("font-family", /Iosevka/);
   await expect(page.locator(".cm-editor")).toHaveCSS("font-size", "16.5px");
