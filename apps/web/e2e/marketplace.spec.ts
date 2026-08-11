@@ -5,7 +5,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "networkidle" });
 
   await expect(page.getByRole("heading", { name: "Dojos" })).toBeVisible();
   await expect(page.getByText("AI-assisted courses", { exact: false })).toBeVisible();
@@ -29,9 +29,25 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
     selectedCategory.boundingBox(),
     dojoHeading.boundingBox(),
   ]);
+  expect(sidebarBox!.width).toBe(304);
   expect(categoryBox!.width).toBeGreaterThanOrEqual(sidebarBox!.width - 1);
   expect(headingBox!.x).toBeGreaterThanOrEqual(sidebarBox!.x + sidebarBox!.width);
   await expect(selectedCategory.getByRole("img", { name: "Selected category" })).toBeVisible();
+  const pythonCategory = page.getByRole("button", { name: "Python", exact: true });
+  await pythonCategory.hover();
+  await page.waitForTimeout(200);
+  const hoverColors = await pythonCategory.evaluate((element) => {
+    const probe = document.createElement("span");
+    probe.style.backgroundColor = "var(--hover)";
+    element.append(probe);
+    const hover = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return {
+      actual: getComputedStyle(element).backgroundColor,
+      hover,
+    };
+  });
+  expect(hoverColors.actual).toBe(hoverColors.hover);
   await expect(effectCard.getByText("v0.0.4")).toBeVisible();
   await expect(effectCard.getByText("dojocho", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByText("TypeScript", { exact: true })).toHaveCount(0);
@@ -74,6 +90,22 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Dojo instances reaching each chapter" })).toHaveAttribute("data-chapter-count", "40");
   expect(consoleErrors).toEqual([]);
+});
+
+test("server-renders course data without route loading screens", async ({ request }) => {
+  const marketplace = await request.get("/");
+  expect(marketplace.status()).toBe(200);
+  expect(marketplace.headers()["cache-control"]).toContain("s-maxage=60");
+  const marketplaceHtml = await marketplace.text();
+  expect(marketplaceHtml).toContain("Effect TS");
+  expect(marketplaceHtml).not.toContain("Loading courses");
+
+  const course = await request.get("/courses/dojocho/effect-ts");
+  expect(course.status()).toBe(200);
+  expect(course.headers()["cache-control"]).toContain("s-maxage=60");
+  const courseHtml = await course.text();
+  expect(courseHtml).toContain("Chapter reach");
+  expect(courseHtml).not.toContain("Loading course");
 });
 
 test("uses the same site navigation on marketplace and docs", async ({ page }) => {

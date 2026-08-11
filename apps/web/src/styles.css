@@ -164,3 +164,7 @@
   border-inline: 1px dashed var(--border);
   background-color: var(--background);
 }
+
+.marketplace-category:hover {
+  background-color: var(--hover);
+}

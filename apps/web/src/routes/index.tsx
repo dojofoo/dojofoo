@@ -1,25 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CardGroup } from "@dojocho/ui";
 import { ArrowRight } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CourseCard } from "@/components/marketplace/course-card";
 import { SiteNavigation } from "@/components/layout/site-navigation";
-import { getMarketplaceCourses, type MarketplaceCourse } from "@/lib/courses";
+import { loadMarketplaceCourses } from "@/lib/courses.functions";
 
-export const Route = createFileRoute("/")({ component: DojosPage });
+export const Route = createFileRoute("/")({
+  loader: () => loadMarketplaceCourses(),
+  staleTime: 60_000,
+  component: DojosPage,
+});
 
 function DojosPage() {
-  const [courses, setCourses] = useState<MarketplaceCourse[]>([]);
+  const courses = Route.useLoaderData();
   const [category, setCategory] = useState("All");
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    getMarketplaceCourses()
-      .then((result) => active && setCourses(result))
-      .catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message : "Unable to load courses."));
-    return () => { active = false; };
-  }, []);
 
   const categories = useMemo(
     () => ["All", ...new Set(courses.flatMap((course) => course.categories))],
@@ -35,10 +30,10 @@ function DojosPage() {
       <SiteNavigation />
 
       <section className="marketplace-lined-frame mx-auto max-w-(--fd-layout-width) px-4 sm:px-5">
-        <div className="marketplace-lined-surface grid min-h-[calc(100vh-4rem)] md:grid-cols-[12rem_minmax(0,1fr)]">
+        <div className="marketplace-lined-surface grid min-h-[calc(100vh-4rem)] md:grid-cols-[19rem_minmax(0,1fr)]">
           <aside
             aria-label="Dojo categories"
-            className="border-b border-dashed border-border py-6 md:border-b-0 md:border-r md:py-12"
+            className="border-b border-dashed border-border bg-surface-1 py-6 md:border-b-0 md:border-r md:py-12"
           >
             <p className="px-4 pb-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Categories</p>
             <nav className="flex overflow-x-auto md:block md:overflow-visible">
@@ -49,7 +44,7 @@ function DojosPage() {
                     aria-label={item}
                     aria-pressed={category === item}
                     onClick={() => setCategory(item)}
-                    className={`flex shrink-0 cursor-pointer items-center gap-2.5 border-dashed border-border px-4 py-4 text-left text-[13px] outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring,#6B97FF)] md:w-full ${
+                    className={`marketplace-category flex shrink-0 cursor-pointer items-center gap-2.5 border-dashed border-border px-4 py-4 text-left text-[13px] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring,#6B97FF)] md:w-full ${
                       index === categories.length - 1 ? "" : "border-r md:border-b md:border-r-0"
                     } ${
                       category === item
@@ -80,15 +75,9 @@ function DojosPage() {
             </div>
 
             <div className="mt-10 min-w-0">
-              {error ? (
-                <p role="alert" className="border-l-2 border-destructive py-2 pl-4 text-sm text-destructive">{error}</p>
-              ) : courses.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Loading courses…</p>
-              ) : (
-                <CardGroup columns={3} separated proximityHover={false} border="outlined" className="grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {visibleCourses.map((course) => <CourseCard key={course.id} course={course} />)}
-                </CardGroup>
-              )}
+              <CardGroup columns={3} separated proximityHover={false} border="outlined" className="grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {visibleCourses.map((course) => <CourseCard key={course.id} course={course} />)}
+              </CardGroup>
             </div>
           </div>
         </div>

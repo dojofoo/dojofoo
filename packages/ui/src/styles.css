@@ -3,6 +3,7 @@
 @source "./**/*.{ts,tsx}";
 
 @theme inline {
+    --color-hover: var(--hover);
     --color-surface-1: var(--surface-1);
     --color-surface-2: var(--surface-2);
     --color-surface-3: var(--surface-3);
@@ -52,6 +53,7 @@
 }
 
 :root {
+    --hover: rgb(0 0 0 / 0.05);
     --surface-1: #FAFAFA;
     --surface-2: #FCFCFC;
     --surface-3: #FFFFFF;
@@ -72,6 +74,7 @@
 }
 
 .dark {
+    --hover: rgb(255 255 255 / 0.06);
     --surface-1: #171717;
     --surface-2: #1E1E1E;
     --surface-3: #252525;

@@ -1,32 +1,25 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { Badge, InputCopy } from "@dojocho/ui";
-import { useEffect, useState } from "react";
 import { StartsFinishesProgress } from "@/components/marketplace/course-progress";
 import { ChapterReachChart } from "@/components/marketplace/chapter-reach-chart";
 import { SiteNavigation } from "@/components/layout/site-navigation";
-import { getMarketplaceCourses, type MarketplaceCourse } from "@/lib/courses";
+import { loadMarketplaceCourses } from "@/lib/courses.functions";
 
-export const Route = createFileRoute("/courses/$source/$slug")({ component: CourseDetailPage });
+export const Route = createFileRoute("/courses/$source/$slug")({
+  loader: async ({ params }) => {
+    const courses = await loadMarketplaceCourses();
+    const course = courses.find(
+      (item) => item.source === params.source && item.slug === params.slug,
+    );
+    if (!course) throw notFound();
+    return course;
+  },
+  staleTime: 60_000,
+  component: CourseDetailPage,
+});
 
 function CourseDetailPage() {
-  const { source, slug } = Route.useParams();
-  const [course, setCourse] = useState<MarketplaceCourse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    getMarketplaceCourses()
-      .then((courses) => {
-        const match = courses.find((item) => item.source === source && item.slug === slug);
-        if (!match) throw new Error("Course not found.");
-        if (active) setCourse(match);
-      })
-      .catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message : "Unable to load course."));
-    return () => { active = false; };
-  }, [source, slug]);
-
-  if (error) return <main className="mx-auto max-w-5xl px-6 py-16"><p role="alert">{error}</p></main>;
-  if (!course) return <main className="mx-auto max-w-5xl px-6 py-16 text-muted-foreground">Loading course…</main>;
+  const course = Route.useLoaderData();
 
   return (
     <main className="min-h-screen bg-background text-foreground">
