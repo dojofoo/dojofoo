@@ -4,7 +4,7 @@ import { useTranslations } from '@fuma-translate/react'
 import { useI18n } from 'fumadocs-ui/contexts/i18n'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@dojocho/ui/button'
 
 export type LanguageSelectProps = ComponentProps<'button'>
 
@@ -20,7 +20,7 @@ export function LanguageToggle(props: LanguageSelectProps): React.ReactElement {
         {...props}
         className={cn(
           buttonVariants({
-            color: 'ghost',
+            variant: 'ghost',
             className: 'gap-1.5 p-1.5',
           }),
           props.className,

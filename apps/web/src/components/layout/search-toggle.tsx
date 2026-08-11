@@ -4,31 +4,28 @@ import { useTranslations } from '@fuma-translate/react'
 import { Search } from 'lucide-react'
 import { useSearchContext } from 'fumadocs-ui/contexts/search'
 import { cn } from '@/lib/utils'
-import { type ButtonProps, buttonVariants } from '@/components/ui/button'
+import { Button, type ButtonProps } from '@dojocho/ui/button'
 
-interface SearchToggleProps extends Omit<ComponentProps<'button'>, 'color'>, ButtonProps {
+interface SearchToggleProps extends ButtonProps {
   hideIfDisabled?: boolean
 }
 
 export function SearchToggle({
   hideIfDisabled,
-  size = 'icon-sm',
-  color = 'ghost',
+  size = 'icon-compact',
+  variant = 'ghost',
   ...props
 }: SearchToggleProps) {
   const { setOpenSearch, enabled } = useSearchContext()
   if (hideIfDisabled && !enabled) return null
 
   return (
-    <button
+    <Button
+      {...props}
       type="button"
-      className={cn(
-        buttonVariants({
-          size,
-          color,
-        }),
-        props.className,
-      )}
+      size={size}
+      variant={variant}
+      className={props.className}
       data-search=""
       aria-label="Open Search"
       onClick={() => {
@@ -36,7 +33,7 @@ export function SearchToggle({
       }}
     >
       <Search />
-    </button>
+    </Button>
   )
 }
 

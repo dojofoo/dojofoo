@@ -2,7 +2,7 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { type ComponentProps, useEffect, useState } from 'react'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@dojocho/ui/button'
 import { cn } from '@/lib/utils'
 
 /**
@@ -40,7 +40,7 @@ export function ThemeToggle({ className, ...props }: ComponentProps<'button'>) {
       aria-label={title}
       onClick={() => setTheme(next)}
       className={cn(
-        buttonVariants({ size: 'icon-sm', color: 'ghost' }),
+        buttonVariants({ size: 'icon-compact', variant: 'ghost' }),
         'relative text-fd-muted-foreground',
         className,
       )}

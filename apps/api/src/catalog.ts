@@ -1,4 +1,30 @@
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
+import { relative, resolve, sep } from "node:path";
 import type { Course } from "./app";
+
+function snapshotCourse(slug: string) {
+  const catalogRoot = process.env.DOJO_CATALOG_ROOT
+    ?? resolve(import.meta.dirname, "../../../dojos");
+  const root = resolve(catalogRoot, slug);
+  const absoluteFiles: string[] = [];
+  const visit = (directory: string) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === ".DS_Store") continue;
+      const absolute = resolve(directory, entry.name);
+      if (entry.isDirectory()) visit(absolute);
+      if (entry.isFile()) absoluteFiles.push(absolute);
+    }
+  };
+  visit(root);
+
+  return absoluteFiles
+    .sort()
+    .map((absolute) => ({
+      path: relative(root, absolute).split(sep).join("/"),
+      contents: readFileSync(absolute, "utf8"),
+    }));
+}
 
 function course(
   slug: string,
@@ -6,15 +32,12 @@ function course(
   description: string,
   categories: string[],
   kataCount: number,
-  version: string,
 ): Course {
   const packageName = `@dojocho/${slug}`;
-  const manifest = {
-    $schema: "https://dojocho.ai/schema/v1/dojo.json",
-    name: packageName,
-    version,
-    description,
-  };
+  const files = snapshotCourse(slug);
+  const hash = createHash("sha256")
+    .update(files.map(({ path, contents }) => `${path}\0${contents}`).join("\0"))
+    .digest("hex");
 
   return {
     id: `dojocho/${slug}`,
@@ -28,11 +51,8 @@ function course(
     url: `https://dojocho.ai/courses/dojocho/${slug}`,
     categories,
     kataCount,
-    hash: `${slug}-${version}`,
-    files: [
-      { path: "dojo.json", contents: JSON.stringify(manifest, null, 2) },
-      { path: "DOJO.md", contents: `# ${name}\n\n${description}` },
-    ],
+    hash,
+    files,
   };
 }
 
@@ -43,7 +63,6 @@ export const courseCatalog: Course[] = [
     "Build a large language model and a reasoning model from scratch.",
     ["Python", "Machine learning", "LLMs"],
     114,
-    "0.0.2",
   ),
   course(
     "effect-ts",
@@ -51,7 +70,6 @@ export const courseCatalog: Course[] = [
     "Master Effect through 40 hands-on katas.",
     ["TypeScript", "Functional programming"],
     40,
-    "0.0.4",
   ),
   course(
     "pydantic-agents",
@@ -59,6 +77,5 @@ export const courseCatalog: Course[] = [
     "Learn Pydantic models, validation, and pydantic-ai agents through hands-on katas.",
     ["Python", "AI agents", "Data validation"],
     3,
-    "0.0.3",
   ),
 ];

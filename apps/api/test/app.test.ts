@@ -51,6 +51,98 @@ describe("courses API", () => {
     });
   });
 
+  it("rejects unsupported leaderboard views instead of silently changing their meaning", async () => {
+    const response = await createCoursesApp({ courses: [course] }).handle(
+      new Request("http://localhost/api/v1/courses?view=recent"),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "invalid_view",
+      message: 'view must be "all-time", "trending", or "hot".',
+    });
+  });
+
+  it.each([
+    ["page=-1", "page must be a non-negative integer."],
+    ["per_page=0", "per_page must be an integer between 1 and 500."],
+    ["per_page=501", "per_page must be an integer between 1 and 500."],
+  ])("rejects listing parameters outside the documented range: %s", async (query, message) => {
+    const response = await createCoursesApp({ courses: [course] }).handle(
+      new Request(`http://localhost/api/v1/courses?${query}`),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid_query", message });
+  });
+
+  it("includes the documented comparison fields in the hot view", async () => {
+    const now = Date.now();
+    const app = createCoursesApp({
+      courses: [course],
+      events: [
+        {
+          instanceId: "current-hour",
+          courseId: course.id,
+          event: "installed",
+          occurredAt: new Date(now - 5 * 60_000).toISOString(),
+        },
+        {
+          instanceId: "yesterday-hour",
+          courseId: course.id,
+          event: "installed",
+          occurredAt: new Date(now - 24 * 60 * 60_000 - 5 * 60_000).toISOString(),
+        },
+        {
+          instanceId: "yesterday-hour-2",
+          courseId: course.id,
+          event: "installed",
+          occurredAt: new Date(now - 24 * 60 * 60_000 - 10 * 60_000).toISOString(),
+        },
+      ],
+    });
+
+    const response = await app.handle(
+      new Request("http://localhost/api/v1/courses?view=hot"),
+    );
+    const body = await response.json();
+
+    expect(body.data[0]).toMatchObject({
+      id: course.id,
+      installsYesterday: 2,
+      change: -1,
+    });
+  });
+
+  it("publishes the documented cache policy on catalog responses", async () => {
+    const app = createCoursesApp({ courses: [course] });
+    const responses = await Promise.all([
+      app.handle(new Request("http://localhost/api/v1/courses")),
+      app.handle(new Request("http://localhost/api/v1/courses/search?q=effect")),
+      app.handle(new Request("http://localhost/api/v1/courses/curated")),
+      app.handle(new Request("http://localhost/api/v1/courses/dojocho/effect-ts")),
+    ]);
+
+    expect(responses.map((response) => response.headers.get("cache-control"))).toEqual([
+      "public, max-age=30, s-maxage=60",
+      "public, max-age=30, s-maxage=60",
+      "public, max-age=300, s-maxage=300",
+      "public, max-age=300, s-maxage=300",
+    ]);
+  });
+
+  it("renames the documented audit endpoint and returns the standard missing-audit error", async () => {
+    const response = await createCoursesApp({ courses: [course] }).handle(
+      new Request("http://localhost/api/v1/courses/audit/dojocho/effect-ts"),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: "course_audit_not_found",
+      message: "No audits exist for this course.",
+    });
+  });
+
   it("keeps lifecycle aggregates separate from the compatible course object", async () => {
     const app = createCoursesApp({
       courses: [course],
@@ -106,6 +198,21 @@ describe("courses API", () => {
     });
   });
 
+  it.each(["limit=0", "limit=201", "limit=1.5"])(
+    "rejects a search limit outside the documented range: %s",
+    async (query) => {
+      const response = await createCoursesApp({ courses: [course] }).handle(
+        new Request(`http://localhost/api/v1/courses/search?q=effect&${query}`),
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "invalid_query",
+        message: "limit must be an integer between 1 and 200.",
+      });
+    },
+  );
+
   it("returns a minimal detail object and file snapshot", async () => {
     const app = createCoursesApp({ courses: [course] });
     const response = await app.handle(
@@ -120,6 +227,24 @@ describe("courses API", () => {
       installs: 4,
       hash: "effect-ts-v1",
       files: [{ path: "DOJO.md", contents: "# Effect TS" }],
+    });
+  });
+
+  it("uses a complete multi-segment source from the stable course id in detail paths", async () => {
+    const repositoryCourse = {
+      ...course,
+      id: "dojocho/courses/effect-ts",
+      source: "dojocho/courses",
+    };
+    const response = await createCoursesApp({ courses: [repositoryCourse] }).handle(
+      new Request("http://localhost/api/v1/courses/dojocho/courses/effect-ts"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      id: repositoryCourse.id,
+      source: repositoryCourse.source,
+      slug: repositoryCourse.slug,
     });
   });
 

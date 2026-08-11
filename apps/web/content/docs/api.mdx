@@ -6,6 +6,10 @@ description: Browse courses and record privacy-preserving lifecycle progress.
 The public API is served from `https://dojocho.ai/api/v1`. Its browsing routes follow the
 [skills.sh API](https://www.skills.sh/docs/api) contract with `skills` renamed to `courses`.
 
+On Vercel, TanStack Start and the Bun/Elysia API deploy as separate Services. Public API
+requests rewrite to `courses_api`, and the web service receives its private URL through the
+`DOJO_API_ORIGIN` service binding. Production metrics require a persistent `DATABASE_URL`.
+
 ## Browse courses
 
 ```http
@@ -13,10 +17,16 @@ GET /api/v1/courses?view=all-time&page=0&per_page=100
 GET /api/v1/courses/search?q=effect&limit=50
 GET /api/v1/courses/curated
 GET /api/v1/courses/:source/:slug
+GET /api/v1/courses/audit/:source/:slug
 ```
 
 The listing response uses `{ data, pagination }`. Search uses
-`{ data, query, searchType, count, durationMs }`.
+`{ data, query, searchType, count, durationMs }`. The `view` parameter accepts `all-time`,
+`trending`, or `hot`; hot results also include `installsYesterday` and `change`.
+
+Catalog and search responses cache for 30–60 seconds. Course snapshots, curated results,
+and audit results cache for five minutes. A course without an audit returns the standard
+`{ error, message }` response with HTTP 404.
 
 ## Course metadata and progress
 

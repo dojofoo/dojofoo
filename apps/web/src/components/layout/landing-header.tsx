@@ -1,4 +1,4 @@
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button, buttonVariants } from '@dojocho/ui/button'
 import { ThemeToggle } from './theme-toggle'
 import { cn } from '@/lib/utils'
 import { gitConfig } from '@/lib/layout.shared'
@@ -38,14 +38,14 @@ export function LandingHeader() {
             rel="noopener noreferrer"
             aria-label="GitHub"
             className={cn(
-              buttonVariants({ size: 'icon-sm', color: 'ghost' }),
+              buttonVariants({ size: 'icon-compact', variant: 'ghost' }),
               'text-fd-muted-foreground',
             )}
           >
             <GitHubIcon className="size-4" />
           </a>
           <ThemeToggle />
-          <Button asChild size="sm">
+          <Button asChild size="compact">
             <a href="/docs">
               <span>Documentation</span>
             </a>

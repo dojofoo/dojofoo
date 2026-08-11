@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@dojocho/ui/button'
 import { Edit, Text } from 'lucide-react'
 import {
   type BreadcrumbProps,
@@ -177,8 +177,8 @@ export function EditOnGitHub(props: ComponentProps<'a'>) {
       {...props}
       className={cn(
         buttonVariants({
-          color: 'secondary',
-          size: 'sm',
+          variant: 'secondary',
+          size: 'compact',
           className: 'gap-1.5 not-prose',
         }),
         props.className,

@@ -19,7 +19,7 @@ import {
 } from './sidebar'
 import { TreeContextProvider } from 'fumadocs-ui/contexts/tree'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@dojocho/ui/button'
 import { Languages, Sidebar as SidebarIcon, X } from 'lucide-react'
 import { LanguageToggle } from '../language-toggle'
 import { ThemeToggle } from '../theme-toggle'
@@ -157,8 +157,8 @@ export function DocsLayout(props: DocsLayoutProps) {
                   <SidebarCollapseTrigger
                     className={cn(
                       buttonVariants({
-                        color: 'ghost',
-                        size: 'icon-sm',
+                        variant: 'ghost',
+                        size: 'icon-compact',
                         className: 'mt-px mb-auto text-fd-muted-foreground',
                       }),
                     )}
@@ -183,8 +183,8 @@ export function DocsLayout(props: DocsLayoutProps) {
                 item={item}
                 className={cn(
                   buttonVariants({
-                    size: 'icon-sm',
-                    color: 'ghost',
+                    size: 'icon-compact',
+                    variant: 'ghost',
                     className: 'lg:hidden',
                   }),
                 )}
@@ -200,8 +200,8 @@ export function DocsLayout(props: DocsLayoutProps) {
             <SidebarTrigger
               className={cn(
                 buttonVariants({
-                  size: 'icon-sm',
-                  color: 'ghost',
+                  size: 'icon-compact',
+                  variant: 'ghost',
                   className: 'ms-auto text-fd-muted-foreground',
                 }),
               )}
@@ -231,8 +231,8 @@ export function DocsLayout(props: DocsLayoutProps) {
                 item={item}
                 className={cn(
                   buttonVariants({
-                    size: 'icon-sm',
-                    color: 'ghost',
+                    size: 'icon-compact',
+                    variant: 'ghost',
                   }),
                   'text-fd-muted-foreground lg:hidden',
                   i === iconLinks.length - 1 && 'me-auto',
@@ -306,8 +306,8 @@ function DocsNavbar({
             <SidebarCollapseTrigger
               className={cn(
                 buttonVariants({
-                  color: 'ghost',
-                  size: 'icon-sm',
+                  variant: 'ghost',
+                  size: 'icon-compact',
                 }),
                 'text-fd-muted-foreground data-[collapsed=false]:hidden max-md:hidden',
               )}
@@ -361,7 +361,7 @@ function DocsNavbar({
                 key={i}
                 item={item}
                 className={cn(
-                  buttonVariants({ size: 'icon-sm', color: 'ghost' }),
+                  buttonVariants({ size: 'icon-compact', variant: 'ghost' }),
                   'text-fd-muted-foreground max-lg:hidden',
                 )}
                 aria-label={item.label}
@@ -378,8 +378,8 @@ function DocsNavbar({
             <SidebarTrigger
               className={cn(
                 buttonVariants({
-                  color: 'ghost',
-                  size: 'icon-sm',
+                  variant: 'ghost',
+                  size: 'icon-compact',
                   className: 'p-2 -me-1.5',
                 }),
               )}
@@ -400,8 +400,8 @@ function DocsNavbar({
                 <SidebarCollapseTrigger
                   className={cn(
                     buttonVariants({
-                      color: 'secondary',
-                      size: 'icon-sm',
+                      variant: 'secondary',
+                      size: 'icon-compact',
                     }),
                     'text-fd-muted-foreground rounded-full -me-1.5',
                   )}
@@ -419,8 +419,8 @@ function DocsNavbar({
             <SidebarCollapseTrigger
               className={cn(
                 buttonVariants({
-                  color: 'ghost',
-                  size: 'icon-sm',
+                  variant: 'ghost',
+                  size: 'icon-compact',
                 }),
                 'text-fd-muted-foreground -ms-1.5 me-4',
               )}

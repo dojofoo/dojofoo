@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@dojocho/ui/button";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { Check, Copy } from "lucide-react";
@@ -44,8 +44,8 @@ export function ScriptCopyBtn({
                       <div className="h-4 w-px bg-border" aria-hidden="true" />
                     )}
                     <Button
-                      color="ghost"
-                      size="sm"
+                      variant="ghost"
+                      size="compact"
                       className={`relative rounded-none bg-background px-2 py-1 hover:bg-background ${
                         packageManager === pm
                           ? "text-primary"
@@ -80,7 +80,7 @@ export function ScriptCopyBtn({
             </pre>
           </div>
           <Button
-            color="outline"
+            variant="tertiary"
             size="icon"
             className="relative ml-2 rounded-md"
             onClick={copyToClipboard}

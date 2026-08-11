@@ -56,6 +56,27 @@ const courseEventNames = new Set<CourseEventName>([
   "finished",
 ]);
 
+const catalogCacheControl = "public, max-age=30, s-maxage=60";
+const snapshotCacheControl = "public, max-age=300, s-maxage=300";
+
+function installCountBetween(events: CourseEvent[], start: number, end: number) {
+  return new Set(
+    events
+      .filter((event) => {
+        const occurredAt = Date.parse(event.occurredAt);
+        return event.event === "installed" && occurredAt >= start && occurredAt < end;
+      })
+      .map((event) => event.instanceId),
+  ).size;
+}
+
+function hotInstallComparison(events: CourseEvent[], now = Date.now()) {
+  const hour = 60 * 60_000;
+  const installsCurrent = installCountBetween(events, now - hour, now + 1);
+  const installsYesterday = installCountBetween(events, now - 25 * hour, now - 24 * hour);
+  return { installsYesterday, change: installsCurrent - installsYesterday };
+}
+
 function courseMetrics(course: Course, events: CourseEvent[]) {
   const courseEvents = events.filter((event) => event.courseId === course.id);
   const instances = new Map<string, { started: boolean; finished: boolean }>();
@@ -121,15 +142,48 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         kataCount,
       })),
     }))
-    .get("/api/v1/courses", async ({ query }) => {
-      const page = Math.max(0, Number.parseInt(query.page ?? "0", 10) || 0);
-      const perPage = Math.min(500, Math.max(1, Number.parseInt(query.per_page ?? "100", 10) || 100));
-      const sorted = (await catalogWithRecordedInstalls())
-        .sort((left, right) => right.installs - left.installs);
+    .get("/api/v1/courses", async ({ query, set, status }) => {
+      const view = query.view ?? "all-time";
+      if (!new Set(["all-time", "trending", "hot"]).has(view)) {
+        return status(400, {
+          error: "invalid_view",
+          message: 'view must be "all-time", "trending", or "hot".',
+        });
+      }
+      const page = query.page === undefined ? 0 : Number(query.page);
+      if (!Number.isInteger(page) || page < 0) {
+        return status(400, {
+          error: "invalid_query",
+          message: "page must be a non-negative integer.",
+        });
+      }
+      const perPage = query.per_page === undefined ? 100 : Number(query.per_page);
+      if (!Number.isInteger(perPage) || perPage < 1 || perPage > 500) {
+        return status(400, {
+          error: "invalid_query",
+          message: "per_page must be an integer between 1 and 500.",
+        });
+      }
+      set.headers["cache-control"] = catalogCacheControl;
+      const withSignals = await Promise.all(
+        (await catalogWithRecordedInstalls()).map(async (course) => {
+          const events = await eventStore.list(course.id);
+          const recentInstalls = installCountBetween(events, Date.now() - 7 * 24 * 60 * 60_000, Date.now() + 1);
+          return { course, recentInstalls, hot: hotInstallComparison(events) };
+        }),
+      );
+      const sorted = withSignals.sort((left, right) => {
+        if (view === "trending") return right.recentInstalls - left.recentInstalls;
+        if (view === "hot") return right.hot.change - left.hot.change;
+        return right.course.installs - left.course.installs;
+      });
       const offset = page * perPage;
 
       return {
-        data: sorted.slice(offset, offset + perPage).map(listingFields),
+        data: sorted.slice(offset, offset + perPage).map(({ course, hot }) => ({
+          ...listingFields(course),
+          ...(view === "hot" ? hot : {}),
+        })),
         pagination: {
           page,
           perPage,
@@ -138,7 +192,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         },
       };
     })
-    .get("/api/v1/courses/search", async ({ query, status }) => {
+    .get("/api/v1/courses/search", async ({ query, set, status }) => {
       const startedAt = performance.now();
       const searchQuery = query.q?.trim() ?? "";
       if (searchQuery.length < 2) {
@@ -147,7 +201,14 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
           message: "q must contain at least 2 characters.",
         });
       }
-      const limit = Math.min(200, Math.max(1, Number.parseInt(query.limit ?? "50", 10) || 50));
+      const limit = query.limit === undefined ? 50 : Number(query.limit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+        return status(400, {
+          error: "invalid_query",
+          message: "limit must be an integer between 1 and 200.",
+        });
+      }
+      set.headers["cache-control"] = catalogCacheControl;
       const needle = searchQuery.toLocaleLowerCase();
       const matches = (await catalogWithRecordedInstalls())
         .filter((course) => {
@@ -166,7 +227,8 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         durationMs: Math.max(0, Math.round((performance.now() - startedAt) * 100) / 100),
       };
     })
-    .get("/api/v1/courses/curated", async () => {
+    .get("/api/v1/courses/curated", async ({ set }) => {
+      set.headers["cache-control"] = snapshotCacheControl;
       const owners = new Map<string, Course[]>();
       for (const course of await catalogWithRecordedInstalls()) {
         const owner = course.source.split("/")[0];
@@ -197,13 +259,35 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       }
       return courseMetrics(course, await eventStore.list(course.id));
     })
-    .get("/api/v1/courses/:source/:slug", async ({ params, status }) => {
+    .get("/api/v1/courses/audit/*", ({ status }) =>
+      status(404, {
+        error: "course_audit_not_found",
+        message: "No audits exist for this course.",
+      }))
+    .get("/api/v1/courses/:source/:slug", async ({ params, set, status }) => {
       const course = courses.find(
         (candidate) => candidate.source === params.source && candidate.slug === params.slug,
       );
       if (!course) {
         return status(404, { error: "course_not_found", message: "Course not found." });
       }
+      set.headers["cache-control"] = snapshotCacheControl;
+      const current = await withRecordedInstalls(course);
+      return {
+        id: course.id,
+        source: course.source,
+        slug: course.slug,
+        installs: current.installs,
+        hash: course.hash,
+        files: course.files,
+      };
+    })
+    .get("/api/v1/courses/*", async ({ params, set, status }) => {
+      const course = courses.find((candidate) => candidate.id === params["*"]);
+      if (!course) {
+        return status(404, { error: "course_not_found", message: "Course not found." });
+      }
+      set.headers["cache-control"] = snapshotCacheControl;
       const current = await withRecordedInstalls(course);
       return {
         id: course.id,
