@@ -80,6 +80,41 @@ describe("course lifecycle telemetry", () => {
     });
   });
 
+  it("persists a failed GitHub registration and retries it on the next command", async () => {
+    const root = projectRoot();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("DOJO_PROJECT_ROOT", root);
+
+    queueCourseEvent(root, "starter", "installed", undefined, {
+      type: "github",
+      locator: "dojofoo/starter",
+      integrity: "sha256-example",
+    });
+    await flushCourseEvents();
+
+    const outboxPath = resolve(root, ".dojo/registration-outbox.json");
+    expect(JSON.parse(readFileSync(outboxPath, "utf8"))).toMatchObject({
+      version: 1,
+      registrations: [{
+        courseId: "dojofoo/starter",
+        source: { repository: "dojofoo/starter" },
+      }],
+    });
+
+    await flushCourseEvents();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toMatchObject({
+      courseId: "dojofoo/starter",
+      event: "installed",
+      source: { repository: "dojofoo/starter" },
+    });
+    expect(existsSync(outboxPath)).toBe(false);
+  });
+
   it("keeps later lifecycle events attached to the repository recorded in the source lock", async () => {
     const root = projectRoot();
     mkdirSync(resolve(root, ".dojos/starter"), { recursive: true });
