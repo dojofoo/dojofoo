@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createHash } from "node:crypto";
 
 test("browses compact courses from reusable marketplace navigation", async ({ page }) => {
   const consoleErrors: string[] = [];
@@ -49,6 +50,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   })));
   expect(favicon.status).toBe(200);
   expect(favicon.text).toContain('viewBox="0 0 618 619"');
+  expect(createHash("sha256").update(favicon.text).digest("hex")).toBe("680734d38389d37d70c1e2acf05e7e59d0b834fbfb8050463a7457cfb9b9c673");
   const wordmark = page.getByRole("img", { name: "dojofoo" });
   await expect(wordmark).toBeVisible();
   await expect(wordmark).toHaveAttribute("src", /dojofoo/);

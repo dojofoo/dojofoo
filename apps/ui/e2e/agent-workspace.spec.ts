@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createHash } from "node:crypto";
 
 test("uses the dark lesson workspace with an accessible chapter accordion", async ({ page }) => {
   await page.goto("/");
@@ -209,6 +210,7 @@ test("uses the official favicon and horizontal Dojofoo wordmark in the page chro
   })));
   expect(favicon.status).toBe(200);
   expect(favicon.text).toContain('viewBox="0 0 618 619"');
+  expect(createHash("sha256").update(favicon.text).digest("hex")).toBe("4d827eeec5b5f2876d7e9190973157c24723156c90a985a7d784fcd5bb0f6099");
   const wordmark = page.getByRole("img", { name: "Dojofoo wordmark" });
   await expect(wordmark).toBeVisible();
   await expect(wordmark).toHaveAttribute("src", /dojofoo/);
