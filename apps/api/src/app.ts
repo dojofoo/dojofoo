@@ -13,6 +13,9 @@ export interface Course {
   source: string;
   description: string;
   version: string;
+  publishedAt: string;
+  repository: string;
+  repositoryUrl: string;
   installs: number;
   sourceType: "github" | "well-known" | "npm";
   installUrl: string | null;
@@ -169,10 +172,13 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
     .get("/health", () => ({ status: "ok" }))
     .get("/api/v1/health", () => ({ status: "ok" }))
     .get("/api/v1/course-profiles", () => ({
-      data: courses.map(({ id, description, version, categories, kataCount }) => ({
+      data: courses.map(({ id, description, version, publishedAt, repository, repositoryUrl, categories, kataCount }) => ({
         id,
         description,
         version,
+        publishedAt,
+        repository,
+        repositoryUrl,
         categories,
         kataCount,
       })),

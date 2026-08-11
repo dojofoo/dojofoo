@@ -13,6 +13,9 @@ export interface CourseProfile {
   id: string;
   description: string;
   version: string;
+  publishedAt: string;
+  repository: string;
+  repositoryUrl: string;
   categories: string[];
   kataCount: number;
 }
@@ -43,6 +46,7 @@ export interface CourseMetrics {
 
 export interface MarketplaceCourse extends CourseListing, CourseProfile {
   metrics: CourseMetrics;
+  trendingRank: number;
 }
 
 async function getJson<T>(path: string, origin?: string): Promise<T> {
@@ -52,11 +56,13 @@ async function getJson<T>(path: string, origin?: string): Promise<T> {
 }
 
 export async function getMarketplaceCourses(origin?: string): Promise<MarketplaceCourse[]> {
-  const [listing, profiles] = await Promise.all([
+  const [listing, trending, profiles] = await Promise.all([
     getJson<{ data: CourseListing[] }>("/api/v1/courses?view=all-time&per_page=100", origin),
+    getJson<{ data: CourseListing[] }>("/api/v1/courses?view=trending&per_page=100", origin),
     getJson<{ data: CourseProfile[] }>("/api/v1/course-profiles", origin),
   ]);
   const profilesById = new Map(profiles.data.map((profile) => [profile.id, profile]));
+  const trendingRankById = new Map(trending.data.map((course, index) => [course.id, index]));
 
   return Promise.all(
     listing.data.map(async (course) => {
@@ -66,7 +72,13 @@ export async function getMarketplaceCourses(origin?: string): Promise<Marketplac
         `/api/v1/courses/${course.source}/${course.slug}/metrics`,
         origin,
       );
-      return { ...course, ...profile, installs: metrics.installs, metrics };
+      return {
+        ...course,
+        ...profile,
+        installs: metrics.installs,
+        metrics,
+        trendingRank: trendingRankById.get(course.id) ?? Number.MAX_SAFE_INTEGER,
+      };
     }),
   );
 }

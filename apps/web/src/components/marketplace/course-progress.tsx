@@ -15,7 +15,7 @@ export function StartsFinishesProgress({ started, finished }: { started: number;
         className="h-1.5 overflow-hidden bg-muted"
       >
         <div
-          className="h-full bg-[#6B97FF] transition-[width] duration-160 ease-out"
+          className="h-full bg-primary transition-[width] duration-160 ease-out"
           style={{ width: `${value}%` }}
         />
       </div>

@@ -5,6 +5,18 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
+  const oldInstall = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString();
+  await Promise.all([
+    page.request.post("http://127.0.0.1:4311/api/v1/events", {
+      data: { instanceId: "popular-effect-1", courseId: "dojocho/effect-ts", event: "installed", occurredAt: oldInstall },
+    }),
+    page.request.post("http://127.0.0.1:4311/api/v1/events", {
+      data: { instanceId: "popular-effect-2", courseId: "dojocho/effect-ts", event: "installed", occurredAt: oldInstall },
+    }),
+    page.request.post("http://127.0.0.1:4311/api/v1/events", {
+      data: { instanceId: "trending-pydantic", courseId: "dojocho/pydantic-agents", event: "installed" },
+    }),
+  ]);
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect(page.getByRole("heading", { name: "Dojos" })).toBeVisible();
@@ -15,6 +27,8 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("button", { name: "Python" })).toBeVisible();
   await expect(page.getByRole("button", { name: "TypeScript" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open Search" })).toBeVisible();
+  const sort = page.getByRole("combobox", { name: "Sort dojos" });
+  await expect(sort).toHaveText(/Popularity/);
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
   const getStarted = page.getByRole("link", { name: "Get Started" });
   await expect(getStarted).toBeVisible();
@@ -31,6 +45,18 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("searchbox", { name: "Search courses" })).toHaveCount(0);
 
   const effectCard = page.getByTestId("course-effect-ts");
+  const cards = page.locator('[data-testid^="course-"]');
+  await expect(cards.first()).toHaveAttribute("data-testid", "course-effect-ts");
+  await sort.click();
+  const newestOption = page.getByRole("option", { name: "Newest" });
+  await newestOption.click();
+  await expect(cards.first()).toHaveAttribute("data-testid", "course-build-llm");
+  await expect(newestOption).toBeHidden();
+  await sort.click();
+  const trendingOption = page.getByRole("option", { name: "Trending" });
+  await expect(trendingOption).toBeVisible();
+  await trendingOption.click();
+  await expect(cards.first()).toHaveAttribute("data-testid", "course-pydantic-agents");
   const categorySidebar = page.getByRole("complementary", { name: "Dojo categories" });
   const selectedCategory = page.getByRole("button", { name: "All", exact: true });
   const dojoHeading = page.getByRole("heading", { name: "Dojos" });
@@ -77,12 +103,31 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(effectCard.locator("canvas")).toHaveCount(0);
   await expect(effectCard.getByRole("button", { name: "Copy to clipboard" })).toBeVisible();
   const installFooter = effectCard.locator('[data-slot="card-footer"]');
+  const cardTitle = effectCard.locator('[data-slot="card-title"]');
   const installCommand = installFooter.locator(':scope > div');
   const [footerBox, installBox] = await Promise.all([installFooter.boundingBox(), installCommand.boundingBox()]);
   const installPaddingTop = installBox!.y - footerBox!.y;
   const installPaddingBottom = footerBox!.y + footerBox!.height - (installBox!.y + installBox!.height);
   expect(installPaddingTop).toBeGreaterThan(0);
   expect(Math.abs(installPaddingTop - installPaddingBottom)).toBeLessThanOrEqual(1);
+  expect((await cardTitle.boundingBox())!.x - (await effectCard.boundingBox())!.x).toBe(17);
+  const copyButton = effectCard.getByRole("button", { name: "Copy to clipboard" });
+  const installText = copyButton.locator("mark");
+  const restingInstallColor = await installText.evaluate((element) => getComputedStyle(element).color);
+  await copyButton.hover();
+  await expect(installText).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await page.waitForTimeout(120);
+  expect(await installText.evaluate((element, restingColor) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--foreground)";
+    document.body.append(probe);
+    const foreground = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      changed: getComputedStyle(element).color !== restingColor,
+      matchesForeground: getComputedStyle(element).color === foreground,
+    };
+  }, restingInstallColor)).toEqual({ changed: true, matchesForeground: true });
   const cardBeforeHover = await effectCard.boundingBox();
   await effectCard.hover();
   await page.waitForTimeout(350);
@@ -124,6 +169,36 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.locator("[data-site-navigation]")).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Dojo instances reaching each chapter" })).toHaveAttribute("data-chapter-count", "40");
+  const detailArticle = page.locator("article");
+  const detailSidebar = detailArticle.getByRole("complementary", { name: "Course activity" });
+  const eyebrow = page.getByTestId("course-source");
+  await expect(eyebrow).toHaveText("tomsiwik/dojocho");
+  await expect(eyebrow).toHaveAttribute(
+    "href",
+    "https://github.com/tomsiwik/dojocho/tree/main/dojos/effect-ts",
+  );
+  const [articleBox, detailSidebarBox] = await Promise.all([
+    detailArticle.boundingBox(), detailSidebar.boundingBox(),
+  ]);
+  expect(detailSidebarBox!.y).toBe(articleBox!.y);
+  expect(await detailSidebar.evaluate((element) => {
+    const content = element.previousElementSibling as HTMLElement | null;
+    return {
+      progressIsFirst: element.firstElementChild?.getAttribute("data-testid") === "course-progress",
+      paddingMatchesContent: content
+        ? getComputedStyle(element).paddingTop === getComputedStyle(content).paddingTop
+        : false,
+    };
+  })).toEqual({ progressIsFirst: true, paddingMatchesContent: true });
+  expect(await eyebrow.evaluate((element) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--primary)";
+    document.body.append(probe);
+    const primary = getComputedStyle(probe).color;
+    probe.remove();
+    return getComputedStyle(element).color === primary;
+  })).toBe(true);
+  await expect(page.getByRole("img", { name: "Dojo instances reaching each chapter" })).toHaveAttribute("data-accent", "primary");
   expect(consoleErrors).toEqual([]);
 });
 

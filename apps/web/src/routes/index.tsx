@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CardGroup } from "@dojocho/ui";
-import { ArrowRight } from "lucide-react";
+import { CardGroup, Select, SelectContent, SelectItem, SelectTrigger } from "@dojocho/ui";
+import { ArrowRight, ArrowUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CourseCard } from "@/components/marketplace/course-card";
 import { SiteNavigation } from "@/components/layout/site-navigation";
@@ -15,15 +15,21 @@ export const Route = createFileRoute("/")({
 function DojosPage() {
   const courses = Route.useLoaderData();
   const [category, setCategory] = useState("All");
+  const [sortBy, setSortBy] = useState("popularity");
 
   const categories = useMemo(
     () => ["All", ...new Set(courses.flatMap((course) => course.categories))],
     [courses],
   );
-  const visibleCourses = courses.filter((course) => {
-    const inCategory = category === "All" || course.categories.includes(category);
-    return inCategory;
-  });
+  const visibleCourses = useMemo(() => courses
+    .filter((course) => category === "All" || course.categories.includes(category))
+    .sort((left, right) => {
+      if (sortBy === "newest") {
+        return Date.parse(right.publishedAt) - Date.parse(left.publishedAt);
+      }
+      if (sortBy === "trending") return left.trendingRank - right.trendingRank;
+      return right.installs - left.installs;
+    }), [category, courses, sortBy]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -67,11 +73,25 @@ function DojosPage() {
           </aside>
 
           <div className="min-w-0 px-5 py-12 lg:px-8">
-            <div className="max-w-2xl">
-              <h1 className="text-4xl font-medium tracking-tight">Dojos</h1>
-              <p className="mt-3 text-base leading-7 text-muted-foreground">
-                Dojos are AI-assisted courses you work through with your coding agent.
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div className="max-w-2xl">
+                <h1 className="text-4xl font-medium tracking-tight">Dojos</h1>
+                <p className="mt-3 text-base leading-7 text-muted-foreground">
+                  Dojos are AI-assisted courses you work through with your coding agent.
+                </p>
+              </div>
+              <Select value={sortBy} onValueChange={setSortBy} size="compact">
+                <SelectTrigger
+                  aria-label="Sort dojos"
+                  icon={ArrowUpDown}
+                  className="min-w-[9.5rem]"
+                />
+                <SelectContent>
+                  <SelectItem index={0} value="newest">Newest</SelectItem>
+                  <SelectItem index={1} value="popularity">Popularity</SelectItem>
+                  <SelectItem index={2} value="trending">Trending</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="mt-10 min-w-0">

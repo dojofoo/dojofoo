@@ -314,7 +314,7 @@ const InputCopy = forwardRef<HTMLDivElement, InputCopyProps>(
         )}
         style={{ fontVariationSettings: fontWeights.normal }}
       >
-        <mark className="bg-transparent text-foreground transition-colors duration-80 group-hover:bg-[#6B97FF]/20 group-hover:text-foreground">
+        <mark className="bg-transparent text-muted-foreground transition-colors duration-80 group-hover:text-foreground">
           {value}
         </mark>
       </span>
