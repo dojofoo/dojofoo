@@ -1,5 +1,11 @@
 # dojofoo
 
+## 0.0.4
+
+### Patch Changes
+
+- 06c3ffa: Persist external dojo registration attempts and retry them on later CLI commands until the registry acknowledges them.
+
 ## 0.0.3
 
 ### Patch Changes
