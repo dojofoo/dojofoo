@@ -1,5 +1,15 @@
 # dojocho
 
+## 0.0.2
+
+### Patch Changes
+
+- d87d2e2: Publish the CLI as `dojofoo`, move first-party URLs to `dojo.foo`, and standardize project setup and generated agent commands on `npx dojofoo`.
+- d87d2e2: Add the shared Fluid Functionalism UI package, course marketplace integration, and privacy-preserving course lifecycle metrics.
+- 6007c56: Add project-aware TypeScript completions and diagnostics to the dojo web editor.
+- Updated dependencies [d87d2e2]
+  - @dojocho/config@0.0.5
+
 ## 1.1.0
 
 ### Minor Changes
