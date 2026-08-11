@@ -1,5 +1,16 @@
 # dojofoo
 
+## 0.0.5
+
+### Patch Changes
+
+- cd3289f: Add first-class author, language, framework, and topical tag metadata to dojo manifests.
+
+  Move the first-party courses into independent GitHub repositories and document their canonical repository install sources.
+
+- Updated dependencies [cd3289f]
+  - @dojofoo/config@0.0.7
+
 ## 0.0.4
 
 ### Patch Changes
