@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CardGroup, Select, SelectContent, SelectItem, SelectTrigger } from "@dojofoo/ui";
-import { ArrowUpDown } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { ArrowRight, ArrowUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CourseCard } from "@/components/marketplace/course-card";
 import { SiteNavigation } from "@/components/layout/site-navigation";
@@ -24,10 +23,8 @@ function DojosPage() {
     [courses],
   );
   const frameworks = useMemo(
-    () => [...new Set(courses
-      .filter((course) => language === "all" || course.language === language)
-      .flatMap((course) => course.framework ? [course.framework] : []))].sort(),
-    [courses, language],
+    () => [...new Set(courses.flatMap((course) => course.framework ? [course.framework] : []))].sort(),
+    [courses],
   );
   const visibleCourses = useMemo(() => courses
     .filter((course) => language === "all" || course.language === language)
@@ -40,10 +37,10 @@ function DojosPage() {
       return right.installs - left.installs;
     }), [courses, framework, language, sortBy]);
 
-  const selectLanguage = (value: string) => {
-    setLanguage(value);
-    setFramework("all");
-  };
+  const languageAvailable = (item: string) => framework === "all"
+    || courses.some((course) => course.language === item && course.framework === framework);
+  const frameworkAvailable = (item: string) => language === "all"
+    || courses.some((course) => course.language === language && course.framework === item);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -53,45 +50,26 @@ function DojosPage() {
         <div className="marketplace-lined-surface grid min-h-[calc(100vh-4rem)] md:grid-cols-[19rem_minmax(0,1fr)]">
           <aside
             aria-label="Dojo filters"
-            className="border-b border-dashed border-border bg-surface-1 px-4 py-6 md:border-b-0 md:border-r md:py-12"
+            className="border-b border-dashed border-border bg-surface-1 py-6 md:border-b-0 md:border-r md:py-12"
           >
-            <p className="pb-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Filters</p>
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <label className="block text-[13px] text-muted-foreground">Language</label>
-                <Select value={language} onValueChange={selectLanguage} size="compact">
-                  <SelectTrigger aria-label="Filter by language" className="w-full" />
-                  <SelectContent>
-                    <SelectItem index={0} value="all">All languages</SelectItem>
-                    {languages.map((item, index) => (
-                      <SelectItem key={item} index={index + 1} value={item}>{item}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-[13px] text-muted-foreground">Framework</label>
-                <Select value={framework} onValueChange={setFramework} size="compact">
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.div
-                      key={language}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.16 }}
-                    >
-                      <SelectTrigger aria-label="Filter by framework" className="w-full" />
-                    </motion.div>
-                  </AnimatePresence>
-                  <SelectContent>
-                    <SelectItem index={0} value="all">All frameworks</SelectItem>
-                    {frameworks.map((item, index) => (
-                      <SelectItem key={item} index={index + 1} value={item}>{item}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <p className="px-4 pb-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Filters</p>
+            <FilterMenu
+              label="Language"
+              allLabel="All languages"
+              items={languages}
+              selected={language}
+              onSelect={setLanguage}
+              isAvailable={languageAvailable}
+            />
+            <FilterMenu
+              label="Framework"
+              allLabel="All frameworks"
+              items={frameworks}
+              selected={framework}
+              onSelect={setFramework}
+              isAvailable={frameworkAvailable}
+              className="mt-6"
+            />
           </aside>
 
           <div className="min-w-0 px-5 py-12 lg:px-8">
@@ -127,5 +105,62 @@ function DojosPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function FilterMenu({
+  label,
+  allLabel,
+  items,
+  selected,
+  onSelect,
+  isAvailable,
+  className = "",
+}: {
+  label: string;
+  allLabel: string;
+  items: string[];
+  selected: string;
+  onSelect: (value: string) => void;
+  isAvailable: (value: string) => boolean;
+  className?: string;
+}) {
+  const options = [{ label: allLabel, value: "all" }, ...items.map((item) => ({ label: item, value: item }))];
+
+  return (
+    <section className={className} aria-label={label}>
+      <h2 className="px-4 pb-2 text-[13px] text-muted-foreground">{label}</h2>
+      <nav>
+        {options.map((option, index) => {
+          const active = selected === option.value;
+          const disabled = option.value !== "all" && !isAvailable(option.value);
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-label={option.label}
+              aria-pressed={active}
+              disabled={disabled}
+              onClick={() => onSelect(option.value)}
+              className={`marketplace-category flex w-full items-center gap-2.5 border-dashed border-border px-4 py-4 text-left text-[13px] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring,#6B97FF)] disabled:cursor-not-allowed disabled:opacity-35 ${
+                index === options.length - 1 ? "" : "border-b"
+              } ${
+                active ? "font-medium text-foreground" : "text-muted-foreground"
+              } ${disabled ? "" : "cursor-pointer"}`}
+            >
+              <span className="min-w-0 flex-1 truncate">{option.label}</span>
+              {active && (
+                <ArrowRight
+                  aria-label="Selected filter"
+                  className="size-4 shrink-0 text-foreground"
+                  role="img"
+                  strokeWidth={1.75}
+                />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+    </section>
   );
 }
