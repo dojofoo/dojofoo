@@ -1,0 +1,10 @@
+{
+  "$schema": "https://dojo.foo/schema/v1/registry.json",
+  "name": "@dojofoo/starter",
+  "version": "0.0.1",
+  "description": "A minimal, complete TypeScript dojo for learning and authoring",
+  "source": {
+    "type": "npm",
+    "package": "@dojofoo/starter"
+  }
+}
