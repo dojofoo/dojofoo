@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import { readInstalledSource } from "./source";
 
@@ -19,6 +26,17 @@ interface QueuedCourseEvent {
 }
 
 const queuedEvents: QueuedCourseEvent[] = [];
+const REGISTRATION_OUTBOX = "registration-outbox.json";
+
+type RegistrationEvent = Omit<QueuedCourseEvent, "root"> & {
+  event: "installed";
+  source: NonNullable<QueuedCourseEvent["source"]>;
+};
+
+interface RegistrationOutbox {
+  version: 1;
+  registrations: RegistrationEvent[];
+}
 
 function telemetryDisabled() {
   return [process.env.DO_NOT_TRACK, process.env.DOJO_TELEMETRY_DISABLED]
@@ -28,6 +46,55 @@ function telemetryDisabled() {
 function normalizeCourseId(name: string) {
   const unscoped = name.replace(/^@/u, "");
   return unscoped.includes("/") ? unscoped : `dojofoo/${unscoped}`;
+}
+
+function outboxPath(root: string) {
+  return resolve(root, ".dojo", REGISTRATION_OUTBOX);
+}
+
+function readRegistrationOutbox(root: string): RegistrationEvent[] {
+  const path = outboxPath(root);
+  if (!existsSync(path)) return [];
+  try {
+    const value = JSON.parse(readFileSync(path, "utf8")) as Partial<RegistrationOutbox>;
+    return value.version === 1 && Array.isArray(value.registrations)
+      ? value.registrations
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRegistrationOutbox(root: string, registrations: RegistrationEvent[]) {
+  const path = outboxPath(root);
+  if (registrations.length === 0) {
+    if (existsSync(path)) unlinkSync(path);
+    return;
+  }
+
+  mkdirSync(resolve(root, ".dojo"), { recursive: true });
+  const temporaryPath = `${path}.${process.pid}.tmp`;
+  writeFileSync(temporaryPath, `${JSON.stringify({ version: 1, registrations }, null, 2)}\n`);
+  renameSync(temporaryPath, path);
+}
+
+function registrationKey(event: RegistrationEvent) {
+  return `${event.courseId}:${event.source.repository}:${event.source.integrity ?? ""}`;
+}
+
+function persistRegistration(root: string, registration: RegistrationEvent) {
+  const registrations = readRegistrationOutbox(root)
+    .filter((candidate) => candidate.courseId !== registration.courseId);
+  registrations.push(registration);
+  writeRegistrationOutbox(root, registrations);
+}
+
+function acknowledgeRegistration(root: string, registration: RegistrationEvent) {
+  const key = registrationKey(registration);
+  writeRegistrationOutbox(
+    root,
+    readRegistrationOutbox(root).filter((candidate) => registrationKey(candidate) !== key),
+  );
 }
 
 function instanceId(root: string) {
@@ -58,7 +125,7 @@ export function queueCourseEvent(
   if (telemetryDisabled()) return;
   const recorded = readInstalledSource(resolve(root, ".dojos", courseName));
   const githubSource = source ?? (recorded?.type === "github" ? recorded : undefined);
-  queuedEvents.push({
+  const queued: QueuedCourseEvent = {
     root,
     courseId: githubSource?.type === "github" ? githubSource.locator : normalizeCourseId(courseName),
     event,
@@ -71,7 +138,9 @@ export function queueCourseEvent(
         ...(githubSource.integrity ? { integrity: githubSource.integrity } : {}),
       },
     } : {}),
-  });
+  };
+  queuedEvents.push(queued);
+  if (queued.source) persistRegistration(root, queued as RegistrationEvent);
 }
 
 export async function flushCourseEvents() {
@@ -79,14 +148,48 @@ export async function flushCourseEvents() {
   if (telemetryDisabled()) return;
   const origin = (process.env.DOJO_API_URL || "https://dojofoo.vercel.app").replace(/\/$/u, "");
 
-  await Promise.all(events.map(async ({ root, ...event }) => {
+  const roots = new Set(events.map(({ root }) => root));
+  if (process.env.DOJO_PROJECT_ROOT) roots.add(process.env.DOJO_PROJECT_ROOT);
+
+  const registrations = new Map<string, { root: string; event: RegistrationEvent }>();
+  for (const root of roots) {
+    for (const event of readRegistrationOutbox(root)) {
+      registrations.set(registrationKey(event), { root, event });
+    }
+  }
+
+  for (const { root, ...event } of events) {
+    if (event.source) {
+      registrations.set(registrationKey(event as RegistrationEvent), {
+        root,
+        event: event as RegistrationEvent,
+      });
+    }
+  }
+
+  for (const { root, event } of registrations.values()) {
     try {
-      await fetch(`${origin}/api/v1/events`, {
+      const response = await fetch(`${origin}/api/v1/events`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ instanceId: instanceId(root), ...event }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (response.ok) acknowledgeRegistration(root, event);
+    } catch {
+      // Keep registration in the outbox for the next dojo command.
+    }
+  }
+
+  await Promise.all(events.filter(({ source }) => !source).map(async ({ root, ...event }) => {
+    try {
+      const response = await fetch(`${origin}/api/v1/events`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ instanceId: instanceId(root), ...event }),
         signal: AbortSignal.timeout(1_500),
       });
+      if (!response.ok) return;
     } catch {
       // Metrics must never change the outcome or latency of a dojo command.
     }
