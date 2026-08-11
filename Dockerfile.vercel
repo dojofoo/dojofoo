@@ -6,10 +6,8 @@ COPY apps/api/package.json ./package.json
 RUN bun install --production
 
 COPY apps/api/src ./src
-COPY dojos ./dojos
 
 ENV NODE_ENV=production
-ENV DOJO_CATALOG_ROOT=/app/dojos
 ENV PORT=80
 EXPOSE 80
 
