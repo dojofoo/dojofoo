@@ -102,6 +102,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(effectCard.getByRole("img", { name: "Weekly starts and completions" })).toHaveCount(0);
   await expect(effectCard.locator("canvas")).toHaveCount(0);
   await expect(effectCard.getByRole("button", { name: "Copy to clipboard" })).toBeVisible();
+  await expect(effectCard.getByText("npx dojos add @dojocho/effect-ts", { exact: true })).toBeVisible();
   const installFooter = effectCard.locator('[data-slot="card-footer"]');
   const cardTitle = effectCard.locator('[data-slot="card-title"]');
   const installCommand = installFooter.locator(':scope > div');

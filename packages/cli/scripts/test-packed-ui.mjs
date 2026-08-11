@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
@@ -30,8 +30,25 @@ try {
     stdio: "pipe",
   });
 
+  const installedPackage = JSON.parse(
+    readFileSync(resolve(installRoot, "node_modules/dojos/package.json"), "utf8"),
+  );
+  if (installedPackage.name !== "dojos" || installedPackage.version !== "0.0.1") {
+    throw new Error(`Expected packed dojos@0.0.1, received ${installedPackage.name}@${installedPackage.version}.`);
+  }
+  if (installedPackage.bin?.dojos !== "./dist/index.js") {
+    throw new Error("Packed package does not expose the dojos executable.");
+  }
+  if (existsSync(resolve(installRoot, "node_modules/.bin/dojo"))) {
+    throw new Error("Packed package still exposes the legacy dojo executable.");
+  }
+
   const port = await availablePort();
-  const executable = resolve(installRoot, "node_modules/.bin/dojo");
+  const executable = resolve(installRoot, "node_modules/.bin/dojos");
+  const help = execFileSync(executable, ["--help"], { encoding: "utf8" });
+  if (!help.includes("Usage: npx dojos") || !help.includes("install [--agent]")) {
+    throw new Error("Packed dojos executable does not advertise the install command.");
+  }
   child = spawn(executable, ["ui", "--no-open"], {
     cwd: projectRoot,
     detached: process.platform !== "win32",

@@ -17,7 +17,7 @@ def _find_workspace_file(kata_dir_name: str, filename: str = "solution.py") -> P
     """Locate the student's workspace file for a given kata.
 
     Looked up in two places, in order:
-      1. <project>/katas/<kata-name>/solution.py  — consumer (dojo add layout)
+      1. <project>/katas/<kata-name>/solution.py  — consumer (npx dojos add layout)
       2. <dojo-dir>/katas/<kata-name>/solution.py — dev (running tests in-place)
     """
     dojo_dir = Path(__file__).resolve().parent
@@ -36,7 +36,7 @@ def _find_workspace_file(kata_dir_name: str, filename: str = "solution.py") -> P
     raise FileNotFoundError(
         f"Workspace file not found for kata {kata_dir_name!r}.\n"
         f"Looked at:\n  {consumer}\n  {devpath}\n"
-        f"Run `dojo kata --start` to scaffold the kata first, or fill in "
+        f"Run `npx dojos kata --start` to scaffold the kata first, or fill in "
         f"the dev-mode solution.py."
     )
 

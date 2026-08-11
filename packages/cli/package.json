@@ -1,6 +1,6 @@
 {
-  "name": "dojocho",
-  "version": "1.1.0",
+  "name": "dojos",
+  "version": "0.0.1",
   "description": "Installable coding dojos that turn your AI agent into a sensei.",
   "keywords": [
     "cli",
@@ -33,7 +33,7 @@
     "LICENSE"
   ],
   "bin": {
-    "dojo": "./dist/index.js"
+    "dojos": "./dist/index.js"
   },
   "scripts": {
     "build": "tsup && node scripts/bundle-ui.mjs",

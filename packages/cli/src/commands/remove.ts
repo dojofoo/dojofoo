@@ -1,6 +1,7 @@
 import { existsSync, rmSync, readdirSync, lstatSync, readlinkSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  CLI,
   DOJOS_DIR,
   readDojoRc,
   writeDojoRc,
@@ -10,7 +11,7 @@ import { runLifecycleScript } from "./add";
 
 export function remove(root: string, args: string[]): void {
   const name = args.find((a) => !a.startsWith("--"));
-  if (!name) throw new Error("Usage: dojo remove <name>");
+  if (!name) throw new Error(`Usage: ${CLI} remove <name>`);
 
   const dojoPath = resolve(root, DOJOS_DIR, name);
   if (!existsSync(dojoPath)) {

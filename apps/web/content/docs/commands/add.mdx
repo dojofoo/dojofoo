@@ -1,22 +1,22 @@
 ---
-title: dojo add
+title: npx dojos add
 description: Install a dojo from the catalog into the current project.
 ---
 
 ## Usage
 
 ```sh
-dojo add <name>
+npx dojos add <name>
 ```
 
 Examples:
 
 ```sh
-dojo add effect-ts
-dojo add pydantic-agents
+npx dojos add effect-ts
+npx dojos add pydantic-agents
 ```
 
-Each dojo is published as an npm package under the `@dojocho/*` scope. `dojo
+Each dojo is published as an npm package under the `@dojocho/*` scope. `npx dojos
 add` is a thin wrapper that:
 
 - Installs the package with your project's package manager.
@@ -26,17 +26,17 @@ add` is a thin wrapper that:
 ## Listing installed dojos
 
 ```sh
-dojo add --list
+npx dojos add --list
 ```
 
 prints the dojos currently registered in this project.
 
 ## Removing a dojo
 
-Use your package manager:
+Use the CLI:
 
 ```sh
-pnpm remove @dojocho/effect-ts
+npx dojos remove effect-ts
 ```
 
-Then run `dojo setup` to refresh the registration.
+The command removes the package and refreshes the project registration.

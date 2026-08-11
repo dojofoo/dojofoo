@@ -8,7 +8,7 @@
     "quickstart",
     "marketplace",
     "---Commands---",
-    "commands/setup",
+    "commands/install",
     "commands/add",
     "commands/kata",
     "---Reference---",

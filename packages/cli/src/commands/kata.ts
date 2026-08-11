@@ -64,7 +64,7 @@ function recordCompletion(rc: DojoRc, kataName: string): void {
 
 export function kata(root: string, args: string[]): void {
   // Check for "intro" subcommand first (before flag parsing)
-  // so "dojo kata intro --done" works
+  // so "npx dojos kata intro --done" works
   const sub = args.find((a) => !a.startsWith("--"));
   if (sub === "intro") {
     kataIntro(root, args);
@@ -91,13 +91,13 @@ export function kata(root: string, args: string[]): void {
       break;
     case "--change": {
       const name = args[args.indexOf("--change") + 1];
-      if (!name) throw new Error("Usage: dojo kata --change <name>");
+      if (!name) throw new Error(`Usage: ${CLI} kata --change <name>`);
       change(root, name);
       break;
     }
     case "--note": {
       const text = args[args.indexOf("--note") + 1];
-      if (!text) throw new Error('Usage: dojo kata --note "observation text"');
+      if (!text) throw new Error(`Usage: ${CLI} kata --note "observation text"`);
       note(root, text);
       break;
     }
@@ -221,7 +221,7 @@ function smart(root: string, args: string[]): void {
   const katas = resolveAllKatas(root, rc, catalog);
   const progress = getProgress(rc);
 
-  // Try query arg (positional, e.g. `dojo kata 005`)
+  // Try query arg (positional, e.g. `npx dojos kata 005`)
   const query = args.find((a) => !a.startsWith("--"));
   const target = query
     ? findKataByIdOrName(katas, query)

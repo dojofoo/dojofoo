@@ -1,16 +1,16 @@
 ---
 title: Installation
-description: Install the Dojocho CLI globally and verify it runs.
+description: Run the Dojocho CLI with npx and verify it works.
 ---
 
 ## Install
 
 <InstallCommand />
 
-Verify the install:
+Verify the CLI:
 
 ```sh
-dojo --version
+npx dojos --help
 ```
 
 ## Requirements
@@ -22,11 +22,5 @@ dojo --version
 - For language-specific dojos, the matching toolchain (e.g. `pnpm` for
   TypeScript dojos, `uv` for Python dojos).
 
-## Uninstall
-
-```sh
-npm uninstall -g dojocho
-```
-
-Removing installed dojos from a project is a normal `pnpm remove` (or
-equivalent) — they live in your project's dependencies.
+The CLI runs through `npx`, so there is no global package to uninstall. Remove
+an installed dojo from a project with `npx dojos remove <name>`.

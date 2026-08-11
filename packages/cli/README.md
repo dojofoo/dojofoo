@@ -1,26 +1,14 @@
-# dojocho
+# dojos
 
 Installable coding dojos that turn your AI agent into a sensei.
-
-## Install
-
-```sh
-npm install -g dojocho
-# or
-pnpm add -g dojocho
-# or
-bun add -g dojocho
-```
-
-After install, the CLI is available as `dojo`.
 
 ## Usage
 
 ```sh
-dojo setup                # set up your dojo (auto-detects your agent via env vars)
-dojo add effect-ts        # install a training pack (a "dojo")
+npx dojos install         # set up your dojo (auto-detects your agent via env vars)
+npx dojos add effect-ts   # install a training pack (a "dojo")
 claude /kata              # start practicing
-dojo track --list         # inspect locally recorded .dojo/cassettes
+npx dojos track --list    # inspect locally recorded .dojo/cassettes
 ```
 
 You write the code. The agent runs your tests, points out where you're
@@ -34,7 +22,7 @@ Full docs at **https://dojocho.ai/docs**.
 
 - [Installation](https://dojocho.ai/docs/installation)
 - [Quickstart](https://dojocho.ai/docs/quickstart)
-- [Commands](https://dojocho.ai/docs/commands/setup)
+- [Commands](https://dojocho.ai/docs/commands/install)
 - [Available dojos](https://dojocho.ai/dojos)
 
 ## License

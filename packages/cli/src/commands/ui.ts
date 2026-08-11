@@ -31,7 +31,7 @@ export function ui(cwd: string, args: string[]): void {
     portlessArgs.push("--", process.execPath, uiEntry);
     const child = spawn("portless", portlessArgs, {
       cwd,
-      env: process.env,
+      env: { ...process.env, DOJO_CLI: process.argv[1] },
       stdio: background ? "ignore" : "inherit",
       detached: background,
     });
@@ -55,7 +55,7 @@ export function ui(cwd: string, args: string[]): void {
   console.log(url);
   const child = spawn(process.execPath, [uiEntry], {
     cwd,
-    env: { ...process.env, PORT: port },
+    env: { ...process.env, DOJO_CLI: process.argv[1], PORT: port },
     stdio: background ? "ignore" : "inherit",
     detached: background,
   });

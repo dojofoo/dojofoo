@@ -362,7 +362,7 @@ function lessonInstructions(root: string, dojo: string, sensei: string): string 
   const configuredCli = process.env.DOJO_CLI;
   const checkCommand = configuredCli
     ? `node ${JSON.stringify(configuredCli)} kata --check --reporter=json`
-    : "dojo kata --check --reporter=json";
+    : "npx dojos kata --check --reporter=json";
   return `${teacherContract}\n\nExact machine-readable test command:\n${checkCommand}\n\nDOJO.md for this course:\n${dojoGuide}\n\nSENSEI.md for this lesson:\n${sensei}`;
 }
 
@@ -375,9 +375,9 @@ function currentKata(root: string) {
 }
 
 function runDojo(root: string, args: string[]): string {
-  const configured = process.env.DOJO_CLI ?? "dojo";
-  const command = configured.endsWith(".js") ? process.execPath : configured;
-  const commandArgs = configured.endsWith(".js") ? [configured, ...args] : args;
+  const configured = process.env.DOJO_CLI;
+  const command = configured ? process.execPath : "npx";
+  const commandArgs = configured ? [configured, ...args] : ["dojos", ...args];
   return execFileSync(command, commandArgs, {
     cwd: root,
     encoding: "utf8",

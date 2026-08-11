@@ -3,18 +3,18 @@ title: Quickstart
 description: From zero to your first green kata in three commands.
 ---
 
-This guide assumes you've installed the [CLI](/installation) and have
+This guide assumes you have
 [Claude Code](https://docs.anthropic.com/claude/docs/claude-code) (or another
 supported agent) set up.
 
 ## 1. Wire up your project
 
-Run `dojo setup` once per project. It registers the `/kata` slash command,
+Run `npx dojos install` once per project. It registers the `/kata` slash command,
 writes the agent rules that tell your sensei how to behave, and sets up the
 expected directory layout.
 
 ```sh
-dojo setup
+npx dojos install
 ```
 
 ## 2. Add a dojo
@@ -23,7 +23,7 @@ Install the dojo you want to train on. Each dojo is a normal npm package — the
 CLI just knows where to wire it.
 
 ```sh
-dojo add effect-ts
+npx dojos add effect-ts
 ```
 
 Replace `effect-ts` with any dojo from the [course marketplace](/), e.g.
@@ -48,5 +48,5 @@ questions instead of writing code for you. When the kata's test goes green,
 
 ## What's next
 
-- Skim the [commands reference](/commands) to learn `dojo` end-to-end.
+- Skim the [commands reference](/commands) to learn `npx dojos` end-to-end.
 - Browse the [course marketplace](/) to pick your next discipline.

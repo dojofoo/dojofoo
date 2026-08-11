@@ -3,6 +3,7 @@ import { execSync, execFileSync } from "node:child_process";
 import { resolve, relative } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  CLI,
   DOJOS_DIR,
   readDojoRc,
   writeDojoRc,
@@ -21,13 +22,13 @@ export async function add(root: string, args: string[]): Promise<void> {
   const source = args.find((a) => !a.startsWith("--"));
   const force = args.includes("--force");
   if (!source) {
-    throw new Error(`Usage: dojo add <source>
+    throw new Error(`Usage: ${CLI} add <source>
 
 Source can be:
-  Local path:   dojo add ./path/to/dojo
-  npm package:  dojo add @dojocho/effect-ts
-  Registry:     dojo add effect-ts
-  URL:          dojo add https://example.com/dojo.tgz
+  Local path:   ${CLI} add ./path/to/dojo
+  npm package:  ${CLI} add @dojocho/effect-ts
+  Registry:     ${CLI} add effect-ts
+  URL:          ${CLI} add https://example.com/dojo.tgz
 
 Flags:
   --force       Overwrite existing dojo`);
@@ -72,8 +73,8 @@ function handleExisting(root: string, name: string, force: boolean): void {
   if (!force) {
     throw new Error(`Dojo "${name}" already exists at ${DOJOS_DIR}/${name}
 
-To update:  dojo add ${name} --force
-To remove:  dojo remove ${name}`);
+To update:  ${CLI} add ${name} --force
+To remove:  ${CLI} remove ${name}`);
   }
   removeDojo(root, [name]);
 }
@@ -198,8 +199,8 @@ async function addFromRegistry(root: string, name: string, force: boolean): Prom
   throw new Error(`"${name}" not found in any registry.
 
 Try:
-  npm package:  dojo add @dojocho/${name}
-  Local path:   dojo add ./path/to/${name}`);
+  npm package:  ${CLI} add @dojocho/${name}
+  Local path:   ${CLI} add ./path/to/${name}`);
 }
 
 function addUrl(root: string, url: string, force: boolean): void {

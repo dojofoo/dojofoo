@@ -1,5 +1,4 @@
 export {
-  CLI,
   DOJOS_DIR,
   type DojoRc,
   type KataProgress,
@@ -37,3 +36,5 @@ export {
   findKataByIdOrName,
   listDojos,
 } from "@dojocho/config";
+
+export const CLI = "npx dojos";

@@ -1,0 +1,42 @@
+---
+title: npx dojos install
+description: One-time wiring of a project so your agent can run katas.
+---
+
+## Usage
+
+```sh
+npx dojos install
+```
+
+`npx dojos install` prepares the current directory to host one or more dojos.
+It is idempotent — running it twice is harmless. `setup` remains available as
+a compatibility alias.
+
+## What it does
+
+- Detects which coding agent you're in via env vars (e.g. `CLAUDECODE=1`
+  for Claude Code) and registers the `/kata` slash command there.
+- Writes the sensei rules — the agent-side instructions that enforce Socratic
+  teaching: ask questions, never spoil solutions, narrow scope to the next
+  failing test.
+- Creates the expected workspace layout so installed dojos drop in cleanly.
+
+## Specifying the agent explicitly
+
+If `npx dojos install` can't detect your agent, or you want to wire up multiple,
+pass one or more flags:
+
+```sh
+npx dojos install --claude          # Claude Code
+npx dojos install --opencode        # OpenCode
+npx dojos install --codex           # OpenAI Codex CLI
+npx dojos install --gemini          # Gemini CLI
+npx dojos install --pi              # Pi
+npx dojos install --claude --codex  # multiple at once
+```
+
+## Re-running install
+
+Re-run `npx dojos install` if you've upgraded the CLI, switched agents, or want
+to reset the agent rules to defaults. Your code is untouched.

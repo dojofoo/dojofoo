@@ -7,9 +7,8 @@ const INTRO = `Installable coding dojos that turn the AI agent into a sensei.
 To install in the user's project:
 
 \`\`\`sh
-npm install -g dojocho
-dojo setup
-dojo add @dojocho/effect-ts
+npx dojos install
+npx dojos add @dojocho/effect-ts
 \`\`\`
 
 Then tell the user to run \`/kata\` to begin.

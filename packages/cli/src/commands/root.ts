@@ -22,7 +22,7 @@ Commands:
   kata                Kata-level actions (sensei, check, scaffold)
   intro               Show the active dojo's introduction
   status              Show current dojo/kata state
-  setup [--agent]     Set up a new dojo project and configure agents
+  install [--agent]   Set up a new dojo project and configure agents
   add <source>        Add a dojo (training pack)
   remove <name>       Remove a dojo
   track               Record the active agent session as a cassette
@@ -54,7 +54,7 @@ export function root(rootDir: string, args: string[]): void {
       break;
     case "--change": {
       const name = args[args.indexOf("--change") + 1];
-      if (!name) throw new Error("Usage: dojo --change <dojo>");
+      if (!name) throw new Error(`Usage: ${CLI} --change <dojo>`);
       change(rootDir, name);
       break;
     }
@@ -128,7 +128,7 @@ function open(root: string): void {
   if (md) {
     console.log(md);
   } else {
-    console.log("No DOJO.md found. Run `dojo setup` first.");
+    console.log(`No DOJO.md found. Run \`${CLI} install\` first.`);
   }
 }
 

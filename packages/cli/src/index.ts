@@ -19,7 +19,7 @@ async function main() {
     kata(findProjectRoot(), args);
   } else if (command === "intro") {
     intro(findProjectRoot(), args);
-  } else if (command === "setup") {
+  } else if (command === "install" || command === "setup") {
     setup(process.cwd(), args);
   } else if (command === "add") {
     await add(process.cwd(), args);
