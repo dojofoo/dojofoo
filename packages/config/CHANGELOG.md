@@ -1,5 +1,11 @@
 # @dojocho/config
 
+## 0.0.5
+
+### Patch Changes
+
+- d87d2e2: Publish the CLI as `dojofoo`, move first-party URLs to `dojo.foo`, and standardize project setup and generated agent commands on `npx dojofoo`.
+
 ## 0.0.4
 
 ### Patch Changes
