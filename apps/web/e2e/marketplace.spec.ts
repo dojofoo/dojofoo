@@ -30,7 +30,13 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
   const filterSidebar = page.getByRole("complementary", { name: "Dojo filters" });
   await expect(filterSidebar).toBeVisible();
-  await expect(filterSidebar.getByText("Filters", { exact: true })).toBeVisible();
+  await expect(filterSidebar.getByText("Filters", { exact: true })).toHaveCount(0);
+  const languageHeading = filterSidebar.getByRole("heading", { name: "Language" });
+  const frameworkHeading = filterSidebar.getByRole("heading", { name: "Framework" });
+  await expect(languageHeading).toHaveCSS("text-transform", "uppercase");
+  await expect(frameworkHeading).toHaveCSS("text-transform", "uppercase");
+  await expect(languageHeading).toHaveCSS("font-size", "12px");
+  await expect(frameworkHeading).toHaveCSS("font-size", "12px");
   const allLanguages = filterSidebar.getByRole("button", { name: "All languages" });
   const python = filterSidebar.getByRole("button", { name: "Python", exact: true });
   const typescript = filterSidebar.getByRole("button", { name: "TypeScript", exact: true });
