@@ -1,5 +1,0 @@
----
-"dojofoo": patch
----
-
-Add the shared Fluid Functionalism UI package, course marketplace integration, and privacy-preserving course lifecycle metrics.
