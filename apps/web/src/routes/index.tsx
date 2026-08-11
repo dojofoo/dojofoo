@@ -52,7 +52,6 @@ function DojosPage() {
             aria-label="Dojo filters"
             className="border-b border-dashed border-border bg-surface-1 py-6 md:border-b-0 md:border-r md:py-12"
           >
-            <p className="px-4 pb-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Filters</p>
             <FilterMenu
               label="Language"
               allLabel="All languages"
@@ -129,7 +128,7 @@ function FilterMenu({
 
   return (
     <section className={className} aria-label={label}>
-      <h2 className="px-4 pb-2 text-[13px] text-muted-foreground">{label}</h2>
+      <h2 className="px-4 pb-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</h2>
       <nav>
         {options.map((option, index) => {
           const active = selected === option.value;
