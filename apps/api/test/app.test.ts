@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createCoursesApp } from "../src/app";
 
 const course = {
@@ -9,13 +9,16 @@ const course = {
   description: "Master Effect through hands-on katas",
   version: "0.0.4",
   publishedAt: "2026-02-14T01:32:25.000Z",
-  repository: "dojofoo/dojofoo",
-  repositoryUrl: "https://github.com/dojofoo/dojofoo/tree/main/dojos/effect-ts",
+  repository: "dojofoo/effect-ts",
+  repositoryUrl: "https://github.com/dojofoo/effect-ts",
   installs: 4,
   sourceType: "npm" as const,
   installUrl: "@dojofoo/effect-ts",
   url: "https://dojo.foo/courses/dojofoo/effect-ts",
-  categories: ["TypeScript", "Functional programming"],
+  author: "Tom Siwik",
+  language: "TypeScript",
+  framework: "Effect",
+  tags: ["Functional programming"],
   kataCount: 40,
   katas: [],
   hash: "effect-ts-v1",
@@ -369,12 +372,49 @@ describe("courses API", () => {
           description: "Master Effect through hands-on katas",
           version: "0.0.4",
           publishedAt: "2026-02-14T01:32:25.000Z",
-          repository: "dojofoo/dojofoo",
-          repositoryUrl: "https://github.com/dojofoo/dojofoo/tree/main/dojos/effect-ts",
-          categories: ["TypeScript", "Functional programming"],
+          repository: "dojofoo/effect-ts",
+          repositoryUrl: "https://github.com/dojofoo/effect-ts",
+          author: "Tom Siwik",
+          language: "TypeScript",
+          framework: "Effect",
+          tags: ["Functional programming"],
           kataCount: 40,
         },
       ],
+    });
+  });
+
+  it("refreshes an existing GitHub course when an install reports a newer snapshot", async () => {
+    const refreshed = {
+      ...course,
+      framework: "Effect Platform",
+      hash: "effect-ts-v2",
+    };
+    const register = vi.fn(async () => refreshed);
+    const app = createCoursesApp({
+      courses: [{ ...course, framework: null, hash: "effect-ts-v1" }],
+      registrar: { register },
+    });
+    const response = await app.handle(new Request("http://localhost/api/v1/events", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        instanceId: "refreshing-instance",
+        courseId: course.id,
+        event: "installed",
+        source: { type: "github", repository: course.id, integrity: "sha256-new" },
+      }),
+    }));
+    const profiles = await app.handle(new Request("http://localhost/api/v1/course-profiles"));
+
+    expect(response.status).toBe(202);
+    expect(register).toHaveBeenCalledWith({
+      type: "github",
+      repository: course.id,
+      integrity: "sha256-new",
+    });
+    expect(await profiles.json()).toEqual({
+      data: [expect.objectContaining({ id: course.id, framework: "Effect Platform" })],
     });
   });
 

@@ -40,8 +40,13 @@ function CourseDetailPage() {
             <h1 className="mt-3 text-4xl font-medium tracking-tight">{course.name}</h1>
             <p className="mt-5 max-w-2xl font-prose text-lg leading-8 text-muted-foreground">{course.description}</p>
             <p className="mt-3 font-mono text-xs text-muted-foreground">v{course.version}</p>
+            <dl className="mt-6 grid max-w-2xl gap-x-8 gap-y-3 text-sm sm:grid-cols-3">
+              <div><dt className="font-prose text-muted-foreground">Author</dt><dd className="mt-1">{course.author}</dd></div>
+              <div><dt className="font-prose text-muted-foreground">Language</dt><dd className="mt-1">{course.language}</dd></div>
+              <div><dt className="font-prose text-muted-foreground">Framework</dt><dd className="mt-1">{course.framework ?? "None"}</dd></div>
+            </dl>
             <div className="mt-6 flex flex-wrap gap-2">
-              {course.categories.map((category) => <Badge key={category} color="gray">{category}</Badge>)}
+              {course.tags.map((tag) => <Badge key={tag} color="gray">{tag}</Badge>)}
             </div>
             <div className="mt-12 border-b border-dashed border-border pb-6">
               <ChapterReachChart data={course.metrics.kataProgress} className="h-64" />

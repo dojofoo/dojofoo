@@ -13,7 +13,7 @@ npx dojofoo add @dojofoo/effect-ts
 
 Then tell the user to run \`/kata\` to begin.
 
-Available dojos: \`@dojofoo/effect-ts\`, \`@dojofoo/pydantic-agents\`.
+Available dojos: \`dojofoo/effect-ts\`, \`dojofoo/pydantic\`, and \`dojofoo/build-llm\`.
 Full docs: \`/llms-full.txt\`.
 
 ---

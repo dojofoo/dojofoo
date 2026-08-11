@@ -11,20 +11,20 @@ interface AddCase {
 const CASES: AddCase[] = [
   {
     name: "installs a local dojo from a path source",
-    prep: "npx dojofoo add /workspace/dojos/effect-ts",
+    prep: "npx dojofoo add /workspace/e2e/fixtures/effect-ts",
   },
   {
     name: "rejects re-adding an existing dojo without --force",
     prep:
-      "npx dojofoo add /workspace/dojos/effect-ts >/dev/null 2>&1\n" +
-      "if npx dojofoo add /workspace/dojos/effect-ts; then echo 'expected non-zero'; exit 1; fi",
+      "npx dojofoo add /workspace/e2e/fixtures/effect-ts >/dev/null 2>&1\n" +
+      "if npx dojofoo add /workspace/e2e/fixtures/effect-ts; then echo 'expected non-zero'; exit 1; fi",
     expectStdoutMatches: /already exists/i,
   },
   {
     name: "--force replaces an existing dojo",
     prep:
-      "npx dojofoo add /workspace/dojos/effect-ts >/dev/null 2>&1\n" +
-      "npx dojofoo add /workspace/dojos/effect-ts --force",
+      "npx dojofoo add /workspace/e2e/fixtures/effect-ts >/dev/null 2>&1\n" +
+      "npx dojofoo add /workspace/e2e/fixtures/effect-ts --force",
   },
 ];
 

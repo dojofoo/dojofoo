@@ -1,0 +1,11 @@
+{
+  "name": "@dojofoo/effect-ts",
+  "version": "0.0.1",
+  "description": "Minimal local add fixture.",
+  "language": "TypeScript",
+  "framework": "Effect",
+  "test": "true",
+  "katas": [
+    { "template": "katas/001/solution.ts" }
+  ]
+}

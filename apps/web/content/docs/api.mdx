@@ -37,6 +37,9 @@ GET /api/v1/course-profiles
 GET /api/v1/courses/:source/:slug/metrics
 ```
 
+Course profiles include `author`, `language`, optional `framework`, and topical `tags`.
+Language and framework are separate discovery facets; tags should not repeat either value.
+
 Metrics include installs, started, progressing, finished, completion rate, and per-kata
 started/finished/active counts.
 

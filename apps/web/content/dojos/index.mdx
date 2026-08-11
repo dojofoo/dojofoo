@@ -13,12 +13,12 @@ A dojo is an installable training pack for a specific stack. It bundles:
 - **Rules** — guardrails that keep the agent from solving the kata for you.
 
 ```sh
-npx dojofoo add effect-ts            # install a dojo into the current repo
-npx dojofoo add pydantic-agents      # multiple dojos coexist
+npx dojofoo add dojofoo/effect-ts    # install a dojo into the current repo
+npx dojofoo add dojofoo/pydantic     # multiple dojos coexist
 claude /kata                  # start practicing
 ```
 
-Each dojo is a workspace package under `dojos/` in the [main repo](https://github.com/dojofoo/dojofoo), so it's easy to see exactly what your agent is being told.
+Each dojo lives in a public repository under the [dojofoo organization](https://github.com/dojofoo), so you can inspect exactly what your agent is being told and courses can release independently from the platform.
 
 ## Available dojos
 
