@@ -25,7 +25,7 @@ export function CourseCard({ course }: { course: MarketplaceCourse }) {
           <span className="font-mono text-[11px] text-muted-foreground">v{course.version}</span>
         </CardAction>
       </CardHeader>
-      <CardFooter className="mt-auto block border-t border-dashed border-border px-3 pb-0 pt-3">
+      <CardFooter className="mt-auto block border-t border-dashed border-border px-3 py-3">
         <InputCopy
           value={`dojo add ${course.installUrl}`}
           variant="icon"

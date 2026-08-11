@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, CardGroup } from "@dojocho/ui";
+import { CardGroup } from "@dojocho/ui";
+import { ArrowRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CourseCard } from "@/components/marketplace/course-card";
 import { SiteNavigation } from "@/components/layout/site-navigation";
@@ -34,38 +35,51 @@ function DojosPage() {
       <SiteNavigation />
 
       <section className="marketplace-lined-frame mx-auto max-w-(--fd-layout-width) px-4 sm:px-5">
-        <div className="marketplace-lined-surface min-h-[calc(100vh-4rem)] px-5 py-12 lg:px-8">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl font-medium tracking-tight">Dojos</h1>
-            <p className="mt-3 text-base leading-7 text-muted-foreground">
-              Dojos are AI-assisted courses you work through with your coding agent.
-            </p>
-          </div>
-
-          <div className="mt-10 grid gap-8 md:grid-cols-[11rem_minmax(0,1fr)] lg:grid-cols-[12rem_minmax(0,1fr)]">
-            <aside aria-label="Dojo categories" className="md:border-r md:border-dashed md:border-border">
-              <p className="mb-2 px-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Categories</p>
-              <div className="flex overflow-x-auto pb-2 md:flex-col md:overflow-visible md:pb-0">
-                {categories.map((item) => (
-                  <Button
+        <div className="marketplace-lined-surface grid min-h-[calc(100vh-4rem)] md:grid-cols-[12rem_minmax(0,1fr)]">
+          <aside
+            aria-label="Dojo categories"
+            className="border-b border-dashed border-border py-6 md:border-b-0 md:border-r md:py-12"
+          >
+            <p className="px-4 pb-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Categories</p>
+            <nav className="flex overflow-x-auto md:block md:overflow-visible">
+                {categories.map((item, index) => (
+                  <button
                     key={item}
                     type="button"
-                    variant="ghost"
+                    aria-label={item}
                     aria-pressed={category === item}
                     onClick={() => setCategory(item)}
-                    className={`shrink-0 justify-start rounded-none border-l px-4 py-3 md:w-full ${
+                    className={`flex shrink-0 cursor-pointer items-center gap-2.5 border-dashed border-border px-4 py-4 text-left text-[13px] outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring,#6B97FF)] md:w-full ${
+                      index === categories.length - 1 ? "" : "border-r md:border-b md:border-r-0"
+                    } ${
                       category === item
-                        ? "border-primary font-medium text-foreground"
-                        : "border-transparent text-muted-foreground"
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground"
                     }`}
                   >
-                    {item}
-                  </Button>
+                    <span className="min-w-0 flex-1 truncate">{item}</span>
+                    {category === item && (
+                      <ArrowRight
+                        aria-label="Selected category"
+                        className="size-4 shrink-0 text-foreground"
+                        role="img"
+                        strokeWidth={1.75}
+                      />
+                    )}
+                  </button>
                 ))}
-              </div>
-            </aside>
+            </nav>
+          </aside>
 
-            <div className="min-w-0">
+          <div className="min-w-0 px-5 py-12 lg:px-8">
+            <div className="max-w-2xl">
+              <h1 className="text-4xl font-medium tracking-tight">Dojos</h1>
+              <p className="mt-3 text-base leading-7 text-muted-foreground">
+                Dojos are AI-assisted courses you work through with your coding agent.
+              </p>
+            </div>
+
+            <div className="mt-10 min-w-0">
               {error ? (
                 <p role="alert" className="border-l-2 border-destructive py-2 pl-4 text-sm text-destructive">{error}</p>
               ) : courses.length === 0 ? (

@@ -23,20 +23,28 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   const effectCard = page.getByTestId("course-effect-ts");
   const categorySidebar = page.getByRole("complementary", { name: "Dojo categories" });
   const selectedCategory = page.getByRole("button", { name: "All", exact: true });
-  const [sidebarBox, categoryBox] = await Promise.all([
+  const dojoHeading = page.getByRole("heading", { name: "Dojos" });
+  const [sidebarBox, categoryBox, headingBox] = await Promise.all([
     categorySidebar.boundingBox(),
     selectedCategory.boundingBox(),
+    dojoHeading.boundingBox(),
   ]);
   expect(categoryBox!.width).toBeGreaterThanOrEqual(sidebarBox!.width - 1);
+  expect(headingBox!.x).toBeGreaterThanOrEqual(sidebarBox!.x + sidebarBox!.width);
+  await expect(selectedCategory.getByRole("img", { name: "Selected category" })).toBeVisible();
   await expect(effectCard.getByText("v0.0.4")).toBeVisible();
   await expect(effectCard.getByText("dojocho", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByText("TypeScript", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByRole("img", { name: "Weekly starts and completions" })).toHaveCount(0);
   await expect(effectCard.locator("canvas")).toHaveCount(0);
   await expect(effectCard.getByRole("button", { name: "Copy to clipboard" })).toBeVisible();
-  const installCommand = effectCard.locator('[data-slot="card-footer"] > div');
-  const [cardBox, installBox] = await Promise.all([effectCard.boundingBox(), installCommand.boundingBox()]);
-  expect(cardBox!.y + cardBox!.height - (installBox!.y + installBox!.height)).toBeLessThanOrEqual(1);
+  const installFooter = effectCard.locator('[data-slot="card-footer"]');
+  const installCommand = installFooter.locator(':scope > div');
+  const [footerBox, installBox] = await Promise.all([installFooter.boundingBox(), installCommand.boundingBox()]);
+  const installPaddingTop = installBox!.y - footerBox!.y;
+  const installPaddingBottom = footerBox!.y + footerBox!.height - (installBox!.y + installBox!.height);
+  expect(installPaddingTop).toBeGreaterThan(0);
+  expect(Math.abs(installPaddingTop - installPaddingBottom)).toBeLessThanOrEqual(1);
   const cardBeforeHover = await effectCard.boundingBox();
   await effectCard.hover();
   await page.waitForTimeout(350);
