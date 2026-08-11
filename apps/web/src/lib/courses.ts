@@ -16,7 +16,10 @@ export interface CourseProfile {
   publishedAt: string;
   repository: string;
   repositoryUrl: string;
-  categories: string[];
+  author: string;
+  language: string;
+  framework: string | null;
+  tags: string[];
   kataCount: number;
 }
 

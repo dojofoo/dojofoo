@@ -48,6 +48,25 @@
       "type": "string",
       "description": "Author of the dojo."
     },
+    "language": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Primary programming language used by the coding katas.",
+      "examples": ["TypeScript", "Python"]
+    },
+    "framework": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Primary framework or library taught by the coding katas.",
+      "examples": ["Effect", "Pydantic AI"]
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Topical discovery tags. Do not repeat the language or framework.",
+      "examples": [["Functional programming", "Error handling"]]
+    },
     "homepage": {
       "type": "string",
       "format": "uri",

@@ -123,6 +123,9 @@ export interface DojoManifest {
   katas: KataEntry[];
   runner?: RunnerConfig;
   author?: string;
+  language?: string;
+  framework?: string;
+  tags?: string[];
   homepage?: string;
   repository?: string;
 }
@@ -210,9 +213,21 @@ export function validateManifest(data: unknown): string[] {
     }
   }
 
-  for (const field of ["author", "homepage", "repository"] as const) {
+  for (const field of ["author", "language", "framework", "homepage", "repository"] as const) {
     if (field in obj && typeof obj[field] !== "string") {
       errors.push(`"${field}" must be a string`);
+    }
+  }
+  if ("tags" in obj && !isStringArray(obj.tags)) {
+    errors.push('"tags" must be an array of strings');
+  } else if (Array.isArray(obj.tags)) {
+    const facets = new Set(
+      [obj.language, obj.framework]
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.toLocaleLowerCase()),
+    );
+    if (obj.tags.some((tag) => facets.has(tag.toLocaleLowerCase()))) {
+      errors.push('"tags" must not repeat "language" or "framework"');
     }
   }
 

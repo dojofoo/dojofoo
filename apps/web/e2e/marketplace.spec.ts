@@ -1,11 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 
 const apiOrigin = process.env.DOJO_API_TEST_ORIGIN ?? "http://127.0.0.1:4311";
-const effectVersion = JSON.parse(
-  readFileSync(new URL("../../../dojos/effect-ts/package.json", import.meta.url), "utf8"),
-) as { version: string };
+const effectVersion = { version: "0.0.6" };
 
 test("browses compact courses from reusable marketplace navigation", async ({ page }) => {
   const consoleErrors: string[] = [];
@@ -21,7 +18,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
       data: { instanceId: "popular-effect-2", courseId: "dojofoo/effect-ts", event: "installed", occurredAt: oldInstall },
     }),
     page.request.post(`${apiOrigin}/api/v1/events`, {
-      data: { instanceId: "trending-pydantic", courseId: "dojofoo/pydantic-agents", event: "installed" },
+      data: { instanceId: "trending-pydantic", courseId: "dojofoo/pydantic", event: "installed" },
     }),
   ]);
   await page.goto("/", { waitUntil: "networkidle" });
@@ -31,8 +28,10 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("link", { name: /Build an LLM/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Effect TS/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Python" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "TypeScript" })).toBeVisible();
+  const language = page.getByRole("combobox", { name: "Filter by language" });
+  const framework = page.getByRole("combobox", { name: "Filter by framework" });
+  await expect(language).toHaveText(/All languages/);
+  await expect(framework).toHaveText(/All frameworks/);
   await expect(page.getByRole("button", { name: "Open Search" })).toBeVisible();
   const sort = page.getByRole("combobox", { name: "Sort dojos" });
   await expect(sort).toHaveText(/Popularity/);
@@ -77,53 +76,41 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   const trendingOption = page.getByRole("option", { name: "Trending" });
   await expect(trendingOption).toBeVisible();
   await trendingOption.click();
-  await expect(cards.first()).toHaveAttribute("data-testid", "course-pydantic-agents");
-  const categorySidebar = page.getByRole("complementary", { name: "Dojo categories" });
-  const selectedCategory = page.getByRole("button", { name: "All", exact: true });
-  const dojoHeading = page.getByRole("heading", { name: "Dojos" });
-  const [sidebarBox, categoryBox, headingBox] = await Promise.all([
-    categorySidebar.boundingBox(),
-    selectedCategory.boundingBox(),
-    dojoHeading.boundingBox(),
-  ]);
-  expect(sidebarBox!.width).toBe(304);
-  expect(categoryBox!.width).toBeGreaterThanOrEqual(sidebarBox!.width - 1);
-  expect(headingBox!.x).toBeGreaterThanOrEqual(sidebarBox!.x + sidebarBox!.width);
+  await expect(cards.first()).toHaveAttribute("data-testid", "course-pydantic");
+  await language.click();
+  await page.getByRole("option", { name: "Python", exact: true }).click();
+  await expect(page.getByRole("link", { name: /Build an LLM/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Effect TS/i })).toHaveCount(0);
+  await framework.click();
+  await expect(page.getByRole("option", { name: "PyTorch" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Pydantic AI" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Effect" })).toHaveCount(0);
+  await page.getByRole("option", { name: "Pydantic AI" }).click();
+  await expect(page.getByRole("link", { name: /Build an LLM/i })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
+  await language.click();
+  await page.getByRole("option", { name: "TypeScript", exact: true }).click();
+  await expect(framework).toHaveText(/All frameworks/);
+  await expect(page.getByRole("link", { name: /Effect TS/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "Dojo categories" })).toHaveCount(0);
   expect(await page.evaluate(() => {
     const sidebar = document.querySelector("aside");
     const frame = document.querySelector(".marketplace-lined-frame");
     return {
-      bodyMatchesSidebar: sidebar
-        ? getComputedStyle(document.body).backgroundColor === getComputedStyle(sidebar).backgroundColor
-        : false,
       stripedFrame: frame
         ? getComputedStyle(frame).backgroundImage.includes("0.055")
         : false,
     };
-  })).toEqual({ bodyMatchesSidebar: true, stripedFrame: true });
-  await expect(selectedCategory.getByRole("img", { name: "Selected category" })).toBeVisible();
-  const pythonCategory = page.getByRole("button", { name: "Python", exact: true });
-  await pythonCategory.hover();
-  await page.waitForTimeout(200);
-  const hoverColors = await pythonCategory.evaluate((element) => {
-    const probe = document.createElement("span");
-    probe.style.backgroundColor = "var(--hover)";
-    element.append(probe);
-    const hover = getComputedStyle(probe).backgroundColor;
-    probe.remove();
-    return {
-      actual: getComputedStyle(element).backgroundColor,
-      hover,
-    };
-  });
-  expect(hoverColors.actual).toBe(hoverColors.hover);
+  })).toEqual({ stripedFrame: true });
   await expect(effectCard.getByText(`v${effectVersion.version}`)).toBeVisible();
   await expect(effectCard.getByText("dojofoo", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByText("TypeScript", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByRole("img", { name: "Weekly starts and completions" })).toHaveCount(0);
   await expect(effectCard.locator("canvas")).toHaveCount(0);
   await expect(effectCard.getByRole("button", { name: "Copy to clipboard" })).toBeVisible();
-  await expect(effectCard.getByText("npx dojofoo add @dojofoo/effect-ts", { exact: true })).toBeVisible();
+  await expect(effectCard.getByText("npx dojofoo add dojofoo/effect-ts", { exact: true })).toBeVisible();
   const installFooter = effectCard.locator('[data-slot="card-footer"]');
   const cardTitle = effectCard.locator('[data-slot="card-title"]');
   const installCommand = installFooter.locator(':scope > div');
@@ -207,14 +194,18 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(detailInstall.getByText("Copy", { exact: true })).toHaveCount(0);
   await expect(detailInstall.locator("mark")).toHaveCSS("font-family", /Iosevka/);
   await expect(page.getByText("Master Effect through 40 hands-on katas.", { exact: true })).toHaveCSS("font-family", /Geist Variable/);
+  await expect(page.getByText("Tom Siwik", { exact: true })).toBeVisible();
+  await expect(page.getByText("TypeScript", { exact: true })).toBeVisible();
+  await expect(page.getByText("Effect", { exact: true })).toBeVisible();
+  await expect(page.getByText("Functional programming", { exact: true })).toBeVisible();
   const eyebrow = page.getByTestId("course-source");
-  await expect(eyebrow).toHaveText("dojofoo/dojofoo");
+  await expect(eyebrow).toHaveText("dojofoo/effect-ts");
   await expect(eyebrow).toHaveCSS("text-transform", "uppercase");
   await expect(eyebrow).toHaveCSS("font-size", "12px");
   await expect(eyebrow).toHaveCSS("letter-spacing", "0.48px");
   await expect(eyebrow).toHaveAttribute(
     "href",
-    "https://github.com/dojofoo/dojofoo/tree/main/dojos/effect-ts",
+    "https://github.com/dojofoo/effect-ts",
   );
   const [articleBox, detailSidebarBox] = await Promise.all([
     detailArticle.boundingBox(), detailSidebar.boundingBox(),
@@ -274,9 +265,9 @@ test("uses the same site navigation on marketplace and docs", async ({ page }) =
     await expect(navigation.getByRole("link", { name: "Get Started" })).toBeVisible();
     await expect(navigation.locator("[data-cta-inset]")).toBeVisible();
     expect(await page.evaluate(() => {
-      const sidebar = document.querySelector("aside");
-      return sidebar
-        ? getComputedStyle(document.body).backgroundColor === getComputedStyle(sidebar).backgroundColor
+      const surface = document.querySelector("aside, .marketplace-lined-surface");
+      return surface
+        ? getComputedStyle(document.body).backgroundColor === getComputedStyle(surface).backgroundColor
         : false;
     })).toBe(true);
     const box = await navigation.boundingBox();

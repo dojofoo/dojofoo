@@ -20,7 +20,10 @@ export interface Course {
   sourceType: "github" | "well-known" | "npm";
   installUrl: string | null;
   url: string;
-  categories: string[];
+  author: string;
+  language: string;
+  framework: string | null;
+  tags: string[];
   kataCount: number;
   katas: string[];
   hash: string | null;
@@ -212,14 +215,17 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
     .get("/health", () => ({ status: "ok" }))
     .get("/api/v1/health", () => ({ status: "ok" }))
     .get("/api/v1/course-profiles", async () => ({
-      data: (await allCourses()).map(({ id, description, version, publishedAt, repository, repositoryUrl, categories, kataCount }) => ({
+      data: (await allCourses()).map(({ id, description, version, publishedAt, repository, repositoryUrl, author, language, framework, tags, kataCount }) => ({
         id,
         description,
         version,
         publishedAt,
         repository,
         repositoryUrl,
-        categories,
+        author,
+        language,
+        framework,
+        tags,
         kataCount,
       })),
     }))
@@ -294,7 +300,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       const matches = (await catalogWithRecordedInstalls())
         .filter((course) => {
           if (query.owner && course.source.split("/")[0] !== query.owner) return false;
-          return [course.name, course.slug, course.source, course.description, ...course.categories]
+          return [course.name, course.slug, course.source, course.description, course.author, course.language, course.framework ?? "", ...course.tags]
             .some((value) => value.toLocaleLowerCase().includes(needle));
         })
         .slice(0, limit)

@@ -7,11 +7,15 @@ describe("GitHubCourseRegistrar", () => {
       name: "@acme/typescript-basics",
       version: "0.0.1",
       description: "Learn TypeScript basics.",
+      author: "Ada Lovelace",
+      language: "TypeScript",
+      framework: "Effect",
+      tags: ["Values"],
       test: "npx vitest run {template}",
       katas: [{
         name: "001-values",
         template: "katas/001-values/solution.ts",
-        tags: ["TypeScript", "Values"],
+        tags: ["Values"],
       }],
     };
     const fetch = vi.fn(async (input: string | URL | Request) => {
@@ -59,7 +63,10 @@ describe("GitHubCourseRegistrar", () => {
       name: "TypeScript Basics",
       sourceType: "github",
       installUrl: "acme/typescript-basics",
-      categories: ["TypeScript", "Values"],
+      author: "Ada Lovelace",
+      language: "TypeScript",
+      framework: "Effect",
+      tags: ["Values"],
       katas: ["001-values"],
       hash: "commit-sha",
     });
@@ -92,7 +99,16 @@ describe("GitHubCourseRegistrar", () => {
           { path: "dojo.json", type: "blob", size: 2 },
         ] });
       }
-      return new Response("{}");
+      return new Response(JSON.stringify({
+        name: "@acme/invalid",
+        version: "0.0.1",
+        description: "Invalid duplicate facets.",
+        language: "TypeScript",
+        framework: "Effect",
+        tags: ["effect"],
+        test: "true",
+        katas: [{ template: "katas/001/solution.ts" }],
+      }));
     });
     const upsert = vi.fn();
     const registrar = new GitHubCourseRegistrar({

@@ -119,7 +119,21 @@ export class LibsqlCourseStore {
 
   async list(): Promise<Course[]> {
     const rows = await this.db.select().from(externalCourses).orderBy(asc(externalCourses.id));
-    return rows.map((row) => JSON.parse(row.snapshot) as Course);
+    return rows.map((row) => {
+      const course = JSON.parse(row.snapshot) as Course & {
+        author?: string;
+        language?: string;
+        framework?: string | null;
+        tags?: string[];
+      };
+      return {
+        ...course,
+        author: course.author ?? course.source,
+        language: course.language ?? "Other",
+        framework: course.framework ?? null,
+        tags: course.tags ?? [],
+      };
+    });
   }
 
   async upsert(course: Course): Promise<void> {

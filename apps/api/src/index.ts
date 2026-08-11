@@ -1,5 +1,4 @@
 import { createCoursesApp } from "./app";
-import { courseCatalog } from "./catalog";
 import { MemoryCourseEventStore } from "./event-store";
 import { GitHubCourseRegistrar } from "./github-registrar";
 import {
@@ -22,7 +21,6 @@ const registrar = new GitHubCourseRegistrar({
 });
 
 createCoursesApp({
-  courses: courseCatalog,
   ...(courseStore ? { courseStore } : {}),
   eventStore,
   registrar,

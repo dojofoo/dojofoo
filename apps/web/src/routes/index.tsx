@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CardGroup, Select, SelectContent, SelectItem, SelectTrigger } from "@dojofoo/ui";
-import { ArrowRight, ArrowUpDown } from "lucide-react";
+import { ArrowUpDown } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { CourseCard } from "@/components/marketplace/course-card";
 import { SiteNavigation } from "@/components/layout/site-navigation";
@@ -14,64 +15,42 @@ export const Route = createFileRoute("/")({
 
 function DojosPage() {
   const courses = Route.useLoaderData();
-  const [category, setCategory] = useState("All");
+  const [language, setLanguage] = useState("all");
+  const [framework, setFramework] = useState("all");
   const [sortBy, setSortBy] = useState("popularity");
 
-  const categories = useMemo(
-    () => ["All", ...new Set(courses.flatMap((course) => course.categories))],
+  const languages = useMemo(
+    () => [...new Set(courses.map((course) => course.language))].sort(),
     [courses],
   );
+  const frameworks = useMemo(
+    () => [...new Set(courses
+      .filter((course) => language === "all" || course.language === language)
+      .flatMap((course) => course.framework ? [course.framework] : []))].sort(),
+    [courses, language],
+  );
   const visibleCourses = useMemo(() => courses
-    .filter((course) => category === "All" || course.categories.includes(category))
+    .filter((course) => language === "all" || course.language === language)
+    .filter((course) => framework === "all" || course.framework === framework)
     .sort((left, right) => {
       if (sortBy === "newest") {
         return Date.parse(right.publishedAt) - Date.parse(left.publishedAt);
       }
       if (sortBy === "trending") return left.trendingRank - right.trendingRank;
       return right.installs - left.installs;
-    }), [category, courses, sortBy]);
+    }), [courses, framework, language, sortBy]);
+
+  const selectLanguage = (value: string) => {
+    setLanguage(value);
+    setFramework("all");
+  };
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <SiteNavigation />
 
       <section className="marketplace-lined-frame mx-auto max-w-(--fd-layout-width) px-4 sm:px-5">
-        <div className="marketplace-lined-surface grid min-h-[calc(100vh-4rem)] md:grid-cols-[19rem_minmax(0,1fr)]">
-          <aside
-            aria-label="Dojo categories"
-            className="border-b border-dashed border-border bg-surface-1 py-6 md:border-b-0 md:border-r md:py-12"
-          >
-            <p className="px-4 pb-4 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Categories</p>
-            <nav className="flex overflow-x-auto md:block md:overflow-visible">
-                {categories.map((item, index) => (
-                  <button
-                    key={item}
-                    type="button"
-                    aria-label={item}
-                    aria-pressed={category === item}
-                    onClick={() => setCategory(item)}
-                    className={`marketplace-category flex shrink-0 cursor-pointer items-center gap-2.5 border-dashed border-border px-4 py-4 text-left text-[13px] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring,#6B97FF)] md:w-full ${
-                      index === categories.length - 1 ? "" : "border-r md:border-b md:border-r-0"
-                    } ${
-                      category === item
-                        ? "font-medium text-foreground"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{item}</span>
-                    {category === item && (
-                      <ArrowRight
-                        aria-label="Selected category"
-                        className="size-4 shrink-0 text-foreground"
-                        role="img"
-                        strokeWidth={1.75}
-                      />
-                    )}
-                  </button>
-                ))}
-            </nav>
-          </aside>
-
+        <div className="marketplace-lined-surface min-h-[calc(100vh-4rem)]">
           <div className="min-w-0 px-5 py-12 lg:px-8">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="max-w-2xl">
@@ -80,18 +59,48 @@ function DojosPage() {
                   Dojos are AI-assisted courses. Add them via CLI and let your agent guide you through katas, learning material, and interactive teaching dialogues.
                 </p>
               </div>
-              <Select value={sortBy} onValueChange={setSortBy} size="compact">
-                <SelectTrigger
-                  aria-label="Sort dojos"
-                  icon={ArrowUpDown}
-                  className="min-w-[9.5rem]"
-                />
-                <SelectContent>
-                  <SelectItem index={0} value="newest">Newest</SelectItem>
-                  <SelectItem index={1} value="popularity">Popularity</SelectItem>
-                  <SelectItem index={2} value="trending">Trending</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={language} onValueChange={selectLanguage} size="compact">
+                  <SelectTrigger aria-label="Filter by language" className="min-w-[10rem]" />
+                  <SelectContent>
+                    <SelectItem index={0} value="all">All languages</SelectItem>
+                    {languages.map((item, index) => (
+                      <SelectItem key={item} index={index + 1} value={item}>{item}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={framework} onValueChange={setFramework} size="compact">
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                      key={language}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.16 }}
+                    >
+                      <SelectTrigger aria-label="Filter by framework" className="min-w-[10rem]" />
+                    </motion.div>
+                  </AnimatePresence>
+                  <SelectContent>
+                    <SelectItem index={0} value="all">All frameworks</SelectItem>
+                    {frameworks.map((item, index) => (
+                      <SelectItem key={item} index={index + 1} value={item}>{item}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={sortBy} onValueChange={setSortBy} size="compact">
+                  <SelectTrigger
+                    aria-label="Sort dojos"
+                    icon={ArrowUpDown}
+                    className="min-w-[9.5rem]"
+                  />
+                  <SelectContent>
+                    <SelectItem index={0} value="newest">Newest</SelectItem>
+                    <SelectItem index={1} value="popularity">Popularity</SelectItem>
+                    <SelectItem index={2} value="trending">Trending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="mt-10 min-w-0">

@@ -77,7 +77,10 @@ describe("LibsqlCourseStore", () => {
       sourceType: "github" as const,
       installUrl: "acme/typescript-basics",
       url: "https://dojo.foo/courses/acme/typescript-basics",
-      categories: ["TypeScript"],
+      author: "Tom Siwik",
+      language: "TypeScript",
+      framework: "Effect",
+      tags: ["Functional programming"],
       kataCount: 1,
       katas: ["001-values"],
       hash: "sha256-course",
@@ -88,5 +91,42 @@ describe("LibsqlCourseStore", () => {
     const reopened = await LibsqlCourseStore.create(config);
 
     expect(await reopened.list()).toEqual([externalCourse]);
+  });
+
+  it("normalizes legacy snapshots that predate course facets", async () => {
+    const directory = mkdtempSync(resolve(tmpdir(), "dojofoo-legacy-courses-"));
+    temporaryDirectories.push(directory);
+    const store = await LibsqlCourseStore.create({
+      url: `file:${resolve(directory, "courses.db")}`,
+    });
+    await store.upsert({
+      id: "acme/legacy",
+      slug: "legacy",
+      name: "Legacy",
+      source: "acme",
+      description: "An older snapshot.",
+      version: "0.0.1",
+      publishedAt: "2026-01-01T00:00:00.000Z",
+      repository: "acme/legacy",
+      repositoryUrl: "https://github.com/acme/legacy",
+      installs: 0,
+      sourceType: "github",
+      installUrl: "acme/legacy",
+      url: "https://dojo.foo/courses/acme/legacy",
+      categories: ["JavaScript"],
+      kataCount: 1,
+      katas: ["001"],
+      hash: null,
+      files: null,
+    } as never);
+
+    expect(await store.list()).toEqual([
+      expect.objectContaining({
+        author: "acme",
+        language: "Other",
+        framework: null,
+        tags: [],
+      }),
+    ]);
   });
 });

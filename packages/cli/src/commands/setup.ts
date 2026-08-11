@@ -90,7 +90,7 @@ npx dojofoo add <source>
 Source can be:
 - A local path: \`npx dojofoo add ./path/to/dojo\`
 - A git repo: \`npx dojofoo add org/repo\`
-- Official dojos: \`npx dojofoo add effect-ts\`
+- Official dojos: \`npx dojofoo add dojofoo/effect-ts\`
 
 ## Start practicing
 

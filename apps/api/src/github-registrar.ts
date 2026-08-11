@@ -28,6 +28,10 @@ interface ExternalManifest {
   name: string;
   version: string;
   description: string;
+  author?: string;
+  language?: string;
+  framework?: string;
+  tags?: string[];
   test: string;
   katas: Array<{ template: string; name?: string; tags?: string[] }>;
 }
@@ -46,6 +50,11 @@ function parseExternalManifest(contents: string): ExternalManifest {
     || typeof value.version !== "string"
     || typeof value.description !== "string"
     || typeof value.test !== "string"
+    || (value.author !== undefined && typeof value.author !== "string")
+    || (value.language !== undefined && typeof value.language !== "string")
+    || (value.framework !== undefined && typeof value.framework !== "string")
+    || (value.tags !== undefined
+      && (!Array.isArray(value.tags) || value.tags.some((tag) => typeof tag !== "string")))
     || !Array.isArray(value.katas)
     || value.katas.length === 0
     || value.katas.some((kata) =>
@@ -56,6 +65,12 @@ function parseExternalManifest(contents: string): ExternalManifest {
       || (kata.tags !== undefined
         && (!Array.isArray(kata.tags) || kata.tags.some((tag) => typeof tag !== "string"))))
   ) {
+    throw new Error("Invalid dojo.json");
+  }
+  const facets = new Set([value.language, value.framework]
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.toLocaleLowerCase()));
+  if (value.tags?.some((tag) => facets.has(tag.toLocaleLowerCase()))) {
     throw new Error("Invalid dojo.json");
   }
   return value as ExternalManifest;
@@ -139,7 +154,6 @@ export class GitHubCourseRegistrar implements CourseRegistrar {
       const manifestText = files.find((file) => file.path === "dojo.json")?.contents;
       if (!manifestText) return null;
       const manifest = parseExternalManifest(manifestText);
-      const categories = [...new Set(manifest.katas.flatMap((kata) => kata.tags ?? []))];
       const katas = manifest.katas.map((kata) => kataName(kata.template, kata.name));
       const course: Course = {
         id: source.repository,
@@ -155,7 +169,10 @@ export class GitHubCourseRegistrar implements CourseRegistrar {
         sourceType: "github",
         installUrl: source.repository,
         url: `https://dojo.foo/courses/${source.repository}`,
-        categories,
+        author: manifest.author ?? owner,
+        language: manifest.language ?? "Other",
+        framework: manifest.framework ?? null,
+        tags: [...new Set(manifest.tags ?? [])],
         kataCount: katas.length,
         katas,
         hash: tree.sha ?? source.integrity ?? null,

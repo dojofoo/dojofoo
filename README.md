@@ -25,7 +25,7 @@ dojofoo is a CLI you run with `npx` and a set of dojos you bolt onto any project
 
 ```sh
 npx dojofoo install          # one-time: auto-detects your agent via env vars
-npx dojofoo add effect-ts    # add a ryū (training pack) you want to study
+npx dojofoo add dojofoo/effect-ts # add a ryū (training pack) you want to study
 claude /kata                 # let the agent walk you through an exercise
 ```
 
