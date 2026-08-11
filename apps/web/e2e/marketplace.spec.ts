@@ -64,7 +64,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
   await expect(page.locator("[data-site-navigation]")).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Learners reaching each chapter" })).toHaveAttribute("data-chapter-count", "40");
+  await expect(page.getByRole("img", { name: "Dojo instances reaching each chapter" })).toHaveAttribute("data-chapter-count", "40");
   expect(consoleErrors).toEqual([]);
 });
 

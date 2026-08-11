@@ -43,7 +43,7 @@ function CourseDetailPage() {
             </div>
             <div className="mt-12 border-y border-dashed border-border py-6">
               <h2 className="text-sm font-medium">Chapter reach</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Unique learners who reached each chapter.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Unique dojo instances that reached each chapter.</p>
               <ChapterReachChart data={course.metrics.kataProgress} className="mt-6 h-64" />
             </div>
           </div>

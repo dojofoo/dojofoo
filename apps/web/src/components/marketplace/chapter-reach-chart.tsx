@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 const chartConfig = {
   reached: {
-    label: "Learners",
+    label: "Dojo instances",
     colors: { light: ["#6B97FF"], dark: ["#6B97FF"] },
   },
 } satisfies ChartConfig;
@@ -30,7 +30,7 @@ export function ChapterReachChart({
   return (
     <div
       role="img"
-      aria-label="Learners reaching each chapter"
+      aria-label="Dojo instances reaching each chapter"
       data-chapter-count={data.length}
       className={cn("h-32 min-h-0 w-full", className)}
     >
