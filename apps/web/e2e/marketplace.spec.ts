@@ -165,6 +165,11 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
 
   await page.getByRole("link", { name: /Effect TS/i }).click();
   await expect(page.getByRole("heading", { name: "Effect TS" })).toBeVisible();
+  await expect(page.locator("body")).toHaveCSS("font-family", /Iosevka Web/);
+  expect(await page.evaluate(async () => {
+    const faces = await document.fonts.load('400 16px "Iosevka Web"');
+    return faces.some((face) => face.status === "loaded");
+  })).toBe(true);
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Get Started" })).toBeVisible();
   await expect(page.locator("[data-site-navigation]")).toBeVisible();
@@ -172,6 +177,9 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("img", { name: "Dojo instances reaching each chapter" })).toHaveAttribute("data-chapter-count", "40");
   const detailArticle = page.locator("article");
   const detailSidebar = detailArticle.getByRole("complementary", { name: "Course activity" });
+  const detailInstall = detailSidebar.getByRole("button", { name: /Copy Install/ });
+  await expect(detailInstall).toBeVisible();
+  await expect(detailInstall.getByText("Copy", { exact: true })).toHaveCount(0);
   const eyebrow = page.getByTestId("course-source");
   await expect(eyebrow).toHaveText("tomsiwik/dojocho");
   await expect(eyebrow).toHaveCSS("text-transform", "uppercase");

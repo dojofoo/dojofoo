@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Hina+Mincho&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/Iosevka/11.1.1/iosevka/iosevka.min.css');
 @import "tailwindcss";
 @import "@dojocho/ui/styles.css";
 @import "tw-animate-css";
@@ -9,7 +9,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-hina: 'Hina Mincho', serif;
+  --font-sans: 'Iosevka Web', monospace;
+  --font-mono: 'Iosevka Web', monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -137,18 +138,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Iosevka Web', monospace;
   }
 
   /* Make the docs sidebar share the page background instead of inheriting
      fumadocs' --color-fd-card shade (which reads as a mismatched panel). */
   #nd-sidebar {
     background-color: var(--color-background) !important;
-  }
-
-  .font-hina {
-    font-family: 'Hina Mincho', serif;
-    font-weight: 400;
-    font-style: normal;
   }
 }
 
