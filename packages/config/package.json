@@ -1,6 +1,12 @@
 {
   "name": "@dojofoo/config",
   "version": "0.0.5",
+  "description": "Shared configuration and Vitest integration for dojofoo.",
+  "license": "MIT",
+  "homepage": "https://dojo.foo/docs",
+  "bugs": {
+    "url": "https://github.com/dojofoo/dojofoo/issues"
+  },
   "type": "module",
   "repository": {
     "type": "git",
@@ -11,7 +17,8 @@
     "access": "public"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "exports": {
     ".": {

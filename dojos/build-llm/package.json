@@ -9,6 +9,10 @@
   },
   "license": "MIT",
   "description": "Build a Large Language Model (and a Reasoning Model) from scratch — 23 chapters, ~115 katas. Companion to Raschka's books.",
+  "homepage": "https://dojo.foo/courses/dojofoo/build-llm",
+  "bugs": {
+    "url": "https://github.com/dojofoo/dojofoo/issues"
+  },
   "publishConfig": {
     "access": "public"
   },

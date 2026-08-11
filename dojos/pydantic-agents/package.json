@@ -1,6 +1,11 @@
 {
   "name": "@dojofoo/pydantic-agents",
   "version": "0.0.4",
+  "description": "Learn Pydantic models, validation, and Pydantic AI through hands-on katas.",
+  "homepage": "https://dojo.foo/courses/dojofoo/pydantic-agents",
+  "bugs": {
+    "url": "https://github.com/dojofoo/dojofoo/issues"
+  },
   "type": "module",
   "repository": {
     "type": "git",
@@ -14,6 +19,7 @@
   "files": [
     "katas",
     "DOJO.md",
+    "README.md",
     "dojo.json",
     "conftest.py",
     "pyproject.toml",
