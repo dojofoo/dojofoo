@@ -9,7 +9,7 @@ export interface InstallCommandProps {
 }
 
 const DEFAULT_COMMANDS = [
-  { label: 'npx', cmd: 'npx dojos install' },
+  { label: 'npx', cmd: 'npx dojofoo install' },
 ] as const;
 
 /**

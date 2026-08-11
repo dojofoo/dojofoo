@@ -122,7 +122,7 @@ describe("setupAgents", () => {
     expect(existsSync(resolve(root, ".agents/commands/dojo.md"))).toBe(true);
     expect(existsSync(resolve(root, ".agents/commands/kata.md"))).toBe(true);
     const kataCommand = readFileSync(resolve(root, ".agents/commands/kata.md"), "utf8");
-    expect(kataCommand).toContain("npx dojos status");
+    expect(kataCommand).toContain("npx dojofoo status");
     expect(kataCommand).not.toContain("`dojo status`");
   });
 
@@ -150,7 +150,7 @@ describe("setupAgents", () => {
     setupAgents(root, ["claude"]);
     const settings = JSON.parse(readFileSync(resolve(root, ".claude/settings.json"), "utf8"));
     expect(settings.permissions.allow).not.toContain("Agent(sensei)");
-    expect(settings.permissions.allow).toContain("Bash(npx dojos *)");
+    expect(settings.permissions.allow).toContain("Bash(npx dojofoo *)");
   });
 });
 

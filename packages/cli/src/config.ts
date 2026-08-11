@@ -37,4 +37,4 @@ export {
   listDojos,
 } from "@dojocho/config";
 
-export const CLI = "npx dojos";
+export const CLI = "npx dojofoo";

@@ -11,7 +11,7 @@ graded `test_solution.py`.
 ## Install
 
 ```sh
-npx dojos add build-llm
+npx dojofoo add build-llm
 ```
 
 That clones Raschka's source repos (used as code-reading anchors in

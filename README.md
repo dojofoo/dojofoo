@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/dojos"><img src="https://img.shields.io/npm/v/dojos?style=flat-square&color=ff0056" alt="npm" /></a>
+  <a href="https://www.npmjs.com/package/dojofoo"><img src="https://img.shields.io/npm/v/dojofoo?style=flat-square&color=ff0056" alt="npm" /></a>
   <a href="https://github.com/tomsiwik/dojocho/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT" /></a>
 </p>
 
@@ -21,11 +21,11 @@ Reading tutorials feels like progress. It isn't. You only learn a stack by writi
 
 ## What it does
 
-dojocho is a CLI you run with `npx` and a set of dojos you bolt onto any project. A dojo is a curated set of katas (small exercises) for a specific stack — Effect-TS, pydantic-agents, etc. Run `npx dojos install` to wire your agent into a repo, `npx dojos add <dojo>` to install a training pack, then ask your agent for a kata.
+dojocho is a CLI you run with `npx` and a set of dojos you bolt onto any project. A dojo is a curated set of katas (small exercises) for a specific stack — Effect-TS, pydantic-agents, etc. Run `npx dojofoo install` to wire your agent into a repo, `npx dojofoo add <dojo>` to install a training pack, then ask your agent for a kata.
 
 ```sh
-npx dojos install            # one-time: auto-detects your agent via env vars
-npx dojos add effect-ts      # add a ryū (training pack) you want to study
+npx dojofoo install          # one-time: auto-detects your agent via env vars
+npx dojofoo add effect-ts    # add a ryū (training pack) you want to study
 claude /kata                 # let the agent walk you through an exercise
 ```
 

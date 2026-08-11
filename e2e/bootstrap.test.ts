@@ -11,7 +11,7 @@ const IN_SCOPE = AGENTS_TABLE.filter((r) => r.agent !== "claude");
 
 describe("frontpage AGENT_PROMPT bootstraps dojocho on each agent", () => {
   it.each(IN_SCOPE)(
-    "$agent: fetches llms.txt + runs npx dojos install, leaves .dojorc",
+    "$agent: fetches llms.txt + runs npx dojofoo install, leaves .dojorc",
     { timeout: 60_000, retry: 1 },
     async (row) => {
       const project = `/tmp/bootstrap-${row.agent}-${Date.now()}`;
@@ -40,9 +40,9 @@ echo '<<<END_DOJORC>>>'
         throw new Error(`agent ${row.agent} never produced a valid .dojorc:\n${diag}`);
       }
       expect(rc, `.dojorc not a valid object:\n${diag}`).toBeTypeOf("object");
-      expect(rc, `.dojorc missing editor (npx dojos install didn't run):\n${diag}`)
+      expect(rc, `.dojorc missing editor (npx dojofoo install didn't run):\n${diag}`)
         .toMatchObject({ editor: expect.any(String) });
-      expect(rc?.currentDojo, `currentDojo is empty (agent ran install but skipped npx dojos add):\n${diag}`)
+      expect(rc?.currentDojo, `currentDojo is empty (agent ran install but skipped npx dojofoo add):\n${diag}`)
         .toMatch(/.+/);
     },
   );

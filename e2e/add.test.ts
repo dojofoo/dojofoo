@@ -11,24 +11,24 @@ interface AddCase {
 const CASES: AddCase[] = [
   {
     name: "installs a local dojo from a path source",
-    prep: "npx dojos add /workspace/dojos/effect-ts",
+    prep: "npx dojofoo add /workspace/dojos/effect-ts",
   },
   {
     name: "rejects re-adding an existing dojo without --force",
     prep:
-      "npx dojos add /workspace/dojos/effect-ts >/dev/null 2>&1\n" +
-      "if npx dojos add /workspace/dojos/effect-ts; then echo 'expected non-zero'; exit 1; fi",
+      "npx dojofoo add /workspace/dojos/effect-ts >/dev/null 2>&1\n" +
+      "if npx dojofoo add /workspace/dojos/effect-ts; then echo 'expected non-zero'; exit 1; fi",
     expectStdoutMatches: /already exists/i,
   },
   {
     name: "--force replaces an existing dojo",
     prep:
-      "npx dojos add /workspace/dojos/effect-ts >/dev/null 2>&1\n" +
-      "npx dojos add /workspace/dojos/effect-ts --force",
+      "npx dojofoo add /workspace/dojos/effect-ts >/dev/null 2>&1\n" +
+      "npx dojofoo add /workspace/dojos/effect-ts --force",
   },
 ];
 
-describe("npx dojos add (per scenario)", () => {
+describe("npx dojofoo add (per scenario)", () => {
   it.each(CASES)("$name", (c) => {
     const dir = `/tmp/add-${c.name.replace(/[^a-z0-9]+/gi, "-")}`;
     const script = `
@@ -36,7 +36,7 @@ export CLAUDECODE=1
 rm -rf ${dir}
 mkdir -p ${dir} && cd ${dir}
 echo '{"name":"add","private":true,"type":"module"}' > package.json
-npx dojos install >/dev/null 2>&1
+npx dojofoo install >/dev/null 2>&1
 ${c.prep}
 echo '<<<DOJORC>>>'
 cat .dojorc 2>/dev/null

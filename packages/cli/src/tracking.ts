@@ -38,7 +38,7 @@ export function recordCassette(root: string, args: string[]): SessionSource & { 
 
   if (!source) {
     throw new Error(
-      "Could not find an active agent session log. Set DOJOCHO_SESSION_LOG=/path/to/session.jsonl and run `npx dojos track` again.",
+      "Could not find an active agent session log. Set DOJOCHO_SESSION_LOG=/path/to/session.jsonl and run `npx dojofoo track` again.",
     );
   }
 
@@ -61,7 +61,7 @@ export function refreshCassette(root: string): void {
     recordCassette(root, []);
   } catch {
     // Automatic tracking must never block a kata flow. Users can run
-    // `npx dojos track --source <path>` when their agent stores logs elsewhere.
+    // `npx dojofoo track --source <path>` when their agent stores logs elsewhere.
   }
 }
 

@@ -31,23 +31,26 @@ try {
   });
 
   const installedPackage = JSON.parse(
-    readFileSync(resolve(installRoot, "node_modules/dojos/package.json"), "utf8"),
+    readFileSync(resolve(installRoot, "node_modules/dojofoo/package.json"), "utf8"),
   );
-  if (installedPackage.name !== "dojos" || installedPackage.version !== "0.0.1") {
-    throw new Error(`Expected packed dojos@0.0.1, received ${installedPackage.name}@${installedPackage.version}.`);
+  if (installedPackage.name !== "dojofoo" || installedPackage.version !== "0.0.1") {
+    throw new Error(`Expected packed dojofoo@0.0.1, received ${installedPackage.name}@${installedPackage.version}.`);
   }
-  if (installedPackage.bin?.dojos !== "./dist/index.js") {
-    throw new Error("Packed package does not expose the dojos executable.");
+  if (installedPackage.bin?.dojofoo !== "./dist/index.js") {
+    throw new Error("Packed package does not expose the dojofoo executable.");
   }
   if (existsSync(resolve(installRoot, "node_modules/.bin/dojo"))) {
     throw new Error("Packed package still exposes the legacy dojo executable.");
   }
+  if (existsSync(resolve(installRoot, "node_modules/.bin/dojos"))) {
+    throw new Error("Packed package still exposes the rejected dojos executable.");
+  }
 
   const port = await availablePort();
-  const executable = resolve(installRoot, "node_modules/.bin/dojos");
+  const executable = resolve(installRoot, "node_modules/.bin/dojofoo");
   const help = execFileSync(executable, ["--help"], { encoding: "utf8" });
-  if (!help.includes("Usage: npx dojos") || !help.includes("install [--agent]")) {
-    throw new Error("Packed dojos executable does not advertise the install command.");
+  if (!help.includes("Usage: npx dojofoo") || !help.includes("install [--agent]")) {
+    throw new Error("Packed dojofoo executable does not advertise the install command.");
   }
   child = spawn(executable, ["ui", "--no-open"], {
     cwd: projectRoot,

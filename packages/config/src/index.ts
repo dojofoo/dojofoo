@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, basename, dirname } from "node:path";
 import { createJiti } from "jiti";
 
-export const CLI = "npx dojos";
+export const CLI = "npx dojofoo";
 export const DOJOS_DIR = ".dojos";
 
 // --- User-facing config types ---
@@ -256,7 +256,7 @@ export function findProjectRoot(): string {
 export function readDojoRc(root: string): DojoRc {
   const rcPath = resolve(root, ".dojorc");
   if (!existsSync(rcPath)) {
-    throw new Error(".dojorc not found — run `npx dojos install` first");
+    throw new Error(".dojorc not found — run `npx dojofoo install` first");
   }
   return validateDojoRc(JSON.parse(readFileSync(rcPath, "utf8")));
 }

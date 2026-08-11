@@ -64,7 +64,7 @@ function recordCompletion(rc: DojoRc, kataName: string): void {
 
 export function kata(root: string, args: string[]): void {
   // Check for "intro" subcommand first (before flag parsing)
-  // so "npx dojos kata intro --done" works
+  // so "npx dojofoo kata intro --done" works
   const sub = args.find((a) => !a.startsWith("--"));
   if (sub === "intro") {
     kataIntro(root, args);
@@ -221,7 +221,7 @@ function smart(root: string, args: string[]): void {
   const katas = resolveAllKatas(root, rc, catalog);
   const progress = getProgress(rc);
 
-  // Try query arg (positional, e.g. `npx dojos kata 005`)
+  // Try query arg (positional, e.g. `npx dojofoo kata 005`)
   const query = args.find((a) => !a.startsWith("--"));
   const target = query
     ? findKataByIdOrName(katas, query)

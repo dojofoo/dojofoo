@@ -16,7 +16,7 @@ test("docs hydrate and search opens", async ({ page }) => {
   const searchInput = page.getByPlaceholder("Search");
   await expect(searchInput).toBeVisible();
   await searchInput.fill("setup");
-  await expect(page.getByRole("button", { name: /npx dojos install/i }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /npx dojofoo install/i }).first()).toBeVisible();
   expect(pageErrors).toEqual([]);
   expect(consoleErrors).toEqual([]);
 

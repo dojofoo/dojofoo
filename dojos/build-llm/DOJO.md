@@ -39,7 +39,7 @@ attribute them to the student's code.
 student to read `upstream/LLMs-from-scratch/chXX/01_main-chapter-code/...`
 or `upstream/reasoning-from-scratch/reasoning_from_scratch/...` first. If
 the upstream is missing (clone failed at prepare time), tell the student
-to re-run `npx dojos install` and skip the reading step.
+to re-run `npx dojofoo install` and skip the reading step.
 
 ## Pedagogical mix
 

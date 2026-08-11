@@ -339,7 +339,7 @@ test("shows agent activity while sending from the message composer", async ({ pa
       contentType: "application/json",
       body: JSON.stringify(sent ? {
         status: "thinking",
-        steps: [{ id: "command", label: "Running a command", description: "npx dojos kata --check --reporter=json", icon: "monitor", status: "active" }],
+        steps: [{ id: "command", label: "Running a command", description: "npx dojofoo kata --check --reporter=json", icon: "monitor", status: "active" }],
         context: { usedTokens: 0, maxTokens: 1, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cachedTokens: 0 },
         questions: null,
       } : {

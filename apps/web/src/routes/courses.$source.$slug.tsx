@@ -53,7 +53,7 @@ function CourseDetailPage() {
               <StartsFinishesProgress started={course.metrics.started} finished={course.metrics.finished} />
             </div>
             <div className="mt-10">
-              <InputCopy label="Install" value={`npx dojos add ${course.installUrl}`} variant="button" />
+              <InputCopy label="Install" value={`npx dojofoo add ${course.installUrl}`} variant="button" />
             </div>
             <dl className="mt-8 space-y-4 text-sm">
               <div className="flex justify-between"><dt className="text-muted-foreground">Katas</dt><dd>{course.kataCount}</dd></div>

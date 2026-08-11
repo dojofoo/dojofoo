@@ -85,7 +85,7 @@ apps/ui/
 ## Running
 
 ```bash
-# from apps/ui/ (or via npx dojos ui from anywhere)
+# from apps/ui/ (or via npx dojofoo ui from anywhere)
 pnpm install
 pnpm dev                       # → http://localhost:4567
 
@@ -101,7 +101,7 @@ curl -X POST http://localhost:4567/api/a2a/jsonrpc \
 ```
 
 Override the port with `PORT=… pnpm dev` (or `DOJO_UI_PORT` if launched
-through `npx dojos ui`).
+through `npx dojofoo ui`).
 
 ## License
 

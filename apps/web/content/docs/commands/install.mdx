@@ -1,15 +1,15 @@
 ---
-title: npx dojos install
+title: npx dojofoo install
 description: One-time wiring of a project so your agent can run katas.
 ---
 
 ## Usage
 
 ```sh
-npx dojos install
+npx dojofoo install
 ```
 
-`npx dojos install` prepares the current directory to host one or more dojos.
+`npx dojofoo install` prepares the current directory to host one or more dojos.
 It is idempotent — running it twice is harmless. `setup` remains available as
 a compatibility alias.
 
@@ -24,19 +24,19 @@ a compatibility alias.
 
 ## Specifying the agent explicitly
 
-If `npx dojos install` can't detect your agent, or you want to wire up multiple,
+If `npx dojofoo install` can't detect your agent, or you want to wire up multiple,
 pass one or more flags:
 
 ```sh
-npx dojos install --claude          # Claude Code
-npx dojos install --opencode        # OpenCode
-npx dojos install --codex           # OpenAI Codex CLI
-npx dojos install --gemini          # Gemini CLI
-npx dojos install --pi              # Pi
-npx dojos install --claude --codex  # multiple at once
+npx dojofoo install --claude          # Claude Code
+npx dojofoo install --opencode        # OpenCode
+npx dojofoo install --codex           # OpenAI Codex CLI
+npx dojofoo install --gemini          # Gemini CLI
+npx dojofoo install --pi              # Pi
+npx dojofoo install --claude --codex  # multiple at once
 ```
 
 ## Re-running install
 
-Re-run `npx dojos install` if you've upgraded the CLI, switched agents, or want
+Re-run `npx dojofoo install` if you've upgraded the CLI, switched agents, or want
 to reset the agent rules to defaults. Your code is untouched.

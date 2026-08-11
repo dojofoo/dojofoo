@@ -1,14 +1,14 @@
-# dojos
+# dojofoo
 
 Installable coding dojos that turn your AI agent into a sensei.
 
 ## Usage
 
 ```sh
-npx dojos install         # set up your dojo (auto-detects your agent via env vars)
-npx dojos add effect-ts   # install a training pack (a "dojo")
+npx dojofoo install       # set up your dojo (auto-detects your agent via env vars)
+npx dojofoo add effect-ts # install a training pack (a "dojo")
 claude /kata              # start practicing
-npx dojos track --list    # inspect locally recorded .dojo/cassettes
+npx dojofoo track --list  # inspect locally recorded .dojo/cassettes
 ```
 
 You write the code. The agent runs your tests, points out where you're

@@ -1,5 +1,5 @@
 {
-  "name": "dojos",
+  "name": "dojofoo",
   "version": "0.0.1",
   "description": "Installable coding dojos that turn your AI agent into a sensei.",
   "keywords": [
@@ -33,7 +33,7 @@
     "LICENSE"
   ],
   "bin": {
-    "dojos": "./dist/index.js"
+    "dojofoo": "./dist/index.js"
   },
   "scripts": {
     "build": "tsup && node scripts/bundle-ui.mjs",

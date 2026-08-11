@@ -27,7 +27,7 @@ export function CourseCard({ course }: { course: MarketplaceCourse }) {
       </CardHeader>
       <CardFooter className="mt-auto block border-t border-dashed border-border px-4 py-3">
         <InputCopy
-          value={`npx dojos add ${course.installUrl}`}
+          value={`npx dojofoo add ${course.installUrl}`}
           variant="icon"
           size="compact"
           className="w-full"
