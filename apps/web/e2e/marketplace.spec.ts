@@ -174,6 +174,8 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   const detailSidebar = detailArticle.getByRole("complementary", { name: "Course activity" });
   const eyebrow = page.getByTestId("course-source");
   await expect(eyebrow).toHaveText("tomsiwik/dojocho");
+  await expect(eyebrow).toHaveCSS("text-transform", "uppercase");
+  await expect(eyebrow).toHaveCSS("font-size", "14px");
   await expect(eyebrow).toHaveAttribute(
     "href",
     "https://github.com/tomsiwik/dojocho/tree/main/dojos/effect-ts",

@@ -17,8 +17,13 @@ test("docs hydrate and search opens", async ({ page }) => {
   await expect(searchInput).toBeVisible();
   await searchInput.fill("setup");
   await expect(page.getByRole("button", { name: /npx dojofoo install/i }).first()).toBeVisible();
+  await searchInput.fill("dojofoo ui");
+  await expect(page.getByRole("button", { name: /npx dojofoo ui/i }).first()).toBeVisible();
   expect(pageErrors).toEqual([]);
   expect(consoleErrors).toEqual([]);
+
+  await page.goto("/docs/commands/ui");
+  await expect(page.getByText("https://dojo.localhost", { exact: true })).toBeVisible();
 
   await page.goto("/docs/api");
   await expect(page.getByRole("heading", { name: "Courses API", level: 1 })).toBeVisible();

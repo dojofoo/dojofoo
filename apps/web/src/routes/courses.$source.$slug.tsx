@@ -32,7 +32,7 @@ function CourseDetailPage() {
               href={course.repositoryUrl}
               target="_blank"
               rel="noreferrer"
-              className="font-mono text-xs text-primary underline-offset-4 hover:underline"
+              className="font-mono text-sm uppercase text-primary underline-offset-4 hover:underline"
             >
               {course.repository}
             </a>

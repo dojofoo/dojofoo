@@ -1,0 +1,29 @@
+---
+title: npx dojofoo ui
+description: Open the browser-based dojo lesson workspace.
+---
+
+## Usage
+
+```sh
+npx dojofoo ui
+```
+
+With Portless available, dojofoo starts the lesson UI at:
+
+```text
+https://dojo.localhost
+```
+
+The command prints the effective URL when it starts. If Portless uses a custom
+TLD, the URL follows that configuration, for example `https://dojo.td`.
+
+Without Portless, dojofoo falls back to `http://localhost:4567`.
+
+## Options
+
+```sh
+npx dojofoo ui --background  # keep the server running in the background
+npx dojofoo ui --no-open     # print the URL without opening a browser
+npx dojofoo ui --name course # use course.localhost as the service name
+```

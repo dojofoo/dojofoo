@@ -25,7 +25,7 @@ Commands:
   install [--agent]   Set up a new dojo project and configure agents
   add <source>        Add a dojo (training pack)
   remove <name>       Remove a dojo
-  ui [--background]   Start the dojo lesson web UI
+  ui [--background]   Start the dojo lesson web UI (default: https://dojo.localhost)
   track               Record the active agent session as a cassette
 
 Flags:
