@@ -26,7 +26,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: "text-background",
-        cta: "text-background font-medium",
+        cta: "text-primary-foreground font-medium active:translate-y-px",
         secondary: "text-foreground",
         tertiary: "text-foreground",
         ghost: "text-muted-foreground hover:text-foreground",
@@ -47,6 +47,7 @@ const buttonVariants = cva(
       { size: "default", iconLeft: true, className: "pl-[10px]" },
       { size: "compact", iconRight: true, className: "pr-[6px]" },
       { size: "default", iconRight: true, className: "pr-[10px]" },
+      { variant: "cta", size: "default", className: "h-10.5 gap-1.5 px-3 text-sm" },
     ],
     defaultVariants: {
       variant: "primary",
@@ -94,7 +95,7 @@ interface ButtonProps
 
 const bgVariants: Record<string, string> = {
   primary: "bg-foreground group-hover:bg-foreground/90 group-active:bg-foreground/80",
-  cta: "bg-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.2),inset_0_0_0_1px_rgb(127_127_127/0.25),0_1px_2px_rgb(0_0_0/0.18)] group-hover:bg-foreground/90 group-hover:shadow-[inset_0_1px_0_rgb(255_255_255/0.28),inset_0_0_0_1px_rgb(127_127_127/0.3),0_3px_8px_rgb(0_0_0/0.22)] group-active:bg-foreground/80",
+  cta: "bg-primary group-hover:bg-primary/80 group-active:bg-primary/70",
   secondary: "bg-accent group-hover:bg-accent/80 group-active:bg-accent",
   tertiary: "border border-border bg-transparent group-hover:bg-hover group-active:bg-active",
   ghost: "bg-transparent group-hover:bg-hover group-active:bg-active",
@@ -102,7 +103,7 @@ const bgVariants: Record<string, string> = {
 
 const activeBgVariants: Record<string, string> = {
   primary: "bg-foreground/80",
-  cta: "bg-foreground/80",
+  cta: "bg-primary/70",
   secondary: "bg-accent",
   tertiary: "border border-border bg-active",
   ghost: "bg-active",
@@ -166,6 +167,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             bgClass
           )}
         />
+        {variant === "cta" && (
+          <span
+            data-cta-inset=""
+            aria-hidden
+            className="pointer-events-none absolute inset-0.75 rounded-sm border border-dashed border-background/40"
+          />
+        )}
         <span className="relative inline-flex items-center justify-center gap-[inherit]">
           {loading ? (
             <>
@@ -239,7 +247,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             iconLeft: !isIconOnly && !!LeadingIcon,
             iconRight: !isIconOnly && !!TrailingIcon,
           }),
-          shape.button,
+          variant === "cta" ? "rounded-md" : shape.button,
           className
         )}
         // asChild roots (e.g. an anchor) don't take the disabled attribute —

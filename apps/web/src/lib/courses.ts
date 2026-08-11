@@ -69,3 +69,10 @@ export async function getMarketplaceCourses(): Promise<MarketplaceCourse[]> {
     }),
   );
 }
+
+export async function searchMarketplaceCourses(query: string): Promise<CourseListing[]> {
+  const result = await getJson<{ data: CourseListing[] }>(
+    `/api/v1/courses/search?q=${encodeURIComponent(query)}&limit=20`,
+  );
+  return result.data;
+}

@@ -13,31 +13,53 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
   await expect(page.getByRole("button", { name: "Python" })).toBeVisible();
   await expect(page.getByRole("button", { name: "TypeScript" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Search courses" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open Search" })).toBeVisible();
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
+  await expect(page.locator("[data-site-navigation]")).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Search courses" })).toHaveCount(0);
 
   const effectCard = page.getByTestId("course-effect-ts");
   await expect(effectCard.getByText("v0.0.4")).toBeVisible();
   await expect(effectCard.getByText("dojocho", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByText("TypeScript", { exact: true })).toHaveCount(0);
-  await expect(effectCard.getByRole("img", { name: "Weekly starts and completions" })).toBeVisible();
+  await expect(effectCard.getByRole("img", { name: "Weekly starts and completions" })).toHaveCount(0);
+  await expect(effectCard.locator("canvas")).toHaveCount(0);
   await expect(effectCard.getByRole("button", { name: "Copy to clipboard" })).toBeVisible();
 
-  await page.keyboard.press("Control+K");
-  const search = page.getByRole("searchbox", { name: "Search courses" });
+  await page.locator("[data-site-navigation]").getByRole("button", { name: "Open Search" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  const search = page.getByPlaceholder("Search");
   await search.fill("pydantic");
-  await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Effect TS/i })).toHaveCount(0);
-  await search.fill("");
+  await expect(page.getByRole("button", { name: /Pydantic Agents/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Effect TS/i })).toHaveCount(0);
+  await page.keyboard.press("Escape");
 
   await page.getByRole("link", { name: /Effect TS/i }).click();
   await expect(page.getByRole("heading", { name: "Effect TS" })).toBeVisible();
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
+  await expect(page.locator("[data-site-navigation]")).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Weekly starts and completions" })).toBeVisible();
   expect(consoleErrors).toEqual([]);
+});
+
+test("uses the same site navigation on marketplace and docs", async ({ page }) => {
+  const measurements: Array<{ width: number; height: number }> = [];
+  for (const path of ["/", "/docs"]) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const navigation = page.locator("[data-site-navigation]");
+    await expect(navigation).toBeVisible();
+    await expect(navigation.getByRole("button", { name: "Open Search" })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "GitHub" })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
+    await expect(navigation.locator("[data-cta-inset]")).toBeVisible();
+    const box = await navigation.boundingBox();
+    expect(box).not.toBeNull();
+    measurements.push({ width: box!.width, height: box!.height });
+  }
+  expect(measurements[0]).toEqual(measurements[1]);
 });
 
 test("reflects install, progress, and completion events", async ({ page, request }) => {

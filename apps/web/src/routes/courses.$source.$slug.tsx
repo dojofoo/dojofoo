@@ -3,7 +3,7 @@ import { Badge, InputCopy } from "@dojocho/ui";
 import { useEffect, useState } from "react";
 import { StartsFinishesProgress } from "@/components/marketplace/course-progress";
 import { WeeklyActivityChart } from "@/components/evilcharts/blocks/shipments-echarts-line-chart";
-import { MarketplaceNavigation } from "@/components/marketplace/marketplace-navigation";
+import { SiteNavigation } from "@/components/layout/site-navigation";
 import { getMarketplaceCourses, type MarketplaceCourse } from "@/lib/courses";
 
 export const Route = createFileRoute("/courses/$source/$slug")({ component: CourseDetailPage });
@@ -30,7 +30,7 @@ function CourseDetailPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <MarketplaceNavigation />
+      <SiteNavigation />
       <div className="marketplace-lined-frame mx-auto max-w-(--fd-layout-width) px-4 sm:px-5">
         <article className="marketplace-lined-surface grid min-h-[calc(100vh-4rem)] gap-12 px-6 py-14 lg:grid-cols-[minmax(0,1fr)_20rem] lg:px-8">
           <div>

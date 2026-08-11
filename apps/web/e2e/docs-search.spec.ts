@@ -9,7 +9,7 @@ test("docs hydrate and search opens", async ({ page }) => {
   });
 
   await page.goto("/docs", { waitUntil: "networkidle" });
-  await page.locator("[data-search-full]").click();
+  await page.locator("[data-site-navigation]").getByRole("button", { name: "Open Search" }).click();
 
   await expect(page.getByRole("dialog")).toBeVisible();
   const searchInput = page.getByPlaceholder("Search");

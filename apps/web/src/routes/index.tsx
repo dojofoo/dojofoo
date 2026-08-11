@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button, CardGroup } from "@dojocho/ui";
 import { useEffect, useMemo, useState } from "react";
 import { CourseCard } from "@/components/marketplace/course-card";
-import { MarketplaceNavigation } from "@/components/marketplace/marketplace-navigation";
+import { SiteNavigation } from "@/components/layout/site-navigation";
 import { getMarketplaceCourses, type MarketplaceCourse } from "@/lib/courses";
 
 export const Route = createFileRoute("/")({ component: CoursesPage });
@@ -10,7 +10,6 @@ export const Route = createFileRoute("/")({ component: CoursesPage });
 function CoursesPage() {
   const [courses, setCourses] = useState<MarketplaceCourse[]>([]);
   const [category, setCategory] = useState("All");
-  const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,15 +26,12 @@ function CoursesPage() {
   );
   const visibleCourses = courses.filter((course) => {
     const inCategory = category === "All" || course.categories.includes(category);
-    const needle = query.trim().toLocaleLowerCase();
-    const matchesQuery = needle.length === 0 || [course.name, course.description, ...course.categories]
-      .some((value) => value.toLocaleLowerCase().includes(needle));
-    return inCategory && matchesQuery;
+    return inCategory;
   });
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <MarketplaceNavigation searchValue={query} onSearchChange={setQuery} />
+      <SiteNavigation />
 
       <section className="marketplace-lined-frame mx-auto max-w-(--fd-layout-width) px-4 sm:px-5">
         <div className="marketplace-lined-surface min-h-[calc(100vh-4rem)] px-5 py-12 lg:px-8">
@@ -70,8 +66,6 @@ function CoursesPage() {
                 <p role="alert" className="border-l-2 border-destructive py-2 pl-4 text-sm text-destructive">{error}</p>
               ) : courses.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Loading courses…</p>
-              ) : visibleCourses.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No courses match this search.</p>
               ) : (
                 <CardGroup columns={3} separated proximityHover border="outlined" className="grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {visibleCourses.map((course) => <CourseCard key={course.id} course={course} />)}
