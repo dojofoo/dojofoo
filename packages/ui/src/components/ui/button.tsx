@@ -26,6 +26,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: "text-background",
+        cta: "text-background font-medium",
         secondary: "text-foreground",
         tertiary: "text-foreground",
         ghost: "text-muted-foreground hover:text-foreground",
@@ -33,8 +34,8 @@ const buttonVariants = cva(
       // The two-step size ladder shared by every control — see /docs/sizes.
       // default = 36px control height, compact = 28px for dense surfaces.
       size: {
-        default: "h-9 px-4 text-[13px] gap-1.5",
-        compact: "h-7 px-3 text-[12px] gap-1",
+        default: "h-9 px-4 text-[14px] gap-1.5",
+        compact: "h-7 px-3 text-[13px] gap-1",
         icon: "h-9 w-9 p-0 [&_svg]:h-4 [&_svg]:w-4",
         "icon-compact": "h-7 w-7 p-0 [&_svg]:h-3.5 [&_svg]:w-3.5",
       },
@@ -93,6 +94,7 @@ interface ButtonProps
 
 const bgVariants: Record<string, string> = {
   primary: "bg-foreground group-hover:bg-foreground/90 group-active:bg-foreground/80",
+  cta: "bg-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.2),inset_0_0_0_1px_rgb(127_127_127/0.25),0_1px_2px_rgb(0_0_0/0.18)] group-hover:bg-foreground/90 group-hover:shadow-[inset_0_1px_0_rgb(255_255_255/0.28),inset_0_0_0_1px_rgb(127_127_127/0.3),0_3px_8px_rgb(0_0_0/0.22)] group-active:bg-foreground/80",
   secondary: "bg-accent group-hover:bg-accent/80 group-active:bg-accent",
   tertiary: "border border-border bg-transparent group-hover:bg-hover group-active:bg-active",
   ghost: "bg-transparent group-hover:bg-hover group-active:bg-active",
@@ -100,6 +102,7 @@ const bgVariants: Record<string, string> = {
 
 const activeBgVariants: Record<string, string> = {
   primary: "bg-foreground/80",
+  cta: "bg-foreground/80",
   secondary: "bg-accent",
   tertiary: "border border-border bg-active",
   ghost: "bg-active",

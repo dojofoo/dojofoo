@@ -8,6 +8,7 @@ const course = {
   name: "Effect TS",
   source: "dojocho",
   description: "Effect katas",
+  version: "0.0.4",
   installs: 0,
   sourceType: "npm" as const,
   installUrl: "@dojocho/effect-ts",

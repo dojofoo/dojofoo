@@ -1,8 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Button, CardGroup } from "@dojocho/ui";
 import { useEffect, useMemo, useState } from "react";
 import { CourseCard } from "@/components/marketplace/course-card";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { MarketplaceNavigation } from "@/components/marketplace/marketplace-navigation";
 import { getMarketplaceCourses, type MarketplaceCourse } from "@/lib/courses";
 
 export const Route = createFileRoute("/")({ component: CoursesPage });
@@ -10,6 +10,7 @@ export const Route = createFileRoute("/")({ component: CoursesPage });
 function CoursesPage() {
   const [courses, setCourses] = useState<MarketplaceCourse[]>([]);
   const [category, setCategory] = useState("All");
+  const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,55 +25,61 @@ function CoursesPage() {
     () => ["All", ...new Set(courses.flatMap((course) => course.categories))],
     [courses],
   );
-  const visibleCourses = category === "All"
-    ? courses
-    : courses.filter((course) => course.categories.includes(category));
+  const visibleCourses = courses.filter((course) => {
+    const inCategory = category === "All" || course.categories.includes(category);
+    const needle = query.trim().toLocaleLowerCase();
+    const matchesQuery = needle.length === 0 || [course.name, course.description, ...course.categories]
+      .some((value) => value.toLocaleLowerCase().includes(needle));
+    return inCategory && matchesQuery;
+  });
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-dashed border-border">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-5 px-5 lg:px-8">
-          <img src="/logo.svg" alt="dojocho" className="h-4 w-auto" />
-          <nav className="ml-auto flex items-center gap-1">
-            <Link to="/$" params={{ _splat: "docs" }} className="px-3 py-2 text-sm text-muted-foreground transition-colors duration-80 hover:text-foreground">Docs</Link>
-            <ThemeToggle />
-          </nav>
-        </div>
-      </header>
+      <MarketplaceNavigation searchValue={query} onSearchChange={setQuery} />
 
-      <section className="mx-auto max-w-7xl px-5 py-14 lg:px-8">
-        <div className="max-w-2xl">
-          <p className="mb-3 text-xs uppercase tracking-[0.18em] text-[#6B97FF]">Learn with your coding agent</p>
-          <h1 className="text-4xl font-medium tracking-tight">Courses</h1>
-          <p className="mt-4 text-base leading-7 text-muted-foreground">
-            Install a dojo, solve its katas in your agentic harness or the web UI, and resume from the same checkpoint.
-          </p>
-        </div>
+      <section className="marketplace-lined-frame mx-auto max-w-(--fd-layout-width) px-4 sm:px-5">
+        <div className="marketplace-lined-surface min-h-[calc(100vh-4rem)] px-5 py-12 lg:px-8">
+          <div className="max-w-2xl">
+            <h1 className="text-4xl font-medium tracking-tight">Courses</h1>
+            <p className="mt-3 text-base leading-7 text-muted-foreground">
+              Install a dojo, solve its katas with your coding agent, and resume from the same checkpoint.
+            </p>
+          </div>
 
-        <div className="mt-10 flex flex-wrap gap-1 border-y border-dashed border-border py-3">
-          {categories.map((item) => (
-            <Button
-              key={item}
-              type="button"
-              size="compact"
-              variant={category === item ? "secondary" : "ghost"}
-              active={category === item}
-              onClick={() => setCategory(item)}
-            >
-              {item}
-            </Button>
-          ))}
-        </div>
+          <div className="mt-10 grid gap-8 md:grid-cols-[11rem_minmax(0,1fr)] lg:grid-cols-[12rem_minmax(0,1fr)]">
+            <aside aria-label="Course categories" className="md:border-r md:border-dashed md:border-border md:pr-4">
+              <p className="mb-2 px-3 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Categories</p>
+              <div className="flex gap-1 overflow-x-auto pb-2 md:flex-col md:overflow-visible md:pb-0">
+                {categories.map((item) => (
+                  <Button
+                    key={item}
+                    type="button"
+                    variant={category === item ? "secondary" : "ghost"}
+                    active={category === item}
+                    onClick={() => setCategory(item)}
+                    className="shrink-0 justify-start md:w-full"
+                  >
+                    {item}
+                  </Button>
+                ))}
+              </div>
+            </aside>
 
-        {error ? (
-          <p role="alert" className="mt-8 border-l-2 border-destructive py-2 pl-4 text-sm text-destructive">{error}</p>
-        ) : courses.length === 0 ? (
-          <p className="mt-8 text-sm text-muted-foreground">Loading courses…</p>
-        ) : (
-          <CardGroup columns={3} separated border="outlined" className="mt-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-            {visibleCourses.map((course) => <CourseCard key={course.id} course={course} />)}
-          </CardGroup>
-        )}
+            <div className="min-w-0">
+              {error ? (
+                <p role="alert" className="border-l-2 border-destructive py-2 pl-4 text-sm text-destructive">{error}</p>
+              ) : courses.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Loading courses…</p>
+              ) : visibleCourses.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No courses match this search.</p>
+              ) : (
+                <CardGroup columns={3} separated proximityHover border="outlined" className="grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {visibleCourses.map((course) => <CourseCard key={course.id} course={course} />)}
+                </CardGroup>
+              )}
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   );

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("browses courses and inspects progress without leaving the marketplace", async ({ page }) => {
+test("browses compact courses from reusable marketplace navigation", async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -13,16 +13,30 @@ test("browses courses and inspects progress without leaving the marketplace", as
   await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
   await expect(page.getByRole("button", { name: "Python" })).toBeVisible();
   await expect(page.getByRole("button", { name: "TypeScript" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Search courses" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
 
   const effectCard = page.getByTestId("course-effect-ts");
-  await expect(effectCard.getByText("Installs")).toBeVisible();
-  await expect(effectCard.getByText("Progressing")).toBeVisible();
-  await expect(effectCard.getByText("Finished", { exact: true })).toBeVisible();
+  await expect(effectCard.getByText("v0.0.4")).toBeVisible();
+  await expect(effectCard.getByText("dojocho", { exact: true })).toHaveCount(0);
+  await expect(effectCard.getByText("TypeScript", { exact: true })).toHaveCount(0);
+  await expect(effectCard.getByRole("img", { name: "Weekly starts and completions" })).toBeVisible();
+  await expect(effectCard.getByRole("button", { name: "Copy to clipboard" })).toBeVisible();
+
+  await page.keyboard.press("Control+K");
+  const search = page.getByRole("searchbox", { name: "Search courses" });
+  await search.fill("pydantic");
+  await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Effect TS/i })).toHaveCount(0);
+  await search.fill("");
 
   await page.getByRole("link", { name: /Effect TS/i }).click();
   await expect(page.getByRole("heading", { name: "Effect TS" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toBeVisible();
-  await expect(page.getByText("Where senpais get stuck")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Weekly starts and completions" })).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
 

@@ -12,6 +12,7 @@ export interface CourseListing {
 export interface CourseProfile {
   id: string;
   description: string;
+  version: string;
   categories: string[];
   kataCount: number;
 }
@@ -23,6 +24,13 @@ export interface KataProgressMetric {
   active: number;
 }
 
+export interface WeeklyActivityMetric {
+  week: string;
+  installs: number;
+  started: number;
+  finished: number;
+}
+
 export interface CourseMetrics {
   installs: number;
   started: number;
@@ -30,6 +38,7 @@ export interface CourseMetrics {
   finished: number;
   completionRate: number;
   kataProgress: KataProgressMetric[];
+  weeklyActivity: WeeklyActivityMetric[];
 }
 
 export interface MarketplaceCourse extends CourseListing, CourseProfile {

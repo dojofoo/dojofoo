@@ -151,3 +151,16 @@
     font-style: normal;
   }
 }
+
+.marketplace-lined-frame {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 5px,
+    color-mix(in oklab, var(--border) 55%, transparent) 5px 6px
+  );
+}
+
+.marketplace-lined-surface {
+  border-inline: 1px dashed var(--border);
+  background-color: var(--background);
+}

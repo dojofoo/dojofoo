@@ -7,6 +7,7 @@ const course = {
   name: "Effect TS",
   source: "dojocho",
   description: "Master Effect through hands-on katas",
+  version: "0.0.4",
   installs: 4,
   sourceType: "npm" as const,
   installUrl: "@dojocho/effect-ts",
@@ -168,6 +169,33 @@ describe("courses API", () => {
         { kata: "001-hello-effect", started: 1, finished: 1, active: 0 },
         { kata: "040-request-batching", started: 1, finished: 1, active: 0 },
       ],
+      weeklyActivity: [
+        { week: "2026-07-27", installs: 1, started: 2, finished: 1 },
+      ],
+    });
+  });
+
+  it("groups unique course activity into Monday-based weekly metrics", async () => {
+    const app = createCoursesApp({
+      courses: [course],
+      events: [
+        { instanceId: "a", courseId: course.id, event: "installed", occurredAt: "2026-08-02T10:00:00Z" },
+        { instanceId: "a", courseId: course.id, event: "installed", occurredAt: "2026-08-02T10:01:00Z" },
+        { instanceId: "a", courseId: course.id, event: "started", occurredAt: "2026-08-02T10:05:00Z" },
+        { instanceId: "b", courseId: course.id, event: "started", occurredAt: "2026-08-03T10:00:00Z" },
+        { instanceId: "b", courseId: course.id, event: "finished", occurredAt: "2026-08-04T10:00:00Z" },
+      ],
+    });
+
+    const response = await app.handle(
+      new Request("http://localhost/api/v1/courses/dojocho/effect-ts/metrics"),
+    );
+
+    expect(await response.json()).toMatchObject({
+      weeklyActivity: [
+        { week: "2026-07-27", installs: 1, started: 1, finished: 0 },
+        { week: "2026-08-03", installs: 0, started: 1, finished: 1 },
+      ],
     });
   });
 
@@ -260,6 +288,7 @@ describe("courses API", () => {
         {
           id: "dojocho/effect-ts",
           description: "Master Effect through hands-on katas",
+          version: "0.0.4",
           categories: ["TypeScript", "Functional programming"],
           kataCount: 40,
         },

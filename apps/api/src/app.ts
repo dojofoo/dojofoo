@@ -12,6 +12,7 @@ export interface Course {
   name: string;
   source: string;
   description: string;
+  version: string;
   installs: number;
   sourceType: "github" | "well-known" | "npm";
   installUrl: string | null;
@@ -77,12 +78,34 @@ function hotInstallComparison(events: CourseEvent[], now = Date.now()) {
   return { installsYesterday, change: installsCurrent - installsYesterday };
 }
 
+function mondayFor(occurredAt: string) {
+  const date = new Date(occurredAt);
+  const day = date.getUTCDay();
+  date.setUTCDate(date.getUTCDate() - ((day + 6) % 7));
+  return date.toISOString().slice(0, 10);
+}
+
 function courseMetrics(course: Course, events: CourseEvent[]) {
   const courseEvents = events.filter((event) => event.courseId === course.id);
   const instances = new Map<string, { started: boolean; finished: boolean }>();
   const katas = new Map<string, { started: Set<string>; finished: Set<string> }>();
+  const weeks = new Map<
+    string,
+    { installs: Set<string>; started: Set<string>; finished: Set<string> }
+  >();
 
   for (const event of courseEvents) {
+    const week = mondayFor(event.occurredAt);
+    const activity = weeks.get(week) ?? {
+      installs: new Set<string>(),
+      started: new Set<string>(),
+      finished: new Set<string>(),
+    };
+    if (event.event === "installed") activity.installs.add(event.instanceId);
+    else activity.started.add(event.instanceId);
+    if (event.event === "finished") activity.finished.add(event.instanceId);
+    weeks.set(week, activity);
+
     const instance = instances.get(event.instanceId) ?? { started: false, finished: false };
     if (event.event !== "installed") instance.started = true;
     if (event.event === "finished") instance.finished = true;
@@ -119,6 +142,14 @@ function courseMetrics(course: Course, events: CourseEvent[]) {
         finished: value.finished.size,
         active: value.started.size - value.finished.size,
       })),
+    weeklyActivity: [...weeks.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([week, activity]) => ({
+        week,
+        installs: activity.installs.size,
+        started: activity.started.size,
+        finished: activity.finished.size,
+      })),
   };
 }
 
@@ -135,9 +166,10 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
     .get("/health", () => ({ status: "ok" }))
     .get("/api/v1/health", () => ({ status: "ok" }))
     .get("/api/v1/course-profiles", () => ({
-      data: courses.map(({ id, description, categories, kataCount }) => ({
+      data: courses.map(({ id, description, version, categories, kataCount }) => ({
         id,
         description,
+        version,
         categories,
         kataCount,
       })),

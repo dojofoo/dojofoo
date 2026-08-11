@@ -35,6 +35,10 @@ function course(
 ): Course {
   const packageName = `@dojocho/${slug}`;
   const files = snapshotCourse(slug);
+  const packageFile = files.find((file) => file.path === "package.json");
+  const version = packageFile
+    ? (JSON.parse(packageFile.contents) as { version?: string }).version ?? "0.0.0"
+    : "0.0.0";
   const hash = createHash("sha256")
     .update(files.map(({ path, contents }) => `${path}\0${contents}`).join("\0"))
     .digest("hex");
@@ -45,6 +49,7 @@ function course(
     name,
     source: "dojocho",
     description,
+    version,
     installs: 0,
     sourceType: "npm",
     installUrl: packageName,
