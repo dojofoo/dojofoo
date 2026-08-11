@@ -61,7 +61,7 @@ function CourseSearchDialog(props: SharedProps) {
           id: course.id,
           type: 'page',
           content: course.name,
-          breadcrumbs: ['Courses'],
+          breadcrumbs: ['Dojos'],
           url: `/courses/${course.source}/${course.slug}`,
         })));
       })

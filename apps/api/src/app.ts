@@ -19,6 +19,7 @@ export interface Course {
   url: string;
   categories: string[];
   kataCount: number;
+  katas: string[];
   hash: string | null;
   files: CourseFile[] | null;
 }
@@ -94,6 +95,10 @@ function courseMetrics(course: Course, events: CourseEvent[]) {
     { installs: Set<string>; started: Set<string>; finished: Set<string> }
   >();
 
+  for (const kata of course.katas) {
+    katas.set(kata, { started: new Set(), finished: new Set() });
+  }
+
   for (const event of courseEvents) {
     const week = mondayFor(event.occurredAt);
     const activity = weeks.get(week) ?? {
@@ -134,9 +139,7 @@ function courseMetrics(course: Course, events: CourseEvent[]) {
     progressing: started - finished,
     finished,
     completionRate: started === 0 ? 0 : Math.round((finished / started) * 1000) / 10,
-    kataProgress: [...katas.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([kata, value]) => ({
+    kataProgress: [...katas.entries()].map(([kata, value]) => ({
         kata,
         started: value.started.size,
         finished: value.finished.size,

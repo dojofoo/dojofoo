@@ -36,12 +36,22 @@ function course(
   const packageName = `@dojocho/${slug}`;
   const files = snapshotCourse(slug);
   const packageFile = files.find((file) => file.path === "package.json");
+  const manifestFile = files.find((file) => file.path === "dojo.json");
   const version = packageFile
     ? (JSON.parse(packageFile.contents) as { version?: string }).version ?? "0.0.0"
     : "0.0.0";
   const hash = createHash("sha256")
     .update(files.map(({ path, contents }) => `${path}\0${contents}`).join("\0"))
     .digest("hex");
+  const katas = manifestFile
+    ? ((JSON.parse(manifestFile.contents) as {
+        katas?: Array<{ name?: string; template?: string }>;
+      }).katas ?? []).flatMap(({ name, template }) => {
+        if (name) return [name];
+        const match = template?.match(/^katas\/([^/]+)\//u);
+        return match?.[1] ? [match[1]] : [];
+      })
+    : [];
 
   return {
     id: `dojocho/${slug}`,
@@ -55,7 +65,8 @@ function course(
     installUrl: packageName,
     url: `https://dojocho.ai/courses/dojocho/${slug}`,
     categories,
-    kataCount,
+    kataCount: katas.length || kataCount,
+    katas,
     hash,
     files,
   };

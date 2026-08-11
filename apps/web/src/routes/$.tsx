@@ -92,7 +92,6 @@ const clientLoader = browserCollections.docs.createClientLoader({
 
 const sidebarTabs = [
   { title: 'Docs', url: '/docs' },
-  { title: 'Dojos', url: '/dojos' },
 ]
 
 function Page() {

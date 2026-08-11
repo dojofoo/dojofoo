@@ -9,6 +9,7 @@ test("docs hydrate and search opens", async ({ page }) => {
   });
 
   await page.goto("/docs", { waitUntil: "networkidle" });
+  await expect(page.locator("[data-header-tabs]").getByText("Dojos", { exact: true })).toHaveCount(0);
   await page.locator("[data-site-navigation]").getByRole("button", { name: "Open Search" }).click();
 
   await expect(page.getByRole("dialog")).toBeVisible();

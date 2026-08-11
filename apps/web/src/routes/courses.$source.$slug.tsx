@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Badge, InputCopy } from "@dojocho/ui";
 import { useEffect, useState } from "react";
 import { StartsFinishesProgress } from "@/components/marketplace/course-progress";
-import { WeeklyActivityChart } from "@/components/evilcharts/blocks/shipments-echarts-line-chart";
+import { ChapterReachChart } from "@/components/marketplace/chapter-reach-chart";
 import { SiteNavigation } from "@/components/layout/site-navigation";
 import { getMarketplaceCourses, type MarketplaceCourse } from "@/lib/courses";
 
@@ -42,9 +42,9 @@ function CourseDetailPage() {
               {course.categories.map((category) => <Badge key={category} color="gray">{category}</Badge>)}
             </div>
             <div className="mt-12 border-y border-dashed border-border py-6">
-              <h2 className="text-sm font-medium">Weekly activity</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Course starts and completions by week.</p>
-              <WeeklyActivityChart data={course.metrics.weeklyActivity} className="mt-6 h-64" />
+              <h2 className="text-sm font-medium">Chapter reach</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Unique learners who reached each chapter.</p>
+              <ChapterReachChart data={course.metrics.kataProgress} className="mt-6 h-64" />
             </div>
           </div>
           <aside className="border-l border-dashed border-border pl-6">

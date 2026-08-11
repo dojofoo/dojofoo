@@ -14,6 +14,7 @@ const course = {
   url: "https://dojocho.ai/courses/dojocho/effect-ts",
   categories: ["TypeScript", "Functional programming"],
   kataCount: 40,
+  katas: [],
   hash: "effect-ts-v1",
   files: [{ path: "DOJO.md", contents: "# Effect TS" }],
 };
@@ -171,6 +172,33 @@ describe("courses API", () => {
       ],
       weeklyActivity: [
         { week: "2026-07-27", installs: 1, started: 2, finished: 1 },
+      ],
+    });
+  });
+
+  it("includes every catalog kata in order when reporting how many learners reached it", async () => {
+    const app = createCoursesApp({
+      courses: [{
+        ...course,
+        kataCount: 3,
+        katas: ["001-intro", "002-transform", "003-errors"],
+      }],
+      events: [
+        { instanceId: "a", courseId: course.id, event: "started", kata: "001-intro", occurredAt: "2026-08-01T10:00:00Z" },
+        { instanceId: "b", courseId: course.id, event: "started", kata: "001-intro", occurredAt: "2026-08-01T10:01:00Z" },
+        { instanceId: "a", courseId: course.id, event: "started", kata: "002-transform", occurredAt: "2026-08-01T10:02:00Z" },
+      ],
+    });
+
+    const response = await app.handle(
+      new Request("http://localhost/api/v1/courses/dojocho/effect-ts/metrics"),
+    );
+
+    expect(await response.json()).toMatchObject({
+      kataProgress: [
+        { kata: "001-intro", started: 2 },
+        { kata: "002-transform", started: 1 },
+        { kata: "003-errors", started: 0 },
       ],
     });
   });

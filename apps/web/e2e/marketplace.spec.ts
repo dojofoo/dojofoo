@@ -7,7 +7,8 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   });
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Courses" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dojos" })).toBeVisible();
+  await expect(page.getByText("AI-assisted courses", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: /Build an LLM/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Effect TS/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
@@ -20,12 +21,34 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("searchbox", { name: "Search courses" })).toHaveCount(0);
 
   const effectCard = page.getByTestId("course-effect-ts");
+  const categorySidebar = page.getByRole("complementary", { name: "Dojo categories" });
+  const selectedCategory = page.getByRole("button", { name: "All", exact: true });
+  const [sidebarBox, categoryBox] = await Promise.all([
+    categorySidebar.boundingBox(),
+    selectedCategory.boundingBox(),
+  ]);
+  expect(categoryBox!.width).toBeGreaterThanOrEqual(sidebarBox!.width - 1);
   await expect(effectCard.getByText("v0.0.4")).toBeVisible();
   await expect(effectCard.getByText("dojocho", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByText("TypeScript", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByRole("img", { name: "Weekly starts and completions" })).toHaveCount(0);
   await expect(effectCard.locator("canvas")).toHaveCount(0);
   await expect(effectCard.getByRole("button", { name: "Copy to clipboard" })).toBeVisible();
+  const installCommand = effectCard.locator('[data-slot="card-footer"] > div');
+  const [cardBox, installBox] = await Promise.all([effectCard.boundingBox(), installCommand.boundingBox()]);
+  expect(cardBox!.y + cardBox!.height - (installBox!.y + installBox!.height)).toBeLessThanOrEqual(1);
+  const cardBeforeHover = await effectCard.boundingBox();
+  await effectCard.hover();
+  await page.waitForTimeout(350);
+  expect(await effectCard.boundingBox()).toEqual(cardBeforeHover);
+  expect(await effectCard.evaluate((element) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--primary)";
+    element.append(probe);
+    const primary = getComputedStyle(probe).color;
+    probe.remove();
+    return getComputedStyle(element).borderTopColor === primary;
+  })).toBe(true);
 
   await page.locator("[data-site-navigation]").getByRole("button", { name: "Open Search" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -41,7 +64,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(page.getByRole("link", { name: "Get Dojocho" })).toBeVisible();
   await expect(page.locator("[data-site-navigation]")).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Weekly starts and completions" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Learners reaching each chapter" })).toHaveAttribute("data-chapter-count", "40");
   expect(consoleErrors).toEqual([]);
 });
 

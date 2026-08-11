@@ -15,6 +15,7 @@ const course = {
   url: "https://dojocho.ai/courses/dojocho/effect-ts",
   categories: ["TypeScript"],
   kataCount: 1,
+  katas: [],
   hash: null,
   files: null,
 };
