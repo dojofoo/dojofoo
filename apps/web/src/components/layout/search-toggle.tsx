@@ -1,7 +1,7 @@
 'use client'
 import { Search } from 'lucide-react'
 import { useSearchContext } from 'fumadocs-ui/contexts/search'
-import { Button, type ButtonProps } from '@dojocho/ui/button'
+import { Button, type ButtonProps } from '@dojofoo/ui/button'
 
 interface SearchToggleProps extends ButtonProps {
   hideIfDisabled?: boolean

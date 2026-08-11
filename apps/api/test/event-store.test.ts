@@ -3,19 +3,19 @@ import { createCoursesApp, type CourseEvent } from "../src/app";
 import { MemoryCourseEventStore } from "../src/event-store";
 
 const course = {
-  id: "dojocho/effect-ts",
+  id: "dojofoo/effect-ts",
   slug: "effect-ts",
   name: "Effect TS",
-  source: "dojocho",
+  source: "dojofoo",
   description: "Effect katas",
   version: "0.0.4",
   publishedAt: "2026-02-14T01:32:25.000Z",
-  repository: "tomsiwik/dojocho",
-  repositoryUrl: "https://github.com/tomsiwik/dojocho/tree/main/dojos/effect-ts",
+  repository: "dojofoo/dojofoo",
+  repositoryUrl: "https://github.com/dojofoo/dojofoo/tree/main/dojos/effect-ts",
   installs: 0,
   sourceType: "npm" as const,
-  installUrl: "@dojocho/effect-ts",
-  url: "https://dojo.foo/courses/dojocho/effect-ts",
+  installUrl: "@dojofoo/effect-ts",
+  url: "https://dojo.foo/courses/dojofoo/effect-ts",
   categories: ["TypeScript"],
   kataCount: 1,
   katas: [],
@@ -47,7 +47,7 @@ describe("course event store", () => {
 
     expect(await store.list(course.id)).toHaveLength(1);
     const metrics = await createCoursesApp({ courses: [course], eventStore: store }).handle(
-      new Request("http://localhost/api/v1/courses/dojocho/effect-ts/metrics"),
+      new Request("http://localhost/api/v1/courses/dojofoo/effect-ts/metrics"),
     );
     expect(await metrics.json()).toMatchObject({ started: 1, progressing: 1 });
   });

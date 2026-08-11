@@ -53,7 +53,10 @@ export function resolveConfig(userConfig: DojoUserConfig, root: string): Resolve
     adapter: userConfig.runner?.adapter ?? "vitest",
     coverage: userConfig.runner?.coverage ?? false,
   };
-  const registries = { dojocho: "https://dojo.foo/r/{name}.json", ...userConfig.registries };
+  const registries = {
+    dojofoo: "https://dojofoo.vercel.app/r/{name}.json",
+    ...userConfig.registries,
+  };
   return { basePath, katasPath, runner, registries };
 }
 

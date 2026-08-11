@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/dojofoo"><img src="https://img.shields.io/npm/v/dojofoo?style=flat-square&color=ff0056" alt="npm" /></a>
-  <a href="https://github.com/tomsiwik/dojocho/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT" /></a>
+  <a href="https://github.com/dojofoo/dojofoo/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT" /></a>
 </p>
 
 <p align="center">

@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
   InputCopy,
-} from "@dojocho/ui";
+} from "@dojofoo/ui";
 import type { MarketplaceCourse } from "@/lib/courses";
 
 export function CourseCard({ course }: { course: MarketplaceCourse }) {

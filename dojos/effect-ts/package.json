@@ -1,10 +1,10 @@
 {
-  "name": "@dojocho/effect-ts",
+  "name": "@dojofoo/effect-ts",
   "version": "0.0.5",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tomsiwik/dojocho",
+    "url": "https://github.com/dojofoo/dojofoo",
     "directory": "dojos/effect-ts"
   },
   "license": "MIT",
@@ -28,7 +28,7 @@
     "effect": "^3.22.1"
   },
   "peerDependencies": {
-    "@dojocho/config": "workspace:*"
+    "@dojofoo/config": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

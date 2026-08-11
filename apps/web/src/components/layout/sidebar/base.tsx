@@ -15,7 +15,7 @@ import {
 import Link, { type LinkProps } from 'fumadocs-core/link'
 import { useOnChange } from 'fumadocs-core/utils/use-on-change'
 import { cn } from '@/lib/utils'
-import { ScrollArea, type ScrollAreaProps } from '@dojocho/ui/scroll-area'
+import { ScrollArea, type ScrollAreaProps } from '@dojofoo/ui/scroll-area'
 import {
   Collapsible,
   CollapsibleContent,

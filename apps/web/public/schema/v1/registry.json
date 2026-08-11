@@ -11,7 +11,7 @@
       "type": "string",
       "minLength": 1,
       "description": "Package name of the dojo.",
-      "examples": ["@dojocho/effect-ts"]
+      "examples": ["@dojofoo/effect-ts"]
     },
     "version": {
       "type": "string",
@@ -34,7 +34,7 @@
             "package": {
               "type": "string",
               "description": "npm package name to install.",
-              "examples": ["@dojocho/effect-ts"]
+              "examples": ["@dojofoo/effect-ts"]
             }
           }
         },

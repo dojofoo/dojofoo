@@ -1,4 +1,4 @@
-# @dojocho/ui
+# @dojofoo/ui
 
 The dojo web UI and A2A server. **MIT-licensed.** Built fresh — no
 upstream code copied; everything below is original.
@@ -32,7 +32,7 @@ upstream code copied; everything below is original.
 ```
 apps/ui/
 ├── LICENSE                                # MIT
-├── package.json                           # @dojocho/ui
+├── package.json                           # @dojofoo/ui
 ├── vite.config.ts                         # vite + tanstack-start + nitro
 ├── tsconfig.json
 ├── src/

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@dojocho/ui/button";
+import { Button } from "@dojofoo/ui/button";
 import {
   HoverCard,
   HoverCardContent,

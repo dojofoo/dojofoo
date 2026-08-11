@@ -8,12 +8,12 @@ To install in the user's project:
 
 \`\`\`sh
 npx dojofoo install
-npx dojofoo add @dojocho/effect-ts
+npx dojofoo add @dojofoo/effect-ts
 \`\`\`
 
 Then tell the user to run \`/kata\` to begin.
 
-Available dojos: \`@dojocho/effect-ts\`, \`@dojocho/pydantic-agents\`.
+Available dojos: \`@dojofoo/effect-ts\`, \`@dojofoo/pydantic-agents\`.
 Full docs: \`/llms-full.txt\`.
 
 ---

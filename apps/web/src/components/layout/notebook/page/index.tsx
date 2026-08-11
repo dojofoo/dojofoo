@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@dojocho/ui/button'
+import { buttonVariants } from '@dojofoo/ui/button'
 import { Edit, Text } from 'lucide-react'
 import {
   type BreadcrumbProps,

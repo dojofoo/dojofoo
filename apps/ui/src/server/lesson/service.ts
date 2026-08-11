@@ -10,7 +10,7 @@ import {
   readDojoMd,
   readDojoRc,
   resolveAllKatas,
-} from "@dojocho/config";
+} from "@dojofoo/config";
 import { codexClient, type AgentActivity, type TranscriptMessage } from "./codex-client";
 
 type WebState = {

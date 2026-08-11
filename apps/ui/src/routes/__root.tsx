@@ -5,7 +5,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import stylesUrl from "../styles.css?url";
-import { ShapeProvider } from "@dojocho/ui";
+import { ShapeProvider } from "@dojofoo/ui";
 
 export const Route = createRootRoute({
   head: () => ({

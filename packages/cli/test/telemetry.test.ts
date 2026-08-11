@@ -32,21 +32,21 @@ describe("course lifecycle telemetry", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("DOJO_API_URL", "https://courses.example.test");
 
-    queueCourseEvent(root, "@dojocho/effect-ts", "installed");
-    queueCourseEvent(root, "@dojocho/effect-ts", "started", "001-hello-effect");
+    queueCourseEvent(root, "@dojofoo/effect-ts", "installed");
+    queueCourseEvent(root, "@dojofoo/effect-ts", "started", "001-hello-effect");
     await flushCourseEvents();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)));
     expect(bodies[0]).toEqual({
       instanceId: expect.any(String),
-      courseId: "dojocho/effect-ts",
+      courseId: "dojofoo/effect-ts",
       event: "installed",
       occurredAt: expect.any(String),
     });
     expect(bodies[1]).toEqual({
       instanceId: bodies[0].instanceId,
-      courseId: "dojocho/effect-ts",
+      courseId: "dojofoo/effect-ts",
       event: "started",
       kata: "001-hello-effect",
       occurredAt: expect.any(String),
@@ -56,6 +56,21 @@ describe("course lifecycle telemetry", () => {
 
     const state = JSON.parse(readFileSync(resolve(root, ".dojo/instance.json"), "utf8"));
     expect(state).toEqual({ version: 1, instanceId: bodies[0].instanceId });
+  });
+
+  it("uses the stable Vercel API while the custom domain DNS is unavailable", async () => {
+    const root = projectRoot();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("DOJO_API_URL", "");
+
+    queueCourseEvent(root, "@dojofoo/effect-ts", "installed");
+    await flushCourseEvents();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://dojofoo.vercel.app/api/v1/events",
+      expect.any(Object),
+    );
   });
 
   it("does not write state or send events when telemetry is disabled", async () => {
@@ -90,7 +105,7 @@ describe("course lifecycle telemetry", () => {
     const dojoKata = resolve(root, ".dojos/effect-ts/katas/001-basics");
     mkdirSync(dojoKata, { recursive: true });
     writeFileSync(resolve(root, ".dojos/effect-ts/dojo.json"), JSON.stringify({
-      name: "@dojocho/effect-ts",
+      name: "@dojofoo/effect-ts",
       version: "1.0.0",
       description: "test",
       runner: { adapter: "exit-code" },

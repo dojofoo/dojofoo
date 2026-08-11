@@ -4,7 +4,7 @@ import { useTranslations } from '@fuma-translate/react'
 import { useI18n } from 'fumadocs-ui/contexts/i18n'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@dojocho/ui/button'
+import { buttonVariants } from '@dojofoo/ui/button'
 
 export type LanguageSelectProps = ComponentProps<'button'>
 

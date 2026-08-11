@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@dojocho/ui/badge";
+import { Badge } from "@dojofoo/ui/badge";
 import {
   Collapsible,
   CollapsibleContent,

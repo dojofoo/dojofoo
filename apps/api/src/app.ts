@@ -162,9 +162,23 @@ function courseMetrics(course: Course, events: CourseEvent[]) {
 export function createCoursesApp(options: CoursesAppOptions = {}) {
   const courses = options.courses ?? [];
   const eventStore = options.eventStore ?? new MemoryCourseEventStore(options.events);
+  const legacyCourseId = (course: Course) =>
+    course.source === "dojofoo" ? `dojocho/${course.slug}` : undefined;
+  const findCourse = (source: string, slug: string) => courses.find(
+    (candidate) =>
+      candidate.slug === slug
+      && (candidate.source === source || (source === "dojocho" && candidate.source === "dojofoo")),
+  );
+  const eventsForCourse = async (course: Course) => {
+    const legacyId = legacyCourseId(course);
+    const eventGroups = await Promise.all(
+      [course.id, ...(legacyId ? [legacyId] : [])].map((courseId) => eventStore.list(courseId)),
+    );
+    return eventGroups.flat().map((event) => ({ ...event, courseId: course.id }));
+  };
   const withRecordedInstalls = async (course: Course) => ({
     ...course,
-    installs: courseMetrics(course, await eventStore.list(course.id)).installs,
+    installs: courseMetrics(course, await eventsForCourse(course)).installs,
   });
   const catalogWithRecordedInstalls = () => Promise.all(courses.map(withRecordedInstalls));
 
@@ -208,7 +222,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       set.headers["cache-control"] = catalogCacheControl;
       const withSignals = await Promise.all(
         (await catalogWithRecordedInstalls()).map(async (course) => {
-          const events = await eventStore.list(course.id);
+          const events = await eventsForCourse(course);
           const recentInstalls = installCountBetween(events, Date.now() - 7 * 24 * 60 * 60_000, Date.now() + 1);
           return { course, recentInstalls, hot: hotInstallComparison(events) };
         }),
@@ -292,13 +306,11 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       };
     })
     .get("/api/v1/courses/:source/:slug/metrics", async ({ params, status }) => {
-      const course = courses.find(
-        (candidate) => candidate.source === params.source && candidate.slug === params.slug,
-      );
+      const course = findCourse(params.source, params.slug);
       if (!course) {
         return status(404, { error: "course_not_found", message: "Course not found." });
       }
-      return courseMetrics(course, await eventStore.list(course.id));
+      return courseMetrics(course, await eventsForCourse(course));
     })
     .get("/api/v1/courses/audit/*", ({ status }) =>
       status(404, {
@@ -306,9 +318,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         message: "No audits exist for this course.",
       }))
     .get("/api/v1/courses/:source/:slug", async ({ params, set, status }) => {
-      const course = courses.find(
-        (candidate) => candidate.source === params.source && candidate.slug === params.slug,
-      );
+      const course = findCourse(params.source, params.slug);
       if (!course) {
         return status(404, { error: "course_not_found", message: "Course not found." });
       }
@@ -344,7 +354,11 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       if (!body.instanceId) {
           return status(400, { error: "invalid_event", message: "instanceId is required." });
       }
-      if (!body.courseId || !courses.some((course) => course.id === body.courseId)) {
+      const course = body.courseId
+        ? courses.find((candidate) =>
+            candidate.id === body.courseId || legacyCourseId(candidate) === body.courseId)
+        : undefined;
+      if (!course) {
         return status(400, { error: "invalid_event", message: "courseId is invalid." });
       }
       if (!body.event || !courseEventNames.has(body.event)) {
@@ -353,7 +367,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
 
       const event: CourseEvent = {
         instanceId: body.instanceId,
-        courseId: body.courseId,
+        courseId: course.id,
         event: body.event,
         occurredAt: body.occurredAt ?? new Date().toISOString(),
         ...(body.kata ? { kata: body.kata } : {}),

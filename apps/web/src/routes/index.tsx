@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CardGroup, Select, SelectContent, SelectItem, SelectTrigger } from "@dojocho/ui";
+import { CardGroup, Select, SelectContent, SelectItem, SelectTrigger } from "@dojofoo/ui";
 import { ArrowRight, ArrowUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CourseCard } from "@/components/marketplace/course-card";

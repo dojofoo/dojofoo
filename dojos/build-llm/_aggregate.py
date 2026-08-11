@@ -277,7 +277,7 @@ def generate_dojo_json() -> None:
 
     dojo = {
         "$schema": "https://dojo.foo/schema/v1/dojo.json",
-        "name": "@dojocho/build-llm",
+        "name": "@dojofoo/build-llm",
         "version": "0.0.1",
         "description": (
             "Build a Large Language Model — and a Reasoning Model — from scratch. "

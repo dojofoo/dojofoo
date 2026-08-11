@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+const apiOrigin = process.env.DOJO_API_TEST_ORIGIN ?? "http://127.0.0.1:4311";
+const effectVersion = JSON.parse(
+  readFileSync(new URL("../../../dojos/effect-ts/package.json", import.meta.url), "utf8"),
+) as { version: string };
 
 test("browses compact courses from reusable marketplace navigation", async ({ page }) => {
   const consoleErrors: string[] = [];
@@ -8,14 +14,14 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   });
   const oldInstall = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString();
   await Promise.all([
-    page.request.post("http://127.0.0.1:4311/api/v1/events", {
-      data: { instanceId: "popular-effect-1", courseId: "dojocho/effect-ts", event: "installed", occurredAt: oldInstall },
+    page.request.post(`${apiOrigin}/api/v1/events`, {
+      data: { instanceId: "popular-effect-1", courseId: "dojofoo/effect-ts", event: "installed", occurredAt: oldInstall },
     }),
-    page.request.post("http://127.0.0.1:4311/api/v1/events", {
-      data: { instanceId: "popular-effect-2", courseId: "dojocho/effect-ts", event: "installed", occurredAt: oldInstall },
+    page.request.post(`${apiOrigin}/api/v1/events`, {
+      data: { instanceId: "popular-effect-2", courseId: "dojofoo/effect-ts", event: "installed", occurredAt: oldInstall },
     }),
-    page.request.post("http://127.0.0.1:4311/api/v1/events", {
-      data: { instanceId: "trending-pydantic", courseId: "dojocho/pydantic-agents", event: "installed" },
+    page.request.post(`${apiOrigin}/api/v1/events`, {
+      data: { instanceId: "trending-pydantic", courseId: "dojofoo/pydantic-agents", event: "installed" },
     }),
   ]);
   await page.goto("/", { waitUntil: "networkidle" });
@@ -111,13 +117,13 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
     };
   });
   expect(hoverColors.actual).toBe(hoverColors.hover);
-  await expect(effectCard.getByText("v0.0.4")).toBeVisible();
-  await expect(effectCard.getByText("dojocho", { exact: true })).toHaveCount(0);
+  await expect(effectCard.getByText(`v${effectVersion.version}`)).toBeVisible();
+  await expect(effectCard.getByText("dojofoo", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByText("TypeScript", { exact: true })).toHaveCount(0);
   await expect(effectCard.getByRole("img", { name: "Weekly starts and completions" })).toHaveCount(0);
   await expect(effectCard.locator("canvas")).toHaveCount(0);
   await expect(effectCard.getByRole("button", { name: "Copy to clipboard" })).toBeVisible();
-  await expect(effectCard.getByText("npx dojofoo add @dojocho/effect-ts", { exact: true })).toBeVisible();
+  await expect(effectCard.getByText("npx dojofoo add @dojofoo/effect-ts", { exact: true })).toBeVisible();
   const installFooter = effectCard.locator('[data-slot="card-footer"]');
   const cardTitle = effectCard.locator('[data-slot="card-title"]');
   const installCommand = installFooter.locator(':scope > div');
@@ -202,13 +208,13 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await expect(detailInstall.locator("mark")).toHaveCSS("font-family", /Iosevka/);
   await expect(page.getByText("Master Effect through 40 hands-on katas.", { exact: true })).toHaveCSS("font-family", /Geist Variable/);
   const eyebrow = page.getByTestId("course-source");
-  await expect(eyebrow).toHaveText("tomsiwik/dojocho");
+  await expect(eyebrow).toHaveText("dojofoo/dojofoo");
   await expect(eyebrow).toHaveCSS("text-transform", "uppercase");
   await expect(eyebrow).toHaveCSS("font-size", "12px");
   await expect(eyebrow).toHaveCSS("letter-spacing", "0.48px");
   await expect(eyebrow).toHaveAttribute(
     "href",
-    "https://github.com/tomsiwik/dojocho/tree/main/dojos/effect-ts",
+    "https://github.com/dojofoo/dojofoo/tree/main/dojos/effect-ts",
   );
   const [articleBox, detailSidebarBox] = await Promise.all([
     detailArticle.boundingBox(), detailSidebar.boundingBox(),
@@ -243,7 +249,7 @@ test("server-renders course data without route loading screens", async ({ reques
   expect(marketplaceHtml).toContain("Effect TS");
   expect(marketplaceHtml).not.toContain("Loading courses");
 
-  const course = await request.get("/courses/dojocho/effect-ts");
+  const course = await request.get("/courses/dojofoo/effect-ts");
   expect(course.status()).toBe(200);
   expect(course.headers()["cache-control"]).toContain("s-maxage=60");
   const courseHtml = await course.text();
@@ -251,6 +257,10 @@ test("server-renders course data without route loading screens", async ({ reques
   expect(courseHtml).not.toContain("Unique dojo instances that reached each chapter.");
   expect(courseHtml).toContain("Dojo instances reaching each chapter");
   expect(courseHtml).not.toContain("Loading course");
+
+  const legacyCourse = await request.get("/courses/dojocho/effect-ts");
+  expect(legacyCourse.status()).toBe(200);
+  expect(await legacyCourse.text()).toContain("Effect TS");
 });
 
 test("uses the same site navigation on marketplace and docs", async ({ page }) => {
@@ -284,13 +294,13 @@ test("reflects install, progress, and completion events", async ({ page, request
     { event: "kata_completed", kata: "001-hello-effect" },
     { event: "finished", kata: "040-request-batching" },
   ]) {
-    const response = await request.post("http://127.0.0.1:4311/api/v1/events", {
-      data: { instanceId, courseId: "dojocho/effect-ts", ...event },
+    const response = await request.post(`${apiOrigin}/api/v1/events`, {
+      data: { instanceId, courseId: "dojofoo/effect-ts", ...event },
     });
     expect(response.status()).toBe(202);
   }
 
-  await page.goto("/courses/dojocho/effect-ts");
+  await page.goto("/courses/dojofoo/effect-ts");
   await expect(page.getByTestId("course-progress").getByText("1 finished", { exact: true })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Starts versus finishes" })).toHaveAttribute(
     "aria-valuenow",

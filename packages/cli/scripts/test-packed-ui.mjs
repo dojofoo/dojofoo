@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = resolve(cliRoot, "../..");
 const configRoot = resolve(workspaceRoot, "packages/config");
+const expectedPackage = JSON.parse(readFileSync(resolve(cliRoot, "package.json"), "utf8"));
 const scratch = mkdtempSync(resolve(tmpdir(), "dojo-packed-install-"));
 const packs = resolve(scratch, "packs");
 const installRoot = resolve(scratch, "install");
@@ -33,8 +34,10 @@ try {
   const installedPackage = JSON.parse(
     readFileSync(resolve(installRoot, "node_modules/dojofoo/package.json"), "utf8"),
   );
-  if (installedPackage.name !== "dojofoo" || installedPackage.version !== "0.0.1") {
-    throw new Error(`Expected packed dojofoo@0.0.1, received ${installedPackage.name}@${installedPackage.version}.`);
+  if (installedPackage.name !== expectedPackage.name || installedPackage.version !== expectedPackage.version) {
+    throw new Error(
+      `Expected packed ${expectedPackage.name}@${expectedPackage.version}, received ${installedPackage.name}@${installedPackage.version}.`,
+    );
   }
   if (installedPackage.bin?.dojofoo !== "./dist/index.js") {
     throw new Error("Packed package does not expose the dojofoo executable.");

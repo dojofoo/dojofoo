@@ -97,7 +97,7 @@ Source can be:
 Once a dojo is added, use \`/kata\` in your coding agent to begin.
 `;
 
-const DOJO_CONFIG = `import { defineConfig } from "@dojocho/config"
+const DOJO_CONFIG = `import { defineConfig } from "@dojofoo/config"
 
 export default defineConfig()
 `;
@@ -197,16 +197,16 @@ function scaffold(root: string): void {
 
 
   const pm = pmCommands(root);
-  console.log("Installing @dojocho/config...");
+  console.log("Installing @dojofoo/config...");
   try {
-    execSync(pm.add("@dojocho/config"), { cwd: root, stdio: "pipe" });
+    execSync(pm.add("@dojofoo/config"), { cwd: root, stdio: "pipe" });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const firstLine = msg.split("\n").find((l) => l.includes("ERR_") || l.includes("error"))
       ?? msg.split("\n")[0];
-    console.warn(`! Could not install @dojocho/config: ${firstLine.trim()}`);
+    console.warn(`! Could not install @dojofoo/config: ${firstLine.trim()}`);
     console.warn(`  Continuing setup. Install it manually later (e.g. when authoring katas):`);
-    console.warn(`    ${pm.add("@dojocho/config")}`);
+    console.warn(`    ${pm.add("@dojofoo/config")}`);
   }
 }
 

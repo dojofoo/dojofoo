@@ -1,4 +1,4 @@
-# dojocho
+# dojofoo
 
 ## 0.0.2
 
@@ -8,7 +8,7 @@
 - d87d2e2: Add the shared Fluid Functionalism UI package, course marketplace integration, and privacy-preserving course lifecycle metrics.
 - 6007c56: Add project-aware TypeScript completions and diagnostics to the dojo web editor.
 - Updated dependencies [d87d2e2]
-  - @dojocho/config@0.0.5
+  - @dojofoo/config@0.0.5
 
 ## 1.1.0
 

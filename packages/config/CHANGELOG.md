@@ -1,4 +1,4 @@
-# @dojocho/config
+# @dojofoo/config
 
 ## 0.0.5
 

@@ -1,5 +1,5 @@
 {
-  "name": "dojocho-e2e-proxy",
+  "name": "@dojofoo/e2e-proxy",
   "private": true,
   "type": "module",
   "dependencies": {

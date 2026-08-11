@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { findProjectRoot } from "@dojocho/config";
+import { findProjectRoot } from "@dojofoo/config";
 import { Hono } from "hono";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import {

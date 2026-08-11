@@ -16,11 +16,11 @@
   "author": "Tomas Sivicki <tomas.sivicki@gmail.com>",
   "homepage": "https://dojo.foo",
   "bugs": {
-    "url": "https://github.com/tomsiwik/dojocho/issues"
+    "url": "https://github.com/dojofoo/dojofoo/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tomsiwik/dojocho.git",
+    "url": "https://github.com/dojofoo/dojofoo.git",
     "directory": "packages/cli"
   },
   "type": "module",
@@ -43,12 +43,12 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@dojocho/config": "workspace:*",
+    "@dojofoo/config": "workspace:*",
     "jiti": "^2.7.0",
     "typescript": "6.0.3"
   },
   "devDependencies": {
-    "@dojocho/lesson-ui": "workspace:*",
+    "@dojofoo/lesson-ui": "workspace:*",
     "tsup": "^8.0.0",
     "vitest": "^4.1.10"
   }
