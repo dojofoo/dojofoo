@@ -77,7 +77,7 @@ function DojosPage() {
               <div className="max-w-2xl">
                 <h1 className="text-4xl font-medium tracking-tight">Dojos</h1>
                 <p className="mt-3 font-prose text-base leading-7 text-muted-foreground">
-                  Dojos are AI-assisted courses you work through with your coding agent.
+                  Dojos are AI-assisted courses. Add them via CLI and let your agent guide you through katas, learning material, and interactive teaching dialogues.
                 </p>
               </div>
               <Select value={sortBy} onValueChange={setSortBy} size="compact">

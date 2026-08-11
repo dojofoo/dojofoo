@@ -13,7 +13,7 @@ export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
       // SVG wordmark — the variant designed for the docs nav.
-      title: <img src="/logo.svg" alt="dojocho" className="h-7 w-auto" />,
+      title: <img src="/dojofoo.svg" alt="dojofoo" className="h-7 w-auto" />,
       url: '/',
     },
     // Explicit links list (instead of the `githubUrl` shortcut) so we can use

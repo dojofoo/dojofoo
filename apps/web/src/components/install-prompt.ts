@@ -4,4 +4,4 @@
  * any rewording is reflected in both surfaces simultaneously.
  */
 export const AGENT_PROMPT =
-  "fetch https://dojocho.ai/llms.txt and follow it to set up dojos in this project";
+  "fetch https://dojo.foo/llms.txt and follow it to set up dojos in this project";

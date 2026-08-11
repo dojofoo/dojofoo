@@ -13,5 +13,5 @@ const eventStore = databaseUrl
   : new MemoryCourseEventStore();
 
 createCoursesApp({ courses: courseCatalog, eventStore }).listen(port, ({ hostname, port: listeningPort }) => {
-  console.log(`Dojocho courses API listening on http://${hostname}:${listeningPort}`);
+  console.log(`Dojofoo courses API listening on http://${hostname}:${listeningPort}`);
 });

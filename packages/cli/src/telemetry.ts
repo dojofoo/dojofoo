@@ -61,7 +61,7 @@ export function queueCourseEvent(
 export async function flushCourseEvents() {
   const events = queuedEvents.splice(0);
   if (telemetryDisabled()) return;
-  const origin = (process.env.DOJO_API_URL ?? "https://dojocho.ai").replace(/\/$/u, "");
+  const origin = (process.env.DOJO_API_URL ?? "https://dojo.foo").replace(/\/$/u, "");
 
   await Promise.all(events.map(async ({ root, ...event }) => {
     try {

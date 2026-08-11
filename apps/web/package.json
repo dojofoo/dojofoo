@@ -6,7 +6,7 @@
   "sideEffects": false,
   "scripts": {
     "predev": "rm -rf .tanstack",
-    "dev": "portless dojocho vite dev",
+    "dev": "portless dojofoo vite dev",
     "build": "vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",

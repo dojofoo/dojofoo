@@ -178,7 +178,7 @@ test("renders streamed Codex app-server chat events", async ({ page }) => {
       body: [
         `data: ${JSON.stringify({ type: "start", messageId: "message-test" })}\n\n`,
         `data: ${JSON.stringify({ type: "text-start", id: "text-test" })}\n\n`,
-        `data: ${JSON.stringify({ type: "text-delta", id: "text-test", delta: "Streamed from Codex." })}\n\n`,
+        `data: ${JSON.stringify({ type: "text-delta", id: "text-test", delta: "Streamed from Codex with `Effect.map`." })}\n\n`,
         `data: ${JSON.stringify({ type: "text-end", id: "text-test" })}\n\n`,
         `data: ${JSON.stringify({ type: "finish" })}\n\n`,
         "data: [DONE]\n\n",
@@ -191,16 +191,21 @@ test("renders streamed Codex app-server chat events", async ({ page }) => {
   await composer.fill("Can you clarify Effect.map?");
   await composer.press("Enter");
 
-  await expect(page.getByTestId("sensei-streaming-message")).toContainText("Streamed from Codex.");
+  await expect(page.getByTestId("sensei-streaming-message")).toContainText("Streamed from Codex");
+  const inlineCode = page.getByTestId("sensei-streaming-message").getByText("Effect.map", { exact: true });
+  await expect(inlineCode).toHaveCSS("background-color", "rgb(10, 10, 10)");
+  await expect(inlineCode).toHaveCSS("font-size", "14px");
+  await expect(inlineCode).toHaveCSS("color", "rgb(237, 237, 237)");
   await expect(page.getByTestId("senpai-streaming-message")).toContainText("Can you clarify Effect.map?");
 });
 
-test("uses the circular favicon and horizontal Dojocho wordmark in the page chrome", async ({ page }) => {
+test("uses the circular favicon and horizontal Dojofoo wordmark in the page chrome", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.locator('link[rel="icon"][href="/dojocho-black.svg"]')).toHaveCount(1);
-  const wordmark = page.getByRole("img", { name: "Dojocho wordmark" });
+  const wordmark = page.getByRole("img", { name: "Dojofoo wordmark" });
   await expect(wordmark).toBeVisible();
+  await expect(wordmark).toHaveAttribute("src", /dojofoo/);
   await expect(wordmark).not.toHaveAttribute("src", "/dojocho-black.svg");
   const box = await wordmark.boundingBox();
   expect(box).not.toBeNull();

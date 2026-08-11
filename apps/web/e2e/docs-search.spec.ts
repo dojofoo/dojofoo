@@ -10,8 +10,17 @@ test("docs hydrate and search opens", async ({ page }) => {
 
   await page.goto("/docs", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Documentation", level: 1 })).toHaveCSS("font-family", /Iosevka/);
-  await expect(page.getByText("dojocho is a kata-driven training framework", { exact: false })).toHaveCSS("font-family", /Geist Variable/);
+  await expect(page.getByText("dojofoo is a kata-driven training framework", { exact: false })).toHaveCSS("font-family", /Geist Variable/);
   await expect(page.locator("pre").first()).toHaveCSS("font-family", /Iosevka/);
+  const footerItem = page.locator("[data-docs-footer-item]").first();
+  await expect(footerItem).toBeVisible();
+  await expect(footerItem.locator("[data-docs-footer-title]")).toHaveCSS("font-family", /Iosevka/);
+  await expect(footerItem.locator("[data-docs-footer-description]")).toHaveCSS("font-family", /Geist Variable/);
+  expect(await page.evaluate(() => {
+    const navigation = document.querySelector<HTMLElement>("#nd-subnav");
+    const sidebar = document.querySelector<HTMLElement>("[data-sidebar-placeholder]");
+    return Number(getComputedStyle(navigation!).zIndex) > Number(getComputedStyle(sidebar!).zIndex);
+  })).toBe(true);
   expect(await page.locator(".prose li").first().evaluate((element) =>
     getComputedStyle(element, "::marker").fontFamily,
   )).toMatch(/Iosevka/);

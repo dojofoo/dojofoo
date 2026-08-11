@@ -4,8 +4,8 @@ import { AGENT_PROMPT } from "../apps/web/src/components/install-prompt";
 import { AGENTS_TABLE } from "./agents-table";
 import { execScript } from "./container";
 
-const LOCAL_LLMS_BASE = "https://dojocho.td";
-const TEST_PROMPT = AGENT_PROMPT.replace("https://dojocho.ai", LOCAL_LLMS_BASE);
+const LOCAL_LLMS_BASE = "https://dojofoo.td";
+const TEST_PROMPT = AGENT_PROMPT.replace("https://dojo.foo", LOCAL_LLMS_BASE);
 
 const IN_SCOPE = AGENTS_TABLE.filter((r) => r.agent !== "claude");
 

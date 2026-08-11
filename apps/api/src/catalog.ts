@@ -67,7 +67,7 @@ function course(
     installs: 0,
     sourceType: "npm",
     installUrl: packageName,
-    url: `https://dojocho.ai/courses/dojocho/${slug}`,
+    url: `https://dojo.foo/courses/dojocho/${slug}`,
     categories,
     kataCount: katas.length || kataCount,
     katas,

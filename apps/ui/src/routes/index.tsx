@@ -4,7 +4,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BundledLanguage } from "shiki";
 import { ArrowRight, Check, CheckCircle2, Circle, CircleDot, LockKeyhole, RotateCcw, Save as SaveIcon, Undo2, XCircle } from "lucide-react";
-import dojochoWordmark from "../../../../assets/dojocho.svg?url";
+import dojofooWordmark from "../../../../assets/dojofoo.svg?url";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { CodeBlock, CodeBlockCopyButton } from "@/components/ai-elements/code-block";
 import {
@@ -541,7 +541,7 @@ function LessonNavigation({
   return (
     <aside className="flex min-h-0 flex-col border-r border-dashed bg-surface-1" data-testid="lesson-navigation">
       <div className="border-b border-dashed px-5 pb-5 pt-5">
-        <img alt="Dojocho wordmark" className="h-3.5 w-auto" src={dojochoWordmark} />
+        <img alt="Dojofoo wordmark" className="h-3.5 w-auto" src={dojofooWordmark} />
         <h1 className="mt-1.5 text-xl font-semibold">{humanTitle(lesson.dojo)}</h1>
         <h2 className="mt-7 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Chapters</h2>
       </div>
@@ -653,7 +653,7 @@ function LessonAccordionContent({ children }: { children: React.ReactNode }) {
 function StreamedChatMessage({ message }: { message: UIMessage }) {
   return (
     <ChatMessage
-      className="font-prose"
+      className="dojo-chat-message font-prose"
       data-testid={message.role === "assistant" ? "sensei-streaming-message" : "senpai-streaming-message"}
       from={message.role === "assistant" ? "assistant" : "user"}
     >
@@ -748,7 +748,7 @@ function LessonBriefing({ markdown }: { markdown: string }) {
 
 function inlineCode(value: string) {
   return value.split(/(`[^`]+`)/g).map((part, index) => part.startsWith("`")
-    ? <code className="bg-surface-3 px-1 py-0.5 font-mono text-[0.9em]" key={index}>{part.slice(1, -1)}</code>
+    ? <code className="bg-surface-3 px-1 py-0.5 font-mono text-[14px]" key={index}>{part.slice(1, -1)}</code>
     : part);
 }
 
@@ -835,7 +835,7 @@ function MarkdownText({ text }: { text: string }) {
 function inlineMessage(value: string) {
   return value.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((part, index) => {
     if (part.startsWith("`") && part.endsWith("`")) {
-      return <code className="bg-surface-3 px-1 py-0.5 font-mono text-[0.9em]" key={index}>{part.slice(1, -1)}</code>;
+      return <code className="dojo-inline-code" key={index}>{part.slice(1, -1)}</code>;
     }
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={index}>{part.slice(2, -2)}</strong>;

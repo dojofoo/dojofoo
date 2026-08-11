@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 export interface LandingTemplateProps {
   /** Absolute URL to the OG background image. */
   backgroundUrl?: string
-  /** Absolute URL (or data URI) to the dojocho wordmark. */
+  /** Absolute URL (or data URI) to the dojofoo wordmark. */
   logoUrl?: string
 }
 
@@ -56,7 +56,7 @@ export default function LandingTemplate({
         {logoUrl ? (
           <img
             src={logoUrl}
-            alt="dojocho"
+            alt="dojofoo"
             style={{ width: 800, height: 'auto' }}
           />
         ) : (
@@ -70,7 +70,7 @@ export default function LandingTemplate({
               textShadow: '0 4px 24px rgba(0,0,0,0.6)',
             }}
           >
-            dojocho
+            dojofoo
           </span>
         )}
       </div>

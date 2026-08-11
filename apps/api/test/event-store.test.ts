@@ -15,7 +15,7 @@ const course = {
   installs: 0,
   sourceType: "npm" as const,
   installUrl: "@dojocho/effect-ts",
-  url: "https://dojocho.ai/courses/dojocho/effect-ts",
+  url: "https://dojo.foo/courses/dojocho/effect-ts",
   categories: ["TypeScript"],
   kataCount: 1,
   katas: [],

@@ -22,4 +22,4 @@ export const SITE_URL =
   process.env.SITE_URL?.replace(/\/$/, '') ??
   (process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL
-    : 'https://dojocho.ai');
+    : 'https://dojo.foo');

@@ -18,12 +18,12 @@ lets you do the typing.
 
 ## Documentation
 
-Full docs at **https://dojocho.ai/docs**.
+Full docs at **https://dojo.foo/docs**.
 
-- [Installation](https://dojocho.ai/docs/installation)
-- [Quickstart](https://dojocho.ai/docs/quickstart)
-- [Commands](https://dojocho.ai/docs/commands/install)
-- [Available dojos](https://dojocho.ai/dojos)
+- [Installation](https://dojo.foo/docs/installation)
+- [Quickstart](https://dojo.foo/docs/quickstart)
+- [Commands](https://dojo.foo/docs/commands/install)
+- [Available dojos](https://dojo.foo/dojos)
 
 ## License
 

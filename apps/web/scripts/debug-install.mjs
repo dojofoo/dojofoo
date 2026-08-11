@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 
-const URL = 'https://dojocho.td/';
+const URL = 'https://dojofoo.td/';
 
 const browser = await chromium.launch({ headless: true });
 const ctx = await browser.newContext({ ignoreHTTPSErrors: true });

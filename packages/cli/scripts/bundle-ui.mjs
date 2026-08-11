@@ -7,7 +7,7 @@ const source = resolve(packageRoot, "../../apps/ui/.output");
 const destination = resolve(packageRoot, "dist/ui");
 
 if (!existsSync(resolve(source, "server/index.mjs"))) {
-  throw new Error("The production dojo UI is missing. Run the workspace build before packaging dojocho.");
+  throw new Error("The production dojo UI is missing. Run the workspace build before packaging dojofoo.");
 }
 
 rmSync(destination, { recursive: true, force: true });

@@ -16,7 +16,7 @@ services:
       CI: "1"
     extra_hosts:
       - host.docker.internal:host-gateway
-      - dojocho.td:host-gateway
+      - dojofoo.td:host-gateway
     volumes:
       - .:/workspace
       - ${HOME}/.portless/ca.pem:/etc/ssl/portless-ca.pem:ro

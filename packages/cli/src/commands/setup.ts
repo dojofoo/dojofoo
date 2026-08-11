@@ -77,7 +77,7 @@ CLI output uses XML tags to separate directives from student content:
 13. Drive the full session: AskUserQuestion → process response → run commands if needed → AskUserQuestion again. Do not stop after one exchange.
 `;
 
-const ROOT_DOJO_MD = `# Welcome to Dojocho
+const ROOT_DOJO_MD = `# Welcome to dojofoo
 
 Your dojo is set up and ready. You just need a dojo (training pack) to start practicing.
 

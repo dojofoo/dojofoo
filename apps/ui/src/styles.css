@@ -140,6 +140,17 @@
 .font-prose :where(ol, ul) > li::marker {
   font-family: "Iosevka", monospace;
 }
+
+.dojo-chat-message :where(code):not(:where(pre *)),
+.dojo-inline-code {
+  border: 1px solid #242424;
+  background: #0a0a0a;
+  color: #ededed;
+  padding: 0.125rem 0.3rem;
+  font-family: "Iosevka", ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.35;
+}
 .shimmer-text {
     color: transparent;
     background: linear-gradient(90deg, #a3a3a3 0%, #a3a3a3 35%, #525252 50%, #a3a3a3 65%, #a3a3a3 100%);

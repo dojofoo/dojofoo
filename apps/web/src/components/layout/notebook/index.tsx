@@ -282,7 +282,7 @@ function DocsNavbar({
     <LayoutHeader
       id="nd-subnav"
       className={cn(
-        'sticky [grid-area:header] flex flex-col top-(--fd-docs-row-1) z-10 overflow-x-clip backdrop-blur-sm transition-colors data-[transparent=false]:bg-fd-background/80 layout:[--fd-header-height:--spacing(16)]',
+        'sticky [grid-area:header] flex flex-col top-(--fd-docs-row-1) z-30 overflow-x-clip backdrop-blur-sm transition-colors data-[transparent=false]:bg-fd-background/80 layout:[--fd-header-height:--spacing(16)]',
         showLayoutTabs && 'lg:layout:[--fd-header-height:--spacing(30)]',
       )}
     >

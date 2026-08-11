@@ -276,7 +276,7 @@ def generate_dojo_json() -> None:
     katas = [{"template": f"katas/{new_slug}/solution.py"} for _, _, new_slug in plan]
 
     dojo = {
-        "$schema": "https://dojocho.ai/schema/v1/dojo.json",
+        "$schema": "https://dojo.foo/schema/v1/dojo.json",
         "name": "@dojocho/build-llm",
         "version": "0.0.1",
         "description": (

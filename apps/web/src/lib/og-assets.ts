@@ -1,7 +1,7 @@
 // Server-only asset loading for OG image generation.
 //
 // Takumi runs server-side and dereferences any `url(...)` it sees by HTTP
-// fetch. In dev that means hitting our own dojocho.td via TLS, where the
+// fetch. In dev that means hitting our own dojofoo.td via TLS, where the
 // portless self-signed cert handshake is brittle. We sidestep the network
 // entirely by reading static assets from disk at module init and inlining
 // them as `data:` URIs.
@@ -25,6 +25,6 @@ async function dataUrl(relPath: string, mime: string): Promise<string> {
 export const getOgBackgroundDataUrl = () =>
   dataUrl('public/og-bg.png', 'image/png')
 
-/** Wide "DOJOCHO" wordmark — the single brand mark. */
+/** Wide "DOJO.FOO" wordmark — the single brand mark. */
 export const getLogoWordmarkDataUrl = () =>
-  dataUrl('public/logo.svg', 'image/svg+xml')
+  dataUrl('public/dojofoo.svg', 'image/svg+xml')

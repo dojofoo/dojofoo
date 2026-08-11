@@ -20,7 +20,7 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect(page.getByRole("heading", { name: "Dojos" })).toBeVisible();
-  await expect(page.getByText("AI-assisted courses", { exact: false })).toBeVisible();
+  await expect(page.getByText("Dojos are AI-assisted courses. Add them via CLI and let your agent guide you through katas, learning material, and interactive teaching dialogues.", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Build an LLM/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Effect TS/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Pydantic Agents/i })).toBeVisible();
@@ -42,6 +42,10 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
     };
   })).toEqual({ radius: 2, insetMatchesText: true });
   await expect(page.locator("[data-site-navigation]")).toBeVisible();
+  const wordmark = page.getByRole("img", { name: "dojofoo" });
+  await expect(wordmark).toBeVisible();
+  await expect(wordmark).toHaveAttribute("src", /dojofoo/);
+  await expect(page).toHaveTitle("dojofoo");
   await expect(page.getByRole("searchbox", { name: "Search courses" })).toHaveCount(0);
 
   const effectCard = page.getByTestId("course-effect-ts");

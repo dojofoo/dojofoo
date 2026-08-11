@@ -27,7 +27,7 @@ export const Route = createFileRoute('/$')({
     const { title, description, ogImage, ogUrl } = loaderData
     return {
       meta: [
-        { title: `${title} — dojocho` },
+        { title: `${title} — dojofoo` },
         { name: 'description', content: description },
         { property: 'og:title', content: title },
         { property: 'og:description', content: description },

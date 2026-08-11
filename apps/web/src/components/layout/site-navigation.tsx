@@ -34,8 +34,8 @@ export function SiteNavigation({
         data-site-navigation=""
         className="mx-auto flex h-16 w-full max-w-(--fd-layout-width) items-center gap-2 px-5 lg:px-8"
       >
-        <Link to="/" aria-label="Dojocho courses" className="mr-1 flex items-center">
-          <img src="/logo.svg" alt="dojocho" className="h-5 w-auto" />
+        <Link to="/" aria-label="Dojofoo courses" className="mr-1 flex items-center">
+          <img src="/dojofoo.svg" alt="dojofoo" className="h-5 w-auto" />
         </Link>
 
         <SearchToggle size="icon" showShortcut className="text-muted-foreground [&_svg]:!size-5" />

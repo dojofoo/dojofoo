@@ -1,5 +1,5 @@
 {
-  "$schema": "https://dojocho.ai/schema/v1/dojo.json",
+  "$schema": "https://dojo.foo/schema/v1/dojo.json",
   "name": "@dojocho/pydantic-agents",
   "version": "0.0.1",
   "description": "Learn Pydantic models, validation, and pydantic-ai agents through hands-on katas",

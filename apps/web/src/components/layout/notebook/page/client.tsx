@@ -274,6 +274,7 @@ function FooterItem({ item, index }: { item: Item; index: 0 | 1 }) {
   return (
     <Link
       href={item.url}
+      data-docs-footer-item=""
       className={cn(
         'flex flex-col gap-2 rounded-lg border p-4 text-sm transition-colors hover:bg-fd-accent/80 hover:text-fd-accent-foreground @max-lg:col-span-full',
         index === 1 && 'text-end',
@@ -281,14 +282,14 @@ function FooterItem({ item, index }: { item: Item; index: 0 | 1 }) {
     >
       <div
         className={cn(
-          'inline-flex items-center gap-1.5 font-medium',
+          'inline-flex items-center gap-1.5 font-mono font-medium',
           index === 1 && 'flex-row-reverse',
         )}
       >
         <Icon className="-mx-1 size-4 shrink-0 rtl:rotate-180" />
-        <p>{item.name}</p>
+        <p data-docs-footer-title="">{item.name}</p>
       </div>
-      <p className="text-fd-muted-foreground truncate">
+      <p className="font-prose text-fd-muted-foreground truncate" data-docs-footer-description="">
         {item.description ??
           (index === 0 ? t('Previous Page(pagination)') : t('Next Page(pagination)'))}
       </p>

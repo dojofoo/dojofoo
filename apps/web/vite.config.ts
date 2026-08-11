@@ -9,7 +9,7 @@ export default defineConfig({
   server: {
     port: Number(process.env.PORT) || 3000,
     host: process.env.HOST || 'localhost',
-    allowedHosts: ['dojocho.td', 'host.docker.internal', 'localhost', '127.0.0.1'],
+    allowedHosts: ['dojofoo.td', 'host.docker.internal', 'localhost', '127.0.0.1'],
     proxy: {
       '/api/v1': process.env.DOJO_API_ORIGIN ?? 'http://127.0.0.1:4311',
     },
