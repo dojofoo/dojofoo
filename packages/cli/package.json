@@ -24,6 +24,9 @@
     "directory": "packages/cli"
   },
   "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
   "publishConfig": {
     "access": "public"
   },

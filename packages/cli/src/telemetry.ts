@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -9,6 +8,7 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { readInstalledSource } from "./source";
+import { recordDojoLifecycle, workspaceIdFor } from "./local-state";
 
 export type CourseEventName = "installed" | "started" | "kata_completed" | "finished";
 
@@ -97,24 +97,6 @@ function acknowledgeRegistration(root: string, registration: RegistrationEvent) 
   );
 }
 
-function instanceId(root: string) {
-  const stateDirectory = resolve(root, ".dojo");
-  const statePath = resolve(stateDirectory, "instance.json");
-  if (existsSync(statePath)) {
-    try {
-      const state = JSON.parse(readFileSync(statePath, "utf8")) as { instanceId?: unknown };
-      if (typeof state.instanceId === "string" && state.instanceId.length > 0) return state.instanceId;
-    } catch {
-      // Replace malformed local telemetry state without affecting course progress.
-    }
-  }
-
-  const value = randomUUID();
-  mkdirSync(stateDirectory, { recursive: true });
-  writeFileSync(statePath, `${JSON.stringify({ version: 1, instanceId: value }, null, 2)}\n`);
-  return value;
-}
-
 export function queueCourseEvent(
   root: string,
   courseName: string,
@@ -122,6 +104,7 @@ export function queueCourseEvent(
   kata?: string,
   source?: { type: "github"; locator: string; integrity?: string },
 ) {
+  recordDojoLifecycle(root, event, kata);
   if (telemetryDisabled()) return;
   const recorded = readInstalledSource(resolve(root, ".dojos", courseName));
   const githubSource = source ?? (recorded?.type === "github" ? recorded : undefined);
@@ -172,7 +155,7 @@ export async function flushCourseEvents() {
       const response = await fetch(`${origin}/api/v1/events`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ instanceId: instanceId(root), ...event }),
+        body: JSON.stringify({ instanceId: workspaceIdFor(root), ...event }),
         signal: AbortSignal.timeout(10_000),
       });
       if (response.ok) acknowledgeRegistration(root, event);
@@ -186,7 +169,7 @@ export async function flushCourseEvents() {
       const response = await fetch(`${origin}/api/v1/events`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ instanceId: instanceId(root), ...event }),
+        body: JSON.stringify({ instanceId: workspaceIdFor(root), ...event }),
         signal: AbortSignal.timeout(1_500),
       });
       if (!response.ok) return;
