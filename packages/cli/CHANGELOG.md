@@ -1,5 +1,11 @@
 # dojofoo
 
+## 0.1.0
+
+### Minor Changes
+
+- f0a8bc7: Add a local SQLite index for workspaces, dojo runs, harness sessions, and lifecycle events.
+
 ## 0.0.5
 
 ### Patch Changes
