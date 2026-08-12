@@ -23,6 +23,7 @@ describe("course lifecycle telemetry", () => {
   function projectRoot() {
     const root = mkdtempSync(join(tmpdir(), "dojo-telemetry-"));
     roots.push(root);
+    vi.stubEnv("DOJOFOO_HOME", resolve(root, ".dojofoo-home"));
     return root;
   }
 
@@ -152,8 +153,14 @@ describe("course lifecycle telemetry", () => {
     );
   });
 
-  it("does not write state or send events when telemetry is disabled", async () => {
+  it("keeps private local state but sends no events when telemetry is disabled", async () => {
     const root = projectRoot();
+    writeFileSync(resolve(root, ".dojorc"), JSON.stringify({
+      currentDojo: "effect-ts",
+      currentKata: null,
+      editor: null,
+      progress: {},
+    }));
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("DO_NOT_TRACK", "1");
@@ -162,7 +169,8 @@ describe("course lifecycle telemetry", () => {
     await flushCourseEvents();
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(existsSync(resolve(root, ".dojo/instance.json"))).toBe(false);
+    expect(existsSync(resolve(root, ".dojo/instance.json"))).toBe(true);
+    expect(existsSync(resolve(root, ".dojofoo-home/dojofoo.db"))).toBe(true);
   });
 
   it("does not fail the command when the metrics service is unavailable", async () => {

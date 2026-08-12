@@ -10,12 +10,16 @@ import { ui } from "./commands/ui";
 import { track } from "./commands/track";
 import { update } from "./commands/update";
 import { flushCourseEvents } from "./telemetry";
+import { observeLocalContext, sessionFromEnvironment } from "./local-state";
 
 const [command, ...args] = process.argv.slice(2);
 
 process.env.DOJO_PROJECT_ROOT ??= findProjectRoot();
 
 async function main() {
+  observeLocalContext(process.env.DOJO_PROJECT_ROOT!, {
+    session: sessionFromEnvironment(),
+  });
   if (command === "kata") {
     kata(findProjectRoot(), args);
   } else if (command === "intro") {

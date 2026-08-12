@@ -15,10 +15,16 @@ npx dojofoo --help
 
 ## Requirements
 
-- Node.js 20 or newer.
+- Node.js 22.13 or newer.
 - A coding agent that can read project files and run shell commands —
   [Claude Code](https://docs.anthropic.com/claude/docs/claude-code) is the
   default target.
+
+## Local state
+
+Dojofoo keeps its local workspace, dojo run, and agent session index in
+`~/.dojofoo/dojofoo.db`. Kata progress and installed dojo files remain in the
+workspace, so existing CLI and agent flows continue to use the same files.
 - For language-specific dojos, the matching toolchain (e.g. `pnpm` for
   TypeScript dojos, `uv` for Python dojos).
 
