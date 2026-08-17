@@ -27,7 +27,7 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter dojofoo test:package
 
-      - uses: changesets/action@v1
+      - uses: changesets/action@v2
         with:
           publish: pnpm release
           version: pnpm run version
