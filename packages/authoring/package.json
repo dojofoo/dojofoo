@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@dojofoo/config": "workspace:*",
-    "hono": "^4.13.1",
+    "hono": "^4.13.7",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
