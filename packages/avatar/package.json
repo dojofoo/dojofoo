@@ -9,10 +9,10 @@
     "test": "vitest run",
     "types:check": "tsc --noEmit"
   },
-  "peerDependencies": { "react": "^19.2.8" },
+  "peerDependencies": { "react": "^19.3.0" },
   "devDependencies": {
-    "@types/react": "^19.2.18",
-    "react": "^19.2.8",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
     "typescript": "6.0.3",
     "vitest": "^4.1.10"
   }
