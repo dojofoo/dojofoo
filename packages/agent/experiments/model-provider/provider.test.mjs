@@ -9,8 +9,8 @@ import { MockLanguageModelV4 } from "ai/test";
 import { defineAgent } from "@dojofoo/agent";
 import { experimental_createHarnessModel as createHarnessModel } from "@dojofoo/agent/experimental";
 
-// Import the registry Eve implementation, not our modified baseline or backend.
-const eveRoot = new URL("./", import.meta.resolve("eve/package.json"));
+// Exercise the exact runtime shipped to consumers, not a workspace dependency.
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
 const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
 const { compactMessages } = await import(new URL("dist/src/harness/compaction.js", eveRoot));
 const { compileAgentConfig } = await import(new URL("dist/src/compiler/normalize-agent-config.js", eveRoot));
@@ -57,12 +57,17 @@ const text = value => [
 
 test("the package reexports Eve and the official HarnessAgent without wrapping them", async () => {
   const [facade, eve, harness, official] = await Promise.all([
-    import("@dojofoo/agent"), import("eve"),
+    import("@dojofoo/agent"), import(new URL("dist/src/index.js", eveRoot)),
     import("@dojofoo/agent/harness"), import("@ai-sdk/harness/agent"),
   ]);
   assert.deepEqual(Object.keys(facade), Object.keys(eve));
   for (const key of Object.keys(eve)) assert.equal(facade[key], eve[key]);
   assert.equal(harness.HarnessAgent, official.HarnessAgent);
+  const [server, upstreamServer] = await Promise.all([
+    import("@dojofoo/agent/server"),
+    import(new URL("dist/src/internal/nitro/host/start-development-server.js", eveRoot)),
+  ]);
+  assert.equal(server.createDevelopmentServer, upstreamServer.createDevelopmentServer);
 });
 
 test("Eve compiles an authored harness model as an external provider without catalog access", async () => {

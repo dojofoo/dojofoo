@@ -3,7 +3,7 @@ import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 
-const eveRoot = new URL("./", import.meta.resolve("eve/package.json"));
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
 const { compileAgent } = await import(new URL("dist/src/compiler/compile-agent.js", eveRoot));
 const { loadCompiledModuleMap } = await import(new URL("dist/src/runtime/loaders/module-map.js", eveRoot));
 const { resolveRuntimeModelReference } = await import(new URL("dist/src/runtime/agent/resolve-model.js", eveRoot));

@@ -4,7 +4,6 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
-import { eveSvelteKit } from "@dojofoo/agent/sveltekit";
 
 export default defineConfig({
   server: {
@@ -26,12 +25,6 @@ export default defineConfig({
     },
   },
   plugins: [
-    // Eve's public Vite development hook owns host reuse and startup. Its
-    // SvelteKit/Vercel build hooks must not run for our TanStack application.
-    // Start before Nitro captures the environment for its server worker.
-    process.env.DOJO_EVE_ROOT
-      ? { ...eveSvelteKit({ eveRoot: process.env.DOJO_EVE_ROOT }), apply: "serve" as const, enforce: "pre" as const }
-      : undefined,
     tailwindcss(),
     tanstackStart(),
     react(),

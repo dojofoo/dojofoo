@@ -3,12 +3,12 @@ import { execFileSync, spawn } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 // Deliberately outside the workspace: no pnpm patches, aliases or source checkout.
 const root = await realpath(await mkdtemp(join(tmpdir(), "dojo-unpatched-provider-")));
 const cliOnly = process.argv.includes("--cli-only");
+const hostOnly = process.argv.includes("--host-only");
 const versions = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8"));
 const run = (command, args) => new Promise((resolve, reject) => {
   const child = spawn(command, args, {
@@ -18,7 +18,7 @@ const run = (command, args) => new Promise((resolve, reject) => {
   child.on("exit", (code, signal) => code === 0 ? resolve() : reject(new Error(`${command}: ${code ?? signal}`)));
 });
 try {
-  const dependencies = Object.fromEntries(["eve", "ai", "@ai-sdk/harness"].map(name => [name, versions.dependencies[name]]));
+  const dependencies = Object.fromEntries(["ai", "@ai-sdk/harness"].map(name => [name, versions.dependencies[name]]));
   dependencies["@ai-sdk/sandbox-just-bash"] = versions.devDependencies["@ai-sdk/sandbox-just-bash"];
   dependencies["@ai-sdk/harness-pi"] = versions.devDependencies["@ai-sdk/harness-pi"];
   dependencies.pnpm = "10.34.5";
@@ -37,7 +37,7 @@ try {
   const [packed] = JSON.parse(execFileSync("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", root], {
     cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8",
   }));
-  assert.ok(packed.files.every(({ path }) => path.startsWith("dist/") || ["package.json", "README.md", "patches/eve@0.53.0.patch"].includes(path)));
+  assert.ok(packed.files.every(({ path }) => path.startsWith("dist/") || path.startsWith("patches/") || ["package.json", "README.md"].includes(path)));
   assert.ok(packed.files.some(({ path }) => path === "patches/eve@0.53.0.patch"));
   await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module", dependencies: {
     ...dependencies, "@dojofoo/agent": `file:./${packed.filename}`,
@@ -81,32 +81,29 @@ try {
         `${name} must target the tested HarnessAgent release`);
     }
   }
-  console.log("UNPATCHED_REGISTRY_DEPENDENCIES", dependencies);
+  assert.ok(!Object.keys(lock.packages).some(path => path.endsWith("node_modules/eve")));
+  console.log("CLEAN_CONSUMER_DEPENDENCIES", dependencies);
+  process.env.EVE_NATIVE_COMPACTION = "1";
   await run(process.execPath, [fileURLToPath(import.meta.resolve("typescript/bin/tsc")),
     "--noEmit", "--strict", "--skipLibCheck", "--target", "ES2023", "--module", "NodeNext", "consumer-types.ts", "adapter-types.ts"]);
-  if (!cliOnly) {
+  if (!cliOnly && !hostOnly) {
     await run(process.execPath, ["--test", "--test-timeout=30000", "provider.test.mjs"]);
     await run(process.execPath, ["--test", "--test-timeout=30000", "authored.test.mjs"]);
     await run(process.execPath, ["--test", "--test-timeout=30000", "pi.test.mjs"]);
     await run(process.execPath, ["--test", "--test-timeout=120000", "opencode-startup.test.mjs"]);
   }
-  // Verify the same scenarios before and after the explicitly scoped Eve patch.
-  const patch = createRequire(join(root, "package.json")).resolve("@dojofoo/agent/eve.patch");
-  assert.ok(patch.startsWith(join(root, "node_modules", "@dojofoo", "agent")));
-  await run("git", ["apply", "--check", "--directory=node_modules/eve", patch]);
-  await run("git", ["apply", "--directory=node_modules/eve", patch]);
-  process.env.EVE_NATIVE_COMPACTION = "1";
+  // All host scenarios use the already assembled runtime in the packed package.
   if (!cliOnly) {
-    await run(process.execPath, ["--test", "--test-timeout=30000", "provider.test.mjs"]);
-    await run(process.execPath, ["--test", "--test-timeout=30000", "pi.test.mjs"]);
     await run(process.execPath, ["--test", "--test-timeout=180000", "host.test.mjs"]);
+  }
+  if (!cliOnly && !hostOnly) {
     await run(process.execPath, ["--test", "--test-timeout=60000", "skills-host.test.mjs"]);
     await run(process.execPath, ["--test", "--test-timeout=180000", "native-host.test.mjs"]);
   }
   // The native provider still comes from the packed consumer; render the actual
   // workspace UI against that consumer's Eve host, without browser route mocks.
   process.env.DOJO_AGENT_UI_ROOT = fileURLToPath(new URL("../../../ui", import.meta.url));
-  await run(process.execPath, ["--import", "tsx", "--test", "--test-timeout=180000", "cli-host.test.mjs"]);
+  if (!hostOnly) await run(process.execPath, ["--import", "tsx", "--test", "--test-timeout=180000", "cli-host.test.mjs"]);
 } finally {
   await rm(root, { recursive: true, force: true });
 }

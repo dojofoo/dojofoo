@@ -5,8 +5,7 @@ import { test } from "node:test";
 import { Client, EveAgentStore, defaultMessageReducer } from "@dojofoo/agent/client";
 import { createAuthoringSandbox } from "./authoring-sandbox.ts";
 
-const eveRoot = new URL("./", import.meta.resolve("eve/package.json"));
-const { createDevelopmentServer } = await import(new URL("dist/src/internal/nitro/host/start-development-server.js", eveRoot));
+import { createDevelopmentServer } from "@dojofoo/agent/server";
 
 function projectedJson(store) {
   const projectedReply = store.snapshot.data.messages.at(-1).parts.filter(part => part.type === "text").map(part => part.text).join("");
@@ -24,15 +23,16 @@ test("authoring rejects ambiguous or filesystem-root mounts", () => {
 for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates conversations, recovers, and delegates (specialist=${specialist})`, { timeout: 180_000 }, async () => {
   const root = await mkdtemp(join(process.cwd(), "hosted-provider-"));
   let server;
+  let stage = "prepare host";
   try {
     await writeFile(join(root, "package.json"), JSON.stringify({ name: "hosted-provider-fixture", private: true, type: "module" }));
     await copyFile(new URL("host-agent.fixture.ts", import.meta.url), join(root, "agent.ts"));
     await writeFile(join(root, "instructions.md"), "HOST_INSTRUCTIONS_LOADED: Teach one concept at a time.\n");
     await mkdir(join(root, "tools"));
-    await writeFile(join(root, "tools/ask_question.ts"), 'export { default } from "eve/tools/ask_question";\n');
-    await writeFile(join(root, "tools/read_file.ts"), 'export { default } from "eve/tools/read_file";\n');
-    await writeFile(join(root, "tools/root_only.ts"), 'import { defineTool } from "eve/tools"; import read from "eve/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
-    await writeFile(join(root, "tools/write_file.ts"), 'export { default } from "eve/tools/write_file";\n');
+    await writeFile(join(root, "tools/ask_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
+    await writeFile(join(root, "tools/read_file.ts"), 'export { default } from "@dojofoo/agent/tools/read_file";\n');
+    await writeFile(join(root, "tools/root_only.ts"), 'import { defineTool } from "@dojofoo/agent/tools"; import read from "@dojofoo/agent/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
+    await writeFile(join(root, "tools/write_file.ts"), 'export { default } from "@dojofoo/agent/tools/write_file";\n');
     await mkdir(join(root, "sandbox/workspace"), { recursive: true });
     await mkdir(join(root, "course"));
     await writeFile(join(root, "course/note.md"), "Authored in the editor.\n");
@@ -45,7 +45,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
       await writeFile(join(root, "subagents/reviewer/agent.ts"), 'import { defineAgent } from "@dojofoo/agent"; import root from "../../agent"; export default defineAgent({ ...root, description: "Review lesson evidence independently." });\n');
       await writeFile(join(root, "subagents/reviewer/instructions.md"), "SPECIALIST_INSTRUCTIONS_LOADED: Read your own lesson evidence before reviewing.\n");
       await copyFile(join(root, "tools/read_file.ts"), join(root, "subagents/reviewer/tools/read_file.ts"));
-      await writeFile(join(root, "subagents/reviewer/sandbox/sandbox.ts"), 'import { defineSandbox } from "eve/sandbox"; import { justbash } from "eve/sandbox/just-bash"; export default defineSandbox({ backend: justbash({ autoInstall: false }) });\n');
+      await writeFile(join(root, "subagents/reviewer/sandbox/sandbox.ts"), 'import { defineSandbox } from "@dojofoo/agent/sandbox"; import { justbash } from "@dojofoo/agent/sandbox/just-bash"; export default defineSandbox({ backend: justbash({ autoInstall: false }) });\n');
       await writeFile(join(root, "subagents/reviewer/sandbox/workspace/note.md"), "Specialist-only evidence.\n");
     }
     server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject" });
@@ -60,6 +60,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
       other.send({ message: "Lesson B", signal }),
     ]);
     const a = await first.response.result();
+    stage = "concurrent projections";
     assert.equal(a.status, "waiting");
     assert.equal(other.snapshot.status, "ready");
     assert.equal(other.snapshot.error, undefined);
@@ -81,6 +82,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
       assert.deepEqual(projectedJson(probe).history, [message]);
     }));
     const continued = await (await first.session.send("Continue A", { signal })).result();
+    stage = "park questions";
     const continuedText = JSON.parse(continued.message);
     assert.equal(continuedText.sessionId, aText.sessionId);
     assert.equal(continuedText.selectedModel, aText.selectedModel);
@@ -99,6 +101,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject" });
     const restarted = await server.start();
     const rehydrated = new EveAgentStore({ host: restarted.url, reducer: defaultMessageReducer(), ...savedUi });
+    stage = "restore UI question";
     await rehydrated.resume();
     assert.equal(rehydrated.snapshot.error, undefined);
     assert.equal(rehydrated.snapshot.data.messages.filter(message => message.role === "user").length, 2, "Optimistic and persisted messages must not duplicate on replay");
@@ -119,6 +122,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     // Respond has no new message delivery ID; preserve the client's durable
     // cursor so it does not mistake an earlier turn boundary for this answer.
     const restored = new Client({ host: restarted.url }).sessions.attach(first.session.state.sessionId, { streamIndex: first.session.state.streamIndex });
+    stage = "restore client question";
     const answered = await (await restored.respond([{ requestId: waiting.inputRequests[0].requestId, optionId: "review" }], { signal: AbortSignal.timeout(60_000) })).result();
     const answerText = JSON.parse(answered.message);
     assert.equal(answerText.sessionId, aText.sessionId);
@@ -131,6 +135,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     assert.equal(recoveredText.selectedModel, aText.selectedModel);
     assert.deepEqual(recoveredText.history, ["Lesson A", "Continue A", "Ask before continuing", ...answers, "After restart"]);
     const read = await (await restored.send("Read lesson note", { signal: AbortSignal.timeout(60_000) })).result();
+    stage = "filesystem tools";
     assert.match(JSON.parse(read.message).history.at(-1).output.content, /Original lesson note/);
     const written = await (await restored.send("Write lesson note", { signal: AbortSignal.timeout(60_000) })).result();
     assert.equal(JSON.parse(written.message).history.at(-1).output.existed, true);
@@ -143,11 +148,13 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject" });
     const finalHost = await server.start();
     const finalSession = new Client({ host: finalHost.url }).sessions.attach(restored.state.sessionId, { streamIndex: restored.state.streamIndex });
+    stage = "restore filesystem";
     const courseAfterRestart = await (await finalSession.send("Read authoring note", { signal: AbortSignal.timeout(60_000) })).result();
     assert.match(JSON.parse(courseAfterRestart.message).history.at(-1).output.content, /Edited again by the human/);
     const reread = await (await finalSession.send("Read lesson note", { signal: AbortSignal.timeout(60_000) })).result();
     assert.match(JSON.parse(reread.message).history.at(-1).output.content, /Learner progress saved/);
     const delegation = await (await finalSession.send(specialist ? "Delegate specialist review" : "Delegate lesson review", { signal: AbortSignal.timeout(60_000) })).result();
+    stage = "observe delegation admission";
     assert.equal(delegation.status, "waiting", JSON.stringify(delegation));
     let called = delegation.events.find(event => event.type === "subagent.called");
     // Background admission can arrive after the initiating response boundary.
@@ -159,6 +166,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     }
     assert.ok(called);
     const child = new Client({ host: finalHost.url }).sessions.attach(called.data.childSessionId);
+    stage = "observe child completion";
     let childReply;
     for await (const event of child.stream({ signal: AbortSignal.timeout(60_000) })) {
       assert.notEqual(event.type, "turn.failed", JSON.stringify(event));
@@ -178,6 +186,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     // Eve must wake the parent with the actual child answer, not just return a
     // dispatch receipt. No user message is sent to manufacture that wake-up.
     let parentReceivedAnswer = false;
+    stage = "observe automatic parent wake-up";
     for await (const event of finalSession.stream({ signal: AbortSignal.timeout(60_000) })) {
       assert.notEqual(event.type, "session.failed", JSON.stringify(event));
       assert.notEqual(event.type, "turn.failed", JSON.stringify(event));
@@ -187,6 +196,8 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
       }
     }
     assert.ok(parentReceivedAnswer);
+  } catch (cause) {
+    throw new Error(`Workflow host failed during ${stage} (specialist=${specialist})`, { cause });
   } finally {
     await server?.close();
     await rm(root, { recursive: true, force: true });

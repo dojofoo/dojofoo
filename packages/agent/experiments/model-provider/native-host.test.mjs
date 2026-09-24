@@ -8,7 +8,7 @@ import { Client } from "@dojofoo/agent/client";
 import { startLoopbackModel } from "./loopback-openai.mjs";
 import { createLocalSandbox, registerLocalProcessHost } from "@dojofoo/agent/experimental/local";
 
-const eveRoot = new URL("./", import.meta.resolve("eve/package.json"));
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
 const { createDevelopmentServer } = await import(new URL("dist/src/internal/nitro/host/start-development-server.js", eveRoot));
 
 test("Eve HTTP host restores a real OpenCode question after host restart", { timeout: 180_000 }, async () => {
@@ -28,7 +28,7 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
     await mkdir(join(root, "tools"));
     await writeFile(join(root, "package.json"), JSON.stringify({ name: "native-host-fixture", private: true, type: "module" }));
     await writeFile(join(root, "instructions.md"), "NATIVE_HOST_INSTRUCTIONS: Ask before continuing.\n");
-    await writeFile(join(root, "tools/ask_question.ts"), 'export { default } from "eve/tools/ask_question";\n');
+    await writeFile(join(root, "tools/ask_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
     const bin = fileURLToPath(new URL("./node_modules/.bin", import.meta.url));
     processHost = registerLocalProcessHost(await createLocalSandbox(runtimeRoot, { environment: {
       PATH: `${bin}:${process.env.PATH}`, HOME: join(runtimeRoot, "home"),

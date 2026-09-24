@@ -384,18 +384,19 @@ the filesystem. The fixture's sandbox resume shim creates a fresh environment
 for that reason only; it is not a production workaround for `just-bash`, whose
 missing resume capability has its own rejection test.
 
-This is **not a production provider**. It is available only through the explicit
-`@dojofoo/agent/experimental` entrypoint and is not wired into authoring.
+The provider remains available through the explicit
+`@dojofoo/agent/experimental` entrypoint. Authoring now uses it through the
+managed Eve runtime; this integration is still under acceptance testing.
 It retains no conversation state on the model instance. It accepts text or
 structured user turns and function tools;
 it does not implement the entire provider options contract.
 
-Before integrating with authoring, prove:
+Remaining acceptance work (see the package README for verified native cases):
 
-1. Session isolation and server restart now pass through Eve's real development
-   host. Verify the remaining workflows below before authoring integration.
-2. Recovery of pending human questions through Eve's full host and real adapters;
-   the provider/SDK boundary is covered by the scripted process-restart test.
+1. Extend the common behavioral contracts across every advertised adapter, beyond
+   the existing native startup/capability checks and selected real-host cases.
+2. Verify pending-question recovery and cancellation for each applicable adapter;
+   passing the scripted SDK test alone does not prove native recovery.
 3. Arbitrary rewritten history is not synchronized; the opt-in compaction hook
    covers native delegation only, not history editing/imports.
 4. Dynamic instructions, tool changes, approvals, attachments, structured output

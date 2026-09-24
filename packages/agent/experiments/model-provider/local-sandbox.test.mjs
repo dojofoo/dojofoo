@@ -13,6 +13,17 @@ async function workspace(t) {
   return { root, session };
 }
 
+test("local sandbox preserves caller-owned identity when reattached", async t => {
+  const { root } = await workspace(t);
+  const first = await createLocalSandbox(root, { id: "harness-session-one" });
+  await first.stop();
+  const resumed = await createLocalSandbox(root, { id: "harness-session-one" });
+  t.after(() => resumed.stop());
+  assert.equal(first.id, "harness-session-one");
+  assert.equal(resumed.id, first.id);
+  await assert.rejects(createLocalSandbox(root, { id: "" }), /non-empty/);
+});
+
 test("cleanup requires observed group disappearance after a transient EPERM", async t => {
   const { session } = await workspace(t);
   const child = await session.spawn({ command: "sleep 0.1" });

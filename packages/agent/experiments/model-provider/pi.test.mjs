@@ -6,7 +6,7 @@ import { createPi } from "@ai-sdk/harness-pi";
 import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
 import { generateText, jsonSchema, tool } from "ai";
 import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
-const eveRoot = new URL("./", import.meta.resolve("eve/package.json"));
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
 const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
 const { compactMessages } = await import(new URL("dist/src/harness/compaction.js", eveRoot));
 

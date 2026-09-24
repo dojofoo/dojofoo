@@ -9,6 +9,8 @@ import { streamAcpAsAgUi } from "./lesson/agui-stream";
 import { acpClient } from "./lesson/codex-client";
 import { resolveRequestWorkspace } from "./control/workspace";
 import { mountEveAuthoring } from "./authoring-eve";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
 
 const agent: AuthoringRouteDependencies["agent"] = {
   currentHarness: dojofooHarness,
@@ -41,8 +43,20 @@ export const authoringRoutes = createAuthoringRoutes({
   ),
 });
 
-mountEveAuthoring(authoringRoutes, {
+const eveRoot = process.env.DOJO_EVE_ROOT;
+export const closeAuthoringRuntime = mountEveAuthoring(authoringRoutes, {
   host: process.env.EVE_BASE_URL,
+  runtime: eveRoot ? async () => {
+    // Native Node loading keeps the application's runtime and workers outside
+    // Vite's UI module graph, preserving their own package scope.
+    const load = createRequire(resolve(eveRoot, "package.json"));
+    const { createDevelopmentServer } = load("@dojofoo/agent/server") as typeof import("@dojofoo/agent/server");
+    return createDevelopmentServer(eveRoot, { host: "127.0.0.1", port: 0 });
+  } : () => {
+    const load = createRequire(import.meta.url);
+    const { acquireKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
+    return acquireKyoshiRuntime(resolveRequestWorkspace(new Request("http://localhost/")));
+  },
   root: () => resolveRequestWorkspace(new Request("http://localhost/")),
   resolveWorkspace: resolveRequestWorkspace,
 });

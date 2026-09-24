@@ -1,4 +1,5 @@
 import { Client, type MessageStreamEvent } from "@dojofoo/agent/client";
+import { ChatClient, fetchServerSentEvents } from "@tanstack/ai-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createEveAuthoringRoutes } from "./routes";
 
@@ -37,6 +38,18 @@ function fixture() {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
 describe("Eve authoring HTTP routes using the real Eve client", () => {
+  it("accepts TanStack's real AG-UI transport without a custom message field", async () => {
+    const { app, requests } = fixture();
+    const connection = fetchServerSentEvents("http://authoring.local/sessions", {
+      fetchClient: async (input, options) => app.fetch(new Request(input, options)),
+    });
+    const events: string[] = [];
+    const chat = new ChatClient({ connection, onChunk: event => { events.push(event.type); } });
+    await chat.sendMessage("Help me author this course.");
+    expect(events).toContain("RUN_FINISHED");
+    expect(requests.filter(request => request.body).map(request => request.body?.message))
+      .toEqual(["Help me author this course."]);
+  });
   it("replays a settled session over a read-only SSE connection", async () => {
     const { app, requests } = fixture();
     const response = await app.request("/sessions/session-1/messages?runId=view-rejoin");

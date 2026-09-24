@@ -4,12 +4,14 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 const context = vi.hoisted(() => ({ root: "" }));
 
@@ -77,7 +79,9 @@ describe("authoring routes", () => {
   beforeEach(() => {
     answer.mockReset();
     resume.mockReset().mockResolvedValue(undefined);
-    context.root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-"));
+    const root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-"));
+    context.root = root;
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     cpSync(resolve(repository, "packages/authoring/templates/katas"), context.root, {
       recursive: true,
       filter: (source) => !source.includes("/.dojo/")
@@ -230,6 +234,28 @@ describe("authoring routes", () => {
       courseId: "systems-thinking",
       lessonId: "001-draw-a-boundary",
     });
+  });
+
+  it("trials authored files without copying Kyoshi runtime or repository state", async () => {
+    authorLesson();
+    for (const directory of [".dojo/kyoshi-app", ".dojo/kyoshi-harness", ".git"]) {
+      mkdirSync(resolve(context.root, directory), { recursive: true });
+      writeFileSync(resolve(context.root, directory, "private-state"), "not lesson content");
+    }
+    symlinkSync(context.root, resolve(context.root, ".dojo/kyoshi-harness/course"), "dir");
+    const original = readFileSync(resolve(context.root, "src/001-draw-a-boundary/solution.ts"), "utf8");
+    const response = await authoringRoutes.request("/lessons/001-draw-a-boundary/trials", { method: "POST" });
+    expect(response.status).toBe(201);
+    const trials = resolve(context.root, ".dojo/trials");
+    const trial = resolve(trials, readdirSync(trials)[0]);
+    const copied = resolve(trial, ".dojos/systems-thinking");
+    for (const directory of [".dojo", ".git", "node_modules"]) {
+      expect(existsSync(resolve(copied, directory)), directory).toBe(false);
+    }
+    const learnerFile = resolve(trial, "katas/001-draw-a-boundary/solution.ts");
+    expect(readFileSync(learnerFile, "utf8")).toBe(original);
+    writeFileSync(learnerFile, "// learner edits stay in the trial\n");
+    expect(readFileSync(resolve(context.root, "src/001-draw-a-boundary/solution.ts"), "utf8")).toBe(original);
   });
 
   it("edits only supported authoring files and projects the saved content", async () => {

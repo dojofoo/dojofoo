@@ -15,7 +15,7 @@ import { startLoopbackModel } from "./loopback-openai.mjs";
 // The same public CLI boundary used by Eve's framework integrations. No private
 // server imports or custom HTTP routes; only inference is deterministic.
 function startCli(root, home) {
-  const executable = fileURLToPath(new URL("bin/eve.js", import.meta.resolve("eve/package.json")));
+  const executable = fileURLToPath(new URL("bin/eve.js", import.meta.resolve("@dojofoo/agent/eve/package.json")));
   return startServer(root, home, [executable, "dev", "--no-ui", "--host", "127.0.0.1", "--port", "0"]);
 }
 
@@ -37,6 +37,7 @@ function startServer(root, home, args, env = {}, urlPattern = /http:\/\/127\.0\.
   });
   const timer = setTimeout(() => ready.reject(new Error(`Eve CLI startup timed out: ${output}`)), 60_000);
   return {
+    output: () => output,
     url: ready.promise.finally(() => clearTimeout(timer)),
     async close() {
       if (child.exitCode !== null || child.signalCode !== null) return;
@@ -61,7 +62,7 @@ test(`public Eve CLI restores a Pi question and native history after process res
   let server;
   try {
     await Promise.all([mkdir(join(root, "tools"), { recursive: true }), mkdir(runtime), mkdir(home)]);
-    await writeFile(join(root, "package.json"), JSON.stringify({ name: "cli-host-fixture", private: true, type: "module", dependencies: { eve: "0.53.0" } }));
+    await writeFile(join(root, "package.json"), JSON.stringify({ name: "cli-host-fixture", private: true, type: "module", dependencies: { "@dojofoo/agent": "0.0.0" } }));
     await writeFile(join(root, "instructions.md"), "CLI_HOST_INSTRUCTIONS: Ask before continuing.\n");
     await writeFile(join(root, "tools/ask_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
     await writeFile(join(root, "agent.ts"), `
@@ -88,8 +89,8 @@ test(`public Eve CLI restores a Pi question and native history after process res
     await server.close();
     if (!browserMode) server = startCli(root, home);
     if (browserMode) {
-      // No EVE_BASE_URL: the UI's public Eve Vite plugin must discover and
-      // start the authored host itself after the original CLI was stopped.
+      // No EVE_BASE_URL: the UI server must own the authored runtime lifecycle,
+      // in development and packaged builds, after the original CLI was stopped.
       const uiHost = await answerInBrowser({ root: process.env.DOJO_AGENT_UI_ROOT, course: runtime, agentRoot: root, home, sessionId: saved.sessionId });
       assert.equal(endpoint.requestedTools.length, 1);
       assert.equal(uiHost.receipt.optionId, "review");
@@ -180,6 +181,12 @@ async function answerInBrowser({ root, course, agentRoot, home, sessionId }) {
     const page = await browser.newPage();
     const requests = [];
     const errors = [];
+    const failedResponses = [];
+    page.on("response", response => {
+      if (response.status() >= 400) failedResponses.push(response.text().then(body => ({
+        url: response.url(), status: response.status(), body,
+      })));
+    });
     page.on("pageerror", error => errors.push(error.message));
     page.on("request", request => {
       if (request.method() === "POST") requests.push(new URL(request.url()).pathname);
@@ -187,8 +194,21 @@ async function answerInBrowser({ root, course, agentRoot, home, sessionId }) {
     await page.goto(`${await ui.url}/authoring?session=${encodeURIComponent(sessionId)}`);
     const review = page.getByRole("radio", { name: /Review/ });
     await expect(review).toBeVisible({ timeout: 30_000 });
-    await review.click();
-    await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 60_000 });
+    const [answerResponse] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST"
+        && new URL(response.url()).pathname === `/api/authoring/eve/sessions/${sessionId}/messages`),
+      review.click(),
+    ]);
+    if (!answerResponse.ok()) {
+      const snapshot = await new Client({ host: await ui.url }).sessions.attach(sessionId)
+        .snapshot({ signal: AbortSignal.timeout(10_000) }).catch(error => ({ error: error.message }));
+      throw new Error(JSON.stringify({ response: await answerResponse.text(), snapshot, host: ui.output() }));
+    }
+    try {
+      await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 60_000 });
+    } catch (cause) {
+      throw new Error(JSON.stringify({ errors, failedResponses: await Promise.all(failedResponses) }), { cause });
+    }
     await expect(review).toHaveAttribute("aria-checked", "true");
     await page.reload();
     await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 30_000 });

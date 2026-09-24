@@ -1,17 +1,32 @@
 import { ClientError, defaultMessageReducer, parseInputResponses, type Client, type ClientSession } from "@dojofoo/agent/client";
-import { toServerSentEventsResponse } from "@tanstack/ai";
+import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSentEventsResponse } from "@tanstack/ai";
 import { Hono } from "hono";
 import { eveChatMessages } from "./messages";
 import { eveQuestionInterrupts, streamEveAsAgUi } from "./stream";
 import { resumeEveEvents } from "./resume";
 
+async function authoringInput(body: unknown): Promise<{ message?: unknown; runId?: unknown; resume?: unknown }> {
+  if (!body || typeof body !== "object") return {};
+  if (!("messages" in body)) return body;
+  let input;
+  try { input = await chatParamsFromRequestBody(body); }
+  catch (cause) { throw new SyntaxError("Invalid AG-UI authoring request", { cause }); }
+  const latest = convertMessagesToModelMessages(input.messages).at(-1);
+  const content = latest?.role === "user" ? latest.content : undefined;
+  const message = typeof content === "string" ? content : content?.flatMap(part => part.type === "text" ? [part.content] : []).join("");
+  // Eve owns history; forward only the new user turn, never replay client history.
+  return { message, runId: input.runId, resume: input.resume };
+}
+
 /** Mount behind the application's workspace authorization. The injected client
  * chooses the authored agent host; request bodies cannot select a remote host.
  * Eve owns IDs, cursors, durable history, validation and execution.
  */
-export function createEveAuthoringRoutes(client: Client) {
+export function createEveAuthoringRoutes(source: Client | (() => Promise<Client>)) {
+  const getClient = typeof source === "function" ? source : async () => source;
   const reducer = defaultMessageReducer();
   const read = async (sessionId: string, signal: AbortSignal) => {
+    const client = await getClient();
     const snapshot = await client.sessions.attach(sessionId).snapshot({ signal });
     return {
       session: client.sessions.attach(snapshot.session.sessionId, { streamIndex: snapshot.session.streamIndex }),
@@ -25,10 +40,10 @@ export function createEveAuthoringRoutes(client: Client) {
       headers: { "content-type": "application/json" },
     }))
     .post("/sessions", async c => {
-      const { message, runId } = await c.req.json<{ message?: unknown; runId?: unknown } | null>() ?? {};
+      const { message, runId } = await authoringInput(await c.req.json());
       if (runId !== undefined && (typeof runId !== "string" || !runId.trim())) return c.json({ error: "Run ID must be a non-empty string" }, 422);
       if (typeof message !== "string" || !message.trim()) return c.json({ error: "Message is required" }, 422);
-      const { session, response } = await client.sessions.create({ message, signal: c.req.raw.signal });
+      const { session, response } = await (await getClient()).sessions.create({ message, signal: c.req.raw.signal });
       return toServerSentEventsResponse(streamEveAsAgUi({
         events: response, initial: reducer.initial(), threadId: session.state.sessionId, runId: runId ?? crypto.randomUUID(),
       }));
@@ -54,7 +69,7 @@ export function createEveAuthoringRoutes(client: Client) {
       }));
     })
     .post("/sessions/:sessionId/messages", async c => {
-      const { message, runId, resume } = await c.req.json<{ message?: unknown; runId?: unknown; resume?: unknown } | null>() ?? {};
+      const { message, runId, resume } = await authoringInput(await c.req.json());
       if (runId !== undefined && (typeof runId !== "string" || !runId.trim())) return c.json({ error: "Run ID must be a non-empty string" }, 422);
       let responses: ReturnType<typeof parseInputResponses> | undefined;
       if (resume !== undefined) {
@@ -88,6 +103,6 @@ export function createEveAuthoringRoutes(client: Client) {
       }));
     })
     .post("/sessions/:sessionId/cancel", async c => c.json(
-      await client.sessions.attach(c.req.param("sessionId")).cancel({ signal: c.req.raw.signal }),
+      await (await getClient()).sessions.attach(c.req.param("sessionId")).cancel({ signal: c.req.raw.signal }),
     ));
 }

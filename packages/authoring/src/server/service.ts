@@ -180,7 +180,7 @@ export function createLessonTrial(root: string, lessonId: string): {
   mkdirSync(dirname(courseRoot), { recursive: true });
   mkdirSync(courseRoot, { recursive: true });
   for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (entry.name === ".dojo" || entry.name === "node_modules") continue;
+    if (entry.name === ".dojo" || entry.name === ".git" || entry.name === "node_modules") continue;
     cpSync(resolve(root, entry.name), resolve(courseRoot, entry.name), {
       recursive: true,
     });

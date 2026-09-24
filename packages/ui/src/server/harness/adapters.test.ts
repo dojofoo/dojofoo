@@ -1,10 +1,28 @@
 import { describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createCodexHarnessAdapter } from "./codex";
-import { configureOpenCodeSessionModel, createOpenCodeHarnessAdapter } from "./opencode";
+import { configureOpenCodeSessionModel, createOpenCodeHarnessAdapter, opencodeExecutable } from "./opencode";
 import { dojofooHarness, harnessAdapter } from "./registry";
 import { promptContextBlock } from "../lesson/codex-client";
 
 describe("ACP harness adapters", () => {
+  it("preserves the installed executable when a fixture isolates the user home", () => {
+    const root = mkdtempSync(join(tmpdir(), "dojo-opencode-resolution-"));
+    try {
+      const home = join(root, "user");
+      const binary = join(home, ".opencode/bin/opencode");
+      mkdirSync(join(home, ".opencode/bin"), { recursive: true });
+      writeFileSync(binary, "fixture executable");
+      const selected = opencodeExecutable({}, home);
+      expect(selected).toBe(binary);
+      const adapter = createOpenCodeHarnessAdapter({ OPENCODE_BIN: selected }, join(root, "isolated"));
+      expect(adapter.process({ root, developerInstructions: "Teach" }).command).toBe(binary);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("encapsulates Codex process configuration", () => {
     const adapter = createCodexHarnessAdapter({ PATH: "/bin", CODEX_CONFIG: JSON.stringify({ model: "gpt-5" }) });
     const process = adapter.process({ root: "/tmp/lesson", developerInstructions: "Teach this lesson" });

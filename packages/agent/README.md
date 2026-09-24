@@ -1,9 +1,50 @@
 # @dojofoo/agent
 
 Eve plus an experimental model provider backed by the official AI SDK
-HarnessAgent. No copied Eve source, custom execution backend, workflow runner
-or per-adapter provider implementations. One opt-in Eve compaction hook is
-maintained as a pinned, two-file dependency patch.
+HarnessAgent. No maintained Eve source fork, custom execution backend, workflow
+runner or per-adapter provider implementations. The build embeds a pinned Eve
+release with a five-file patch for native compaction and external model routing.
+The separate distribution patch redirects the generated module-map loader import
+to `@dojofoo/agent`, recognizes that dependency during CLI project discovery,
+and preserves Eve package identity for workflow steps in linked workspaces.
+The latter prevents compiled workflow and registered step IDs from diverging
+when the embedded runtime lives outside `node_modules` during development.
+
+All pinned Eve export paths are exposed directly, including skills, hooks,
+memory, tools and framework integrations. A packed-consumer test checks every
+declared target and loads the core authoring APIs. Optional integrations still
+have their upstream framework/service requirements; export coverage alone is
+not behavioral verification. The `self-modification/config` source condition
+uses Eve's shipped JavaScript because its published TypeScript target is absent.
+
+The package includes Eve's pinned `just-bash` engine dependency. Authored
+filesystem tools require no consumer install or runtime auto-install. The packed
+consumer test reads and edits a live course mount, observes human edits, and
+reopens private workspace files after shutdown.
+
+The opt-in browser acceptance check runs a real local UI, Eve host and OpenCode
+against a loopback model endpoint (no paid inference):
+
+```sh
+DOJO_AUTHORING_RUNTIME_E2E=1 pnpm --filter @dojofoo/ui exec playwright test e2e/eve-authoring-runtime.spec.ts
+```
+
+It starts from an empty temporary course, saves authored files through CodeMirror,
+restarts the server with a pending question, answers the restored question, and
+opens an isolated learner trial that receives an agent response. Requires Node 24,
+built `@dojofoo/agent`, Playwright Chromium and a local ACP-capable OpenCode binary
+(`OPENCODE_BIN` can override discovery). This verifies runtime integration, not
+the pedagogical quality of generated material or other harnesses.
+
+The shared native lifecycle check is opt-in as well:
+
+```sh
+DOJO_HARNESS_LIFECYCLE=1 pnpm --filter @dojofoo/authoring exec vitest run src/eve/harness-lifecycle.test.ts
+```
+
+It sends no prompts, but may bootstrap native binaries and read existing login
+configuration. It checks start/checkpoint/resume for each advertised adapter;
+passing it does not establish tool, inference or compaction compatibility.
 
 ## Boundaries
 
@@ -12,6 +53,7 @@ maintained as a pinned, two-file dependency patch.
 | `@dojofoo/agent` | Reexport Eve's root API unchanged |
 | `/client`, `/react` | Reexport Eve's existing client integrations |
 | `/harness` | Reexport the official HarnessAgent API unchanged |
+| `/server` | Reexport the pinned Eve host lifecycle (`start`/`close`) for local UI ownership |
 | `/experimental` | Translate the AI SDK model contract to HarnessAgent |
 
 The provider factory accepts the official adapter and runtime settings. Its
@@ -116,9 +158,11 @@ its cleanup. This supports warm continuation with an existing sandbox, not cold
 recovery of an in-memory filesystem. Native OpenCode disk recovery is tested as
 described above. Remaining integration gaps include pending native questions
 after process termination, the broader native built-in tool set, and the full model-options
-contract. Authoring integration is opt-in through `EVE_BASE_URL`; without it,
-the existing frontend uses ACP. The Eve page flow is browser-tested with recorded
-events, not yet through a live native harness end to end.
+contract. Authoring starts its managed Eve runtime automatically; `EVE_BASE_URL`
+optionally selects an externally managed host. The browser acceptance test covers
+course creation, restart, question recovery and learner trial through the native
+OpenCode harness against a deterministic local model endpoint. This verifies
+integration, not teaching quality from a paid model.
 
 One verified parity gap: the SDK preserves the original model and instructions
 through a suspended tool continuation. Changes take effect on the next user turn,
@@ -173,7 +217,18 @@ provider restriction: `prepareCall` prepares fresh prompts, while
 `resolveActiveTurnSettings` restores suspended-turn settings. No checkpoint
 rewriting or adapter-specific model setter is used.
 
+The authoring `runtime-turn.test.ts` additionally changes the live model selection
+between native OpenCode turns. It verifies the loopback provider receives the new
+model ID, retains the original lesson and answered question, and keeps the same
+Eve session after a server restart. This is a real adapter integration check;
+it does not claim mid-suspension switching or equivalent behavior in every adapter.
+
 ## Provider acceptance ledger
+
+For a focused clean-consumer workflow-host regression, run
+`node experiments/model-provider/run.mjs --host-only` from this package after
+building it. It exercises both root-copy and declared-specialist delegation;
+failures identify the workflow stage without changing runtime behavior.
 
 | Check | Status and evidence |
 | --- | --- |
@@ -186,7 +241,7 @@ rewriting or adapter-specific model setter is used.
 | Unsupported options | Explicit warnings for sampling/token limits, non-default reasoning/tool choice, provider options and raw-chunk requests. Configure adapter-specific behavior through runtime settings. |
 | Sources/generated files | Unsupported by the installed HarnessAgent adapter event union. Provider has standard output mappings, but no end-to-end capability is claimed. |
 | Full workflow host | Conversation/isolation, pending-question recovery, persistent filesystem tools, root-copy and declared-specialist delegation with automatic parent wake-up pass through real Nitro and local workflow storage. Specialist instructions, tools, files and conversation are isolated. Real inference through that host remains unverified. |
-| Authoring UI | Opt-in via `EVE_BASE_URL`, or `DOJO_EVE_ROOT` for automatic development-host startup. Bound to the startup workspace. Browser fixtures verify creation, reload/answer, failed-answer retry, read-only reconnect and unavailable-session errors. A real Pi/public-Eve-CLI browser test verifies automatic host startup, restored questions, one answer submission, the response and accepted selection after reload, without route mocks. Packaged CLI host startup remains pending. |
+| Authoring UI | Automatic managed runtime by default, bound to the startup workspace. `EVE_BASE_URL` and `DOJO_EVE_ROOT` remain explicit overrides. The real OpenCode browser test verifies course-file saves, restart with a pending question, answer recovery and an isolated learner trial response, without route mocks. Other browser fixtures cover failed-answer retry, read-only reconnect and unavailable-session errors. |
 
 Approval checkpoints stay on their associated tool call because AI SDK does not
 retain approval-request metadata. When HarnessAgent suppresses a resumed call's
@@ -236,6 +291,13 @@ separate-process history recovery; no implementation files are copied beside
 the consumer. This API executes with host permissions and is not a security
 sandbox.
 
+When implementing a resumable sandbox provider, pass the SDK's `sessionId` as
+`createLocalSandbox(root, { id: sessionId })` on both creation and resume. The
+same ID must refer to the same existing resource; it does not restore deleted
+files. Without an explicit ID, standalone sandbox instances receive fresh IDs.
+Authoring preserves this SDK identity automatically across Eve worker/server
+restarts; it does not rewrite native checkpoints or maintain another registry.
+
 For Pi, the package-consumer test also verifies the public `eve dev --no-ui`
 hosting path: a complete CLI-process restart restores a pending question from
 the native journal, accepts its answer once, and retains the lesson history.
@@ -252,37 +314,57 @@ reloads, and confirms the accepted choice and native history. It checks for
 browser errors and unexpected POSTs, then closes the browser and servers.
 Run just these public-CLI cases with
 `node experiments/model-provider/run.mjs --cli-only` after building this package.
-The authored application must declare `eve` directly in `package.json` for
-Eve's project discovery, even when its source imports use `@dojofoo/agent`.
+The authored application declares `@dojofoo/agent` in `package.json`;
+our distribution recognizes it during Eve project discovery.
 This test requires no private Eve server imports or process coordinator. It
 does not establish the same cold-restart behavior for bridge-based adapters.
 
-The authoring UI uses Eve when its server has `EVE_BASE_URL` configured;
-otherwise the existing ACP path remains active. The CLI does not yet start an
-Eve host automatically. There is no `--execution-backend` build mode.
+Without overrides, the authoring UI prepares a private Eve application under
+the course's `.dojo/kyoshi-app` and manages its server and process coordinator.
+Official harness bootstrap files live in `.dojo/kyoshi-harness`; its `course`
+working directory links to the live authored files, rather than a copied draft.
+The runtime keeps the selected model across restarts for the same harness and
+refreshes the process connection. Credentials remain with the native harness.
+The generated-app OpenCode integration test covers a pending question across
+server restart using a loopback model endpoint, without paid inference.
 
-For Vite development, set `DOJO_EVE_ROOT` to an existing Eve application.
-`@dojofoo/agent/sveltekit` reexports Eve's public Vite plugin unchanged. The UI
-uses it only in serve mode and runs it before Nitro initializes, so Eve's
-resolved host URL reaches the API worker. Eve owns host discovery, locking and
-startup; there is no Dojo-specific process registry or launcher. This does not
-yet scaffold an Eve application or select the user's harness automatically.
+The UI accepts `EVE_BASE_URL` for an externally owned host. Alternatively, set
+`DOJO_EVE_ROOT` to an authored application: the UI lazily starts that application's
+installed runtime through `/server` and closes it through Nitro's shutdown hook.
+Concurrent requests share one startup; startup failures reach the frontend without
+automatic retries or fallback. The UI never closes externally owned hosts.
+This path is server-owned, not a Vite-only plugin. Without either setting, the UI
+automatically prepares and starts the managed application described above.
+`DOJOFOO_HARNESS` selects its official adapter (OpenCode by default); there is no
+`--execution-backend` mode. Learning/trial sessions retain their existing ACP path.
+
+Local Cursor uses the installed `agent` executable and its normal home/login.
+The authoring package's `local-cursor.ts` disables the official adapter's credential
+resolver with explicit empty authentication and changes only its bootstrap recipe:
+link the installed executable instead of downloading another CLI, and retain the
+normal home instead of creating a private one. It does not read Keychain, copy
+credentials, or forward subscription tokens. The official ACP bridge, tool catalog,
+and session implementation remain unchanged. A guarded bootstrap-shape test requires
+review if the pinned adapter changes; this binding is local-only, not a remote-sandbox
+authentication strategy. Missing CLI installation is an explicit error.
 
 ## Native compaction
 
 `patches/eve@0.53.0.patch` adds `experimental_compact` dispatch at Eve's existing
 compaction entry point and a public capability type. Models without the method
 follow the unchanged Eve path. This is an experimental Eve extension, not an
-AI SDK standard. The patch is applied by this workspace's pnpm configuration;
-installing the packed agent package alone does not patch a consumer's Eve.
+AI SDK standard. Our build downloads the pinned registry release and applies the
+patch before packaging it under `dist/eve`. Public exports reference that runtime,
+including its original package scope, workers, assets and license notices.
+Consumers neither install Eve separately nor configure patches. No postinstall
+hook mutates consumer dependencies. The patch remains available through
+`@dojofoo/agent/eve.patch` for auditing, not as an installation step.
 
-The patch is shipped in this package and resolves through
-`@dojofoo/agent/eve.patch`. Keep it in the consuming application's package-manager
-patch configuration, pinned to Eve `0.53.0`. For pnpm, use `pnpm patch eve@0.53.0`,
-apply the shipped patch in the resulting edit directory, then run
-`pnpm patch-commit <edit-directory>` and commit the generated patch and lockfile.
-The clean-consumer tests resolve and apply the packed artifact, never a file
-from this repository. No postinstall hook mutates a consumer's dependencies.
+`pnpm test:packaging` installs the tarball in a clean temporary project with
+install scripts disabled, rejects a separate Eve installation, and runs the
+54 provider/compaction contract tests against the embedded runtime. The broader
+host matrix separately tests authored skills, subagents, native recovery and the UI
+against this distribution.
 
 The provider resumes the checkpoint, calls official `session.compact()`, stops
 the session and returns its refreshed checkpoint plus any unsent trailing messages.
@@ -301,13 +383,123 @@ covered by this extension. It does not establish full Eve parity.
 
 ## Verification
 
+### Native acceptance evidence
+
+These are separate behavioral gates, not a blanket compatibility claim. “Unverified”
+means the native case has not passed here, even if scripted provider tests pass.
+Codex, OpenCode, Pi, Grok and FX passes use deterministic local inference.
+Cursor's streaming/recovery/cancellation acceptance uses the installed CLI and
+real Auto model access, and requires explicit opt-in/usage approval.
+
+| Harness | Conversation recovery | Eve question + host restart | Active-turn cancellation | Native compaction | Between-turn model switch |
+| --- | --- | --- | --- | --- | --- |
+| Codex | Passed | Passed | Passed | Unsupported (tested) | Passed |
+| OpenCode | Passed | Passed | Passed | Passed | Passed |
+| Pi | Passed | Passed | Passed | Passed | Passed |
+| Grok | Passed | Passed | Passed | Unsupported (tested) | Passed |
+| FX | Passed | Passed | Passed | Unsupported (tested) | Passed |
+| Cursor | Passed | Unverified | Passed | Unsupported (tested) | Unverified |
+
+Evidence: `experiments/model-provider/pi.test.mjs`, `opencode-startup.test.mjs`,
+`cli-host.test.mjs`, and the authoring package's `native-harness-contract.test.ts`
+and `runtime-turn.test.ts`. Cursor startup is covered separately, but its official
+adapter cannot change provider routing; startup is not evidence for these gates.
+The opt-in `cursor-acceptance.test.ts` exercises the real subscription path
+(`DOJO_CURSOR_ACCEPTANCE=1`; explicit usage approval required). The latest local
+run with the local binding passed streaming, remembered a codeword after a
+stop/JSON checkpoint/resume, and confirmed abort during active streamed output.
+It uses Cursor's ACP Auto ID `default` (the terminal's `--model auto` is a different
+alias). Direct CLI Auto inference also passed. Named models returned `Free plans
+can only use Auto` on this account, so model switching was not exercised.
+The previous initialization failure came from the stock adapter forwarding a
+subscription access token as an API key into its private CLI environment. The
+local binding removes that forwarding rather than copying tokens differently.
+The Eve question/host-restart gate and model-switch inference remain unverified.
+Set `DOJO_CURSOR_MODEL` and `DOJO_CURSOR_SECOND_MODEL` to supported ACP model IDs
+only when explicitly approving a run on an account that permits those models.
+The test stops on failure and is skipped in normal runs.
+The common suite is incomplete until each applicable cell is verified or a native
+limitation has been demonstrated, documented, and tested explicitly.
+
+The shared native model-switch check configures a new official `HarnessAgent`
+with `openai/gpt-4.1` after a completed `openai/gpt-4o` turn, uses the existing
+session, and verifies the actual inference request's model, retained conversation,
+and unchanged session ID. OpenCode also passes the managed Eve runtime's dynamic
+model-selection check. These results do not claim that changing a model during a
+suspended tool continuation is supported.
+FX passes the same history/identity assertions with `openai/gpt-5.5`, checking
+its actual `ai-language-model-id` gateway header rather than assuming the model
+is present in the request body. All these model requests terminate at the local
+fixture; no provider inference is used.
+Grok uses two local custom-model catalog entries to avoid depending on remote
+catalog availability; the test switches from `fixture-first` to `fixture-second`.
+Codex switches from the official adapter's default to `gpt-5.4` against the local
+Responses fixture, preserving the native model-change warning. This validates
+model routing, not subscription access to those particular model identifiers.
+
+The compaction column measures explicit manual compaction, not automatic context
+management inside a CLI. The official Codex adapter rejects manual compaction;
+Codex still owns its automatic compaction. Cursor, Grok and FX use ACP v1, which
+does not define this operation. `harness-lifecycle.test.ts` asserts each native
+adapter's capability error. OpenCode's native contract verifies a summary request
+and continued conversation with the same session ID; custom summary instructions
+are explicitly unsupported and tested. These errors propagate through Eve instead
+of silently replacing the conversation or fabricating a summary.
+
+Codex's question/restart gate follows the official adapter's host-tool CLI relay
+instruction through a native `exec_command`, rather than assuming those tools
+are registered through MCP. The test parks an Eve question, shuts down the host,
+restarts it, submits the answer, and verifies the conversation continues with
+one question invocation. Neither the adapter nor its relay is patched.
+
+The opt-in authoring startup check runs all six configured native adapters without
+inference:
+
+```sh
+DOJO_HARNESS_LIFECYCLE=1 pnpm --filter @dojofoo/authoring exec vitest run src/eve/harness-lifecycle.test.ts
+```
+
+Codex, OpenCode and Pi restore an unprompted checkpoint. Cursor, Grok and FX
+explicitly reject that operation: the official ACP adapter creates the native
+conversation on its first prompt, so an unused checkpoint has no native session
+ID. This check does **not** establish their recovery after a real conversation,
+tool use, or model access.
+
+The separate `native-harness-contract.test.ts` opt-in test uses the real Codex,
+OpenCode, Pi, Grok and FX runtimes and official adapters with isolated homes and
+loopback inference endpoints (Responses for Codex/OpenCode/Pi, Responses/Chat
+Completions for Grok, Gateway events for FX). It verifies two
+text turns, checkpoint restoration, stable session ID,
+and the first turn remaining in the second model request. It also holds the
+next user turn's model request and cancels it through the official SDK, verifying
+an abort rather than a timeout; background model requests do not trigger the test.
+
+`runtime-turn.test.ts -t 'grok model|fx model'` additionally verifies authored
+instructions, native MCP tool discovery, an Eve question, full managed-server
+restart, and delivery of the answer through the provider to both Grok and FX.
+The FX fixture also handles the CLI's model-based permission review using the
+upstream test response format; production permissions are unchanged.
+The official ACP adapter warns that
+process-loss recovery may rerun the interrupted prompt and repeat native work.
+The fixture verifies one external question invocation and retained answer/history;
+it does not establish exactly-once execution of arbitrary native side effects.
+
+On macOS, the pinned FX adapter additionally requires GNU `chmod` on `PATH`:
+its authentication-file setup invokes `chmod 600 -- …`, which BSD `chmod`
+rejects. Authoring preserves an existing GNU `chmod` on `PATH`, otherwise it
+discovers installed Homebrew coreutils under either standard Homebrew prefix and
+prepends its `libexec/gnubin` directory for the owned harness processes only.
+If unavailable, startup fails with an actionable installation message before the
+adapter writes authentication files. It never installs utilities automatically,
+mutates the user's shell environment, or rewrites adapter commands.
+
 ```sh
 pnpm --filter @dojofoo/agent test
 ```
 
-Type-checks/builds the provider, packs it, installs it with unmodified registry
-dependencies in a temporary consumer, tests the unpatched baseline, then applies
-the compaction and dynamic-provider-routing patch and reruns the tests. Native Pi compaction
+Type-checks/builds the provider, packs its patched runtime, and installs it with
+official registry adapters in a temporary consumer with install scripts disabled.
+No consumer patch step or separate Eve dependency is used. Native Pi compaction
 uses a real journal with loopback inference. No paid models or local login state
 are used.
 See [the experiment gates](experiments/model-provider/README.md) for the remaining

@@ -16,8 +16,9 @@ type ProcessHandle = Awaited<ReturnType<Files["spawn"]>>;
  */
 export async function createLocalSandbox(
   directory: string,
-  options: { environment?: NodeJS.ProcessEnv; processHost?: Pick<Files, "spawn"> } = {},
+  options: { id?: string; environment?: NodeJS.ProcessEnv; processHost?: Pick<Files, "spawn"> } = {},
 ): Promise<Session> {
+  if (options.id !== undefined && !options.id.trim()) throw new Error("Local sandbox identity must be non-empty.");
   if (process.platform === "win32") throw new Error("Local harness execution currently requires POSIX process groups.");
   if (!isAbsolute(directory)) throw new Error("Local workspace must be an absolute directory.");
   const root = await realpath(directory);
@@ -139,7 +140,7 @@ export async function createLocalSandbox(
   };
   return {
     ...files,
-    id: randomUUID(), defaultWorkingDirectory: root, ports: [],
+    id: options.id ?? randomUUID(), defaultWorkingDirectory: root, ports: [],
     getPortEndpoint,
     getPortUrl: async options => (await getPortEndpoint(options)).url,
     restricted: () => files,

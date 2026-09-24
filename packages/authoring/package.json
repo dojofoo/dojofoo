@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./package.json": "./package.json",
+    "./eve/agent": "./src/eve/agent.ts",
+    "./eve/runtime": "./src/eve/runtime.ts",
     "./KYOSHI.md": "./src/contracts/KYOSHI.md",
     "./eve/instructions": "./src/eve/instructions.ts",
     "./eve/ask": "./src/eve/ask.ts",
@@ -22,6 +25,12 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/harness-codex": "1.0.110",
+    "@ai-sdk/harness-cursor": "1.0.21",
+    "@ai-sdk/harness-fx": "1.0.21",
+    "@ai-sdk/harness-grok-build": "1.0.45",
+    "@ai-sdk/harness-opencode": "1.0.110",
+    "@ai-sdk/harness-pi": "1.0.110",
     "@dojofoo/agent": "workspace:*",
     "@dojofoo/config": "workspace:*",
     "@tanstack/ai": "0.47.1",
@@ -29,6 +38,8 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@tanstack/ai-client": "0.25.1",
+    "pnpm": "10.34.5",
     "@types/node": "^26.1.2",
     "typescript": "6.0.3",
     "vite": "^8.2.1",

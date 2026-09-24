@@ -39,7 +39,7 @@ for (const backend of ["official", "provider", "process", "eve", "eve-tools", "e
   const { sandboxSession, runtime } = await createRuntime(root, endpoint.baseURL);
   try {
     if (backend === "eve-question") {
-      const eveRoot = new URL("./", import.meta.resolve("eve/package.json"));
+      const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
       const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
       const events = [];
       const definition = { name: "dojo_ui_ask", description: "Ask the author", inputSchema: { type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] } };
@@ -68,7 +68,7 @@ for (const backend of ["official", "provider", "process", "eve", "eve-tools", "e
       assert.match(outputs[0].output, /Review/);
       return;
     } else if (backend.startsWith("eve")) {
-      const eveRoot = new URL("./", import.meta.resolve("eve/package.json"));
+      const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
       const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
       const definition = { name: "lesson_context", description: "Read the current lesson context", inputSchema: { type: "object", properties: {}, additionalProperties: false } };
       let executions = 0;

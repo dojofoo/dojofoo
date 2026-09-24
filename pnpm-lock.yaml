@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  eve@0.53.0:
-    hash: 105a97e8996a51fe1226664cc2836fb95b8abd280d0a85ef90f99cfafd25f2c4
-    path: packages/agent/patches/eve@0.53.0.patch
-
 importers:
 
   .:
@@ -222,9 +217,15 @@ importers:
       comlink:
         specifier: 4.4.2
         version: 4.4.2
-      eve:
-        specifier: 0.53.0
-        version: 0.53.0(patch_hash=105a97e8996a51fe1226664cc2836fb95b8abd280d0a85ef90f99cfafd25f2c4)(@opentelemetry/api@1.9.0)(ai@7.0.98(zod@4.4.3))
+      just-bash:
+        specifier: 3.1.0
+        version: 3.1.0
+      nitro:
+        specifier: 3.0.260903-beta
+        version: 3.0.260903-beta
+      undici:
+        specifier: 8.9.0
+        version: 8.9.0
     devDependencies:
       '@ai-sdk/harness-pi':
         specifier: 1.0.110
@@ -235,12 +236,33 @@ importers:
       '@types/node':
         specifier: ^26.1.2
         version: 26.2.0
+      eve:
+        specifier: 0.53.0
+        version: 0.53.0(@opentelemetry/api@1.9.0)(ai@7.0.98(zod@4.4.3))(just-bash@3.1.0)
       typescript:
         specifier: 6.0.3
         version: 6.0.3
 
   packages/authoring:
     dependencies:
+      '@ai-sdk/harness-codex':
+        specifier: 1.0.110
+        version: 1.0.110(zod@4.4.3)
+      '@ai-sdk/harness-cursor':
+        specifier: 1.0.21
+        version: 1.0.21(ws@8.21.0)(zod@4.4.3)
+      '@ai-sdk/harness-fx':
+        specifier: 1.0.21
+        version: 1.0.21(ws@8.21.0)(zod@4.4.3)
+      '@ai-sdk/harness-grok-build':
+        specifier: 1.0.45
+        version: 1.0.45(ws@8.21.0)(zod@4.4.3)
+      '@ai-sdk/harness-opencode':
+        specifier: 1.0.110
+        version: 1.0.110(zod@4.4.3)
+      '@ai-sdk/harness-pi':
+        specifier: 1.0.110
+        version: 1.0.110(@earendil-works/pi-tui@0.84.4)(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(@opentelemetry/api@1.9.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(ws@8.21.0)(zod@4.4.3)
       '@dojofoo/agent':
         specifier: workspace:*
         version: link:../agent
@@ -257,9 +279,15 @@ importers:
         specifier: ^2.9.0
         version: 2.9.0
     devDependencies:
+      '@tanstack/ai-client':
+        specifier: 0.25.1
+        version: 0.25.1(@opentelemetry/api@1.9.0)(zod@4.4.3)
       '@types/node':
         specifier: ^26.1.2
         version: 26.2.0
+      pnpm:
+        specifier: 10.34.5
+        version: 10.34.5
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -791,6 +819,42 @@ packages:
 
   '@ai-sdk/gateway@4.0.79':
     resolution: {integrity: sha512-OJ+vdhqeDXoWGZWHF5mtnvE4gjk3/qfDV1+4dLCplERLNhY3w6KJcIoF5Q6sSKcm+74sruOWxl6CeREAaPDuEQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/harness-acp@1.0.46':
+    resolution: {integrity: sha512-2x3PX5ytsoOwcYsQD0q/rRLzyImVuK1S9ZCGZJj0byb9fgUMENtZgGmzwyva1aGqSyqxfB6BdBdG9L84qc+wdA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/harness-codex@1.0.110':
+    resolution: {integrity: sha512-dSddhb41kA9j7xPOE5m48HWFg3+55H8eq9rvjTI3ZFay6kSIYIyWYf1jN1mI5B873fpizDmQoE5fFHnFbD3WFQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/harness-cursor@1.0.21':
+    resolution: {integrity: sha512-GUyPs4/JvfCo8u1S5TuojeFOjZaAUaq5Sfx7Dr2dPB4JBDDxEahuKnUSc2+GYynB7JJUEpqKHeha55JwZPwnpA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/harness-fx@1.0.21':
+    resolution: {integrity: sha512-UkWfDaohFVaKG+T+OA99WdPKX9M5WQXJkdsJo+Gt1TJotI+4bwSpArl9qhsk1fNadackPK6hKwcYtogGj/V/zw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/harness-grok-build@1.0.45':
+    resolution: {integrity: sha512-XaLumY1Pbyvrb8jdAGMUB/7GC5WdoVE1PhkjK19u2YsbvAEuhbaf6+nCD9w0q7IHORJVIPJDUOEPUtGBL056fw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/harness-opencode@1.0.110':
+    resolution: {integrity: sha512-b7kQuVC7ABcgFqNlUyn0IIaSeEGdVCm2UpwBgCYo7W922oRIjEyDgx54Peiif8h/7BjLnVglCKcA4TcaFCGRXQ==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -6736,6 +6800,10 @@ packages:
     resolution: {integrity: sha512-MCBGnRlDeZ/MM7mcw+ZuSGFMBsggajrmKz6e/hrOAN7syvVZkjiY+Vh2wyCwN/CdcnAX5SxbiQB51n5nrQuX+g==}
     hasBin: true
 
+  just-bash@3.1.0:
+    resolution: {integrity: sha512-/t28X8EH3+j/zvELGkNhlFV2g6hc3oHBzy6zPBnNq2nqUN0DGS9PsD889JfQ7F6ll08gqFoutiS+VJHK30wZpg==}
+    hasBin: true
+
   jwa@2.0.1:
     resolution: {integrity: sha512-hRF04fqJIP8Abbkq5NKGN0Bbr3JxlQ+qhZufXVr0DvujKy93ZCbXZMHDL4EOtodSbCWxOqR8MS1tXA5hwqCXDg==}
 
@@ -7756,6 +7824,11 @@ packages:
   pngjs@7.0.0:
     resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
     engines: {node: '>=14.19.0'}
+
+  pnpm@10.34.5:
+    resolution: {integrity: sha512-pO4F8vc2WCVb1qiYWcBlpFwopX2u+uLIk6Fo7itzFow3uR6D5X6mdlStA/AwMXRkMOi84442LgQmBfuKvIAZLg==}
+    engines: {node: '>=18.12'}
+    hasBin: true
 
   points-on-curve@0.2.0:
     resolution: {integrity: sha512-0mYKnYYe9ZcqMCWhUjItv/oHjvgEsfKvnUTg8sAtnHr3GVy7rGkXCb6d5cSyqrWqL4k81b9CPg3urd+T7aop3A==}
@@ -9092,6 +9165,18 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
+  ws@8.21.0:
+    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   ws@8.21.3:
     resolution: {integrity: sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==}
     engines: {node: '>=10.0.0'}
@@ -9256,6 +9341,93 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.4.3
 
+  '@ai-sdk/harness-acp@1.0.46(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/harness': 1.0.108(ws@8.21.3)(zod@4.4.3)
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.4.3)
+      ws: 8.21.3
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@ai-sdk/harness-codex@1.0.110(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/harness': 1.0.108(ws@8.21.3)(zod@4.4.3)
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.4.3)
+      ws: 8.21.3
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@ai-sdk/harness-cursor@1.0.21(ws@8.21.0)(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/harness': 1.0.108(ws@8.21.0)(zod@4.4.3)
+      '@ai-sdk/harness-acp': 1.0.46(zod@4.4.3)
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.4.3)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - ws
+
+  '@ai-sdk/harness-fx@1.0.21(ws@8.21.0)(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/harness': 1.0.108(ws@8.21.0)(zod@4.4.3)
+      '@ai-sdk/harness-acp': 1.0.46(zod@4.4.3)
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.4.3)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - ws
+
+  '@ai-sdk/harness-grok-build@1.0.45(ws@8.21.0)(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/harness': 1.0.108(ws@8.21.0)(zod@4.4.3)
+      '@ai-sdk/harness-acp': 1.0.46(zod@4.4.3)
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.4.3)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - ws
+
+  '@ai-sdk/harness-opencode@1.0.110(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/harness': 1.0.108(ws@8.21.0)(zod@4.4.3)
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.4.3)
+      ws: 8.21.0
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@ai-sdk/harness-pi@1.0.110(@earendil-works/pi-tui@0.84.4)(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(@opentelemetry/api@1.9.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(ws@8.21.0)(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/harness': 1.0.108(ws@8.21.0)(zod@4.4.3)
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.4.3)
+      '@earendil-works/pi-ai': 0.74.2(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(@opentelemetry/api@1.9.0)(ws@8.21.0)(zod@4.4.3)
+      '@earendil-works/pi-coding-agent': 0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+      pi-mcp-adapter: 2.12.1(@earendil-works/pi-ai@0.74.2(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(@opentelemetry/api@1.9.0)(ws@8.21.0)(zod@4.4.3))(@earendil-works/pi-tui@0.84.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typebox@1.3.17)(zod@4.4.3)
+      typebox: 1.3.17
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - '@earendil-works/pi-tui'
+      - '@modelcontextprotocol/sdk'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-http'
+      - '@opentelemetry/resources'
+      - '@opentelemetry/sdk-trace-base'
+      - bufferutil
+      - react
+      - react-dom
+      - supports-color
+      - utf-8-validate
+      - ws
+
   '@ai-sdk/harness-pi@1.0.110(@earendil-works/pi-tui@0.84.4)(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(@opentelemetry/api@1.9.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@ai-sdk/harness': 1.0.108(ws@8.21.3)(zod@4.4.3)
@@ -9303,6 +9475,15 @@ snapshots:
       - supports-color
       - utf-8-validate
       - ws
+
+  '@ai-sdk/harness@1.0.108(ws@8.21.0)(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.14
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.4.3)
+      ai: 7.0.98(zod@4.4.3)
+      zod: 4.4.3
+    optionalDependencies:
+      ws: 8.21.0
 
   '@ai-sdk/harness@1.0.108(ws@8.21.3)(zod@4.4.3)':
     dependencies:
@@ -10195,6 +10376,22 @@ snapshots:
       - ws
       - zod
 
+  '@earendil-works/pi-agent-core@0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)':
+    dependencies:
+      '@earendil-works/pi-ai': 0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+      '@earendil-works/pi-telemetry': 0.84.4
+      diff: 8.0.4
+      ignore: 7.0.5
+      typebox: 1.3.7
+      yaml: 2.9.0
+    transitivePeerDependencies:
+      - '@modelcontextprotocol/sdk'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+      - ws
+      - zod
+
   '@earendil-works/pi-agent-core@0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@earendil-works/pi-ai': 0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(ws@8.21.3)(zod@4.4.3)
@@ -10205,6 +10402,29 @@ snapshots:
       yaml: 2.9.0
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+      - ws
+      - zod
+
+  '@earendil-works/pi-ai@0.74.2(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(@opentelemetry/api@1.9.0)(ws@8.21.0)(zod@4.4.3)':
+    dependencies:
+      '@anthropic-ai/sdk': 0.91.1(zod@4.4.3)
+      '@aws-sdk/client-bedrock-runtime': 3.1116.0
+      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))
+      '@mistralai/mistralai': 2.6.4(@opentelemetry/api@1.9.0)
+      http-proxy-agent: 7.0.2
+      https-proxy-agent: 7.0.6
+      openai: 6.26.0(ws@8.21.0)(zod@4.4.3)
+      partial-json: 0.1.7
+      typebox: 1.3.17
+    transitivePeerDependencies:
+      - '@modelcontextprotocol/sdk'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-http'
+      - '@opentelemetry/resources'
+      - '@opentelemetry/sdk-trace-base'
       - bufferutil
       - supports-color
       - utf-8-validate
@@ -10247,6 +10467,26 @@ snapshots:
       openai: 6.26.0(ws@8.21.3)(zod@4.4.3)
       partial-json: 0.1.7
       typebox: 1.1.38
+    transitivePeerDependencies:
+      - '@modelcontextprotocol/sdk'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+      - ws
+      - zod
+
+  '@earendil-works/pi-ai@0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)':
+    dependencies:
+      '@anthropic-ai/sdk': 0.91.1(zod@4.4.3)
+      '@aws-sdk/client-bedrock-runtime': 3.1048.0
+      '@earendil-works/pi-telemetry': 0.84.4
+      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))
+      '@smithy/node-http-handler': 4.7.3
+      http-proxy-agent: 7.0.2
+      https-proxy-agent: 7.0.6
+      openai: 6.40.0(ws@8.21.0)(zod@4.4.3)
+      partial-json: 0.1.7
+      typebox: 1.3.7
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
       - bufferutil
@@ -10298,6 +10538,38 @@ snapshots:
       semver: 7.8.0
       typebox: 1.1.38
       undici: 8.5.0
+      yaml: 2.9.0
+    optionalDependencies:
+      '@mariozechner/clipboard': 0.3.9
+    transitivePeerDependencies:
+      - '@modelcontextprotocol/sdk'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+      - ws
+      - zod
+
+  '@earendil-works/pi-coding-agent@0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)':
+    dependencies:
+      '@earendil-works/pi-agent-core': 0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+      '@earendil-works/pi-ai': 0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+      '@earendil-works/pi-client': 0.84.4
+      '@earendil-works/pi-protocol': 0.84.4
+      '@earendil-works/pi-tui': 0.84.4
+      '@silvia-odwyer/photon-node': 0.3.4
+      chalk: 5.6.2
+      cross-spawn: 7.0.6
+      diff: 8.0.4
+      grok-mermaid: 0.2.2
+      highlight.js: 10.7.3
+      hosted-git-info: 9.0.3
+      ignore: 7.0.5
+      jiti: 2.7.0
+      minimatch: 10.2.5
+      proper-lockfile: 4.1.2
+      semver: 7.8.0
+      typebox: 1.3.7
+      undici: 8.9.0
       yaml: 2.9.0
     optionalDependencies:
       '@mariozechner/clipboard': 0.3.9
@@ -14622,13 +14894,14 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eve@0.53.0(patch_hash=105a97e8996a51fe1226664cc2836fb95b8abd280d0a85ef90f99cfafd25f2c4)(@opentelemetry/api@1.9.0)(ai@7.0.98(zod@4.4.3)):
+  eve@0.53.0(@opentelemetry/api@1.9.0)(ai@7.0.98(zod@4.4.3))(just-bash@3.1.0):
     dependencies:
       ai: 7.0.98(zod@4.4.3)
       nitro: 3.0.260903-beta
       undici: 8.9.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
+      just-bash: 3.1.0
 
   eventsource-parser@3.1.0: {}
 
@@ -15538,6 +15811,29 @@ snapshots:
       graceful-fs: 4.2.11
 
   just-bash@2.14.5:
+    dependencies:
+      diff: 8.0.4
+      fast-xml-parser: 5.11.0
+      file-type: 21.3.4
+      ini: 6.0.0
+      minimatch: 10.2.6
+      modern-tar: 0.7.7
+      papaparse: 5.6.0
+      quickjs-emscripten: 0.32.0
+      re2js: 1.3.3
+      seek-bzip: 2.0.0
+      smol-toml: 1.8.0
+      sprintf-js: 1.1.3
+      sql.js: 1.14.2
+      turndown: 7.2.4
+      yaml: 2.9.0
+    optionalDependencies:
+      '@mongodb-js/zstd': 7.0.0
+      node-liblzma: 2.2.0
+    transitivePeerDependencies:
+      - supports-color
+
+  just-bash@3.1.0:
     dependencies:
       diff: 8.0.4
       fast-xml-parser: 5.11.0
@@ -16651,9 +16947,19 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
+  openai@6.26.0(ws@8.21.0)(zod@4.4.3):
+    optionalDependencies:
+      ws: 8.21.0
+      zod: 4.4.3
+
   openai@6.26.0(ws@8.21.3)(zod@4.4.3):
     optionalDependencies:
       ws: 8.21.3
+      zod: 4.4.3
+
+  openai@6.40.0(ws@8.21.0)(zod@4.4.3):
+    optionalDependencies:
+      ws: 8.21.0
       zod: 4.4.3
 
   openai@6.40.0(ws@8.21.3)(zod@4.4.3):
@@ -16825,6 +17131,26 @@ snapshots:
     optionalDependencies:
       '@napi-rs/canvas': 1.0.5
 
+  pi-mcp-adapter@2.12.1(@earendil-works/pi-ai@0.74.2(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(@opentelemetry/api@1.9.0)(ws@8.21.0)(zod@4.4.3))(@earendil-works/pi-tui@0.84.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typebox@1.3.17)(zod@4.4.3):
+    dependencies:
+      '@modelcontextprotocol/client': 2.0.0-beta.5
+      '@modelcontextprotocol/ext-apps': 1.7.5(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
+      cross-spawn: 7.0.6
+      open: 10.2.0
+      recheck: 4.5.0
+      smol-toml: 1.8.0
+      zod: 4.4.3
+    optionalDependencies:
+      '@earendil-works/pi-ai': 0.74.2(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(@opentelemetry/api@1.9.0)(ws@8.21.0)(zod@4.4.3)
+      '@earendil-works/pi-tui': 0.84.4
+      typebox: 1.3.17
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - react
+      - react-dom
+      - supports-color
+
   pi-mcp-adapter@2.12.1(@earendil-works/pi-ai@0.74.2(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(@opentelemetry/api@1.9.0)(ws@8.21.3)(zod@4.4.3))(@earendil-works/pi-tui@0.84.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typebox@1.3.17)(zod@4.4.3):
     dependencies:
       '@modelcontextprotocol/client': 2.0.0-beta.5
@@ -16880,6 +17206,8 @@ snapshots:
       fsevents: 2.3.2
 
   pngjs@7.0.0: {}
+
+  pnpm@10.34.5: {}
 
   points-on-curve@0.2.0: {}
 
@@ -18460,6 +18788,8 @@ snapshots:
       strip-ansi: 6.0.1
 
   wrappy@1.0.2: {}
+
+  ws@8.21.0: {}
 
   ws@8.21.3: {}
 

@@ -39,13 +39,11 @@ export function EveAuthoringChat({ sessionId, api, onSession }: {
 
 function EveConversation({ snapshot, api, onSession }: { snapshot: Snapshot; api(path: string): string; onSession(id: string): void }) {
   const session = useRef(snapshot.session?.sessionId);
-  const outgoing = useRef("");
   const started = useRef(false);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string>();
   const connection = useMemo(() => fetchServerSentEvents(
     () => api(session.current ? `/api/authoring/eve/sessions/${encodeURIComponent(session.current)}/messages` : "/api/authoring/eve/sessions"),
-    () => ({ body: { message: outgoing.current } }),
   ), [api]);
   const chat = useChat({
     connection, persistence: false, threadId: snapshot.session?.sessionId ?? "new-authoring",
@@ -60,7 +58,6 @@ function EveConversation({ snapshot, api, onSession }: { snapshot: Snapshot; api
   });
   async function send(message: string) {
     if (!message.trim()) return;
-    outgoing.current = message;
     setValue("");
     setError(undefined);
     try { await chat.sendMessage(message); } catch (cause) { setError(String(cause)); }

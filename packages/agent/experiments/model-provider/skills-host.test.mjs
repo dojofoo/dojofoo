@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { Client } from "@dojofoo/agent/client";
 
-const eveRoot = new URL("./", import.meta.resolve("eve/package.json"));
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
 const { createDevelopmentServer } = await import(new URL("dist/src/internal/nitro/host/start-development-server.js", eveRoot));
 
 test("Eve loads an authored skill through the harness provider and retains its session", { timeout: 60_000 }, async () => {
@@ -15,7 +15,7 @@ test("Eve loads an authored skill through the harness provider and retains its s
     await copyFile(new URL("host-agent.fixture.ts", import.meta.url), join(root, "agent.ts"));
     await writeFile(join(root, "instructions.md"), "HOST_INSTRUCTIONS_LOADED: Use the course-outline skill when requested.\n");
     await mkdir(join(root, "tools"));
-    await writeFile(join(root, "tools/root_only.ts"), 'import { defineTool } from "eve/tools"; import read from "eve/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
+    await writeFile(join(root, "tools/root_only.ts"), 'import { defineTool } from "@dojofoo/agent/tools"; import read from "@dojofoo/agent/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
     await mkdir(join(root, "skills/course-outline"), { recursive: true });
     const skill = "---\nname: course-outline\ndescription: Shape one observable lesson outcome.\n---\n\nOUTLINE_SKILL_EVIDENCE: Ask who the learner is before choosing prerequisites.\n";
     await writeFile(join(root, "skills/course-outline/SKILL.md"), skill);
