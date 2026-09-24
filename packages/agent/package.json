@@ -428,10 +428,10 @@
     "undici": "8.9.0"
   },
   "devDependencies": {
-    "eve": "0.53.0",
+    "eve": "0.63.0",
     "@ai-sdk/harness-pi": "1.0.110",
     "@ai-sdk/sandbox-just-bash": "1.0.108",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.6.2",
     "typescript": "6.0.3"
   }
 }
