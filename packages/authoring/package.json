@@ -25,20 +25,20 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/harness-codex": "1.0.110",
-    "@ai-sdk/harness-cursor": "1.0.21",
-    "@ai-sdk/harness-fx": "1.0.21",
-    "@ai-sdk/harness-grok-build": "1.0.45",
-    "@ai-sdk/harness-opencode": "1.0.110",
-    "@ai-sdk/harness-pi": "1.0.110",
+    "@ai-sdk/harness-codex": "1.0.120",
+    "@ai-sdk/harness-cursor": "1.0.31",
+    "@ai-sdk/harness-fx": "1.0.31",
+    "@ai-sdk/harness-grok-build": "1.0.55",
+    "@ai-sdk/harness-opencode": "1.0.120",
+    "@ai-sdk/harness-pi": "1.0.120",
     "@dojofoo/agent": "workspace:*",
     "@dojofoo/config": "workspace:*",
-    "@tanstack/ai": "0.47.1",
-    "hono": "^4.13.1",
-    "yaml": "^2.9.0"
+    "@tanstack/ai": "0.58.0",
+    "hono": "^4.13.8",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@tanstack/ai-client": "0.25.1",
+    "@tanstack/ai-client": "0.33.2",
     "pnpm": "10.34.5",
     "@types/node": "^26.1.2",
     "typescript": "6.0.3",

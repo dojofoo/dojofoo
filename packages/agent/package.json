@@ -419,18 +419,18 @@
     "test": "pnpm build && node --test --test-timeout=10000 experiments/model-provider/local-sandbox.test.mjs experiments/model-provider/local-process-host.test.mjs experiments/model-provider/loopback-openai.test.mjs experiments/model-provider/runtime-toolchain.test.mjs && node experiments/model-provider/run.mjs"
   },
   "dependencies": {
-    "@ai-sdk/harness": "1.0.108",
-    "@ai-sdk/provider": "4.0.14",
-    "ai": "7.0.98",
+    "@ai-sdk/harness": "1.0.118",
+    "@ai-sdk/provider": "4.0.17",
+    "ai": "7.0.108",
     "comlink": "4.4.2",
-    "just-bash": "3.1.0",
+    "just-bash": "3.4.2",
     "nitro": "3.0.260903-beta",
-    "undici": "8.9.0"
+    "undici": "8.10.2"
   },
   "devDependencies": {
     "eve": "0.53.0",
-    "@ai-sdk/harness-pi": "1.0.110",
-    "@ai-sdk/sandbox-just-bash": "1.0.108",
+    "@ai-sdk/harness-pi": "1.0.120",
+    "@ai-sdk/sandbox-just-bash": "1.0.118",
     "@types/node": "^26.1.2",
     "typescript": "6.0.3"
   }
