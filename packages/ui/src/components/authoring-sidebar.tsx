@@ -1,4 +1,4 @@
-import type { AuthoringWorkspace } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/authoring/service";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,7 @@ import {
   MorphPopoverTrigger,
 } from "./motion/popover-morph";
 
-type AuthoringFile = AuthoringWorkspace["rootFiles"][number];
+type AuthoringFile = AuthoringDraft["rootFiles"][number];
 
 export function AuthoringSidebar({
   activeFilePath,
@@ -37,13 +37,13 @@ export function AuthoringSidebar({
   onRenameCourse: (title: string) => void;
   onRenameLesson: (lessonId: string, title: string) => void;
   onSelectLessonFile: (
-    lesson: AuthoringWorkspace["lessons"][number],
+    lesson: AuthoringDraft["lessons"][number],
     path: string,
   ) => void;
   onSelectRootFile: (path: string) => void;
   scope: "course" | "lesson";
   selectedLessonId: string | null;
-  workspace: AuthoringWorkspace;
+  workspace: AuthoringDraft;
 }) {
   const courseResourceId = "authoring:course";
   const lessonResourceIds = workspace.lessons.map((lesson) =>
@@ -215,7 +215,7 @@ function SidebarHeading({
 }
 
 function authoringCourseSidebarResources(
-  workspace: AuthoringWorkspace,
+  workspace: AuthoringDraft,
 ): SidebarResource[] {
   return [{
     id: "authoring:course",
@@ -229,7 +229,7 @@ function authoringCourseSidebarResources(
 }
 
 function authoringLessonSidebarResources(
-  workspace: AuthoringWorkspace,
+  workspace: AuthoringDraft,
 ): SidebarResource[] {
   return workspace.lessons.map((lesson) => ({
     id: authoringLessonResourceId(lesson.id),
@@ -300,7 +300,7 @@ function authoringLessonFileResourceId(
 }
 
 export function authoringSidebarSelection(
-  workspace: AuthoringWorkspace,
+  workspace: AuthoringDraft,
   resourceId: string,
 ): { scope: "course"; path: string } | {
   scope: "lesson";

@@ -5,12 +5,38 @@ import type { UIMessage } from "@tanstack/ai-client";
 import { describe, expect, it } from "vitest";
 import { parseAgentQuestions } from "@/components/chat/agent-question";
 import { StreamedChatMessage } from "./index";
+import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
 
 const fixture = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "../../e2e/fixtures/chat-kitchen-sink.json"), "utf8"),
 ) as UIMessage[];
 
 describe("TanStack AI UIMessage renderer", () => {
+  for (const freeText of [false, true]) it(`renders a replayed Eve answer in its locked question component (freeText=${freeText})`, () => {
+    const [message] = eveChatMessages([{ id: "eve-assistant", role: "assistant", parts: [{
+      type: "dynamic-tool", toolName: "dojo_ui_ask", toolCallId: "call-question", input: {},
+      state: "approval-responded", approval: { id: "request-question" },
+      toolMetadata: { eve: { kind: "tool-call", name: "dojo_ui_ask", inputRequest: {
+        requestId: "request-question", kind: "question", prompt: "Where should we focus?",
+        display: freeText ? "text" : "select",
+        options: freeText ? undefined : [{ id: "review", label: "Review" }, { id: "next", label: "Continue" }],
+      }, inputResponse: freeText
+        ? { requestId: "request-question", text: "Explain the prerequisites" }
+        : { requestId: "request-question", optionId: "review" },
+      } },
+    }] }]);
+    const html = renderToStaticMarkup(<StreamedChatMessage fragments={{}} message={message} onToolAnswer={async () => undefined} workspaceId="fixture" />);
+    expect(html).toContain("Where should we focus?");
+    expect(html).toContain('data-disabled="true"');
+    expect(html).toContain("text-blue-600");
+    if (freeText) expect(html).toContain("Explain the prerequisites");
+    else {
+      expect(html).toContain("Review");
+      expect(html).toContain("Continue");
+      expect(html).toContain('data-state="checked"');
+    }
+  });
+
   it("renders kitchen-sink message parts in protocol order", () => {
     const html = fixture.map((message) => renderToStaticMarkup(
       <StreamedChatMessage

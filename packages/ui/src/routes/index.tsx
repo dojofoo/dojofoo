@@ -53,7 +53,7 @@ import { applyLessonMetadata, hydrateLesson } from "@/lib/lesson-snapshot";
 import { projectChatTimeline, type AnchoredChatEvent } from "@/lib/chat-timeline";
 import { chatAcceptsInput, isInternalLessonMessage, lessonIntroductionCanStart } from "@/lib/chat-internal";
 import { cn } from "@/lib/utils";
-import { AgentQuestion, isAgentQuestion, parseAgentQuestions } from "@/components/chat/agent-question";
+import { AgentQuestion, isAgentQuestion, agentQuestionState } from "@/components/chat/agent-question";
 import { useChatWorkTiming, type ChatWorkTiming } from "@/lib/chat-work-timing";
 import { codeHighlight, codeHighlights, type CodeHighlight } from "@/lib/code-highlight";
 
@@ -1289,7 +1289,7 @@ export function StreamedChatMessage({
                   className="w-full max-w-none"
                   key={`${part.type}-${part.id}`}
                   onAnswer={onToolAnswer}
-                  questions={parseAgentQuestions(part.input)}
+                  {...agentQuestionState(part)}
                 />
               ) : null;
             }

@@ -1,4 +1,5 @@
 import type { ToolCallPart } from "@tanstack/ai-client";
+import { eveQuestion } from "@dojofoo/authoring/eve/messages";
 import { useState } from "react";
 import {
   AskUserQuestions,
@@ -7,26 +8,55 @@ import {
 } from "@dojofoo/ui/ask-user-questions";
 
 export function isAgentQuestion(part: ToolCallPart): boolean {
-  return isQuestionTool(part) && parseAgentQuestions(part.input).length > 0;
+  return Boolean(eveQuestion(part)) || (isQuestionTool(part) && parseAgentQuestions(part.input).length > 0);
+}
+
+export function agentQuestionState(part: ToolCallPart): {
+  questions: AskUserQuestion[];
+  answers?: Record<string, AskUserAnswer>;
+  disabled?: boolean;
+} {
+  const question = eveQuestion(part);
+  if (!question) return { questions: parseAgentQuestions(part.input) };
+  const { request, response, settled } = question;
+  return {
+    questions: [{
+      id: request.requestId,
+      title: request.prompt,
+      options: request.options?.map(option => ({ id: option.id, title: option.label, description: option.description })),
+      allowOther: request.allowFreeform ?? false,
+      freeText: request.display === "text" || !request.options?.length,
+    }],
+    answers: response ? { [request.requestId]: {
+      questionId: request.requestId,
+      selectedIds: response.optionId ? [response.optionId] : [],
+      otherText: response.text,
+    } } : undefined,
+    disabled: settled,
+  };
 }
 
 export function AgentQuestion({
   className,
+  answers,
+  disabled = false,
   onAnswer,
   questions,
 }: {
   className?: string;
+  answers?: Record<string, AskUserAnswer>;
+  disabled?: boolean;
   onAnswer: (answers: Record<string, AskUserAnswer>) => void | Promise<void>;
   questions: AskUserQuestion[];
 }) {
   const [submitted, setSubmitted] = useState<Record<string, AskUserAnswer> | null>(null);
   return (
     <AskUserQuestions
-      answers={submitted ?? undefined}
+      answers={answers ?? submitted ?? undefined}
       className={className}
-      disabled={submitted !== null}
+      disabled={disabled || submitted !== null}
       onComplete={(answers) => {
-        if (submitted) return;
+        if (disabled || submitted) return;
         setSubmitted(answers);
         void onAnswer(answers);
       }}

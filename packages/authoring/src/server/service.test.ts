@@ -1,7 +1,7 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { scaffoldAuthoringWorkspace } from "../scaffold";
 import { writeAuthoringFile } from "./files";
 import { createAuthoringService } from "./service";
@@ -9,6 +9,56 @@ import { authoringMessageText, isAuthoringBootstrapMessage } from "./types";
 import type { AuthoringAgent } from "./types";
 
 describe("authoring service", () => {
+  for (const operation of ["getWorkspace", "startSession", "streamMessage"] as const) {
+    it(`preserves the session when ${operation} cannot resume it`, async () => {
+      const root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-recovery-"));
+      onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+      scaffoldAuthoringWorkspace({ root, name: "recovery-course", style: "katas" });
+      const start = vi.fn(async () => "original-session");
+      const resume = vi.fn(async () => {});
+      const send = vi.fn(async () => {});
+      const agent: AuthoringAgent = {
+        currentHarness: () => "test-harness", start, resume, send,
+        history: async () => [], answer: () => {},
+      };
+      const service = createAuthoringService(agent);
+      await service.startSession(root);
+      const pointerPath = resolve(root, ".dojo/kyoshi.json");
+      const pointer = readFileSync(pointerPath, "utf8");
+      const failure = new Error("Harness temporarily unavailable");
+      resume.mockRejectedValueOnce(failure);
+      const result = operation === "streamMessage"
+        ? service.streamMessage(root, "Continue", () => {})
+        : service[operation](root);
+      await expect(result).rejects.toBe(failure);
+      expect(start).toHaveBeenCalledTimes(1);
+      expect(send).not.toHaveBeenCalled();
+      expect(readFileSync(pointerPath, "utf8")).toBe(pointer);
+      await service.streamMessage(root, "Continue", () => {});
+      expect(send).toHaveBeenCalledWith("original-session", "Continue", expect.any(Function), { signal: undefined });
+      expect(start).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  it("keeps an existing session on its own harness when the default changes", async () => {
+    const root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-default-"));
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+    scaffoldAuthoringWorkspace({ root, name: "default-course", style: "katas" });
+    let harness = "original-harness";
+    const start = vi.fn(async () => "original-session");
+    const resume = vi.fn(async () => {});
+    const agent: AuthoringAgent = {
+      currentHarness: () => harness, start, resume,
+      send: async () => {}, history: async () => [], answer: () => {},
+    };
+    const service = createAuthoringService(agent);
+    await service.startSession(root);
+    harness = "different-default";
+    await service.streamMessage(root, "Continue", () => {});
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(resume).toHaveBeenLastCalledWith("original-session", expect.objectContaining({ harness: "original-harness" }));
+  });
+
   it("identifies bootstrap prompts so protocol context never leaks into author chat", () => {
     expect(isAuthoringBootstrapMessage({
       role: "user",

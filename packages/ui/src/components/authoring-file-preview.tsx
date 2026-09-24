@@ -1,4 +1,4 @@
-import type { AuthoringWorkspace } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/authoring/service";
 import { defineCatalog, type Spec } from "@json-render/core";
 import { defineRegistry, JSONUIProvider, Renderer } from "@json-render/react";
 import { schema } from "@json-render/react/schema";
@@ -66,7 +66,7 @@ const { registry: previewRegistry } = defineRegistry(previewCatalog, {
 type Props = {
   path: string;
   source: string;
-  workspace: AuthoringWorkspace;
+  workspace: AuthoringDraft;
 };
 
 export function AuthoringFilePreview({ path, source, workspace }: Props) {
@@ -97,7 +97,7 @@ export function AuthoringFilePreview({ path, source, workspace }: Props) {
   }
 }
 
-function courseManifestSpec(value: unknown, workspace: AuthoringWorkspace): Spec {
+function courseManifestSpec(value: unknown, workspace: AuthoringDraft): Spec {
   const manifest = isRecord(value) ? value : {};
   const entries = Array.isArray(manifest.katas) ? manifest.katas : [];
   const chapters = entries.filter(isRecord).map((entry, index) => ({

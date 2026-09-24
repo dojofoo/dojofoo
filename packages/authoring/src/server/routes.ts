@@ -11,6 +11,7 @@ import {
   authoringEvalReadiness,
   renameAuthoringCourse,
   renameAuthoringLesson,
+  readAuthoringDraft,
 } from "./service";
 import { readAuthoringFile, writeAuthoringFile } from "./files";
 import type { AuthoringAgent, AuthoringStreamPart } from "./types";
@@ -49,6 +50,8 @@ export type AuthoringRouteDependencies = {
 export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) {
   const service = createAuthoringService(dependencies.agent);
   return new Hono()
+  .onError((error, c) => c.json({ error: errorMessage(error) }, 500))
+  .get("/draft", (c) => c.json(readAuthoringDraft(dependencies.resolveWorkspace(c.req.raw))))
   .get("/workspace", async (c) =>
     c.json(await service.getWorkspace(dependencies.resolveWorkspace(c.req.raw))))
   .post("/session", async (c) =>
@@ -89,7 +92,7 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
       if (!input.answers || typeof input.answers !== "object") {
         return c.json({ error: "Answers are required" }, 422);
       }
-      service.answer(dependencies.resolveWorkspace(c.req.raw), input.answers);
+      await service.answer(dependencies.resolveWorkspace(c.req.raw), input.answers);
       return c.json({ ok: true });
     } catch (cause) {
       return c.json({ error: errorMessage(cause) }, 409);
@@ -105,7 +108,7 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
         root,
         typeof input.title === "string" ? input.title : "Untitled lesson"
       );
-      return c.json({ lessonId, workspace: await service.getWorkspace(root) }, 201);
+      return c.json({ lessonId, workspace: readAuthoringDraft(root) }, 201);
     } catch (cause) {
       return c.json({ error: errorMessage(cause) }, 422);
     }
@@ -118,7 +121,7 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
       }
       const root = dependencies.resolveWorkspace(c.req.raw);
       renameAuthoringCourse(root, input.title);
-      return c.json(await service.getWorkspace(root));
+      return c.json(readAuthoringDraft(root));
     } catch (cause) {
       return c.json({ error: errorMessage(cause) }, 422);
     }
@@ -131,7 +134,7 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
       }
       const root = dependencies.resolveWorkspace(c.req.raw);
       renameAuthoringLesson(root, c.req.param("lessonId"), input.title);
-      return c.json(await service.getWorkspace(root));
+      return c.json(readAuthoringDraft(root));
     } catch (cause) {
       return c.json({ error: errorMessage(cause) }, 422);
     }
@@ -154,7 +157,7 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
       }
       const root = dependencies.resolveWorkspace(c.req.raw);
       writeAuthoringFile(root, c.req.param("path"), input.content);
-      return c.json(await service.getWorkspace(root));
+      return c.json(readAuthoringDraft(root));
     } catch (cause) {
       return c.json({ error: errorMessage(cause) }, 422);
     }

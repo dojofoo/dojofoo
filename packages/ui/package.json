@@ -69,6 +69,7 @@
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.8",
     "@dojofoo/authoring": "workspace:*",
+    "@dojofoo/agent": "workspace:*",
     "@dojofoo/avatar": "workspace:*",
     "@dojofoo/config": "workspace:*",
     "@dojofoo/protocol": "workspace:*",

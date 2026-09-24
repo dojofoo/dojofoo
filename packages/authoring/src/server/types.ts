@@ -59,5 +59,6 @@ export interface AuthoringAgent {
     onPart: (part: AuthoringStreamPart) => void,
     options?: { signal?: AbortSignal; visible?: boolean }
   ): Promise<unknown>;
-  answer(sessionId: string, answers: Record<string, string[]>): void;
+  /** Resolves when the backend accepts the answer, not when its next turn finishes. */
+  answer(sessionId: string, answers: Record<string, string[]>): void | Promise<void>;
 }

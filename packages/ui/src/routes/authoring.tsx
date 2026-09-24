@@ -1,5 +1,5 @@
 import type { AuthoringEvalReport } from "@dojofoo/authoring/server";
-import type { AuthoringWorkspace } from "@dojofoo/authoring/service";
+import type { AuthoringDraft, AuthoringWorkspace } from "@dojofoo/authoring/service";
 import { authoringMessageText, isAuthoringBootstrapMessage } from "@dojofoo/authoring/types";
 import { createFileRoute } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
@@ -7,16 +7,14 @@ import { ArrowRight, Check, Circle, ExternalLink, Pencil, Play, Plus, RefreshCw 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AuthoringFilePreview } from "@/components/authoring-file-preview";
 import { AuthoringSidebar } from "@/components/authoring-sidebar";
+import { AuthoringChat } from "@/components/authoring-chat";
+import { EveAuthoringChat } from "@/components/eve-authoring-chat";
 import { CourseContent } from "@/components/course-content";
 import { Button } from "@dojofoo/ui/button";
-import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojofoo/ui/chat-container";
 import { CourseLessonLayout, CourseLessonNavigation } from "@dojofoo/ui/course-lesson-layout";
-import { InputMessage } from "@dojofoo/ui/input-message";
 import { ScrollArea } from "@dojofoo/ui/scroll-area";
-import { ThinkingIndicator } from "@dojofoo/ui/thinking-indicator";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { FileTree, FileTreeFile, FileTreeFolder } from "@dojofoo/uix/components/motion/file-tree";
-import { StreamedChatMessage } from "./index";
 
 const CodeEditor = lazy(() => import("@/components/code-editor"));
 
@@ -24,10 +22,19 @@ type ReportResponse = { report: AuthoringEvalReport | null; root: string };
 type AuthoringFile = { content: string; label: string; path: string };
 const USE_AI_AUTHORING_SIDEBAR = true;
 
-export const Route = createFileRoute("/authoring")({ component: AuthoringPage });
+export const Route = createFileRoute("/authoring")({
+  component: AuthoringPage,
+  validateSearch: (search: Record<string, unknown>): { workspace?: string; session?: string } => ({
+    ...(typeof search.workspace === "string" ? { workspace: search.workspace } : {}),
+    ...(typeof search.session === "string" ? { session: search.session } : {}),
+  }),
+});
 
 function AuthoringPage() {
-  const [workspace, setWorkspace] = useState<AuthoringWorkspace | null>(null);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [backend, setBackend] = useState<"acp" | "eve">();
+  const [workspace, setWorkspace] = useState<AuthoringDraft | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>(null);
   const [courseExpanded, setCourseExpanded] = useState(true);
@@ -81,7 +88,7 @@ function AuthoringPage() {
     return () => window.removeEventListener("keydown", handleSaveShortcut);
   }, [activeFile?.path, busy, dirty, draft]);
 
-  function selectWorkspace(next: AuthoringWorkspace) {
+  function selectWorkspace(next: AuthoringDraft) {
     setWorkspace(next);
     setSelectedLessonId((current) => next.lessons.some(({ id }) => id === current)
       ? current
@@ -121,6 +128,14 @@ function AuthoringPage() {
 
   async function bootstrap() {
     try {
+      const selected = await request<{ backend: "acp" | "eve" }>(authoringApi("/api/authoring/backend"));
+      if (selected.backend === "eve") {
+        selectWorkspace(await request<AuthoringDraft>(authoringApi("/api/authoring/draft")));
+        setBackend("eve");
+        return;
+      }
+      if (selected.backend !== "acp") throw new Error("Unsupported authoring backend");
+      setBackend("acp");
       const initial = await request<AuthoringWorkspace>("/api/authoring/workspace");
       selectWorkspace(initial);
       hydrateChat(initial);
@@ -147,7 +162,7 @@ function AuthoringPage() {
 
   async function refreshWorkspace() {
     await perform("Refreshing course files…", async () => {
-      selectWorkspace(await request<AuthoringWorkspace>("/api/authoring/workspace"));
+      selectWorkspace(await request<AuthoringDraft>("/api/authoring/draft"));
     });
   }
 
@@ -179,7 +194,7 @@ function AuthoringPage() {
     await perform("Adding a lesson…", async () => {
       const created = await request<{
         lessonId: string;
-        workspace: AuthoringWorkspace;
+        workspace: AuthoringDraft;
       }>("/api/authoring/lessons", {
         body: JSON.stringify({ title: "Untitled lesson" }),
         headers: { "content-type": "application/json" },
@@ -199,7 +214,7 @@ function AuthoringPage() {
 
   async function renameLesson(lessonId: string, title: string) {
     await perform("Renaming lesson…", async () => {
-      selectWorkspace(await request<AuthoringWorkspace>(
+      selectWorkspace(await request<AuthoringDraft>(
         `/api/authoring/lessons/${encodeURIComponent(lessonId)}`,
         {
           body: JSON.stringify({ title }),
@@ -213,7 +228,7 @@ function AuthoringPage() {
 
   async function renameCourse(title: string) {
     await perform("Renaming course…", async () => {
-      selectWorkspace(await request<AuthoringWorkspace>("/api/authoring/course", {
+      selectWorkspace(await request<AuthoringDraft>("/api/authoring/course", {
         body: JSON.stringify({ title }),
         headers: { "content-type": "application/json" },
         method: "PATCH",
@@ -223,7 +238,7 @@ function AuthoringPage() {
 
   async function saveActiveFile(path: string, content: string) {
     await perform("Saving file…", async () => {
-      selectWorkspace(await request<AuthoringWorkspace>(authoringFileUrl(path), {
+      selectWorkspace(await request<AuthoringDraft>(authoringFileUrl(path), {
         body: JSON.stringify({ content }),
         headers: { "content-type": "application/json" },
         method: "PUT",
@@ -436,28 +451,9 @@ function AuthoringPage() {
             </div>
         </div>
       )}
-      chat={(
-        <ChatContainer data-testid="authoring-chat-pane">
-          <ChatContainerContent>
-            {chatMessages.map((entry) => (
-              <StreamedChatMessage fragments={{}} key={entry.id} message={entry} onToolAnswer={answerTool} streaming={chatStatus === "streaming" && entry.id === chatMessages.at(-1)?.id} workspaceId="" />
-            ))}
-            {(busy || chatStatus === "submitted") && chatStatus !== "streaming" ? <ThinkingIndicator className="px-0" /> : null}
-          </ChatContainerContent>
-          <ChatContainerFooter data-testid="authoring-chat-composer">
-            <InputMessage
-              disabled={Boolean(busy)}
-              history={chatMessages.filter(({ role }) => role === "user").map((entry) => entry.parts.flatMap((part) => part.type === "text" ? [part.content] : []).join(""))}
-              onSend={(value) => void sendMessage(value)}
-              onValueChange={setMessage}
-              placeholder="Shape the course with Kyoshi…"
-              sendLabel="Send"
-              status={busy || chatStatus === "streaming" || chatStatus === "submitted" ? "streaming" : "idle"}
-              value={message}
-            />
-          </ChatContainerFooter>
-        </ChatContainer>
-      )}
+      chat={backend === "eve"
+        ? <EveAuthoringChat sessionId={search.session} api={authoringApi} onSession={id => { void navigate({ search: previous => ({ ...previous, session: id }), replace: true }); }} />
+        : <AuthoringChat messages={chatMessages} status={chatStatus} busy={Boolean(busy)} value={message} onValueChange={setMessage} onSend={value => { void sendMessage(value); }} onAnswer={answerTool} />}
     />
   );
 }
@@ -580,7 +576,7 @@ function isAuthoringPreviewable(path: string): boolean {
 function ReadinessPanel({ lesson, scope, workspace }: {
   lesson: AuthoringWorkspace["lessons"][number] | null;
   scope: "course" | "lesson";
-  workspace: AuthoringWorkspace;
+  workspace: AuthoringDraft;
 }) {
   const checks = scope === "course" ? workspace.courseChecks : lesson?.checks ?? [];
   return (
@@ -685,7 +681,7 @@ function authoringApi(path: string): string {
 function errorMessage(cause: unknown): string { return cause instanceof Error ? cause.message : String(cause); }
 
 export function authoringFiles(
-  workspace: AuthoringWorkspace,
+  workspace: AuthoringDraft,
   lesson: AuthoringWorkspace["lessons"][number] | null
 ): AuthoringFile[] {
   if (!lesson) return workspace.rootFiles;

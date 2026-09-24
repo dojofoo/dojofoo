@@ -75,34 +75,40 @@ export type AuthoringWorkspace = {
   messages: AuthoringTranscriptMessage[];
 };
 
+/** Course files and readiness are independent of a chat runtime. */
+export type AuthoringDraft = Omit<AuthoringWorkspace, "sessionId" | "messages">;
+
+export function readAuthoringDraft(root: string): AuthoringDraft {
+  const manifest = readDraftManifest(root);
+  const lessons = draftLessons(root, manifest);
+  return {
+    root,
+    style: String(manifest.mode ?? "katas"),
+    name: String(manifest.name ?? basename(root)),
+    description: String(manifest.description ?? ""),
+    manifestSource: readOptionalFile(resolve(root, "dojo.yaml")),
+    courseGuidance: readOptionalFile(resolve(root, "DOJO.md")),
+    rootFiles: readRootAuthoringFiles(root),
+    language: String(manifest.language ?? ""),
+    issues: validateManifest(manifest),
+    courseChecks: courseReadiness(root, manifest, lessons),
+    lessons,
+  };
+}
+
 export function createAuthoringService(agent: AuthoringAgent) {
   const getWorkspace = async (root: string): Promise<AuthoringWorkspace> => {
-    const manifest = readDraftManifest(root);
+    const draft = readAuthoringDraft(root);
     const thread = readThreadState(root);
     let messages: AuthoringTranscriptMessage[] = [];
     let sessionId: string | null = null;
     if (thread) {
-      try {
-        await resumeThread(agent, root, thread);
-        messages = await agent.history(thread.sessionId);
-        sessionId = thread.sessionId;
-      } catch {
-        sessionId = null;
-      }
+      await resumeThread(agent, root, thread);
+      messages = await agent.history(thread.sessionId);
+      sessionId = thread.sessionId;
     }
-    const lessons = draftLessons(root, manifest);
     return {
-      root,
-      style: String(manifest.mode ?? "katas"),
-      name: String(manifest.name ?? basename(root)),
-      description: String(manifest.description ?? ""),
-      manifestSource: readOptionalFile(resolve(root, "dojo.yaml")),
-      courseGuidance: readOptionalFile(resolve(root, "DOJO.md")),
-      rootFiles: readRootAuthoringFiles(root),
-      language: String(manifest.language ?? ""),
-      issues: validateManifest(manifest),
-      courseChecks: courseReadiness(root, manifest, lessons),
-      lessons,
+      ...draft,
       sessionId,
       messages,
     };
@@ -149,7 +155,7 @@ export function createAuthoringService(agent: AuthoringAgent) {
     answer: (root: string, answers: Record<string, string[]>) => {
       const thread = readThreadState(root);
       if (!thread) throw new Error("No Kyoshi session is active");
-      agent.answer(thread.sessionId, answers);
+      return agent.answer(thread.sessionId, answers);
     },
   };
 }
@@ -174,7 +180,7 @@ export function createLessonTrial(root: string, lessonId: string): {
   mkdirSync(dirname(courseRoot), { recursive: true });
   mkdirSync(courseRoot, { recursive: true });
   for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (entry.name === ".dojo" || entry.name === "node_modules") continue;
+    if (entry.name === ".dojo" || entry.name === ".git" || entry.name === "node_modules") continue;
     cpSync(resolve(root, entry.name), resolve(courseRoot, entry.name), {
       recursive: true,
     });
@@ -357,16 +363,12 @@ async function authoringThread(
   agent: AuthoringAgent,
   root: string
 ): Promise<{ threadId: string; created: boolean }> {
-  const harness = agent.currentHarness();
   const existing = readThreadState(root);
-  if (existing?.harness === harness) {
-    try {
-      await resumeThread(agent, root, existing);
-      return { threadId: existing.sessionId, created: false };
-    } catch {
-      // Preserve the old native ID as an alias and start a recoverable thread.
-    }
+  if (existing) {
+    await resumeThread(agent, root, existing);
+    return { threadId: existing.sessionId, created: false };
   }
+  const harness = agent.currentHarness();
   const threadId = await agent.start({
     root,
     runtimeKey: runtimeKey(root, harness),
@@ -377,9 +379,7 @@ async function authoringThread(
     version: 1,
     sessionId: threadId,
     harness,
-    aliases: existing
-      ? [...new Set([...existing.aliases, existing.sessionId])]
-      : [],
+    aliases: [],
   });
   return { threadId, created: true };
 }

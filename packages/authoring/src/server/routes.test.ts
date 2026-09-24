@@ -4,12 +4,14 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 const context = vi.hoisted(() => ({ root: "" }));
 
@@ -18,14 +20,16 @@ vi.mock("@dojofoo/config/local-state", () => ({
 }));
 
 const { createAuthoringRoutes } = await import("./routes");
+const answer = vi.fn<(sessionId: string, answers: Record<string, string[]>) => void | Promise<void>>();
+const resume = vi.fn(async () => {});
 const authoringRoutes = createAuthoringRoutes({
   agent: {
     currentHarness: () => "test",
     start: async () => "test-session",
-    resume: async () => {},
+    resume,
     history: async () => [],
     send: async () => "",
-    answer: () => {},
+    answer,
   },
   resolveWorkspace: () => context.root,
   stream: () => new Response(null),
@@ -33,8 +37,51 @@ const authoringRoutes = createAuthoringRoutes({
 const repository = resolve(import.meta.dirname, "../../../..");
 
 describe("authoring routes", () => {
+  it.each([
+    ["/files/DOJO.md", "PUT", { content: "# Updated teaching guidance" }, 200],
+    ["/course", "PATCH", { title: "Updated course" }, 200],
+    ["/lessons", "POST", { title: "Another lesson" }, 201],
+    ["/lessons/001-draw-a-boundary", "PATCH", { title: "Updated lesson" }, 200],
+  ])("edits %s independently of the chat runtime", async (path, method, body, status) => {
+    authorLesson();
+    await authoringRoutes.request("/session", { method: "POST" });
+    const pointer = readFileSync(resolve(context.root, ".dojo/kyoshi.json"), "utf8");
+    resume.mockClear().mockRejectedValue(new Error("Runtime unavailable"));
+    const response = await authoringRoutes.request(path, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    expect(response.status).toBe(status);
+    const result = await response.json();
+    const draft = result.workspace ?? result;
+    expect(draft.root).toBe(context.root);
+    expect(draft).not.toHaveProperty("messages");
+    expect(draft).not.toHaveProperty("sessionId");
+    expect(resume).not.toHaveBeenCalled();
+    expect(readFileSync(resolve(context.root, ".dojo/kyoshi.json"), "utf8")).toBe(pointer);
+  });
+
+  it("reads draft files without resuming an unavailable chat runtime", async () => {
+    expect((await authoringRoutes.request("/session", { method: "POST" })).status).toBe(201);
+    const pointer = readFileSync(resolve(context.root, ".dojo/kyoshi.json"), "utf8");
+    resume.mockClear().mockRejectedValue(new Error("Runtime unavailable"));
+    const response = await authoringRoutes.request("/draft");
+    expect(response.status).toBe(200);
+    const draft = await response.json();
+    expect(draft.root).toBe(context.root);
+    expect(draft.rootFiles.length).toBeGreaterThan(0);
+    expect(draft).not.toHaveProperty("messages");
+    expect(resume).not.toHaveBeenCalled();
+    expect(readFileSync(resolve(context.root, ".dojo/kyoshi.json"), "utf8")).toBe(pointer);
+  });
+
   beforeEach(() => {
-    context.root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-"));
+    answer.mockReset();
+    resume.mockReset().mockResolvedValue(undefined);
+    const root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-"));
+    context.root = root;
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     cpSync(resolve(repository, "packages/authoring/templates/katas"), context.root, {
       recursive: true,
       filter: (source) => !source.includes("/.dojo/")
@@ -45,6 +92,75 @@ describe("authoring routes", () => {
     if (existsSync(installed)) {
       symlinkSync(installed, resolve(context.root, "node_modules"), "dir");
     }
+  });
+
+  it("returns a JSON error for failed session resume without clearing its pointer", async () => {
+    await authoringRoutes.request("/session", { method: "POST" });
+    const path = resolve(context.root, ".dojo/kyoshi.json");
+    const pointer = readFileSync(path, "utf8");
+    resume.mockRejectedValueOnce(new Error("Harness temporarily unavailable"));
+    const response = await authoringRoutes.request("/workspace");
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Harness temporarily unavailable" });
+    expect(readFileSync(path, "utf8")).toBe(pointer);
+    const recovered = await authoringRoutes.request("/workspace");
+    expect(recovered.status).toBe(200);
+    await expect(recovered.json()).resolves.toMatchObject({ sessionId: "test-session" });
+  });
+
+  it("acknowledges an answer only after the backend accepts it", async () => {
+    await authoringRoutes.request("/session", { method: "POST" });
+    let enter!: () => void;
+    let accept!: () => void;
+    const entered = new Promise<void>((resolve) => { enter = resolve; });
+    const accepted = new Promise<void>((resolve) => { accept = resolve; });
+    answer.mockImplementation(async () => {
+      enter();
+      await accepted;
+    });
+    let settled = false;
+    const pending = Promise.resolve(authoringRoutes.request("/answers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ answers: { choice: ["review"] } }),
+    })).then((response) => { settled = true; return response; });
+    try {
+      await entered;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(settled).toBe(false);
+      expect(answer).toHaveBeenCalledExactlyOnceWith("test-session", { choice: ["review"] });
+    } finally {
+      accept();
+      await pending;
+    }
+    const response = await pending;
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
+  it("returns backend answer rejection instead of false success", async () => {
+    await authoringRoutes.request("/session", { method: "POST" });
+    answer.mockRejectedValueOnce(new Error("Question is no longer pending"));
+    const response = await authoringRoutes.request("/answers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ answers: { choice: ["review"] } }),
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "Question is no longer pending" });
+    expect(answer).toHaveBeenCalledTimes(1);
+  });
+
+  it("still accepts synchronous backend answers", async () => {
+    await authoringRoutes.request("/session", { method: "POST" });
+    const response = await authoringRoutes.request("/answers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ answers: { choice: ["review"] } }),
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(answer).toHaveBeenCalledExactlyOnceWith("test-session", { choice: ["review"] });
   });
 
   it("projects an empty folder without inventing course material", async () => {
@@ -118,6 +234,28 @@ describe("authoring routes", () => {
       courseId: "systems-thinking",
       lessonId: "001-draw-a-boundary",
     });
+  });
+
+  it("trials authored files without copying Kyoshi runtime or repository state", async () => {
+    authorLesson();
+    for (const directory of [".dojo/kyoshi-app", ".dojo/kyoshi-harness", ".git"]) {
+      mkdirSync(resolve(context.root, directory), { recursive: true });
+      writeFileSync(resolve(context.root, directory, "private-state"), "not lesson content");
+    }
+    symlinkSync(context.root, resolve(context.root, ".dojo/kyoshi-harness/course"), "dir");
+    const original = readFileSync(resolve(context.root, "src/001-draw-a-boundary/solution.ts"), "utf8");
+    const response = await authoringRoutes.request("/lessons/001-draw-a-boundary/trials", { method: "POST" });
+    expect(response.status).toBe(201);
+    const trials = resolve(context.root, ".dojo/trials");
+    const trial = resolve(trials, readdirSync(trials)[0]);
+    const copied = resolve(trial, ".dojos/systems-thinking");
+    for (const directory of [".dojo", ".git", "node_modules"]) {
+      expect(existsSync(resolve(copied, directory)), directory).toBe(false);
+    }
+    const learnerFile = resolve(trial, "katas/001-draw-a-boundary/solution.ts");
+    expect(readFileSync(learnerFile, "utf8")).toBe(original);
+    writeFileSync(learnerFile, "// learner edits stay in the trial\n");
+    expect(readFileSync(resolve(context.root, "src/001-draw-a-boundary/solution.ts"), "utf8")).toBe(original);
   });
 
   it("edits only supported authoring files and projects the saved content", async () => {
