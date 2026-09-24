@@ -15,12 +15,11 @@ import {
 } from "@dojofoo/config";
 import type { UIMessage } from "@tanstack/ai-client";
 import type { DojoLessonContext } from "@dojofoo/protocol";
-import platformTeaching from "./contracts/DOJOFOO.md?raw";
-import kataTeaching from "./contracts/KATAS.md?raw";
+import { senseiInstructions } from "./instructions";
 import type { HarnessKind } from "../harness/adapter";
 import { dojofooHarness } from "../harness/registry";
 import { acpClient, type AcpStreamPart, type SessionModelConfiguration, type TranscriptMessage } from "./codex-client";
-import { parseSenseiContent, senseiFragmentIds } from "./sensei-content";
+import { parseSenseiContent } from "./sensei-content";
 
 type WebState = {
   version: 4;
@@ -667,10 +666,7 @@ export async function startLessonSession(
 }
 
 function lessonInstructions(root: string, dojo: string, sensei: string): string {
-  const dojoGuide = readDojoMd(root, dojo) ?? "";
-  const teachingStyle = readCatalog(root, dojo).mode === "katas" ? kataTeaching : "";
-  const fragments = senseiFragmentIds(sensei);
-  return `${platformTeaching}\n\n${teachingStyle}\n\nAvailable learner fragment IDs: ${fragments.length ? fragments.join(", ") : "none"}.\n\nDOJO.md for this course:\n${dojoGuide}\n\nSensei lesson source:\n${sensei}`;
+  return senseiInstructions({ mode: readCatalog(root, dojo).mode, dojo: readDojoMd(root, dojo) ?? "", sensei });
 }
 
 function lessonTarget(root: string, courseId: string, lessonId: string) {

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { createLocalSandbox } from "../../dist/local-sandbox.js";
+import { createLocalHarnessSandbox } from "../../dist/local-harness-sandbox.js";
 
 async function workspace(t) {
   const root = await mkdtemp(join(tmpdir(), "dojo-local-sandbox-"));
@@ -12,6 +13,41 @@ async function workspace(t) {
   t.after(async () => { await session.stop(); await rm(root, { recursive: true, force: true }); });
   return { root, session };
 }
+
+test("shared harness factory preserves native identity and initialization", async t => {
+  const { root } = await workspace(t);
+  const factory = createLocalHarnessSandbox(root, { providerId: "dojo-authoring-local" });
+  assert.equal(factory.providerId, "dojo-authoring-local");
+  let initialized = 0;
+  const session = await factory.createSession({ sessionId: "lesson-one", onFirstCreate: async current => {
+    initialized++;
+    assert.equal(current.id, "lesson-one");
+  } });
+  await session.stop();
+  const resumed = await factory.resumeSession({ sessionId: session.id });
+  t.after(() => resumed.stop());
+  assert.equal(resumed.id, session.id);
+  assert.equal(initialized, 1);
+});
+
+test("shared harness factory rejects cancellation before acquiring a workspace", async () => {
+  const factory = createLocalHarnessSandbox("/nonexistent-dojo-fixture");
+  const abortSignal = AbortSignal.abort(new Error("Cancelled lesson"));
+  await assert.rejects(factory.createSession({ abortSignal }), /Cancelled lesson/);
+  assert.throws(() => factory.resumeSession({ sessionId: "lesson-one", abortSignal }), /Cancelled lesson/);
+});
+
+test("shared harness initialization errors are not swallowed", async t => {
+  const { root } = await workspace(t);
+  const factory = createLocalHarnessSandbox(root);
+  let child;
+  t.after(async () => { await child?.kill(); });
+  await assert.rejects(factory.createSession({ onFirstCreate: async session => {
+    child = await session.spawn({ command: "sleep 30" });
+    throw new Error("Bootstrap failed");
+  } }), /Bootstrap failed/);
+  assert.throws(() => process.kill(child.pid, 0), { code: "ESRCH" });
+});
 
 test("local sandbox preserves caller-owned identity when reattached", async t => {
   const { root } = await workspace(t);

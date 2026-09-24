@@ -126,7 +126,7 @@ export function ChatCassettePlayer({
               workspaceId="storybook"
             />
           ))}
-          {working && !hasOutput && <ThinkingIndicator className="px-0" />}
+          {working && !hasOutput && <ThinkingIndicator label="Thinking" className="py-2" />}
         </ChatContainerContent>
         <ChatContainerFooter>
           <InputMessage disabled onValueChange={() => undefined} placeholder="Ask about the lesson…" sendLabel="Send" status={working ? "streaming" : "idle"} value="" />

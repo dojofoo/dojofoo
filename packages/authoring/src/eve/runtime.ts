@@ -50,7 +50,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   // Keep Node workers and the coordinator in the same installed package scope.
   const load = createRequire(join(app, "package.json"));
   const { createDevelopmentServer } = load("@dojofoo/agent/server") as typeof import("@dojofoo/agent/server");
-  const { createLocalSandbox, registerLocalProcessHost } = load("@dojofoo/agent/experimental/local") as typeof import("@dojofoo/agent/experimental/local");
+  const { createLocalSandbox, registerLocalProcessHost, prepareHarnessEnvironment } = load("@dojofoo/agent/experimental/local") as typeof import("@dojofoo/agent/experimental/local");
   const server = createDevelopmentServer(app, { host: "127.0.0.1", port: 0, existing: "reject" });
   let host: ReturnType<typeof registerLocalProcessHost> | undefined;
   let starting: Promise<{ url: string }> | undefined;
@@ -63,7 +63,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
     start() {
       if (closing) return Promise.reject(new Error("Kyoshi runtime is closed."));
       return starting ??= (async () => {
-        const environment = await authoringEnvironment(harness);
+        const environment = await prepareHarnessEnvironment(await authoringEnvironment(harness));
         host = registerLocalProcessHost(await createLocalSandbox(harnessRoot, { environment }));
         try {
           await writeFile(runtimePath, JSON.stringify({

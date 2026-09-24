@@ -32,7 +32,7 @@ export function DojoHeroPreview() {
           className="absolute left-0 top-0 origin-top-left"
           style={{ height: APP_HEIGHT, transform: `scale(${scale})`, width: APP_WIDTH }}
         >
-          <CourseLessonScreen model={starterKataCourseScreen} theme="dark" />
+          <CourseLessonScreen model={starterKataCourseScreen} showLogo={false} theme="dark" />
         </div>
       </div>
     </ComputerUse>

@@ -8,7 +8,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import logoWordmark from '../../../../assets/brand/dojofoo-flat.svg?raw'
+import logoWordmark from '../../../../assets/brand/dojofoo.svg?raw'
 
 const cache = new Map<string, string>()
 

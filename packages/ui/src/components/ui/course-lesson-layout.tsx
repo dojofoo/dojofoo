@@ -49,18 +49,20 @@ export function CourseLessonNavigation({
   courseTitle,
   homeHref = "/",
   sectionTitle = "Chapters",
+  showLogo = true,
 }: {
   children: ReactNode;
   courseTitle: string | null;
   homeHref?: string;
   sectionTitle?: string | null;
+  showLogo?: boolean;
 }) {
   return (
     <aside className="flex min-h-0 flex-col border-r border-dashed bg-surface-1" data-testid="lesson-navigation">
-      <div className="border-b border-dashed px-5 pb-5 pt-5">
-        <a aria-label="Back to your dojos" className="inline-flex" href={homeHref}>
-          <BrandLogo alt="Dojofoo wordmark" className="h-6" />
-        </a>
+      <div className="px-5 pb-5 pt-5">
+        {showLogo && <a aria-label="Back to your dojos" className="inline-flex" href={homeHref}>
+          <BrandLogo alt="Dojofoo wordmark" className="h-6 w-14" />
+        </a>}
         {courseTitle ? <h1 className="mt-1.5 text-xl font-semibold">{courseTitle}</h1> : null}
         {sectionTitle ? <h2 className="mt-7 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{sectionTitle}</h2> : null}
       </div>

@@ -25,6 +25,7 @@
       "headers": {
         "Authorization": "Bearer ${REACTBITS_API_KEY}"
       }
-    }
+    },
+    "@assistant-ui": "https://r.assistant-ui.com/{name}.json"
   }
 }

@@ -21,7 +21,7 @@ function SiteNavigation({
   return (
     <Component
       className={cn(
-        "border-b border-dashed border-border bg-background/90 backdrop-blur-md",
+        "border-b border-dashed border-border bg-background/90 backdrop-blur-md [&_.dojo-brand-logo]:w-14",
         Component === "header" && "sticky top-0 z-40",
         className,
       )}

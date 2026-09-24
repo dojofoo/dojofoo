@@ -84,6 +84,7 @@ export type CourseLessonScreenProps = {
   model: CourseLessonScreenModel;
   onCodeChange?: (code: string) => void;
   readOnly?: boolean;
+  showLogo?: boolean;
   style?: CSSProperties;
   theme?: "dark" | "light" | "inherit";
   width?: number;
@@ -96,6 +97,7 @@ export function CourseLessonScreen({
   model,
   onCodeChange = () => undefined,
   readOnly = true,
+  showLogo = true,
   style,
   theme = "inherit",
   width = 1440,
@@ -171,7 +173,7 @@ export function CourseLessonScreen({
         </ScrollArea>
       )}
       navigation={(
-        <CourseLessonNavigation courseTitle={model.courseTitle}>
+        <CourseLessonNavigation courseTitle={model.courseTitle} showLogo={showLogo}>
             {model.lessons.map((lesson) => (
               <div className={`w-full border-b border-dashed ${lesson.state === "current" ? "bg-hover" : ""}`} key={lesson.id}>
                 <div className={`flex w-full items-center gap-2.5 px-4 py-4 text-left text-[14px] font-medium ${lesson.state === "upcoming" ? "text-muted-foreground/40" : lesson.state === "current" ? "text-foreground" : "text-muted-foreground"}`}>

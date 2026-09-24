@@ -1025,7 +1025,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                   />
                 ))}
               {chatIsWorking && !latestMessageHasStreamingOutput && (
-                <ThinkingIndicator className="px-0" key="pending-agent-work" />
+                <ThinkingIndicator label="Thinking" className="py-2" key="pending-agent-work" />
               )}
               {checking && <LiveCheckSummary tests={liveTests} />}
               {chatError && (
