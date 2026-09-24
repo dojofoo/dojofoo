@@ -22,6 +22,17 @@ filesystem tools require no consumer install or runtime auto-install. The packed
 consumer test reads and edits a live course mount, observes human edits, and
 reopens private workspace files after shutdown.
 
+The managed authoring host prepares adapter bootstrap tools through mise:
+`prepareHarnessEnvironment()` from `@dojofoo/agent/experimental/local` installs
+and selects `pnpm@10.34.5` with `--no-config`. Only the resulting PATH is passed
+to the local process host. Course/global mise configuration, credentials, and
+global pnpm are not changed. Mise is prepared by `dojofoo install`; the first
+tool download requires network access. Standalone local hosts can use the same
+helper before creating their process coordinator.
+
+Run the real toolchain regression (no model calls) with:
+`DOJO_MISE_BOOTSTRAP=1 node --test packages/agent/experiments/model-provider/runtime-toolchain.test.mjs`.
+
 The opt-in browser acceptance check runs a real local UI, Eve host and OpenCode
 against a loopback model endpoint (no paid inference):
 

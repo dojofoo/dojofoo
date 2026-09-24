@@ -1,6 +1,6 @@
 import { defineAgent, defineDynamic } from "@dojofoo/agent";
 import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
-import { createLocalSandbox, requestLocalProcessHost } from "@dojofoo/agent/experimental/local";
+import { createLocalHarnessSandbox, requestLocalProcessHost } from "@dojofoo/agent/experimental/local";
 import { authoringHarness, type AuthoringHarness } from "./harness.ts";
 
 export interface KyoshiRuntime {
@@ -19,25 +19,7 @@ export function createKyoshiAgent(runtime: () => Promise<KyoshiRuntime>) {
       "step.started": async () => {
         const settings = await runtime();
         const processHost = await requestLocalProcessHost(settings.connection);
-        const acquire = (sessionId?: string) => createLocalSandbox(settings.harnessRoot, { id: sessionId, processHost });
-        const sandbox = {
-          specificationVersion: "harness-sandbox-v1" as const,
-          providerId: "dojo-authoring-local",
-          async createSession(options?: {
-            sessionId?: string;
-            abortSignal?: AbortSignal;
-            onFirstCreate?: (session: Awaited<ReturnType<typeof acquire>>, options: { abortSignal?: AbortSignal }) => Promise<void>;
-          }) {
-            options?.abortSignal?.throwIfAborted();
-            const session = await acquire(options?.sessionId);
-            await options?.onFirstCreate?.(session, { abortSignal: options.abortSignal });
-            return session;
-          },
-          resumeSession: ({ sessionId, abortSignal }: { sessionId: string; abortSignal?: AbortSignal }) => {
-            abortSignal?.throwIfAborted();
-            return acquire(sessionId);
-          },
-        };
+        const sandbox = createLocalHarnessSandbox(settings.harnessRoot, { processHost, providerId: "dojo-authoring-local" });
         return {
           model: experimental_createHarnessModel({
             sandbox,

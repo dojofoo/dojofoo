@@ -34,6 +34,10 @@ const createVercelCursorTheme = (): Extension => {
         lineHeight: "1.55",
       },
       "&.cm-focused": { outline: "none" },
+      ".cm-scroller": {
+        fontFamily: "inherit",
+        fontSize: "inherit",
+      },
       ".cm-content": {
         caretColor: color.cursor,
         fontFamily: '"Iosevka", ui-monospace, monospace',
@@ -56,6 +60,8 @@ const createVercelCursorTheme = (): Extension => {
         backgroundColor: color.background,
         border: "none",
         color: color.gutterText,
+        fontFamily: "inherit",
+        fontSize: "inherit",
       },
       ".cm-panels": {
         backgroundColor: color.panel,

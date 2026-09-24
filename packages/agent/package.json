@@ -416,7 +416,7 @@
     "build": "tsc && node scripts/build-runtime.mjs",
     "test:packaging": "pnpm build && node experiments/model-provider/packaging.mjs",
     "types:check": "tsc --noEmit",
-    "test": "pnpm build && node --test --test-timeout=10000 experiments/model-provider/local-sandbox.test.mjs experiments/model-provider/local-process-host.test.mjs experiments/model-provider/loopback-openai.test.mjs && node experiments/model-provider/run.mjs"
+    "test": "pnpm build && node --test --test-timeout=10000 experiments/model-provider/local-sandbox.test.mjs experiments/model-provider/local-process-host.test.mjs experiments/model-provider/loopback-openai.test.mjs experiments/model-provider/runtime-toolchain.test.mjs && node experiments/model-provider/run.mjs"
   },
   "dependencies": {
     "@ai-sdk/harness": "1.0.108",

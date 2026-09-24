@@ -21,7 +21,7 @@ export function AuthoringChat({ messages, status, busy, value, onValueChange, on
   return <ChatContainer data-testid="authoring-chat-pane">
     <ChatContainerContent>
       {messages.map(entry => <StreamedChatMessage fragments={{}} key={entry.id} message={entry} onToolAnswer={onAnswer} streaming={status === "streaming" && entry.id === messages.at(-1)?.id} workspaceId="" />)}
-      {(busy || status === "submitted") && status !== "streaming" ? <ThinkingIndicator className="px-0" /> : null}
+      {(busy || status === "submitted") && status !== "streaming" ? <ThinkingIndicator label="Thinking" className="py-2" /> : null}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {onRetryAnswer ? <Button disabled={busy} onClick={onRetryAnswer}>Retry answer</Button> : null}
     </ChatContainerContent>
