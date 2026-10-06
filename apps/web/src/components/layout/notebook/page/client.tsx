@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight } from "@mynaui/icons-react";
 import { useTranslations } from '@fuma-translate/react'
 import Link from 'fumadocs-core/link'
 import { cn } from '@/lib/utils'

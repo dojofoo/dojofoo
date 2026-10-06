@@ -16,6 +16,8 @@ export async function prepareKyoshiApp(courseRoot: string): Promise<string> {
   if (course === dirname(course)) throw new Error("A course cannot be a filesystem root.");
   const app = join(course, ".dojo", "kyoshi-app");
   await mkdir(app, { recursive: true });
+  // This entire directory is managed runtime state, including local credentials.
+  await writeFile(join(app, ".gitignore"), "*\n");
   const packagePath = join(app, "package.json");
   try {
     await writeFile(packagePath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: "wx" });
@@ -61,6 +63,7 @@ export async function prepareKyoshiHarness(courseRoot: string): Promise<string> 
   if (course === dirname(course)) throw new Error("A course cannot be a filesystem root.");
   const root = join(course, ".dojo", "kyoshi-harness");
   await mkdir(root, { recursive: true });
+  await writeFile(join(root, ".gitignore"), "*\n");
   const link = join(root, "course");
   try { await symlink(course, link, "dir"); }
   catch (error) {

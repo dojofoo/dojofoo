@@ -27,6 +27,7 @@
         "Authorization": "Bearer ${BEUI_PRO_TOKEN}"
       }
     },
-    "@soundcn": "https://soundcn.xyz/r/{name}.json"
+    "@soundcn": "https://soundcn.xyz/r/{name}.json",
+    "@reui": "https://reui.io/r/{style}/{name}.json"
   }
 }

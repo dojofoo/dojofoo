@@ -1,5 +1,6 @@
 "use client";
 // beui.dev/components/motion/input
+import { Check } from "@mynaui/icons-react";
 
 import {
   AnimatePresence,
@@ -250,25 +251,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           />
 
           {success ? (
-            <motion.svg
-              viewBox="0 0 24 24"
-              fill="none"
+            <motion.span
+              aria-hidden="true"
+              initial={{ opacity: reduce ? 1 : 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
               className={cn(
                 "absolute right-3.5 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-(--color-success)",
                 classNames?.successIcon,
               )}
             >
-              <motion.path
-                d="M5 12.5l4.5 4.5L19 7.5"
-                stroke="currentColor"
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                initial={reduce ? { pathLength: 1 } : { pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-              />
-            </motion.svg>
+              <Check size={20} stroke={2.5} />
+            </motion.span>
           ) : rightSlot ? (
             <span
               className={cn(

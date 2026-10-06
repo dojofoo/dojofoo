@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, MousePointer2, Plus } from "lucide-react";
+import { ArrowUpRight, MousePointer as MousePointer2, Plus } from "@mynaui/icons-react";
 import { motion } from "motion/react";
 import { Button } from "../../motion/button/base";
 import { SPRING_LAYOUT, SPRING_PANEL } from "../../../lib/ease";

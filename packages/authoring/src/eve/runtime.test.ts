@@ -57,9 +57,21 @@ it("owns a real packaged Eve server and releases it without launching a model", 
     expect(state.courseRoot).toBe(root);
     expect(state.connection.id).toEqual(expect.any(String));
     expect(Object.keys(state).sort()).toEqual(["connection", "courseRoot", "harness", "harnessRoot"]);
+    // Eve owns generation paths: verify through its manifest-loading API,
+    // not an assumed .eve/compile location.
+    expect((await fetch(new URL("eve/v1/info", first.url))).status).toBe(200);
     await Promise.all([runtime.close(), runtime.close()]);
     await expect(runtime.start()).rejects.toThrow("closed");
     await expect(fetch(first.url, { signal: AbortSignal.timeout(2000) })).rejects.toThrow();
+    // Simulate lost generated infrastructure, without deleting harness history.
+    await rm(join(root, ".dojo/kyoshi-app"), { recursive: true, force: true });
+    const restarted = await createKyoshiRuntime(root);
+    try {
+      const ready = await restarted.start();
+      expect((await fetch(new URL("eve/v1/info", ready.url))).status).toBe(200);
+    } finally {
+      await restarted.close();
+    }
   } finally {
     await runtime.close();
     await rm(root, { recursive: true, force: true });

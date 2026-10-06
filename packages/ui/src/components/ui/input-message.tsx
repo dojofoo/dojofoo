@@ -751,6 +751,7 @@ const InputMessage = forwardRef<HTMLDivElement, InputMessageProps>(
 
     const composer = (
       <div
+        data-slot="input-message"
         ref={ref}
         onMouseDown={handleContainerMouseDown}
         onDragOver={handleDragOver}

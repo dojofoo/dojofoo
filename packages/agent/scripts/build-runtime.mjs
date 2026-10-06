@@ -33,6 +33,10 @@ try {
   const distributionPatch = join(root, "patches", `eve-distribution@${version}.patch`);
   execFileSync("git", ["apply", "--check", distributionPatch], { cwd: upstream });
   execFileSync("git", ["apply", distributionPatch], { cwd: upstream });
+  // A terminal provider-executed tool result is not an unfinished host tool.
+  const nativeTurnPatch = join(root, "patches", `eve-native-turn@${version}.patch`);
+  execFileSync("git", ["apply", "--check", nativeTurnPatch], { cwd: upstream });
+  execFileSync("git", ["apply", nativeTurnPatch], { cwd: upstream });
   const destination = join(root, "dist/eve");
   await rm(destination, { recursive: true, force: true });
   // Preserve package scope, internal imports, workers, assets and license notices.

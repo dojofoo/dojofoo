@@ -1,16 +1,16 @@
 "use client";
 
 import {
-  BadgeCheck,
-  Braces,
+  CheckWaves as BadgeCheck,
+  Code as Braces,
   Compass,
   Check,
   ArrowRight,
-  GalleryVerticalEnd,
-  Brain,
-  MessagesSquare,
+  LayersThree as GalleryVerticalEnd,
+  Sparkles as Brain,
+  ChatMessages as MessagesSquare,
   MousePointerClick,
-} from "lucide-react";
+} from "@mynaui/icons-react";
 import {
   AnimatePresence,
   motion,

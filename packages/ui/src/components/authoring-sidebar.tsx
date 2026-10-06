@@ -1,8 +1,15 @@
 import type { AuthoringDraft } from "@dojofoo/authoring/service";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { Filter as ListFilter, Dots as MoreHorizontal, Plus } from "@mynaui/icons-react";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from "@dojofoo/uix/components/context-menu";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { AISidebar, type SidebarResource } from "./agents/ai-sidebar";
+import type { SidebarResource } from "./agents/ai-sidebar";
+import { TreeView } from "./ui/tree-view";
 import {
   MorphPopover,
   MorphPopoverContent,
@@ -45,15 +52,22 @@ export function AuthoringSidebar({
   selectedLessonId: string | null;
   workspace: AuthoringDraft;
 }) {
+  const [onlyCourseFiles, setOnlyCourseFiles] = useState(true);
+  const [folderIds, setFolderIds] = useState<string[]>([]);
+  const filterAction = {
+    label: onlyCourseFiles ? "Show all files" : "Show only course files",
+    onSelect: () => setOnlyCourseFiles((value) => !value),
+  };
   const courseResourceId = "authoring:course";
   const lessonResourceIds = workspace.lessons.map((lesson) =>
     authoringLessonResourceId(lesson.id),
   );
-  const activeId = scope === "course"
-    ? authoringCourseFileResourceId(activeFilePath)
-    : selectedLessonId
-      ? authoringLessonFileResourceId(selectedLessonId, activeFilePath)
-      : null;
+  const activeId =
+    scope === "course"
+      ? authoringCourseFileResourceId(activeFilePath)
+      : selectedLessonId
+        ? authoringLessonFileResourceId(selectedLessonId, activeFilePath)
+        : null;
 
   const selectResource = (id: string) => {
     const selection = authoringSidebarSelection(workspace, id);
@@ -62,39 +76,66 @@ export function AuthoringSidebar({
       onSelectRootFile(selection.path);
       return;
     }
-    const lesson = workspace.lessons.find(({ id: lessonId }) =>
-      lessonId === selection.lessonId,
+    const lesson = workspace.lessons.find(
+      ({ id: lessonId }) => lessonId === selection.lessonId,
     );
     if (lesson) onSelectLessonFile(lesson, selection.path);
   };
 
   return (
     <>
-      <SidebarHeading>Course</SidebarHeading>
-      <div className="border-b border-dashed">
-        <AISidebar
-          activeId={scope === "course" ? activeId : null}
-          ariaLabel="Course files"
-          className="[&_[aria-level='1']]:min-h-10 [&_[aria-level='1']]:font-mono [&_[aria-level='1']]:font-medium [&_[aria-level='2']]:font-mono [&_[aria-level='2']]:text-xs"
-          expandedIds={courseExpanded ? [courseResourceId] : []}
-          items={authoringCourseSidebarResources(workspace)}
-          onActiveChange={selectResource}
-          onExpandedIdsChange={(ids) =>
-            onCourseExpandedChange(ids.includes(courseResourceId))
-          }
-          onRename={(item, title) => {
-            if (item.id === courseResourceId) onRenameCourse(title);
-          }}
-          renderIcon={(item) => item.id === courseResourceId ? (
-            <span className="font-mono text-[10px] text-muted-foreground">
-              01
-            </span>
-          ) : undefined}
-          reorderable={false}
-          rootPaddingLeft={16}
-          rowClassName="min-h-8 rounded-none"
-        />
-      </div>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <section aria-label="Course file browser">
+            <SidebarHeading action={filterAction} icon={ListFilter}>
+              Course
+            </SidebarHeading>
+            <div className="border-b border-dashed">
+              <TreeView
+                selectedId={scope === "course" ? activeId : null}
+                label="Course files"
+                expandedIds={
+                  courseExpanded ? [courseResourceId, ...folderIds] : []
+                }
+                items={authoringCourseSidebarResources(
+                  workspace,
+                  onlyCourseFiles,
+                )}
+                onSelect={selectResource}
+                onExpandedChange={(ids) => {
+                  onCourseExpandedChange(ids.includes(courseResourceId));
+                  setFolderIds(ids.filter((id) => id !== courseResourceId));
+                }}
+                renderActions={(item) =>
+                  item.id === courseResourceId ? (
+                    <TreeTitleMenu
+                      title={item.label}
+                      onRename={onRenameCourse}
+                      disabled={busy}
+                    />
+                  ) : null
+                }
+                renderIcon={(item) =>
+                  item.id === courseResourceId ? (
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      01
+                    </span>
+                  ) : undefined
+                }
+              />
+            </div>
+          </section>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="rounded-none">
+          <ContextMenuItem
+            className="rounded-none"
+            onSelect={filterAction.onSelect}
+          >
+            <ListFilter />
+            {filterAction.label}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
       <SidebarHeading
         action={{
@@ -107,33 +148,40 @@ export function AuthoringSidebar({
         Lessons
       </SidebarHeading>
       <div className="border-b border-dashed">
-        <AISidebar
-          activeId={scope === "lesson" ? activeId : null}
-          ariaLabel="Lesson files"
-          className="[&_[aria-level='1']]:min-h-10 [&_[aria-level='1']]:font-mono [&_[aria-level='1']]:font-medium [&_[aria-level='2']]:font-mono [&_[aria-level='2']]:text-xs"
-          expandedIds={expandedLessonId
-            ? [authoringLessonResourceId(expandedLessonId)]
-            : []}
-          items={authoringLessonSidebarResources(workspace)}
-          onActiveChange={selectResource}
-          onExpandedIdsChange={(ids) => {
+        <TreeView
+          selectedId={scope === "lesson" ? activeId : null}
+          label="Lesson files"
+          expandedIds={
+            expandedLessonId
+              ? [authoringLessonResourceId(expandedLessonId)]
+              : []
+          }
+          items={authoringLessonSidebarResources(workspace, onlyCourseFiles)}
+          onSelect={selectResource}
+          onExpandedChange={(ids) => {
             const expanded = ids.filter((id) => lessonResourceIds.includes(id));
             const current = authoringLessonResourceId(expandedLessonId ?? "");
             const next = expanded.find((id) => id !== current) ?? expanded[0];
-            const lesson = workspace.lessons.find(({ id }) =>
-              authoringLessonResourceId(id) === next,
+            const lesson = workspace.lessons.find(
+              ({ id }) => authoringLessonResourceId(id) === next,
             );
             onLessonExpandedChange(lesson?.id ?? null);
           }}
-          onRename={(item, title) => {
-            const lesson = workspace.lessons.find(({ id }) =>
-              authoringLessonResourceId(id) === item.id,
+          renderActions={(item) => {
+            const lesson = workspace.lessons.find(
+              ({ id }) => authoringLessonResourceId(id) === item.id,
             );
-            if (lesson) onRenameLesson(lesson.id, title);
+            return lesson ? (
+              <TreeTitleMenu
+                title={item.label}
+                onRename={(title) => onRenameLesson(lesson.id, title)}
+                disabled={busy}
+              />
+            ) : null;
           }}
           renderIcon={(item) => {
-            const index = workspace.lessons.findIndex(({ id }) =>
-              authoringLessonResourceId(id) === item.id,
+            const index = workspace.lessons.findIndex(
+              ({ id }) => authoringLessonResourceId(id) === item.id,
             );
             return index < 0 ? undefined : (
               <span className="font-mono text-[10px] text-muted-foreground">
@@ -141,9 +189,6 @@ export function AuthoringSidebar({
               </span>
             );
           }}
-          reorderable={false}
-          rootPaddingLeft={16}
-          rowClassName="min-h-8 rounded-none"
         />
         {workspace.lessons.length === 0 ? (
           <div className="px-4 py-3 font-prose text-[13px] leading-5 text-muted-foreground">
@@ -156,12 +201,70 @@ export function AuthoringSidebar({
   );
 }
 
+function TreeTitleMenu({
+  title,
+  onRename,
+  disabled,
+}: {
+  title: string;
+  onRename: (title: string) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <MorphPopover open={open} onOpenChange={setOpen}>
+      <MorphPopoverTrigger>
+        <button
+          type="button"
+          aria-label={`Rename ${title}`}
+          disabled={disabled}
+          className="grid size-7 place-items-center text-muted-foreground opacity-0 group-hover/tree-row:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring hover:bg-muted"
+        >
+          <MoreHorizontal aria-hidden="true" className="size-4" />
+        </button>
+      </MorphPopoverTrigger>
+      <MorphPopoverContent align="end" radius={0} className="w-56 p-3">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const value = String(
+              new FormData(event.currentTarget).get("title") ?? "",
+            ).trim();
+            if (value) {
+              onRename(value);
+              setOpen(false);
+            }
+          }}
+        >
+          <label className="grid gap-2 text-xs">
+            Title
+            <input
+              name="title"
+              defaultValue={title}
+              required
+              className="min-w-0 border border-border bg-background p-2 focus-visible:outline-2 focus-visible:outline-ring"
+            />
+          </label>
+          <button
+            type="submit"
+            className="mt-2 px-2 py-1 text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            Rename
+          </button>
+        </form>
+      </MorphPopoverContent>
+    </MorphPopover>
+  );
+}
+
 function SidebarHeading({
   action,
+  icon: Icon = Plus,
   children,
   className,
 }: {
   action?: { disabled?: boolean; label: string; onSelect: () => void };
+  icon?: typeof Plus;
   children: string;
   className?: string;
 }) {
@@ -190,13 +293,13 @@ function SidebarHeading({
           </MorphPopoverTrigger>
           <MorphPopoverContent
             align="end"
-            className="w-40 p-1.5"
-            radius={12}
+            className="w-52 p-1.5"
+            radius={0}
             side="bottom"
             sideOffset={8}
           >
             <button
-              className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs text-foreground outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-8 w-full items-center gap-2 px-2.5 text-left text-xs text-foreground outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               disabled={action.disabled}
               onClick={() => {
                 setMenuOpen(false);
@@ -204,7 +307,7 @@ function SidebarHeading({
               }}
               type="button"
             >
-              <Plus aria-hidden="true" className="size-3.5 shrink-0" />
+              <Icon aria-hidden="true" className="size-3.5 shrink-0" />
               {action.label}
             </button>
           </MorphPopoverContent>
@@ -214,32 +317,54 @@ function SidebarHeading({
   );
 }
 
-function authoringCourseSidebarResources(
+export function authoringCourseSidebarResources(
   workspace: AuthoringDraft,
+  onlyCourseFiles = true,
 ): SidebarResource[] {
-  return [{
-    id: "authoring:course",
-    kind: "project",
-    label: workspace.name || "Untitled dojo",
-    children: authoringFileSidebarResources(
-      workspace.rootFiles,
-      authoringCourseFileResourceId,
-    ),
-  }];
+  return [
+    {
+      id: "authoring:course",
+      kind: "project",
+      label: workspace.name || "Untitled dojo",
+      children: authoringFileSidebarResources(
+        onlyCourseFiles
+          ? workspace.rootFiles.filter(
+              ({ path }) =>
+                !path.includes("/") &&
+                path !== "pnpm-lock.yaml" &&
+                (path === "dojo.json" || /\.(?:ya?ml|mdx?)$/i.test(path)),
+            )
+          : workspace.rootFiles,
+        authoringCourseFileResourceId,
+      ),
+    },
+  ];
 }
 
-function authoringLessonSidebarResources(
+export function authoringLessonSidebarResources(
   workspace: AuthoringDraft,
+  onlyCourseFiles = true,
 ): SidebarResource[] {
   return workspace.lessons.map((lesson) => ({
     id: authoringLessonResourceId(lesson.id),
     kind: "project",
     label: lesson.title,
-    children: lesson.files.map((file) => ({
-      id: authoringLessonFileResourceId(lesson.id, file.path),
-      kind: "file" as const,
-      label: file.label,
-    })),
+    children: lesson.files
+      .filter(
+        (file) =>
+          !onlyCourseFiles ||
+          file.path === lesson.senseiPath ||
+          file.path === lesson.templatePath ||
+          file.path === lesson.testPath ||
+          (!lesson.templatePath &&
+            !lesson.testPath &&
+            /^(?:kata|solution)(?:\.test)?\.[^/]+$/.test(file.label)),
+      )
+      .map((file) => ({
+        id: authoringLessonFileResourceId(lesson.id, file.path),
+        kind: "file" as const,
+        label: file.label,
+      })),
   }));
 }
 
@@ -258,9 +383,7 @@ function authoringFileSidebarResources(
     id: resourceId(node.path),
     kind: node.type,
     label: node.name,
-    children: node.children.length > 0
-      ? node.children.map(convert)
-      : undefined,
+    children: node.children.length > 0 ? node.children.map(convert) : undefined,
   });
   return authoringTree(files).map(convert);
 }
@@ -292,29 +415,30 @@ function authoringCourseFileResourceId(path: string): string {
   return `authoring:course:file:${encodeURIComponent(path)}`;
 }
 
-function authoringLessonFileResourceId(
-  lessonId: string,
-  path: string,
-): string {
+function authoringLessonFileResourceId(lessonId: string, path: string): string {
   return `authoring:lesson:${encodeURIComponent(lessonId)}:file:${encodeURIComponent(path)}`;
 }
 
 export function authoringSidebarSelection(
   workspace: AuthoringDraft,
   resourceId: string,
-): { scope: "course"; path: string } | {
-  scope: "lesson";
-  lessonId: string;
-  path: string;
-} | null {
-  const rootFile = workspace.rootFiles.find(({ path }) =>
-    authoringCourseFileResourceId(path) === resourceId,
+):
+  | { scope: "course"; path: string }
+  | {
+      scope: "lesson";
+      lessonId: string;
+      path: string;
+    }
+  | null {
+  const rootFile = workspace.rootFiles.find(
+    ({ path }) => authoringCourseFileResourceId(path) === resourceId,
   );
   if (rootFile) return { scope: "course", path: rootFile.path };
 
   for (const lesson of workspace.lessons) {
-    const file = lesson.files.find(({ path }) =>
-      authoringLessonFileResourceId(lesson.id, path) === resourceId,
+    const file = lesson.files.find(
+      ({ path }) =>
+        authoringLessonFileResourceId(lesson.id, path) === resourceId,
     );
     if (file) {
       return { scope: "lesson", lessonId: lesson.id, path: file.path };

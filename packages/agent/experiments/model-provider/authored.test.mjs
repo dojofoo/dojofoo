@@ -21,7 +21,7 @@ test("Kyoshi instructions and question tool compile with an independently suppli
     assert.deepEqual(compiled.diagnostics.filter(item => item.severity === "error"), []);
     const instructions = compiled.manifest.instructions;
     assert.ok(instructions.some(item => item.role === "system" && item.content.includes("You are the course author's Kyoshi")));
-    assert.ok(instructions.some(item => item.content.includes("authoring workspace is /course")));
+    assert.ok(instructions.some(item => item.content.includes("Use relative paths: dojo.yaml, DOJO.md, and src/")));
     assert.ok(compiled.manifest.tools.some(item => item.name === "dojo_ui_ask"), JSON.stringify(compiled.manifest.tools));
     assert.equal(compiled.manifest.config.model.routing.kind, "external");
   } finally {

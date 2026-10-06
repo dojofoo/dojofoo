@@ -1,4 +1,5 @@
 @import "tw-shimmer";
+@import "./scrollbars.css";
 
 @custom-variant dark (&:is(.dark *));
 

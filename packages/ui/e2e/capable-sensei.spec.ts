@@ -21,7 +21,7 @@ test("a fresh lesson follows DOJO and SENSEI guidance and can inspect its tests"
 test("passing tests lets the sensei wrap up and advance with the senpai's consent", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 2, name: /hello effect/i })).toBeVisible();
-  await page.locator(".cm-editor").click();
+  await page.locator(".monaco-editor").click();
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText(`import { Effect } from "effect";
 

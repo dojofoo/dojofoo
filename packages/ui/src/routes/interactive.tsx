@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle as CheckCircle2, XCircle } from "@mynaui/icons-react";
 import { FormEvent, useEffect, useState } from "react";
 import { Button } from "@dojofoo/ui/button";
 import { BrandLogo } from "@dojofoo/ui/brand-logo";

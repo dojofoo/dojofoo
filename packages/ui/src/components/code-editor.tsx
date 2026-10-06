@@ -1,355 +1,157 @@
-import { autocompletion, closeCompletion, completionKeymap, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { javascript } from "@codemirror/lang-javascript";
-import { json } from "@codemirror/lang-json";
-import { markdown } from "@codemirror/lang-markdown";
-import { python } from "@codemirror/lang-python";
-import { yaml } from "@codemirror/lang-yaml";
-import { undo } from "@codemirror/commands";
-import { codeFolding, foldGutter } from "@codemirror/language";
-import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
-import { Decoration, EditorView, GutterMarker, gutterLineClass, keymap, ViewPlugin, type DecorationSet } from "@codemirror/view";
-import { StateEffect } from "@codemirror/state";
-import CodeMirror, { RangeSetBuilder, StateField } from "@uiw/react-codemirror";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import type * as Monaco from "modern-monaco/editor-core";
 import type { CodeHighlight } from "../lib/code-highlight";
 import { vercelCursorColors, vercelCursorTheme } from "../lib/code-editor-theme";
-
-const editorAdditions = EditorView.theme({
-  "&": {
-    height: "100%",
-  },
-  ".cm-scroller": { overflow: "auto" },
-  ".cm-line-flash": {
-    animation: "dojofoo-line-flash 1.2s ease-out",
-    backgroundColor: "#0070f34d",
-  },
-  "@keyframes dojofoo-line-flash": {
-    "0%, 35%": { backgroundColor: "#0070f366" },
-    "100%": { backgroundColor: "transparent" },
-  },
-  ".cm-lint-marker-error": {
-    content: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='4' fill='%23f05b8d'/%3E%3C/svg%3E\")",
-    height: "1em",
-    width: "1em",
-  },
-  ".cm-lintRange": {
-    backgroundPosition: "left bottom",
-    backgroundRepeat: "repeat-x",
-    backgroundSize: "6px 4px",
-    paddingBottom: "2px",
-    textDecoration: "none",
-  },
-  ".cm-lintRange-error": {
-    backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='4' viewBox='0 0 6 4'%3E%3Cpath d='M0 3L2 1L4 3L6 1' fill='none' stroke='%23f05b8d' stroke-width='1.25'/%3E%3C/svg%3E\")",
-  },
-  ".cm-lintRange-warning": {
-    backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='4' viewBox='0 0 6 4'%3E%3Cpath d='M0 3L2 1L4 3L6 1' fill='none' stroke='%23f5a623' stroke-width='1.25'/%3E%3C/svg%3E\")",
-  },
-}, { dark: true });
+import { attachLanguageTools } from "../lib/monaco-language-tools";
+import { attachDocumentation } from "../lib/monaco-documentation";
+import "./code-editor.css";
 
 export type CodeEditorLanguage = "javascript" | "json" | "markdown" | "python" | "typescript" | "yaml";
-
 type CodeEditorProps = {
-  code: string;
-  coverage: boolean;
-  lineHits?: Record<string, number>;
-  failedLines?: number[];
-  filePath: string;
-  language: CodeEditorLanguage;
-  lessonApiBase: string;
-  readOnly: boolean;
+  code: string; coverage: boolean; lineHits?: Record<string, number>; failedLines?: number[];
+  filePath: string; language: CodeEditorLanguage; lessonApiBase: string; readOnly: boolean;
+  documentationUrl?: string;
   onChange: (code: string) => void;
   onUndoReady?: (undoEditor: () => boolean) => void;
   highlight?: CodeHighlight & { nonce: number };
 };
+type Editor = Monaco.editor.IStandaloneCodeEditor;
 
-export default function CodeEditor({
-  code,
-  coverage,
-  lineHits,
-  failedLines,
-  filePath,
-  language,
-  lessonApiBase,
-  readOnly,
-  onChange,
-  onUndoReady,
-  highlight,
-}: CodeEditorProps) {
-  const editor = useRef<EditorView | null>(null);
-  const languageExtension = language === "python"
-    ? python()
-    : language === "yaml"
-      ? yaml()
-      : language === "json"
-        ? json()
-        : language === "markdown"
-          ? markdown()
-        : javascript({ jsx: true, typescript: language === "typescript" });
-  const languageTools = language === "typescript" ? typescriptLanguageTools(filePath, lessonApiBase) : [];
+export default function CodeEditor(props: CodeEditorProps) {
+  return <FileEditor key={`${props.lessonApiBase}:${props.filePath}:${props.language}:${props.readOnly}`} {...props} />;
+}
+
+function FileEditor(props: CodeEditorProps) {
+  const container = useRef<HTMLDivElement>(null);
+  const latest = useRef(props);
+  latest.current = props;
+  const [instance, setInstance] = useState<{ editor: Editor; monaco: typeof Monaco }>();
+  const [error, setError] = useState<string>();
+  const { code, filePath, language, lessonApiBase, readOnly, coverage, lineHits, failedLines, highlight, documentationUrl } = props;
 
   useEffect(() => {
-    const view = editor.current;
-    if (!view || !highlight) return;
-    const fromLine = Math.min(highlight.from, view.state.doc.lines);
-    const toLine = Math.min(highlight.to, view.state.doc.lines);
-    const from = view.state.doc.line(fromLine).from;
-    view.dispatch({
-      effects: [
-        flashLines.of({ from: fromLine, to: toLine }),
-        EditorView.scrollIntoView(from, { y: "center" }),
-      ],
-    });
-    const timeout = window.setTimeout(() => {
-      if (editor.current === view) view.dispatch({ effects: flashLines.of(null) });
-    }, 1_200);
-    return () => window.clearTimeout(timeout);
-  }, [highlight]);
-
-  return (
-    <div
-      className="h-full min-h-0 overflow-hidden"
-      style={{ backgroundColor: vercelCursorColors.background }}
-      data-file-path={filePath}
-    >
-      <CodeMirror
-        className="h-full min-h-0"
-        basicSetup={{
-          autocompletion: false,
-          bracketMatching: true,
-          closeBrackets: true,
-          foldGutter: false,
-          highlightActiveLine: true,
-          highlightActiveLineGutter: true,
-          highlightSelectionMatches: true,
-          lineNumbers: true,
-          lintKeymap: true,
-          searchKeymap: true,
-        }}
-        editable={!readOnly}
-        extensions={[
-          languageExtension,
-          languageTools,
-          preciseFolding,
-          flashLineExtension,
-          coverageExtension(coverage ? lineHits : undefined, failedLines),
-          EditorView.contentAttributes.of({ "aria-label": "Code editor" }),
-          editorAdditions,
-        ]}
-        height="100%"
-        theme={vercelCursorTheme}
-        onChange={onChange}
-        onCreateEditor={(view) => {
-          editor.current = view;
-          onUndoReady?.(() => undo(view));
-        }}
-        value={code}
-      />
-    </div>
-  );
-}
-
-const flashLines = StateEffect.define<CodeHighlight | null>();
-const flashLineExtension = StateField.define<DecorationSet>({
-  create: () => Decoration.none,
-  update(decorations, transaction) {
-    const effect = transaction.effects.find((candidate) => candidate.is(flashLines));
-    if (effect) {
-      if (!effect.value) return Decoration.none;
-      const ranges = [];
-      for (let line = effect.value.from; line <= effect.value.to; line += 1) {
-        if (line <= transaction.state.doc.lines) {
-          ranges.push(Decoration.line({ class: "cm-line-flash" }).range(transaction.state.doc.line(line).from));
-        }
-      }
-      return Decoration.set(ranges);
-    }
-    return transaction.docChanged ? decorations.map(transaction.changes) : decorations;
-  },
-  provide: (field) => EditorView.decorations.from(field),
-});
-
-type CompletionResponse = {
-  from: number;
-  options: Array<{ label: string; type: string }>;
-};
-
-type DiagnosticResponse = Array<Diagnostic & { code: number }>;
-
-function typescriptLanguageTools(filePath: string, lessonApiBase: string) {
-  return [
-    autocompletion({ override: [typescriptCompletions(filePath, lessonApiBase)] }),
-    keymap.of(completionKeymap),
-    linter(async (view) => {
-      const response = await fetch(`${lessonApiBase}/files/solution/diagnostics`, {
-        body: JSON.stringify({ code: view.state.doc.toString(), filePath }),
-        headers: languageHeaders(),
-        method: "POST",
+    let cancelled = false;
+    let dispose: (() => void) | undefined;
+    setInstance(undefined);
+    setError(undefined);
+    import("../lib/monaco-runtime").then(({ loadMonaco }) => loadMonaco()).then((monaco) => {
+      if (cancelled || !container.current) return;
+      // Unique model per mounted file: no shared URI state across lessons/editors.
+      const uri = monaco.Uri.from({ scheme: "inmemory", path: `/dojo/${crypto.randomUUID()}/${filePath}` });
+      const model = monaco.editor.createModel(latest.current.code, language, uri);
+      model.updateOptions({ tabSize: 2, insertSpaces: true });
+      const overlay = document.createElement("div");
+      overlay.className = "dojo-code-editor dojo-editor-overlays";
+      const widgets = document.createElement("div");
+      widgets.className = "monaco-editor";
+      overlay.append(widgets);
+      widgets.addEventListener("wheel", (event) => {
+        const segment = (event.target as Element).closest(".markdown-hover");
+        // Let the documentation segment scroll natively instead of Monaco scrolling
+        // the entire hover (including the API and parameter segments).
+        if (segment?.matches(":nth-child(2)")) event.stopPropagation();
+      }, { capture: true, passive: true });
+      document.body.append(overlay);
+      const editor = monaco.editor.create(container.current, {
+        overflowWidgetsDomNode: widgets, fixedOverflowWidgets: true,
+        model, theme: vercelCursorTheme.name, automaticLayout: true,
+        readOnly: latest.current.readOnly, ariaLabel: "Code editor", editContext: false,
+        fontFamily: '"Iosevka", ui-monospace, monospace', fontSize: 16.5, lineHeight: 26,
+        minimap: { enabled: false }, stickyScroll: { enabled: false },
+        scrollBeyondLastLine: false, lineNumbersMinChars: 3, lineDecorationsWidth: 14,
+        overviewRulerLanes: 0, hideCursorInOverviewRuler: true,
+        renderLineHighlight: "all", renderLineHighlightOnlyWhenFocus: true,
+        folding: true, showFoldingControls: "mouseover", glyphMargin: false,
+        padding: { top: 4, bottom: 4 }, wordWrap: "off",
+        "semanticHighlighting.enabled": false,
       });
-      if (!response.ok) return [];
-      const diagnostics = await response.json() as DiagnosticResponse;
-      return diagnostics.map(({ code, ...diagnostic }) => ({
-        ...diagnostic,
-        source: `TypeScript ${code}`,
-      }));
-    }, { delay: 500 }),
-    lintMarkerInteractions,
-    lintGutter(),
-  ];
+      // Monaco reuses its hover widget. Reset its native scrollbar when content changes,
+      // not while the learner is scrolling within the same documentation.
+      let hoverContent = "";
+      const hoverUpdates = new MutationObserver(() => {
+        for (const segment of widgets.querySelectorAll<HTMLElement>(".markdown-hover:nth-child(n + 3)")) {
+          segment.title = segment.textContent ?? "";
+        }
+        const content = widgets.querySelector(".hover-contents")?.textContent ?? "";
+        if (content !== hoverContent) {
+          hoverContent = content;
+          // The keyboard action requires hover focus; call the installed contribution
+          // without stealing focus from the editor or the learner's pointer.
+          editor.getContribution<Monaco.editor.IEditorContribution & { goToTop(): void }>("editor.contrib.contentHover")?.goToTop();
+        }
+      });
+      hoverUpdates.observe(widgets, { childList: true, subtree: true, characterData: true });
+      const changes = model.onDidChangeContent(() => {
+        if (model.getValue() !== latest.current.code) latest.current.onChange(model.getValue());
+      });
+      const detach = language === "typescript" && lessonApiBase && !readOnly
+        ? attachLanguageTools(monaco, model, filePath, lessonApiBase) : undefined;
+      const hoverUrl = documentationUrl ?? (lessonApiBase ? `${lessonApiBase}/files/solution/hover` : undefined);
+      const detachDocs = hoverUrl && (language === "typescript" || language === "javascript")
+        ? attachDocumentation(monaco, model, filePath, hoverUrl) : undefined;
+      latest.current.onUndoReady?.(() => {
+        if (model.isDisposed() || !model.canUndo()) return false;
+        editor.trigger("dojo", "undo", null);
+        return true;
+      });
+      setInstance({ editor, monaco });
+      dispose = () => { hoverUpdates.disconnect(); detachDocs?.(); detach?.(); changes.dispose(); editor.dispose(); model.dispose(); overlay.remove(); };
+    }).catch((cause) => { if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause)); });
+    return () => { cancelled = true; dispose?.(); };
+  }, [filePath, language, lessonApiBase, readOnly, documentationUrl]);
+
+  useEffect(() => {
+    const editor = instance?.editor;
+    const model = editor?.getModel();
+    if (!editor || !model || model.getValue() === code) return;
+    const view = editor.saveViewState();
+    model.setValue(code);
+    if (view) editor.restoreViewState(view);
+  }, [code, instance]);
+
+  useEffect(() => {
+    if (!instance) return;
+    const { editor, monaco } = instance;
+    const model = editor.getModel();
+    if (!model) return;
+    const decorations = editor.createDecorationsCollection();
+    const update = () => decorations.set(visualizedLines(model.getLineCount(), coverage ? lineHits : undefined, failedLines)
+      .map(({ line, status }) => ({ range: new monaco.Range(line, 1, line, 1), options: {
+        isWholeLine: true, className: `dojo-line-${status}`, lineNumberClassName: `dojo-number-${status}`,
+      } })));
+    update();
+    const subscription = model.onDidChangeContent(update);
+    return () => { subscription.dispose(); decorations.clear(); };
+  }, [instance, coverage, lineHits, failedLines]);
+
+  useEffect(() => {
+    if (!instance || !highlight) return;
+    const { editor, monaco } = instance;
+    const model = editor.getModel();
+    if (!model) return;
+    const count = model.getLineCount();
+    const from = Math.max(1, Math.min(highlight.from, count));
+    const to = Math.max(from, Math.min(highlight.to, count));
+    const decorations = editor.createDecorationsCollection([{
+      range: new monaco.Range(from, 1, to, 1),
+      options: { isWholeLine: true, className: "dojo-line-flash" },
+    }]);
+    editor.revealLineInCenter(from);
+    const timeout = setTimeout(() => decorations.clear(), 1200);
+    return () => { clearTimeout(timeout); decorations.clear(); };
+  }, [instance, highlight]);
+
+  return <div className="dojo-code-editor relative h-full min-h-0 overflow-hidden"
+    style={{ backgroundColor: vercelCursorColors.background }} data-file-path={filePath}>
+    <div ref={container} className="h-full min-h-0" />
+    {error ? <div role="alert" className="absolute inset-0 p-4">Editor could not load: {error}</div>
+      : !instance && <div role="status" className="absolute inset-0 p-4 text-muted-foreground">Loading editor…</div>}
+  </div>;
 }
 
-const lintMarkerInteractions = ViewPlugin.define((view) => {
-  const onMouseOver = (event: MouseEvent) => {
-    if (event.target instanceof Element && event.target.closest(".cm-lint-marker")) {
-      closeCompletion(view);
-    }
-  };
-  view.dom.addEventListener("mouseover", onMouseOver);
-  return {
-    destroy() {
-      view.dom.removeEventListener("mouseover", onMouseOver);
-    },
-  };
-});
-
-function typescriptCompletions(filePath: string, lessonApiBase: string) {
-  return async (context: CompletionContext): Promise<CompletionResult | null> => {
-    const word = context.matchBefore(/[\w$]*/);
-    if (!context.explicit && word?.from === word?.to && context.state.sliceDoc(Math.max(0, context.pos - 1), context.pos) !== ".") {
-      return null;
-    }
-    const response = await fetch(`${lessonApiBase}/files/solution/completions`, {
-      body: JSON.stringify({
-        code: context.state.doc.toString(),
-        filePath,
-        position: context.pos,
-      }),
-      headers: languageHeaders(),
-      method: "POST",
-    });
-    if (!response.ok) return null;
-    const result = await response.json() as CompletionResponse;
-    return { ...result, validFor: /^[\w$]*$/ };
-  };
-}
-
-function languageHeaders(): Record<string, string> {
-  return { "content-type": "application/json" };
-}
-
-const preciseFolding = [
-  foldGutter({ markerDOM: (open) => foldMarker(open) }),
-  codeFolding({ placeholderDOM: (_view, onClick) => foldPlaceholder(onClick) }),
-];
-
-function foldMarker(open: boolean): HTMLElement {
-  const marker = document.createElement("span");
-  marker.title = open ? "Fold line" : "Unfold line";
-  marker.className = "cm-foldControl";
-  marker.append(svgIcon(open
-    ? "<path d=\"m4 6 4 4 4-4\"/>"
-    : "<path d=\"m6 4 4 4-4 4\"/>"));
-  return marker;
-}
-
-function foldPlaceholder(onClick: (event: Event) => void): HTMLElement {
-  const marker = document.createElement("span");
-  marker.className = "cm-foldPlaceholder";
-  marker.title = "Unfold folded code";
-  marker.addEventListener("click", onClick);
-  marker.append(svgIcon("<circle cx=\"4\" cy=\"8\" r=\"1\"/><circle cx=\"8\" cy=\"8\" r=\"1\"/><circle cx=\"12\" cy=\"8\" r=\"1\"/>"));
-  return marker;
-}
-
-function svgIcon(content: string): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("viewBox", "0 0 16 16");
-  svg.setAttribute("width", "14");
-  svg.setAttribute("height", "14");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "1.5");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("stroke-linejoin", "round");
-  svg.innerHTML = content;
-  return svg;
-}
-
-function coverageExtension(lineHits?: Record<string, number>, failedLines: number[] = []) {
-  const content = StateField.define<DecorationSet>({
-    create(state) {
-      return coverageDecorations(state.doc.lines, (line) => state.doc.line(line).from, lineHits, failedLines);
-    },
-    update(decorations, transaction) {
-      return transaction.docChanged
-        ? coverageDecorations(transaction.state.doc.lines, (line) => transaction.state.doc.line(line).from, lineHits, failedLines)
-        : decorations;
-    },
-    provide: (field) => EditorView.decorations.from(field),
-  });
-  const gutters = StateField.define({
-    create(state) {
-      return coverageGutterMarkers(state.doc.lines, (line) => state.doc.line(line).from, lineHits, failedLines);
-    },
-    update(markers, transaction) {
-      return transaction.docChanged
-        ? coverageGutterMarkers(transaction.state.doc.lines, (line) => transaction.state.doc.line(line).from, lineHits, failedLines)
-        : markers;
-    },
-    provide: (field) => gutterLineClass.from(field),
-  });
-  return [content, gutters];
-}
-
-class CoverageGutterMarker extends GutterMarker {
-  constructor(readonly elementClass: string) {
-    super();
-  }
-
-  eq(other: CoverageGutterMarker): boolean {
-    return other.elementClass === this.elementClass;
-  }
-}
-
-const coveredGutterMarker = new CoverageGutterMarker("cm-line-covered");
-const failedGutterMarker = new CoverageGutterMarker("cm-line-failed");
-
-function coverageGutterMarkers(
-  lineCount: number,
-  lineStart: (line: number) => number,
-  lineHits?: Record<string, number>,
-  failedLines: number[] = [],
-) {
-  const builder = new RangeSetBuilder<GutterMarker>();
-  for (const { line, status } of visualizedLines(lineCount, lineHits, failedLines)) {
-    const marker = status === "failed" ? failedGutterMarker : coveredGutterMarker;
-    builder.add(lineStart(line), lineStart(line), marker);
-  }
-  return builder.finish();
-}
-
-function coverageDecorations(
-  lineCount: number,
-  lineStart: (line: number) => number,
-  lineHits?: Record<string, number>,
-  failedLines: number[] = [],
-): DecorationSet {
-  return Decoration.set(visualizedLines(lineCount, lineHits, failedLines)
-    .map(({ line, status }) => Decoration.line({ attributes: { class: `cm-line-${status}` } }).range(lineStart(line))));
-}
-
-function visualizedLines(lineCount: number, lineHits?: Record<string, number>, failedLines: number[] = []) {
+export function visualizedLines(lineCount: number, lineHits?: Record<string, number>, failedLines: number[] = []) {
   const failed = new Set(failedLines);
-  const lines = new Set([
-    ...Object.entries(lineHits ?? {}).filter(([, hits]) => hits > 0).map(([line]) => Number(line)),
-    ...failedLines,
-  ]);
-  return [...lines]
-    .map((line) => ({
-      line,
-      status: failed.has(line) ? "failed" : "covered",
-    }))
-    .filter(({ line }) => Number.isInteger(line) && line > 0 && line <= lineCount)
-    .sort((a, b) => a.line - b.line);
+  return [...new Set([...Object.entries(lineHits ?? {}).filter(([, hits]) => hits > 0).map(([line]) => Number(line)), ...failedLines])]
+    .filter((line) => Number.isInteger(line) && line > 0 && line <= lineCount)
+    .sort((a, b) => a - b).map((line) => ({ line, status: failed.has(line) ? "failed" : "covered" }));
 }

@@ -9,11 +9,11 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  AlertTriangleIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  CopyIcon,
-} from "lucide-react";
+  DangerTriangle as AlertTriangleIcon,
+  Check as CheckIcon,
+  ChevronDown as ChevronDownIcon,
+  Copy as CopyIcon,
+} from "@mynaui/icons-react";
 import type { ComponentProps } from "react";
 import {
   createContext,

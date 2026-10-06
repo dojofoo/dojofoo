@@ -13,7 +13,7 @@ import {
   useState,
 } from 'react'
 import { useSidebar } from '../sidebar/base'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from "@mynaui/icons-react";
 import Link from 'fumadocs-core/link'
 import { usePathname } from 'fumadocs-core/framework'
 import { useIsScrollTop } from 'fumadocs-ui/utils/use-is-scroll-top'

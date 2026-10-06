@@ -5,7 +5,7 @@ import {
   authoringFileUrl,
   isSaveShortcut,
 } from "./authoring";
-import { authoringSidebarSelection } from "@/components/authoring-sidebar";
+import { authoringSidebarSelection, authoringCourseSidebarResources, authoringLessonSidebarResources } from "@/components/authoring-sidebar";
 
 const workspace: AuthoringWorkspace = {
   root: "/tmp/course",
@@ -41,6 +41,22 @@ const workspace: AuthoringWorkspace = {
 };
 
 describe("authoring workspace files", () => {
+  it("filters essentials without losing full-tree files or duplicating lesson directories", () => {
+    const draft = { ...workspace, rootFiles: [...workspace.rootFiles,
+      { path: "package.json", label: "package.json", content: "{}" },
+      { path: ".agents/skills/course/SKILL.md", label: "SKILL.md", content: "" },
+    ], lessons: [{ ...workspace.lessons[0], templatePath: "src/001-first/exercise.py", testPath: "src/001-first/test_exercise.py", files: [...workspace.lessons[0].files,
+      { path: "src/001-first/exercise.py", label: "exercise.py", content: "" },
+      { path: "src/001-first/test_exercise.py", label: "test_exercise.py", content: "" },
+      { path: "src/001-first/eval.yaml", label: "eval.yaml", content: "" },
+    ] }] };
+    expect(authoringCourseSidebarResources(draft)[0].children?.map((file) => file.label)).toEqual(["dojo.yaml", "DOJO.md"]);
+    expect(authoringCourseSidebarResources(draft, false)[0].children?.map((file) => file.label)).toContain("package.json");
+    const lessonFiles = authoringLessonSidebarResources(draft)[0].children!;
+    expect(lessonFiles.map((file) => file.label)).toEqual(["SENSEI.md", "exercise.py", "test_exercise.py"]);
+    expect(lessonFiles.every((file) => file.kind === "file")).toBe(true);
+    expect(authoringLessonSidebarResources(draft, false)[0].children?.map((file) => file.label)).toContain("eval.yaml");
+  });
   it("maps course and lesson UI tabs directly to source-of-truth files", () => {
     expect(authoringFiles(workspace, null).map(({ path }) => path)).toEqual([
       "dojo.yaml",

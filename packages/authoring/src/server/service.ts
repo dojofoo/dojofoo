@@ -40,6 +40,8 @@ export type AuthoringLesson = {
   title: string;
   description: string;
   senseiPath: string;
+  templatePath?: string;
+  testPath?: string;
   sensei: string;
   files: AuthoringSourceFile[];
   hasSensei: boolean;
@@ -167,8 +169,13 @@ export function createLessonTrial(root: string, lessonId: string): {
 } {
   const manifest = readDraftManifest(root);
   const lessons = draftLessons(root, manifest);
-  if (!lessons.some((lesson) => lesson.id === lessonId)) {
+  const lesson = lessons.find((lesson) => lesson.id === lessonId);
+  if (!lesson) {
     throw new Error(`Lesson not found: ${lessonId}`);
+  }
+  const templatePath = lesson.templatePath ?? `src/${lessonId}/solution.ts`;
+  if (!lesson.files.some((file) => file.path === templatePath)) {
+    throw new Error("Lesson template must be an existing lesson file");
   }
   if (!String(manifest.name ?? "").trim() || !String(manifest.description ?? "").trim()) {
     throw new Error("Name and describe the course before starting a trial");
@@ -193,8 +200,8 @@ export function createLessonTrial(root: string, lessonId: string): {
       [courseId]: { completed: [], lastActive: lessonId, kataIntros: [] },
     },
   });
-  const template = resolve(courseRoot, "src", lessonId, "solution.ts");
-  const workspace = resolve(trialRoot, "katas", lessonId, "solution.ts");
+  const template = resolve(courseRoot, templatePath);
+  const workspace = resolve(trialRoot, "katas", lessonId, basename(template));
   mkdirSync(dirname(workspace), { recursive: true });
   writeFileSync(workspace, readFileSync(template, "utf8"));
   const observed = observeLocalContext(trialRoot);
@@ -234,8 +241,8 @@ export function createAuthoringLesson(root: string, requestedTitle: string): str
     {
       name: id,
       title,
-      template: `src/${id}/solution.ts`,
-      test: `src/${id}/solution.test.ts`,
+      template: `src/${id}/kata.ts`,
+      test: `src/${id}/kata.test.ts`,
       description: "",
       difficulty: 1,
     },
@@ -243,8 +250,8 @@ export function createAuthoringLesson(root: string, requestedTitle: string): str
   writeAuthoringFile(root, "dojo.yaml", stringifyYaml(manifest));
   writeAuthoringFile(root, `src/${id}/SENSEI.md`, `# ${title}\n`);
   mkdirSync(resolve(root, "src", id), { recursive: true });
-  writeFileSync(resolve(root, "src", id, "solution.ts"), "");
-  writeFileSync(resolve(root, "src", id, "solution.test.ts"), "");
+  writeFileSync(resolve(root, "src", id, "kata.ts"), "");
+  writeFileSync(resolve(root, "src", id, "kata.test.ts"), "");
   return id;
 }
 
@@ -276,7 +283,7 @@ export function renameAuthoringLesson(
 
 function readDraftManifest(root: string): Record<string, unknown> {
   const path = resolve(root, "dojo.yaml");
-  if (!existsSync(path)) throw new Error("dojo.yaml is missing from this authoring workspace");
+  if (!existsSync(path)) throw new Error(`Authoring manifest not found: ${path}. Restore this course or open an existing authoring workspace.`);
   return parseYaml(readFileSync(path, "utf8")) as Record<string, unknown>;
 }
 
@@ -293,18 +300,22 @@ function draftLessons(root: string, manifest: Record<string, unknown>): Authorin
     const relativeSenseiPath = `src/${id}/${senseiPath?.endsWith(".mdx") ? "SENSEI.mdx" : "SENSEI.md"}`;
     const sensei = senseiPath ? readFileSync(senseiPath, "utf8") : "";
     const files = readAuthoringDirectory(root, directory);
+    const templatePath = String(entry.template ?? `src/${id}/solution.ts`);
+    const testPath = String(entry.test ?? `src/${id}/solution.test.ts`);
     const evalPaths = files
       .map(({ path }) => path)
       .filter((path) => /(?:^|\/)(?:eval|\w[\w.-]*\.eval)\.ya?ml$/u.test(path));
     const checks: AuthoringReadinessCheck[] = [
       { id: "sensei", label: "Lesson briefing and Sensei guidance", ready: substantiveMarkdown(sensei) },
-      { id: "scaffold", label: "Learner scaffold and checks", ready: existsSync(resolve(directory, "solution.ts")) && existsSync(resolve(directory, "solution.test.ts")) },
+      { id: "scaffold", label: "Learner scaffold and checks", ready: files.some((file) => file.path === templatePath) && files.some((file) => file.path === testPath) },
     ];
     return {
       id,
       title: String(entry.title ?? humanTitle(id)),
       description: String(entry.description ?? ""),
       senseiPath: relativeSenseiPath,
+      templatePath,
+      testPath,
       sensei,
       files,
       hasSensei: Boolean(senseiPath && substantiveMarkdown(readFileSync(senseiPath, "utf8"))),

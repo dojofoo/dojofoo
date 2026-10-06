@@ -1,5 +1,15 @@
 import * as Collapsible from "@radix-ui/react-collapsible";
-import { Brain, Check, ChevronRight, Globe, Image, Monitor, Pencil, Search, Settings } from "lucide-react";
+import {
+  Sparkles as Brain,
+  Check,
+  ChevronRight,
+  Globe,
+  Image,
+  Monitor,
+  Pencil,
+  Search,
+  Cog as Settings,
+} from "@mynaui/icons-react";
 import { createContext, type HTMLAttributes, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 

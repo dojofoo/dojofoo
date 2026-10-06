@@ -4,6 +4,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
+import { monacoAssets } from "./monaco-assets";
 
 export default defineConfig({
   server: {
@@ -25,6 +26,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    monacoAssets(),
     tailwindcss(),
     tanstackStart(),
     react(),

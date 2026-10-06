@@ -1,7 +1,7 @@
 import { Button } from "@dojofoo/ui/button";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy } from "@mynaui/icons-react";
 import { type HTMLAttributes, useState } from "react";
 
 interface ScriptCopyBtnProps extends HTMLAttributes<HTMLDivElement> {

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   getTypeScriptCompletions,
   getTypeScriptDiagnostics,
+  getTypeScriptHover,
 } from "./typescript-language-service";
 
 function project() {
@@ -35,6 +36,27 @@ function project() {
 }
 
 describe("TypeScript lesson language service", () => {
+  it("resolves documented imports in vitest.config.ts from the project's installed types", () => {
+    const { root } = project();
+    const vitest = join(root, "node_modules", "vitest");
+    mkdirSync(vitest, { recursive: true });
+    writeFileSync(join(vitest, "package.json"), JSON.stringify({ name: "vitest", exports: { "./config": "./config.d.ts" } }));
+    writeFileSync(join(vitest, "config.d.ts"), `/** Configure **Vitest**.\n * @param config Test settings.\n * @returns The resolved configuration.\n */\nexport declare function defineConfig(config: { test: { globals: boolean } }): object;`);
+    const code = 'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { globals: true } });';
+    const result = getTypeScriptHover({ projectRoot: root, filePath: "vitest.config.ts", code, position: code.lastIndexOf("defineConfig") + 2 });
+    expect(result?.signature).toContain("defineConfig");
+    expect(result?.documentation).toBe("Configure **Vitest**.");
+    expect(result?.tags.map((tag) => tag.name)).toEqual(["param", "returns"]);
+  });
+
+  it("uses unsaved JSDoc and inferred return types", () => {
+    const { root } = project();
+    const code = '/** Say **hello**.\n * @see {@link https://example.com/reference | API reference}\n */\nfunction greet(name: string) { return `Hello ${name}`; }\ngreet("Ada");';
+    const result = getTypeScriptHover({ projectRoot: root, filePath: "solution.ts", code, position: code.lastIndexOf("greet") + 1 });
+    expect(result?.signature).toContain("greet(name: string): string");
+    expect(result?.documentation).toBe("Say **hello**.");
+    expect(result?.tags[0].text).toContain("[API reference](<https://example.com/reference>)");
+  });
   it("completes members from the course dependency declarations", () => {
     const { root, source } = project();
     const code = `import { Effect } from "effect";\nexport const answer = Effect.su`;

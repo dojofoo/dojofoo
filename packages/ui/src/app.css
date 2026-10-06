@@ -76,39 +76,6 @@
   src: url("@fontsource/hind/files/hind-latin-700-normal.woff2") format("woff2");
 }
 
-.cm-line-covered {
-  background-color: rgb(88 199 96 / 0.06);
-}
-
-.cm-line-failed {
-  background-color: rgb(240 91 141 / 0.14);
-}
-
-.cm-lineNumbers .cm-line-covered {
-  color: #6f9f72 !important;
-}
-
-.cm-lineNumbers .cm-line-failed {
-  color: #f05b8d !important;
-}
-
-.cm-foldControl,
-.cm-foldPlaceholder {
-  align-items: center;
-  color: #878787;
-  display: inline-flex;
-  justify-content: center;
-  vertical-align: middle;
-}
-
-.cm-foldPlaceholder {
-  background: #171717;
-  border: 1px solid #333;
-  border-radius: 2px;
-  margin: 0 0.2rem;
-  padding: 0 2px;
-}
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

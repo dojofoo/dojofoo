@@ -1,6 +1,7 @@
 import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 import { afterEach, expect, it } from "vitest";
 import { prepareKyoshiApp, prepareKyoshiHarness } from "./prepare";
 
@@ -19,6 +20,7 @@ it("prepares an Eve app without installing into or editing the course", async ()
   await writeFile(join(root, "package.json"), '{"name":"human-course"}\n');
   await writeFile(join(root, "DOJO.md"), "Author-owned material\n");
   const app = await prepareKyoshiApp(root);
+  expect(await readFile(join(root, ".dojo/kyoshi-app/.gitignore"), "utf8")).toBe("*\n");
   expect(app).toBe(join(await realpath(root), ".dojo/kyoshi-app/agents/kyoshi"));
   expect(await prepareKyoshiApp(root)).toBe(app);
   expect(await readFile(join(root, "package.json"), "utf8")).toBe('{"name":"human-course"}\n');
@@ -42,8 +44,19 @@ it("refuses to overwrite an unrelated app", async () => {
 it("separates bootstrap files from the live course without copying it", async () => {
   const root = await course();
   const harness = await prepareKyoshiHarness(root);
+  expect(await readFile(join(harness, ".gitignore"), "utf8")).toBe("*\n");
   expect(harness).toBe(join(await realpath(root), ".dojo/kyoshi-harness"));
   expect(await prepareKyoshiHarness(root)).toBe(harness);
   await writeFile(join(harness, "course", "DOJO.md"), "A live author edit");
   expect(await readFile(join(root, "DOJO.md"), "utf8")).toBe("A live author edit");
+});
+
+it("ignores generated secrets even when the course has no ignore file", async () => {
+  const root = await course();
+  execFileSync("git", ["init", "--quiet", root]);
+  await prepareKyoshiApp(root);
+  await prepareKyoshiHarness(root);
+  for (const path of [".dojo/kyoshi-app/.env", ".dojo/kyoshi-app/agents/kyoshi/.env.production", ".dojo/kyoshi-harness/.env.local", ".dojo/kyoshi-harness/runtime.json"]) {
+    expect(execFileSync("git", ["check-ignore", "--no-index", path], { cwd: root, encoding: "utf8" }).trim()).toBe(path);
+  }
 });

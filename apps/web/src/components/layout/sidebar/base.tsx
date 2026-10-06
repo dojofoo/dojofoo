@@ -1,5 +1,5 @@
 'use client'
-import { ChevronDown, ExternalLink } from 'lucide-react'
+import { ChevronDown, ExternalLink } from "@mynaui/icons-react";
 import {
   type ComponentProps,
   createContext,

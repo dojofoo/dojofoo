@@ -1,5 +1,5 @@
 'use client'
-import { Search } from 'lucide-react'
+import { Search } from "@mynaui/icons-react";
 import { useSearchContext } from 'fumadocs-ui/contexts/search'
 import { Button, type ButtonProps } from '@dojofoo/ui/button'
 

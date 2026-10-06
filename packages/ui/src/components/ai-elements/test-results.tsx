@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  CheckCircle2Icon,
-  ChevronRightIcon,
-  CircleDotIcon,
-  CircleIcon,
-  XCircleIcon,
-} from "lucide-react";
+  CheckCircle as CheckCircle2Icon,
+  ChevronRight as ChevronRightIcon,
+  CircleDashed as CircleDotIcon,
+  Circle as CircleIcon,
+  XCircle as XCircleIcon,
+} from "@mynaui/icons-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
 

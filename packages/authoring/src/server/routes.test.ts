@@ -37,6 +37,31 @@ const authoringRoutes = createAuthoringRoutes({
 const repository = resolve(import.meta.dirname, "../../../..");
 
 describe("authoring routes", () => {
+  it("reports the exact missing manifest after a workspace disappears without replacing its session", async () => {
+    expect((await authoringRoutes.request("/session", { method: "POST" })).status).toBe(201);
+    const pointerPath = resolve(context.root, ".dojo/kyoshi.json");
+    const pointer = readFileSync(pointerPath, "utf8");
+    const manifestPath = resolve(context.root, "dojo.yaml");
+    const manifest = readFileSync(manifestPath, "utf8");
+    rmSync(manifestPath);
+    resume.mockClear();
+
+    for (const path of ["/workspace", "/draft"]) {
+      const response = await authoringRoutes.request(path);
+      expect(response.status).toBe(500);
+      expect((await response.json()).error).toContain(manifestPath);
+    }
+    expect(existsSync(manifestPath)).toBe(false);
+    expect(readFileSync(pointerPath, "utf8")).toBe(pointer);
+    expect(resume).not.toHaveBeenCalled();
+
+    writeFileSync(manifestPath, manifest);
+    const recovered = await authoringRoutes.request("/workspace");
+    expect(recovered.status).toBe(200);
+    expect((await recovered.json()).root).toBe(context.root);
+    expect(readFileSync(pointerPath, "utf8")).toBe(pointer);
+  });
+
   it.each([
     ["/files/DOJO.md", "PUT", { content: "# Updated teaching guidance" }, 200],
     ["/course", "PATCH", { title: "Updated course" }, 200],
@@ -311,6 +336,9 @@ describe("authoring routes", () => {
     });
     expect(existsSync(resolve(context.root, "src/001-normalize-a-handle/KATA.md"))).toBe(false);
     expect(existsSync(resolve(context.root, "src/001-normalize-a-handle/SENSEI.md"))).toBe(true);
+    expect(existsSync(resolve(context.root, "src/001-normalize-a-handle/kata.ts"))).toBe(true);
+    expect(existsSync(resolve(context.root, "src/001-normalize-a-handle/kata.test.ts"))).toBe(true);
+    expect(existsSync(resolve(context.root, "src/001-normalize-a-handle/solution.ts"))).toBe(false);
     expect(existsSync(resolve(context.root, "src/001-normalize-a-handle/eval.yaml"))).toBe(false);
 
     const renamed = await authoringRoutes.request(
@@ -329,6 +357,23 @@ describe("authoring routes", () => {
         senseiPath: "src/001-normalize-a-handle/SENSEI.md",
       }],
     });
+  });
+
+  it("creates a trial using a new lesson's manifest-selected kata filename", async () => {
+    authorLesson();
+    const response = await authoringRoutes.request("/lessons", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "New kata" }),
+    });
+    const created = await response.json();
+    const lesson = created.workspace.lessons.find((entry: { id: string }) => entry.id === created.lessonId);
+    expect(lesson.templatePath).toBe(`src/${created.lessonId}/kata.ts`);
+    expect(lesson.testPath).toBe(`src/${created.lessonId}/kata.test.ts`);
+    expect(lesson.checks.find((check: { id: string }) => check.id === "scaffold").ready).toBe(true);
+    const trial = await authoringRoutes.request(`/lessons/${created.lessonId}/trials`, { method: "POST" });
+    expect(trial.status).toBe(201);
+    const trials = resolve(context.root, ".dojo/trials");
+    expect(existsSync(resolve(trials, readdirSync(trials)[0], "katas", created.lessonId, "kata.ts"))).toBe(true);
   });
 
   it("edits the course title in dojo.yaml", async () => {

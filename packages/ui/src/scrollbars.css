@@ -1,0 +1,32 @@
+/* One visual language for native, Base UI and Monaco scrollbars. */
+:root {
+  --scrollbar-size: 10px;
+  --scrollbar-thumb: rgb(128 128 128 / 50%);
+  --scrollbar-thumb-hover: rgb(128 128 128 / 65%);
+  --scrollbar-thumb-active: rgb(160 160 160 / 70%);
+}
+.scrollbar-compact,
+.dojo-editor-overlays,
+.teaching-markdown {
+  --scrollbar-size: 6px;
+}
+*::-webkit-scrollbar { width: var(--scrollbar-size); height: var(--scrollbar-size); }
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border: 0; border-radius: 0; }
+*::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+*::-webkit-scrollbar-thumb:active { background: var(--scrollbar-thumb-active); }
+*::-webkit-scrollbar-button { display: none; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-color: var(--scrollbar-thumb) transparent; }
+  .scrollbar-compact, .scrollbar-compact *, .dojo-editor-overlays * { scrollbar-width: thin; }
+}
+[data-slot="scroll-area-thumb"] {
+  background: var(--scrollbar-thumb);
+  border-radius: 0;
+}
+[data-slot="scroll-area-scrollbar"]:hover [data-slot="scroll-area-thumb"] { background: var(--scrollbar-thumb-hover); }
+[data-slot="scroll-area-thumb"]:active { background: var(--scrollbar-thumb-active); }
+:root .monaco-scrollable-element > .scrollbar > .slider { background: var(--scrollbar-thumb); border-radius: 0; }
+:root .monaco-scrollable-element > .scrollbar > .slider:hover { background: var(--scrollbar-thumb-hover); }
+:root .monaco-scrollable-element > .scrollbar > .slider.active { background: var(--scrollbar-thumb-active); }

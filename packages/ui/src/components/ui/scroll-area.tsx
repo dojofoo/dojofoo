@@ -1,6 +1,6 @@
 "use client";
 
-// Scroll area built on Base UI — shape-system scrollbar, native overflow
+// Scroll area built on Base UI — shared rectangular scrollbar, native overflow
 // fallback on touch-primary devices. Scrollbar
 // machinery adapted from Lina by SameerJS6 (https://lina.sameer.sh); built on
 // @base-ui/react/scroll-area, whose scrollbars stay mounted while scrollable
@@ -16,7 +16,6 @@ import {
 } from "react";
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 import { cn } from "../../lib/utils";
-import { useShape } from "../../lib/shape-context";
 import { useTouchPrimary } from "../../hooks/use-touch-primary";
 
 // On touch-primary devices the Base UI machinery is skipped entirely in
@@ -110,7 +109,6 @@ const ScrollBar = forwardRef<
   ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Scrollbar>
 >(({ className, orientation = "vertical", ...props }, ref) => {
   const isTouch = useContext(ScrollAreaContext);
-  const shape = useShape();
 
   if (isTouch) return null;
 
@@ -125,13 +123,9 @@ const ScrollBar = forwardRef<
       // animation guidelines); spring tokens are framer-motion configs and
       // don't apply here.
       className={cn(
-        // The 10px track stays as a comfortable hit target; the thumb inside
-        // it rests narrow and low-contrast, then widens + darkens on hover so
-        // it gets out of the way until you reach for it.
+        // Keep the 10px hit target even when the visual thumb is compact.
         "group/scrollbar absolute z-20 flex touch-none select-none",
-        // Show immediately; on hide, wait out the 150ms thumb shrink before
-        // fading so the thumb visibly narrows back first instead of the fade
-        // masking it.
+        // Show immediately on interaction, then fade after a short delay.
         "opacity-0 transition-opacity duration-120 ease-out delay-160",
         "data-[hovering]:duration-160 data-[scrolling]:duration-160",
         "data-[hovering]:opacity-100 data-[scrolling]:opacity-100",
@@ -145,17 +139,12 @@ const ScrollBar = forwardRef<
       <ScrollAreaPrimitive.Thumb
         data-slot="scroll-area-thumb"
         className={cn(
-          // Fixed surface-relative overlay ramp (8 → 12 → 16%) — same tint
-          // direction as the menu hover/active tokens, one notch stronger.
-          "relative bg-[rgb(var(--overlay)/0.08)] transition-[background-color,width,height] duration-160 ease-in-out",
-          "group-hover/scrollbar:bg-[rgb(var(--overlay)/0.12)] active:!bg-[rgb(var(--overlay)/0.16)]",
-          shape.bg,
-          // -translate nudges the thumb 2px off the container edge; the track
-          // (and its 10px hit target) stays flush so edge-throws still land.
+          // Colors and width are shared with native and editor scrollbars.
+          "relative transition-colors duration-150",
           orientation === "vertical" &&
-            "mx-auto my-1 w-1 -translate-x-0.5 h-[var(--scroll-area-thumb-height)] group-hover/scrollbar:w-1.5",
+            "ml-auto w-[var(--scrollbar-size)] h-[var(--scroll-area-thumb-height)]",
           orientation === "horizontal" &&
-            "my-auto mx-1 h-1 -translate-y-0.5 w-[var(--scroll-area-thumb-width)] group-hover/scrollbar:h-1.5"
+            "mt-auto h-[var(--scrollbar-size)] w-[var(--scroll-area-thumb-width)]"
         )}
       />
     </ScrollAreaPrimitive.Scrollbar>

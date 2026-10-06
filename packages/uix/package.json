@@ -7,6 +7,7 @@
     "**/*.css"
   ],
   "exports": {
+    "./components/context-menu": "./src/components/context-menu.tsx",
     "./styles.css": "./src/styles.css",
     "./components/motion/button/*": "./src/components/motion/button/*.tsx",
     "./components/motion/file-tree": "./src/components/motion/file-tree.tsx",
@@ -25,11 +26,13 @@
     "react-dom": "^19.2.8"
   },
   "dependencies": {
+    "@mynaui/icons-react": "^0.4.11",
     "@toolwind/corner-shape": "0.0.8-3",
     "clsx": "^2.1.1",
+    "cn": "^0.4.0",
     "cuelume": "^0.2.2",
-    "lucide-react": "^1.37.0",
     "motion": "^13.1.1",
+    "radix-ui": "^1.6.7",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

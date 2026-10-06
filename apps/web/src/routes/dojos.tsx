@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CardGroup, Select, SelectContent, SelectItem, SelectTrigger } from "@dojofoo/ui";
-import { ArrowUpDown, Search } from "lucide-react";
+import { ArrowUpDown, Search } from "@mynaui/icons-react";
 import { useMemo, useState } from "react";
 import { CourseCard } from "@/components/marketplace/course-card";
 import { SiteFooter } from "@/components/layout/site-footer";

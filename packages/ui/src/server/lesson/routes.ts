@@ -13,7 +13,7 @@ import {
   streamSensei,
   writeLessonFile,
 } from "./service";
-import { getTypeScriptCompletions, getTypeScriptDiagnostics } from "./typescript-language-service";
+import { getTypeScriptCompletions, getTypeScriptDiagnostics, getTypeScriptHover } from "./typescript-language-service";
 import { resolveWorkspaceId } from "../control/workspace";
 import type { AcpStreamPart } from "./codex-client";
 import { streamAcpAsAgUi } from "./agui-stream";
@@ -191,6 +191,12 @@ app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/files/:fileId/comple
   const { root } = context(c);
   const body = await c.req.json<{ code: string; filePath: string; position: number }>();
   return c.json(getTypeScriptCompletions({ ...body, projectRoot: root }));
+});
+
+app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/files/:fileId/hover", async (c) => {
+  const { root } = context(c);
+  const body = await c.req.json<{ code: string; filePath: string; position: number }>();
+  return c.json(getTypeScriptHover({ ...body, projectRoot: root }));
 });
 
 export { app as lessonRoutes };

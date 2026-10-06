@@ -31,6 +31,43 @@ type LanguageSession = {
 const sessions = new Map<string, LanguageSession>();
 const maximumSessions = 12;
 
+export function getTypeScriptHover(request: CompletionRequest) {
+  const filePath = safeFilePath(request.projectRoot, request.filePath);
+  const session = languageSession(request.projectRoot, filePath, request.code);
+  const info = session.service.getQuickInfoAtPosition(filePath, Math.max(0, Math.min(request.position, request.code.length)));
+  if (!info) return null;
+  return {
+    from: info.textSpan.start, to: info.textSpan.start + info.textSpan.length,
+    signature: ts.displayPartsToString(info.displayParts),
+    documentation: documentationMarkdown(info.documentation),
+    tags: (info.tags ?? []).map((tag) => ({ name: tag.name, text: documentationMarkdown(tag.text) })),
+  };
+}
+
+/** TypeScript emits structured link parts; preserve web links without trusting HTML. */
+function documentationMarkdown(parts: ts.SymbolDisplayPart[] | undefined): string {
+  let result = "";
+  let link: { target: string; label: string } | undefined;
+  for (const part of parts ?? []) {
+    if (part.kind === "link") {
+      if (part.text === "}") {
+        if (link) {
+          if (!link.target) {
+            const web = link.label.match(/^(https?:\/\/\S+)(?:\s+([\s\S]*))?$/);
+            if (web) { link.target = web[1]; link.label = web[2] ?? web[1]; }
+          }
+          const label = (link.label || link.target).replaceAll("[", "\\[").replaceAll("]", "\\]");
+          result += /^https?:\/\//.test(link.target) ? `[${label}](<${link.target.replaceAll(">", "%3E")}>)` : label;
+        }
+        link = undefined;
+      } else link = { target: "", label: "" };
+    } else if (link && part.kind === "linkName") link.target += part.text;
+    else if (link && part.kind === "linkText") link.label += part.text;
+    else result += part.text;
+  }
+  return result;
+}
+
 export function getTypeScriptCompletions(request: CompletionRequest) {
   const filePath = safeFilePath(request.projectRoot, request.filePath);
   const session = languageSession(request.projectRoot, filePath, request.code);

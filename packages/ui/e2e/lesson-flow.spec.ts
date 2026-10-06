@@ -72,8 +72,8 @@ test("senpai completes and resumes a Socratic kata", async ({ page }) => {
   await expect(page).toHaveURL(/\/session\/.+/);
   await expect(page.getByRole("heading", { name: /hello effect/i })).toBeVisible();
   await expect(page.getByTestId("chat-pane")).toBeVisible();
-  await expect(page.locator(".cm-editor")).toBeVisible();
-  await expect(page.locator('.cm-editor [aria-label="Solution code"]')).toHaveCount(1);
+  await expect(page.locator(".monaco-editor")).toBeVisible();
+  await expect(page.locator('.monaco-editor [aria-label="Code editor"]')).toHaveCount(1);
   const senseiMessages = page.getByTestId("sensei-message");
   const introducedCount = await senseiMessages.count();
   expect(introducedCount).toBeGreaterThan(0);
@@ -91,7 +91,7 @@ test("senpai completes and resumes a Socratic kata", async ({ page }) => {
   await expect(senseiMessages).toHaveCount(introducedCount + 2);
   await expect(senseiMessages.last()).not.toContainText("export const hello = () => Effect.succeed");
 
-  await page.locator(".cm-editor").click();
+  await page.locator(".monaco-editor").click();
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText(`import { Effect } from "effect";
 
@@ -112,7 +112,7 @@ export const greet = (name: string): Effect.Effect<string> => Effect.succeed(\`H
 
   await page.getByRole("button", { name: /hello effect/i }).click();
   await expect(page.getByText("1 of 1 test groups passed")).toBeVisible();
-  await expect(page.locator(".cm-editor")).toContainText(/Effect\.succeed/);
+  await expect(page.locator(".monaco-editor")).toContainText(/Effect\.succeed/);
   await expect(page.getByTestId("sensei-message")).not.toHaveCount(0);
   await expect(page.getByText("Checkpointed", { exact: true })).toBeVisible();
 

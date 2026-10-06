@@ -73,7 +73,15 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
             harness,
             connection: host.connection,
           }), { mode: 0o600 });
-          return await server.start();
+          const started = await server.start();
+          // A bound port is not proof that Eve can load the authored agent.
+          // This endpoint resolves the active compiled generation without a model turn.
+          const info = await fetch(new URL("eve/v1/info", started.url), {
+            signal: AbortSignal.timeout(10_000),
+          });
+          if (!info.ok) throw new Error(`Kyoshi agent failed readiness (${info.status}): ${await info.text()}`);
+          await info.json();
+          return started;
         } catch (error) {
           await cleanup();
           throw error;

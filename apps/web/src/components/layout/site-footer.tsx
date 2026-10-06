@@ -33,7 +33,9 @@ export function SiteFooter() {
     <footer className="w-full border-border border-t [border-top-style:dashed]">
       <div className="grid grid-cols-2 border-border md:grid-cols-4">
         <div className="border-border border-r border-b [border-right-style:dashed] [border-bottom-style:dashed] p-6">
-          <BrandLogo className="h-7 w-auto" />
+          <a href="/" aria-label="Dojo home" className="inline-flex min-h-11 min-w-11 items-center justify-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+            <BrandLogo className="h-3.5 w-11" />
+          </a>
           <p className="mt-4 max-w-64 text-muted-foreground text-sm leading-6">
             Deliberate practice, guided by the coding agent you already use.
           </p>

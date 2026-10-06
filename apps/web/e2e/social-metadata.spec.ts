@@ -32,4 +32,14 @@ test("serves the social card as WebP", async ({ request }) => {
   const response = await request.get("/og.webp");
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toContain("image/webp");
+  expect(response.headers()["cache-control"]).toContain("s-maxage=3600");
+  const bytes = await response.body();
+  expect(bytes.subarray(0, 4).toString()).toBe("RIFF");
+  expect(bytes.subarray(8, 12).toString()).toBe("WEBP");
+});
+
+test("keeps the old OG URL pointing at the dynamic renderer", async ({ request }) => {
+  const response = await request.get("/og/landing.webp", { maxRedirects: 0 });
+  expect(response.status()).toBe(302);
+  expect(response.headers()["location"]).toBe("/og.webp");
 });
