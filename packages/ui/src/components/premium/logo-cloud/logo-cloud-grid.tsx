@@ -7,14 +7,14 @@ import {
   Circle,
   Command,
   Diamond,
-  Gem,
+  Diamond as Gem,
   Hexagon,
-  Layers,
-  type LucideIcon,
+  LayersTwo as Layers,
+  type Icon as MynaIcon,
   Octagon,
-  Orbit,
+  Planet as Orbit,
   Triangle,
-} from "lucide-react";
+} from "@mynaui/icons-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -23,7 +23,7 @@ import { cn } from "../../../lib/utils";
 
 export type GridLogo = {
   name: string;
-  icon?: LucideIcon;
+  icon?: MynaIcon;
   imageSrc?: string;
   imageClassName?: string;
   showName?: boolean;

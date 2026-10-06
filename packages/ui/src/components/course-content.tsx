@@ -1,16 +1,6 @@
-import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
-import { FileText } from "lucide-react";
-import { Streamdown, type CodeHighlighterPlugin } from "streamdown";
-
-const plugins = {
-  cjk,
-  code: code as unknown as CodeHighlighterPlugin,
-  math,
-  mermaid,
-};
+import { FileText } from "@mynaui/icons-react";
+import { TeachingMarkdown } from "./teaching-markdown";
+import { courseAssetUrl as assetUrl } from "../lib/course-asset-url";
 
 type Props = {
   basePath: string | null;
@@ -39,7 +29,7 @@ export function CourseContent({ basePath, children, workspaceId }: Props) {
   return (
     <div className="course-content space-y-5 font-prose leading-7 text-muted-foreground">
       {blocks.map((block, index) => typeof block === "string"
-        ? <Streamdown key={index} plugins={plugins} skipHtml urlTransform={(url) => assetUrl(url, basePath, workspaceId)}>{block}</Streamdown>
+        ? <TeachingMarkdown key={index} basePath={basePath} workspaceId={workspaceId} source={block} />
         : <CourseComponent basePath={basePath} key={index} token={block} workspaceId={workspaceId} />)}
     </div>
   );
@@ -90,14 +80,4 @@ function RegexWorkbench({ attributes }: { attributes: Record<string, string> }) 
 
 function parseAttributes(source: string): Record<string, string> {
   return Object.fromEntries([...source.matchAll(attributePattern)].map((match) => [match[1], match[2]]));
-}
-
-function assetUrl(source: string, basePath: string | null, workspaceId: string): string {
-  if (/^(?:https?:|data:|#)/u.test(source)) return source;
-  const path = [basePath, source].filter(Boolean).join("/").split("/").reduce<string[]>((parts, part) => {
-    if (part === "..") parts.pop();
-    else if (part && part !== ".") parts.push(part);
-    return parts;
-  }, []).join("/");
-  return `/api/interactive/asset?workspace=${encodeURIComponent(workspaceId)}&path=${encodeURIComponent(path)}`;
 }

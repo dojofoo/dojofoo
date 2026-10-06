@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Dices } from "lucide-react";
+import { ArrowLeft, Dice5 as Dices } from "@mynaui/icons-react";
 import { useMemo, useState } from "react";
 import {
   avatarCatalog,

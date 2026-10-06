@@ -138,6 +138,32 @@ for (const data of [
   assert.equal(adapter.active, 0);
 });
 
+for (const failed of [false, true]) test(`Eve settles terminal native tool outcomes without requesting a fresh user turn (failed=${failed})`, async () => {
+  const adapter = fixture(false, false, [
+    { type: "tool-call", toolCallId: "read-1", toolName: "read", input: '{"path":"dojo.yaml"}', providerExecuted: true, dynamic: true },
+    { type: "tool-result", toolCallId: "read-1", toolName: "read", result: failed ? "External directory access rejected." : "mode: katas", isError: failed, dynamic: true },
+    { type: "finish-step", finishReason: { unified: "tool-calls" }, usage },
+    { type: "finish", finishReason: finish, totalUsage: usage },
+  ]);
+  const { model } = createHarnessModel({ harness: adapter.harness, sandbox: fixtureSandbox() });
+  const step = createToolLoopHarness({ mode: "conversation", resolveModel: async () => model, tools: new Map() });
+  const session = {
+    agent: { modelReference: { id: "local" }, system: "Inspect the draft.", tools: [] },
+    compaction: { recentWindowSize: 10, threshold: 100000 },
+    continuationToken: "native-terminal", sessionId: randomUUID(), history: [],
+  };
+  const result = await step(session, { message: "Inspect." });
+  assert.equal(result.next, null, "A completed native turn is not a suspended host-tool call");
+  assert.ok(result.settledTurn);
+  assert.equal(adapter.starts.length, 1);
+  const next = await step(JSON.parse(JSON.stringify(result.session)), { message: "Try again." });
+  assert.equal(next.next, null);
+  assert.ok(next.settledTurn);
+  assert.equal(adapter.starts.length, 2);
+  assert.equal(new Set(adapter.starts).size, 1, "The next user turn resumes the same native session");
+  assert.equal(adapter.active, 0);
+});
+
 test("incremental tool input retains order and arguments", async () => {
   const events = [
     { type: "tool-input-start", id: "native-1", toolName: "shell", title: "Inspect lesson", providerExecuted: true, dynamic: true },

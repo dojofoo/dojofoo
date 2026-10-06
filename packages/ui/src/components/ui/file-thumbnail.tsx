@@ -1,5 +1,6 @@
 "use client";
 
+import { File } from "@mynaui/icons-react";
 import { useEffect, useState } from "react";
 import { cn } from "../../lib/utils";
 import { useShape } from "../../lib/shape-context";
@@ -137,27 +138,12 @@ function FileThumbnail({ file, size, className }: FileThumbnailProps) {
         </div>
       ) : (
         // Generic document glyph for files with no renderable preview.
-        // Inline SVG (not the icon system) so the thumbnail stays
-        // self-contained for registry consumers.
         <div
           className="absolute inset-0 flex items-center justify-center text-muted-foreground"
           role="img"
           aria-label={file.name}
         >
-          <svg
-            width={Math.max(16, size * 0.35)}
-            height={Math.max(16, size * 0.35)}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-            <path d="M14 3v5h5" />
-          </svg>
+          <File size={Math.max(16, size * 0.35)} aria-hidden="true" />
         </div>
       )}
     </div>

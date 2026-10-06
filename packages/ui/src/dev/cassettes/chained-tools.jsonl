@@ -9,6 +9,11 @@
 {"delayMs":100,"chunk":{"type":"TOOL_CALL_ARGS","toolCallId":"read-1","delta":"{\"path\":\"katas/001-normalize-handle/KATA.md\"}"}}
 {"delayMs":500,"chunk":{"type":"TOOL_CALL_END","toolCallId":"read-1","toolCallName":"read_file","toolName":"read_file","input":{"path":"katas/001-normalize-handle/KATA.md"}}}
 {"delayMs":300,"chunk":{"type":"TOOL_CALL_RESULT","messageId":"read-result-1","toolCallId":"read-1","role":"tool","state":"output-available","content":"{\"lines\":18,\"summary\":\"Normalize a display name into a stable handle.\"}"}}
+{"delayMs":0,"chunk":{"type":"REASONING_START","messageId":"reasoning-search"}}
+{"delayMs":0,"chunk":{"type":"REASONING_MESSAGE_START","messageId":"reasoning-search","role":"reasoning"}}
+{"delayMs":100,"chunk":{"type":"REASONING_MESSAGE_CONTENT","messageId":"reasoning-search","delta":"Locate the implementation before checking it."}}
+{"delayMs":0,"chunk":{"type":"REASONING_MESSAGE_END","messageId":"reasoning-search"}}
+{"delayMs":0,"chunk":{"type":"REASONING_END","messageId":"reasoning-search"}}
 {"delayMs":180,"chunk":{"type":"TOOL_CALL_START","toolCallId":"search-1","toolCallName":"search_files","toolName":"search_files"}}
 {"delayMs":100,"chunk":{"type":"TOOL_CALL_ARGS","toolCallId":"search-1","delta":"{\"query\":\"normalizeHandle\",\"path\":\"katas/001-normalize-handle\"}"}}
 {"delayMs":450,"chunk":{"type":"TOOL_CALL_END","toolCallId":"search-1","toolCallName":"search_files","toolName":"search_files","input":{"query":"normalizeHandle","path":"katas/001-normalize-handle"}}}

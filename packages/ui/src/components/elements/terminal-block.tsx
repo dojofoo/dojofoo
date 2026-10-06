@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { CheckIcon, Loader2Icon, XIcon } from "lucide-react";
+import { Check as CheckIcon, Spinner as Loader2Icon, X as XIcon } from "@mynaui/icons-react";
 import { cn } from "../../lib/utils";
 import { mono, paper } from "./surfaces";
 import { take } from "./range";

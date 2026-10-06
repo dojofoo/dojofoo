@@ -6,6 +6,10 @@ node_modules
 # Local secrets for e2e tests — see .env.example for the var names.
 .env
 .env.local
+.env.*
+!.env.example
+!.env.sample
+!.env.template
 
 # build outputs
 packages/cli/dist/

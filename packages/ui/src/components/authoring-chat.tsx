@@ -2,9 +2,9 @@ import type { UIMessage } from "@tanstack/ai-react";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojofoo/ui/chat-container";
 import { InputMessage } from "@dojofoo/ui/input-message";
-import { ThinkingIndicator } from "@dojofoo/ui/thinking-indicator";
 import { Button } from "@dojofoo/ui/button";
 import { StreamedChatMessage } from "@/routes/index";
+import { ChatTranscript } from "./chat/assistant-response";
 
 /** Shared presentation for ACP and Eve. Neither backend owns a separate layout. */
 export function AuthoringChat({ messages, status, busy, value, onValueChange, onSend, onAnswer, error, onRetryAnswer }: {
@@ -20,8 +20,8 @@ export function AuthoringChat({ messages, status, busy, value, onValueChange, on
 }) {
   return <ChatContainer data-testid="authoring-chat-pane">
     <ChatContainerContent>
-      {messages.map(entry => <StreamedChatMessage fragments={{}} key={entry.id} message={entry} onToolAnswer={onAnswer} streaming={status === "streaming" && entry.id === messages.at(-1)?.id} workspaceId="" />)}
-      {(busy || status === "submitted") && status !== "streaming" ? <ThinkingIndicator label="Thinking" className="py-2" /> : null}
+      <ChatTranscript messages={messages} streaming={busy || status === "submitted" || status === "streaming"}
+        renderMessage={(message, streaming) => <StreamedChatMessage fragments={{}} message={message} onToolAnswer={onAnswer} streaming={streaming} workspaceId="" />} />
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {onRetryAnswer ? <Button disabled={busy} onClick={onRetryAnswer}>Retry answer</Button> : null}
     </ChatContainerContent>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, X } from "@mynaui/icons-react";
 import { forwardRef, useState, useCallback, useRef, useEffect, useId, type HTMLAttributes } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../lib/utils";
@@ -129,24 +130,7 @@ const InputCopy = forwardRef<HTMLDivElement, InputCopyProps>(
             transition={spring.fast}
             className="flex items-center justify-center text-destructive [&_svg]:stroke-[1.5] [&_svg]:transition-[stroke-width] [&_svg]:duration-80 group-hover:[&_svg]:stroke-[2]"
           >
-            <svg
-              width={14}
-              height={14}
-              viewBox="2 4 20 16"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <motion.path
-                d="M9 9L15 15M15 9L9 15"
-                initial={{ pathLength: 0 }}
-                animate={{
-                  pathLength: 1,
-                  transition: { duration: 0.08, ease: "easeOut" },
-                }}
-              />
-            </svg>
+            <X aria-hidden="true" size={14} />
           </motion.span>
         ) : status === "copied" ? (
           <motion.span
@@ -157,24 +141,7 @@ const InputCopy = forwardRef<HTMLDivElement, InputCopyProps>(
             transition={spring.fast}
             className="flex items-center justify-center [&_svg]:stroke-[1.5] [&_svg]:transition-[stroke-width] [&_svg]:duration-80 group-hover:[&_svg]:stroke-[2]"
           >
-            <svg
-              width={14}
-              height={14}
-              viewBox="2 4 20 16"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <motion.path
-                d="M6 12L10 16L18 8"
-                initial={{ pathLength: 0 }}
-                animate={{
-                  pathLength: 1,
-                  transition: { duration: 0.08, ease: "easeOut" },
-                }}
-              />
-            </svg>
+            <Check aria-hidden="true" size={14} />
           </motion.span>
         ) : (
           <motion.span
@@ -212,25 +179,7 @@ const InputCopy = forwardRef<HTMLDivElement, InputCopyProps>(
               transition={spring.fast}
             >
               <span className="flex items-center justify-center">
-                <svg
-                  width={14}
-                  height={14}
-                  viewBox="2 4 20 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <motion.path
-                    d="M9 9L15 15M15 9L9 15"
-                    initial={{ pathLength: 0 }}
-                    animate={{
-                      pathLength: 1,
-                      transition: { duration: 0.08, ease: "easeOut" },
-                    }}
-                  />
-                </svg>
+                <X aria-hidden="true" size={14} />
               </span>
               <span className="select-none inline-grid text-left">
                 <span className="col-start-1 row-start-1 invisible" aria-hidden="true">Copied</span>
@@ -247,25 +196,7 @@ const InputCopy = forwardRef<HTMLDivElement, InputCopyProps>(
               transition={spring.fast}
             >
               <span className="flex items-center justify-center">
-                <svg
-                  width={14}
-                  height={14}
-                  viewBox="2 4 20 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <motion.path
-                    d="M6 12L10 16L18 8"
-                    initial={{ pathLength: 0 }}
-                    animate={{
-                      pathLength: 1,
-                      transition: { duration: 0.08, ease: "easeOut" },
-                    }}
-                  />
-                </svg>
+                <Check aria-hidden="true" size={14} />
               </span>
               <span className="select-none inline-grid text-left">
                 <span className="col-start-1 row-start-1 invisible" aria-hidden="true">Copied</span>

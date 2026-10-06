@@ -1,6 +1,12 @@
 "use client";
 
-import { CheckIcon, ChevronRightIcon, Loader2Icon, XIcon, type LucideIcon } from "lucide-react";
+import {
+  Check as CheckIcon,
+  ChevronRight as ChevronRightIcon,
+  Spinner as Loader2Icon,
+  X as XIcon,
+  type Icon as MynaIcon,
+} from "@mynaui/icons-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,7 +19,7 @@ import { take } from "./range";
 export interface TimelineStep {
   verb: string;
   chip?: string;
-  icon?: LucideIcon;
+  icon?: MynaIcon;
   status?: "running" | "success" | "error";
 }
 

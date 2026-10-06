@@ -11,7 +11,7 @@ import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import { Sparkles as BrainIcon, ChevronDown as ChevronDownIcon } from "@mynaui/icons-react";
 import type { ComponentProps, ReactNode } from "react";
 import {
   createContext,

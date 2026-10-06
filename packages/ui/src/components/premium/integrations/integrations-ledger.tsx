@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Check, Link2 } from "lucide-react";
+import { ArrowUpRight, Check, LinkTwo as Link2 } from "@mynaui/icons-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { Button } from "../../motion/button/base";

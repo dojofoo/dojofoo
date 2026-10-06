@@ -11,6 +11,7 @@ import { resolveRequestWorkspace } from "./control/workspace";
 import { mountEveAuthoring } from "./authoring-eve";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
+import { getTypeScriptHover } from "./lesson/typescript-language-service";
 
 const agent: AuthoringRouteDependencies["agent"] = {
   currentHarness: dojofooHarness,
@@ -44,6 +45,13 @@ export const authoringRoutes = createAuthoringRoutes({
 });
 
 const eveRoot = process.env.DOJO_EVE_ROOT;
+authoringRoutes.post("/language/hover", async (c) => {
+  const origin = c.req.header("Origin");
+  if (origin && origin !== new URL(c.req.url).origin) return c.json({ error: "Same-origin requests only." }, 403);
+  const body = await c.req.json().catch(() => null);
+  if (typeof body?.code !== "string" || typeof body?.filePath !== "string" || !Number.isInteger(body?.position)) return c.json({ error: "Invalid hover request." }, 400);
+  return c.json(getTypeScriptHover({ ...body, projectRoot: resolveRequestWorkspace(c.req.raw) }));
+});
 export const closeAuthoringRuntime = mountEveAuthoring(authoringRoutes, {
   host: process.env.EVE_BASE_URL,
   runtime: eveRoot ? async () => {

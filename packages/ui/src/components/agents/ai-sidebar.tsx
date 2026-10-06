@@ -7,13 +7,13 @@ import {
   Bookmark,
   FileText,
   Folder,
-  FolderInput,
-  FolderOpen,
-  type LucideIcon,
-  MoreHorizontal,
+  FolderPlus as FolderInput,
+  FolderTwo as FolderOpen,
+  type Icon as MynaIcon,
+  Dots as MoreHorizontal,
   Pencil,
-  Undo2,
-} from "lucide-react";
+  Undo as Undo2,
+} from "@mynaui/icons-react";
 import { SharedLayoutBg } from "@dojofoo/uix/components/motion/shared-layout-bg";
 import { motion, useReducedMotion } from "motion/react";
 import {
@@ -314,7 +314,7 @@ function ResourceMenuAction({
   onSelect,
   children,
 }: {
-  icon: LucideIcon;
+  icon: MynaIcon;
   onSelect: () => void;
   children: ReactNode;
 }) {

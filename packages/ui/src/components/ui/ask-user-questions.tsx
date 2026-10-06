@@ -1325,8 +1325,7 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
               {/* Question title */}
               <h3
                 id={`${reactId}-${qId}-title`}
-                className="text-[16px] text-foreground leading-snug"
-                style={{ fontVariationSettings: fontWeights.semibold }}
+                className="font-sans text-[17px] font-semibold text-foreground leading-snug"
               >
                 {question.title}
               </h3>

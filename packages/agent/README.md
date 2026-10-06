@@ -9,6 +9,9 @@ to `@dojofoo/agent`, recognizes that dependency during CLI project discovery,
 and preserves Eve package identity for workflow steps in linked workspaces.
 The latter prevents compiled workflow and registered step IDs from diverging
 when the embedded runtime lives outside `node_modules` during development.
+The native-turn patch respects a provider's terminal `stop` after native tool
+results (including failures), instead of starting an unsolicited continuation.
+Eve-owned tools and suspended questions still use the existing continuation flow.
 
 All pinned Eve export paths are exposed directly, including skills, hooks,
 memory, tools and framework integrations. A packed-consumer test checks every
@@ -40,7 +43,7 @@ against a loopback model endpoint (no paid inference):
 DOJO_AUTHORING_RUNTIME_E2E=1 pnpm --filter @dojofoo/ui exec playwright test e2e/eve-authoring-runtime.spec.ts
 ```
 
-It starts from an empty temporary course, saves authored files through CodeMirror,
+It starts from an empty temporary course, saves authored files through Monaco,
 restarts the server with a pending question, answers the restored question, and
 opens an isolated learner trial that receives an agent response. Requires Node 24,
 built `@dojofoo/agent`, Playwright Chromium and a local ACP-capable OpenCode binary
@@ -136,7 +139,7 @@ paid inference and does not prove lesson completion. A third variant runs each
 turn in a separate Node process: the first exits before the second starts, and
 only the serialized response messages, workspace path and loopback model URL
 are supplied to the next worker. Native history and session identity survive.
-The same native runtime also passes through unmodified Eve's tool loop, both
+The same native runtime also passes through the shipped Eve tool loop, both
 for conversation and for an Eve-owned `lesson_context` tool. The model requests
 the advertised tool, Eve executes it exactly once, and native model input receives
 the result. Teardown waits for the whole owned POSIX process group, including

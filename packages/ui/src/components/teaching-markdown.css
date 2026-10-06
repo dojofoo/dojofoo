@@ -1,0 +1,34 @@
+.teaching-markdown {
+  --twoslash-popup-bg: var(--background);
+  --twoslash-popup-color: var(--foreground);
+  --twoslash-docs-font: var(--font-sans);
+  --twoslash-code-font: var(--font-mono);
+}
+.teaching-markdown :is(h1, h2, h3, h4) { font-family: var(--font-display); color: var(--foreground); margin-block: 1em .5em; }
+.teaching-markdown h1 { font-size: 2rem; }
+.teaching-markdown h2 { font-size: 1.5rem; }
+.teaching-markdown h3 { font-size: 1.25rem; }
+.teaching-markdown :is(p, ul, ol, blockquote, table, pre) { margin-block: .75em; }
+.teaching-markdown :is(ul, ol) { padding-left: 1.75rem; }
+.teaching-markdown ul { list-style: disc; }
+.teaching-markdown ol { list-style: decimal; }
+.teaching-markdown a { color: var(--primary); text-decoration: underline; }
+.teaching-markdown pre { overflow-x: auto; padding: 1rem; font-family: var(--font-mono); font-size: 15px; line-height: 1.65; }
+.teaching-markdown .shiki-magic-move-container { margin: 0; padding: 0; }
+.teaching-markdown button:not(:disabled) { cursor: pointer; }
+.teaching-markdown button:disabled { opacity: .4; }
+.teaching-markdown blockquote { border-left: 2px solid var(--border); padding-left: 1rem; }
+.teaching-markdown :is(th, td) { border: 1px solid var(--border); padding: .5rem; }
+.teaching-markdown img { max-width: 100%; }
+.teaching-markdown .twoslash-hover:focus-within .twoslash-popup-container { opacity: 1; pointer-events: auto; }
+.teaching-markdown .twoslash-popup-container { border-radius: 0; max-width: min(36rem, 80vw); white-space: normal; }
+.teaching-markdown.twoslash { font-size: 15px; }
+.teaching-markdown .twoslash-popup-code { font-size: 15px; }
+.teaching-markdown .twoslash-popup-docs { font-size: 14px; }
+.teaching-markdown .twoslash-tag-line { min-width: 0; width: auto; white-space: normal; display: block; font-family: var(--font-sans); }
+.teaching-markdown .twoslash-tag-annotate-line::before { content: "Learning note · "; font-weight: 600; }
+.teaching-markdown .twoslash-tag-annotate-line a { color: inherit; }
+.teaching-markdown .twoslash-highlighted { --twoslash-highlighted-border: #62c07380; --twoslash-highlighted-bg: #62c07320; }
+@media (prefers-reduced-motion: reduce) {
+  .teaching-markdown .twoslash-hover, .teaching-markdown .twoslash-popup-container { transition: none; }
+}

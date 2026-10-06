@@ -1,5 +1,5 @@
 import { InputCopy } from "@dojofoo/ui/input-copy";
-import { Check } from "lucide-react";
+import { Check } from "@mynaui/icons-react";
 import { MetalFx } from "metal-fx";
 import { useReducedMotion } from "motion/react";
 import { useTheme } from "next-themes";

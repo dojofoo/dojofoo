@@ -26,10 +26,19 @@ test("authors, restarts, answers and opens an isolated learner trial", async ({ 
     await expect(page.getByRole("radio", { name: "Beginners", exact: true })).toBeVisible({ timeout: 120_000 });
     const sessionUrl = page.url();
     expect(sessionUrl).toContain("session=wrun_");
+    const sessionId = new URL(sessionUrl).searchParams.get("session")!;
+    const snapshot = await page.request.get(`${url}api/authoring/eve/sessions/${sessionId}`);
+    expect(snapshot.ok()).toBe(true);
+    const saved = await snapshot.json();
+    expect(saved.session.streamIndex).toBeGreaterThan(0);
+    expect(saved.messages.length).toBeGreaterThan(0);
+    await page.reload();
+    await expect(page.getByRole("radio", { name: "Beginners", exact: true })).toBeVisible();
+    await expect(page.getByText(/Eve stream ended|no saved events/)).toHaveCount(0);
 
-    // Edit through the same CodeMirror document and save shortcut as an author.
+    // Edit through the same Monaco document and save shortcut as an author.
     const edit = async (source: string) => {
-      await page.getByRole("textbox", { name: "Code editor" }).click();
+      await page.getByRole("textbox", { name: "Code editor" }).focus();
       await page.keyboard.press("ControlOrMeta+a");
       await page.keyboard.insertText(source);
       const saved = page.waitForResponse(response => response.request().method() === "PUT" && response.url().includes("/api/authoring/"));
@@ -39,6 +48,7 @@ test("authors, restarts, answers and opens an isolated learner trial", async ({ 
     await edit("mode: katas\nname: Browser authoring fixture\nversion: 0.0.1\ndescription: Learn pure functions.\nlanguage: typescript\ntest: npx vitest run {template}\nkatas: []\n");
     await page.getByRole("button", { name: "Lessons actions" }).click();
     await page.getByRole("button", { name: "Add lesson", exact: true }).click();
+    await page.getByRole("button", { name: "SENSEI.md", exact: true }).click();
     await expect(page.getByRole("tab", { name: "SENSEI.md", exact: true })).toBeVisible();
     await edit("# Pure functions\n\nAsk the learner to predict an output before editing.\n");
     expect(await readFile(join(course, "src/001-untitled-lesson/SENSEI.md"), "utf8")).toContain("predict an output");
@@ -56,7 +66,11 @@ test("authors, restarts, answers and opens an isolated learner trial", async ({ 
     await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 120_000 });
     await expect(answer).toHaveAttribute("aria-checked", "true");
     await expect(page).toHaveURL(sessionUrl);
-    await page.getByRole("treeitem", { name: "SENSEI.md Actions for SENSEI.md", exact: true }).click();
+    await page.reload();
+    await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Eve stream ended|no saved events/)).toHaveCount(0);
+    await expect(page).toHaveURL(sessionUrl);
+    await page.getByRole("button", { name: "SENSEI.md", exact: true }).click();
     const opened = context.waitForEvent("page");
     await page.getByRole("button", { name: "Trial", exact: true }).click();
     const trial = await opened;

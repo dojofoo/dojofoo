@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "@mynaui/icons-react";
 import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "dojofoo.theme";

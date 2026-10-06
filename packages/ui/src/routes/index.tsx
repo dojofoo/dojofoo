@@ -3,10 +3,26 @@ import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-rea
 import type { ThinkingPart, ToolCallPart } from "@tanstack/ai-client";
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { BundledLanguage } from "shiki";
-import { ArrowRight, ArrowUpDown, Check, CheckCircle2, Circle, CircleDot, Loader2, LockKeyhole, Plus, RotateCcw, Save as SaveIcon, Star, Undo2, XCircle } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpDown,
+  Check,
+  CheckCircle as CheckCircle2,
+  Circle,
+  CircleDashed as CircleDot,
+  Spinner as Loader2,
+  LockKeyhole,
+  Plus,
+  RefreshAlt as RotateCcw,
+  Save as SaveIcon,
+  Star,
+  Undo as Undo2,
+  XCircle,
+} from "@mynaui/icons-react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { CodeBlock, CodeBlockCopyButton } from "@/components/ai-elements/code-block";
 import { CourseContent } from "@/components/course-content";
+import { WorkspaceFileTabs } from "@/components/workspace-file-tabs";
 import {
   Test,
   TestResults as AiTestResults,
@@ -18,9 +34,11 @@ import {
   TestSuiteName,
   TestSuiteStats,
 } from "@/components/ai-elements/test-results";
-import { ToolOutput } from "@/components/ai-elements/tool";
 import { TerminalBlock } from "@dojofoo/ui/elements/terminal-block";
-import { ToolTimeline, type TimelineStep } from "@dojofoo/ui/elements/tool-timeline";
+import { ToolCallCard } from "@/components/ui/ToolCallCard";
+import { ReasoningTrace } from "@/components/ui/ReasoningTrace";
+import { ChatTranscript } from "@/components/chat/assistant-response";
+import { toolActivity } from "@/lib/chat-activity-labels";
 import { EmptyStateBoard } from "@dojofoo/ui/premium/empty-states/empty-state-board";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { Button } from "@dojofoo/ui/button";
@@ -40,7 +58,6 @@ import {
 import { InputMessage } from "@dojofoo/ui/input-message";
 import { ScrollArea } from "@dojofoo/ui/scroll-area";
 import { SiteNavigation } from "@dojofoo/ui/site-navigation";
-import { ThinkingIndicator } from "@dojofoo/ui/thinking-indicator";
 import {
   Select,
   SelectContent,
@@ -459,7 +476,8 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   });
   const dirty = lesson ? code !== lesson.code : false;
   messagesRef.current = messages;
-  const timelineMessages = useMemo(() => projectChatTimeline(messages, hostChatEvents), [hostChatEvents, messages]);
+  const timelineMessages = useMemo(() => projectChatTimeline(messages, hostChatEvents)
+    .filter(message => message.parts.some(part => part.type !== "text" || !isInternalLessonMessage(part.content))), [hostChatEvents, messages]);
   const highlightCode = useCallback((highlight: CodeHighlight) => {
     setActiveWorkspaceTab("code");
     setEditorHighlight((current) => ({ ...highlight, nonce: (current?.nonce ?? 0) + 1 }));
@@ -766,9 +784,6 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const chatIsWorking = chatStatus === "submitted" || chatStatus === "streaming";
   const chatCanAcceptInput = chatAcceptsInput(chatStatus);
   const chatWorkTiming = useChatWorkTiming(chatIsWorking, lesson?.sessionId ?? apiBase);
-  const latestMessageHasStreamingOutput = chatIsWorking
-    && messages.at(-1)?.role === "assistant"
-    && messages.at(-1)!.parts.length > 0;
 
   async function reset() {
     try {
@@ -852,37 +867,12 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
             <section className="order-1 w-full border-b border-[#242424] bg-[#0a0a0a] text-[#ededed] shadow-surface-3" data-testid="lesson-workspace">
               <div className="flex h-10 items-stretch border-b border-[#242424] bg-black" data-testid="workspace-bar">
-                <div className="flex items-stretch" role="tablist" aria-label="Lesson workspace">
-                  <button
-                  aria-controls="code-panel"
-                  aria-selected={activeWorkspaceTab === "code"}
-                  className={`border-r border-t-2 border-[#242424] px-4 font-mono text-xs ${activeWorkspaceTab === "code" ? "border-t-[#ededed] bg-[#0a0a0a] text-[#a1a1a1]" : "border-t-transparent bg-black text-[#a1a1a1] hover:bg-[#ffffff1a] hover:text-[#ededed]"}`}
-                  onClick={() => setActiveWorkspaceTab("code")}
-                  role="tab"
-                  type="button"
-                >
-                  <span className="flex items-center gap-2">
-                    {fileName(lesson.filePath)}
-                    <Circle
-                      aria-label={dirty ? "Unsaved changes" : "Saved"}
-                      className={`size-2 ${dirty ? "fill-[#14cbb7] text-[#14cbb7]" : "fill-[#878787] text-[#878787]"}`}
-                      role="img"
-                    />
-                  </span>
-                  </button>
-                  <button
-                  aria-controls="tests-panel"
-                  aria-selected={activeWorkspaceTab === "tests"}
-                  className={`flex items-center gap-2 border-r border-t-2 border-[#242424] px-4 text-xs ${activeWorkspaceTab === "tests" ? "border-t-[#ededed] bg-[#0a0a0a] text-[#a1a1a1]" : "border-t-transparent bg-black text-[#a1a1a1] hover:bg-[#ffffff1a] hover:text-[#ededed]"}`}
-                  onClick={() => setActiveWorkspaceTab("tests")}
-                  role="tab"
-                  type="button"
-                >
-                  <TestStateIcon report={lesson.result} />
-                  <span>Tests</span>
-                  <span className="text-[10px] text-[#878787]">{testPercentage(lesson.result)}</span>
-                  </button>
-                </div>
+                <WorkspaceFileTabs mode="learning" label="Lesson workspace" active={activeWorkspaceTab}
+                  onSelect={(path) => { if (path === "code" || path === "tests") setActiveWorkspaceTab(path); }}
+                  tabs={[
+                    { path: "code", label: <span className="font-mono">{fileName(lesson.filePath)}</span>, dirty, panelId: "code-panel" },
+                    { path: "tests", panelId: "tests-panel", label: <><TestStateIcon report={lesson.result} /><span>Tests</span><span className="text-[10px] text-[#878787]">{testPercentage(lesson.result)}</span></> },
+                  ]} />
                 {busy && !thinking && <span className="ml-auto self-center px-3 text-xs text-[#878787]">{busy}</span>}
                 {lesson.isCurrent && (
                   <div aria-label="Lesson actions" className={`${busy && !thinking ? "" : "ml-auto"} flex items-stretch border-l border-[#242424]`} role="toolbar">
@@ -1009,24 +999,18 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
           data-testid="chat-pane"
         >
           <ChatContainerContent>
-              {timelineMessages
-                .filter((message) => message.parts.some((part) => part.type !== "text"
-                  || !isInternalLessonMessage(part.content)))
-                .map((message) => (
+              <ChatTranscript messages={timelineMessages} streaming={chatIsWorking} renderMessage={(message, streaming) => (
                   <StreamedChatMessage
                     fragments={lesson.fragments}
                     key={message.id}
                     message={message}
                     onHighlight={highlightCode}
                     onToolAnswer={answerTool}
-                    streaming={chatIsWorking && message.id === messages.at(-1)?.id}
-                    timing={message.id === messages.at(-1)?.id ? chatWorkTiming : undefined}
+                    streaming={streaming}
+                    timing={streaming ? chatWorkTiming : undefined}
                     workspaceId={workspaceId}
                   />
-                ))}
-              {chatIsWorking && !latestMessageHasStreamingOutput && (
-                <ThinkingIndicator label="Thinking" className="py-2" key="pending-agent-work" />
-              )}
+                )} />
               {checking && <LiveCheckSummary tests={liveTests} />}
               {chatError && (
                 <div className="border border-destructive/50 bg-destructive/10 p-3 font-prose text-sm text-destructive" role="alert">
@@ -1235,6 +1219,7 @@ export function StreamedChatMessage({
   workspaceId: string;
 }) {
   const assistant = message.role === "assistant";
+  const groups = groupMessageParts(message.parts);
   return (
     <div
       className={cn(
@@ -1244,12 +1229,12 @@ export function StreamedChatMessage({
       data-testid={assistant ? "sensei-streaming-message" : "senpai-streaming-message"}
     >
       <div className={cn(
-        "min-w-0 max-w-full space-y-2 overflow-hidden",
-        assistant ? "w-full" : "bg-muted px-3 py-2 text-sm",
+        "min-w-0 max-w-full space-y-2",
+        assistant ? "w-full" : "overflow-hidden bg-muted px-3 py-2 text-sm",
       )}>
-        {groupMessageParts(message.parts).map((group, index) => {
+        {groups.map((group, index) => {
           if (group.kind === "activity") {
-            return <ActivityTimeline activities={group.parts} key={`activity-${index}`} streaming={streaming} timing={timing} />;
+            return <ActivityTimeline activities={group.parts} key={`activity-${index}`} streaming={streaming && index === groups.length - 1} />;
           }
           const part = group.part;
           if (part.type === "thinking") {
@@ -1268,20 +1253,6 @@ export function StreamedChatMessage({
               return fragmentId
                 ? <MessageContent fragments={fragments} key={`${part.type}-${part.id}`} kind="lesson-fragment" text={fragmentId} workspaceId={workspaceId} />
                 : null;
-            }
-            if (part.name === "dojo_lesson_verify") {
-              const report = isTestReport(part.output) ? part.output : null;
-              const failed = part.state === "error" && !report;
-              if (report) return <ChatTestTerminal key={`${part.type}-${index}`} report={report} />;
-              if (isActiveThinkingActivity(part)) return <ChatTestTerminal key={`${part.type}-${index}`} />;
-              if (failed) {
-                return (
-                  <div className="w-full" key={`${part.type}-${index}`}>
-                    <ToolOutput errorText="Lesson checks failed" output={part.output} />
-                  </div>
-                );
-              }
-              return null;
             }
             if (isAgentQuestion(part)) {
               return onToolAnswer ? (
@@ -1323,7 +1294,7 @@ function groupMessageParts(parts: UIMessage["parts"]): MessagePartGroup[] {
 function isTimelineActivity(part: MessagePart): part is ActivityPart {
   if (part.type === "thinking") return true;
   if (part.type !== "tool-call") return false;
-  if (part.name === "dojo_lesson_verify" || isAgentQuestion(part)) return false;
+  if (isAgentQuestion(part)) return false;
   if (part.name.includes("dojo_ui_show") || (part.name.includes("dojo_lesson_complete") && !toolFailed(part))) return false;
   return true;
 }
@@ -1338,51 +1309,42 @@ function isActiveThinkingActivity(activity: ToolCallPart): boolean {
     && (activity.state === "awaiting-input" || activity.state === "input-streaming" || activity.state === "input-complete");
 }
 
-function ActivityTimeline({ activities, streaming, timing }: { activities: ActivityPart[]; streaming: boolean; timing?: ChatWorkTiming }) {
-  const [open, setOpen] = useState(false);
-  const steps = activities.map<TimelineStep>((activity) => {
-    if (activity.type === "thinking") return { verb: "Thinking", status: streaming ? "running" : "success" };
-    const running = isActiveThinkingActivity(activity);
-    return {
-      verb: running ? toolActivityLabel(activity.name) : toolFailed(activity) ? `${toolResultLabel(activity.name)} failed` : toolResultLabel(activity.name),
-      chip: activityCommand(activity) ?? toolTarget(activity),
-      status: running ? "running" : toolFailed(activity) ? "error" : "success",
-    };
-  });
-  const elapsedMs = activityDuration(activities, timing);
-  const elapsed = elapsedMs === undefined ? undefined : formatElapsed(elapsedMs);
-  const suffix = elapsed ? ` · ${elapsed}` : "";
-  return (
-    <ToolTimeline
-      activeLabel={`Working${suffix}`}
-      className="max-w-none"
-      onOpenChange={setOpen}
-      open={open}
-      restingLabel={`Worked${suffix}`}
-      stats={[]}
-      steps={steps}
-      streaming={streaming}
-      visibleSteps={steps.length}
-    />
-  );
-}
-
-function activityDuration(activities: ActivityPart[], timing?: ChatWorkTiming): number | undefined {
-  if (timing?.startedAt !== undefined) return (timing.completedAt ?? Date.now()) - timing.startedAt;
-  const values = activities.flatMap((activity) => {
-    const duration = (activity as ActivityPart & { durationMs?: number }).durationMs;
-    return duration === undefined ? [] : [duration];
-  });
-  return values.length ? Math.max(...values) : undefined;
-}
-
-function toolTarget(part: ToolCallPart): string | undefined {
-  if (!part.input || typeof part.input !== "object") return undefined;
-  const input = part.input as Record<string, unknown>;
-  for (const key of ["path", "file", "name", "query"]) {
-    if (typeof input[key] === "string") return input[key];
-  }
-  return undefined;
+function ActivityTimeline({ activities, streaming }: { activities: ActivityPart[]; streaming: boolean }) {
+  const usedTools = activities.some(part => part.type === "tool-call");
+  const currentTool = activities.findLast(part => part.type === "tool-call" && isActiveThinkingActivity(part));
+  const tail = activities.at(-1);
+  const currentActivity = currentTool?.type === "tool-call" ? toolActivity(currentTool.name, currentTool.input ?? currentTool.arguments)
+    : tail?.type === "thinking" ? "thinking" : "waiting";
+  const visible = activities.filter(part => part.type !== "thinking" || part.content.trim());
+  return <ReasoningTrace autoPlay={false} steps={[]} streaming={streaming} activity={currentActivity} usedTools={usedTools}>
+    {visible.length > 0 ? <div className="w-full min-w-0">
+    {visible.map((activity, index) => {
+      if (activity.type === "thinking") return <ToolCallCard key={`thinking-${index}`} name="Reasoning" autoPlay={false} status="done" showStatus={false}
+        icon={<span className="size-1.5 rounded-full bg-muted-foreground/50" />}>
+        <div role="region" aria-label="Reasoning step details" tabIndex={0}
+          className="scrollbar-compact max-h-[min(12rem,40vh)] overflow-y-auto overflow-x-hidden overscroll-contain focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring focus-visible:-outline-offset-1">
+          <p className="whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground [overflow-wrap:anywhere]">{activity.content}</p>
+        </div>
+      </ToolCallCard>;
+      const failed = toolFailed(activity);
+      const active = isActiveThinkingActivity(activity);
+      const output = activity.output === undefined ? undefined : serializeToolValue(activity.output);
+      return <ToolCallCard
+        key={activity.id}
+        name={activity.name}
+        args={typeof activity.input === "string" ? activity.input : activity.input && typeof activity.input === "object" ? activity.input as Record<string, unknown> : undefined}
+        result={activity.name === "dojo_lesson_verify" && isTestReport(activity.output) ? undefined : output}
+        error={failed ? output || "Tool call failed." : undefined}
+        status={failed ? "error" : active ? activity.state === "input-streaming" ? "pending" : "running" : "done"}
+        autoPlay={false}
+        durationMs={(activity as ToolCallPart & { durationMs?: number }).durationMs}
+      >
+        {activity.name === "dojo_lesson_verify" && (isTestReport(activity.output)
+          ? <ChatTestTerminal report={activity.output} /> : active ? <ChatTestTerminal /> : null)}
+      </ToolCallCard>;
+    })}
+  </div> : null}
+  </ReasoningTrace>;
 }
 
 function serializeToolValue(value: unknown): string {
@@ -1399,30 +1361,6 @@ function toolFailed(part: ToolCallPart): boolean {
   return /(?:"status"\s*:\s*"failed"|request timed out|mcp error)/iu.test(serializeToolValue(part.output));
 }
 
-function toolActivityLabel(name: string): string {
-  if (name.includes("dojo_lesson_complete")) return "Asking how to continue";
-  return `Running ${name.replaceAll("_", " ")}`;
-}
-
-function toolResultLabel(name: string): string {
-  if (name.includes("dojo_lesson_complete")) return "Completion prompt";
-  return name.replaceAll("_", " ");
-}
-
-function formatElapsed(durationMs: number): string {
-  return durationMs < 1_000 ? "<1s" : `${Math.round(durationMs / 1_000)}s`;
-}
-
-function activityCommand(activity: ToolCallPart): string | undefined {
-  if (!activity.input || typeof activity.input !== "object") return undefined;
-  const input = activity.input as Record<string, unknown>;
-  if (typeof input.command === "string") return input.command;
-  const rawInput = input.rawInput;
-  if (rawInput && typeof rawInput === "object" && typeof (rawInput as Record<string, unknown>).command === "string") {
-    return (rawInput as Record<string, string>).command;
-  }
-  return undefined;
-}
 
 
 function isTestReport(value: unknown): value is TestReport {
@@ -1550,7 +1488,7 @@ function MessageContent({
 
   const parts = text.split(/```([\w-]*)\n([\s\S]*?)```/g);
   return (
-    <div className="w-full space-y-2">
+    <div className="w-full space-y-2 text-sm leading-6">
       {parts.map((part, index) => {
         if (index % 3 === 1) return null;
         if (index % 3 === 2) {

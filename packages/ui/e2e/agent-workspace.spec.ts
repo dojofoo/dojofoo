@@ -104,8 +104,8 @@ test("presents the coding canvas first and gives chat a golden-ratio share", asy
   const canvasBox = await page.getByTestId("lesson-canvas").boundingBox();
   expect(canvasBox).not.toBeNull();
   expect(canvasBox!.width / canvasBox!.height).toBeCloseTo(16 / 9, 1);
-  await expect(page.locator(".cm-editor")).toBeVisible();
-  await expect.poll(() => page.locator(".cm-content .cm-line-failed").count()).toBeGreaterThan(0);
+  await expect(page.locator(".monaco-editor")).toBeVisible();
+  await expect.poll(() => page.locator(".view-overlays .dojo-line-failed").count()).toBeGreaterThan(0);
 });
 
 test("shows the current agent action in the chat header", async ({ page }) => {
@@ -239,7 +239,7 @@ test("keeps code and test results in compact non-closeable tabs", async ({ page 
   await expect(codeTab).toHaveAttribute("aria-selected", "true");
   await expect(testsTab).toBeVisible();
   await expect(testsTab).toContainText(/\d+%/);
-  await expect(page.locator(".cm-content .cm-line-covered")).not.toHaveCount(0);
+  await expect(page.locator(".view-overlays .dojo-line-covered")).not.toHaveCount(0);
   await expect(page.getByRole("button", { name: /close.*(?:solution|tests)/i })).toHaveCount(0);
   await testsTab.click();
   await expect(testsTab).toHaveAttribute("aria-selected", "true");
@@ -258,7 +258,7 @@ test("shows completed lesson pass rate in the Tests tab", async ({ page }) => {
   await page.getByRole("button", { name: /hello effect/i }).click();
 
   await expect(page.getByRole("tab", { name: /tests/i })).toContainText("100%");
-  await expect(page.locator(".cm-content .cm-line-covered")).not.toHaveCount(0);
+  await expect(page.locator(".view-overlays .dojo-line-covered")).not.toHaveCount(0);
   await page.getByRole("tab", { name: /tests/i }).click();
   await expect(page.getByRole("button", { name: /^001 — Hello Effect/ })).toBeVisible();
 });
@@ -316,23 +316,19 @@ test("shows the test runner before results and does not require a chat response"
   expect(statsBox).not.toBeNull();
   expect(suiteBox!.x + suiteBox!.width - (statsBox!.x + statsBox!.width)).toBeLessThan(20);
   await page.getByRole("tab", { name: /solution\.ts/i }).click();
-  await expect(page.locator(".cm-content .cm-line-covered")).toHaveCount(3);
-  await expect(page.locator(".cm-content .cm-line-uncovered")).toHaveCount(0);
-  await expect(page.locator(".cm-content .cm-line-covered").first()).toHaveCSS("box-shadow", "none");
-  await expect(page.locator(".cm-lineNumbers .cm-line-covered")).toHaveCount(3);
-  await expect(page.locator(".cm-lineNumbers .cm-line-covered").first()).toHaveCSS("color", "rgb(111, 159, 114)");
+  await expect(page.locator(".view-overlays .dojo-line-covered")).toHaveCount(3);
+  await expect(page.locator(".view-overlays .dojo-line-uncovered")).toHaveCount(0);
+  await expect(page.locator(".view-overlays .dojo-line-covered").first()).toHaveCSS("box-shadow", "none");
+  await expect(page.locator(".margin-view-overlays .dojo-number-covered")).toHaveCount(3);
+  await expect(page.locator(".margin-view-overlays .dojo-number-covered").first()).toHaveCSS("color", "rgb(111, 159, 114)");
 });
 
-test("uses SVG fold controls and an icon-only folded placeholder", async ({ page }) => {
+test("uses Monaco's native folding control", async ({ page }) => {
   await page.goto("/");
-
-  const fold = page.locator('.cm-foldGutter span[title="Fold line"]:visible').first();
-  await expect(fold.locator("svg")).toBeVisible();
-  await expect(fold).toHaveText("");
+  const fold = page.locator(".codicon-folding-expanded").first();
+  await fold.hover();
   await fold.click();
-  const placeholder = page.locator(".cm-foldPlaceholder").first();
-  await expect(placeholder.locator("svg")).toBeVisible();
-  await expect(placeholder).toHaveText("");
+  await expect(page.locator(".codicon-folding-collapsed").first()).toBeVisible();
 });
 
 test("uses Vercel blue for the enabled Check action", async ({ page }) => {

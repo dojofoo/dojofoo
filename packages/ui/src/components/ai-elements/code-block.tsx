@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { Check as CheckIcon, Copy as CopyIcon } from "@mynaui/icons-react";
 import type { ComponentProps, CSSProperties, HTMLAttributes } from "react";
 import {
   createContext,
@@ -108,9 +108,10 @@ const LineSpan = ({
 );
 
 // Types
+type CodeLanguage = BundledLanguage | "text";
 type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   code: string;
-  language: BundledLanguage;
+  language: CodeLanguage;
   showLineNumbers?: boolean;
 };
 
@@ -141,14 +142,14 @@ const tokensCache = new Map<string, TokenizedCode>();
 // Subscribers for async token updates
 const subscribers = new Map<string, Set<(result: TokenizedCode) => void>>();
 
-const getTokensCacheKey = (code: string, language: BundledLanguage) => {
+const getTokensCacheKey = (code: string, language: CodeLanguage) => {
   const start = code.slice(0, 100);
   const end = code.length > 100 ? code.slice(-100) : "";
   return `${language}:${code.length}:${start}:${end}`;
 };
 
 const getHighlighter = (
-  language: BundledLanguage
+  language: CodeLanguage
 ): Promise<HighlighterGeneric<BundledLanguage, BundledTheme>> => {
   const cached = highlighterCache.get(language);
   if (cached) {
@@ -156,7 +157,7 @@ const getHighlighter = (
   }
 
   const highlighterPromise = createHighlighter({
-    langs: [language],
+    langs: language === "text" ? [] : [language],
     themes: ["github-light", "github-dark"],
   });
 
@@ -183,7 +184,7 @@ const createRawTokens = (code: string): TokenizedCode => ({
 // Synchronous highlight with callback for async results
 export const highlightCode = (
   code: string,
-  language: BundledLanguage,
+  language: CodeLanguage,
   // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-callbacks)
   callback?: (result: TokenizedCode) => void
 ): TokenizedCode | null => {
@@ -371,7 +372,7 @@ export const CodeBlockContent = ({
   showLineNumbers = false,
 }: {
   code: string;
-  language: BundledLanguage;
+  language: CodeLanguage;
   showLineNumbers?: boolean;
 }) => {
   // Memoized raw tokens for immediate display

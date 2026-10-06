@@ -1,4 +1,12 @@
-import { ArrowRight, Check, Circle, LockKeyhole, RotateCcw, Save as SaveIcon, Undo2 } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Circle,
+  LockKeyhole,
+  RefreshAlt as RotateCcw,
+  Save as SaveIcon,
+  Undo as Undo2,
+} from "@mynaui/icons-react";
 import type { CSSProperties } from "react";
 import CodeEditor from "../code-editor";
 import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "./chat-container";

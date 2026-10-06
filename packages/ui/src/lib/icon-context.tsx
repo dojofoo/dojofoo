@@ -8,49 +8,49 @@ import {
   X,
   Copy,
   Menu,
-  Dot,
+  CircleSolid as Dot,
   Monitor,
   Sun,
   Moon,
-  RectangleHorizontal,
+  Rectangle as RectangleHorizontal,
   Circle,
-  SquareLibrary,
-  Clock,
+  BookOpen as SquareLibrary,
+  Clock3 as Clock,
   Star,
-  Settings,
+  Cog as Settings,
   Plus,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
   Search,
-  Loader,
+  Spinner as Loader,
   Users,
   Lock,
   Mail,
   Bell,
   Shield,
-  Palette,
-  Lightbulb,
+  Swatches as Palette,
+  Zap as Lightbulb,
   Rocket,
   Heart,
-  Paintbrush,
-  Brain,
+  Paint as Paintbrush,
+  Sparkles as Brain,
   Globe,
   User,
-  ImageIcon,
+  Image as ImageIcon,
   Link,
   Check,
-  RotateCcw,
+  RefreshAlt as RotateCcw,
   Play,
   Pause,
-  Pipette,
+  Drop as Pipette,
   Home,
-  MessageCircle,
+  Chat as MessageCircle,
   Inbox,
   Pencil,
   SkipForward,
   CornerDownRight,
-} from "lucide-react";
+} from "@mynaui/icons-react";
 
 export interface IconComponentProps {
   size?: number;
@@ -127,7 +127,7 @@ const IconContext = createContext<Record<IconName, IconComponent> | null>(null);
 
 /**
  * Returns a single icon component for the given name.
- * Falls back to the default (Lucide) set if no provider is present.
+ * Falls back to the default (MynaUI) set if no provider is present.
  */
 function useIcon(name: IconName): IconComponent {
   const icons = useContext(IconContext);
@@ -136,7 +136,7 @@ function useIcon(name: IconName): IconComponent {
 
 /**
  * Returns the full icon map.
- * Falls back to the default (Lucide) set if no provider is present.
+ * Falls back to the default (MynaUI) set if no provider is present.
  */
 function useIcons(): Record<IconName, IconComponent> {
   const icons = useContext(IconContext);
@@ -145,7 +145,7 @@ function useIcons(): Record<IconName, IconComponent> {
 
 /**
  * Swap some or all icons for components from another library.
- * Names left out of `icons` keep their default (Lucide) component.
+ * Names left out of `icons` keep their default (MynaUI) component.
  */
 function IconProvider({
   children,

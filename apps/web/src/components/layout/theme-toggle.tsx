@@ -1,5 +1,5 @@
 'use client'
-import { Monitor, Moon, Sun } from 'lucide-react'
+import { Monitor, Moon, Sun } from "@mynaui/icons-react";
 import { useTheme } from 'next-themes'
 import { type ComponentProps, useEffect, useState } from 'react'
 import { buttonVariants } from '@dojofoo/ui/button'

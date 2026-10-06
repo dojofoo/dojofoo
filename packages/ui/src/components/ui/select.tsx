@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, ChevronDown } from "@mynaui/icons-react";
 import {
   Children,
   forwardRef,
@@ -288,19 +289,7 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
             </span>
           </span>
 
-          <svg
-            width={sizeClasses.icon}
-            height={sizeClasses.icon}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0 text-muted-foreground transition-colors duration-80 group-hover:text-foreground"
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+          <ChevronDown aria-hidden="true" size={sizeClasses.icon} stroke={2} className="shrink-0 text-muted-foreground transition-colors duration-80 group-hover:text-foreground" />
         </SelectPrimitive.Trigger>
         {error && (
           <span className="text-[12px] text-destructive pl-3">{error}</span>
@@ -714,34 +703,16 @@ const SelectItem = forwardRef<HTMLDivElement, SelectItemProps>(
         >
           <AnimatePresence>
             {isChecked && (
-              <motion.svg
+              <motion.span
                 key="check"
-                width={sizeClasses.icon}
-                height={sizeClasses.icon}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-foreground"
-                initial={{ opacity: 1 }}
+                className="inline-flex text-foreground"
+                initial={{ opacity: skipAnimation ? 1 : 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.08 }}
               >
-                <motion.path
-                  d="M4 12L9 17L20 6"
-                  initial={{ pathLength: skipAnimation ? 1 : 0 }}
-                  animate={{
-                    pathLength: 1,
-                    transition: { duration: 0.08, ease: "easeOut" },
-                  }}
-                  exit={{
-                    pathLength: 0,
-                    transition: { duration: 0.04, ease: "easeIn" },
-                  }}
-                />
-              </motion.svg>
+                <Check size={sizeClasses.icon} stroke={2} />
+              </motion.span>
             )}
           </AnimatePresence>
         </span>

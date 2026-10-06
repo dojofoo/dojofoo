@@ -1,0 +1,118 @@
+.dojo-code-editor .dojo-line-covered { background: rgb(88 199 96 / 6%); }
+.dojo-code-editor .dojo-line-failed { background: rgb(240 91 141 / 14%); }
+.dojo-code-editor .dojo-number-covered { color: #6f9f72 !important; }
+.dojo-code-editor .dojo-number-failed { color: #f05b8d !important; }
+.dojo-code-editor .dojo-line-flash { animation: dojo-line-flash 1.2s ease-out; }
+@keyframes dojo-line-flash {
+  0%, 35% { background: #0070f366; }
+  100% { background: transparent; }
+}
+.dojo-code-editor .monaco-editor .margin { border: none; }
+.dojo-code-editor .monaco-editor .suggest-widget,
+.dojo-code-editor .monaco-editor .monaco-hover { border-radius: 0; }
+.dojo-code-editor .monaco-hover .markdown-hover { padding: 6px 10px; font-family: var(--font-mono); flex: 0 0 auto; min-width: 0; }
+.dojo-code-editor .monaco-hover .markdown-hover + .markdown-hover { border-top: 1px solid var(--vscode-editorHoverWidget-border, #ffffff20); }
+.dojo-code-editor .monaco-hover .markdown-hover p { font-family: inherit; line-height: 1.4; margin: 4px 0; }
+.dojo-code-editor .monaco-hover .markdown-hover .hover-contents { padding: 0; }
+.dojo-code-editor .monaco-hover .markdown-hover:nth-child(2) {
+  font-family: var(--font-sans);
+  max-height: min(300px, 45vh);
+  min-height: 0;
+  flex: 0 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.dojo-code-editor .monaco-editor .monaco-hover {
+  --dojo-hover-height: min(440px, 70vh);
+  max-width: min(520px, calc(100vw - 32px)) !important;
+  box-sizing: border-box;
+}
+.dojo-code-editor .monaco-hover .hover-row,
+.dojo-code-editor .monaco-hover .markdown-hover {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+.dojo-code-editor .monaco-hover .markdown-hover pre,
+.dojo-code-editor .monaco-hover .markdown-hover code,
+.dojo-code-editor .monaco-hover .markdown-hover .monaco-tokenized-source {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dojo-code-editor .monaco-hover .markdown-hover pre,
+.dojo-code-editor .monaco-hover .markdown-hover .monaco-tokenized-source {
+  background: var(--vscode-textCodeBlock-background, #ffffff08);
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-editorHoverWidget-border, #ffffff20);
+}
+.dojo-code-editor .monaco-hover .markdown-hover:first-child .monaco-tokenized-source {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+.dojo-code-editor .monaco-hover .markdown-hover p > code {
+  font-family: var(--font-mono);
+  background: #ffffff0d;
+  padding: 1px 4px;
+}
+.dojo-code-editor .monaco-hover .markdown-hover a { text-decoration: underline; }
+.dojo-editor-overlays {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+.dojo-editor-overlays .monaco-hover,
+.dojo-editor-overlays .suggest-widget { pointer-events: auto; }
+.dojo-editor-overlays .monaco-editor .monaco-resizable-hover {
+  box-shadow: var(--shadow-4);
+  /* This is the border-bearing wrapper, not .monaco-hover. Its native
+     250px resize limit must not truncate the taller segmented card. */
+  height: auto !important;
+  max-width: min(520px, calc(100vw - 32px)) !important;
+  box-sizing: border-box;
+}
+.dojo-editor-overlays .monaco-resizable-hover > .monaco-hover {
+  position: relative;
+  max-width: 100% !important;
+}
+.dojo-editor-overlays .monaco-hover,
+.dojo-editor-overlays .monaco-hover .monaco-scrollable-element,
+.dojo-editor-overlays .monaco-hover .monaco-hover-content {
+  max-height: var(--dojo-hover-height) !important;
+  height: auto !important;
+}
+.dojo-editor-overlays .monaco-hover .monaco-scrollable-element,
+.dojo-editor-overlays .monaco-hover .monaco-hover-content {
+  /* Monaco assigns pixel widths before our card cap is applied. Keep the
+     inner scroll viewport inside the border, including at narrow widths. */
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+.dojo-editor-overlays .monaco-hover .hover-row-contents {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(var(--dojo-hover-height) - 2px);
+  min-width: 0;
+}
+.dojo-editor-overlays .monaco-hover .monaco-tokenized-source {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.dojo-editor-overlays .monaco-hover .markdown-hover:nth-child(n + 3) .rendered-markdown {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dojo-editor-overlays .monaco-hover .markdown-hover:nth-child(n + 3) p { display: inline; }
+.dojo-editor-overlays .monaco-hover .markdown-hover:nth-child(n + 3) p + p { margin-inline-start: 6px; }
+.dojo-editor-overlays .monaco-hover .markdown-hover:nth-child(n + 3) code { white-space: inherit; }
+.dojo-editor-overlays .monaco-hover .markdown-hover:first-child,
+.dojo-editor-overlays .monaco-hover .markdown-hover:nth-child(n + 3) {
+  font-size: 14px;
+  line-height: 20px;
+}
+.dojo-editor-overlays .monaco-hover .markdown-hover:first-child .monaco-tokenized-source {
+  font-size: 14px !important;
+  line-height: 20px !important;
+}

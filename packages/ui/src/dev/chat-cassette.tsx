@@ -1,13 +1,11 @@
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
-import { ChatContainer, ChatContainerContent, ChatContainerFooter, ChatContainerHeader } from "@dojofoo/ui/chat-container";
+import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojofoo/ui/chat-container";
 import { InputMessage } from "@dojofoo/ui/input-message";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@dojofoo/ui/select";
-import { ThinkingIndicator } from "@dojofoo/ui/thinking-indicator";
+import { ChatTranscript } from "@/components/chat/assistant-response";
 import { stream, useChat, type UIMessage } from "@tanstack/ai-react";
 import type { StreamChunk } from "@tanstack/ai";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { StreamedChatMessage } from "@/routes/index";
-import { useChatWorkTiming } from "@/lib/chat-work-timing";
 
 export type ChatCassetteFrame = {
   delayMs: number;
@@ -90,43 +88,17 @@ export function ChatCassettePlayer({
   }, [messages]);
 
   const working = status === "submitted" || status === "streaming";
-  const workTiming = useChatWorkTiming(working, "storybook-session");
-  const hasOutput = messages.at(-1)?.role === "assistant" && messages.at(-1)!.parts.length > 0;
 
   return (
     <main className="h-[42rem] w-[30rem] overflow-hidden bg-background text-foreground">
       <ChatContainer className="h-full border-l-0">
-        <ChatContainerHeader>
-          <div className="grid w-full min-w-0 grid-cols-2 items-start gap-3 text-xs text-muted-foreground">
-            <div className="flex min-w-0 flex-col items-start gap-1">
-              <span className="px-3 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Active course</span>
-              <Select value="starter-kata">
-                <SelectTrigger className="w-full min-w-0 px-3 text-sm font-medium" variant="borderless" />
-                <SelectContent><SelectItem index={0} value="starter-kata">Starter Kata</SelectItem></SelectContent>
-              </Select>
-            </div>
-            <div className="flex min-w-0 flex-col items-start gap-1">
-              <span className="px-3 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Session</span>
-              <Select value="storybook-session">
-                <SelectTrigger className="w-full min-w-0 px-3 text-sm font-medium" variant="borderless" />
-                <SelectContent><SelectItem index={0} value="storybook-session">storybook-session</SelectItem></SelectContent>
-              </Select>
-            </div>
-          </div>
-        </ChatContainerHeader>
         <ChatContainerContent viewportRef={viewportRef}>
-          {messages.map((message) => (
-            <StreamedChatMessage
+          <ChatTranscript messages={messages} streaming={working}
+            renderMessage={(message, streaming) => <StreamedChatMessage
+              key={message.id} message={message} streaming={streaming}
               fragments={{ "whitespace-runs": "A whitespace **run** contains one or more adjacent whitespace characters." }}
-              key={message.id}
-              message={message}
-              onToolAnswer={async (answers) => onAnswer?.(answers)}
-              streaming={working && message.id === messages.at(-1)?.id}
-              timing={message.id === messages.at(-1)?.id ? workTiming : undefined}
-              workspaceId="storybook"
-            />
-          ))}
-          {working && !hasOutput && <ThinkingIndicator label="Thinking" className="py-2" />}
+              onToolAnswer={async answers => onAnswer?.(answers)} workspaceId="storybook" />}
+          />
         </ChatContainerContent>
         <ChatContainerFooter>
           <InputMessage disabled onValueChange={() => undefined} placeholder="Ask about the lesson…" sendLabel="Send" status={working ? "streaming" : "idle"} value="" />

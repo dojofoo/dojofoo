@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { MousePointer2Icon } from "lucide-react";
+import { MousePointer as MousePointer2Icon } from "@mynaui/icons-react";
 import { cn } from "../../lib/utils";
 import { field, mono, paper } from "./surfaces";
 import { at, indexIn } from "./range";

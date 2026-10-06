@@ -38,8 +38,8 @@ export function ChatContainerContent({
   }, [viewportRef]);
 
   return (
-    <ScrollArea className="min-h-0 min-w-0 flex-1" ref={rootRef} viewportClassName="scroll-fade min-w-0 p-4">
-      <div className={cn("flex min-h-full min-w-0 max-w-full flex-col gap-4 overflow-hidden", className)}>
+    <ScrollArea className="scrollbar-compact min-h-0 min-w-0 flex-1 [--chat-gutter:1rem]" ref={rootRef} viewportClassName="scroll-fade min-w-0 px-[var(--chat-gutter)] py-4">
+      <div className={cn("flex min-h-full min-w-0 max-w-full flex-col gap-4", className)}>
         {children}
       </div>
     </ScrollArea>
@@ -47,5 +47,5 @@ export function ChatContainerContent({
 }
 
 export function ChatContainerFooter({ className, ...props }: ComponentPropsWithoutRef<"div">) {
-  return <div className={cn("border-t border-dashed", className)} {...props} />;
+  return <div data-slot="chat-composer" className={cn("border-t border-dashed [&_[data-slot=input-message]]:border-0 [&_[data-slot=input-message]]:shadow-none!", className)} {...props} />;
 }

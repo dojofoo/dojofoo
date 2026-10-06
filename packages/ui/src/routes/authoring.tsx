@@ -1,15 +1,30 @@
+import { Eye, Code } from "@mynaui/icons-react";
 import type { AuthoringEvalReport } from "@dojofoo/authoring/server";
 import type { AuthoringDraft, AuthoringWorkspace } from "@dojofoo/authoring/service";
 import { authoringMessageText, isAuthoringBootstrapMessage } from "@dojofoo/authoring/types";
 import { createFileRoute } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
-import { ArrowRight, Check, Circle, ExternalLink, Pencil, Play, Plus, RefreshCw } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Circle,
+  ExternalLink,
+  Pencil,
+  Play,
+  Plus,
+  Refresh as RefreshCw,
+} from "@mynaui/icons-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AuthoringFilePreview } from "@/components/authoring-file-preview";
 import { AuthoringSidebar } from "@/components/authoring-sidebar";
 import { AuthoringChat } from "@/components/authoring-chat";
 import { EveAuthoringChat } from "@/components/eve-authoring-chat";
 import { CourseContent } from "@/components/course-content";
+import { vercelCursorColors } from "@/lib/code-editor-theme";
+import { WorkspaceFileTabs } from "@/components/workspace-file-tabs";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useAuthoringFiles } from "@/hooks/use-authoring-files";
+import { useAuthoringWatch } from "@/hooks/use-authoring-watch";
 import { Button } from "@dojofoo/ui/button";
 import { CourseLessonLayout, CourseLessonNavigation } from "@dojofoo/ui/course-lesson-layout";
 import { ScrollArea } from "@dojofoo/ui/scroll-area";
@@ -39,8 +54,6 @@ function AuthoringPage() {
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>(null);
   const [courseExpanded, setCourseExpanded] = useState(true);
   const [scope, setScope] = useState<"course" | "lesson">("course");
-  const [activeFilePath, setActiveFilePath] = useState("dojo.yaml");
-  const [draft, setDraft] = useState("");
   const [view, setView] = useState<"editor" | "preview">("editor");
   const [newLessonId, setNewLessonId] = useState<string | null>(null);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
@@ -62,11 +75,24 @@ function AuthoringPage() {
   useEffect(() => { void bootstrap(); }, []);
 
   const selectedLesson = workspace?.lessons.find(({ id }) => id === selectedLessonId) ?? null;
-  const files = workspace
-    ? authoringFiles(workspace, scope === "lesson" ? selectedLesson : null)
-    : [];
-  const activeFile = files.find(({ path }) => path === activeFilePath) ?? files[0] ?? null;
-  const dirty = Boolean(activeFile) && draft !== activeFile.content;
+  const files = useMemo(() => workspace ? [...new Map([...workspace.rootFiles, ...workspace.lessons.flatMap((lesson) => lesson.files)].map((file) => [file.path, file])).values()] : undefined, [workspace]);
+  const editorFiles = useAuthoringFiles(files);
+  const { activeFile, draft, setDraft, open: setActiveFilePath } = editorFiles;
+  const activeFilePath = activeFile?.path ?? "";
+  const dirty = activeFile !== null && draft !== activeFile.content;
+  const currentFiles = useRef({ files, dirty: editorFiles.dirty });
+  currentFiles.current = { files, dirty: editorFiles.dirty };
+  useAuthoringWatch(authoringApi("/api/authoring/changes"), async () => {
+    const next = await request<AuthoringDraft>(authoringApi("/api/authoring/draft"));
+    const nextFiles = [...next.rootFiles, ...next.lessons.flatMap(lesson => lesson.files)];
+    const conflicts = currentFiles.current.files?.filter(file => currentFiles.current.dirty(file)
+      && nextFiles.find(candidate => candidate.path === file.path)?.content !== file.content);
+    if (conflicts?.length) {
+      setError(`Files changed externally: ${conflicts.map(file => file.path).join(", ")}. Your unsaved edits are preserved. Review the changes before saving or refreshing.`);
+      return;
+    }
+    selectWorkspace(next);
+  }, setError);
   const previewable = Boolean(activeFile && isAuthoringPreviewable(activeFile.path));
   const evalReady = workspace
     ? [...workspace.courseChecks, ...workspace.lessons.flatMap(({ checks }) => checks)].every(({ ready }) => ready)
@@ -74,9 +100,10 @@ function AuthoringPage() {
 
   useEffect(() => {
     if (!activeFile) return;
-    setActiveFilePath(activeFile.path);
-    setDraft(activeFile.content);
-  }, [activeFile?.content, activeFile?.path]);
+    const lesson = workspace?.lessons.find((entry) => entry.files.some((file) => file.path === activeFile.path));
+    setScope(lesson ? "lesson" : "course");
+    if (lesson) { setSelectedLessonId(lesson.id); setExpandedLessonId(lesson.id); }
+  }, [activeFile?.path, workspace]);
 
   useEffect(() => {
     const handleSaveShortcut = (event: KeyboardEvent) => {
@@ -105,7 +132,6 @@ function AuthoringPage() {
     setExpandedLessonId(lesson.id);
     setScope("lesson");
     setActiveFilePath(file.path);
-    setDraft(file.content);
   }
 
   function selectRootFile(path: string) {
@@ -113,7 +139,6 @@ function AuthoringPage() {
     if (!file) return;
     setScope("course");
     setActiveFilePath(file.path);
-    setDraft(file.content);
   }
 
   function hydrateChat(next: AuthoringWorkspace) {
@@ -208,7 +233,6 @@ function AuthoringPage() {
       const lesson = created.workspace.lessons.find(({ id }) => id === created.lessonId);
       const firstFile = lesson?.files[0];
       setActiveFilePath(firstFile?.path ?? lesson?.senseiPath ?? "dojo.yaml");
-      setDraft(firstFile?.content ?? lesson?.sensei ?? "");
     });
   }
 
@@ -243,6 +267,7 @@ function AuthoringPage() {
         headers: { "content-type": "application/json" },
         method: "PUT",
       }));
+      editorFiles.saved(path, content);
     });
   }
 
@@ -276,6 +301,7 @@ function AuthoringPage() {
 
   return (
     <CourseLessonLayout
+      className="grid-cols-[18rem_minmax(0,1fr)]"
       navigation={(
         <CourseLessonNavigation courseTitle={null} sectionTitle={null}>
           {USE_AI_AUTHORING_SIDEBAR ? (
@@ -394,35 +420,23 @@ function AuthoringPage() {
               className="flex h-10 shrink-0 items-stretch bg-background"
               style={{ backgroundImage: "linear-gradient(to bottom, transparent calc(100% - 1px), #242424 1px)" }}
             >
-              <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto" role="tablist" aria-label="Authoring workspace">
-                {files.map((file) => (
-                  <WorkspaceTabButton
-                    active={activeFile?.path === file.path}
-                    key={file.path}
-                    surface={view === "preview" && previewable ? "preview" : "editor"}
-                    onClick={() => {
-                      setActiveFilePath(file.path);
-                      setDraft(file.content);
-                    }}
-                  >
-                    {file.label}
-                    {activeFile?.path === file.path && dirty ? <Circle className="size-2 fill-[#14cbb7] text-[#14cbb7]" /> : null}
-                  </WorkspaceTabButton>
-                ))}
-              </div>
+              <WorkspaceFileTabs mode="authoring" label="Authoring workspace" active={activeFilePath}
+                tabs={editorFiles.tabs.paths.flatMap((path) => { const file = files?.find((entry) => entry.path === path); return file ? [{ path, label: file.label, dirty: editorFiles.dirty(file) }] : []; })}
+                surface={view === "preview" && previewable ? "preview" : "editor"}
+                onSelect={setActiveFilePath} onClose={editorFiles.close} onMove={editorFiles.move} />
               {busy ? <span className="ml-auto self-center px-3 text-xs text-[#878787]">{busy}</span> : null}
               {previewable ? (
                 <div className={`${busy ? "" : "ml-auto"} flex items-center px-2`}>
                   <ViewToggle
-                    label={view === "preview" ? "Switch to editor" : "Switch to preview"}
+                    label={view === "preview" ? "Switch to code" : "Switch to preview"}
                     onClick={() => setView(view === "preview" ? "editor" : "preview")}
                   >
-                    {view === "preview" ? <PreviewFileIcon /> : <EditorFileIcon />}
+                    {view === "preview" ? <EditorFileIcon /> : <PreviewFileIcon />}
                   </ViewToggle>
                 </div>
               ) : null}
             </div>
-            <section className="flex min-h-0 flex-1 flex-col bg-[#0a0a0a] text-[#ededed] shadow-surface-3" data-testid="authoring-workspace">
+            <section className="flex min-h-0 flex-1 flex-col text-[#ededed] shadow-surface-3" style={{ backgroundColor: vercelCursorColors.background }} data-testid="authoring-workspace">
               <div className="min-h-0 flex-1 overflow-auto">
                 {view === "preview" && previewable
                   ? activeFile && <AuthoringFilePreview key={activeFile.path} path={activeFile.path} source={draft} workspace={workspace} />
@@ -434,11 +448,12 @@ function AuthoringPage() {
                           filePath={activeFile.path}
                           language={authoringEditorLanguage(activeFile.path)}
                           lessonApiBase=""
+                          documentationUrl={authoringApi("/api/authoring/language/hover")}
                           onChange={setDraft}
                           readOnly={false}
                         />
                       </Suspense>
-                    : null}
+                    : <p className="p-6 text-sm text-muted-foreground">Open a file from the course or lesson sidebar.</p>}
               </div>
             </section>
             {error ? <p className="border-t border-red-900/60 bg-red-950/40 px-5 py-2 text-sm text-red-300">{error}</p> : null}
@@ -601,52 +616,34 @@ function authoringEditorLanguage(path: string): "json" | "markdown" | "typescrip
   return "typescript";
 }
 
-function WorkspaceTabButton({ active, children, onClick, surface }: { active: boolean; children: ReactNode; onClick: () => void; surface: "editor" | "preview" }) {
-  const tab = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (active) tab.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-  }, [active]);
-  const activeSurface = surface === "preview" ? "bg-background" : "bg-[#0a0a0a]";
-  return <button aria-selected={active} className={`relative flex shrink-0 items-center gap-2 border-r border-t-2 border-[#242424] px-4 text-xs ${active ? `z-10 border-t-[#ededed] ${activeSurface} text-[#a1a1a1]` : "border-t-transparent bg-transparent text-[#a1a1a1] hover:bg-[#ffffff1a] hover:text-[#ededed]"}`} onClick={onClick} ref={tab} role="tab" type="button">{children}</button>;
-}
-
 function WorkspaceAction({ children, disabled, onClick }: { children: ReactNode; disabled: boolean; onClick: () => void }) {
   return <button className="flex items-center gap-2 border-r border-[#242424] px-3 text-xs text-[#a1a1a1] hover:bg-[#ffffff1a] hover:text-[#ededed] disabled:text-[#878787]" disabled={disabled} onClick={onClick} type="button">{children}</button>;
 }
 
 function ViewToggle({ children, label, onClick }: { children: ReactNode; label: string; onClick: () => void }) {
   return (
+    <Tooltip content={label} side="bottom">
     <button
       aria-label={label}
       className="inline-flex size-8 items-center justify-center text-foreground transition-colors hover:text-primary"
       onClick={onClick}
-      title={label}
       type="button"
     >
       {children}
     </button>
+    </Tooltip>
   );
 }
 
 function PreviewFileIcon() {
   return (
-    <svg aria-hidden="true" className="size-4" viewBox="0 0 256 256">
-      <path
-        d="m212.24 83.76-56-56A6 6 0 0 0 152 26H56a14 14 0 0 0-14 14v176a14 14 0 0 0 14 14h144a14 14 0 0 0 14-14V88a6 6 0 0 0-1.76-4.24M158 46.48 193.52 82H158ZM200 218H56a2 2 0 0 1-2-2V40a2 2 0 0 1 2-2h90v50a6 6 0 0 0 6 6h50v122a2 2 0 0 1-2 2m-48.11-50.59a34.05 34.05 0 1 0-8.48 8.48l12.35 12.35a6 6 0 0 0 8.48-8.48ZM102 148a22 22 0 1 1 22 22 22 22 0 0 1-22-22"
-        fill="currentColor"
-      />
-    </svg>
+    <Eye aria-hidden="true" className="size-4" />
   );
 }
 
 function EditorFileIcon() {
   return (
-    <svg aria-hidden="true" className="size-4" viewBox="0 0 256 256">
-      <g fill="currentColor">
-        <path d="M208 88h-56V32Z" opacity=".2" />
-        <path d="M181.66 146.34a8 8 0 0 1 0 11.32l-24 24a8 8 0 0 1-11.32-11.32L164.69 152l-18.35-18.34a8 8 0 0 1 11.32-11.32Zm-72-24a8 8 0 0 0-11.32 0l-24 24a8 8 0 0 0 0 11.32l24 24a8 8 0 0 0 11.32-11.32L91.31 152l18.35-18.34a8 8 0 0 0 0-11.32M216 88v128a16 16 0 0 1-16 16H56a16 16 0 0 1-16-16V40a16 16 0 0 1 16-16h96a8 8 0 0 1 5.66 2.34l56 56A8 8 0 0 1 216 88m-56-8h28.69L160 51.31Zm40 136V96h-48a8 8 0 0 1-8-8V40H56v176z" />
-      </g>
-    </svg>
+    <Code aria-hidden="true" className="size-4" />
   );
 }
 
