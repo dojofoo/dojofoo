@@ -5,11 +5,26 @@
   "type": "module",
   "exports": {
     "./package.json": "./package.json",
+    "./evaluation/material": "./src/evaluation/material.ts",
+    "./evaluation/sensei": "./src/evaluation/sensei.ts",
+    "./evaluation/host": "./src/evaluation/host.ts",
+    "./evaluation/learner-fixtures": "./src/evaluation/learner-fixtures.ts",
+    "./evaluation/learner-response": "./src/evaluation/learner-response.ts",
+    "./evaluation/judges": "./src/evaluation/judges.ts",
+    "./evaluation/teaching-rubric": "./src/evaluation/teaching-rubric.ts",
+    "./evaluation/run": "./src/evaluation/run.ts",
+    "./evaluation/panel": "./src/evaluation/panel.ts",
+    "./evaluation/failure": "./src/evaluation/failure.ts",
+    "./evaluation/prompts": "./src/evaluation/prompts/index.ts",
+    "./evaluation/prompts/suites": "./src/evaluation/prompts/suites.ts",
     "./eve/agent": "./src/eve/agent.ts",
     "./eve/runtime": "./src/eve/runtime.ts",
     "./KYOSHI.md": "./src/contracts/KYOSHI.md",
+    "./NATIVE-HARNESS.md": "./src/contracts/NATIVE-HARNESS.md",
+    "./prompts": "./src/prompts.ts",
     "./eve/instructions": "./src/eve/instructions.ts",
     "./eve/ask": "./src/eve/ask.ts",
+    "./eve/evaluate": "./src/eve/evaluate.ts",
     "./eve/messages": "./src/eve/messages.ts",
     "./eve/stream": "./src/eve/stream.ts",
     "./eve/server": "./src/eve/routes.ts",
@@ -18,7 +33,9 @@
     "./files": "./src/server/files.ts",
     "./server": "./src/server/routes.ts",
     "./service": "./src/server/service.ts",
-    "./types": "./src/server/types.ts"
+    "./types": "./src/server/types.ts",
+    "./skills/*": "./skills/*",
+    "./evaluation/prompts/*.md": "./src/evaluation/prompts/*.md"
   },
   "scripts": {
     "test": "vitest run",
@@ -35,7 +52,8 @@
     "@dojofoo/config": "workspace:*",
     "@tanstack/ai": "0.47.1",
     "hono": "^4.13.1",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tanstack/ai-client": "0.25.1",

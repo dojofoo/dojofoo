@@ -3,7 +3,10 @@ import { createLocalCursor } from "./local-cursor.ts";
 import { createFx } from "@ai-sdk/harness-fx";
 import { createGrokBuild } from "@ai-sdk/harness-grok-build";
 import { createOpenCode } from "@ai-sdk/harness-opencode";
-import { pi } from "@ai-sdk/harness-pi";
+import { createPi, pi } from "@ai-sdk/harness-pi";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
+import { canonicalLocalPi } from "./local-pi.ts";
 
 const harnesses = {
   codex: createCodex({ port: 0 }),
@@ -21,6 +24,13 @@ export function authoringHarness(environment: NodeJS.ProcessEnv = process.env) {
   const name = environment.DOJOFOO_HARNESS || "opencode";
   if (!Object.hasOwn(harnesses, name)) {
     throw new Error(`Unsupported Dojofoo authoring harness: ${name}`);
+  }
+  // Custom providers (including credentials referenced by models.json) belong
+  // to Pi's native setup. The adapter's default only discovers auth.json.
+  if (name === "pi") {
+    return canonicalLocalPi(createPi({
+      agentDir: resolve(environment.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent")),
+    }));
   }
   return harnesses[name as AuthoringHarness];
 }

@@ -864,6 +864,48 @@ test("a non-resumable sandbox is rejected instead of silently replacing the nati
 });
 
 if (process.env.EVE_NATIVE_COMPACTION === "1") {
+  for (const contextTokens of [undefined, -1, "100"]) test(`Eve preserves ordinary usage accounting without valid native context (${contextTokens})`, async () => {
+    const model = new MockLanguageModelV4({ doGenerate: {
+      content: [{ type: "text", text: "Ready." }], finishReason: finish, usage, warnings: [],
+      ...(contextTokens === undefined ? {} : { providerMetadata: { harness: { contextTokens } } }),
+    } });
+    const first = await createToolLoopHarness({ mode: "conversation", resolveModel: async () => model, tools: new Map() })({
+      agent: { modelReference: { id: "ordinary" }, system: "Teach.", tools: [] },
+      compaction: { threshold: 100000, recentWindowSize: 10 },
+      continuationToken: "ordinary-usage", sessionId: randomUUID(), history: [],
+    }, { message: "Start." });
+    assert.equal(first.session.compaction.lastKnownInputTokens, 1);
+    assert.equal(first.session.compaction.lastKnownPromptMessageCount, 1);
+  });
+
+  test("Eve uses the last native context size, not cumulative billed input, for compaction", async () => {
+    const latest = { ...usage, inputTokens: { ...usage.inputTokens, total: 100, noCache: 100 } };
+    const billed = { ...usage, inputTokens: { ...usage.inputTokens, total: 40000, noCache: 40000 } };
+    const adapter = fixture(false, false, [
+      { type: "tool-call", toolCallId: "native-read", toolName: "read", input: '{}', providerExecuted: true, dynamic: true },
+      { type: "tool-result", toolCallId: "native-read", toolName: "read", result: "A long tool log. ".repeat(10000), dynamic: true },
+      ...text("A short completed turn.").slice(0, -2),
+      { type: "finish-step", finishReason: finish, usage: latest },
+      { type: "finish", finishReason: finish, totalUsage: billed },
+    ]);
+    const { model } = createHarnessModel({ harness: adapter.harness, sandbox: fixtureSandbox() });
+    const response = await generateText({ model, prompt: "Start." });
+    assert.equal(response.usage.inputTokens, 40000, "Billing still includes all native requests");
+    const config = { mode: "conversation", resolveModel: async () => model, tools: new Map() };
+    const initial = {
+      agent: { modelReference: { id: "local" }, system: "Teach.", tools: [] },
+      compaction: { threshold: 28000, recentWindowSize: 10 },
+      continuationToken: "context-usage", sessionId: randomUUID(), history: [],
+    };
+    const first = await createToolLoopHarness(config)(initial, { message: "Start." });
+    assert.equal(first.session.compaction.lastKnownPromptMessageCount, first.session.history.length,
+      "Native tool output is already represented by native context usage, not added again from the UI history");
+    assert.equal(first.session.compaction.lastKnownInputTokens, 101);
+    await createToolLoopHarness(config)(JSON.parse(JSON.stringify(first.session)), { message: "Continue." });
+    assert.equal(adapter.compactions.length, 0, "Small native history must not trigger premature compaction");
+    assert.equal(adapter.active, 0);
+  });
+
   test("Eve's compact-only action persists the native checkpoint for the next turn", async () => {
     const adapter = fixture(true);
     const { model } = createHarnessModel({ harness: adapter.harness, sandbox: fixtureSandbox() });

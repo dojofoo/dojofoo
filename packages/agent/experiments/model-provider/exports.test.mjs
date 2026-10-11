@@ -26,7 +26,7 @@ test("the packed package preserves every pinned Eve public entry point", async (
   }
 });
 
-for (const path of ["skills", "context", "hooks", "tools/bash", "tools/load_skill", "tools/todo", "tools/agent"]) {
+for (const path of ["server", "evals", "skills", "context", "hooks", "tools/bash", "tools/load_skill", "tools/todo", "tools/agent"]) {
   test(`public authoring API /${path} loads without a separate Eve install`, async () => {
     const api = await import(`@dojofoo/agent/${path}`);
     assert.ok(Object.keys(api).length > 0);

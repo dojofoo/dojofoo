@@ -6,6 +6,11 @@ import { existsSync } from "node:fs";
 import { Readable, Writable } from "node:stream";
 import type { HarnessAdapter, HarnessKind } from "../harness/adapter";
 import { harnessAdapter } from "../harness/registry";
+/** Host-authored turn starters from contracts/TURNS.md (`begin`, `checks-ran`);
+ * never shown as learner messages. Kept free of Markdown imports so plain tsx
+ * scripts can load this client; a unit test keeps it equal to TURNS.md. */
+export const hiddenTurnTexts = ["Begin the lesson.", "Ran lesson checks."] as const;
+const hiddenTurns = new Set<string>(hiddenTurnTexts);
 import { runCoordinator, type RunQuestion } from "../run/coordinator";
 
 export type TranscriptMessage = {
@@ -315,6 +320,10 @@ export class AcpClient {
 
   async history(threadId: string): Promise<TranscriptMessage[]> {
     return [...this.transcript(threadId)];
+  }
+
+  configuration(threadId: string): acp.SessionConfigOption[] {
+    return structuredClone(this.sessionConfigOptions.get(threadId) ?? []);
   }
 
   modelConfiguration(threadId: string): SessionModelConfiguration | null {
@@ -739,12 +748,12 @@ function projectUserText(text: string): UserTextProjection[] {
   if (resources.length > 0 || visible !== text.trim()) {
     return [
       ...resources,
-      ...(visible && visible !== "Ran lesson checks." && visible !== "Begin the lesson."
+      ...(visible && !hiddenTurns.has(visible)
         ? [{ role: "user" as const, text: visible }]
         : []),
     ];
   }
-  if (text === "Ran lesson checks." || text === "Begin the lesson.") return [];
+  if (hiddenTurns.has(text)) return [];
   return [{ role: "user", text }];
 }
 

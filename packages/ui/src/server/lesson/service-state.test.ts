@@ -3,9 +3,10 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readDojoRc } from "@dojofoo/config";
-import { dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, shouldIntroduceLesson, startLessonSession, writeLessonFile } from "./service";
+import { answerSenseiQuestion, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, shouldIntroduceLesson, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
 import { dojofooHarness } from "../harness/registry";
 import { acpClient } from "./codex-client";
+import kataTeaching from "./contracts/KATAS.md?raw";
 
 const roots: string[] = [];
 
@@ -47,9 +48,40 @@ function freshCourse(): string {
 }
 
 describe("fresh lesson state", () => {
+  it("supplies completed lesson context without claiming unseen implementation details", async () => {
+    const root = freshCourse();
+    const initial = await getLesson(root, "001-first");
+    expect(dojoLessonContext(initial!).course).toEqual({ id: "starter", completedLessons: [] });
+    const rc = readDojoRc(root);
+    rc.progress = { starter: { completed: ["001-first"], lastActive: "001-first" } };
+    writeFileSync(resolve(root, ".dojorc"), JSON.stringify(rc));
+    const next = await getLesson(root, "002-second");
+    expect(dojoLessonContext(next!).course).toEqual({
+      id: "starter",
+      completedLessons: [{ id: "001-first", title: initial!.title, summary: initial!.lessons[0].summary }],
+    });
+  });
+
   it("retries an introduction until the lifecycle marks it complete", () => {
     expect(shouldIntroduceLesson({ introduced: false })).toBe(true);
     expect(shouldIntroduceLesson({ introduced: true })).toBe(false);
+  });
+
+  it("starts with lesson context without a second code-owned teaching prompt", async () => {
+    const root = freshCourse();
+    vi.spyOn(acpClient, "startThread").mockResolvedValue("intro-session");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    // Stop after observing the request; do not invoke the CLI completion marker.
+    const send = vi.spyOn(acpClient, "send").mockRejectedValue(new Error("captured intro"));
+    await expect(streamLessonIntroduction(root, "001-first", () => {})).rejects.toThrow("captured intro");
+    expect(send).toHaveBeenCalledWith("intro-session", "Begin the lesson.", expect.any(Function), expect.objectContaining({
+      visible: false,
+      context: [expect.objectContaining({
+        uri: "dojo://courses/starter/lessons/001-first/context",
+        text: expect.stringContaining('"phase":"start"'),
+      })],
+    }));
   });
 
   it("presents the first lesson without requiring mutable current-kata state", async () => {
@@ -85,6 +117,32 @@ describe("fresh lesson state", () => {
     });
     expect(readFileSync(resolve(root, "katas", "001-first", "solution.ts"), "utf8"))
       .toBe("export const answer = 1;\n");
+  });
+
+  it("sends current numbered source to the agent while keeping editable context raw", async () => {
+    const root = freshCourse();
+    vi.spyOn(acpClient, "startThread").mockResolvedValue("context-session");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    const send = vi.spyOn(acpClient, "send").mockResolvedValue("");
+
+    await streamSensei(root, "001-first", "Where should I start?", () => {});
+    expect(send).toHaveBeenLastCalledWith("context-session", expect.any(String), expect.any(Function), expect.objectContaining({
+      context: expect.arrayContaining([expect.objectContaining({
+        mimeType: "text/plain",
+        text: expect.stringContaining("L1: export const answer = 0;\nL2: "),
+      })]),
+    }));
+
+    const code = "\n// learner note\nexport const answer = 1;\n";
+    await writeLessonFile(root, "starter", "001-first", "solution", code);
+    await streamSensei(root, "001-first", "What changed?", () => {});
+    expect(send).toHaveBeenLastCalledWith("context-session", expect.any(String), expect.any(Function), expect.objectContaining({
+      context: expect.arrayContaining([expect.objectContaining({
+        text: expect.stringContaining("L1: \nL2: // learner note\nL3: export const answer = 1;\nL4: "),
+      })]),
+    }));
+    expect(dojoLessonContext((await getLesson(root, "001-first"))!).learner.file.content).toBe(code);
   });
 
   it("advances by materializing the next lesson without spawning the CLI", async () => {
@@ -126,10 +184,36 @@ describe("fresh lesson state", () => {
     const state = JSON.parse(readFileSync(resolve(root, ".dojo", "web.json"), "utf8"));
 
     expect(lesson.sessionId).toBe("new-session");
+    // Legacy kata manifests omit mode; they still need the kata lifecycle
+    // contract, including returning to the completion prompt after Review.
+    expect(acpClient.startThread).toHaveBeenCalledWith(expect.objectContaining({
+      developerInstructions: expect.stringContaining(kataTeaching),
+    }));
     expect(state.threads["starter/001-first"]).toMatchObject({
       sessionId: "new-session",
       aliases: ["old-session"],
     });
+  });
+
+  it("answers Review without navigation and Move on materializes the next lesson", async () => {
+    const root = freshCourse();
+    vi.spyOn(acpClient, "startThread").mockResolvedValue("completion-session");
+    vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    const answer = vi.spyOn(acpClient, "answerUserInput").mockImplementation(() => {});
+    await startLessonSession(root, "001-first");
+    const rc = readDojoRc(root);
+    rc.progress = { starter: { completed: ["001-first"], lastActive: "001-first" } };
+    rc.currentKata = "001-first";
+    writeFileSync(resolve(root, ".dojorc"), JSON.stringify(rc));
+
+    await expect(answerSenseiQuestion(root, "001-first", { completion: ["Review"] })).resolves.toEqual({ ok: true });
+    expect(readDojoRc(root).currentKata).toBe("001-first");
+    const next = await answerSenseiQuestion(root, "001-first", { completion: ["Move on"] });
+    expect(next).toMatchObject({ kata: "002-second", isCurrent: true });
+    expect(answer).toHaveBeenLastCalledWith("completion-session", { completion: ["Move on"] });
+    expect(readDojoRc(root).currentKata).toBe("002-second");
+    expect(readFileSync(resolve(root, "katas/002-second/solution.ts"), "utf8")).toBe("export const second = 0;\n");
   });
 
   it("allows only authored fragments from the active lesson", async () => {

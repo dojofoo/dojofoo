@@ -1,0 +1,46 @@
+diff --git a/dist/bridge/index.mjs b/dist/bridge/index.mjs
+index 631acc65c82b30c7d2d721ad5b66553a5748deae..eb672fce5866948d434451fdb8395994aadac511 100644
+--- a/dist/bridge/index.mjs
++++ b/dist/bridge/index.mjs
+@@ -1797,7 +1797,6 @@ async function runTurn(start, turn) {
+       await client.instance.dispose({ directory: workdir });
+     }
+     const sessionId = await ensureSession({ client, start, emit });
+-    await switchSessionModel({ client, sessionId, start });
+     if (start.operation === "compact") {
+       await runCompaction({ client, sessionId, start, turn, emit });
+     } else {
+@@ -1814,22 +1813,6 @@ async function runTurn(start, turn) {
+     });
+   }
+ }
+-async function switchSessionModel({
+-  client,
+-  sessionId,
+-  start
+-}) {
+-  const model = modelRefFromStart(start);
+-  if (model == null) return;
+-  const response = await client.v2.session.switchModel({
+-    sessionID: sessionId,
+-    model: {
+-      id: model.modelID,
+-      providerID: model.providerID
+-    }
+-  });
+-  if (response.error != null) throw response.error;
+-}
+ async function ensureRuntime({
+   start,
+   turn,
+@@ -2052,8 +2035,10 @@ async function legacySessionPrompt({
+ }) {
+   const session = client.session;
+   const submitPrompt = session.promptAsync ?? session.prompt;
++  const model = modelRefFromStart(start);
+   return submitPrompt.call(session, {
+     sessionID: sessionId,
++    ...model ? { model } : {},
+     ...start.instructions ? { system: start.instructions } : {},
+     ...start.variant ? { variant: start.variant } : {},
+     ...start.responseFormat?.type === "json" && start.responseFormat.schema != null ? {

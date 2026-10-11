@@ -53,6 +53,12 @@ describe("AcpClient projection", () => {
     (client as unknown as { sessionConfigOptions: Map<string, unknown> })
       .sessionConfigOptions.set("session-1", options);
 
+    const snapshot = client.configuration("session-1");
+    expect(snapshot).toEqual(options);
+    snapshot.splice(0);
+    expect(client.configuration("session-1")).toEqual(options);
+    expect(client.configuration("unknown")).toEqual([]);
+
     expect(client.modelConfiguration("session-1")).toEqual({
       id: "model",
       name: "Model",

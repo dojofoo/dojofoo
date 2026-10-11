@@ -16,6 +16,7 @@ import {
 } from "@mynaui/icons-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AuthoringFilePreview } from "@/components/authoring-file-preview";
+import { AuthoringEvaluationReport } from "@/components/authoring-evaluation-report";
 import { AuthoringSidebar } from "@/components/authoring-sidebar";
 import { AuthoringChat } from "@/components/authoring-chat";
 import { EveAuthoringChat } from "@/components/eve-authoring-chat";
@@ -60,6 +61,8 @@ function AuthoringPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("Loading your dojo…");
   const [error, setError] = useState<string | null>(null);
+  const [evaluationReport, setEvaluationReport] = useState<AuthoringEvalReport | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const outgoing = useRef<Record<string, unknown>>({});
   const chatConnection = useMemo(() => fetchServerSentEvents(
     authoringApi("/api/authoring/messages"),
@@ -94,8 +97,8 @@ function AuthoringPage() {
     selectWorkspace(next);
   }, setError);
   const previewable = Boolean(activeFile && isAuthoringPreviewable(activeFile.path));
-  const evalReady = workspace
-    ? [...workspace.courseChecks, ...workspace.lessons.flatMap(({ checks }) => checks)].every(({ ready }) => ready)
+  const evalReady = workspace && selectedLesson
+    ? [...workspace.courseChecks, ...selectedLesson.checks].every(({ ready }) => ready)
     : false;
 
   useEffect(() => {
@@ -281,14 +284,24 @@ function AuthoringPage() {
     });
   }
 
-  async function runEvals(harness: "cassette" | "opencode") {
-    await perform(`Running ${harness} evaluations…`, async () => {
-      await request<ReportResponse>("/api/authoring/evals", {
-        body: JSON.stringify({ harness }),
+  async function showEvaluationReport() {
+    await perform("Loading evaluation report…", async () => {
+      const result = await request<ReportResponse>(authoringApi("/api/authoring/report"));
+      setEvaluationReport(result.report);
+      setReportOpen(true);
+    });
+  }
+
+  async function runEvals() {
+    if (!selectedLessonId) return;
+    await perform("Trialing Sensei and judging teaching…", async () => {
+      const result = await request<ReportResponse>(authoringApi("/api/authoring/evals"), {
+        body: JSON.stringify({ lessonIds: [selectedLessonId], callId: crypto.randomUUID() }),
         headers: { "content-type": "application/json" },
         method: "POST",
       });
-      setView("preview");
+      setEvaluationReport(result.report);
+      setReportOpen(true);
     });
   }
 
@@ -437,6 +450,7 @@ function AuthoringPage() {
               ) : null}
             </div>
             <section className="flex min-h-0 flex-1 flex-col text-[#ededed] shadow-surface-3" style={{ backgroundColor: vercelCursorColors.background }} data-testid="authoring-workspace">
+              {reportOpen && (evaluationReport ? <AuthoringEvaluationReport report={evaluationReport} /> : <p className="border-b border-dashed p-4 text-sm text-muted-foreground">No teaching evaluation report yet.</p>)}
               <div className="min-h-0 flex-1 overflow-auto">
                 {view === "preview" && previewable
                   ? activeFile && <AuthoringFilePreview key={activeFile.path} path={activeFile.path} source={draft} workspace={workspace} />
@@ -460,8 +474,9 @@ function AuthoringPage() {
             <div className="flex h-11 shrink-0 justify-end border-t border-dashed bg-background">
               <div className="flex items-stretch">
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}><RefreshCw className="size-3.5" /> Refresh</WorkspaceAction>
+                <WorkspaceAction disabled={Boolean(busy)} onClick={() => reportOpen ? setReportOpen(false) : void showEvaluationReport()}>{reportOpen ? "Hide report" : "Report"}</WorkspaceAction>
                 {scope === "lesson" && selectedLesson ? <WorkspaceAction disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}><ExternalLink className="size-3.5" /> Trial</WorkspaceAction> : null}
-                <button className="bg-[#0070f3] px-4 text-xs text-white hover:bg-[#0761d1] disabled:bg-[#242424] disabled:text-[#878787]" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals("cassette")} title={evalReady ? "Run learner-persona evaluations" : "Complete the authoring checklist first"} type="button">Run evals</button>
+                <button className="bg-[#0070f3] px-4 text-xs text-white hover:bg-[#0761d1] disabled:bg-[#242424] disabled:text-[#878787]" disabled={Boolean(busy) || !evalReady || !selectedLessonId} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</button>
               </div>
             </div>
         </div>

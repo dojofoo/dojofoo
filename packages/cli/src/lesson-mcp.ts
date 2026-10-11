@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { lessonCapabilities, uiCapabilities } from "@dojofoo/protocol";
+import { formatLessonContext, lessonCapabilities, uiCapabilities, type DojoLessonContext } from "@dojofoo/protocol";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -36,10 +36,11 @@ if (profile === "lesson") server.registerTool(lessonCapabilities.context.tool, {
 }, async () => {
   try {
     const result = await runCommand(lessonCapabilities.context.method, {});
-    const context = result.context ?? result;
+    const context = result.context;
+    if (!context) throw new Error("The lesson coordinator returned no context");
     return {
-      content: [{ type: "text", text: JSON.stringify(context) }],
-      structuredContent: context as Record<string, unknown>,
+      content: [{ type: "text", text: formatLessonContext(context) }],
+      structuredContent: { ...context },
     };
   } catch (cause) {
     return { content: [{ type: "text", text: cause instanceof Error ? cause.message : String(cause) }], isError: true };
@@ -91,7 +92,7 @@ if (profile === "lesson") server.registerTool(lessonCapabilities.complete.tool, 
 
 async function runCommand(method: string, params: unknown): Promise<{
   answers?: Record<string, string[]>;
-  context?: Record<string, unknown>;
+  context?: DojoLessonContext;
   error?: string;
   fragmentId?: string;
 }> {
@@ -105,7 +106,7 @@ async function runCommand(method: string, params: unknown): Promise<{
   });
   const result = await response.json() as {
     answers?: Record<string, string[]>;
-    context?: Record<string, unknown>;
+    context?: DojoLessonContext;
     error?: string;
     fragmentId?: string;
   };

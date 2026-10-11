@@ -8,6 +8,7 @@ import { expect, it, vi } from "vitest";
 // @ts-expect-error Existing JavaScript test fixture has no declaration file.
 import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";
 import { createKyoshiRuntime } from "./runtime";
+import instructions from "./instructions";
 
 it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes through official authoring runtime with %s model selection", async (selection) => {
   const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-turn-"));
@@ -113,7 +114,9 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
     else if (selection === "fx") expect(endpoint.requestedTools.filter((name: string) => name.endsWith("dojo_ui_ask"))).toHaveLength(1);
     else if (selection === "codex") expect(endpoint.requestedTools).toEqual(["exec_command"]);
     else expect(endpoint.requestedTools).toHaveLength(1);
-    expect(JSON.stringify(endpoint.requests)).toContain("course author's Kyoshi");
+    expect(JSON.stringify(endpoint.requests)).toContain(
+      JSON.stringify(instructions.content).slice(1, -1),
+    );
     expect(JSON.stringify(endpoint.requests)).toContain("Help me author a course.");
     expect(JSON.stringify(endpoint.requests)).toContain("beginner");
     if (selection === "runtime") {

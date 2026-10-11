@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, relative, resolve } from "node:path";
+import { createRequire } from "node:module";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import {
   observeLocalContext,
@@ -21,12 +22,13 @@ import {
   type AuthoringStreamPart,
   type AuthoringTranscriptMessage,
 } from "./types";
-import kyoshiContract from "../contracts/KYOSHI.md?raw";
 import {
   acknowledgeAuthoringEdits,
   pendingAuthoringEdits,
   writeAuthoringFile,
 } from "./files";
+
+const kyoshiContract = readFileSync(createRequire(import.meta.url).resolve("@dojofoo/authoring/KYOSHI.md"), "utf8");
 
 type AuthoringThreadState = {
   version: 1;

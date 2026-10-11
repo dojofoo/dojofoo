@@ -164,6 +164,7 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
             const calls = new Set<string>();
             let approvals: Extract<LanguageModelV4StreamPart, { type: "tool-approval-request" }>[] = [];
             const usages: LanguageModelV4Usage[] = [];
+            let contextTokens: number | undefined;
             const flush = () => {
               if (pending) output.enqueue(pending);
               pending = undefined;
@@ -186,6 +187,12 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
               };
               for await (const part of drain()) {
                 switch (part.type) {
+                  case "finish-step":
+                    // Total usage bills every native request; only the last
+                    // request plus its output describes the completed context.
+                    contextTokens = part.usage.inputTokens === undefined || part.usage.outputTokens === undefined
+                      ? undefined : part.usage.inputTokens + part.usage.outputTokens;
+                    break;
                   case "text-start": case "reasoning-start":
                     flush();
                     output.enqueue(part);
@@ -250,7 +257,9 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
               }
               const providerMetadata = { harness: {
                 sessionId: session.sessionId,
-                resumeFrom: JSON.parse(JSON.stringify(await stop())),
+                // Host-tool results must resume the parked native turn with its
+                // sandbox still alive. stop() tears down that owned sandbox.
+                resumeFrom: JSON.parse(JSON.stringify(await (stopped ??= session.hasUnfinishedTurn() ? session.detach() : session.stop()))),
                 ...(pendingPrompts.length ? { pendingPrompts: JSON.parse(JSON.stringify(pendingPrompts.map(message => ({ ...message,
                   content: message.content.map(part => part.type === "file" ? { ...part,
                     data: part.data.type === "data" ? { type: "data", data: convertDataContentToBase64String(part.data.data) } : part.data,
@@ -262,6 +271,9 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
               output.enqueue({
                 type: "finish", finishReason: { unified: await result.finishReason, raw: undefined },
                 usage: sumUsage(usages),
+                ...(contextTokens === undefined ? {} : {
+                  providerMetadata: { harness: { contextTokens } },
+                }),
               });
               output.close();
             } catch (error) {
@@ -296,7 +308,7 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
         else if (part.type === "finish") finish = part;
       }
       if (!finish) throw new Error("Harness stream ended without a finish event.");
-      return { content, finishReason: finish.finishReason, usage: finish.usage, warnings };
+      return { content, finishReason: finish.finishReason, usage: finish.usage, providerMetadata: finish.providerMetadata, warnings };
     },
   };
   return { model };

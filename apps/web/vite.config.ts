@@ -59,7 +59,8 @@ export default defineConfig({
         brotli: true,
         gzip: true,
       },
-      traceDeps: ['react'],
+      // Keep the native loader external and ship its platform bindings intact.
+      traceDeps: ['react', '@takumi-rs/core'],
       minify: true,
       routeRules: {
         '/assets/**': {

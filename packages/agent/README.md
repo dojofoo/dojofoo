@@ -376,7 +376,7 @@ hook mutates consumer dependencies. The patch remains available through
 
 `pnpm test:packaging` installs the tarball in a clean temporary project with
 install scripts disabled, rejects a separate Eve installation, and runs the
-54 provider/compaction contract tests against the embedded runtime. The broader
+provider/compaction contract tests against the embedded runtime. The broader
 host matrix separately tests authored skills, subagents, native recovery and the UI
 against this distribution.
 
@@ -384,6 +384,14 @@ The provider resumes the checkpoint, calls official `session.compact()`, stops
 the session and returns its refreshed checkpoint plus any unsent trailing messages.
 The native harness owns the summary and durable history; Eve sends no duplicate
 summary prompt. No adapter code or opaque checkpoint data is rewritten.
+
+For compaction accounting, the provider reports the last native request's input
+plus output as `providerMetadata.harness.contextTokens`. The packaged Eve loop
+uses that end-of-step measurement instead of cumulative billed usage, and does
+not count the same native output again from its visible history. Ordinary model
+usage remains the fallback when this metadata is absent or invalid. Billing and
+usage limits still receive the complete native usage totals. This metadata is
+our narrow provider integration, not a new AI SDK protocol.
 
 Missing checkpoints and native failures are explicit errors. Compaction requested
 during a suspended tool turn is deferred: its messages and checkpoint remain

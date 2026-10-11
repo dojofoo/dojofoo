@@ -1,0 +1,7 @@
+{
+  "name": "reference-sensei",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "vitest run" },
+  "devDependencies": { "vitest": "4.1.10", "typescript": "6.0.3", "@types/node": "26.2.0" }
+}

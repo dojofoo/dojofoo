@@ -116,7 +116,7 @@ export function queueCourseEvent(
     ...(kata ? { kata } : {}),
     ...(event === "installed" && githubSource ? {
       source: {
-        type: githubSource.type,
+        type: "github",
         repository: githubSource.locator,
         ...(githubSource.integrity ? { integrity: githubSource.integrity } : {}),
       },

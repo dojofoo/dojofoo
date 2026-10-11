@@ -16,6 +16,11 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  optimizeDeps: {
+    // Router's store imports a CommonJS shim. Include the nested entry even
+    // when a lesson route is first discovered after the initial dev scan.
+    include: ["@tanstack/react-router > @tanstack/react-store > use-sync-external-store/shim/with-selector"],
+  },
   ssr: {
     // jiti loads supporting files relative to its package at runtime.
     external: ["jiti", "typescript"],
