@@ -1,8 +1,5 @@
-import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { promisify } from "node:util";
 import { Hono } from "hono";
 import {
   createAuthoringService,
@@ -15,30 +12,15 @@ import {
 } from "./service";
 import { readAuthoringFile, writeAuthoringFile } from "./files";
 import type { AuthoringAgent, AuthoringStreamPart } from "./types";
+import { evaluateFromAuthoring, evaluationConfiguration } from "../evaluation/host.ts";
+import { materialHash, readLessonMaterial } from "../evaluation/material.ts";
+import type { EvaluationReport } from "../evaluation/run";
 
-const executeFile = promisify(execFile);
-
-export type AuthoringEvalReport = {
-  version: 1;
-  teachingStyle: string;
-  harness: string;
-  generatedAt: string;
-  score: number;
-  lessons: Array<{
-    id: string;
-    score: number;
-    scenarios: Array<{
-      scenarioId: string;
-      score: number;
-      response: string;
-      durationMs: number;
-      assertions: Array<{ name: string; passed: boolean; evidence?: string }>;
-    }>;
-  }>;
-};
+export type AuthoringEvalReport = EvaluationReport;
 
 export type AuthoringRouteDependencies = {
   agent: AuthoringAgent;
+  evaluate?: typeof evaluateFromAuthoring;
   resolveWorkspace(request: Request): string;
   stream(input: {
     execute(onPart: (part: AuthoringStreamPart) => void): Promise<void>;
@@ -176,37 +158,23 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
   })
   .post("/evals", async (c) => {
     const root = dependencies.resolveWorkspace(c.req.raw);
-    const missing = authoringEvalReadiness(root).filter(({ ready }) => !ready);
+    const input = await c.req.json<{ lessonIds?: unknown; callId?: unknown }>();
+    if (!Array.isArray(input.lessonIds) || !input.lessonIds.length || input.lessonIds.length > 2 || !input.lessonIds.every(id => typeof id === "string" && id.trim()) || typeof input.callId !== "string" || !input.callId.trim()) {
+      return c.json({ error: "Select one lesson or two lessons for continuity and supply a callId" }, 422);
+    }
+    const lessonIds: string[] = input.lessonIds;
+    const missing = authoringEvalReadiness(root).filter(({ id, ready }) => !ready && (!id.includes(":") || lessonIds.some(lesson => id.startsWith(`${lesson}:`))));
     if (missing.length > 0) {
       return c.json({
         error: "The draft is not ready to evaluate.",
         missing,
       }, 409);
     }
-    const input: { harness?: "cassette" | "opencode" } = await c.req
-      .json<{ harness?: "cassette" | "opencode" }>()
-      .catch(() => ({}));
-    const harness = input.harness ?? "cassette";
-    if (!existsSync(resolve(root, "scripts", "eval.ts"))) {
-      return c.json({ error: `No authored eval runner found in ${root}` }, 404);
-    }
-    if (!existsSync(resolve(root, "node_modules"))) {
-      await executeFile("pnpm", ["install", "--ignore-workspace"], {
-        cwd: root,
-        env: process.env,
-        timeout: 120_000,
-        maxBuffer: 10 * 1024 * 1024,
-      });
-    }
-    await executeFile("pnpm", ["eval", "--", `--harness=${harness}`], {
-      cwd: root,
-      env: process.env,
-      timeout: 120_000,
-      maxBuffer: 10 * 1024 * 1024,
+    const result = await (dependencies.evaluate ?? evaluateFromAuthoring)({
+      root, lessonIds, callId: input.callId, signal: c.req.raw.signal,
+      config: evaluationConfiguration(),
     });
-    const report = await readReport(root);
-    if (!report) return c.json({ error: "Eval completed without a report" }, 500);
-    return c.json({ root, report });
+    return c.json({ root, ...result });
   });
 }
 
@@ -236,7 +204,24 @@ function errorMessage(cause: unknown): string {
 }
 
 async function readReport(target: string): Promise<AuthoringEvalReport | null> {
-  const path = resolve(target, ".dojo", "evals", "report.json");
-  if (!existsSync(path)) return null;
-  return JSON.parse(await readFile(path, "utf8")) as AuthoringEvalReport;
+  const directory = resolve(target, ".dojo", "evaluations");
+  let entries;
+  try { entries = await readdir(directory, { withFileTypes: true }); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; }
+  const reports: EvaluationReport[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith("run-")) continue;
+    try { reports.push(JSON.parse(await readFile(resolve(directory, entry.name, "report.json"), "utf8"))); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  }
+  const latest = reports.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+  if (!latest) return null;
+  // A verdict covers the exact material it judged. Edits made after the run
+  // (including by hand in the editor) make any completed result stale.
+  if (latest.status !== "running" && latest.status !== "stale" && Array.isArray(latest.lessonIds) && latest.materialHash) {
+    try {
+      if (materialHash(await readLessonMaterial(target, latest.lessonIds)) !== latest.materialHash) return { ...latest, status: "stale" };
+    } catch { return { ...latest, status: "stale" }; }
+  }
+  return latest;
 }

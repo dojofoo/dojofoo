@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promi
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import { afterEach, expect, it } from "vitest";
 import { prepareKyoshiApp, prepareKyoshiHarness } from "./prepare";
 
@@ -27,6 +28,15 @@ it("prepares an Eve app without installing into or editing the course", async ()
   expect(await readFile(join(root, "DOJO.md"), "utf8")).toBe("Author-owned material\n");
   expect(await readFile(join(app, "agent.ts"), "utf8")).toContain("createKyoshiAgent");
   expect(await readFile(join(app, "tools/dojo_ui_ask.ts"), "utf8")).toContain("@dojofoo/authoring/eve/ask");
+  expect(await readFile(join(app, "tools/dojo_authoring_evaluate.ts"), "utf8")).toContain("createKyoshiEvaluationTool");
+  // Native filesystem operations must not also be registered as host tools.
+  for (const name of ["bash", "read_file", "write_file"]) {
+    expect(await readFile(join(app, `tools/${name}.ts`), "utf8")).toContain("disableTool()");
+  }
+  const bashModule = pathToFileURL(join(app, "tools/bash.ts")).href;
+  expect(execFileSync(process.execPath, ["--input-type=module", "-e",
+    `const { default: tool } = await import(${JSON.stringify(bashModule)}); process.stdout.write(tool.kind);`,
+  ], { encoding: "utf8" })).toBe("eve:disabled-tool");
   expect(await readFile(join(app, "sandbox/sandbox.ts"), "utf8")).toContain("createAuthoringSandbox");
   expect(await readFile(join(app, "../../package.json"), "utf8")).not.toContain('"eve"');
   expect(await readFile(join(app, "../../node_modules/@dojofoo/agent/package.json"), "utf8")).toContain('"@dojofoo/agent"');

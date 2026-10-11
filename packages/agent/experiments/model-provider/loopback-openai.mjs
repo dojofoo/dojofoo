@@ -112,9 +112,10 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
         { type: "response.output_item.done", output_index: 0, item: call },
         { type: "response.completed", response: { ...result, output: [call] } },
       ];
-    } else if (contextTool && !requestedTools.includes(contextTool.name)) {
+    } else if (contextTool && (selected || !requestedTools.includes(contextTool.name))) {
       requestedTools.push(contextTool.name);
-      const call = { id: "fc_lesson", call_id: "call_lesson", type: "function_call", name: contextTool.name,
+      const suffix = requestedTools.length === 1 ? "" : `_${requestedTools.length}`;
+      const call = { id: `fc_lesson${suffix}`, call_id: `call_lesson${suffix}`, type: "function_call", name: contextTool.name,
         ...(contextTool.namespace ? { namespace: contextTool.namespace } : {}),
         arguments: JSON.stringify(selected ? selected.input : toolRequest.input), status: "completed" };
       events = [

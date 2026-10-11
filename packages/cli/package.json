@@ -44,6 +44,7 @@
     "test": "vitest run",
     "test:package": "node scripts/test-packed-ui.mjs",
     "test:watch": "vitest",
+    "types:check": "tsc --noEmit",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
@@ -54,12 +55,12 @@
     "giget": "^3.3.1",
     "jiti": "^2.7.0",
     "typescript": "6.0.3",
+    "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@dojofoo/protocol": "workspace:*",
     "@dojofoo/ui": "workspace:*",
-    "yaml": "^2.9.0",
     "tsup": "^8.0.0",
     "vitest": "^4.1.10"
   }

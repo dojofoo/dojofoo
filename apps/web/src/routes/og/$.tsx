@@ -1,5 +1,4 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import ImageResponse from 'takumi-js/response'
 import DocumentationTemplate from '@/components/og/documentation-template'
 
 const SECTIONS: Record<string, string> = {
@@ -24,6 +23,9 @@ export const Route = createFileRoute('/og/$')({
         )
         const page = source.getPage(slugs)
         if (!page) throw notFound()
+
+        // A native image dependency must never initialize unrelated page routes.
+        const { default: ImageResponse } = await import('takumi-js/response')
 
         const section = SECTIONS[slugs[0]] ?? ''
         const [backgroundUrl, logoUrl] = await Promise.all([

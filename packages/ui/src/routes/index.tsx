@@ -57,6 +57,7 @@ import {
 } from "@dojofoo/ui/dialog";
 import { InputMessage } from "@dojofoo/ui/input-message";
 import { ScrollArea } from "@dojofoo/ui/scroll-area";
+import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { SiteNavigation } from "@dojofoo/ui/site-navigation";
 import {
   Select,
@@ -438,6 +439,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [modelChanging, setModelChanging] = useState(false);
+  const [modelNotice, setModelNotice] = useState("");
   const [busy, setBusy] = useState("Loading your dojo…");
   const [error, setError] = useState<string | null>(null);
   const introductions = useRef(new Set<string>());
@@ -478,6 +480,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   messagesRef.current = messages;
   const timelineMessages = useMemo(() => projectChatTimeline(messages, hostChatEvents)
     .filter(message => message.parts.some(part => part.type !== "text" || !isInternalLessonMessage(part.content))), [hostChatEvents, messages]);
+  const { viewportRef: chatViewportRef, scrollToBottom } = useChatScroll();
   const highlightCode = useCallback((highlight: CodeHighlight) => {
     setActiveWorkspaceTab("code");
     setEditorHighlight((current) => ({ ...highlight, nonce: (current?.nonce ?? 0) + 1 }));
@@ -527,6 +530,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   useEffect(() => {
     if (!coursesReady) return;
     setLesson(null);
+    setModelNotice("");
     const course = courses.find((candidate) => candidate.workspaceId === workspaceId);
     const lessonId = requestedLessonId ?? course?.kata;
     if (!course || (requestedCourseId && course.dojo !== requestedCourseId)) {
@@ -683,6 +687,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   async function sendQuestion(message = question.trim()) {
     if (!message) return;
+    scrollToBottom();
     setQuestion("");
     try {
       await sendMessage(message);
@@ -695,6 +700,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   async function changeModel(value: string) {
     if (!apiBase || !lesson?.model || value === lesson.model.currentValue) return;
     setModelChanging(true);
+    setModelNotice("Changing model… Your conversation stays open.");
     setError(null);
     try {
       const response = await fetch(`${apiBase}/configuration/model`, {
@@ -707,7 +713,10 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         throw new Error(body && "error" in body ? body.error : `Could not change model (${response.status})`);
       }
       setLesson((current) => current ? { ...current, model: body } : current);
+      const selected = body.options.find((option) => option.value === body.currentValue);
+      setModelNotice(`Model changed to ${selected?.name ?? body.currentValue}. Your conversation is unchanged.`);
     } catch (cause) {
+      setModelNotice("Model change failed. Check the error before continuing.");
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setModelChanging(false);
@@ -715,6 +724,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   }
 
   async function answerTool(answers: Record<string, AskUserAnswer>) {
+    scrollToBottom();
     setBusy("Continuing lesson…");
     if (!apiBase) return;
     try {
@@ -998,7 +1008,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
           data-host-event-count={hostChatEvents.length}
           data-testid="chat-pane"
         >
-          <ChatContainerContent>
+          <ChatContainerContent viewportRef={chatViewportRef}>
               <ChatTranscript messages={timelineMessages} streaming={chatIsWorking} renderMessage={(message, streaming) => (
                   <StreamedChatMessage
                     fragments={lesson.fragments}
@@ -1031,6 +1041,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                 onSend={(message) => void sendQuestion(message)}
                 onValueChange={setQuestion}
                 leftSlot={lesson.model && (
+                  <div>
                   <Select
                     disabled={modelChanging || !chatCanAcceptInput}
                     onValueChange={(value) => void changeModel(value)}
@@ -1051,6 +1062,8 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                       ))}
                     </SelectContent>
                   </Select>
+                  {modelNotice && <p role="status" className="px-2 text-xs text-muted-foreground">{modelNotice}</p>}
+                  </div>
                 )}
                 placeholder="Ask about the lesson…"
                 sendLabel="Send"

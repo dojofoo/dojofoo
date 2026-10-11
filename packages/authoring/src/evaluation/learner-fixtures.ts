@@ -1,0 +1,71 @@
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { HarnessAgent } from "@dojofoo/agent/harness";
+import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
+import { z } from "zod";
+import { authoringHarness } from "../eve/harness";
+import { fixtureGeneratorInstructions } from "./prompts";
+
+const fixtureSchema = z.object({
+  misconception: z.string().trim().min(1),
+  wrong: z.string().trim().min(1),
+  solved: z.string().trim().min(1),
+  review: z.string().trim().min(1),
+}).strict();
+
+export type LearnerFixture = z.infer<typeof fixtureSchema>;
+
+export function parseLearnerFixture(text: string): LearnerFixture {
+  const fixture = fixtureSchema.parse(JSON.parse(text));
+  if (fixture.wrong === fixture.solved) {
+    throw new Error("Learner's incorrect and solved implementations must differ");
+  }
+  return fixture;
+}
+
+const instructions = fixtureGeneratorInstructions;
+
+/** One isolated, tool-free model turn per lesson. These references stay outside
+ * the course and are never supplied to the teaching agent as instructions.
+ * Local execution is not an OS filesystem sandbox.
+ */
+export async function generateLearnerFixtures({ material, lessonIds, harness, model, signal }: {
+  material: Record<string, string>;
+  lessonIds: string[];
+  harness: string;
+  model: string;
+  signal: AbortSignal;
+}) {
+  if (!harness.trim() || !model.trim()) throw new Error("Select the fixture harness and model explicitly");
+  if (!lessonIds.length || lessonIds.length > 2 || new Set(lessonIds).size !== lessonIds.length) {
+    throw new Error("Generate fixtures for one or two distinct lessons");
+  }
+  signal.throwIfAborted();
+  const directory = await mkdtemp(join(tmpdir(), "dojo-learner-fixtures-"));
+  const fixtures: Record<string, LearnerFixture> = {};
+  await writeFile(join(directory, "input.json"), JSON.stringify({ harness, model, lessonIds, material, instructions }, null, 2));
+  const agent = new HarnessAgent({
+    id: "dojo-learner-fixtures",
+    harness: authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness }),
+    model,
+    activeTools: [],
+    instructions,
+    sandbox: createLocalHarnessSandbox(directory),
+    stopWhen: ({ steps }) => steps.length >= 1,
+  });
+  for (const [index, lessonId] of lessonIds.entries()) {
+    const abortSignal = AbortSignal.any([signal, AbortSignal.timeout(120_000)]);
+    const session = await agent.createSession({ abortSignal });
+    try {
+      const result = await agent.generate({ session, abortSignal, prompt: JSON.stringify({ lessonId, material }) });
+      await writeFile(join(directory, `${index + 1}-response.txt`), result.text);
+      fixtures[lessonId] = parseLearnerFixture(result.text);
+    } finally {
+      await session.destroy();
+    }
+  }
+  const path = join(directory, "learner-fixtures.json");
+  await writeFile(path, JSON.stringify(fixtures, null, 2));
+  return { path, directory };
+}

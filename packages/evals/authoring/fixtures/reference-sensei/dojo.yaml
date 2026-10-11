@@ -1,0 +1,11 @@
+mode: katas
+name: Readings that mean something
+version: 0.0.1
+description: Practice turning a list of measurements into a trustworthy result.
+language: typescript
+test: npx vitest run {template}
+katas:
+  - name: 001-highest-reading
+    template: src/001-highest-reading/solution.ts
+    description: Return the highest reading, or undefined when there are no readings.
+    difficulty: 1

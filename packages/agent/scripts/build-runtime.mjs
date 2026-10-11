@@ -41,6 +41,24 @@ try {
   await rm(destination, { recursive: true, force: true });
   // Preserve package scope, internal imports, workers, assets and license notices.
   await cp(upstream, destination, { recursive: true });
+  // Upstream emits ESM chunks beneath node_modules without package scopes.
+  // Node treats these as CommonJS even though their contents are ESM.
+  // Vite masks this packaging defect; the native eval CLI does not.
+  for (const entry of await readdir(join(destination, "dist/src/node_modules/.pnpm"))) {
+    const dependencies = join(destination, "dist/src/node_modules/.pnpm", entry, "node_modules");
+    for (const name of await readdir(dependencies)) {
+      const names = name.startsWith("@")
+        ? (await readdir(join(dependencies, name))).map((child) => `${name}/${child}`)
+        : [name];
+      for (const dependency of names) {
+        try {
+          await writeFile(join(dependencies, dependency, "package.json"), '{"type":"module"}\n', { flag: "wx" });
+        } catch (error) {
+          if (error.code !== "EEXIST") throw error;
+        }
+      }
+    }
+  }
   await writeFile(join(destination, "dojo-build.json"), JSON.stringify({
     upstream: `eve@${version}`, integrity: packed.integrity,
   }, null, 2) + "\n");

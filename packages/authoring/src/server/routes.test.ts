@@ -22,7 +22,9 @@ vi.mock("@dojofoo/config/local-state", () => ({
 const { createAuthoringRoutes } = await import("./routes");
 const answer = vi.fn<(sessionId: string, answers: Record<string, string[]>) => void | Promise<void>>();
 const resume = vi.fn(async () => {});
+const evaluate = vi.fn<typeof import("../evaluation/host").evaluateFromAuthoring>();
 const authoringRoutes = createAuthoringRoutes({
+  evaluate,
   agent: {
     currentHarness: () => "test",
     start: async () => "test-session",
@@ -103,6 +105,7 @@ describe("authoring routes", () => {
 
   beforeEach(() => {
     answer.mockReset();
+    evaluate.mockReset();
     resume.mockReset().mockResolvedValue(undefined);
     const root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-"));
     context.root = root;
@@ -223,7 +226,7 @@ describe("authoring routes", () => {
     const response = await authoringRoutes.request("/evals", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ harness: "cassette" }),
+      body: JSON.stringify({ lessonIds: ["001-draw-a-boundary"], callId: "ui-not-ready" }),
     });
     expect(response.status).toBe(409);
     const result = await response.json();
@@ -236,18 +239,58 @@ describe("authoring routes", () => {
     ]));
   });
 
-  it("runs an authored fixture and creates an isolated learner trial", async () => {
+  it("reads the latest shared report, including reports produced by Kyoshi's tool", async () => {
+    for (const [name, startedAt, status] of [["run-old", "2026-10-07T10:00:00Z", "passed"], ["run-new", "2026-10-07T11:00:00Z", "teaching-failed"]]) {
+      const directory = resolve(context.root, ".dojo/evaluations", name);
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(resolve(directory, "report.json"), JSON.stringify({ version: 1, startedAt, status }));
+    }
+    const response = await authoringRoutes.request("/report");
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ report: { status: "teaching-failed" } });
+  });
+
+  it("marks a completed report stale once its evaluated lesson changes", async () => {
+    writeFileSync(resolve(context.root, "dojo.yaml"), "katas:\n  - name: first\n    template: src/first/solution.ts\n");
+    mkdirSync(resolve(context.root, "src/first"), { recursive: true });
+    writeFileSync(resolve(context.root, "src/first/SENSEI.md"), "# First\n");
+    const { materialHash, readLessonMaterial } = await import("../evaluation/material.ts");
+    const directory = resolve(context.root, ".dojo/evaluations/run-passed");
+    mkdirSync(directory, { recursive: true });
+    const report = { version: 1, startedAt: "2026-10-08T10:00:00Z", status: "passed", lessonIds: ["first"],
+      materialHash: materialHash(await readLessonMaterial(context.root, ["first"])) };
+    writeFileSync(resolve(directory, "report.json"), JSON.stringify(report));
+    const read = async () => (await (await authoringRoutes.request("/report")).json()).report.status;
+    expect(await read()).toBe("passed");
+    writeFileSync(resolve(context.root, "src/first/SENSEI.md"), "# First, edited\n");
+    expect(await read()).toBe("stale");
+    // Viewing a stale result must not rewrite historical evidence.
+    expect(JSON.parse(readFileSync(resolve(directory, "report.json"), "utf8")).status).toBe("passed");
+    writeFileSync(resolve(context.root, "src/first/SENSEI.md"), "# First\n");
+    expect(await read()).toBe("passed");
+    writeFileSync(resolve(context.root, "DOJO.md"), "# Changed shared guidance");
+    expect(await read()).toBe("stale");
+    rmSync(resolve(context.root, "src/first"), { recursive: true });
+    expect(await read()).toBe("stale");
+  });
+
+  it("uses the shared host evaluator and creates an isolated learner trial", async () => {
     authorLesson();
+    evaluate.mockResolvedValueOnce({ attempt: 1, remaining: 2, report: {
+      version: 1, directory: "/evidence", materialHash: "hash", lessonIds: ["001-draw-a-boundary"],
+      status: "teaching-failed", stage: "teaching", startedAt: "start", completedAt: "end",
+    } });
 
     const run = await authoringRoutes.request("/evals", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ harness: "cassette" }),
+      body: JSON.stringify({ lessonIds: ["001-draw-a-boundary"], callId: "ui-evaluation-1" }),
     });
     expect(run.status).toBe(200);
     await expect(run.json()).resolves.toMatchObject({
-      report: { harness: "cassette", score: 1 },
+      remaining: 2, report: { status: "teaching-failed", stage: "teaching" },
     });
+    expect(evaluate).toHaveBeenLastCalledWith(expect.objectContaining({ root: context.root, lessonIds: ["001-draw-a-boundary"], callId: "ui-evaluation-1" }));
 
     const trial = await authoringRoutes.request(
       "/lessons/001-draw-a-boundary/trials",

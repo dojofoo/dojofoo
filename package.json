@@ -20,7 +20,10 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild"
-    ]
+    ],
+    "patchedDependencies": {
+      "@ai-sdk/harness-opencode@1.0.110": "patches/@ai-sdk__harness-opencode@1.0.110.patch"
+    }
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",

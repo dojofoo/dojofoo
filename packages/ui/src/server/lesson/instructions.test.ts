@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import platform from "./contracts/DOJOFOO.md?raw";
 import katas from "./contracts/KATAS.md?raw";
-import { senseiInstructions } from "./instructions";
+import { senseiInstructions, senseiTeachingPolicy } from "./instructions";
 
 it("preserves the existing instruction contract byte-for-byte", () => {
   const sensei = '# Lesson\n<Present id="whitespace">Example</Present>';
@@ -21,4 +21,17 @@ it("does not carry a previous lesson's material into a new contract", () => {
   expect(next).not.toContain("First course");
   expect(next).not.toContain("first-only");
   expect(next).not.toContain("KYOSHI");
+});
+it("exposes the exact shared policy used by production for material evaluation", () => {
+  for (const mode of ["katas", "interactive"]) {
+    const policy = senseiTeachingPolicy(mode);
+    expect(senseiInstructions({ mode, dojo: "Course", sensei: "Lesson" }).startsWith(`${policy}\n\nAvailable learner fragment IDs:`)).toBe(true);
+    expect(policy).not.toContain("DOJO.md for this course:");
+  }
+});
+
+it("keeps the transport's hidden turn texts equal to TURNS.md", async () => {
+  const { hiddenTurnTexts } = await import("./codex-client");
+  const { senseiTurn } = await import("./instructions");
+  expect([...hiddenTurnTexts]).toEqual([senseiTurn("begin"), senseiTurn("checks-ran")]);
 });

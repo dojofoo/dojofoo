@@ -191,7 +191,8 @@ function normalizePi(events: Record<string, unknown>[]): CassetteEntry[] {
   for (const event of events) {
     if (event.type !== "message") continue;
     const message = asRecord(event.message);
-    const role = message?.role;
+    if (!message) continue;
+    const role = message.role;
     if (role === "user" || role === "assistant" || role === "toolResult") {
       const content = piContent(message.content);
       if (content) entries.push({ role, content });

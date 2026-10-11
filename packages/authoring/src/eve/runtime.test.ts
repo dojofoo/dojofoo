@@ -33,7 +33,8 @@ it("allows explicit acquisition after a failed setup is repaired", async () => {
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+  // Cold native Eve imports take longer than Vitest's default five seconds.
+}, 20_000);
 
 it("shares native runtime ownership across route instances until shutdown", async () => {
   const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-owner-"));

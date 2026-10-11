@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { authoringHarness, type AuthoringHarness } from "./harness.ts";
 import { prepareKyoshiApp, prepareKyoshiHarness } from "./prepare.ts";
 import { authoringEnvironment } from "./environment.ts";
+import { evaluationConfiguration } from "../evaluation/host.ts";
 
 // Native Node module lifetime, not Vite's reloadable route-module lifetime.
 // These are owned process resources. Eve remains the only session/history owner.
@@ -49,8 +50,8 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   }
   // Keep Node workers and the coordinator in the same installed package scope.
   const load = createRequire(join(app, "package.json"));
-  const { createDevelopmentServer } = load("@dojofoo/agent/server") as typeof import("@dojofoo/agent/server");
-  const { createLocalSandbox, registerLocalProcessHost, prepareHarnessEnvironment } = load("@dojofoo/agent/experimental/local") as typeof import("@dojofoo/agent/experimental/local");
+  const { createDevelopmentServer } = await import(load.resolve("@dojofoo/agent/server")) as typeof import("@dojofoo/agent/server");
+  const { createLocalSandbox, registerLocalProcessHost, prepareHarnessEnvironment } = await import(load.resolve("@dojofoo/agent/experimental/local")) as typeof import("@dojofoo/agent/experimental/local");
   const server = createDevelopmentServer(app, { host: "127.0.0.1", port: 0, existing: "reject" });
   let host: ReturnType<typeof registerLocalProcessHost> | undefined;
   let starting: Promise<{ url: string }> | undefined;
@@ -71,6 +72,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
             harnessRoot,
             model,
             harness,
+            evaluation: evaluationConfiguration(),
             connection: host.connection,
           }), { mode: 0o600 });
           const started = await server.start();

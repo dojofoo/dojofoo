@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useLayoutEffect, useRef, type ComponentPropsWithoutRef, type ReactNode, type RefObject } from "react";
+import { forwardRef, useLayoutEffect, useRef, type ComponentPropsWithoutRef, type ReactNode, type Ref } from "react";
 import { cn } from "../../lib/utils";
 import { ScrollArea } from "./scroll-area";
 
@@ -26,14 +26,17 @@ export function ChatContainerContent({
 }: {
   children: ReactNode;
   className?: string;
-  viewportRef?: RefObject<HTMLElement | null>;
+  viewportRef?: Ref<HTMLElement>;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
-    if (viewportRef) viewportRef.current = rootRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ?? null;
+    const viewport = rootRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ?? null;
+    if (typeof viewportRef === "function") viewportRef(viewport);
+    else if (viewportRef) viewportRef.current = viewport;
     return () => {
-      if (viewportRef) viewportRef.current = null;
+      if (typeof viewportRef === "function") viewportRef(null);
+      else if (viewportRef) viewportRef.current = null;
     };
   }, [viewportRef]);
 

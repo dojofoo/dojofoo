@@ -3,11 +3,24 @@ import { cursor } from "@ai-sdk/harness-cursor";
 import { fx } from "@ai-sdk/harness-fx";
 import { grokBuild } from "@ai-sdk/harness-grok-build";
 import { openCode } from "@ai-sdk/harness-opencode";
-import { pi } from "@ai-sdk/harness-pi";
-import { describe, expect, it } from "vitest";
+import { createPi, pi } from "@ai-sdk/harness-pi";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
 import { authoringHarness } from "./harness";
 
+vi.mock("@ai-sdk/harness-pi", async (original) => {
+  const actual = await original<typeof import("@ai-sdk/harness-pi")>();
+  return { ...actual, createPi: vi.fn(actual.createPi) };
+});
+
 describe("authoring harness selection", () => {
+  it("reads Pi's native provider/model settings without copying credentials", () => {
+    authoringHarness({ DOJOFOO_HARNESS: "pi" });
+    expect(createPi).toHaveBeenLastCalledWith({ agentDir: join(homedir(), ".pi", "agent") });
+    authoringHarness({ DOJOFOO_HARNESS: "pi", PI_CODING_AGENT_DIR: "/tmp/custom-pi" });
+    expect(createPi).toHaveBeenLastCalledWith({ agentDir: "/tmp/custom-pi" });
+  });
   it.each([
     ["codex", codex],
     ["cursor", cursor],

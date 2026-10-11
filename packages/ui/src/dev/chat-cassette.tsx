@@ -4,7 +4,8 @@ import { InputMessage } from "@dojofoo/ui/input-message";
 import { ChatTranscript } from "@/components/chat/assistant-response";
 import { stream, useChat, type UIMessage } from "@tanstack/ai-react";
 import type { StreamChunk } from "@tanstack/ai";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { StreamedChatMessage } from "@/routes/index";
 
 export type ChatCassetteFrame = {
@@ -45,8 +46,7 @@ export function ChatCassettePlayer({
   const history = useMemo(() => frames.flatMap((frame) => frame.historyMessage ? [frame.historyMessage] : []), [frames]);
   const prompt = frames.find((frame) => frame.prompt !== undefined)?.prompt ?? "Replay this interaction.";
   const replayStartedAt = useRef(Date.now());
-  const viewportRef = useRef<HTMLElement>(null);
-  const followsOutput = useRef(true);
+  const { viewportRef, scrollToBottom } = useChatScroll();
   const messagesRef = useRef<UIMessage[]>([]);
   const connection = useMemo(() => stream(async function* () {
     for (const [index, frame] of frames.entries()) {
@@ -72,21 +72,6 @@ export function ChatCassettePlayer({
     void sendMessage(prompt);
   }, [autoPlay, prompt, sendMessage]);
 
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    const update = () => {
-      followsOutput.current = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 32;
-    };
-    viewport.addEventListener("scroll", update, { passive: true });
-    return () => viewport.removeEventListener("scroll", update);
-  }, []);
-
-  useLayoutEffect(() => {
-    const viewport = viewportRef.current;
-    if (viewport && followsOutput.current) viewport.scrollTop = viewport.scrollHeight;
-  }, [messages]);
-
   const working = status === "submitted" || status === "streaming";
 
   return (
@@ -97,7 +82,7 @@ export function ChatCassettePlayer({
             renderMessage={(message, streaming) => <StreamedChatMessage
               key={message.id} message={message} streaming={streaming}
               fragments={{ "whitespace-runs": "A whitespace **run** contains one or more adjacent whitespace characters." }}
-              onToolAnswer={async answers => onAnswer?.(answers)} workspaceId="storybook" />}
+              onToolAnswer={async answers => { scrollToBottom(); onAnswer?.(answers); }} workspaceId="storybook" />}
           />
         </ChatContainerContent>
         <ChatContainerFooter>

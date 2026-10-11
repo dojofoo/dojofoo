@@ -14,8 +14,8 @@ import {
   writeDojoRc,
 } from "@dojofoo/config";
 import type { UIMessage } from "@tanstack/ai-client";
-import type { DojoLessonContext } from "@dojofoo/protocol";
-import { senseiInstructions } from "./instructions";
+import { formatLessonContext, type DojoLessonContext } from "@dojofoo/protocol";
+import { senseiInstructions, senseiTurn } from "./instructions";
 import type { HarnessKind } from "../harness/adapter";
 import { dojofooHarness } from "../harness/registry";
 import { acpClient, type AcpStreamPart, type SessionModelConfiguration, type TranscriptMessage } from "./codex-client";
@@ -98,7 +98,12 @@ export type LessonFileResource = {
 export function dojoLessonContext(snapshot: LessonSnapshot): DojoLessonContext {
   return {
     phase: snapshot.introduced ? "resume" : "start",
-    course: { id: snapshot.dojo },
+    course: {
+      id: snapshot.dojo,
+      completedLessons: snapshot.lessons
+        .filter(lesson => lesson.state === "completed" && lesson.name !== snapshot.kata)
+        .map(lesson => ({ id: lesson.name, title: lesson.title, summary: lesson.summary })),
+    },
     lesson: {
       id: snapshot.kata,
       title: snapshot.title,
@@ -124,12 +129,13 @@ export function shouldIntroduceLesson(snapshot: Pick<LessonSnapshot, "introduced
 function dojoContextResource(snapshot: LessonSnapshot) {
   return {
     uri: `dojo://courses/${encodeURIComponent(snapshot.dojo)}/lessons/${encodeURIComponent(snapshot.kata)}/context`,
-    mimeType: "application/json",
-    text: JSON.stringify(dojoLessonContext(snapshot)),
+    mimeType: "text/plain",
+    text: formatLessonContext(dojoLessonContext(snapshot)),
   };
 }
 
-export const solutionBoundary = `Preserve ownership of the kata. Never write or dictate code that the learner can paste into the kata to satisfy its current failure. This includes a one-line expression, not only a complete function. Do not evade this boundary with an isomorphic example: renaming the learner's parameter or function while retaining the same methods, operators, literals, and composition still reveals the answer. Teach one missing concept through an authoritative reference, an authored interactive fragment, or a genuinely different problem whose final composition cannot be mechanically substituted into the kata. Help the learner connect that knowledge to what they observe, but leave the final composition and edit to them.`;
+/** Older transcripts began hidden evidence with this sentence; keep hiding them. */
+const legacyEvidencePrefix = "Preserve ownership of the kata.";
 
 export async function getLesson(root: string, requestedKata?: string): Promise<LessonSnapshot | null> {
   const rc = readDojoRc(root);
@@ -404,7 +410,7 @@ export function visibleTranscriptText(entry: TranscriptMessage): string {
   const text = entry.text.replace(checkResourceMarker, "").trim();
   if (!text) return "";
   if (entry.role !== "user") return text;
-  if (text.startsWith(solutionBoundary)) return "";
+  if (text.startsWith(legacyEvidencePrefix) || text.startsWith(senseiTurn("learner-evidence"))) return "";
   if (text.startsWith('{"instruction":"This check already completed.')) return "";
   return text;
 }
@@ -448,7 +454,7 @@ export async function streamSensei(
   if (!snapshot) throw new Error("No lesson selected");
   const { threadId } = await lessonThread(root, snapshot.kata);
   const evidence = snapshot.result ? testEvidence(snapshot.result) : "No test run has been recorded yet.";
-  const evidenceContext = `${solutionBoundary}\n\nCurrent local test evidence. Do not comment on it unless relevant to the learner's message.\n${evidence}`;
+  const evidenceContext = `${senseiTurn("learner-evidence")}\n${evidence}`;
   await acpClient.send(
     threadId,
     message,
@@ -474,7 +480,7 @@ export async function streamCheckObservation(
   const snapshot = await getLesson(root, kataName);
   if (!snapshot) throw new Error("No lesson selected");
   const { threadId } = await lessonThread(root, snapshot.kata);
-  await acpClient.send(threadId, "Ran lesson checks.", onPart, {
+  await acpClient.send(threadId, senseiTurn("checks-ran"), onPart, {
     signal,
     visible: false,
     context: [dojoContextResource(snapshot), {
@@ -492,20 +498,12 @@ export async function streamCheckObservation(
 }
 
 export function checkObservationInstruction(observation: Pick<CheckObservation, "attempt" | "codeChanged" | "report">): string {
-  const base = "This check already completed. Inspect the attached evidence without running it again or repeating its test counts.";
-  if (observation.report.complete) {
-    return `${base} Briefly recognize the progress and continue with the lesson's completion guidance.`;
-  }
-  if (observation.codeChanged) {
-    return `${base} Respond to what the learner tried, then connect one useful failure to one achievable next move.`;
-  }
-  if (observation.attempt === 1) {
-    return `${base} The evidence is unchanged. Leave room for the learner unless one new observation would clearly help.`;
-  }
-  if (observation.attempt === 2) {
-    return `${base} This is the second unchanged check. Give one friendly nudge that is more concrete than your previous guidance.`;
-  }
-  return `${base} The learner has run the same failing check ${observation.attempt} times without changing the code. Treat this as an implicit request for help, not inactivity. Do not stay silent and do not repeat prior advice. Continue teaching one level more concretely: present the relevant authored fragment when available, link an authoritative reference, use an example from a different problem domain, or ask one simple diagnostic question the learner can answer. Do not write code that can be pasted into the kata to fix its current failure.`;
+  const step = observation.report.complete ? senseiTurn("check-passed")
+    : observation.codeChanged ? senseiTurn("check-changed")
+    : observation.attempt === 1 ? senseiTurn("check-unchanged")
+    : observation.attempt === 2 ? senseiTurn("check-unchanged-again")
+    : senseiTurn("check-repeated", { attempt: String(observation.attempt) });
+  return `${senseiTurn("check-base")} ${step}`;
 }
 
 export async function streamLessonIntroduction(
@@ -518,19 +516,14 @@ export async function streamLessonIntroduction(
   if (!snapshot) throw new Error("No lesson selected");
   if (!shouldIntroduceLesson(snapshot)) return;
   const { threadId } = await lessonThread(root, snapshot.kata);
-  const introductionInstruction = "The learner can already see the lesson goal and tasks, so do not repeat them. Inspect their solution file, orient them to one useful starting point, and invite one small first step without providing solution code. Point to relevant lines with [highlight:L3] or [highlight:L3-4].";
   await acpClient.send(
     threadId,
-    "Begin the lesson.",
+    senseiTurn("begin"),
     onPart,
     {
       signal,
       visible: false,
-      context: [dojoContextResource(snapshot), {
-        uri: `dojo://lessons/${encodeURIComponent(snapshot.kata)}/introduction`,
-        mimeType: "text/plain",
-        text: introductionInstruction,
-      }],
+      context: [dojoContextResource(snapshot)],
     },
   );
   if (!snapshot.introduced) runDojo(root, ["kata", "intro", "--done"]);
@@ -666,7 +659,7 @@ export async function startLessonSession(
 }
 
 function lessonInstructions(root: string, dojo: string, sensei: string): string {
-  return senseiInstructions({ mode: readCatalog(root, dojo).mode, dojo: readDojoMd(root, dojo) ?? "", sensei });
+  return senseiInstructions({ mode: readCatalog(root, dojo).mode ?? "katas", dojo: readDojoMd(root, dojo) ?? "", sensei });
 }
 
 function lessonTarget(root: string, courseId: string, lessonId: string) {

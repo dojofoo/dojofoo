@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { solutionBoundary, transcriptToUIMessages, visibleTranscriptText } from "./service";
+import { transcriptToUIMessages, visibleTranscriptText } from "./service";
+import { senseiTurn } from "./instructions";
 
 describe("visibleTranscriptText", () => {
   it("removes the internal check resource marker from learner text", () => {
@@ -10,7 +11,8 @@ describe("visibleTranscriptText", () => {
   });
 
   it("hides injected lesson policy and completed-check observations", () => {
-    expect(visibleTranscriptText({ role: "user", text: `${solutionBoundary}\n\nCurrent local test evidence.` })).toBe("");
+    expect(visibleTranscriptText({ role: "user", text: `${senseiTurn("learner-evidence")}\nNo test run has been recorded yet.` })).toBe("");
+    expect(visibleTranscriptText({ role: "user", text: "Preserve ownership of the kata. Older evidence." })).toBe("");
     expect(visibleTranscriptText({
       role: "user",
       text: '{"instruction":"This check already completed. Inspect the attached evidence."}',

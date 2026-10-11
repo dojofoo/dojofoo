@@ -17,6 +17,7 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
+    "@dojofoo/agent": "workspace:*",
     "@dojofoo/authoring": "workspace:*",
     "@dojofoo/config": "workspace:*",
     "@dojofoo/protocol": "workspace:*",

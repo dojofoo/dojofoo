@@ -51,7 +51,16 @@ export default createKyoshiAgent(async () => JSON.parse(await readFile(${JSON.st
     "instructions.ts": 'export { default } from "@dojofoo/authoring/eve/instructions";\n',
     "sandbox/sandbox.ts": `import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox";\nexport default createAuthoringSandbox(${JSON.stringify(course)});\n`,
     "tools/dojo_ui_ask.ts": 'export { default } from "@dojofoo/authoring/eve/ask";\n',
+    "tools/dojo_authoring_evaluate.ts": `import { readFile } from "node:fs/promises";
+import { createKyoshiEvaluationTool } from "@dojofoo/authoring/eve/evaluate";
+export default createKyoshiEvaluationTool(async () => JSON.parse(await readFile(${JSON.stringify(join(agent, "runtime.json"))}, "utf8")));
+`,
   };
+  // The harness owns filesystem/shell execution. Eve's duplicate tools can
+  // shadow native names or aliases with incompatible schemas (read_file/read).
+  for (const name of ["bash", "read_file", "write_file"]) {
+    files[`tools/${name}.ts`] = 'import { disableTool } from "@dojofoo/agent/tools";\nexport default disableTool();\n';
+  }
   for (const [file, source] of Object.entries(files)) {
     await writeFile(join(agent, file), source);
   }

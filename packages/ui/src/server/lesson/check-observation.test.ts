@@ -1,26 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { checkObservationInstruction, solutionBoundary, type CheckObservation } from "./service";
+import { checkObservationInstruction, type CheckObservation } from "./service";
+import { senseiTurn } from "./instructions";
 
-const failingReport = { complete: false } as CheckObservation["report"];
+const report = (complete: boolean) => ({ complete }) as CheckObservation["report"];
 
-describe("check observation teaching guidance", () => {
-  it("forbids renamed copies of the learner's solution", () => {
-    expect(solutionBoundary).toContain("isomorphic example");
-    expect(solutionBoundary).toContain("renaming the learner's parameter or function");
-    expect(solutionBoundary).toContain("cannot be mechanically substituted into the kata");
+// Wording lives in contracts/TURNS.md and is judged by live evals.
+// These tests pin the routing between turn prompts, not their sentences.
+describe("check observation turn routing", () => {
+  it("selects one TURNS.md prompt per check situation", () => {
+    const cases = {
+      "check-passed": { attempt: 1, codeChanged: true, report: report(true) },
+      "check-changed": { attempt: 1, codeChanged: true, report: report(false) },
+      "check-unchanged": { attempt: 1, codeChanged: false, report: report(false) },
+      "check-unchanged-again": { attempt: 2, codeChanged: false, report: report(false) },
+    };
+    for (const [id, observation] of Object.entries(cases)) {
+      expect(checkObservationInstruction(observation)).toBe(`${senseiTurn("check-base")} ${senseiTurn(id)}`);
+    }
   });
 
-  it("turns repeated unchanged checks into progressively more concrete help", () => {
-    const first = checkObservationInstruction({ attempt: 1, codeChanged: false, report: failingReport });
-    const second = checkObservationInstruction({ attempt: 2, codeChanged: false, report: failingReport });
-    const repeated = checkObservationInstruction({ attempt: 4, codeChanged: false, report: failingReport });
-
-    expect(first).toContain("Leave room");
-    expect(second).toContain("more concrete");
-    expect(repeated).toContain("implicit request for help");
-    expect(repeated).toContain("Do not stay silent");
-    expect(repeated).toContain("present the relevant authored fragment");
-    expect(repeated).toContain("different problem domain");
-    expect(repeated).toContain("Do not write code that can be pasted into the kata");
+  it("fills the repeated-attempt count", () => {
+    const repeated = checkObservationInstruction({ attempt: 4, codeChanged: false, report: report(false) });
+    expect(repeated).toBe(`${senseiTurn("check-base")} ${senseiTurn("check-repeated", { attempt: "4" })}`);
+    expect(repeated).not.toMatch(/\{\{|\}\}/u);
   });
 });

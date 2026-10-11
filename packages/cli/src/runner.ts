@@ -181,6 +181,7 @@ export function runTests(
   kata: ResolvedKata,
   catalog: DojoManifest,
   dojoDir: string,
+  projectRoot?: string,
 ): TestRun {
   const adapter = getAdapter(catalog);
   const testRelPath = relative(dojoDir, kata.testPath);
@@ -191,6 +192,7 @@ export function runTests(
   try {
     const output = execSync(cmd, {
       cwd: dojoDir,
+      env: projectRoot ? { ...process.env, DOJO_PROJECT_ROOT: projectRoot } : process.env,
       stdio: ["pipe", "pipe", "pipe"],
       timeout: 60_000,
     });
