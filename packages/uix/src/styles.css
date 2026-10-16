@@ -1,11 +1,23 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./styles/fluid.css";
+@import "./styles/themes/index.css";
 
 @plugin "@toolwind/corner-shape";
 
 @source "./**/*.{ts,tsx}";
+@source "../../ui/src/components/authoring-sidebar.tsx";
+@source "../../ui/src/components/ui/tree-view.tsx";
+@source "../../ui/src/components/workspace-file-tabs.tsx";
+@source "../../ui/src/components/ui/brand-logo.tsx";
 
 @custom-variant dark (&:is(.dark *));
+
+/* One mono everywhere: Iosevka, as in the app and the website (loaded by the app – see .storybook/preview). A plain
+   @theme, so the variable exists for component CSS too, not only for the font-mono utility */
+@theme {
+  --font-mono: "Iosevka", ui-monospace, monospace;
+}
 
 @theme inline {
   --radius-sm: calc((var(--radius-base) - 4px) * var(--squircle-factor));
@@ -34,17 +46,27 @@
   --color-button-disabled-foreground: var(--button-disabled-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
+  /* Resolved where the theme sets them, so the app shell's own --muted (a text gray) and --accent (its blue) can't
+     repaint shadcn-style components inside it */
+  --color-muted: var(--ui-muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
+  --color-accent: var(--ui-accent);
+  /* Fluid Functionalism's states, as overlays on whatever surface is below (styles/fluid.css) */
+  --color-hover: var(--hover);
+  --color-active: var(--active);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-marker: var(--marker);
+  --shadow-raised: var(--shadow-raised);
+  --color-player-backdrop: var(--player-backdrop);
+  --color-player-scrim: var(--player-scrim);
 }
 
-:root {
+:root,
+.light {
   --radius-base: 0.5rem;
   --radius: calc(var(--radius-base) * var(--squircle-factor));
   --squircle-factor: 1;
@@ -81,17 +103,24 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
+  --ui-muted: var(--muted);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
+  --ui-accent: var(--accent);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  --marker: #d93d31;
+  --shadow-raised: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px oklch(0 0 0 / 0.06), 0 6px 16px -6px oklch(0 0 0 / 0.12);
+  --player-scrim: oklch(0 0 0 / 60%);
+  --player-backdrop: oklch(0 0 0);
 }
 
 @supports (color: oklch(from black calc(0.96 * pow(l, 1.25)) c h)) {
-  :root {
+  :root,
+  .light {
     --button-primary-depth: oklch(
       from var(--primary) calc(0.96 * pow(l, 1.25)) c h
     );
@@ -151,13 +180,19 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
+  --ui-muted: var(--muted);
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
+  --ui-accent: var(--accent);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  --marker: #ff6b5f;
+  --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.08), 0 1px 2px oklch(0 0 0 / 0.4), 0 6px 16px -6px oklch(0 0 0 / 0.6);
+  --player-scrim: oklch(0 0 0 / 70%);
+  --player-backdrop: oklch(0 0 0);
 }
 
 @layer base {

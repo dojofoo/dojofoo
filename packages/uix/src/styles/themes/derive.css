@@ -1,0 +1,68 @@
+/*
+ * Imported themes (tweakcn – see scripts/theme-add.mjs) set only the shadcn colors. uix's own tokens follow from
+ * them here, the same way for every imported theme: the Fluid surface ladder, text, hairline, states, focus and brand.
+ * Keyed on data-ui-derive (set by lib/ui-preferences for catalog themes), so the hand-made themes – affect, fluid,
+ * dojofoo – keep their own values untouched. The dark block also reaches dark islands inside a light page.
+ *
+ * The ladder is centred on the theme's background, not built from its card: some themes give both the same color,
+ * and then the page, the window and the cards would merge – Fluid needs each level visibly above the one below. The
+ * background becomes the window; the page sits a step darker, cards a step lighter – and an editor painted with its
+ * color scheme's own background (e.g. Palenight) lands on the cards' level, the lightest in the window.
+ * Hairlines are an overlay of the foreground (10% in light, 6% in dark), never the theme's solid --border, so a line
+ * comes out the same step above any surface.
+ */
+:root[data-ui-derive],
+[data-ui-derive] .light {
+  /* Light, as in Fluid: the page a little darker than the theme's background, the window just under it, then flat
+     cards near white – shadow alone lifts what sits higher. The background's own tint carries through */
+  --surface-1: oklch(from var(--background) calc(l - 0.025) c h);
+  --surface-2: oklch(from var(--background) calc(l - 0.01) c h);
+  --surface-3: color-mix(in oklch, var(--background), white 85%);
+  --surface-4: var(--surface-3);
+  --surface-5: var(--surface-3);
+  --surface-6: var(--surface-3);
+  --surface-7: var(--surface-3);
+  --surface-8: var(--surface-3);
+  --fluid-foreground: var(--foreground);
+  --fluid-muted: var(--muted-foreground);
+  --fluid-accent: var(--accent);
+  --fluid-hairline: color-mix(in oklch, var(--foreground) 10%, transparent);
+  --fluid-hover: color-mix(in oklch, var(--foreground) 5%, transparent);
+  --fluid-active: color-mix(in oklch, var(--foreground) 9%, transparent);
+  --focus-ring: var(--ring);
+  --brand: var(--primary);
+  /* The shell's buttons in the theme's primary; disabled controls and switch tracks a light, muted tint of the card in
+     the primary's hue – never a neutral gray beside the theme's colored surfaces */
+  --ui-button: var(--primary);
+  --ui-button-hover: color-mix(in oklch, var(--primary), var(--foreground) 12%);
+  --ui-on-ink: var(--primary-foreground);
+  --ui-disabled: color-mix(in oklch, var(--surface-3), var(--primary) 25%);
+}
+
+[data-ui-derive]:is(.dark, [data-theme="dark"]),
+[data-ui-derive] :is(.dark, [data-theme="dark"]) {
+  /* Dark, as in Fluid: each level 0.03 lighter than the one below, centred on the background, hue and chroma kept */
+  --surface-1: oklch(from var(--background) calc(l - 0.03) c h);
+  --surface-2: var(--background);
+  --surface-3: oklch(from var(--background) calc(l + 0.03) c h);
+  --surface-4: oklch(from var(--background) calc(l + 0.06) c h);
+  --surface-5: oklch(from var(--background) calc(l + 0.09) c h);
+  --surface-6: oklch(from var(--background) calc(l + 0.12) c h);
+  --surface-7: oklch(from var(--background) calc(l + 0.15) c h);
+  --surface-8: oklch(from var(--background) calc(l + 0.18) c h);
+  --fluid-foreground: var(--foreground);
+  --fluid-muted: var(--muted-foreground);
+  --fluid-accent: var(--accent);
+  /* 6%, as Dojofoo's: lines sit close to the surfaces, not on them */
+  --fluid-hairline: color-mix(in oklch, var(--foreground) 6%, transparent);
+  --fluid-hover: color-mix(in oklch, var(--foreground) 6%, transparent);
+  --fluid-active: color-mix(in oklch, var(--foreground) 10%, transparent);
+  --focus-ring: var(--ring);
+  --brand: var(--primary);
+  /* The shell's buttons in the theme's primary; disabled controls and switch tracks a light, muted tint of the card in
+     the primary's hue – never a neutral gray beside the theme's colored surfaces */
+  --ui-button: var(--primary);
+  --ui-button-hover: color-mix(in oklch, var(--primary), var(--foreground) 12%);
+  --ui-on-ink: var(--primary-foreground);
+  --ui-disabled: color-mix(in oklch, var(--surface-3), var(--primary) 25%);
+}

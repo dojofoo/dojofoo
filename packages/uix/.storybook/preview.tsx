@@ -1,7 +1,13 @@
 import type { Preview } from "@storybook/react-vite";
-import "@fontsource-variable/inter";
+// Inter with its optical-size axis as well as weight, so a label keeps its width when it turns semibold
+import "@fontsource-variable/inter/opsz.css";
+// The app's editor font: Iosevka at 400 only, as packages/ui/src/app.css loads it
+import "@fontsource/iosevka/400.css";
 import "@fontsource-variable/plus-jakarta-sans";
+import "@fontsource-variable/noto-sans";
 import "../src/styles.css";
+import { IconSetContext, type IconSet } from "../src/lib/icons";
+import { MotionConfig } from "motion/react";
 
 const fontStacks = {
   default:
@@ -10,6 +16,8 @@ const fontStacks = {
     '"Inter Variable", Inter, "Helvetica Rounded", Helvetica, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
   modern:
     '"Plus Jakarta Sans Variable", "Plus Jakarta Sans", Geist, "Geist Sans", "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+  noto:
+    '"Noto Sans Variable", "Noto Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
 } as const;
 
 type FontStack = keyof typeof fontStacks;
@@ -32,21 +40,33 @@ const tailwindTextSizes = {
 
 const preview: Preview = {
   globalTypes: {
+    theme: {
+      description: "Color theme",
+      toolbar: { icon: "circlehollow", items: [{ value: "light", title: "Light" }, { value: "dark", title: "Dark" }], dynamicTitle: true },
+    },
+    icons: {
+      description: "Icon set",
+      toolbar: { icon: "star", items: [{ value: "iconoir", title: "Iconoir" }, { value: "mingcute", title: "MingCute" }, { value: "solar", title: "Solar" }, { value: "fluent", title: "Fluent" }, { value: "hugeicons", title: "Hugeicons" }], dynamicTitle: true },
+    },
     font: {
       description: "Global font stack",
       toolbar: {
         icon: "paragraph",
         items: [
-          { value: "default", title: "Default" },
-          { value: "common", title: "Common" },
-          { value: "modern", title: "Modern" },
+          // Default keeps each part's own font: the system UI font (SF Pro on macOS), Inter in the affectUI components
+          { value: "default", title: "System UI · Inter" },
+          { value: "common", title: "Inter" },
+          { value: "modern", title: "Plus Jakarta Sans" },
+          { value: "noto", title: "Noto Sans" },
         ],
         dynamicTitle: true,
       },
     },
   },
   initialGlobals: {
-    font: "default",
+    theme: "dark",
+    icons: "mingcute",
+    font: "common",
   },
   parameters: {
     a11y: { test: "error" },
@@ -58,9 +78,14 @@ const preview: Preview = {
       const fontFamily = fontStacks[font] ?? fontStacks.default;
 
       document.documentElement.lang = "en";
+      document.documentElement.classList.toggle("dark", context.globals.theme === "dark");
+      document.documentElement.style.colorScheme = context.globals.theme === "dark" ? "dark" : "light";
       document.documentElement.classList.add("h-full");
       document.documentElement.style.fontSize = "16px";
       document.documentElement.style.setProperty("--font-sans", fontFamily);
+      // The affectUI components draw in Inter unless --ui-font names another font
+      if (font === "default") document.documentElement.style.removeProperty("--ui-font");
+      else document.documentElement.style.setProperty("--ui-font", fontFamily);
       if (font === "modern") {
         document.documentElement.style.setProperty("--font-weight-normal", "540");
         document.documentElement.style.setProperty("--font-weight-medium", "620");
@@ -88,7 +113,8 @@ const preview: Preview = {
       );
       document.body.style.fontFamily = "var(--font-sans)";
       document.body.style.fontWeight = "var(--font-weight-normal)";
-      return <Story />;
+      // Reduced motion is fewer and gentler, not none: transforms drop, opacity and colour fades stay
+      return <MotionConfig reducedMotion="user"><IconSetContext.Provider value={(context.globals.icons as IconSet) ?? "mingcute"}><Story /></IconSetContext.Provider></MotionConfig>;
     },
   ],
 };

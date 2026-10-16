@@ -1,4 +1,3 @@
-"use client";
 // beui.dev/components/motion/input
 import { Check } from "@mynaui/icons-react";
 

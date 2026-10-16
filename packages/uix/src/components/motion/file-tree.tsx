@@ -1,4 +1,3 @@
-"use client";
 // beui.dev/components/motion/file-tree
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";

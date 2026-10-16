@@ -1,0 +1,60 @@
+/*
+ * OpenClaw – imported from tweakcn (https://tweakcn.com/themes/cmoix72v6000304l2agd2fb7m) by scripts/theme-add.mjs; edit the theme there and import it again.
+ * The shadcn colors, light and dark, and the radius; uix's own tokens follow from them in themes/derive.css.
+ */
+:root[data-ui-theme="openclaw"],
+[data-ui-theme="openclaw"] .light {
+  --background: oklch(0.9851 0 0);
+  --foreground: oklch(0.1408 0.0044 285.8229);
+  --card: oklch(1.0000 0 0);
+  --card-foreground: oklch(0.1408 0.0044 285.8229);
+  --popover: oklch(1.0000 0 0);
+  --popover-foreground: oklch(0.1408 0.0044 285.8229);
+  --primary: oklch(0.5651 0.1720 273.8740);
+  --primary-foreground: oklch(1.0000 0 0);
+  --secondary: oklch(0.9674 0.0013 286.3752);
+  --secondary-foreground: oklch(0.2103 0.0059 285.8852);
+  --muted: oklch(0.9674 0.0013 286.3752);
+  --muted-foreground: oklch(0.5517 0.0138 285.9385);
+  --accent: oklch(0.9574 0.0175 279.0597);
+  --accent-foreground: oklch(0.5651 0.1720 273.8740);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --destructive-foreground: oklch(0.9851 0 0);
+  --border: oklch(0.9197 0.0040 286.3202);
+  --input: oklch(0.9197 0.0040 286.3202);
+  --ring: oklch(0.5651 0.1720 273.8740);
+  --chart-1: oklch(0.5651 0.1720 273.8740);
+  --chart-2: oklch(0.7180 0.1530 284.8326);
+  --chart-3: oklch(0.7400 0.1142 205.9419);
+  --chart-4: oklch(0.5820 0.1887 298.7574);
+  --chart-5: oklch(0.6631 0.2134 325.1374);
+  --radius-base: 0.5rem;
+}
+
+[data-ui-theme="openclaw"]:is(.dark, [data-theme="dark"]),
+[data-ui-theme="openclaw"] :is(.dark, [data-theme="dark"]) {
+  --background: oklch(0.1645 0.0086 274.3354);
+  --foreground: oklch(0.9851 0 0);
+  --card: oklch(0.1919 0.0126 270.6840);
+  --card-foreground: oklch(0.9851 0 0);
+  --popover: oklch(0.1645 0.0086 274.3354);
+  --popover-foreground: oklch(0.9851 0 0);
+  --primary: oklch(0.5651 0.1720 273.8740);
+  --primary-foreground: oklch(1.0000 0 0);
+  --secondary: oklch(0.2393 0.0142 266.9746);
+  --secondary-foreground: oklch(0.9851 0 0);
+  --muted: oklch(0.2393 0.0142 266.9746);
+  --muted-foreground: oklch(0.7118 0.0129 286.0665);
+  --accent: oklch(0.2744 0.0717 275.1525);
+  --accent-foreground: oklch(0.9851 0 0);
+  --destructive: oklch(0.5945 0.1911 25.1414);
+  --destructive-foreground: oklch(1.0000 0 0);
+  --border: oklch(0.2393 0.0142 266.9746);
+  --input: oklch(0.2393 0.0142 266.9746);
+  --ring: oklch(0.5651 0.1720 273.8740);
+  --chart-1: oklch(0.5651 0.1720 273.8740);
+  --chart-2: oklch(0.7019 0.1406 280.7838);
+  --chart-3: oklch(0.8083 0.0948 227.1148);
+  --chart-4: oklch(0.5884 0.2169 297.5764);
+  --chart-5: oklch(0.7182 0.1854 316.5979);
+}

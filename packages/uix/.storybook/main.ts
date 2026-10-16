@@ -1,6 +1,7 @@
 import type { StorybookConfig } from "@storybook/react-vite";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
+import { monacoAssets } from "../../ui/monaco-assets";
 
 const config: StorybookConfig = {
   stories: ["../src/**/*.stories.@(ts|tsx)"],
@@ -11,7 +12,7 @@ const config: StorybookConfig = {
   },
   viteFinal: async (viteConfig) => ({
     ...viteConfig,
-    plugins: [tailwindcss(), ...(viteConfig.plugins ?? []).flat()],
+    plugins: [monacoAssets(), tailwindcss(), ...(viteConfig.plugins ?? []).flat()],
     resolve: {
       ...viteConfig.resolve,
       alias: {
@@ -19,6 +20,7 @@ const config: StorybookConfig = {
           ? viteConfig.resolve.alias
           : {}),
         "~": fileURLToPath(new URL("../src", import.meta.url)),
+        "@": fileURLToPath(new URL("../../ui/src", import.meta.url)),
       },
     },
   }),

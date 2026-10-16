@@ -1,0 +1,65 @@
+/*
+ * Vercel Cursor – from the VS Code theme (https://github.com/FlameDevvv/vercelcursortheme @ 9961301): Vercel's palette
+ * on Cursor's dark backgrounds. Written by hand in the imported themes' shape – the shadcn colors and the radius; uix's
+ * own tokens follow from them in themes/derive.css.
+ *
+ * Dark is the theme's own: the window is Cursor's side bar (#161616 – the editor, #1a1a1a, sits a step above it), text
+ * #ededed with #a1a1a1 for muted, lines #2a2a2a, the primary its button (#4c9df3 on #191c22), red its error (#ff4d8d),
+ * charts its terminal colors. The theme has no light variant: light is Vercel's own light palette in the same roles.
+ */
+:root[data-ui-theme="vercel-cursor"],
+[data-ui-theme="vercel-cursor"] .light {
+  --background: oklch(0.9851 0 0);
+  --foreground: oklch(0.2046 0 0);
+  --card: oklch(1.0000 0 0);
+  --card-foreground: oklch(0.2046 0 0);
+  --popover: oklch(1.0000 0 0);
+  --popover-foreground: oklch(0.2046 0 0);
+  --primary: oklch(0.5731 0.2145 258.2467);
+  --primary-foreground: oklch(1.0000 0 0);
+  --secondary: oklch(0.9612 0 0);
+  --secondary-foreground: oklch(0.2046 0 0);
+  --muted: oklch(0.9612 0 0);
+  --muted-foreground: oklch(0.5103 0 0);
+  --accent: oklch(0.9401 0 0);
+  --accent-foreground: oklch(0.2046 0 0);
+  --destructive: oklch(0.6256 0.1933 23.0261);
+  --destructive-foreground: oklch(1.0000 0 0);
+  --border: oklch(0.9401 0 0);
+  --input: oklch(0.9401 0 0);
+  --ring: oklch(0.5731 0.2145 258.2467);
+  --chart-1: oklch(0.5731 0.2145 258.2467);
+  --chart-2: oklch(0.7308 0.1423 147.9898);
+  --chart-3: oklch(0.7817 0.1609 82.4384);
+  --chart-4: oklch(0.6984 0.2043 309.7501);
+  --chart-5: oklch(0.6864 0.2179 3.0679);
+  --radius-base: 0.5rem;
+}
+
+[data-ui-theme="vercel-cursor"]:is(.dark, [data-theme="dark"]),
+[data-ui-theme="vercel-cursor"] :is(.dark, [data-theme="dark"]) {
+  --background: oklch(0.2002 0 0);
+  --foreground: oklch(0.9461 0 0);
+  --card: oklch(0.2178 0 0);
+  --card-foreground: oklch(0.9461 0 0);
+  --popover: oklch(0.2178 0 0);
+  --popover-foreground: oklch(0.9461 0 0);
+  --primary: oklch(0.6847 0.1501 252.0801);
+  --primary-foreground: oklch(0.2260 0.0125 264.2844);
+  --secondary: oklch(0.4532 0 0);
+  --secondary-foreground: oklch(0.9431 0 0);
+  --muted: oklch(0.2850 0 0);
+  --muted-foreground: oklch(0.7090 0 0);
+  --accent: oklch(0.2809 0 0);
+  --accent-foreground: oklch(0.9461 0 0);
+  --destructive: oklch(0.6864 0.2179 3.0679);
+  --destructive-foreground: oklch(0.2002 0 0);
+  --border: oklch(0.2850 0 0);
+  --input: oklch(0.2850 0 0);
+  --ring: oklch(0.7173 0.1522 251.0013);
+  --chart-1: oklch(0.7173 0.1522 251.0013);
+  --chart-2: oklch(0.7308 0.1423 147.9898);
+  --chart-3: oklch(0.7817 0.1609 82.4384);
+  --chart-4: oklch(0.6984 0.2043 309.7501);
+  --chart-5: oklch(0.6864 0.2179 3.0679);
+}

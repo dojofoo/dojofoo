@@ -1,0 +1,19 @@
+/*
+ * Hand tuning for imported themes – kept apart from their generated files, so importing a theme again keeps it.
+ *
+ * T3 Chat, matched to T3 Code (pingdotgg/t3code):
+ * - The editor takes the theme's card fully – Pierre Dark's near-black would sit below the window – so the code reads a
+ *   step above the window, in the theme's plum.
+ * - Light: the page stays; the window is the cards' color (window and cards are one surface, set apart by shadow alone),
+ *   and sidebar rows lighten toward it, as T3 Code's rows do – the open row a step, a row under the pointer two.
+ */
+:root[data-ui-theme="t3-chat"] { --ui-ed-blend: 100%; }
+
+:root[data-ui-theme="t3-chat"]:not(.dark, [data-theme="dark"]),
+[data-ui-theme="t3-chat"] .light {
+  --surface-2: var(--surface-3);
+  /* Sidebar rows lighten from the page toward the window, never reaching it: the open row 40% of the way, a row under
+     the pointer 70% – page < open < hover < window */
+  --side-selected: color-mix(in oklab, var(--surface-1), var(--surface-3) 40%);
+  --side-hover: color-mix(in oklab, var(--surface-1), var(--surface-3) 70%);
+}

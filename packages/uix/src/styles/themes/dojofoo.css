@@ -1,0 +1,56 @@
+/*
+ * Dojofoo – The app's own: Fluid's neutrals with its border and accent, and its pink as the brand – a step darker in light.
+ * Colors only, in OKLCH: the structure (shadows, type, motion) lives in styles/fluid.css.
+ * The default: it applies without a data-ui-theme attribute, and imported themes override it (themes/derive.css). The
+ * dark block also reaches dark islands inside a light page.
+ */
+:root,
+.light {
+  /* After Linear Light (pabueco/linear-vscode-theme): the page is its frame (#f2f3f5's lightness, 0.964), the window its
+     editor and side bar (#fbfbfb, 0.988) – so an editor in Vercel Light is the window's own surface – then cards and
+     popovers rise in small steps to white, set apart by shadow. Linear's tint comes along: its surfaces are neutral, but
+     the frame and everything drawn over them – lines, hover, active – are a cool blue-grey (hue 265) that deepens as they
+     darken, so the frame takes its color and the overlays a blue-grey ink */
+  --surface-1: oklch(0.9640 0.0029 264.5);
+  --surface-2: oklch(0.9880 0 0);
+  --surface-3: oklch(0.9910 0 0);
+  --surface-4: oklch(0.9940 0 0);
+  --surface-5: oklch(0.9970 0 0);
+  --surface-6: oklch(1.0000 0 0);
+  --surface-7: oklch(1.0000 0 0);
+  --surface-8: oklch(1.0000 0 0);
+  /* Text in the same blue-grey: muted is Linear's interface text (#5d6a7e); the main text keeps Dojofoo's darkness in
+     that hue, a deep navy-black */
+  --fluid-foreground: oklch(0.2046 0.025 265);
+  --fluid-muted: oklch(0.5209 0.0355 258.9);
+  --fluid-accent: oklch(0.9219 0.0060 265);
+  /* The overlays' ink: the text's darkness in Linear's blue-grey. Hairlines are an overlay of it, so they sit the same
+     step above every level (10%), with hover and active at 5% and 9% */
+  --fluid-tint: oklch(0.2046 0.05 265);
+  --fluid-hairline: color-mix(in oklab, var(--fluid-tint) 10%, transparent);
+  --fluid-hover: color-mix(in oklab, var(--fluid-tint) 5%, transparent);
+  --fluid-active: color-mix(in oklab, var(--fluid-tint) 9%, transparent);
+  --focus-ring: oklch(0.6926 0.1606 265.2);
+  /* The brand pink, a step darker than dark mode's (0.6321) so it holds 4.5:1 as text on the page and on white */
+  --brand: oklch(0.56 0.223 13.98);
+}
+
+:is(.dark, [data-theme="dark"]) {
+  --surface-1: oklch(0.2046 0 0);
+  --surface-2: oklch(0.2350 0 0);
+  --surface-3: oklch(0.2645 0 0);
+  --surface-4: oklch(0.2931 0 0);
+  --surface-5: oklch(0.3211 0 0);
+  --surface-6: oklch(0.3485 0 0);
+  --surface-7: oklch(0.3753 0 0);
+  --surface-8: oklch(0.4017 0 0);
+  --fluid-foreground: oklch(0.9702 0 0);
+  --fluid-muted: oklch(0.7155 0 0);
+  --fluid-accent: oklch(0.3092 0 0);
+  /* 6% = the old 0.2891 on the window, now rising with each level instead of turning dark on the higher ones */
+  --fluid-hairline: color-mix(in oklab, var(--fluid-foreground) 6%, transparent);
+  --fluid-hover: oklch(1 0 0 / 0.06);
+  --fluid-active: oklch(1 0 0 / 0.1);
+  --focus-ring: oklch(0.7232 0.1429 265.4);
+  --brand: oklch(0.6321 0.2554 13.98);
+}

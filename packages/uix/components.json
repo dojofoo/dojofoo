@@ -19,6 +19,12 @@
     "utils": "~/lib/utils"
   },
   "registries": {
+    "@affectui": {
+      "url": "https://www.affectui.com/r/{name}.json",
+      "headers": {
+        "Authorization": "Bearer ${AFFECTUI_TOKEN}"
+      }
+    },
     "@assistant-ui": "https://r.assistant-ui.com/{name}.json",
     "@beui": "https://beui.dev/r/{name}.json",
     "@beui-pro": {
@@ -28,6 +34,7 @@
       }
     },
     "@soundcn": "https://soundcn.xyz/r/{name}.json",
-    "@reui": "https://reui.io/r/{style}/{name}.json"
+    "@reui": "https://reui.io/r/{style}/{name}.json",
+    "@videocn": "https://videocn.dev/r/{name}.json"
   }
 }
