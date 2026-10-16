@@ -10,6 +10,12 @@ export function senseiTeachingPolicy(mode: string): string {
   return `${platformTeaching}\n\n${styles[mode] ?? ""}`;
 }
 
+/** Evaluation records the shared policy and hidden turn prompts. Future
+ * event instructions are not injected into Sensei's opening context. */
+export function senseiEvaluationPolicy(mode: string): string {
+  return `${senseiTeachingPolicy(mode)}\n\n${turnPrompts}`;
+}
+
 const turns = promptSections(turnPrompts);
 
 /** Hidden host message for a Sensei turn, from contracts/TURNS.md. */

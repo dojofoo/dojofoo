@@ -8,6 +8,7 @@ import { evaluateFromAuthoring, evaluationConfiguration, executeEvaluationWorker
 import type { EvaluationReport } from "./run";
 
 const roots: string[] = [];
+const validSensei = "# Lesson\n\n## Start\n\n- **Hook:** h\n- **Builds on:** b\n- **First move:** f\n\n## Teach\n\n## Stumbling points\n\n## Evidence\n\n## Review\n\n- **Boundary:** b\n- **Predict:** p\n";
 it("loads the evaluation tool in Eve's native Node runtime without a TS resolver", async () => {
   const { stdout } = await promisify(execFile)(process.execPath, [
     "--input-type=module", "--eval",
@@ -21,7 +22,8 @@ async function fixture() {
   await writeFile(join(root, "dojo.yaml"), "katas:\n  - name: first\n    template: src/first/solution.ts\n  - name: second\n    template: src/second/solution.ts\n");
   for (const lesson of ["first", "second"]) {
     await mkdir(join(root, "src", lesson), { recursive: true });
-    await writeFile(join(root, "src", lesson, "SENSEI.md"), "# Lesson\n");
+    await writeFile(join(root, "src", lesson, "SENSEI.md"), validSensei);
+    await writeFile(join(root, "src", lesson, "solution.test.ts"), 'it("works", () => {});');
   }
   const workerPath = join(root, "worker.js"); await writeFile(workerPath, "");
   const config: EvaluationConfiguration = { workerPath, teachingHarness: "codex", teachingModel: "teacher", fixtureHarness: "pi", fixtureModel: "fixture" };
@@ -33,7 +35,14 @@ async function fixture() {
 
 it("does not silently select models or enable paid evaluations", () => {
   expect(evaluationConfiguration({})).toBeUndefined();
-  expect(() => evaluationConfiguration({ DOJOFOO_EVAL_WORKER: "/worker" })).toThrow("together");
+  expect(() => evaluationConfiguration({ DOJOFOO_EVAL_TEACHING_HARNESS: "codex" })).toThrow("together");
+});
+it("uses the evaluator shipped beside the running CLI, not an author-supplied worker", () => {
+  expect(evaluationConfiguration({
+    DOJO_CLI: "/installed/dojofoo/dist/index.js", DOJOFOO_EVAL_WORKER: "/untrusted/worker.js",
+    DOJOFOO_EVAL_TEACHING_HARNESS: "codex", DOJOFOO_EVAL_TEACHING_MODEL: "teacher",
+    DOJOFOO_EVAL_FIXTURE_HARNESS: "pi", DOJOFOO_EVAL_FIXTURE_MODEL: "learner",
+  })).toEqual({ workerPath: "/installed/dojofoo/dist/teaching-eval.js", teachingHarness: "codex", teachingModel: "teacher", fixtureHarness: "pi", fixtureModel: "learner" });
 });
 it("returns an existing receipt on replay without consuming another attempt", async () => {
   const f = await fixture(); const first = await f.evaluate("same");
@@ -79,10 +88,19 @@ it("preserves a missing workspace file as infrastructure, not bad teaching mater
   await expect(f.evaluate("missing")).rejects.toMatchObject({ code: "ENOENT" });
   expect(f.run).not.toHaveBeenCalled();
 });
-it("retains an uncertain worker failure rather than silently restarting it on replay", async () => {
+it("rejects duplicate lesson IDs before spending an attempt", async () => {
+  const f = await fixture();
+  await writeFile(join(f.root, "dojo.yaml"), "katas:\n  - name: first\n    template: src/first/solution.ts\n  - name: first\n    template: src/first/solution.ts\n");
+  await expect(f.evaluate("same")).rejects.toMatchObject({ name: "MaterialFailure", message: expect.stringContaining("Duplicate lesson ID: first") });
+  expect(f.run).not.toHaveBeenCalled();
+  await writeFile(join(f.root, "dojo.yaml"), "katas:\n  - name: first\n    template: src/first/solution.ts\n");
+  expect((await f.evaluate("same")).attempt).toBe(1);
+});
+it("returns a worker crash as an infrastructure failure and replays it without restarting", async () => {
   const f = await fixture(); f.run.mockRejectedValue(new Error("worker disconnected"));
-  await expect(f.evaluate("same")).rejects.toThrow("worker disconnected");
-  await expect(f.evaluate("same")).rejects.toThrow("already started");
+  const first = await f.evaluate("same");
+  expect(first).toMatchObject({ attempt: 1, remaining: 2, report: { status: "infrastructure-failed", error: "worker disconnected" } });
+  expect(await f.evaluate("same")).toEqual(first);
   expect(f.run).toHaveBeenCalledOnce();
 });
 it("counts reordered continuity requests against the same allowance", async () => {
@@ -125,7 +143,7 @@ it("consumes one attempt when the same call is delivered concurrently", async ()
 it("accepts an MDX-only lesson", async () => {
   const f = await fixture();
   await rm(join(f.root, "src", "first", "SENSEI.md"));
-  await writeFile(join(f.root, "src", "first", "SENSEI.mdx"), "# Lesson\n");
+  await writeFile(join(f.root, "src", "first", "SENSEI.mdx"), validSensei);
   expect((await f.evaluate("same")).attempt).toBe(1);
   expect(f.run).toHaveBeenCalledOnce();
 });
@@ -134,6 +152,18 @@ it("rejects missing guidance before spending an attempt", async () => {
   await rm(join(f.root, "src", "first", "SENSEI.md"));
   await expect(f.evaluate("same")).rejects.toMatchObject({ name: "MaterialFailure" });
   expect(f.run).not.toHaveBeenCalled();
-  await writeFile(join(f.root, "src", "first", "SENSEI.md"), "# Restored");
+  await writeFile(join(f.root, "src", "first", "SENSEI.md"), validSensei);
+  expect((await f.evaluate("same")).attempt).toBe(1);
+});
+it("preflights lesson structure before spending an attempt", async () => {
+  const f = await fixture();
+  await writeFile(join(f.root, "src", "first", "SENSEI.md"), "# Lesson\n\n## Start\n\n- **Hook:** {situation from the learner's world}\n");
+  const failure = await f.evaluate("same").catch(error => error);
+  expect(failure).toMatchObject({ name: "MaterialFailure" });
+  expect(failure.message).toContain("no attempt was used");
+  expect(failure.message).toContain("## Teach");
+  expect(failure.message).toContain("placeholders");
+  expect(f.run).not.toHaveBeenCalled();
+  await writeFile(join(f.root, "src", "first", "SENSEI.md"), validSensei);
   expect((await f.evaluate("same")).attempt).toBe(1);
 });

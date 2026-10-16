@@ -3,21 +3,27 @@ import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojofoo/ui/chat-container";
 import { InputMessage } from "@dojofoo/ui/input-message";
 import { Button } from "@dojofoo/ui/button";
+import { MessageQueue, type QueuedMessage } from "./assistant-ui/elements/message-queue";
 import { StreamedChatMessage } from "@/routes/index";
 import { ChatTranscript } from "./chat/assistant-response";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 
 /** Shared presentation for ACP and Eve. Neither backend owns a separate layout. */
-export function AuthoringChat({ messages, status, busy, value, onValueChange, onSend, onAnswer, error, onRetryAnswer }: {
+export function AuthoringChat({ messages, status, busy, inputDisabled = false, value, onValueChange, onSend, onAnswer, error, onRetryAnswer, onRetryLoad, queue = [], onCancelQueued, queueLabel = "Kyoshi is responding" }: {
   messages: UIMessage[];
   status: string;
   busy: boolean;
+  inputDisabled?: boolean;
   value: string;
   onValueChange(value: string): void;
   onSend(value: string): void;
   onAnswer(answers: Record<string, AskUserAnswer>): void | Promise<void>;
   error?: string;
   onRetryAnswer?: () => void;
+  onRetryLoad?: () => void;
+  queue?: QueuedMessage[];
+  onCancelQueued?: (id: string) => void;
+  queueLabel?: string;
 }) {
   const { viewportRef, scrollToBottom } = useChatScroll();
   const active = busy || status === "submitted" || status === "streaming";
@@ -27,9 +33,11 @@ export function AuthoringChat({ messages, status, busy, value, onValueChange, on
         renderMessage={(message, streaming) => <StreamedChatMessage fragments={{}} message={message} onToolAnswer={answers => { scrollToBottom(); return onAnswer(answers); }} streaming={streaming} workspaceId="" />} />
       {!active && error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {!active && onRetryAnswer ? <Button onClick={() => { scrollToBottom(); onRetryAnswer(); }}>Retry answer</Button> : null}
+      {!active && error && onRetryLoad ? <Button onClick={onRetryLoad}>Reload conversation</Button> : null}
     </ChatContainerContent>
     <ChatContainerFooter data-testid="authoring-chat-composer">
-      <InputMessage disabled={busy}
+      {queue.length > 0 ? <MessageQueue className="max-w-none" running={queueLabel} queued={queue} onCancel={onCancelQueued} /> : null}
+      <InputMessage disabled={inputDisabled}
         history={messages.filter(({ role }) => role === "user").map(entry => entry.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
         onSend={text => { scrollToBottom(); onSend(text); }} onValueChange={onValueChange} placeholder="Shape the course with Kyoshi…" sendLabel="Send"
         status={busy || status === "streaming" || status === "submitted" ? "streaming" : "idle"} value={value} />

@@ -1,10 +1,11 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { parse, YAMLParseError } from "yaml";
 import { MaterialFailure } from "./failure.ts";
+import { preflightLessons } from "./preflight.ts";
 import { readLessonSensei } from "./sensei.ts";
 import type { EvaluationReport } from "./run";
 
@@ -19,10 +20,11 @@ export interface EvaluationConfiguration {
 type EvaluationReceipt = { attempt: number; remaining: number; report: EvaluationReport };
 
 export function evaluationConfiguration(env: NodeJS.ProcessEnv = process.env): EvaluationConfiguration | undefined {
-  const values = [env.DOJOFOO_EVAL_WORKER, env.DOJOFOO_EVAL_TEACHING_HARNESS, env.DOJOFOO_EVAL_TEACHING_MODEL, env.DOJOFOO_EVAL_FIXTURE_HARNESS, env.DOJOFOO_EVAL_FIXTURE_MODEL];
+  const values = [env.DOJOFOO_EVAL_TEACHING_HARNESS, env.DOJOFOO_EVAL_TEACHING_MODEL, env.DOJOFOO_EVAL_FIXTURE_HARNESS, env.DOJOFOO_EVAL_FIXTURE_MODEL];
   if (values.every(value => !value)) return undefined;
-  if (values.some(value => !value?.trim())) throw new Error("Configure the evaluation worker, teaching harness/model, and fixture harness/model together");
-  return { workerPath: values[0]!, teachingHarness: values[1]!, teachingModel: values[2]!, fixtureHarness: values[3]!, fixtureModel: values[4]! };
+  if (values.some(value => !value?.trim())) throw new Error("Select teaching and learner harnesses/models together");
+  if (!env.DOJO_CLI) throw new Error("The bundled Dojofoo evaluator is unavailable. Start the interface with dojofoo ui --authoring.");
+  return { workerPath: join(dirname(env.DOJO_CLI), "teaching-eval.js"), teachingHarness: values[0]!, teachingModel: values[1]!, fixtureHarness: values[2]!, fixtureModel: values[3]! };
 }
 
 function reportFromOutput(output: string): EvaluationReport {
@@ -76,11 +78,21 @@ export async function evaluateFromAuthoring({ root, lessonIds, callId, config, s
   if (manifest.katas.some((entry: unknown) => !entry || typeof entry !== "object" || !("name" in entry) || typeof entry.name !== "string" || !entry.name.trim())) {
     throw new MaterialFailure("Invalid authored dojo.yaml: each kata needs a name");
   }
+  const names = new Set<string>();
+  for (const { name } of manifest.katas as Array<{ name: string }>) {
+    if (names.has(name)) throw new MaterialFailure(`Duplicate lesson ID: ${name}. Keep one entry in dojo.yaml.`);
+    names.add(name);
+  }
   if (!lessonIds.every(id => manifest.katas?.some((entry: { name: string }) => entry.name === id))) throw new Error("Evaluation lesson is not in this course");
   for (const id of lessonIds) {
     const template = manifest.katas.find((entry: { name: string; template?: unknown }) => entry.name === id)?.template;
     if (typeof template !== "string" || !template.trim()) throw new MaterialFailure(`Lesson ${id} needs a template`);
     await readLessonSensei(root, template);
+  }
+  // Free checks first: a structural gap never spends a paid attempt.
+  const failing = (await preflightLessons(root, lessonIds)).filter(({ pass }) => !pass);
+  if (failing.length) {
+    throw new MaterialFailure(`Lesson preflight failed; no attempt was used.\n${failing.map(({ lessonId, findings }) => `${lessonId}:\n${findings.map(finding => `- ${finding}`).join("\n")}`).join("\n")}`);
   }
   await access(config.workerPath);
   const hash = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -120,7 +132,18 @@ export async function evaluateFromAuthoring({ root, lessonIds, callId, config, s
     await rename(`${receipt}.tmp`, receipt);
   };
   await persist({ attempt, lessonIds });
-  const report = await run(root, lessonIds, config, signal);
+  let report: EvaluationReport;
+  try { report = await run(root, lessonIds, config, signal); }
+  catch (error) {
+    // Record the crash so a replay returns it instead of "already started".
+    const now = new Date().toISOString();
+    report = {
+      version: 1, directory: "", materialHash: "", lessonIds, status: "infrastructure-failed", stage: "material",
+      startedAt: now, completedAt: now, error: error instanceof Error ? error.message : String(error),
+    };
+    await persist({ attempt, remaining: 3 - attempt, report });
+    if (signal.aborted) throw error;
+  }
   const result = { attempt, remaining: 3 - attempt, report };
   await persist(result);
   return result;

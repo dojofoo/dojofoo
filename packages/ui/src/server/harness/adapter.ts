@@ -15,6 +15,8 @@ export type HarnessRuntimeContext = {
 
 export interface HarnessAdapter {
   kind: HarnessKind;
+  clientCapabilities?: acp.ClientCapabilities;
+  validatePromptResponse?(response: acp.PromptResponse): void;
   contextualInstructions?: boolean;
   supportsVirtualResourceUris?: boolean;
   configureSession(

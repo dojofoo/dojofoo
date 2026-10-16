@@ -152,42 +152,31 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
   const key = lessonKey(rc.currentDojo, selected.name);
   const webState = readWebState(root);
   const storedThread = webState.threads[key];
-  const harness = dojofooHarness();
+  const harness = storedThread?.harness;
   let threadId: string | undefined = storedThread?.sessionId;
   const sensei = readFileSync(selected.senseiPath, "utf8");
   const instructions = lessonInstructions(root, rc.currentDojo, sensei);
   const contractHash = lessonContractHash(instructions);
   const senseiContent = parseSenseiContent(sensei);
   let messages: UIMessage[] = [];
-  if (threadId && storedThread?.harness === harness) {
-    try {
-      await acpClient.resumeThread(threadId, {
-        root,
-        runtimeKey: lessonRuntimeKey(root, key, harness),
+  if (threadId && harness) {
+    // A provider outage is not a new lesson. Let the route expose the error;
+    // an explicit retry resumes the same durable conversation.
+    await acpClient.resumeThread(threadId, {
+      root,
+      runtimeKey: lessonRuntimeKey(root, key, harness),
+      harness,
+      developerInstructions: instructions,
+    });
+    messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
+    if (storedThread?.contractHash !== contractHash) {
+      webState.threads[key] = {
+        sessionId: threadId,
         harness,
-        developerInstructions: instructions,
-      });
-      messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
-      if (storedThread?.contractHash !== contractHash) {
-        webState.threads[key] = {
-          sessionId: threadId,
-          harness,
-          contractHash,
-          aliases: storedThread?.aliases ?? [],
-        };
-        writeWebState(root, webState);
-      }
-    } catch (cause) {
-      console.warn(`Could not resume ${harness} lesson session ${threadId}:`, cause);
-      if (storedThread) {
-        webState.threads[key] = {
-          ...storedThread,
-          aliases: [...new Set([...storedThread.aliases, storedThread.sessionId])],
-          resumeFailed: true,
-        };
-      }
+        contractHash,
+        aliases: storedThread?.aliases ?? [],
+      };
       writeWebState(root, webState);
-      threadId = undefined;
     }
   } else if (threadId) threadId = undefined;
 
@@ -576,9 +565,9 @@ async function lessonThread(root: string, kataName: string, options: { forceNew?
   const key = lessonKey(rc.currentDojo, kataName);
   const state = readWebState(root);
   const existing = state.threads[key];
-  const harness = dojofooHarness();
+  const harness = !options.forceNew && existing ? existing.harness : dojofooHarness();
   const runtimeKey = lessonRuntimeKey(root, key, harness);
-  if (!options.forceNew && existing && existing.harness === harness && !existing.resumeFailed) {
+  if (!options.forceNew && existing) {
     const catalog = readCatalog(root, rc.currentDojo);
     const kata = findKataByIdOrName(resolveAllKatas(root, rc, catalog), kataName);
     if (!kata) throw new Error(`Kata not found: ${kataName}`);
@@ -651,7 +640,9 @@ export async function setLessonModel(
 export async function startLessonSession(
   root: string,
   kataName: string,
+  courseId?: string,
 ): Promise<LessonSnapshot> {
+  if (courseId) lessonTarget(root, courseId, kataName);
   await lessonThread(root, kataName, { forceNew: true });
   const lesson = await getLesson(root, kataName);
   if (!lesson) throw new Error(`Lesson not found: ${kataName}`);

@@ -1309,6 +1309,8 @@ function isTimelineActivity(part: MessagePart): part is ActivityPart {
   if (part.type !== "tool-call") return false;
   if (isAgentQuestion(part)) return false;
   if (part.name.includes("dojo_ui_show") || (part.name.includes("dojo_lesson_complete") && !toolFailed(part))) return false;
+  // A question renders as its form once Eve publishes the input request.
+  if (part.name.includes("dojo_ui_ask") && !toolFailed(part)) return false;
   return true;
 }
 
@@ -1342,11 +1344,13 @@ function ActivityTimeline({ activities, streaming }: { activities: ActivityPart[
       const failed = toolFailed(activity);
       const active = isActiveThinkingActivity(activity);
       const output = activity.output === undefined ? undefined : serializeToolValue(activity.output);
+      const evaluation = activity.name.includes("dojo_authoring_evaluate") ? evaluationSummary(activity.output, active) : undefined;
       return <ToolCallCard
         key={activity.id}
         name={activity.name}
+        label={evaluation?.label}
         args={typeof activity.input === "string" ? activity.input : activity.input && typeof activity.input === "object" ? activity.input as Record<string, unknown> : undefined}
-        result={activity.name === "dojo_lesson_verify" && isTestReport(activity.output) ? undefined : output}
+        result={activity.name === "dojo_lesson_verify" && isTestReport(activity.output) ? undefined : evaluation?.detail ?? output}
         error={failed ? output || "Tool call failed." : undefined}
         status={failed ? "error" : active ? activity.state === "input-streaming" ? "pending" : "running" : "done"}
         autoPlay={false}
@@ -1367,6 +1371,38 @@ function serializeToolValue(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+const evaluationStatuses: Record<string, string> = {
+  passed: "Teaching passed",
+  "material-failed": "Lesson material needs a revision",
+  "teaching-failed": "Trial teaching needs a revision",
+  "infrastructure-failed": "Evaluation could not finish",
+  "preflight-failed": "Preflight found gaps to fix (no attempt used)",
+  "not-configured": "Evaluations are not configured",
+  "allowance-exhausted": "All three attempts are used",
+  stale: "Result no longer matches the lesson",
+};
+
+/** A teaching evaluation is a verdict, not a crashed tool: summarize it. */
+export function evaluationSummary(output: unknown, active: boolean): { label: string; detail?: string } | undefined {
+  if (active) return { label: "Evaluating teaching: trial and two judges, a few minutes" };
+  let value = output;
+  if (typeof value === "string") { try { value = JSON.parse(value); } catch { return undefined; } }
+  if (!value || typeof value !== "object") return undefined;
+  const result = value as { status?: string; remaining?: number; error?: string; next?: string; decisions?: Record<string, { blocking?: Array<{ id: string }>; disputed?: Array<{ id: string }> } | undefined> };
+  if (!result.status) return undefined;
+  const remaining = typeof result.remaining === "number" ? ` · ${result.remaining} ${result.remaining === 1 ? "attempt" : "attempts"} left` : "";
+  const decisions = Object.values(result.decisions ?? {}).filter(decision => decision !== undefined);
+  const blocking = [...new Set(decisions.flatMap(decision => decision.blocking?.map(({ id }) => id) ?? []))];
+  const disputed = [...new Set(decisions.flatMap(decision => decision.disputed?.map(({ id }) => id) ?? []))];
+  const detail = [
+    blocking.length ? `Revise: ${blocking.join(", ")}` : "",
+    disputed.length ? `Disputed (one judge): ${disputed.join(", ")}` : "",
+    result.error ?? "",
+    result.next ?? "",
+  ].filter(Boolean).join("\n");
+  return { label: `${evaluationStatuses[result.status] ?? result.status}${remaining}`, detail: detail || undefined };
 }
 
 function toolFailed(part: ToolCallPart): boolean {

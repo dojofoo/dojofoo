@@ -46,7 +46,7 @@ describe("authoring Eve mount", () => {
     expect(runtime).not.toHaveBeenCalled();
   });
 
-  it("surfaces a failed startup without retrying or switching to ACP", async () => {
+  it("releases a failed startup and retries only on a new request", async () => {
     const server = { start: vi.fn(async () => { throw new Error("Harness runtime unavailable"); }), close: vi.fn(async () => {}) };
     const app = new Hono();
     const close = mountEveAuthoring(app, { ...workspace(), runtime: async () => server });
@@ -55,6 +55,21 @@ describe("authoring Eve mount", () => {
       expect(response.status).toBe(503);
       expect(await response.json()).toEqual({ error: "Harness runtime unavailable" });
     }
+    expect(server.start).toHaveBeenCalledTimes(2);
+    await close();
+    expect(server.close).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers after workspace repair without creating a conversation", async () => {
+    const server = { start: vi.fn(async () => ({ url: "http://127.0.0.1:2000" })), close: vi.fn(async () => {}) };
+    const runtime = vi.fn().mockRejectedValueOnce(new Error("dojo.yaml is missing"))
+      .mockResolvedValue(server);
+    const app = new Hono();
+    const close = mountEveAuthoring(app, { ...workspace(), runtime });
+    expect((await app.request("/backend")).status).toBe(503);
+    expect(runtime).toHaveBeenCalledTimes(1);
+    expect((await app.request("/backend")).status).toBe(200);
+    expect(runtime).toHaveBeenCalledTimes(2);
     expect(server.start).toHaveBeenCalledTimes(1);
     await close();
     expect(server.close).toHaveBeenCalledTimes(1);

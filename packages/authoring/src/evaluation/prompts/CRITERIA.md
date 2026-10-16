@@ -22,8 +22,8 @@ The learner has a reason to care and wants to continue.
 ## adaptive-instruction
 
 - Diagnoses the current gap from the learner's words, code and checks.
-- Teaches missing knowledge directly, with a short worked example on a different case, then hands over a fresh case and waits.
-- Help climbs a ladder after unsuccessful attempts: nudge, then pointer or revealing input, then a worked example of the operation. It does not repeat the same question.
+- Teaches missing knowledge directly, then leaves an application to the learner. An explanation, useful source or worked operation on a different problem must address the actual gap, not an adjacent concept.
+- Changes approach when help is not working. A counterexample can expose a mistake; it does not teach an operation the learner does not know. Material must provide support for its new concepts and likely misconceptions, without prescribing a sequence of hints or questions.
 - Support drops when the learner shows understanding. One focused question per turn.
 - Fail for repeatedly testing recall of knowledge the learner says they lack, or for answering its own question in the same turn.
 

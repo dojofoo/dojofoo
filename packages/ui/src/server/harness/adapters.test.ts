@@ -8,6 +8,19 @@ import { dojofooHarness, harnessAdapter } from "./registry";
 import { promptContextBlock } from "../lesson/codex-client";
 
 describe("ACP harness adapters", () => {
+  it("negotiates Codex's existing typed failures without classifying ordinary text or retry warnings", () => {
+    const adapter = createCodexHarnessAdapter();
+    expect(adapter.clientCapabilities).toEqual({
+      _meta: { jetbrains: { air: { version: 1, capabilities: ["sessionFailure"] } } },
+    });
+    for (const response of [
+      { stopReason: "end_turn" as const },
+      { stopReason: "end_turn" as const, _meta: { jetbrains: { air: { sessionFailure: {
+        severity: "warning", title: "Retrying after 429 Too Many Requests",
+      } } } } },
+    ]) expect(() => adapter.validatePromptResponse?.(response)).not.toThrow();
+  });
+
   it("preserves the installed executable when a fixture isolates the user home", () => {
     const root = mkdtempSync(join(tmpdir(), "dojo-opencode-resolution-"));
     try {
@@ -29,11 +42,18 @@ describe("ACP harness adapters", () => {
 
     expect(adapter.kind).toBe("codex");
     expect(process.args[0]).toContain("codex-acp");
+    expect(process.environment.CODEX_PATH).toBe("codex");
     expect(JSON.parse(process.environment.CODEX_CONFIG ?? "{}")).toEqual(expect.objectContaining({
       model: "gpt-5",
       developer_instructions: "Teach this lesson",
     }));
     expect(adapter.encodeResource({ uri: "dojo://lesson", text: "private" })).toBe("private");
+  });
+
+  it("honors an explicit Codex executable instead of replacing it with a bundled version", () => {
+    const adapter = createCodexHarnessAdapter({ CODEX_PATH: "/custom/Codex CLI/codex" });
+    expect(adapter.process({ root: "/tmp/lesson", developerInstructions: "Teach" }).environment.CODEX_PATH)
+      .toBe("/custom/Codex CLI/codex");
   });
 
   it("encapsulates OpenCode process, resource, and model configuration", async () => {

@@ -1,5 +1,6 @@
 import { Eye, Code } from "@mynaui/icons-react";
 import type { AuthoringEvalReport } from "@dojofoo/authoring/server";
+import { httpError } from "@/lib/http-error";
 import type { AuthoringDraft, AuthoringWorkspace } from "@dojofoo/authoring/service";
 import { authoringMessageText, isAuthoringBootstrapMessage } from "@dojofoo/authoring/types";
 import { createFileRoute } from "@tanstack/react-router";
@@ -17,6 +18,8 @@ import {
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AuthoringFilePreview } from "@/components/authoring-file-preview";
 import { AuthoringEvaluationReport } from "@/components/authoring-evaluation-report";
+import { AuthoringEvaluationSettings } from "@/components/authoring-evaluation-settings";
+import type { EvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
 import { AuthoringSidebar } from "@/components/authoring-sidebar";
 import { AuthoringChat } from "@/components/authoring-chat";
 import { EveAuthoringChat } from "@/components/eve-authoring-chat";
@@ -61,8 +64,14 @@ function AuthoringPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("Loading your dojo…");
   const [error, setError] = useState<string | null>(null);
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
+  const [trialError, setTrialError] = useState<{ lessonId: string; message: string } | null>(null);
   const [evaluationReport, setEvaluationReport] = useState<AuthoringEvalReport | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const [evaluationSettingsOpen, setEvaluationSettingsOpen] = useState(false);
+  const [evaluationError, setEvaluationError] = useState<{ lessonId: string; source: "load" | "run"; message: string; previousReport?: string } | null>(null);
+  const reportLesson = useRef<string | null>(null);
+  reportLesson.current = scope === "lesson" ? selectedLessonId : null;
   const outgoing = useRef<Record<string, unknown>>({});
   const chatConnection = useMemo(() => fetchServerSentEvents(
     authoringApi("/api/authoring/messages"),
@@ -100,6 +109,56 @@ function AuthoringPage() {
   const evalReady = workspace && selectedLesson
     ? [...workspace.courseChecks, ...selectedLesson.checks].every(({ ready }) => ready)
     : false;
+
+  // Reports belong to a lesson, not to whichever file happened to be open
+  // when the last evaluation finished. Also refresh after agent file changes.
+  useEffect(() => {
+    setEvaluationReport(null);
+    setReportOpen(false);
+  }, [selectedLessonId, scope]);
+
+  useEffect(() => {
+    if (!selectedLessonId || scope !== "lesson") return;
+    const controller = new AbortController();
+    const url = new URL(authoringApi("/api/authoring/report"), window.location.origin);
+    url.searchParams.set("lessonId", selectedLessonId);
+    void fetch(url, { signal: controller.signal }).then(async response => {
+      if (!response.ok) throw new Error("Could not load this lesson's evaluation result. Refresh to try again.");
+      const result = await response.json() as ReportResponse;
+      if (!controller.signal.aborted) {
+        setEvaluationReport(result.report);
+        setEvaluationError(current => {
+          if (current?.lessonId !== selectedLessonId) return current;
+          // A fresh completed report is authoritative, even when Kyoshi ran
+          // it outside this button. Null, stale and running reports must not
+          // erase a failed request merely because the watcher refreshed.
+          const replaced = result.report?.completedAt && result.report.status !== "stale"
+            && result.report.directory !== current.previousReport;
+          return current.source === "load" || replaced ? null : current;
+        });
+      }
+    }).catch(cause => {
+      if (!controller.signal.aborted) setEvaluationError(current => current?.lessonId === selectedLessonId && current.source === "run"
+        ? current : { lessonId: selectedLessonId, source: "load", message: errorMessage(cause) });
+    });
+    return () => controller.abort();
+  }, [selectedLessonId, scope, workspace]);
+
+  // Sidebar status per lesson; the watcher refreshes `workspace` on every
+  // file or report change, so this follows Kyoshi's evaluations too.
+  const [lessonStatuses, setLessonStatuses] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!workspace) return;
+    const controller = new AbortController();
+    void fetch(authoringApi("/api/authoring/reports"), withAuthoringWorkspace({ signal: controller.signal }))
+      .then(response => response.ok ? response.json() as Promise<{ statuses: Record<string, string> }> : null)
+      .then(result => { if (result && !controller.signal.aborted) setLessonStatuses(result.statuses); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [workspace]);
+
+  const visibleReport = scope === "lesson" && selectedLessonId && evaluationReport?.lessonIds.at(-1) === selectedLessonId ? evaluationReport : null;
+  const visibleEvaluationError = scope === "lesson" && evaluationError?.lessonId === selectedLessonId ? evaluationError : null;
 
   useEffect(() => {
     if (!activeFile) return;
@@ -155,6 +214,8 @@ function AuthoringPage() {
   }
 
   async function bootstrap() {
+    setBusy("Loading your dojo…");
+    setError(null);
     try {
       const selected = await request<{ backend: "acp" | "eve" }>(authoringApi("/api/authoring/backend"));
       if (selected.backend === "eve") {
@@ -264,51 +325,74 @@ function AuthoringPage() {
   }
 
   async function saveActiveFile(path: string, content: string) {
-    await perform("Saving file…", async () => {
+    setBusy("Saving file…");
+    setFileErrors(current => { const next = { ...current }; delete next[path]; return next; });
+    try {
       selectWorkspace(await request<AuthoringDraft>(authoringFileUrl(path), {
         body: JSON.stringify({ content }),
         headers: { "content-type": "application/json" },
         method: "PUT",
       }));
       editorFiles.saved(path, content);
-    });
+    } catch (cause) {
+      setFileErrors(current => ({ ...current, [path]: errorMessage(cause) }));
+    } finally { setBusy(""); }
   }
 
   async function trialLesson(lessonId: string) {
-    await perform("Preparing a learner trial…", async () => {
+    // Reserve the tab inside the click gesture, not after asynchronous setup
+    // when browsers may block it. Detach its opener before loading the trial.
+    const tab = window.open("about:blank", "_blank");
+    setTrialError(null);
+    if (!tab) {
+      setTrialError({ lessonId, message: "Allow pop-ups for this site, then try opening the lesson again." });
+      return;
+    }
+    tab.opener = null;
+    tab.document.title = "Preparing lesson…";
+    tab.document.body.textContent = "Preparing your lesson. You can return to authoring while it loads.";
+    setBusy("Preparing a learner trial…");
+    try {
       const trial = await request<{ courseId: string; lessonId: string; workspaceId: string }>(
-        `/api/authoring/lessons/${encodeURIComponent(lessonId)}/trials`,
+        authoringApi(`/api/authoring/lessons/${encodeURIComponent(lessonId)}/trials`),
         { method: "POST" }
       );
-      window.open(`/course/${trial.workspaceId}/${trial.courseId}/lesson/${trial.lessonId}`, "_blank", "noopener");
-    });
-  }
-
-  async function showEvaluationReport() {
-    await perform("Loading evaluation report…", async () => {
-      const result = await request<ReportResponse>(authoringApi("/api/authoring/report"));
-      setEvaluationReport(result.report);
-      setReportOpen(true);
-    });
+      if (!tab.closed) tab.location.replace(`/course/${encodeURIComponent(trial.workspaceId)}/${encodeURIComponent(trial.courseId)}/lesson/${encodeURIComponent(trial.lessonId)}`);
+    } catch (cause) {
+      tab.close();
+      setTrialError({ lessonId, message: errorMessage(cause) });
+    } finally { setBusy(""); }
   }
 
   async function runEvals() {
     if (!selectedLessonId) return;
-    await perform("Trialing Sensei and judging teaching…", async () => {
+    const lessonId = selectedLessonId;
+    setBusy("Trialing Sensei and judging teaching…");
+    setEvaluationError(null);
+    try {
+      const settings = await request<EvaluationSettings | null>(authoringApi("/api/authoring/evaluation-settings"));
+      if (!settings?.enabled) { setEvaluationSettingsOpen(true); return; }
       const result = await request<ReportResponse>(authoringApi("/api/authoring/evals"), {
-        body: JSON.stringify({ lessonIds: [selectedLessonId], callId: crypto.randomUUID() }),
+        body: JSON.stringify({ lessonIds: [lessonId], callId: crypto.randomUUID() }),
         headers: { "content-type": "application/json" },
         method: "POST",
       });
-      setEvaluationReport(result.report);
-      setReportOpen(true);
-    });
+      // The run belongs to the lesson where it started, not the view open
+      // when it finishes. Returning to that lesson reads its saved report.
+      if (reportLesson.current === lessonId) {
+        setEvaluationReport(result.report);
+        setReportOpen(true);
+      }
+    } catch (cause) {
+      setEvaluationError({ lessonId, source: "run", message: errorMessage(cause), previousReport: evaluationReport?.directory });
+    } finally { setBusy(""); }
   }
 
-  if (!workspace) return (
+  if (!workspace || !backend) return (
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold">Kyoshi</h1>
-      <p className="mt-4 font-prose text-muted-foreground">{error ?? busy}</p>
+      <p role={error ? "alert" : "status"} className="mt-4 font-prose text-muted-foreground">{error ?? busy}</p>
+      {error ? <Button className="mt-4" disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</Button> : null}
     </main>
   );
 
@@ -332,6 +416,7 @@ function AuthoringPage() {
               onSelectRootFile={selectRootFile}
               scope={scope}
               selectedLessonId={selectedLessonId}
+              statuses={lessonStatuses}
               workspace={workspace}
             />
           ) : (
@@ -450,7 +535,7 @@ function AuthoringPage() {
               ) : null}
             </div>
             <section className="flex min-h-0 flex-1 flex-col text-[#ededed] shadow-surface-3" style={{ backgroundColor: vercelCursorColors.background }} data-testid="authoring-workspace">
-              {reportOpen && (evaluationReport ? <AuthoringEvaluationReport report={evaluationReport} /> : <p className="border-b border-dashed p-4 text-sm text-muted-foreground">No teaching evaluation report yet.</p>)}
+              {reportOpen && visibleReport ? <AuthoringEvaluationReport report={visibleReport} /> : null}
               <div className="min-h-0 flex-1 overflow-auto">
                 {view === "preview" && previewable
                   ? activeFile && <AuthoringFilePreview key={activeFile.path} path={activeFile.path} source={draft} workspace={workspace} />
@@ -470,13 +555,27 @@ function AuthoringPage() {
                     : <p className="p-6 text-sm text-muted-foreground">Open a file from the course or lesson sidebar.</p>}
               </div>
             </section>
-            {error ? <p className="border-t border-red-900/60 bg-red-950/40 px-5 py-2 text-sm text-red-300">{error}</p> : null}
+            {error ? <div role="alert" className="flex items-start gap-3 border-t border-dashed px-5 py-2 text-sm text-destructive"><p className="flex-1">{error}</p><button type="button" className="shrink-0 underline" onClick={() => setError(null)}>Dismiss</button></div> : null}
+            {fileErrors[activeFilePath] ? <div role="alert" className="flex items-start gap-3 border-t border-dashed px-5 py-2 text-sm text-destructive">
+              <p className="flex-1">{activeFilePath}: {fileErrors[activeFilePath]}</p>
+              <button type="button" className="shrink-0 underline" onClick={() => setFileErrors(current => { const next = { ...current }; delete next[activeFilePath]; return next; })}>Dismiss</button>
+            </div> : null}
+            {visibleEvaluationError ? <div role="alert" className="flex items-start gap-3 border-t border-dashed px-5 py-2 text-sm text-destructive">
+              <p className="flex-1">Evaluation · {selectedLesson?.title ?? selectedLessonId}: {visibleEvaluationError.message}</p>
+              <button type="button" className="shrink-0 underline" onClick={() => setEvaluationError(null)}>Dismiss</button>
+            </div> : null}
+            {scope === "lesson" && trialError?.lessonId === selectedLessonId ? <div role="alert" className="flex items-start gap-3 border-t border-dashed px-5 py-2 text-sm text-destructive">
+              <p className="flex-1">Trial · {selectedLesson?.title ?? selectedLessonId}: {trialError.message}</p>
+              <button type="button" className="shrink-0 underline" onClick={() => setTrialError(null)}>Dismiss</button>
+            </div> : null}
             <div className="flex h-11 shrink-0 justify-end border-t border-dashed bg-background">
+              <AuthoringEvaluationSettings open={evaluationSettingsOpen} onOpenChange={setEvaluationSettingsOpen} api={authoringApi} onSaved={() => setEvaluationError(null)} />
               <div className="flex items-stretch">
+                <WorkspaceAction disabled={Boolean(busy)} onClick={() => setEvaluationSettingsOpen(true)}>Evaluation settings</WorkspaceAction>
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}><RefreshCw className="size-3.5" /> Refresh</WorkspaceAction>
-                <WorkspaceAction disabled={Boolean(busy)} onClick={() => reportOpen ? setReportOpen(false) : void showEvaluationReport()}>{reportOpen ? "Hide report" : "Report"}</WorkspaceAction>
+                {visibleReport ? <WorkspaceAction disabled={false} onClick={() => setReportOpen(!reportOpen)}>{reportOpen ? "Hide evaluation" : "Evaluation results"}</WorkspaceAction> : null}
                 {scope === "lesson" && selectedLesson ? <WorkspaceAction disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}><ExternalLink className="size-3.5" /> Trial</WorkspaceAction> : null}
-                <button className="bg-[#0070f3] px-4 text-xs text-white hover:bg-[#0761d1] disabled:bg-[#242424] disabled:text-[#878787]" disabled={Boolean(busy) || !evalReady || !selectedLessonId} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</button>
+                {scope === "lesson" && selectedLessonId ? <button className="bg-[#0070f3] px-4 text-xs text-white hover:bg-[#0761d1] disabled:bg-[#242424] disabled:text-[#878787]" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</button> : null}
               </div>
             </div>
         </div>
@@ -614,9 +713,16 @@ function ReadinessPanel({ lesson, scope, workspace }: {
       <div className="border-b border-dashed px-4 py-2 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Readiness</div>
       <div className="grid gap-px bg-border/50 sm:grid-cols-2">
         {checks.map((check) => (
-          <div className="flex items-center gap-2 bg-background px-4 py-3 font-prose text-sm" key={check.id}>
-            {check.ready ? <Check className="size-4 text-emerald-400" /> : <Circle className="size-4 text-muted-foreground" />}
-            <span className={check.ready ? "text-foreground" : "text-muted-foreground"}>{check.label}</span>
+          <div className="bg-background px-4 py-3 font-prose text-sm" key={check.id}>
+            <div className="flex items-center gap-2">
+              {check.ready ? <Check className="size-4 text-emerald-400" /> : <Circle className="size-4 text-muted-foreground" />}
+              <span className={check.ready ? "text-foreground" : "text-muted-foreground"}>{check.label}</span>
+            </div>
+            {!check.ready && check.findings?.length ? (
+              <ul className="mt-2 list-disc space-y-1 pl-10 text-xs text-muted-foreground">
+                {check.findings.map(finding => <li key={finding}>{finding}</li>)}
+              </ul>
+            ) : null}
           </div>
         ))}
       </div>
@@ -664,13 +770,13 @@ function EditorFileIcon() {
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, withAuthoringWorkspace(init));
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) throw await httpError(response);
   return response.json() as Promise<T>;
 }
 
 async function drainStream(url: string, init: RequestInit): Promise<void> {
   const response = await fetch(url, withAuthoringWorkspace(init));
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) throw await httpError(response);
   const reader = response.body?.getReader();
   if (!reader) return;
   while (!(await reader.read()).done) { /* Transcript is projected after the native turn. */ }
@@ -687,7 +793,10 @@ function withAuthoringWorkspace(init: RequestInit = {}): RequestInit {
 function authoringApi(path: string): string {
   if (typeof window === "undefined") return path;
   const workspaceId = new URLSearchParams(window.location.search).get("workspace");
-  return workspaceId ? `${path}?workspace=${encodeURIComponent(workspaceId)}` : path;
+  if (!workspaceId) return path;
+  const url = new URL(path, window.location.origin);
+  url.searchParams.set("workspace", workspaceId);
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 function errorMessage(cause: unknown): string { return cause instanceof Error ? cause.message : String(cause); }

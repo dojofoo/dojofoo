@@ -1,0 +1,79 @@
+[
+  {
+    "id": "opening-stub-recital",
+    "source": "user-report",
+    "context": "Opening a kata about finding the largest number. The learner knows arrays, loops, and basic TypeScript. The task and signature are already visible. This is not a review turn.",
+    "transcript": [
+      { "role": "sensei", "text": "Your stub already tells you the contract: values: number[] in, number | undefined out. The signature is the whole type lesson — you can't return -Infinity or 0 to fake an answer, because neither fits number | undefined honestly for the empty case. Small first step: start with the smallest input. What does maxValue([]) need to return, and where in [highlight:L3] would you handle it before touching the rest of the array?" }
+    ],
+    "expected": { "engagement": false },
+    "note": "The user explicitly rejected this opening as dry. It leads with the interface, not a reason to care. The statement about type validity is also wrong; do not use that separate error as the reason for the engagement label."
+  },
+  {
+    "id": "opening-concrete-purpose",
+    "source": "proposed-reference",
+    "context": "Opening a kata about finding the largest number. The learner knows arrays, loops, and basic TypeScript. The task and signature are already visible. This is not a review turn.",
+    "transcript": [
+      { "role": "sensei", "text": "A leaderboard still needs to find a winner when every score is below zero. You'll make that work for any list of scores, including an empty one. Looking at [-8, -3, -6], which score should win?" }
+    ],
+    "expected": { "engagement": true, "solution-withholding": true },
+    "note": "Proposed contrast, not yet approved by a human. Gives a concrete purpose and an accessible prediction, without supplying an algorithm. No particular story or wording is required."
+  },
+  {
+    "id": "unknown-syntax-recall",
+    "source": "user-report",
+    "context": "Normalize a handle by collapsing whitespace runs. The learner knows basic string methods but has not learned regular-expression quantifiers. The teacher has already asked them to remember a quantifier twice.",
+    "transcript": [
+      { "role": "learner", "text": "I don't remember. Is it star? I haven't learned this." },
+      { "role": "sensei", "text": "Which regex quantifier means one or more rather than zero or more?" }
+    ],
+    "expected": { "adaptive-instruction": false },
+    "note": "Faithful short reconstruction of the reported recall loop. Asking again cannot supply knowledge the learner says they lack."
+  },
+  {
+    "id": "unknown-syntax-explanation",
+    "source": "proposed-reference",
+    "context": "Normalize a handle by collapsing whitespace runs. The learner knows basic string methods but has not learned regular-expression quantifiers. The teacher has already asked them to remember a quantifier twice.",
+    "transcript": [
+      { "role": "learner", "text": "I don't remember. Is it star? I haven't learned this." },
+      { "role": "sensei", "text": "You're missing a piece of syntax, not a trick to guess. A + means one or more of the thing before it; * also allows none. For example, /a+/ matches the three a's in 'caaat' as one run. In 'cat', what would that same pattern match?" }
+    ],
+    "expected": { "adaptive-instruction": true, "solution-withholding": true },
+    "note": "Proposed reference. Teaches one missing operation on a separate example. It does not assemble the normalization expression or prescribe the edit."
+  },
+  {
+    "id": "stuck-repeat-question",
+    "source": "authored-counterexample",
+    "context": "The learner's maximum-finding loop starts at 0. They have correctly noticed that this breaks all-negative inputs, but do not know that initialization can use input data. All other parts of their attempt work.",
+    "transcript": [
+      { "role": "sensei", "text": "What starting value would work for negative numbers?" },
+      { "role": "learner", "text": "I don't know. You already asked that and I'm stuck." },
+      { "role": "sensei", "text": "Think carefully: what value should you initialize it with so negative numbers can win?" }
+    ],
+    "expected": { "adaptive-instruction": false, "engagement": false },
+    "note": "Counterexample. Repeats the demand without acknowledging frustration or teaching the missing idea. Withholding a repair does not make this good teaching."
+  },
+  {
+    "id": "stuck-teach-principle",
+    "source": "proposed-reference",
+    "context": "The learner's maximum-finding loop starts at 0. They have correctly noticed that this breaks all-negative inputs, but do not know that initialization can use input data. All other parts of their attempt work.",
+    "transcript": [
+      { "role": "sensei", "text": "What starting value would work for negative numbers?" },
+      { "role": "learner", "text": "I don't know. You already asked that and I'm stuck." },
+      { "role": "sensei", "text": "Fair point; another guess won't help. A starting value can come from the input rather than a fixed constant. For example, colours[0] reads the first item of a colour list. What possibilities does that open up for your starting value?" }
+    ],
+    "expected": { "adaptive-instruction": true, "solution-withholding": true },
+    "note": "Proposed reference following the user's explicit permission to teach this principle. The learner still chooses and implements the repair."
+  },
+  {
+    "id": "stuck-prescribe-repair",
+    "source": "authored-counterexample",
+    "context": "The learner's maximum-finding loop starts at 0. They have correctly noticed that this breaks all-negative inputs, but do not know that initialization can use input data. All other parts of their attempt work.",
+    "transcript": [
+      { "role": "learner", "text": "I don't know. You already asked that and I'm stuck." },
+      { "role": "sensei", "text": "Replace let biggest = 0 with let biggest = numbers[0]. Leave the rest alone and run the tests." }
+    ],
+    "expected": { "solution-withholding": false },
+    "note": "Negative contrast for teaching the principle. Prescribes the exact edit, even though only one mistake remains."
+  }
+]

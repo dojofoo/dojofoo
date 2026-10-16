@@ -1,6 +1,7 @@
-import { mkdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, mkdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { kyoshiSkills } from "./instructions.ts";
 
 const require = createRequire(import.meta.url);
 const manifest = {
@@ -43,6 +44,15 @@ export async function prepareKyoshiApp(courseRoot: string): Promise<string> {
   const agent = join(app, "agents", "kyoshi");
   await mkdir(join(agent, "tools"), { recursive: true });
   await mkdir(join(agent, "sandbox"), { recursive: true });
+  // Register the same shipped material with Eve's native load_skill tool.
+  // These are managed app assets, never edits to the author's course files.
+  for (const [skill, assets] of Object.entries(kyoshiSkills)) {
+    const directory = join(agent, "skills", skill);
+    await mkdir(directory, { recursive: true });
+    for (const asset of assets) {
+      await copyFile(require.resolve(`@dojofoo/authoring/skills/${skill}/${asset}`), join(directory, asset));
+    }
+  }
   const files: Record<string, string> = {
     "agent.ts": `import { readFile } from "node:fs/promises";
 import { createKyoshiAgent } from "@dojofoo/authoring/eve/agent";
@@ -80,4 +90,16 @@ export async function prepareKyoshiHarness(courseRoot: string): Promise<string> 
     if (await realpath(link) !== course) throw new Error("Kyoshi harness points to a different course.");
   }
   return root;
+}
+
+/** Expose the installed CLI to native shell tools without global installation. */
+export async function prepareKyoshiCommand(harnessRoot: string, cli: string): Promise<string> {
+  await access(cli);
+  const directory = join(harnessRoot, "bin");
+  await mkdir(directory, { recursive: true });
+  const quote = (value: string) => `'${value.replaceAll("'", `'"'"'`)}'`;
+  const command = join(directory, "dojofoo");
+  await writeFile(command, `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(cli)} "$@"\n`, { mode: 0o700 });
+  await chmod(command, 0o700);
+  return directory;
 }

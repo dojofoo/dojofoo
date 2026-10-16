@@ -24,6 +24,16 @@ it("requires an explicitly selected harness", () => {
   expect(result.stderr).toContain("Select the teaching harness");
 });
 
+it.each(["--run", "--evaluate", "--evaluate-heldout"])("rejects an unsupported lesson harness before paid work in %s", async mode => {
+  const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
+  const result = spawnSync(process.execPath, [worker, mode, root], {
+    encoding: "utf8", timeout: 15_000, env: { ...process.env, DOJOFOO_HARNESS: "not-a-lesson-harness" },
+  });
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain("Unsupported Dojofoo harness: not-a-lesson-harness");
+  expect(result.stderr).not.toContain("ENOENT");
+});
+
 it.each(["--run", "--evaluate", "--evaluate-heldout"])("loads %s and fails before inference on a missing manifest", async (mode) => {
   const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
   const result = spawnSync(process.execPath, [worker, mode, root], {

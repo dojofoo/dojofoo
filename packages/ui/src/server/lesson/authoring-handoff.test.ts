@@ -2,6 +2,9 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
+import { setTimeout as delay } from "node:timers/promises";
+
+vi.mock("node:timers/promises", () => ({ setTimeout: vi.fn(async () => {}) }));
 
 const state = vi.hoisted(() => ({
   root: "", code: "stub", attempt: 0, questions: 0,
@@ -78,6 +81,74 @@ async function fixture() {
   return root;
 }
 
+it("paces synthetic turns and records the cadence", async () => {
+  await fixture();
+  vi.stubEnv("DOJOFOO_EVAL_TURN_INTERVAL_MS", "15000");
+  const directory = await runAuthoringHandoff();
+  expect(delay).toHaveBeenCalled();
+  for (const [milliseconds, , options] of vi.mocked(delay).mock.calls) {
+    expect(milliseconds).toBeGreaterThan(0);
+    expect(milliseconds).toBeLessThanOrEqual(15000);
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
+  }
+  const evidence = JSON.parse(await readFile(join(directory, "evidence.json"), "utf8"));
+  expect(evidence[0].turnIntervalMs).toBe(15000);
+});
+
+it.each(["-1", "invalid", "60001"])("rejects an invalid eval cadence before inference: %s", async value => {
+  vi.stubEnv("DOJOFOO_EVAL_TURN_INTERVAL_MS", value);
+  await expect(runAuthoringHandoff()).rejects.toThrow("Evaluation turn interval");
+});
+
+it("allows fast deterministic runs without changing production chat", async () => {
+  await fixture();
+  vi.stubEnv("DOJOFOO_EVAL_TURN_INTERVAL_MS", "0");
+  const directory = await runAuthoringHandoff();
+  expect(delay).not.toHaveBeenCalled();
+  expect(JSON.parse(await readFile(join(directory, "evidence.json"), "utf8"))[0].turnIntervalMs).toBe(0);
+});
+
+it("runs focused learner turns without fixtures or claiming lifecycle completion", async () => {
+  const root = await fixture();
+  await rm(join(root, ".dojo/learner-fixtures.json"));
+  const verifyFixtures = vi.fn();
+  const directory = await runAuthoringHandoff(undefined, ["001-first"], {
+    turns: [{ message: "I understand loops. What does the starting value do?", code: "my attempt" }],
+    verifyFixtures,
+  });
+  expect(state.turns).toEqual(["introduction", "I understand loops. What does the starting value do?"]);
+  expect(state.code).toBe("my attempt");
+  expect(state.questions).toBe(0);
+  expect(verifyFixtures).not.toHaveBeenCalled();
+  const evidence = JSON.parse(await readFile(join(directory, "evidence.json"), "utf8"));
+  expect(evidence[0]).toMatchObject({ learnerProfile: "focused" });
+  expect(evidence.at(-1)).toEqual({ deterministicLifecycle: "not-evaluated" });
+  expect(evidence.find((row: { stage?: string }) => row.stage === "focused-1")).toMatchObject({ sourceBefore: "my attempt", sourceAfter: "my attempt" });
+  expect(acpClient.shutdown).toHaveBeenCalledOnce();
+});
+
+it("can inspect only the production introduction", async () => {
+  await fixture();
+  const directory = await runAuthoringHandoff(undefined, ["001-first"], { turns: [] });
+  expect(state.turns).toEqual(["introduction"]);
+  expect(JSON.parse(await readFile(join(directory, "evidence.json"), "utf8")).at(-1)).toEqual({ deterministicLifecycle: "not-evaluated" });
+});
+
+it("rejects a multi-lesson focused run before starting the teacher", async () => {
+  await fixture();
+  await expect(runAuthoringHandoff(undefined, undefined, { turns: [] })).rejects.toThrow("Focused teaching checks require one lesson");
+  expect(state.turns).toEqual([]);
+});
+
+it("does not send the next turn when pacing is cancelled", async () => {
+  await fixture();
+  vi.stubEnv("DOJOFOO_EVAL_TURN_INTERVAL_MS", "15000");
+  vi.mocked(delay).mockRejectedValueOnce(new Error("Evaluation cancelled"));
+  await expect(runAuthoringHandoff()).rejects.toThrow("Evaluation cancelled");
+  expect(state.turns).toEqual(["introduction"]);
+  expect(acpClient.shutdown).toHaveBeenCalledOnce();
+});
+
 it("refuses to run in the live authoring server process", async () => {
   vi.stubEnv("DOJOFOO_EVALUATION_WORKER", "");
   await expect(runAuthoringHandoff()).rejects.toThrow("isolated worker");
@@ -102,6 +173,20 @@ it("fast-forwards the prior lesson and teaches only the evaluated lesson", async
 it("rejects prior progress that does not open the evaluated lesson", async () => {
   await fixture(); state.wrongNextLesson = true;
   await expect(runAuthoringHandoff()).rejects.toThrow("Prior progress must open the evaluated lesson");
+});
+
+it("uses lesson-specific learner questions when the fixture provides them", async () => {
+  const root = await fixture();
+  const path = join(root, ".dojo/learner-fixtures.json");
+  const fixtures = JSON.parse(await readFile(path, "utf8"));
+  fixtures["002-second"].uncertainty = "What does a running value remember?";
+  fixtures["002-second"].terminology = "What does initialization mean here?";
+  await writeFile(path, JSON.stringify(fixtures));
+  await runAuthoringHandoff();
+  expect(state.turns).toContain("What does a running value remember?");
+  expect(state.turns).toContain("What does initialization mean here?");
+  expect(state.turns).not.toContain("I don't understand that terminology yet.");
+  expect(state.turns).not.toContain("I don't know where to start. Can you make the idea simpler?");
 });
 
 it.each([false, true])("captures the production MDX guidance (Markdown also present=%s)", async markdownPresent => {

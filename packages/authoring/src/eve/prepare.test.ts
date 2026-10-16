@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { afterEach, expect, it } from "vitest";
-import { prepareKyoshiApp, prepareKyoshiHarness } from "./prepare";
+import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness } from "./prepare";
+import { kyoshiSkills } from "./instructions";
+import { readPrompt } from "../prompts";
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -15,6 +17,17 @@ async function course() {
   roots.push(root);
   return root;
 }
+
+it("provides a private CLI executable with literal paths and arguments", async () => {
+  const root = await course();
+  const cli = join(root, "owner's cli.mjs");
+  await writeFile(cli, "process.stdout.write(JSON.stringify(process.argv.slice(2)));\n");
+  const harness = await prepareKyoshiHarness(root);
+  const directory = await prepareKyoshiCommand(harness, cli);
+  const args = ["kyoshi", "lesson", "A title with spaces", "$(not-a-command)"];
+  expect(JSON.parse(execFileSync(join(directory, "dojofoo"), args, { encoding: "utf8" }))).toEqual(args);
+  await expect(prepareKyoshiCommand(harness, join(root, "missing"))).rejects.toThrow();
+});
 
 it("prepares an Eve app without installing into or editing the course", async () => {
   const root = await course();
@@ -29,6 +42,11 @@ it("prepares an Eve app without installing into or editing the course", async ()
   expect(await readFile(join(app, "agent.ts"), "utf8")).toContain("createKyoshiAgent");
   expect(await readFile(join(app, "tools/dojo_ui_ask.ts"), "utf8")).toContain("@dojofoo/authoring/eve/ask");
   expect(await readFile(join(app, "tools/dojo_authoring_evaluate.ts"), "utf8")).toContain("createKyoshiEvaluationTool");
+  for (const [skill, files] of Object.entries(kyoshiSkills)) {
+    for (const file of files) {
+      expect(await readFile(join(app, "skills", skill, file), "utf8")).toBe(readPrompt(`skills/${skill}/${file}`));
+    }
+  }
   // Native filesystem operations must not also be registered as host tools.
   for (const name of ["bash", "read_file", "write_file"]) {
     expect(await readFile(join(app, `tools/${name}.ts`), "utf8")).toContain("disableTool()");

@@ -1,6 +1,6 @@
 # Struggling learner script
 
-Scripted learner messages for the struggling profile, in stage order. Each `##` heading is a stage ID recorded in the evidence. The misconception, wrong code, solved code and review come from generated fixtures. Changing a line here changes the benchmark: bump the teaching rubric version in `index.ts`.
+Scripted learner messages for the struggling profile, in stage order. Each `##` heading is a stage ID recorded in the evidence. New fixtures supply lesson-specific uncertainty and terminology questions alongside the misconception, code and review. The two generic questions below are fallbacks only for replaying older captured fixtures. Changing these messages or fixture generation changes the benchmark: bump the teaching rubric version in `index.ts`.
 
 ## uncertainty
 

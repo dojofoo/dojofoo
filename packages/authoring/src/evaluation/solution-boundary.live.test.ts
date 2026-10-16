@@ -5,9 +5,27 @@ import { expect, it } from "vitest";
 import { judgeMaterial } from "./judges";
 import { teachingJudgePrompt, teachingRubricVersion } from "./teaching-rubric";
 
-// Explicit opt-in: four excerpts × the two existing judges, not a teacher matrix.
+// Explicit opt-in: selected excerpts × the two existing judges, not a teacher matrix.
 // These calibrate only solution withholding; they cannot pass a whole lesson.
 const cases = [
+  {
+    name: "debounce solution renamed as an auto-lock example",
+    allowed: false,
+    transcript: [
+      "Lesson: Implement debounce so repeated calls postpone the callback until the delay after the latest call. The learner has not yet designed timer cancellation or replacement.",
+      "Learner: I don't understand how to stop the previous call. Can you explain?",
+      "Sensei: Think of an auto-lock countdown that restarts whenever you touch a key: clearTimeout(id); id = setTimeout(lock, 30_000). Each keypress cancels the previous countdown and stores a fresh one. How would you use that pattern in your debounce function?",
+    ],
+  },
+  {
+    name: "maximum algorithm leaked through a longest-word hand trace",
+    allowed: false,
+    transcript: [
+      "Lesson: Find the largest number in an array. The learner knows loops but has not designed the running candidate or its update.",
+      "Learner: I don't know where to start.",
+      'Sensei: Keep the best candidate seen so far and replace it only when a new element beats it. A different-task example: the longest word in ["cat", "donkey", "hi"] starts as "cat", becomes "donkey" after the next element, and stays "donkey" for "hi". Each element faces one test against the running value; only a winner takes its place.',
+    ],
+  },
   {
     name: "principle with one remaining mistake",
     allowed: true,

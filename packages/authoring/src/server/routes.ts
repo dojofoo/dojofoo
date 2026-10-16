@@ -1,4 +1,5 @@
 import { readFile, readdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { Hono } from "hono";
 import {
@@ -12,15 +13,19 @@ import {
 } from "./service";
 import { readAuthoringFile, writeAuthoringFile } from "./files";
 import type { AuthoringAgent, AuthoringStreamPart } from "./types";
-import { evaluateFromAuthoring, evaluationConfiguration } from "../evaluation/host.ts";
+import { evaluateFromAuthoring } from "../evaluation/host.ts";
+import { configuredEvaluation, readEvaluationSettings, writeEvaluationSettings } from "../evaluation/settings.ts";
 import { materialHash, readLessonMaterial } from "../evaluation/material.ts";
 import type { EvaluationReport } from "../evaluation/run";
+import { decidePanel } from "../evaluation/panel";
+import { harnessModels } from "../eve/models.ts";
 
 export type AuthoringEvalReport = EvaluationReport;
 
 export type AuthoringRouteDependencies = {
   agent: AuthoringAgent;
   evaluate?: typeof evaluateFromAuthoring;
+  teachingPolicy(mode: string): string;
   resolveWorkspace(request: Request): string;
   stream(input: {
     execute(onPart: (part: AuthoringStreamPart) => void): Promise<void>;
@@ -34,6 +39,18 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
   return new Hono()
   .onError((error, c) => c.json({ error: errorMessage(error) }, 500))
   .get("/draft", (c) => c.json(readAuthoringDraft(dependencies.resolveWorkspace(c.req.raw))))
+  .get("/models", async c => {
+    // Resolve authorization before accessing this machine's native harnesses.
+    dependencies.resolveWorkspace(c.req.raw);
+    const harness = c.req.query("harness");
+    if (!harness || !["codex", "opencode", "pi", "cursor", "grok", "fx"].includes(harness)) return c.json({ error: "Select a supported harness" }, 422);
+    return c.json(await harnessModels(harness, AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(20_000)])));
+  })
+  .get("/evaluation-settings", async c => c.json(await readEvaluationSettings(dependencies.resolveWorkspace(c.req.raw))))
+  .put("/evaluation-settings", async c => {
+    try { return c.json(await writeEvaluationSettings(dependencies.resolveWorkspace(c.req.raw), await c.req.json())); }
+    catch (error) { return c.json({ error: errorMessage(error) }, 422); }
+  })
   .get("/workspace", async (c) =>
     c.json(await service.getWorkspace(dependencies.resolveWorkspace(c.req.raw))))
   .post("/session", async (c) =>
@@ -151,10 +168,22 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
     ), 201))
   .get("/report", async (c) => {
     const root = dependencies.resolveWorkspace(c.req.raw);
-    const report = await readReport(root);
+    const report = await readReport(root, dependencies.teachingPolicy, c.req.query("lessonId"));
     return report
       ? c.json({ root, report })
       : c.json({ root, report: null });
+  })
+  // One status per lesson for the sidebar: preflight readiness, then the
+  // latest trial verdict for that lesson.
+  .get("/reports", async (c) => {
+    const root = dependencies.resolveWorkspace(c.req.raw);
+    const lessons = readAuthoringDraft(root).lessons;
+    const entries = await Promise.all(lessons.map(async lesson => {
+      const report = await readReport(root, dependencies.teachingPolicy, lesson.id).catch(() => null);
+      const status = report?.status ?? (lesson.checks.every(({ ready }) => ready) ? "ready" : "draft");
+      return [lesson.id, status] as const;
+    }));
+    return c.json({ root, statuses: Object.fromEntries(entries) });
   })
   .post("/evals", async (c) => {
     const root = dependencies.resolveWorkspace(c.req.raw);
@@ -172,7 +201,7 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
     }
     const result = await (dependencies.evaluate ?? evaluateFromAuthoring)({
       root, lessonIds, callId: input.callId, signal: c.req.raw.signal,
-      config: evaluationConfiguration(),
+      config: await configuredEvaluation(root),
     });
     return c.json({ root, ...result });
   });
@@ -203,7 +232,9 @@ function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
-async function readReport(target: string): Promise<AuthoringEvalReport | null> {
+const orphanedAfterMs = 40 * 60_000;
+
+async function readReport(target: string, teachingPolicy: (mode: string) => string, lessonId?: string): Promise<AuthoringEvalReport | null> {
   const directory = resolve(target, ".dojo", "evaluations");
   let entries;
   try { entries = await readdir(directory, { withFileTypes: true }); }
@@ -211,11 +242,31 @@ async function readReport(target: string): Promise<AuthoringEvalReport | null> {
   const reports: EvaluationReport[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory() || !entry.name.startsWith("run-")) continue;
+    // A report being rewritten, or left behind by an older build, is skipped
+    // rather than failing the whole lesson view.
     try { reports.push(JSON.parse(await readFile(resolve(directory, entry.name, "report.json"), "utf8"))); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !(error instanceof SyntaxError)) throw error; }
   }
-  const latest = reports.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+  // Predecessors supply continuity context; only the last lesson is taught.
+  const latest = reports.filter(report => !lessonId || report.lessonIds?.at(-1) === lessonId)
+    .sort((a, b) => String(b.startedAt ?? "").localeCompare(String(a.startedAt ?? "")))[0];
   if (!latest) return null;
+  // The worker gives up after 36 minutes; a run still "running" well past that
+  // was killed (closed tab, restart) and will never finish.
+  if (latest.status === "running" && Date.now() - Date.parse(latest.startedAt) > orphanedAfterMs) {
+    return { ...latest, status: "infrastructure-failed", error: "This evaluation was interrupted before it finished. Run the lesson evaluation again." };
+  }
+  // Preserve historical evidence, but do not advertise passes from the older
+  // policy which discarded a required criterion when only one judge failed it.
+  if (latest.status === "passed" && [latest.material, latest.teaching].some(panel => decidePanel(panel ?? []).outcome !== "pass")) {
+    return { ...latest, status: "stale", error: "This result does not meet the current judge-panel acceptance rule. Run the lesson evaluation again." };
+  }
+  if (latest.status === "passed") {
+    const currentPolicyHash = createHash("sha256").update(teachingPolicy(readAuthoringDraft(target).style)).digest("hex");
+    if (latest.teachingPolicyHash !== currentPolicyHash) {
+      return { ...latest, status: "stale", error: "The teaching instructions have changed or were not recorded in this result. Run the lesson evaluation again." };
+    }
+  }
   // A verdict covers the exact material it judged. Edits made after the run
   // (including by hand in the editor) make any completed result stale.
   if (latest.status !== "running" && latest.status !== "stale" && Array.isArray(latest.lessonIds) && latest.materialHash) {

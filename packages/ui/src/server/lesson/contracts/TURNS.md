@@ -24,7 +24,7 @@ Checks pass. Follow the lesson's completion guidance.
 
 ## check-changed
 
-Respond to what the learner tried: name what improved, then connect one failing behavior to one achievable next move.
+Use this attempt to understand the learner's progress and current difficulty. Respond if you have useful help.
 
 ## check-unchanged
 
@@ -32,8 +32,8 @@ The evidence is unchanged. Stay quiet unless one new observation would clearly h
 
 ## check-unchanged-again
 
-This is the second unchanged check. Climb one hint rung: be friendlier and more concrete than your last message.
+This is the second unchanged check. Reconsider what the learner may be missing; don't repeat earlier advice.
 
 ## check-repeated
 
-The learner has run the same failing check {{attempt}} times without changing the code. Treat it as a request for help. Acknowledge the effort, then climb one hint rung: an authored fragment, a docs link, or a worked example on a different problem. Do not repeat earlier advice.
+The same failing check has run {{attempt}} times without a code change. Offer help that addresses the gap: a useful observation, explanation, source or different example. Let the learner choose the edit.

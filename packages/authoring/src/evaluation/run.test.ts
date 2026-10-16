@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { criterionIds, type judgeMaterial } from "./judges";
 import { evaluateAuthoredCourse } from "./run";
 import { TeachingFailure } from "./failure";
+import { materialHash } from "./material";
 import { teachingRubricVersion } from "./teaching-rubric";
 
 const roots: string[] = [];
@@ -52,6 +53,60 @@ it("does not pay for a trial after a material failure", async () => {
   const f = await fixture(); f.judge.mockResolvedValue(panel(false));
   expect((await f.run()).status).toBe("material-failed"); expect(f.trial).not.toHaveBeenCalled();
 });
+it("keeps the lockfile in the reproducible snapshot, not the pedagogical judge prompt", async () => {
+  const f = await fixture();
+  await writeFile(join(f.root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+  const report = await f.run();
+  expect(report.status).toBe("passed");
+  expect(f.judge.mock.calls[0][0]).not.toHaveProperty("pnpm-lock.yaml");
+  const snapshot = JSON.parse(await readFile(join(report.directory, "material.json"), "utf8"));
+  expect(snapshot["pnpm-lock.yaml"]).toBe("lockfileVersion: '9.0'\n");
+  expect(report.materialHash).toBe(materialHash(snapshot));
+});
+it("still invalidates the evaluation if the excluded lockfile changes", async () => {
+  const f = await fixture();
+  await writeFile(join(f.root, "pnpm-lock.yaml"), "before\n");
+  f.judge.mockImplementationOnce(async () => {
+    await writeFile(join(f.root, "pnpm-lock.yaml"), "after\n");
+    return panel();
+  });
+  expect((await f.run()).status).toBe("stale");
+  expect(f.trial).not.toHaveBeenCalled();
+});
+it.each(["material", "trial", "teaching"] as const)("finalizes cancellation while %s ignores its signal", async stage => {
+  const f = await fixture();
+  const stopped = new AbortController();
+  const deferred = <T,>() => {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>(done => { resolve = done; });
+    return { promise, resolve };
+  };
+  const pendingJudge = deferred<Awaited<ReturnType<typeof judgeMaterial>>>();
+  const pendingTrial = deferred<string>();
+  const hang = <T,>(pending: { promise: Promise<T> }) => {
+    queueMicrotask(() => stopped.abort(new Error("Evaluation cancelled")));
+    return pending.promise;
+  };
+  if (stage === "trial") f.trial.mockImplementationOnce(() => hang(pendingTrial));
+  else if (stage === "material") f.judge.mockImplementationOnce(() => hang(pendingJudge));
+  else f.judge.mockResolvedValueOnce(panel()).mockImplementationOnce(() => hang(pendingJudge));
+  const result = evaluateAuthoredCourse({ root: f.root, lessonIds: ["first", "second"], signal: stopped.signal, trial: f.trial, judge: f.judge });
+  try {
+    const report = await result;
+    expect(report).toMatchObject({ status: "infrastructure-failed", stage, error: "Evaluation cancelled" });
+    expect(report.completedAt).toBeTruthy();
+    expect(JSON.parse(await readFile(join(report.directory, "report.json"), "utf8"))).toEqual(report);
+    const calls = f.judge.mock.calls.length;
+    pendingTrial.resolve(join(f.root, "trial"));
+    pendingJudge.resolve(panel());
+    await new Promise(resolve => setImmediate(resolve));
+    expect(f.judge).toHaveBeenCalledTimes(calls);
+    expect(JSON.parse(await readFile(join(report.directory, "report.json"), "utf8"))).toEqual(report);
+  } finally {
+    pendingTrial.resolve(join(f.root, "trial"));
+    pendingJudge.resolve(panel());
+  }
+}, 1000);
 it("judges the production policy with authored material without copying it into course files", async () => {
   const f = await fixture();
   const report = await evaluateAuthoredCourse({ root: f.root, lessonIds: ["first", "second"], signal: AbortSignal.timeout(5000), trial: f.trial, judge: f.judge, teachingPolicy: "Teach missing knowledge before recall" });
@@ -81,6 +136,14 @@ it("preserves infrastructure failures without presenting them as teaching advice
   const f = await fixture(); f.trial.mockRejectedValue(new Error("Provider unavailable"));
   const report = await f.run(); expect(report.status).toBe("infrastructure-failed");
   expect(report.stage).toBe("trial"); expect(report.teaching).toBeUndefined();
+});
+it("does not grade a Codex rate limit as a failed review or pay teaching judges", async () => {
+  const f = await fixture();
+  f.trial.mockRejectedValue(new Error("Codex: exceeded retry limit, last status: 429 Too Many Requests"));
+  const report = await f.run();
+  expect(report).toMatchObject({ status: "infrastructure-failed", stage: "trial", error: expect.stringContaining("429") });
+  expect(report.teaching).toBeUndefined();
+  expect(f.judge).toHaveBeenCalledTimes(1);
 });
 it("classifies a verified learner-ownership violation as teaching, not infrastructure", async () => {
   const f = await fixture(); f.trial.mockRejectedValue(new TeachingFailure("Sensei edited learner code"));
@@ -139,6 +202,7 @@ it("judges only the requested lessons and ignores edits to other lessons", async
   expect(report.status).toBe("passed");
   expect(Object.keys(f.judge.mock.calls[0][0]).filter(path => path.startsWith("src/"))).toEqual(["src/first/SENSEI.md", "src/second/SENSEI.md"]);
   expect(JSON.parse(f.judge.mock.calls[0][0]["evaluation-scope.json"]).lessonIds).toEqual(["first", "second"]);
+  expect(JSON.parse(f.judge.mock.calls[0][0]["evaluation-scope.json"])).toMatchObject({ teachingLessonId: "second", completedBefore: ["first"] });
 });
 it("rejects evidence that taught a prior lesson again", async () => {
   const f = await fixture();
@@ -146,13 +210,26 @@ it("rejects evidence that taught a prior lesson again", async () => {
   expect((await f.run()).error).toContain("requested isolated lesson sessions");
 });
 
-it("passes a split, non-leak teaching verdict and records it as disputed", async () => {
+it("fails a split teaching verdict while preserving the disagreement", async () => {
   const f = await fixture();
   const split = panel(); split[0]!.verdict = { ...split[0]!.verdict, overall: "fail", criteria: split[0]!.verdict.criteria.map(c => c.id === "adaptive-instruction" ? { ...c, pass: false } : c) };
   f.judge.mockResolvedValueOnce(panel()).mockResolvedValueOnce(split);
   const report = await f.run();
-  expect(report.status).toBe("passed");
+  expect(report.status).toBe("teaching-failed");
   expect(report.decisions?.teaching?.disputed).toEqual([{ id: "adaptive-instruction", judges: ["first"] }]);
+});
+it("does not pay for a trial while either material judge still fails a criterion", async () => {
+  const f = await fixture();
+  const split = panel();
+  split[0]!.verdict = { ...split[0]!.verdict, overall: "fail", criteria: split[0]!.verdict.criteria.map(c =>
+    c.id === "adaptive-instruction" ? { ...c, pass: false } : c) };
+  f.judge.mockResolvedValueOnce(split);
+  const report = await f.run();
+  expect(report.status).toBe("material-failed");
+  expect(f.trial).not.toHaveBeenCalled();
+  expect(f.judge).toHaveBeenCalledTimes(1);
+  expect(report.material).toEqual(split);
+  expect(report.decisions?.material?.disputed).toEqual([{ id: "adaptive-instruction", judges: ["first"] }]);
 });
 it("fails when either judge finds a solution leak", async () => {
   const f = await fixture();

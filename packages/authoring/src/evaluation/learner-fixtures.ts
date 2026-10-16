@@ -1,6 +1,6 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
 import { z } from "zod";
@@ -8,6 +8,10 @@ import { authoringHarness } from "../eve/harness";
 import { fixtureGeneratorInstructions } from "./prompts";
 
 const fixtureSchema = z.object({
+  // Older recorded fixtures remain replayable. New generations must include
+  // both lesson-specific questions (checked below before returning them).
+  uncertainty: z.string().trim().min(1).optional(),
+  terminology: z.string().trim().min(1).optional(),
   misconception: z.string().trim().min(1),
   wrong: z.string().trim().min(1),
   solved: z.string().trim().min(1),
@@ -44,7 +48,11 @@ export async function generateLearnerFixtures({ material, lessonIds, harness, mo
   signal.throwIfAborted();
   const directory = await mkdtemp(join(tmpdir(), "dojo-learner-fixtures-"));
   const fixtures: Record<string, LearnerFixture> = {};
-  await writeFile(join(directory, "input.json"), JSON.stringify({ harness, model, lessonIds, material, instructions }, null, 2));
+  // A simulated learner must not quote or depend on private teacher guidance.
+  // Keep tests for constructing/verifying code fixtures, not teaching notes.
+  const learnerMaterial = Object.fromEntries(Object.entries(material).filter(([path]) =>
+    !["SENSEI.md", "SENSEI.mdx", "production-teaching-policy.md"].includes(basename(path))));
+  await writeFile(join(directory, "input.json"), JSON.stringify({ harness, model, lessonIds, material: learnerMaterial, instructions }, null, 2));
   const agent = new HarnessAgent({
     id: "dojo-learner-fixtures",
     harness: authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness }),
@@ -58,9 +66,13 @@ export async function generateLearnerFixtures({ material, lessonIds, harness, mo
     const abortSignal = AbortSignal.any([signal, AbortSignal.timeout(120_000)]);
     const session = await agent.createSession({ abortSignal });
     try {
-      const result = await agent.generate({ session, abortSignal, prompt: JSON.stringify({ lessonId, material }) });
+      const result = await agent.generate({ session, abortSignal, prompt: JSON.stringify({ lessonId, completedBefore: lessonIds.slice(0, index), material: learnerMaterial }) });
       await writeFile(join(directory, `${index + 1}-response.txt`), result.text);
-      fixtures[lessonId] = parseLearnerFixture(result.text);
+      const fixture = parseLearnerFixture(result.text);
+      if (!fixture.uncertainty || !fixture.terminology) {
+        throw new Error("Generated learner fixtures need lesson-specific uncertainty and terminology questions");
+      }
+      fixtures[lessonId] = fixture;
     } finally {
       await session.destroy();
     }

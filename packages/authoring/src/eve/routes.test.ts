@@ -2,6 +2,7 @@ import { Client, type MessageStreamEvent } from "@dojofoo/agent/client";
 import { ChatClient, fetchServerSentEvents } from "@tanstack/ai-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createEveAuthoringRoutes } from "./routes";
+import { KYOSHI_START } from "./bootstrap";
 
 const meta = { at: "2026-09-12T12:00:00.000Z", id: "event", deliveryIds: ["delivery-1"] };
 const wait: MessageStreamEvent = { type: "session.waiting", data: { continuationToken: "session-1", wait: "next-user-message" }, meta };
@@ -38,6 +39,16 @@ function fixture() {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
 describe("Eve authoring HTTP routes using the real Eve client", () => {
+  it("starts with server-owned context and hides the lifecycle input on replay", async () => {
+    const { app, requests } = fixture();
+    const response = await app.request("/sessions/start", { method: "POST" });
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({ sessionId: "session-1" });
+    expect(requests[0].body).toEqual({ message: KYOSHI_START });
+    const snapshot = await (await app.request("/sessions/session-1")).json();
+    expect(snapshot.messages.map((message: { role: string }) => message.role)).toEqual(["assistant"]);
+    expect(JSON.stringify(snapshot)).not.toContain(KYOSHI_START);
+  });
   it("accepts TanStack's real AG-UI transport without a custom message field", async () => {
     const { app, requests } = fixture();
     const connection = fetchServerSentEvents("http://authoring.local/sessions", {

@@ -1,11 +1,13 @@
 import type { EveMessage, EveMessagePart } from "@dojofoo/agent/client";
 import type { MessagePart, ToolCallPart, UIMessage } from "@tanstack/ai";
+import { KYOSHI_START } from "./bootstrap";
 
 /** Render-only projection of Eve's official reducer output. Never a history store
  * or model prompt: Eve retains ownership of replay, input requests and answers.
  */
 export function eveChatMessages(messages: readonly EveMessage[]): UIMessage[] {
-  return messages.map(message => ({
+  return messages.filter((message, index) => !(index === 0 && message.role === "user"
+    && message.parts.length === 1 && message.parts[0].type === "text" && message.parts[0].text === KYOSHI_START)).map(message => ({
     id: message.id,
     role: message.role,
     parts: message.parts.flatMap(part => projectPart(part)),
@@ -22,6 +24,7 @@ export function eveQuestion(part: ToolCallPart) {
     request,
     response: source.toolMetadata?.eve?.inputResponse,
     settled: source.state !== "approval-requested",
+    error: source.state === "output-error" ? (source as { errorText?: string }).errorText ?? "This question could not be delivered." : undefined,
   };
 }
 

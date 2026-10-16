@@ -1,8 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 const privateAuthoringDirectories = new Set([".dojo", ".git", "node_modules"]);
+
+export function privateAuthoringEntry(name: string): boolean {
+  return privateAuthoringDirectories.has(name) || name === ".npmrc" || name === ".netrc"
+    || ((name === ".env" || name.startsWith(".env.")) && ![".env.example", ".env.sample", ".env.template"].includes(name));
+}
 
 export function readAuthoringFile(root: string, requestedPath: string): {
   content: string;
@@ -49,9 +54,19 @@ function authoringFilePath(root: string, requestedPath: string): string {
     || isAbsolute(requestedPath)
     || requestedPath.includes("\\")
     || segments.some((segment) => !segment || segment === "." || segment === "..")
-    || privateAuthoringDirectories.has(segments[0] ?? "")
+    || segments.some(privateAuthoringEntry)
   ) {
     throw new Error(`Unsupported authoring file: ${requestedPath}`);
+  }
+  let ancestor = root;
+  for (const segment of segments) {
+    ancestor = resolve(ancestor, segment);
+    // The editor never follows links into runtime state or an external folder.
+    try {
+      if (lstatSync(ancestor).isSymbolicLink()) throw new Error(`Unsupported authoring file: ${requestedPath}`);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
   }
   return resolve(root, requestedPath);
 }

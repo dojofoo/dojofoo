@@ -12,6 +12,7 @@ import { mountEveAuthoring } from "./authoring-eve";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { getTypeScriptHover } from "./lesson/typescript-language-service";
+import { senseiEvaluationPolicy } from "./lesson/instructions";
 
 const agent: AuthoringRouteDependencies["agent"] = {
   currentHarness: dojofooHarness,
@@ -38,6 +39,7 @@ const agent: AuthoringRouteDependencies["agent"] = {
 
 export const authoringRoutes = createAuthoringRoutes({
   agent,
+  teachingPolicy: senseiEvaluationPolicy,
   resolveWorkspace: resolveRequestWorkspace,
   stream: ({ execute, runId, threadId }) => toServerSentEventsResponse(
     streamAcpAsAgUi({ execute, runId, threadId })

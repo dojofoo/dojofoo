@@ -12,6 +12,7 @@ const roots: string[] = [];
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
@@ -48,6 +49,61 @@ function freshCourse(): string {
 }
 
 describe("fresh lesson state", () => {
+  it("rejects an authoring-only harness before starting a trial, without silently substituting one", async () => {
+    const root = freshCourse();
+    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("trial-session");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    vi.stubEnv("DOJOFOO_HARNESS", "pi");
+    await expect(startLessonSession(root, "001-first")).rejects.toThrow("not by the ACP lesson runtime");
+    expect(start).not.toHaveBeenCalled();
+
+    vi.stubEnv("DOJOFOO_HARNESS", "codex");
+    expect((await startLessonSession(root, "001-first")).sessionId).toBe("trial-session");
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ harness: "codex" }));
+  });
+
+  it("surfaces a resume failure without replacing the conversation and recovers on retry", async () => {
+    const root = freshCourse();
+    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("recoverable-session");
+    const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    vi.spyOn(acpClient, "send").mockResolvedValue("");
+    await startLessonSession(root, "001-first");
+    const before = readFileSync(resolve(root, ".dojo/web.json"), "utf8");
+    resume.mockRejectedValueOnce(new Error("Provider unavailable"));
+    await expect(getLesson(root, "001-first")).rejects.toThrow("Provider unavailable");
+    expect(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).toBe(before);
+    await streamSensei(root, "001-first", "Try again", () => {});
+    expect((await getLesson(root, "001-first"))?.sessionId).toBe("recoverable-session");
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an existing conversation on its harness when the global default changes", async () => {
+    const root = freshCourse();
+    vi.stubEnv("DOJOFOO_HARNESS", "codex");
+    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("owned-session");
+    const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    vi.spyOn(acpClient, "send").mockResolvedValue("");
+    await startLessonSession(root, "001-first");
+
+    vi.stubEnv("DOJOFOO_HARNESS", "pi");
+    expect((await getLesson(root, "001-first"))?.sessionId).toBe("owned-session");
+    await streamSensei(root, "001-first", "Please explain this", () => {});
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(resume).toHaveBeenLastCalledWith("owned-session", expect.objectContaining({ harness: "codex" }));
+    expect((await getLesson(root, "002-second"))?.kata).toBe("002-second");
+    vi.stubEnv("DOJOFOO_HARNESS", "opencode");
+    start.mockResolvedValueOnce("replacement-session");
+    expect((await startLessonSession(root, "001-first", "starter")).sessionId).toBe("replacement-session");
+    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "opencode" }));
+    const state = JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8"));
+    expect(state.threads["starter/001-first"].aliases).toContain("owned-session");
+    await expect(startLessonSession(root, "001-first", "another-course")).rejects.toThrow("Course not found");
+    expect(start).toHaveBeenCalledTimes(2);
+  });
+
   it("supplies completed lesson context without claiming unseen implementation details", async () => {
     const root = freshCourse();
     const initial = await getLesson(root, "001-first");

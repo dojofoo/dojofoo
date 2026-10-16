@@ -4,16 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "eval": "tsx scripts/eval.ts",
     "lesson:check": "vitest run src",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
-    "tsx": "^4.20.6",
     "typescript": "6.0.3",
-    "vitest": "^4.1.10",
-    "yaml": "^2.8.1"
+    "vitest": "^4.1.10"
   }
 }

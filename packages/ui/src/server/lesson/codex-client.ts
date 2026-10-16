@@ -257,7 +257,8 @@ export class AcpClient {
     ];
     try {
       if (options.signal?.aborted) throw options.signal.reason;
-      await this.promptWithInactivityTimeout(connection, runtime.harness, threadId, prompt);
+      const response = await this.promptWithInactivityTimeout(connection, runtime.harness, threadId, prompt);
+      runtime.adapter?.validatePromptResponse?.(response);
       if (options.visible !== false && !options.signal?.aborted && this.transcript(threadId).length === responseStart) {
         throw new Error(
           `${runtime.harness} completed the ACP turn without returning any output. `
@@ -285,7 +286,7 @@ export class AcpClient {
     harness: HarnessKind,
     sessionId: string,
     prompt: acp.ContentBlock[],
-  ): Promise<void> {
+  ): Promise<acp.PromptResponse> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let rejectTimeout!: (cause: Error) => void;
     const timeout = new Promise<never>((_resolve, reject) => { rejectTimeout = reject; });
@@ -307,7 +308,7 @@ export class AcpClient {
     this.turnActivity.set(sessionId, touch);
     touch();
     try {
-      await Promise.race([connection.prompt({ sessionId, prompt }), timeout]);
+      return await Promise.race([connection.prompt({ sessionId, prompt }), timeout]);
     } finally {
       if (timer) clearTimeout(timer);
       this.turnActivity.delete(sessionId);
@@ -483,7 +484,7 @@ export class AcpClient {
     const initialized = await connection.initialize({
       protocolVersion: acp.PROTOCOL_VERSION,
       clientInfo: { name: "dojofoo", title: "Dojofoo", version: "0.1.0" },
-      clientCapabilities: { elicitation: { form: {} } },
+      clientCapabilities: { ...runtime.adapter?.clientCapabilities, elicitation: { form: {} } },
     });
     runtime.promptCapabilities = initialized.agentCapabilities?.promptCapabilities;
   }

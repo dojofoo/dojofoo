@@ -13,10 +13,21 @@ if (!["--run", "--evaluate", "--evaluate-heldout"].includes(process.argv[2]) || 
   process.stderr.write("Select the teaching harness before running a live evaluation.\n");
   process.exitCode = 1;
 } else {
+  // The host kills the worker on cancel or timeout. Abort instead of dying so
+  // the report is completed as interrupted rather than left "running".
+  const stopped = new AbortController();
+  process.once("SIGTERM", () => {
+    stopped.abort(new Error("Evaluation was cancelled before it finished"));
+    setTimeout(() => process.exit(1), 10_000).unref();
+  });
   process.env.DOJOFOO_EVALUATION_WORKER = "1";
   process.env.DOJOFOO_HANDOFF_COURSE = await realpath(process.argv[3]);
   process.env.DOJO_CLI = fileURLToPath(new URL("./index.js", import.meta.url));
   try {
+    // Validate against the production lesson runtime before either judge or
+    // learner fixture generation can consume model usage.
+    const { dojofooHarness } = await import("../../ui/src/server/harness/registry");
+    dojofooHarness();
     const { runAuthoringHandoff } = await import("../../ui/src/server/lesson/authoring-handoff");
     if (process.argv[2] !== "--run") {
       const root = process.env.DOJOFOO_HANDOFF_COURSE;
@@ -36,10 +47,10 @@ if (!["--run", "--evaluate", "--evaluate-heldout"].includes(process.argv[2]) || 
       }
       const { readLessonMaterial } = await import("@dojofoo/authoring/evaluation/material");
       const { respondAsLearner } = await import("@dojofoo/authoring/evaluation/learner-response");
-      const { senseiTeachingPolicy } = await import("../../ui/src/server/lesson/instructions");
+      const { senseiEvaluationPolicy } = await import("../../ui/src/server/lesson/instructions");
       const report = await evaluateAuthoredCourse({
-        teachingPolicy: senseiTeachingPolicy(manifest.mode ?? "katas"),
-        root, lessonIds, signal: AbortSignal.timeout(2_100_000), trial: async signal => {
+        teachingPolicy: senseiEvaluationPolicy(manifest.mode ?? "katas"),
+        root, lessonIds, signal: AbortSignal.any([stopped.signal, AbortSignal.timeout(2_100_000)]), trial: async signal => {
           const fixtures = replayPath ? { path: replayPath } : await generateLearnerFixtures({
             material: await readLessonMaterial(root, lessonIds), lessonIds,
             harness: fixtureHarness, model: fixtureModel, signal,

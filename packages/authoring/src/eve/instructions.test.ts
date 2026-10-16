@@ -31,6 +31,6 @@ it("ships a kata manifest example the CLI can actually run", () => {
   const sample = String(instructions.content).match(/```yaml\n(test: [\s\S]*?)```/u)?.[1];
   const manifest = parse(sample!);
   expect(manifest.test).toBe("npx vitest run {template}");
-  expect(manifest.katas[0]).toMatchObject({ name: expect.any(String), template: expect.stringMatching(/solution\.ts$/u) });
+  expect(manifest.katas[0]).toMatchObject({ name: expect.any(String), template: expect.stringMatching(/kata\.ts$/u) });
   expect(manifest.katas[0].test).toBeUndefined();
 });
