@@ -1,0 +1,190 @@
+/*
+ * Fluid Functionalism foundations for uix: surfaces and their shadows, the type scale with Inter's paired optical
+ * sizes, motion tiers, scrollbars and scroll fades (fluidfunctionalism.com, registry items surfaces, tokens, type-scale,
+ * scroll-area; skills/fluid-functionalism/references/craft.md).
+ * No colors here: a theme sets them (styles/themes, picked with data-ui-theme on <html>).
+ * Dark mode follows a .dark class or data-theme="dark" on any ancestor; a .light class makes a light island again
+ * inside a dark page (e.g. the code editor with a light color scheme).
+ */
+
+:root,
+.light {
+  /* Surfaces: eight levels (--surface-1…8, colors from the theme – styles/themes), each paired with a shadow */
+  --shadow-color: rgb(0 0 0 / 0.06);
+  --shadow-1: 0 0 0 1px var(--shadow-color);
+  --shadow-2: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color);
+  --shadow-3: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color);
+  --shadow-4: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color);
+  --shadow-5: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color);
+  --shadow-6: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color);
+  /* Shadow 3 without its inner parts, for a surface whose inner edge is drawn on top of its content instead */
+  --shadow-3-outer: var(--shadow-3);
+  /* A selected option's pill (segmented controls): two levels above the window in light, three in dark, with shadow 3 */
+  --pill-surface: var(--surface-4);
+  /* A switch's knob: a soft drop in light; in dark, the next level's shadow, so the white dot holds its edge */
+  --knob-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+
+  /* Text in two colors, hairlines and states come from the theme (styles/themes); these derive from them. A border is
+     the hairline: one edge color for dividers, borders and inputs */
+  --fluid-border: var(--fluid-hairline);
+  --overlay: 0 0 0;
+  --hover: var(--fluid-hover);
+  --active: var(--fluid-active);
+}
+
+:root {
+  /* Type: six roles, each a size with a whole-pixel leading (default step) */
+  --fs-display: 28px;
+  --lh-display: 34px;
+  --fs-title: 16px;
+  --lh-title: 22px;
+  --fs-subtitle: 14px;
+  --lh-subtitle: 20px;
+  --fs-body: 13px;
+  --lh-body: 20px;
+  --fs-caption: 12px;
+  --lh-caption: 16px;
+  --fs-micro: 11px;
+  --lh-micro: 14px;
+  /* Three weights, each with the optical size that keeps a label's width when it turns semibold */
+  --fw-normal: "wght" 400, "opsz" 14;
+  --fw-semibold: "wght" 550, "opsz" 18;
+  --fw-bold: "wght" 700, "opsz" 25;
+
+  /* Motion: the three spring tiers, sampled from Motion's own spring (fast 0.08s, moderate 0.16s, both no bounce;
+     slow 0.24s, bounce 0.12) into CSS. Durations are the settle times. Exits are plain tweens one tier quicker */
+  --motion-fast: 100ms;
+  --ease-fast: linear(0, 0.3669, 0.7258, 0.8966, 0.9637, 0.9878, 0.996, 0.9987, 1, 1);
+  --motion-moderate: 200ms;
+  --ease-moderate: linear(0, 0.1244, 0.3428, 0.5438, 0.698, 0.8064, 0.8786, 0.9252, 0.9546, 0.9727, 0.9837, 0.9904, 0.9943, 0.9967, 0.9981, 0.9989, 1, 1, 1, 1);
+  --motion-slow: 250ms;
+  --ease-slow: linear(0, 0.0554, 0.1787, 0.325, 0.4686, 0.5964, 0.7033, 0.7886, 0.8541, 0.9028, 0.9379, 0.9623, 0.9788, 0.9895, 0.9961, 1, 1.002, 1.0028, 1.003, 1.0027, 1.0024, 1.0019, 1.0015, 1.0011, 1);
+  --motion-fast-exit: 60ms;
+  --motion-moderate-exit: 120ms;
+  --motion-slow-exit: 160ms;
+  --ease-exit: ease-in;
+}
+
+/* Compact type: every role one notch down, size and leading together (Fluid's compact step) */
+:root[data-ui-density="compact"] {
+  --fs-display: 24px;
+  --lh-display: 30px;
+  --fs-title: 15px;
+  --lh-title: 20px;
+  --fs-subtitle: 13px;
+  --lh-subtitle: 18px;
+  --fs-body: 12px;
+  --lh-body: 18px;
+  --fs-caption: 11px;
+  --lh-caption: 14px;
+  --fs-micro: 10px;
+  --lh-micro: 12px;
+}
+
+:is(.dark, [data-theme="dark"]) {
+  /* Dark: the theme sets the colors (:is, so this beats :root when the class is on <html>) */
+  --dm-hi-base: rgba(255, 255, 255, 0.01);
+  --dm-hi-mid: rgba(255, 255, 255, 0.02);
+  --dm-hi-high: rgba(255, 255, 255, 0.04);
+  --dm-ring-base: rgba(255, 255, 255, 0.02);
+  --dm-ring-mid: rgba(255, 255, 255, 0.04);
+  --dm-ring-high: rgba(255, 255, 255, 0.06);
+  --dm-drop: rgba(0, 0, 0, 0.18);
+  --shadow-1: inset 0 0 0 1px var(--dm-ring-base);
+  --shadow-2: inset 0 1px 0 0 var(--dm-hi-base), inset 0 0 0 1px var(--dm-ring-base), 0 1px 1px -0.5px var(--dm-drop);
+  --shadow-3: inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-base), 0 0 0 1px rgba(0, 0, 0, 0.12), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop);
+  --shadow-3-outer: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop);
+  --pill-surface: var(--surface-5);
+  --knob-shadow: var(--shadow-4);
+  --shadow-4: inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px rgba(0, 0, 0, 0.14), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop);
+  --shadow-5: inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px rgba(0, 0, 0, 0.16), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop);
+  --shadow-6: inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgba(0, 0, 0, 0.18), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop);
+  --overlay: 255 255 255;
+  /* Derived tokens again, so a dark island inside a light page (e.g. the code editor) resolves them in dark */
+  --fluid-border: var(--fluid-hairline);
+  --hover: var(--fluid-hover);
+  --active: var(--fluid-active);
+}
+
+/* Scroll fades: content dissolves over 48px toward an edge with more to scroll; scroll-driven animations keep the
+   true start and end crisp until you scroll past them. Browsers without them (Firefox) get no fade, since a static
+   one would sit on edges with nothing past them */
+@property --sf-start {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+@property --sf-end {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+@keyframes sf-reveal-start {
+  from { --sf-start: 1; }
+  to { --sf-start: 0; }
+}
+@keyframes sf-reveal-end {
+  from { --sf-end: 0; }
+  to { --sf-end: 1; }
+}
+.scroll-fade,
+.scroll-fade-x {
+  --scroll-fade-size: 48px;
+  /* uix addition: a sticky header's height, so the start fade begins below it instead of fading the header */
+  --scroll-fade-inset: 0px;
+}
+@supports (animation-timeline: scroll()) {
+  .scroll-fade {
+    -webkit-mask-image: linear-gradient(to bottom, #000 0 var(--scroll-fade-inset), rgba(0, 0, 0, var(--sf-start)) var(--scroll-fade-inset), #000 calc(var(--scroll-fade-inset) + var(--scroll-fade-size)), #000 calc(100% - var(--scroll-fade-size)), rgba(0, 0, 0, var(--sf-end)) 100%);
+    mask-image: linear-gradient(to bottom, #000 0 var(--scroll-fade-inset), rgba(0, 0, 0, var(--sf-start)) var(--scroll-fade-inset), #000 calc(var(--scroll-fade-inset) + var(--scroll-fade-size)), #000 calc(100% - var(--scroll-fade-size)), rgba(0, 0, 0, var(--sf-end)) 100%);
+    animation: sf-reveal-start both linear, sf-reveal-end both linear;
+    animation-timeline: scroll(self), scroll(self);
+    animation-range-start: 0, calc(100% - var(--scroll-fade-size));
+    animation-range-end: var(--scroll-fade-size), 100%;
+  }
+  .scroll-fade-x {
+    -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, var(--sf-start)) 0, #000 var(--scroll-fade-size), #000 calc(100% - var(--scroll-fade-size)), rgba(0, 0, 0, var(--sf-end)) 100%);
+    mask-image: linear-gradient(to right, rgba(0, 0, 0, var(--sf-start)) 0, #000 var(--scroll-fade-size), #000 calc(100% - var(--scroll-fade-size)), rgba(0, 0, 0, var(--sf-end)) 100%);
+    animation: sf-reveal-start both linear, sf-reveal-end both linear;
+    animation-timeline: scroll(self inline), scroll(self inline);
+    animation-range-start: 0, calc(100% - var(--scroll-fade-size));
+    animation-range-end: var(--scroll-fade-size), 100%;
+  }
+}
+
+/* Scrollbars with a fine pointer: a narrow, low-contrast thumb (8% overlay) on a 10px track that stays a comfortable
+   hit target; darker on hover (12%) and while dragging (16%). Touch keeps native overflow scrolling */
+@media (pointer: fine) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--overlay) / 0.08) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--overlay) / 0.08);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:vertical {
+    border-left-width: 1px;
+    border-right-width: 5px;
+  }
+  ::-webkit-scrollbar-thumb:horizontal {
+    border-top-width: 1px;
+    border-bottom-width: 5px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--overlay) / 0.12);
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background-color: rgb(var(--overlay) / 0.16);
+  }
+}

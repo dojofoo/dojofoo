@@ -1,0 +1,12 @@
+/* uix themes: each file sets the colors of one theme, light and dark; pick one with data-ui-theme on <html>
+   (see lib/ui-preferences). Dojofoo is the default and sets uix's tokens itself; the others set shadcn's, and
+   derive.css takes uix's from those */
+@import "./dojofoo.css";
+@import "./derive.css";
+/* imported */
+@import "./t3-chat.css";
+@import "./japan-blues.css";
+@import "./openclaw.css";
+@import "./vercel-cursor.css";
+/* Hand tuning for imported themes, after them */
+@import "./tuning.css";

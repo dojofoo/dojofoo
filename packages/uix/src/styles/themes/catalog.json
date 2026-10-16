@@ -1,0 +1,46 @@
+[
+  {
+    "id": "japan-blues",
+    "label": "Japan Blues",
+    "note": "From tweakcn",
+    "source": "https://tweakcn.com/themes/cmmhql9yf000404jshrdebgfj",
+    "swatches": [
+      "oklch(0.2679 0.0036 106.6427)",
+      "oklch(0.2679 0.0036 106.6427)",
+      "oklch(0.9010 0.0580 230.9020)"
+    ]
+  },
+  {
+    "id": "openclaw",
+    "label": "OpenClaw",
+    "note": "From tweakcn",
+    "source": "https://tweakcn.com/themes/cmoix72v6000304l2agd2fb7m",
+    "swatches": [
+      "oklch(0.1645 0.0086 274.3354)",
+      "oklch(0.1919 0.0126 270.6840)",
+      "oklch(0.5651 0.1720 273.8740)"
+    ]
+  },
+  {
+    "id": "vercel-cursor",
+    "label": "Vercel Cursor",
+    "note": "Vercel's palette on Cursor's dark",
+    "source": "https://github.com/FlameDevvv/vercelcursortheme",
+    "swatches": [
+      "oklch(0.2002 0 0)",
+      "oklch(0.2178 0 0)",
+      "oklch(0.6847 0.1501 252.0801)"
+    ]
+  },
+  {
+    "id": "t3-chat",
+    "label": "T3 Chat",
+    "note": "From shadcnthemer.com",
+    "source": "https://shadcnthemer.com/r/themes/52e4d056-377d-4906-9303-50005414e247.json",
+    "swatches": [
+      "oklch(0.2409 0.0201 307.5346)",
+      "oklch(0.2803 0.0232 307.5413)",
+      "oklch(0.4607 0.1853 4.0994)"
+    ]
+  }
+]

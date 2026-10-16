@@ -7,6 +7,7 @@
     "**/*.css"
   ],
   "exports": {
+    "./components/*": "./src/components/*.tsx",
     "./components/context-menu": "./src/components/context-menu.tsx",
     "./styles.css": "./src/styles.css",
     "./components/motion/button/*": "./src/components/motion/button/*.tsx",
@@ -19,24 +20,36 @@
     "storybook": "portless ui.dojofoo storybook dev",
     "storybook:direct": "storybook dev -p 6007",
     "storybook:build": "storybook build -o ../../.storybook-static/uix",
-    "types:check": "tsc --noEmit"
+    "types:check": "tsc --noEmit",
+    "theme:add": "node scripts/theme-add.mjs"
   },
   "peerDependencies": {
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "dependencies": {
+    "@fontsource/iosevka": "5.3.0",
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
+    "@iconify-json/fluent": "1.2.59",
+    "@iconify-json/solar": "1.2.13",
+    "@mingcute/react": "3.0.2",
     "@mynaui/icons-react": "^0.4.11",
     "@toolwind/corner-shape": "0.0.8-3",
     "clsx": "^2.1.1",
     "cn": "^0.4.0",
     "cuelume": "^0.2.2",
+    "iconoir-react": "7.12.1",
+    "lucide-react": "^1.52.0",
     "motion": "^13.1.1",
     "radix-ui": "^1.6.7",
-    "tailwind-merge": "^3.6.0"
+    "shaka-player": "^5.3.0",
+    "tailwind-merge": "^3.6.0",
+    "youtube-video-element": "1.9.0"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/noto-sans": "5.3.0",
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@storybook/addon-a11y": "10.5.10",
     "@storybook/react-vite": "10.5.10",
@@ -44,6 +57,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
+    "modern-monaco": "0.4.2",
     "portless": "^0.15.5",
     "shadcn": "^4.16.2",
     "storybook": "10.5.10",

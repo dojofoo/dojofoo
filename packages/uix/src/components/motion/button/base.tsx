@@ -1,4 +1,3 @@
-"use client";
 // beui.dev/components/motion/button
 
 import {

@@ -6,7 +6,7 @@ import markdown from "shiki/langs/markdown.mjs";
 import python from "shiki/langs/python.mjs";
 import yaml from "shiki/langs/yaml.mjs";
 import editorCoreUrl from "virtual:dojo-monaco-url";
-import { vercelCursorTheme } from "./code-editor-theme";
+import { editorSchemes, vercelCursorTheme } from "./code-editor-theme";
 
 let runtime: ReturnType<typeof init> | undefined;
 export function loadMonaco() {
@@ -21,7 +21,8 @@ export function loadMonaco() {
     const config = JSON.parse(map.textContent || "{}");
     map.textContent = JSON.stringify({ ...config, imports: { ...config.imports, "modern-monaco/editor-core": editorCoreUrl } });
     if (!existing) document.head.append(map);
-    runtime = init({ defaultTheme: vercelCursorTheme, cdn: window.location.origin,
+    // Every editor color scheme is registered upfront (small JSON, bundled): switching is a setTheme by name
+    runtime = init({ defaultTheme: vercelCursorTheme, themes: editorSchemes.flatMap((scheme) => [scheme.theme, ...(scheme.light ? [scheme.light.theme] : [])]), cdn: window.location.origin,
       langs: [...javascript, ...typescript, ...json, ...markdown, ...python, ...yaml],
     }).catch((error) => { runtime = undefined; throw error; });
   }
