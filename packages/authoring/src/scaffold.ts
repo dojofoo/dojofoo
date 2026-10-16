@@ -30,15 +30,6 @@ export function scaffoldAuthoringWorkspace(input: {
     if (existsSync(destination)) continue;
     cpSync(resolve(source, entry.name), destination, { recursive: true });
   }
-  // Author-owned lessons are never overwritten. The evaluator runtime is
-  // Dojofoo-owned infrastructure and is refreshed when Kyoshi resumes.
-  for (const path of ["scripts/eval.ts", "scripts/eval-harnesses.ts", "scripts/eval-types.ts"]) {
-    const sourcePath = resolve(source, path);
-    if (!existsSync(sourcePath)) continue;
-    const destination = resolve(input.root, path);
-    mkdirSync(dirname(destination), { recursive: true });
-    cpSync(sourcePath, destination);
-  }
   mkdirSync(resolve(input.root, "src"), { recursive: true });
   if (createdManifest) configureManifest(input.root, input.name);
   if (createdPackage) configurePackage(input.root, input.name);

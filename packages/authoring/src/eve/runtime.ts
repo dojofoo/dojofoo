@@ -1,8 +1,8 @@
 import { readFile, realpath, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { authoringHarness, type AuthoringHarness } from "./harness.ts";
-import { prepareKyoshiApp, prepareKyoshiHarness } from "./prepare.ts";
+import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness } from "./prepare.ts";
 import { authoringEnvironment } from "./environment.ts";
 import { evaluationConfiguration } from "../evaluation/host.ts";
 
@@ -65,6 +65,10 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
       if (closing) return Promise.reject(new Error("Kyoshi runtime is closed."));
       return starting ??= (async () => {
         const environment = await prepareHarnessEnvironment(await authoringEnvironment(harness));
+        if (process.env.DOJO_CLI) {
+          const commands = await prepareKyoshiCommand(harnessRoot, process.env.DOJO_CLI);
+          environment.PATH = [commands, environment.PATH].filter(Boolean).join(delimiter);
+        }
         host = registerLocalProcessHost(await createLocalSandbox(harnessRoot, { environment }));
         try {
           await writeFile(runtimePath, JSON.stringify({
@@ -72,7 +76,9 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
             harnessRoot,
             model,
             harness,
-            evaluation: evaluationConfiguration(),
+            // A half-configured evaluator must not stop Kyoshi from starting;
+            // the evaluation tool then reports "not configured" instead.
+            evaluation: (() => { try { return evaluationConfiguration(); } catch { return undefined; } })(),
             connection: host.connection,
           }), { mode: 0o600 });
           const started = await server.start();

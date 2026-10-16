@@ -58,3 +58,20 @@ it("ignores runtime, dependencies and secrets; reconnect gets a fresh notificati
   watchers.subscribe(root, event => notices.push(event));
   await expect.poll(() => notices.length).toBe(2);
 });
+
+it("refreshes agent-written evaluation reports without watching private evidence", async () => {
+  root = await mkdtemp(join(tmpdir(), "dojo-authoring-report-"));
+  const directory = join(root, ".dojo/evaluations/run-fixture");
+  const notices: unknown[] = [];
+  watchers.subscribe(root, event => notices.push(event));
+  await expect.poll(() => notices.length).toBe(1);
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "material.json"), "private fixture");
+  await new Promise(resolve => setTimeout(resolve, 500));
+  expect(notices).toHaveLength(1);
+  await writeFile(join(directory, "report.json"), JSON.stringify({ status: "running" }));
+  await expect.poll(() => notices.length).toBe(2);
+  await writeFile(join(directory, "report.json"), JSON.stringify({ status: "passed" }));
+  await expect.poll(() => notices.length).toBe(3);
+  expect(notices).toEqual(Array.from({ length: 3 }, () => ({ method: "workspace.changed" })));
+});

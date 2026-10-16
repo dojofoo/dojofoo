@@ -29,7 +29,7 @@ Commands:
   remove <name>       Remove a dojo
   ui [--background]   Start or control the lesson UI
   track               Record the active agent session as a cassette
-  kyoshi              Create or resume a dojo authoring workspace
+  kyoshi              Author, inspect, scaffold, check, or evaluate a course (--help)
 
 Flags:
   --test/--check      Show overall progress

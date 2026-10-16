@@ -1,0 +1,73 @@
+diff --git a/dist/esm/chat-client.js b/dist/esm/chat-client.js
+index 8cb373b289ce763fb759a3e38f9903a1ced96dbc..ef7d43b169c93fa42b1a9a0d5cfa80b8b1c954db 100644
+--- a/dist/esm/chat-client.js
++++ b/dist/esm/chat-client.js
+@@ -1047,7 +1047,15 @@ var ChatClient = class {
+ 	async sendMessage(content, body, sendOptions) {
+ 		this.mountDevtools();
+ 		if (typeof content === "string" && !content.trim()) return;
+-		if (this.hasBlockingInterrupts()) throw new Error("ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.");
++		if (this.hasBlockingInterrupts()) {
++			const { action, id } = this.decideWhenBusy(content, sendOptions);
++			if (action === "drop") return;
++			if (action === "queue") {
++				this.enqueueMessage(content, body, id);
++				return;
++			}
++			throw new Error("ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.");
++		}
+ 		if (this.isSendBusy()) {
+ 			const { action, id } = this.decideWhenBusy(content, sendOptions);
+ 			if (action === "drop") return;
+@@ -1516,7 +1524,7 @@ var ChatClient = class {
+ 	* by control-flow analysis.
+ 	*/
+ 	shouldAbortMessageQueueDrain() {
+-		return this.isLoading || this.stopMessageQueueDrain;
++		return this.isLoading || this.stopMessageQueueDrain || this.hasPendingInterrupts();
+ 	}
+ 	/**
+ 	* Deliver queued messages after a successful settle.
+@@ -1529,7 +1537,7 @@ var ChatClient = class {
+ 	* busy/queue policy (which would re-queue items and strand the rest).
+ 	*/
+ 	async drainQueue() {
+-		if (this.messageQueueDraining || this.isLoading || this.messageQueue.length === 0) return;
++		if (this.messageQueueDraining || this.isLoading || this.hasPendingInterrupts() || this.messageQueue.length === 0) return;
+ 		this.messageQueueDraining = true;
+ 		this.stopMessageQueueDrain = false;
+ 		try {
+diff --git a/src/chat-client.ts b/src/chat-client.ts
+index 4a40c3a3dccea62f4379f5fd5a131c5cd96a5cdf..80670e84c3e707c895576b42a375d16a2f7f9ed9 100644
+--- a/src/chat-client.ts
++++ b/src/chat-client.ts
+@@ -1901,6 +1901,12 @@ export class ChatClient<
+       return
+     }
+     if (this.hasBlockingInterrupts()) {
++      const { action, id } = this.decideWhenBusy(content, sendOptions)
++      if (action === 'drop') return
++      if (action === 'queue') {
++        this.enqueueMessage(content, body, id)
++        return
++      }
+       throw new Error(
+         'ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.',
+       )
+@@ -2727,7 +2733,7 @@ export class ChatClient<
+    * by control-flow analysis.
+    */
+   private shouldAbortMessageQueueDrain(): boolean {
+-    return this.isLoading || this.stopMessageQueueDrain
++    return this.isLoading || this.stopMessageQueueDrain || this.hasPendingInterrupts()
+   }
+ 
+   /**
+@@ -2747,6 +2753,7 @@ export class ChatClient<
+     if (
+       this.messageQueueDraining ||
+       this.isLoading ||
++      this.hasPendingInterrupts() ||
+       this.messageQueue.length === 0
+     ) {
+       return

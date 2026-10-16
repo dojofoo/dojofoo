@@ -10,13 +10,282 @@ const data = { sequence: 1, turnId: "turn-1", stepIndex: 0 };
 const meta = { id: "fixture", at: "2026-09-13T00:00:00Z" };
 const wait: MessageStreamEvent = { type: "session.waiting", data: { continuationToken: "eve-1", wait: "next-user-message" }, meta };
 const opening: MessageStreamEvent[] = [
-  { type: "message.received", data: { ...data, message: "Help me author this course" }, meta },
+  { type: "message.received", data: { ...data, message: "[dojo:begin-authoring]" }, meta },
   { type: "message.completed", data: { ...data, message: "Which concept should we teach first?", finishReason: "stop" }, meta },
   { type: "actions.requested", data: { ...data, actions: [action] }, meta },
   { type: "input.requested", data: { ...data, requests: [{ action, requestId: "question-review", kind: "question", prompt: "Choose a starting point", display: "select", options: [{ id: "review", label: "Review the outline" }, { id: "write", label: "Write a lesson" }] }] }, meta }, wait,
 ];
 
-test("saved evaluation findings open without starting an authoring or evaluation turn", async ({ page }) => {
+test("workspace startup failure can be retried without replacing the conversation", async ({ page }) => {
+  let repaired = false;
+  const starts: string[] = [];
+  let changed: () => void = () => {};
+  await page.routeWebSocket("**/api/authoring/changes*", socket => {
+    changed = () => socket.send(JSON.stringify({ method: "workspace.changed" }));
+  });
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return repaired
+      ? route.fulfill({ json: { backend: "eve" } })
+      : route.fulfill({ status: 503, json: { error: "Harness runtime unavailable" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [
+      { id: "earlier", role: "user", parts: [{ type: "text", content: "Keep my existing course conversation" }] },
+    ] } });
+    if (path.endsWith("/sessions/start")) starts.push(path);
+    return route.fulfill({ status: 404, json: { error: "Unexpected route" } });
+  });
+  await page.goto("/authoring?session=saved");
+  await expect(page.getByRole("alert")).toContainText("Harness runtime unavailable");
+  // The filesystem can be healthy while the agent host is unavailable. Its
+  // watcher must not accidentally render the legacy ACP composer.
+  const refreshed = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/draft"));
+  changed();
+  await refreshed;
+  await expect(page.getByTestId("authoring-chat-composer")).toHaveCount(0);
+  repaired = true;
+  await page.getByRole("button", { name: "Reload workspace" }).click();
+  await expect(page.getByText("Keep my existing course conversation", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/session=saved/);
+  expect(starts).toEqual([]);
+});
+
+test("a failed save stays with its file and preserves the unsaved content", async ({ page }) => {
+  const files = [...draft.rootFiles, { path: "DOJO.md", label: "DOJO.md", content: "# Course guidance" }];
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: { ...draft, rootFiles: files } });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (path.includes("/files/")) return route.fulfill({ status: 422, json: { error: "Fixture save rejected" } });
+    return route.fulfill({ contentType: "text/event-stream", body: "" });
+  });
+  await page.goto("/authoring?session=saved");
+  await page.getByRole("textbox", { name: "Code editor" }).focus();
+  await page.keyboard.press("Meta+End");
+  await page.keyboard.type("# unsaved");
+  await page.keyboard.press("Meta+s");
+  await expect(page.getByRole("alert").filter({ hasText: "Fixture save rejected" })).toBeVisible();
+  await page.getByText("DOJO.md", { exact: true }).click();
+  await expect(page.getByRole("tab", { name: "DOJO.md", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByText(/Fixture save rejected/)).toHaveCount(0);
+  await page.getByRole("tab", { name: /dojo.yaml/ }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Fixture save rejected" })).toBeVisible();
+  await expect(page.locator(".monaco-editor .view-lines")).toContainText("# unsaved");
+  await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+  await expect(page.getByText(/Fixture save rejected/)).toHaveCount(0);
+});
+
+test("messages sent during a turn stay visible in the queue and are delivered once", async ({ page }) => {
+  const reducer = defaultMessageReducer();
+  let projection = reducer.initial();
+  const requests: string[] = [];
+  const release = Promise.withResolvers<void>();
+  await page.route("**/api/authoring/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (path.endsWith("/sessions/saved/messages")) {
+      const body = route.request().postDataJSON();
+      const latest = body.messages.at(-1);
+      const message = latest.parts.filter((part: { type: string }) => part.type === "text").map((part: { content: string }) => part.content).join("");
+      requests.push(message);
+      if (requests.length === 1) await release.promise;
+      const turn = { ...data, sequence: requests.length, turnId: `turn-${requests.length}` };
+      const events: MessageStreamEvent[] = [
+        { type: "message.received", data: { ...turn, message }, meta },
+        { type: "message.completed", data: { ...turn, message: `Received: ${message}`, finishReason: "stop" }, meta }, wait,
+      ];
+      async function* source() { yield* events; }
+      const response = toServerSentEventsResponse(streamEveAsAgUi({ events: source(), initial: projection, threadId: "saved", runId: body.runId }));
+      const text = await response.text();
+      projection = events.reduce(reducer.reduce, projection);
+      return route.fulfill({ contentType: "text/event-stream", body: text });
+    }
+    return route.fulfill({ status: 404, json: { error: "Unexpected route" } });
+  });
+  await page.goto("/authoring?session=saved");
+  const input = page.getByTestId("authoring-chat-composer").getByRole("textbox");
+  for (const message of ["Outline arrays", "Use plain language", "Discard this request"]) {
+    await input.fill(message);
+    await input.press("Enter");
+  }
+  const queue = page.locator('[data-slot="message-queue"]');
+  await expect(queue).toContainText("2 queued");
+  await queue.getByRole("button", { name: 'Remove "Discard this request" from the queue' }).click();
+  await expect(queue).toContainText("1 queued");
+  expect(requests).toEqual(["Outline arrays"]);
+  release.resolve();
+  await expect(page.getByText("Received: Use plain language", { exact: true })).toBeVisible();
+  await expect(queue).toHaveCount(0);
+  await expect(page.getByText("Use plain language", { exact: true })).toHaveCount(1);
+  expect(requests).toEqual(["Outline arrays", "Use plain language"]);
+});
+
+test("keeps a pending question while queuing messages through its continuation", async ({ page }) => {
+  const reducer = defaultMessageReducer();
+  let projection = opening.reduce(reducer.reduce, reducer.initial());
+  const continuation = Promise.withResolvers<void>();
+  const resumed = Promise.withResolvers<void>();
+  const delivered: string[] = [];
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: {
+      session: { sessionId: "saved" }, messages: eveChatMessages(projection.messages),
+      initialResumeSnapshot: { resumeState: { threadId: "saved", runId: "paused" }, pendingInterrupts: eveQuestionInterrupts(projection, "paused") },
+    } });
+    if (!path.endsWith("/sessions/saved/messages")) return route.fulfill({ status: 404 });
+    const body = route.request().postDataJSON();
+    let events: MessageStreamEvent[];
+    if (body.resume) {
+      resumed.resolve();
+      await continuation.promise;
+      events = [
+        { type: "input.resolved", data: { ...data, resolutions: [{ kind: "question", requestId: "question-review", outcome: "answered", response: { requestId: "question-review", optionId: "review" } }] }, meta },
+        { type: "message.completed", data: { ...data, sequence: 2, turnId: "resume", message: "Let's review.", finishReason: "stop" }, meta }, wait,
+      ];
+    } else {
+      const message = body.messages.at(-1).parts.filter((part: { type: string }) => part.type === "text").map((part: { content: string }) => part.content).join("");
+      delivered.push(message);
+      const turn = { ...data, sequence: 2 + delivered.length, turnId: `queued-${delivered.length}` };
+      events = [
+        { type: "message.received", data: { ...turn, message }, meta },
+        { type: "message.completed", data: { ...turn, message: `Received: ${message}`, finishReason: "stop" }, meta }, wait,
+      ];
+    }
+    async function* source() { yield* events; }
+    const response = toServerSentEventsResponse(streamEveAsAgUi({ events: source(), initial: projection, threadId: "saved", runId: body.runId }));
+    const text = await response.text();
+    projection = events.reduce(reducer.reduce, projection);
+    return route.fulfill({ contentType: "text/event-stream", body: text });
+  });
+  await page.goto("/authoring?session=saved");
+  const input = page.getByTestId("authoring-chat-composer").getByRole("textbox");
+  await input.fill("Focus on arrays");
+  await input.press("Enter");
+  const queue = page.locator('[data-slot="message-queue"]');
+  await expect(queue).toContainText("Focus on arrays");
+  await expect(page.getByRole("radio", { name: /Review the outline/ })).toBeEnabled();
+  expect(delivered).toEqual([]);
+  await page.getByRole("radio", { name: /Review the outline/ }).click();
+  await resumed.promise;
+  await expect(input).toBeEnabled();
+  await input.fill("Keep it short");
+  await input.press("Enter");
+  await expect(queue).toContainText("Keep it short");
+  continuation.resolve();
+  await expect(page.getByText("Received: Keep it short", { exact: true })).toBeVisible();
+  await expect(queue).toHaveCount(0);
+  expect(delivered).toEqual(["Focus on arrays", "Keep it short"]);
+  await expect(page.getByText(/cannot send normal input/)).toHaveCount(0);
+});
+
+test("report loading errors stay with their lesson and clear after watcher recovery", async ({ page }) => {
+  let failReport = true;
+  let completedReport = false;
+  let changed: () => void = () => {};
+  await page.routeWebSocket("**/api/authoring/changes*", socket => {
+    changed = () => socket.send(JSON.stringify({ method: "workspace.changed" }));
+  });
+  const lessons = ["first", "second"].map(id => ({ id, title: id, senseiPath: `src/${id}/SENSEI.md`, description: "", checks: [], files: [
+    { path: `src/${id}/SENSEI.md`, label: "SENSEI.md", content: `# ${id}` },
+  ] }));
+  await page.route("**/api/authoring/**", route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { ...draft, lessons } });
+    if (url.pathname.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (url.pathname.endsWith("/evaluation-settings")) return route.fulfill({ json: { enabled: true } });
+    if (url.pathname.endsWith("/evals")) return route.fulfill({ status: 503, json: { error: "Judge unavailable" } });
+    if (url.pathname.endsWith("/report")) {
+      if (failReport && url.searchParams.get("lessonId") === "first") return route.fulfill({ status: 503, json: { error: "Report temporarily unavailable" } });
+      return route.fulfill({ json: { root: draft.root, report: completedReport ? {
+        version: 1, directory: "/tmp/eve-course/.dojo/evaluations/run-new", lessonIds: ["first"],
+        materialHash: "fixture", stage: "teaching", status: "passed",
+        startedAt: "2026-10-12T00:00:00Z", completedAt: "2026-10-12T00:01:00Z",
+      } : null } });
+    }
+    return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
+  });
+  await page.goto("/authoring?session=saved");
+  const selectLesson = async (name: string) => {
+    const item = page.getByRole("treeitem", { name, exact: true });
+    if (await item.getAttribute("aria-expanded") !== "true") await item.getByRole("button", { name, exact: true }).click();
+    await item.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  };
+  await selectLesson("first");
+  const alert = page.getByRole("alert").filter({ hasText: "Could not load this lesson" });
+  await expect(alert).toBeVisible();
+  await selectLesson("second");
+  await expect(alert).toHaveCount(0);
+  await selectLesson("first");
+  await expect(alert).toBeVisible();
+  failReport = false;
+  changed();
+  await expect(alert).toHaveCount(0);
+  await page.getByRole("button", { name: "Evaluate lesson", exact: true }).click();
+  const runError = page.getByRole("alert").filter({ hasText: "Judge unavailable" });
+  await expect(runError).toBeVisible();
+  const reloaded = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/report"));
+  changed();
+  await reloaded;
+  await expect(runError).toBeVisible();
+  completedReport = true;
+  changed();
+  await expect(runError).toHaveCount(0);
+  await page.getByRole("button", { name: "Evaluation results", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Tested scenarios passed" })).toBeVisible();
+});
+
+test("a late evaluation cannot replace another lesson's report", async ({ page }) => {
+  const release = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
+  const lessons = ["first", "second"].map(id => ({ id, title: id, senseiPath: `src/${id}/SENSEI.md`, description: "", checks: [], files: [
+    { path: `src/${id}/SENSEI.md`, label: "SENSEI.md", content: `# ${id}` },
+  ] }));
+  const report = (id: string) => ({ version: 1, directory: `/evidence/${id}`, lessonIds: [id], materialHash: "fixture", stage: "teaching", status: "passed", startedAt: "start", completedAt: "end" });
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { ...draft, lessons } });
+    if (url.pathname.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (url.pathname.endsWith("/evaluation-settings")) return route.fulfill({ json: { enabled: true } });
+    if (url.pathname.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report: report(url.searchParams.get("lessonId")!) } });
+    if (url.pathname.endsWith("/evals")) {
+      started.resolve();
+      await release.promise;
+      return route.fulfill({ json: { root: draft.root, report: report("first") } });
+    }
+    return route.fulfill({ status: 404 });
+  });
+  await page.goto("/authoring?session=saved");
+  const selectLesson = async (name: string) => {
+    const item = page.getByRole("treeitem", { name, exact: true });
+    if (await item.getAttribute("aria-expanded") !== "true") await item.getByRole("button", { name, exact: true }).click();
+    await item.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  };
+  await selectLesson("first");
+  await page.getByRole("button", { name: "Evaluate lesson", exact: true }).click();
+  await started.promise;
+  await selectLesson("second");
+  await page.getByRole("button", { name: "Evaluation results", exact: true }).click();
+  const result = page.getByRole("region", { name: "Teaching evaluation report" });
+  await expect(result).toContainText("second · teaching");
+  release.resolve();
+  await expect(page.getByRole("button", { name: "Evaluate lesson", exact: true })).toBeEnabled();
+  await expect(result).toContainText("second · teaching");
+  await selectLesson("first");
+  await page.getByRole("button", { name: "Evaluation results", exact: true }).click();
+  await expect(result).toContainText("first · teaching");
+});
+
+test("a course without lessons has no empty report button", async ({ page }) => {
   const posts: string[] = [];
   await page.route("**/api/authoring/**", route => {
     const path = new URL(route.request().url()).pathname;
@@ -40,19 +309,126 @@ test("saved evaluation findings open without starting an authoring or evaluation
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
   await page.goto("/authoring?session=saved");
-  await page.getByRole("button", { name: "Report", exact: true }).click();
-  const report = page.getByRole("region", { name: "Teaching evaluation report" });
-  await expect(report).toBeVisible();
-  await expect(report).toContainText("Teaching needs revision");
-  await expect(report.getByText("Repeated an unexplained term.")).toBeVisible();
-  await expect(report.getByText("Explain the missing concept before asking again.")).toBeVisible();
-  await report.locator("summary").click();
-  await expect(report.getByText("Repeated an unexplained term.")).toBeHidden();
-  await page.getByRole("button", { name: "Hide report", exact: true }).click();
-  await expect(report).toHaveCount(0);
-  await page.getByRole("button", { name: "Report", exact: true }).click();
-  await expect(report).toBeVisible();
+  await expect(page.getByTestId("authoring-chat-pane")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Report|Evaluation results/ })).toHaveCount(0);
   expect(posts).toEqual([]);
+});
+
+test("evaluation settings save model choices, not secrets or worker paths, without starting an evaluation", async ({ page }) => {
+  const writes: unknown[] = [];
+  const evaluations: string[] = [];
+  const catalogs: Array<{ workspace: string | null; harness: string | null }> = [];
+  await page.route("**/api/authoring/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/models")) {
+      const params = new URL(route.request().url()).searchParams;
+      catalogs.push({ workspace: params.get("workspace"), harness: params.get("harness") });
+      return route.fulfill({ json: params.get("harness") === "pi"
+        ? [{ id: "deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro", efforts: [] }]
+        : [{ id: "zai/glm-5.3", name: "GLM 5.3", efforts: [] }] });
+    }
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (path.endsWith("/evaluation-settings")) {
+      if (route.request().method() === "PUT") {
+        const value = route.request().postDataJSON();
+        writes.push(value);
+        return route.fulfill({ json: value });
+      }
+      return route.fulfill({ json: null });
+    }
+    if (path.endsWith("/evals")) evaluations.push(path);
+    return route.fulfill({ contentType: "text/event-stream", body: "" });
+  });
+  await page.goto("/authoring?session=saved&workspace=isolated-course");
+  await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.locator('datalist option[value="zai/glm-5.3"]')).toHaveCount(1);
+  await expect(dialog.locator('datalist option[value="deepseek/deepseek-v4-pro"]')).toHaveCount(1);
+  await dialog.getByLabel("teacher model").fill("zai/glm-5.3");
+  await dialog.getByLabel("learner model").fill("deepseek/deepseek-v4-pro");
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("button", { name: "Save evaluation settings" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(writes).toEqual([{ enabled: true, teacher: { harness: "opencode", model: "zai/glm-5.3" }, learner: { harness: "pi", model: "deepseek/deepseek-v4-pro" } }]);
+  expect(evaluations).toEqual([]);
+  expect(catalogs).toEqual(expect.arrayContaining([
+    { workspace: "isolated-course", harness: "opencode" },
+    { workspace: "isolated-course", harness: "pi" },
+  ]));
+});
+
+test("evaluation settings cannot overwrite saved choices after a failed reload", async ({ page }) => {
+  let broken = false;
+  const writes: unknown[] = [];
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/models")) return route.fulfill({ status: 502, contentType: "text/plain", body: "Model catalog unavailable" });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (path.endsWith("/evaluation-settings")) {
+      if (route.request().method() === "PUT") writes.push(route.request().postDataJSON());
+      return broken ? route.fulfill({ status: 503, contentType: "text/plain", body: "Settings storage unavailable" })
+        : route.fulfill({ json: { enabled: true, teacher: { harness: "codex", model: "teacher" }, learner: { harness: "pi", model: "learner" } } });
+    }
+    return route.fulfill({ contentType: "text/event-stream", body: "" });
+  });
+  await page.goto("/authoring?session=saved");
+  await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("teacher model")).toHaveValue("teacher");
+  await expect(dialog.getByText("Model catalog unavailable", { exact: true })).toHaveCount(2);
+  await page.keyboard.press("Escape");
+  broken = true;
+  await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toHaveText("Settings storage unavailable");
+  await expect(dialog.getByRole("button", { name: "Save evaluation settings" })).toBeDisabled();
+  await expect(dialog.getByLabel("teacher model")).toBeDisabled();
+  expect(writes).toEqual([]);
+});
+
+for (const outcome of ["success", "failure"] as const) test(`a trial reserves its tab before preparation (${outcome})`, async ({ page, context }) => {
+  test.setTimeout(60_000);
+  const release = Promise.withResolvers<void>();
+  await context.route("**/course/trial-workspace/trial-course/lesson/first", route => route.fulfill({ contentType: "text/html", body: "<h1>Prepared lesson</h1>" }));
+  const lesson = { id: "first", title: "first", senseiPath: "src/first/SENSEI.md", description: "", checks: [], files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# First" }] };
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: { ...draft, lessons: [lesson] } });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (path.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report: null } });
+    if (path.endsWith("/trials")) {
+      await release.promise;
+      return outcome === "failure"
+        ? route.fulfill({ status: 503, json: { error: "Trial harness unavailable" } })
+        : route.fulfill({ json: { workspaceId: "trial-workspace", courseId: "trial-course", lessonId: "first" } });
+    }
+    return route.fulfill({ contentType: "text/event-stream", body: "" });
+  });
+  await page.goto("/authoring?session=saved");
+  const lessonItem = page.getByRole("treeitem", { name: "first", exact: true });
+  if (await lessonItem.getAttribute("aria-expanded") !== "true") await lessonItem.getByRole("button", { name: "first", exact: true }).click();
+  await lessonItem.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  const popup = page.waitForEvent("popup", { timeout: 5000 });
+  await page.getByRole("button", { name: "Trial", exact: true }).click();
+  const tab = await popup;
+  expect(await tab.evaluate(() => window.opener)).toBeNull();
+  release.resolve();
+  if (outcome === "success") {
+    await expect(tab.getByRole("heading", { name: "Prepared lesson" })).toBeVisible();
+    await expect(page).toHaveURL(/authoring\?session=saved/);
+    await tab.close();
+    return;
+  }
+  await expect.poll(() => tab.isClosed()).toBe(true);
+  await expect(page.getByRole("alert").filter({ hasText: "Trial harness unavailable" })).toBeVisible();
+  await page.getByRole("tab", { name: "dojo.yaml", exact: true }).click();
+  await expect(page.getByText(/Trial harness unavailable/)).toHaveCount(0);
 });
 
 test("an unavailable Eve session reports the error without creating a replacement", async ({ page }) => {
@@ -65,9 +441,41 @@ test("an unavailable Eve session reports the error without creating a replacemen
     return route.fulfill({ status: 404, json: { error: "Session unavailable", code: "session_not_found" } });
   });
   await page.goto("/authoring?session=missing");
-  await expect(page.getByRole("alert")).toContainText("Session unavailable");
+  await expect(page.getByTestId("authoring-chat-pane").getByRole("alert")).toContainText("Session unavailable");
   await expect(page).toHaveURL(/session=missing/);
   expect(posts).toEqual([]);
+});
+
+test("a new session survives an initial history failure and an explicit retry resumes that same session", async ({ page }) => {
+  let starts = 0;
+  let historyReads = 0;
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/sessions/start")) {
+      starts++;
+      return route.fulfill({ status: 201, json: { sessionId: "accepted" } });
+    }
+    if (path.endsWith("/sessions/accepted")) {
+      historyReads++;
+      if (historyReads === 1) return route.fulfill({ status: 503, json: { error: "History temporarily unavailable" } });
+      return route.fulfill({ json: { session: { sessionId: "accepted" }, messages: [{
+        id: "intro", role: "assistant", parts: [{ type: "text", content: "We can continue the same conversation." }],
+      }] } });
+    }
+    return route.fulfill({ status: 404, json: { error: "Unexpected route" } });
+  });
+  await page.goto("/authoring");
+  await expect(page.getByTestId("authoring-chat-pane").getByRole("alert")).toContainText("History temporarily unavailable");
+  await expect(page).toHaveURL(/session=accepted/);
+  await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeDisabled();
+  await page.getByRole("button", { name: "Reload conversation", exact: true }).click();
+  await expect(page.getByText("We can continue the same conversation.", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
+  expect(starts).toBe(1);
+  expect(historyReads).toBe(2);
+  await expect(page.getByRole("button", { name: "Reload conversation", exact: true })).toHaveCount(0);
 });
 
 test("an active Eve session rejoins read-only and displays the continuing response", async ({ page }) => {
@@ -128,6 +536,31 @@ test("an active Eve session rejoins read-only and displays the continuing respon
   expect(failures.every(failure => failure === "net::ERR_ABORTED")).toBe(true);
 });
 
+test("an unavailable question reports its error without leaving the selected option locked", async ({ page }) => {
+  const errors: string[] = [];
+  const posts: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const reducer = defaultMessageReducer();
+  const projection = opening.reduce(reducer.reduce, reducer.initial());
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === "POST") posts.push(path);
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: {
+      session: { sessionId: "saved" }, messages: eveChatMessages(projection.messages),
+    } });
+    return route.fulfill({ status: 404, json: { error: "Unexpected route" } });
+  });
+  await page.goto("/authoring?session=saved");
+  const review = page.getByRole("radio", { name: /Review the outline/ });
+  await review.click();
+  await expect(page.getByTestId("authoring-chat-pane").getByRole("alert")).toContainText("This question is no longer available");
+  await expect(review).toBeEnabled();
+  expect(errors).toEqual([]);
+  expect(posts).toEqual([]);
+});
+
 for (const failureCount of [0, 1, 2]) {
 test(`Eve authoring restores and answers without ACP (failures=${failureCount})`, async ({ page }) => {
   const calls: string[] = [];
@@ -140,6 +573,10 @@ test(`Eve authoring restores and answers without ACP (failures=${failureCount})`
     calls.push(`${route.request().method()} ${path}`);
     if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/sessions/start")) {
+      projection = opening.reduce(reducer.reduce, projection);
+      return route.fulfill({ status: 201, json: { sessionId: "eve-1" } });
+    }
     if (path.endsWith("/sessions/eve-1") && route.request().method() === "GET") {
       return route.fulfill({ json: {
         session: { sessionId: "eve-1", streamIndex: 5 }, messages: eveChatMessages(projection.messages),
@@ -171,11 +608,12 @@ test(`Eve authoring restores and answers without ACP (failures=${failureCount})`
     return route.fulfill({ status: 500, json: { error: `Unexpected ACP request: ${path}` } });
   });
   await page.goto("/authoring");
-  await expect.poll(() => calls.filter(call => call === "POST /api/authoring/eve/sessions").length).toBe(1);
+  await expect.poll(() => calls.filter(call => call === "POST /api/authoring/eve/sessions/start").length).toBe(1);
   await expect(page.getByText("Which concept should we teach first?", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/session=eve-1/);
-  expect(calls.filter(call => call === "POST /api/authoring/eve/sessions")).toHaveLength(1);
-  await page.reload();
+  expect(calls.filter(call => call === "POST /api/authoring/eve/sessions/start")).toHaveLength(1);
+  await expect(page.getByText("Help me author this course.", { exact: true })).toHaveCount(0);
+  if (failureCount > 0) await page.reload();
   const review = page.getByRole("radio", { name: /Review the outline/ });
   await expect(review).toBeVisible();
   await review.click();
@@ -197,7 +635,7 @@ test(`Eve authoring restores and answers without ACP (failures=${failureCount})`
   await expect(page.getByRole("button", { name: "Retry answer", exact: true })).toHaveCount(0);
   await expect(page.getByTestId("authoring-chat-pane").getByRole("alert")).toHaveCount(0);
   await expect(review).toHaveAttribute("aria-checked", "true");
-  expect(calls.filter(call => call === "POST /api/authoring/eve/sessions")).toHaveLength(1);
+  expect(calls.filter(call => call === "POST /api/authoring/eve/sessions/start")).toHaveLength(1);
   expect(calls.filter(call => call === "POST /api/authoring/eve/sessions/eve-1/messages")).toHaveLength(failureCount + 1);
   expect(calls.some(call => /\/authoring\/(session|workspace|introduction|answers|messages)$/.test(call))).toBe(false);
 });

@@ -15,10 +15,11 @@ export function agentQuestionState(part: ToolCallPart): {
   questions: AskUserQuestion[];
   answers?: Record<string, AskUserAnswer>;
   disabled?: boolean;
+  failure?: string;
 } {
   const question = eveQuestion(part);
   if (!question) return { questions: parseAgentQuestions(part.input) };
-  const { request, response, settled } = question;
+  const { request, response, settled, error: failure } = question;
   return {
     questions: [{
       id: request.requestId,
@@ -33,6 +34,7 @@ export function agentQuestionState(part: ToolCallPart): {
       otherText: response.text,
     } } : undefined,
     disabled: settled,
+    failure,
   };
 }
 
@@ -40,28 +42,39 @@ export function AgentQuestion({
   className,
   answers,
   disabled = false,
+  failure,
   onAnswer,
   questions,
 }: {
   className?: string;
   answers?: Record<string, AskUserAnswer>;
   disabled?: boolean;
+  failure?: string;
   onAnswer: (answers: Record<string, AskUserAnswer>) => void | Promise<void>;
   questions: AskUserQuestion[];
 }) {
   const [submitted, setSubmitted] = useState<Record<string, AskUserAnswer> | null>(null);
+  const [error, setError] = useState<string>();
   return (
+    <>
     <AskUserQuestions
       answers={answers ?? submitted ?? undefined}
       className={className}
       disabled={disabled || submitted !== null}
-      onComplete={(answers) => {
+      onComplete={async (answers) => {
         if (disabled || submitted) return;
+        setError(undefined);
         setSubmitted(answers);
-        void onAnswer(answers);
+        try { await onAnswer(answers); }
+        catch (cause) {
+          setSubmitted(null);
+          setError(cause instanceof Error ? cause.message : String(cause));
+        }
       }}
       questions={questions}
     />
+    {error ?? failure ? <p role="alert" className="text-sm text-destructive">{error ?? failure}</p> : null}
+    </>
   );
 }
 

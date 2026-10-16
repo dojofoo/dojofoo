@@ -1,4 +1,17 @@
-import { EveAgentStore, defaultMessageReducer, type ClientSession, type MessageStreamEvent } from "@dojofoo/agent/client";
+import { EveAgentStore, defaultMessageReducer, isCurrentTurnBoundaryEvent, type ClientSession, type MessageStreamEvent } from "@dojofoo/agent/client";
+
+/** Eve's follow stops after ~90 s without events, and a long tool call such as
+ * a teaching evaluation emits none. Follow again until the turn settles. */
+const maxFollows = 60;
+async function follow(store: EveAgentStore<any>, isClosed: () => boolean) {
+  for (let round = 0; ; round++) {
+    await store.resume();
+    const tail = store.snapshot.events.at(-1);
+    if (isClosed() || store.snapshot.error || !tail || isCurrentTurnBoundaryEvent(tail) || round + 1 >= maxFollows) return;
+    await new Promise(resolve => setTimeout(resolve, 1_000));
+    if (isClosed()) return;
+  }
+}
 
 /** Read-only replay/follow. Eve owns cursor recovery and settled-tail detection.
  * This store exists only for the observer request; no second durable history.
@@ -25,7 +38,7 @@ export function resumeEveEvents(session: ClientSession, signal: AbortSignal, ini
       if (signal.aborted) { abort(); return; }
       signal.addEventListener("abort", abort, { once: true });
       store.setCallbacks({ onEvent(event) { if (!closed) { emitted = true; controller.enqueue(event); } } });
-      void store.resume().then(() => {
+      void follow(store, () => closed).then(() => {
         if (closed) return;
         const error = store.snapshot.error;
         // A settled seeded snapshot needs no replay. Forward its actual final

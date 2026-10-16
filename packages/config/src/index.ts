@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
-import { resolve, basename, dirname } from "node:path";
+import { resolve, basename, dirname, join } from "node:path";
 import { createJiti } from "jiti";
 import { parse as parseYaml } from "yaml";
 
@@ -407,6 +407,14 @@ export function katasPath(root: string): string {
   return loadConfig(root).katasPath;
 }
 
+/** Shared by installed courses and authoring readiness; compound extensions
+ * keep their existing convention (kata.js -> kata.test.js). */
+export function kataTestTemplate(template: string): string {
+  const file = basename(template);
+  const dot = file.indexOf(".");
+  return join(dirname(template), dot < 0 ? `${file}.test` : `${file.slice(0, dot)}.test${file.slice(dot)}`);
+}
+
 export function resolveKata(
   root: string,
   rc: DojoRc,
@@ -416,15 +424,12 @@ export function resolveKata(
   const wp = katasPath(root);
   const name = entry.name ?? basename(dirname(entry.template));
   const templateBasename = basename(entry.template);
-  const dotIdx = templateBasename.indexOf(".");
-  const stem = dotIdx >= 0 ? templateBasename.substring(0, dotIdx) : templateBasename;
-  const ext = dotIdx >= 0 ? templateBasename.substring(dotIdx) : "";
 
   return {
     name,
     template: entry.template,
     workspacePath: resolve(wp, name, templateBasename),
-    testPath: resolve(dojo, dirname(entry.template), `${stem}.test${ext}`),
+    testPath: resolve(dojo, kataTestTemplate(entry.template)),
     senseiPath: ["SENSEI.mdx", "SENSEI.md"]
       .map((name) => resolve(dojo, dirname(entry.template), name))
       .find(existsSync) ?? resolve(dojo, dirname(entry.template), "SENSEI.md"),

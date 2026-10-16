@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { judgeMaterial, requireJudgeResults } from "./judges";
 import { materialHash, readLessonMaterial } from "./material";
@@ -28,6 +28,19 @@ export type EvaluationReport = {
 
 const requiredStages = ["introduction", "uncertainty", "unfamiliar-terminology", "misconception", "failure-1", "failure-2", "frustration", "independence", "success", "review"];
 const explanationStages = new Set(["introduction", "uncertainty", "unfamiliar-terminology", "misconception", "frustration", "review"]);
+
+// Dependencies still receive the signal for cleanup, but a stuck provider
+// must not prevent the evaluator from saving its terminal report.
+async function abortableStage<T>(signal: AbortSignal, run: () => Promise<T>): Promise<T> {
+  signal.throwIfAborted();
+  let onAbort!: () => void;
+  const cancelled = new Promise<never>((_, reject) => {
+    onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+  try { return await Promise.race([run(), cancelled]); }
+  finally { signal.removeEventListener("abort", onAbort); }
+}
 type RecordedTurn = { learnerProfile?: string; lessonId?: string; sessionId?: string; fastForward?: boolean; stage?: string; deterministicLifecycle?: string; parts?: Array<{ type: string; delta?: string }> };
 
 /** Read evidence produced by the production worker, never the author's claims. */
@@ -103,7 +116,11 @@ export async function evaluateAuthoredCourse({ root, lessonIds, signal, trial, t
     report.teachingPolicyHash = createHash("sha256").update(teachingPolicy).digest("hex");
     await writeFile(join(directory, "production-teaching-policy.md"), teachingPolicy);
   }
-  const persist = () => writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2));
+  // Atomic: the UI polls report.json while the run rewrites it.
+  const persist = async () => {
+    await writeFile(join(directory, "report.json.tmp"), JSON.stringify(report, null, 2));
+    await rename(join(directory, "report.json.tmp"), join(directory, "report.json"));
+  };
   const unchanged = async () => {
     signal.throwIfAborted();
     if (materialHash(await readLessonMaterial(root, lessonIds)) !== report.materialHash) {
@@ -115,32 +132,37 @@ export async function evaluateAuthoredCourse({ root, lessonIds, signal, trial, t
   await persist();
   try {
     const materialEvidence = {
-      ...files,
+      // Keep dependency resolution in the snapshot/hash, not a teaching review.
+      ...Object.fromEntries(Object.entries(files).filter(([path]) => path !== "pnpm-lock.yaml")),
       ...(teachingPolicy === undefined ? {} : { "production-teaching-policy.md": teachingPolicy }),
       "evaluation-scope.json": JSON.stringify({
         lessonIds,
-        scope: "Judge only these lessons and their shared course guidance. Other lessons listed in the curriculum are outside this evaluation; their material is intentionally omitted.",
+        teachingLessonId: lessonIds.at(-1),
+        completedBefore: lessonIds.slice(0, -1),
+        scope: "Evaluate the teaching lesson and shared course guidance. Earlier lessons are completed-learning context for continuity, not material to revise in this trial. This result does not certify those earlier lessons.",
       }),
     };
-    report.material = requireJudgeResults(await judge(materialEvidence, signal));
+    report.material = requireJudgeResults(await abortableStage(signal, () => judge(materialEvidence, signal)));
     await unchanged();
     report.decisions = { material: decidePanel(report.material) };
-    if (report.decisions.material!.outcome !== "pass") {
+    // Consensus explains disagreement; it is not the acceptance gate. Do not
+    // spend a teaching trial until both independent material reviews pass.
+    if (!report.material.every(({ verdict }) => verdict.overall === "pass")) {
       report.status = "material-failed";
       return report;
     }
     report.stage = "trial";
     await persist();
-    report.trialDirectory = await trial(signal);
+    report.trialDirectory = await abortableStage(signal, () => trial(signal));
     await unchanged();
     const evidence = await readTeachingEvidence(report.trialDirectory, lessonIds);
     report.stage = "teaching";
     await writeFile(join(directory, "teaching-evidence.json"), JSON.stringify(evidence, null, 2));
     await persist();
-    report.teaching = requireJudgeResults(await judge(evidence, signal, teachingJudgePrompt));
+    report.teaching = requireJudgeResults(await abortableStage(signal, () => judge(evidence, signal, teachingJudgePrompt)));
     await unchanged();
     report.decisions.teaching = decidePanel(report.teaching);
-    report.status = report.decisions.teaching.outcome === "pass" ? "passed" : "teaching-failed";
+    report.status = report.teaching.every(({ verdict }) => verdict.overall === "pass") ? "passed" : "teaching-failed";
   } catch (error) {
     if (error instanceof TeachingFailure) report.status = "teaching-failed";
     else if (report.status !== "stale") report.status = "infrastructure-failed";

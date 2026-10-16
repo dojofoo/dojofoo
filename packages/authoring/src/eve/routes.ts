@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { eveChatMessages } from "./messages";
 import { eveQuestionInterrupts, streamEveAsAgUi } from "./stream";
 import { resumeEveEvents } from "./resume";
+import { KYOSHI_START } from "./bootstrap";
 
 async function authoringInput(body: unknown): Promise<{ message?: unknown; runId?: unknown; resume?: unknown }> {
   if (!body || typeof body !== "object") return {};
@@ -39,6 +40,15 @@ export function createEveAuthoringRoutes(source: Client | (() => Promise<Client>
       status: error instanceof ClientError ? error.status : error instanceof SyntaxError ? 400 : 500,
       headers: { "content-type": "application/json" },
     }))
+    .post("/sessions/start", async c => {
+      // Eve starts the durable turn on acceptance. The browser subsequently
+      // joins that session through the same snapshot/follow path as a refresh.
+      const { session } = await (await getClient()).sessions.create({
+        message: KYOSHI_START,
+        signal: c.req.raw.signal,
+      });
+      return c.json({ sessionId: session.state.sessionId }, 201);
+    })
     .post("/sessions", async c => {
       const { message, runId } = await authoringInput(await c.req.json());
       if (runId !== undefined && (typeof runId !== "string" || !runId.trim())) return c.json({ error: "Run ID must be a non-empty string" }, 422);

@@ -5,47 +5,26 @@ description: Learning-science reference for designing any lesson a Sensei teache
 
 # Lesson design
 
-A lesson gives the learner one tangible **win** inside their **zone of proximal development**: hard enough to need effort, close enough to reach with help. The Sensei teaches it live. Your job is to hand the Sensei the material only this lesson can supply. The shared Sensei policy already covers tone, turn length, the hint ladder and solution protection.
+A lesson makes something worth understanding feel within reach. Give Sensei reference notes, not an implementation plan or dialogue script. Shared policy already covers tone, tools and learner ownership.
 
-## The arc
+## Design decisions
 
-Every lesson follows one arc. Each beat below names what the Sensei needs from you.
+- Make the concept useful or intriguing in the learner's world. Offer an easy way in, not a task recap.
+- Separate missing knowledge from solution design. Teach the former; leave choosing and combining the parts to the learner.
+- Use the stated prerequisites; don't invent them. Teach any additional operation your approach needs, and define unfamiliar terms.
+- Give each new concept usable support: explain the missing rule or demonstrate one prerequisite operation. A revealing input diagnoses a gap; a related example does not necessarily teach it. Leave applying it to the lesson to the learner.
+- Check the hardest likely gap: could someone who lacks this knowledge proceed from these notes without guessing? Supply the missing explanation, not more questions. Sensei chooses when to use it.
+- Distinguish facts from strategies. Don't present one valid implementation as the only correct one.
+- Identify understanding through explanation or transfer, not one prescribed implementation or green tests alone.
+- Include a useful boundary and a stretch opportunity. Don't turn them into a compulsory quiz.
 
-1. **Hook.** Pose a real situation, puzzle or prediction from the learner's world that opens a curiosity gap, plus one line on why the skill matters. *Not* a description of the task. (Loewenstein 1994; Keller's ARCS: attention, relevance.)
-2. **Activate.** Name one thing the learner already knows that this lesson builds on, so the Sensei can connect to it. (Merrill 2002, activation.)
-3. **First move.** Give one small action or prediction the learner can win in under two minutes. Early success builds confidence. (ARCS: confidence; PRIMM: predict before writing.)
-4. **Teach the operations.** For each new operation the concept needs (not just its syntax), give a **worked example** on a *different* problem, then a fresh, unanswered case for the learner. Show changing values when state matters. The learner combines the operations; that combination is the lesson's work. (Sweller; Renkl & Atkinson 2003, faded examples.)
-5. **Stumbling points.** List the likely misconceptions. Pair each with a **revealing input**: a case whose output surprises a learner who holds it. Let the learner diagnose; that is where the learning happens. (Kapur 2016; VanLehn 2011, step-level feedback.)
-6. **Evidence.** State what the learner should be able to explain or apply, in observable terms. A passing test is not understanding.
-7. **Review and transfer.** Give one boundary or tradeoff to discuss in the learner's own code, and a new input for the learner to predict. (Roediger & Karpicke 2006, retrieval; Merrill, integration.)
+## Keep it human
 
-## Feeling
-
-Learners return when they feel **competent**, **autonomous** and **connected** (Ryan & Deci 2000). Design for it:
-
-- **Competence:** challenge that fits, plus feedback that tells them something. Feedback names what their work got right and the next step (Hattie & Timperley 2007). Praise the work, not the person (Mueller & Dweck 1998).
-- **Autonomy:** a real choice where one exists, such as which case to tackle first or try first versus see an example.
-- **Connection:** an example from the learner's world, and acknowledgement of struggle when it happens.
-
-Warmth is brief. One specific clause of acknowledgement beats a paragraph of cheer. Expert tutors encourage through questions and confidence, not praise (Lepper & Woolverton 2002).
-
-## Fit the learner
-
-- Novices need worked examples first. Learners who are ahead need less: give the Sensei a stretch case to offer when the learner is quick (Kalyuga 2003, expertise reversal).
-- Define every term the stated prerequisites do not cover.
-- One lesson, one concept. Adjacent ideas belong in later lessons.
+Leave room for the learner's curiosity, frustration and own approach. Useful feedback and achievable progress build confidence; repeated praise and forced choices don't. Keep one concept central. Supply options for support and challenge without prescribing their order.
 
 ## Keep it the learner's work
 
-Teaching operations, principles and documentation is the job, even when the answer becomes inferable. The learner writes the composition. A worked example shows **one operation** (a comparison, an update, a guard) on different data. The task's whole loop on other data, such as a chores list filtered step by step for a filtering kata, is the solution with the names changed. Learner-facing material and SENSEI examples carry no complete solution, no prose recipe of every step in order, and no isomorphic example with renamed variables. Unguided access to answers measurably hurts learning (Bastani et al. 2025).
-
-## It's working if
-
-- Reading only the hook, a learner would want to try.
-- Every new operation has a worked example on a different problem.
-- Every misconception has a revealing input.
-- The review gives the learner something new to predict.
-- Nowhere does the lesson state the full solution.
+Teach principles, operations and sourced documentation; leave the repair and algorithm design to the learner. "A partial answer can start from an observed item" teaches a principle; "initialize largest to numbers[0]" prescribes an edit. Don't withhold the principle and leave only clues about wrong choices. Reading `colours[0]` teaches indexing. Unsafe: largest-number → longest-word or fastest-lap selection; whitespace-collapse → zero-collapse. Different names, data or comparison direction don't change the algorithm. Check examples together: don't assemble its decision process across them.
 
 ## Sources
 

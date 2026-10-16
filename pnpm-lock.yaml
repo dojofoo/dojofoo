@@ -8,6 +8,9 @@ patchedDependencies:
   '@ai-sdk/harness-opencode@1.0.110':
     hash: d85de820c049cd8b77cdb31bf1715aacff597328a3fd4c75e02c7335f4802d7b
     path: patches/@ai-sdk__harness-opencode@1.0.110.patch
+  '@tanstack/ai-client@0.25.1':
+    hash: 3f952f9b08041da7cb757ecfdf8b4ecd03b770d4d461edccebc99a459e10c54d
+    path: patches/@tanstack__ai-client@0.25.1.patch
 
 importers:
 
@@ -274,12 +277,21 @@ importers:
       '@dojofoo/config':
         specifier: workspace:*
         version: link:../config
+      '@earendil-works/pi-ai':
+        specifier: 0.84.4
+        version: 0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(ws@8.21.0)(zod@4.6.5)
+      '@earendil-works/pi-coding-agent':
+        specifier: 0.84.4
+        version: 0.84.4(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(ws@8.21.0)(zod@4.6.5)
       '@tanstack/ai':
         specifier: 0.47.1
         version: 0.47.1(@opentelemetry/api@1.9.0)(zod@4.6.5)
       hono:
         specifier: ^4.13.1
         version: 4.13.1
+      json-rpc-2.0:
+        specifier: 1.7.0
+        version: 1.7.0
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -289,7 +301,7 @@ importers:
     devDependencies:
       '@tanstack/ai-client':
         specifier: 0.25.1
-        version: 0.25.1(@opentelemetry/api@1.9.0)(zod@4.6.5)
+        version: 0.25.1(patch_hash=3f952f9b08041da7cb757ecfdf8b4ecd03b770d4d461edccebc99a459e10c54d)(@opentelemetry/api@1.9.0)(zod@4.6.5)
       '@types/node':
         specifier: ^26.1.2
         version: 26.2.0
@@ -362,7 +374,7 @@ importers:
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.9.0)
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.6.4)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.6.4)(typescript@6.0.3))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.6.4)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.6.4)(typescript@6.0.3))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
 
   packages/config:
     dependencies:
@@ -384,7 +396,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
+        version: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
 
   packages/evals:
     dependencies:
@@ -556,7 +568,7 @@ importers:
         version: 0.47.1(@opentelemetry/api@1.9.0)(zod@4.4.3)
       '@tanstack/ai-client':
         specifier: 0.25.1
-        version: 0.25.1(@opentelemetry/api@1.9.0)(zod@4.4.3)
+        version: 0.25.1(patch_hash=3f952f9b08041da7cb757ecfdf8b4ecd03b770d4d461edccebc99a459e10c54d)(@opentelemetry/api@1.9.0)(zod@4.4.3)
       '@tanstack/ai-react':
         specifier: 0.21.1
         version: 0.21.1(@opentelemetry/api@1.9.0)(@tanstack/ai@0.47.1(@opentelemetry/api@1.9.0)(zod@4.4.3))(@types/react@19.2.18)(react@19.2.8)(zod@4.4.3)
@@ -705,6 +717,24 @@ importers:
 
   packages/uix:
     dependencies:
+      '@fontsource/iosevka':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@hugeicons/core-free-icons':
+        specifier: ^4.3.5
+        version: 4.3.5
+      '@hugeicons/react':
+        specifier: ^1.1.10
+        version: 1.1.10(react@19.2.8)
+      '@iconify-json/fluent':
+        specifier: 1.2.59
+        version: 1.2.59
+      '@iconify-json/solar':
+        specifier: 1.2.13
+        version: 1.2.13
+      '@mingcute/react':
+        specifier: 3.0.2
+        version: 3.0.2(react@19.2.8)
       '@mynaui/icons-react':
         specifier: ^0.4.11
         version: 0.4.11(react@19.2.8)
@@ -720,6 +750,12 @@ importers:
       cuelume:
         specifier: ^0.2.2
         version: 0.2.2
+      iconoir-react:
+        specifier: 7.12.1
+        version: 7.12.1(react@19.2.8)
+      lucide-react:
+        specifier: ^1.52.0
+        version: 1.52.0(@types/react@19.2.18)(react@19.2.8)
       motion:
         specifier: ^13.1.1
         version: 13.1.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -732,12 +768,21 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
+      shaka-player:
+        specifier: ^5.3.0
+        version: 5.3.0
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
+      youtube-video-element:
+        specifier: 1.9.0
+        version: 1.9.0
     devDependencies:
       '@fontsource-variable/inter':
         specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/noto-sans':
+        specifier: 5.3.0
         version: 5.3.0
       '@fontsource-variable/plus-jakarta-sans':
         specifier: ^5.3.0
@@ -760,6 +805,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.5
         version: 6.0.5(vite@8.2.1(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
+      modern-monaco:
+        specifier: 0.4.2
+        version: 0.4.2(typescript@6.0.3)
       portless:
         specifier: ^0.15.5
         version: 0.15.5
@@ -1743,6 +1791,9 @@ packages:
   '@fontsource-variable/inter@5.3.0':
     resolution: {integrity: sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==}
 
+  '@fontsource-variable/noto-sans@5.3.0':
+    resolution: {integrity: sha512-e3ZuxzY9AL2psXPZlhwhnYrHUHv6PMoyK9MQ7croF0CUgURLqu9EMjW7q2FgVLwij1tjLsIHQrnwQ8aUcg4BiA==}
+
   '@fontsource-variable/plus-jakarta-sans@5.3.0':
     resolution: {integrity: sha512-/l/4r0yyWK9JzAlmA0LiYgGgmJe/Gswt4jTJEzr5QhJfwMbvJZDmYWyW0M4X7yCK69BajMVlV/Lx8g7WDc1+sw==}
 
@@ -1796,6 +1847,20 @@ packages:
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4
+
+  '@hugeicons/core-free-icons@4.3.5':
+    resolution: {integrity: sha512-Sv+NjHRPnQk+yZsGCMcGznCHdTfJR9PMMOEKcJYAQU4gy90dmlc9PwdtvYOImBZIjiheMsTLL5eMn2DmHxUiUg==}
+
+  '@hugeicons/react@1.1.10':
+    resolution: {integrity: sha512-9tAsd92yMVVGP+E+d8cM+wc0VnXuYZHNbWQi7TOe8k2neawmhiaFmVFbzyruejhOMa197/LbgvSED32ayUo3ZA==}
+    peerDependencies:
+      react: '>=16.0.0'
+
+  '@iconify-json/fluent@1.2.59':
+    resolution: {integrity: sha512-fxed71Y7Tg6aXZCZeVyOevFQdMgbPPrIV+pE/3gTLxFlVLTtDkAsK/B/WZzkLUYxJ3cdoP0ex2a23Oi6ePhWkA==}
+
+  '@iconify-json/solar@1.2.13':
+    resolution: {integrity: sha512-/ZWb6xRib6pzxD/qTkKWYhuzSU2yu0bY+EN0spgtz1NM3d5f4eYueQZpL3PfCdsg5uVfm4Ldtt3cAyQL+YI8/Q==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -2061,6 +2126,14 @@ packages:
 
   '@mermaid-js/parser@1.2.0':
     resolution: {integrity: sha512-oYPyv8A4As1yH5Bx+04iQEQxXuIQDe0GKCNSRgao6z8AM9jixXIfP0vsppRLvGf+nKIOb9/LdpWA4YuJiVvESA==}
+
+  '@mingcute/icons@3.0.2':
+    resolution: {integrity: sha512-NuDZuZy0B/MmrdoVVOodOURS1qPqgcdSHFPKSG9gPEF6/dr0+zm5pfJs0U7Yta5jjoCdX0WZcVbZOov2tMMPTA==}
+
+  '@mingcute/react@3.0.2':
+    resolution: {integrity: sha512-DqzoUWHHIzetlKgrlAnbRq6qaYLFMjn+RFdh6EIEKxVocCvG6YGSfbR1jm6h05GbTQE/F3OA2iyn8rgEnT4LLg==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
 
   '@mistralai/mistralai@2.2.6':
     resolution: {integrity: sha512-W8pX7zHxjJvMIpw8JMxeJEleapXX0Q9NPszdNzqkM3MIEoIGPObdodujj+WHteXEvGfaP/AMwlNyRfEzSY6dQQ==}
@@ -6569,6 +6642,11 @@ packages:
     resolution: {integrity: sha512-eKCa6bwnJhvxj14kZk5NCPc6Hb6BdsU9DZcOnmQKSnO1VKrfV0zCvtttPZUsBvjmNDn8rpcJfpwSYnHBjc95MQ==}
     engines: {node: '>=18.18.0'}
 
+  iconoir-react@7.12.1:
+    resolution: {integrity: sha512-e+Lwgqr10ruCwrCrFjG5RD0axwENFxPzLP1cESiQPEMH9UC/W6dk6u0MYwLoG0MBVsmBYAhVBb5GqO1aSljeGQ==}
+    peerDependencies:
+      react: 18 || 19
+
   iconv-lite@0.6.3:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
     engines: {node: '>=0.10.0'}
@@ -6815,6 +6893,9 @@ packages:
 
   json-parse-even-better-errors@2.3.1:
     resolution: {integrity: sha512-xyFwyhro/JEof6Ghe2iz2NcXoj2sloNsWr/XsERDK/oiPCfaNhl5ONfp+jQdAZRQQ0IJWNzH9zIZF7li91kh2w==}
+
+  json-rpc-2.0@1.7.0:
+    resolution: {integrity: sha512-asnLgC1qD5ytP+fvBP8uL0rvj+l8P6iYICbzZ8dVxCpESffVjzA7KkYkbKCIbavs7cllwH1ZUaNtJwphdeRqpg==}
 
   json-schema-to-ts@3.1.1:
     resolution: {integrity: sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g==}
@@ -7085,11 +7166,6 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@1.37.0:
-    resolution: {integrity: sha512-LPsB4rD1TD6wZu1djKOf9vUnS1jTNaHbolXebXDgiTdb6jeA1agIJhJsIybCmjKmQClcOaal1o1OaiYahEftyQ==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
   lucide-react@1.52.0:
     resolution: {integrity: sha512-TUgPtl5ZI9WgxOcbu4ckaC5B3l1qxPQrCMgb6OfUB9owx/OvSJfcf93SMgUWAxRw5/1XDfh9uI5F5iNGXCcGDQ==}
     peerDependencies:
@@ -7216,6 +7292,9 @@ packages:
 
   mdurl@2.1.0:
     resolution: {integrity: sha512-1+HBaOx0zi/dQWht8rNv9MYf9qqpqL/kxI0hXImU6Y547zM6Sni8BQibt7ifgMcYtQg41ao3Ivd6cnSM86inpg==}
+
+  media-played-ranges-mixin@0.1.0:
+    resolution: {integrity: sha512-zTsvkleu5sAyTsPVxDI+KUbCwy/lXwHgOPi3ER9S3lhtAWhGTQH6qxvfrVMym1cvoLU36SPbVr6Qe8Zxyc0WpA==}
 
   media-typer@1.1.1:
     resolution: {integrity: sha512-yz3xRaG20c6/BOzvYoDaGtPmGscs7YivItZEEqe6GbwNfHuxu9YNmvnEkMzKldAGY4/80pRcQRZSEnhquk9XuQ==}
@@ -8413,6 +8492,9 @@ packages:
     engines: {node: '>=20.18.1'}
     hasBin: true
 
+  shaka-player@5.3.0:
+    resolution: {integrity: sha512-bZ5MiKQcs+CBtAHFGUqHW4Q+2U3oXGVmXY+gdrSOoVmHzcilvNp+jEsqhd3/4cGhL4j4+Z66Jisq42U4jOfY1g==}
+
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
     engines: {node: '>=8'}
@@ -9375,6 +9457,9 @@ packages:
 
   youch@4.1.1:
     resolution: {integrity: sha512-mxW3qiSnl+GRxXsaUMzv2Mbada1Y8CDltET9UxejDQe6DBYlSekghl5U5K0ReAikcHDi0G1vKZEmmo/NWAGKLA==}
+
+  youtube-video-element@1.9.0:
+    resolution: {integrity: sha512-Hh0dbQM+FVlUaYUbpYkZNUvdKxTNcSNvTGzkQKYShltnX+LRHEp2eYvC2Zm43eU8Np+CBZuoNR2i+seCYzzAyg==}
 
   yuku-analyzer@0.8.4:
     resolution: {integrity: sha512-793VvcTjw38e2kjWEx+4R9M1A6CUIS+cRQqi6eHKAnn9rt2mufMEf5/0ZPhVamByEaKQrUsHaDkSuXRm7HKGiw==}
@@ -10892,6 +10977,8 @@ snapshots:
 
   '@fontsource-variable/inter@5.3.0': {}
 
+  '@fontsource-variable/noto-sans@5.3.0': {}
+
   '@fontsource-variable/plus-jakarta-sans@5.3.0': {}
 
   '@fontsource/hind@5.3.0': {}
@@ -10954,6 +11041,20 @@ snapshots:
   '@hono/node-server@2.1.0(hono@4.13.1)':
     dependencies:
       hono: 4.13.1
+
+  '@hugeicons/core-free-icons@4.3.5': {}
+
+  '@hugeicons/react@1.1.10(react@19.2.8)':
+    dependencies:
+      react: 19.2.8
+
+  '@iconify-json/fluent@1.2.59':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/solar@1.2.13':
+    dependencies:
+      '@iconify/types': 2.0.0
 
   '@iconify/types@2.0.0': {}
 
@@ -11256,6 +11357,13 @@ snapshots:
   '@mermaid-js/parser@1.2.0':
     dependencies:
       '@chevrotain/types': 11.1.2
+
+  '@mingcute/icons@3.0.2': {}
+
+  '@mingcute/react@3.0.2(react@19.2.8)':
+    dependencies:
+      '@mingcute/icons': 3.0.2
+      react: 19.2.8
 
   '@mistralai/mistralai@2.2.6(@opentelemetry/api@1.9.0)':
     dependencies:
@@ -13167,7 +13275,7 @@ snapshots:
       - preact
       - react
 
-  '@tanstack/ai-client@0.25.1(@opentelemetry/api@1.9.0)(zod@4.4.3)':
+  '@tanstack/ai-client@0.25.1(patch_hash=3f952f9b08041da7cb757ecfdf8b4ecd03b770d4d461edccebc99a459e10c54d)(@opentelemetry/api@1.9.0)(zod@4.4.3)':
     dependencies:
       '@tanstack/ai': 0.47.1(@opentelemetry/api@1.9.0)(zod@4.4.3)
       '@tanstack/ai-event-client': 0.9.0
@@ -13176,7 +13284,7 @@ snapshots:
       - '@opentelemetry/api'
       - zod
 
-  '@tanstack/ai-client@0.25.1(@opentelemetry/api@1.9.0)(zod@4.6.5)':
+  '@tanstack/ai-client@0.25.1(patch_hash=3f952f9b08041da7cb757ecfdf8b4ecd03b770d4d461edccebc99a459e10c54d)(@opentelemetry/api@1.9.0)(zod@4.6.5)':
     dependencies:
       '@tanstack/ai': 0.47.1(@opentelemetry/api@1.9.0)(zod@4.6.5)
       '@tanstack/ai-event-client': 0.9.0
@@ -13192,7 +13300,7 @@ snapshots:
   '@tanstack/ai-react@0.21.1(@opentelemetry/api@1.9.0)(@tanstack/ai@0.47.1(@opentelemetry/api@1.9.0)(zod@4.4.3))(@types/react@19.2.18)(react@19.2.8)(zod@4.4.3)':
     dependencies:
       '@tanstack/ai': 0.47.1(@opentelemetry/api@1.9.0)(zod@4.4.3)
-      '@tanstack/ai-client': 0.25.1(@opentelemetry/api@1.9.0)(zod@4.4.3)
+      '@tanstack/ai-client': 0.25.1(patch_hash=3f952f9b08041da7cb757ecfdf8b4ecd03b770d4d461edccebc99a459e10c54d)(@opentelemetry/api@1.9.0)(zod@4.4.3)
       '@types/react': 19.2.18
       react: 19.2.8
     transitivePeerDependencies:
@@ -14059,6 +14167,15 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
+  '@vitest/mocker@4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))':
+    dependencies:
+      '@vitest/spy': 4.1.10
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      msw: 2.15.0(@types/node@26.2.0)(typescript@6.0.3)
+      vite: 8.2.1(@types/node@26.2.0)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)
+
   '@vitest/mocker@4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.10
@@ -14067,15 +14184,6 @@ snapshots:
     optionalDependencies:
       msw: 2.15.0(@types/node@26.2.0)(typescript@6.0.3)
       vite: 8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)
-
-  '@vitest/mocker@4.1.10(msw@2.15.0(@types/node@26.6.4)(typescript@6.0.3))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))':
-    dependencies:
-      '@vitest/spy': 4.1.10
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      msw: 2.15.0(@types/node@26.6.4)(typescript@6.0.3)
-      vite: 8.2.1(@types/node@26.6.4)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)
 
   '@vitest/mocker@4.1.10(msw@2.15.0(@types/node@26.6.4)(typescript@6.0.3))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))':
     dependencies:
@@ -15441,7 +15549,7 @@ snapshots:
       class-variance-authority: 0.7.1
       cnfast: 0.1.0
       fumadocs-core: 16.14.3(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.41(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.2.18)(lucide-react@1.52.0(@types/react@19.2.18)(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
-      lucide-react: 1.37.0(react@19.2.8)
+      lucide-react: 1.52.0(@types/react@19.2.18)(react@19.2.8)
       motion: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next-themes: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
@@ -15833,6 +15941,10 @@ snapshots:
 
   human-signals@8.0.1: {}
 
+  iconoir-react@7.12.1(react@19.2.8):
+    dependencies:
+      react: 19.2.8
+
   iconv-lite@0.6.3:
     dependencies:
       safer-buffer: 2.1.2
@@ -16012,6 +16124,8 @@ snapshots:
       bignumber.js: 9.3.1
 
   json-parse-even-better-errors@2.3.1: {}
+
+  json-rpc-2.0@1.7.0: {}
 
   json-schema-to-ts@3.1.1:
     dependencies:
@@ -16275,10 +16389,6 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.37.0(react@19.2.8):
-    dependencies:
-      react: 19.2.8
-
   lucide-react@1.52.0(@types/react@19.2.18)(react@19.2.8):
     dependencies:
       react: 19.2.8
@@ -16527,6 +16637,8 @@ snapshots:
       '@types/mdast': 4.0.4
 
   mdurl@2.1.0: {}
+
+  media-played-ranges-mixin@0.1.0: {}
 
   media-typer@1.1.1: {}
 
@@ -18281,6 +18393,8 @@ snapshots:
       - supports-color
       - typescript
 
+  shaka-player@5.3.0: {}
+
   shebang-command@2.0.0:
     dependencies:
       shebang-regex: 3.0.0
@@ -19003,6 +19117,22 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  vite@8.2.1(@types/node@26.2.0)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0):
+    dependencies:
+      lightningcss: 1.33.0
+      picomatch: 4.0.5
+      postcss: 8.5.26
+      rolldown: 1.2.3
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 26.2.0
+      esbuild: 0.27.7
+      fsevents: 2.3.3
+      jiti: 2.7.0
+      terser: 5.46.0
+      tsx: 4.21.0
+      yaml: 2.9.0
+
   vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.33.0
@@ -19013,22 +19143,6 @@ snapshots:
     optionalDependencies:
       '@types/node': 26.2.0
       esbuild: 0.28.2
-      fsevents: 2.3.3
-      jiti: 2.7.0
-      terser: 5.46.0
-      tsx: 4.21.0
-      yaml: 2.9.0
-
-  vite@8.2.1(@types/node@26.6.4)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0):
-    dependencies:
-      lightningcss: 1.33.0
-      picomatch: 4.0.5
-      postcss: 8.5.26
-      rolldown: 1.2.3
-      tinyglobby: 0.2.17
-    optionalDependencies:
-      '@types/node': 26.6.4
-      esbuild: 0.27.7
       fsevents: 2.3.3
       jiti: 2.7.0
       terser: 5.46.0
@@ -19055,6 +19169,35 @@ snapshots:
     optionalDependencies:
       vite: 8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)
 
+  vitest@4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)):
+    dependencies:
+      '@vitest/expect': 4.1.10
+      '@vitest/mocker': 4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
+      '@vitest/pretty-format': 4.1.10
+      '@vitest/runner': 4.1.10
+      '@vitest/snapshot': 4.1.10
+      '@vitest/spy': 4.1.10
+      '@vitest/utils': 4.1.10
+      es-module-lexer: 2.3.0
+      expect-type: 1.4.0
+      magic-string: 0.30.21
+      obug: 2.1.3
+      pathe: 2.0.3
+      picomatch: 4.0.5
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.2.4
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.1.0
+      vite: 8.2.1(@types/node@26.2.0)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 26.2.0
+      '@vitest/coverage-v8': 4.1.10(vitest@4.1.10)
+    transitivePeerDependencies:
+      - msw
+
   vitest@4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.10
@@ -19080,35 +19223,6 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
       '@types/node': 26.2.0
-      '@vitest/coverage-v8': 4.1.10(vitest@4.1.10)
-    transitivePeerDependencies:
-      - msw
-
-  vitest@4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.6.4)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.6.4)(typescript@6.0.3))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)):
-    dependencies:
-      '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(msw@2.15.0(@types/node@26.6.4)(typescript@6.0.3))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
-      '@vitest/pretty-format': 4.1.10
-      '@vitest/runner': 4.1.10
-      '@vitest/snapshot': 4.1.10
-      '@vitest/spy': 4.1.10
-      '@vitest/utils': 4.1.10
-      es-module-lexer: 2.3.0
-      expect-type: 1.4.0
-      magic-string: 0.30.21
-      obug: 2.1.3
-      pathe: 2.0.3
-      picomatch: 4.0.5
-      std-env: 4.1.0
-      tinybench: 2.9.0
-      tinyexec: 1.2.4
-      tinyglobby: 0.2.17
-      tinyrainbow: 3.1.0
-      vite: 8.2.1(@types/node@26.6.4)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.0
-      '@types/node': 26.6.4
       '@vitest/coverage-v8': 4.1.10(vitest@4.1.10)
     transitivePeerDependencies:
       - msw
@@ -19267,6 +19381,10 @@ snapshots:
       '@speed-highlight/core': 1.2.15
       cookie-es: 3.1.1
       youch-core: 0.3.3
+
+  youtube-video-element@1.9.0:
+    dependencies:
+      media-played-ranges-mixin: 0.1.0
 
   yuku-analyzer@0.8.4:
     dependencies:

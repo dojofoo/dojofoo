@@ -3,6 +3,7 @@ import type { ChatClientOptions } from "@tanstack/ai-client";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AuthoringChat } from "./authoring-chat";
+import { httpError } from "@/lib/http-error";
 
 type Snapshot = { session?: { sessionId: string }; messages: UIMessage[]; initialResumeSnapshot?: ChatClientOptions["initialResumeSnapshot"] };
 
@@ -14,6 +15,7 @@ export function EveAuthoringChat({ sessionId, api, onSession }: {
   const current = useRef(sessionId);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string>();
+  const [loadAttempt, setLoadAttempt] = useState(0);
   useEffect(() => {
     // Updating the URL for our newly created session must not restart its stream.
     if (snapshot && current.current === sessionId) return;
@@ -21,25 +23,47 @@ export function EveAuthoringChat({ sessionId, api, onSession }: {
     setSnapshot(null);
     setError(undefined);
     const controller = new AbortController();
-    if (!sessionId) setSnapshot({ messages: [] });
-    else void fetch(api(`/api/authoring/eve/sessions/${encodeURIComponent(sessionId)}`), { signal: controller.signal })
-      .then(async response => {
-        if (!response.ok) throw new Error(await response.text());
-        return response.json() as Promise<Snapshot>;
-      }).then(value => { if (!controller.signal.aborted) setSnapshot(value); })
-      .catch(cause => { if (!controller.signal.aborted) setError(String(cause)); });
+    // Delay the irreversible start until React's mount replay has settled.
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      void (async () => {
+        let id = sessionId;
+        if (!id) {
+          const start = await fetch(api("/api/authoring/eve/sessions/start"), { method: "POST", signal: controller.signal });
+          if (!start.ok) throw await httpError(start);
+          id = (await start.json() as { sessionId: string }).sessionId;
+          // Acceptance already created a durable conversation. Persist its URL
+          // before reading history, so a failed read cannot orphan it and a
+          // refresh cannot start another paid turn. The route loads its history.
+          if (controller.signal.aborted) return;
+          current.current = id;
+          onSession(id);
+          return;
+        }
+        const response = await fetch(api(`/api/authoring/eve/sessions/${encodeURIComponent(id)}`), { signal: controller.signal });
+        if (!response.ok) throw await httpError(response);
+        const value = await response.json() as Snapshot;
+        if (controller.signal.aborted) return;
+        current.current = id;
+        setSnapshot(value);
+      })().catch(cause => { if (!controller.signal.aborted) setError(String(cause)); });
+    });
     return () => controller.abort();
-  }, [sessionId, api]);
-  if (!snapshot) return <AuthoringChat messages={[]} status="ready" busy={!error} value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}} error={error} />;
+  }, [sessionId, api, loadAttempt]);
+  if (!snapshot) return <AuthoringChat messages={[]} status="ready" busy={!error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}} error={error}
+    onRetryLoad={sessionId ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
   return <EveConversation key={snapshot.session?.sessionId ?? "new"} snapshot={snapshot} api={api} onSession={id => {
     current.current = id;
     onSession(id);
+  }} onReload={() => {
+    // Re-read the durable session; Eve keeps running turns server-side.
+    setSnapshot(null);
+    setLoadAttempt(attempt => attempt + 1);
   }} />;
 }
 
-function EveConversation({ snapshot, api, onSession }: { snapshot: Snapshot; api(path: string): string; onSession(id: string): void }) {
+function EveConversation({ snapshot, api, onSession, onReload }: { snapshot: Snapshot; api(path: string): string; onSession(id: string): void; onReload(): void }) {
   const session = useRef(snapshot.session?.sessionId);
-  const started = useRef(false);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string>();
   const connection = useMemo(() => fetchServerSentEvents(
@@ -62,17 +86,6 @@ function EveConversation({ snapshot, api, onSession }: { snapshot: Snapshot; api
     setError(undefined);
     try { await chat.sendMessage(message); } catch (cause) { setError(String(cause)); }
   }
-  useEffect(() => {
-    let disposed = false;
-    // React may clean up and replay mount effects. Do not begin an irreversible
-    // session creation until that effect cycle settles; no timer or retry.
-    queueMicrotask(() => {
-      if (disposed || snapshot.session || started.current) return;
-      started.current = true;
-      void send("Help me author this course.");
-    });
-    return () => { disposed = true; };
-  }, []);
   function answer(answers: Record<string, AskUserAnswer>) {
     const entries = Object.values(answers).map(value => {
       const interrupt = chat.interrupts.find(item => item.id === value.questionId);
@@ -82,7 +95,13 @@ function EveConversation({ snapshot, api, onSession }: { snapshot: Snapshot; api
     for (const { interrupt, payload } of entries) interrupt.resolveInterrupt(payload);
   }
   return <AuthoringChat messages={chat.messages} status={chat.status} busy={chat.resuming} value={value} onValueChange={setValue}
+    queueLabel={chat.interrupts.length > 0 && !chat.resuming ? "Waiting for your answer" : undefined}
+    queue={chat.queue.map(item => {
+      const content = typeof item.content === "string" ? item.content : item.content.content;
+      return { id: item.id, text: typeof content === "string" ? content : content.flatMap(part => part.type === "text" ? [part.content] : []).join("") };
+    })} onCancelQueued={chat.cancelQueued}
     onSend={message => { void send(message); }} onAnswer={answer} error={error ?? chat.interruptErrors[0]?.message}
+    onRetryLoad={error && session.current ? onReload : undefined}
     onRetryAnswer={chat.interruptErrors.some(item => item.retryable) ? () => {
       setError(undefined);
       chat.retryInterrupts();

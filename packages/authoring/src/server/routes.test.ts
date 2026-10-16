@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -23,8 +24,10 @@ const { createAuthoringRoutes } = await import("./routes");
 const answer = vi.fn<(sessionId: string, answers: Record<string, string[]>) => void | Promise<void>>();
 const resume = vi.fn(async () => {});
 const evaluate = vi.fn<typeof import("../evaluation/host").evaluateFromAuthoring>();
+const teachingPolicy = vi.fn((mode: string) => `Teach ${mode}`);
 const authoringRoutes = createAuthoringRoutes({
   evaluate,
+  teachingPolicy,
   agent: {
     currentHarness: () => "test",
     start: async () => "test-session",
@@ -104,6 +107,7 @@ describe("authoring routes", () => {
   });
 
   beforeEach(() => {
+    teachingPolicy.mockReset().mockImplementation(mode => `Teach ${mode}`);
     answer.mockReset();
     evaluate.mockReset();
     resume.mockReset().mockResolvedValue(undefined);
@@ -250,6 +254,33 @@ describe("authoring routes", () => {
     await expect(response.json()).resolves.toMatchObject({ report: { status: "teaching-failed" } });
   });
 
+  it("returns only reports covering the requested lesson, not the newest unrelated run", async () => {
+    for (const [name, lessonId, startedAt] of [["run-first", "first", "2026-10-07"], ["run-second", "second", "2026-10-08"]]) {
+      const directory = resolve(context.root, ".dojo/evaluations", name);
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(resolve(directory, "report.json"), JSON.stringify({ version: 1, startedAt, status: "running", lessonIds: [lessonId] }));
+    }
+    const response = await authoringRoutes.request("/report?lessonId=first");
+    await expect(response.json()).resolves.toMatchObject({ report: { lessonIds: ["first"] } });
+    const missing = await authoringRoutes.request("/report?lessonId=untested");
+    await expect(missing.json()).resolves.toMatchObject({ report: null });
+  });
+
+  it("does not advertise a continuity trial as a fresh evaluation of its prerequisite", async () => {
+    for (const [name, lessonIds, startedAt] of [
+      ["run-first", ["first"], "2026-10-07"],
+      ["run-continuity", ["first", "second"], "2026-10-08"],
+    ] as const) {
+      const directory = resolve(context.root, ".dojo/evaluations", name);
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(resolve(directory, "report.json"), JSON.stringify({ version: 1, startedAt, status: "running", lessonIds }));
+    }
+    expect((await (await authoringRoutes.request("/report?lessonId=first")).json()).report.lessonIds).toEqual(["first"]);
+    expect((await (await authoringRoutes.request("/report?lessonId=second")).json()).report.lessonIds).toEqual(["first", "second"]);
+    rmSync(resolve(context.root, ".dojo/evaluations/run-first"), { recursive: true });
+    expect((await (await authoringRoutes.request("/report?lessonId=first")).json()).report).toBeNull();
+  });
+
   it("marks a completed report stale once its evaluated lesson changes", async () => {
     writeFileSync(resolve(context.root, "dojo.yaml"), "katas:\n  - name: first\n    template: src/first/solution.ts\n");
     mkdirSync(resolve(context.root, "src/first"), { recursive: true });
@@ -257,7 +288,9 @@ describe("authoring routes", () => {
     const { materialHash, readLessonMaterial } = await import("../evaluation/material.ts");
     const directory = resolve(context.root, ".dojo/evaluations/run-passed");
     mkdirSync(directory, { recursive: true });
-    const report = { version: 1, startedAt: "2026-10-08T10:00:00Z", status: "passed", lessonIds: ["first"],
+    const panel = ["a", "b"].map(judge => ({ judge, verdict: { overall: "pass", criteria: [{ id: "engagement", pass: true }] } }));
+    const report = { version: 1, startedAt: "2026-10-08T10:00:00Z", status: "passed", lessonIds: ["first"], material: panel, teaching: panel,
+      teachingPolicyHash: createHash("sha256").update("Teach katas").digest("hex"),
       materialHash: materialHash(await readLessonMaterial(context.root, ["first"])) };
     writeFileSync(resolve(directory, "report.json"), JSON.stringify(report));
     const read = async () => (await (await authoringRoutes.request("/report")).json()).report.status;
@@ -272,6 +305,41 @@ describe("authoring routes", () => {
     expect(await read()).toBe("stale");
     rmSync(resolve(context.root, "src/first"), { recursive: true });
     expect(await read()).toBe("stale");
+  });
+
+  it("invalidates changed or unrecorded teaching policy without rewriting the saved verdict", async () => {
+    const directory = resolve(context.root, ".dojo/evaluations/run-policy");
+    mkdirSync(directory, { recursive: true });
+    const panel = ["a", "b"].map(judge => ({ judge, verdict: { overall: "pass", criteria: [{ id: "engagement", pass: true }] } }));
+    const report = { version: 1, startedAt: "2026-10-08T10:00:00Z", status: "passed", material: panel, teaching: panel,
+      teachingPolicyHash: createHash("sha256").update("Teach katas").digest("hex") };
+    const path = resolve(directory, "report.json");
+    const saved = JSON.stringify(report);
+    writeFileSync(path, saved);
+    const read = async () => (await (await authoringRoutes.request("/report")).json()).report;
+    expect((await read()).status).toBe("passed");
+    expect(teachingPolicy).toHaveBeenCalledWith("katas");
+    teachingPolicy.mockReturnValue("Changed hidden check instructions");
+    expect(await read()).toMatchObject({ status: "stale", error: expect.stringContaining("teaching instructions") });
+    expect(readFileSync(path, "utf8")).toBe(saved);
+    teachingPolicy.mockReturnValue("Teach katas");
+    expect((await read()).status).toBe("passed");
+    const { teachingPolicyHash: _, ...legacy } = report;
+    writeFileSync(path, JSON.stringify(legacy));
+    expect((await read()).status).toBe("stale");
+    expect(JSON.parse(readFileSync(path, "utf8")).status).toBe("passed");
+  });
+
+  it("does not reuse a historical pass that discarded one judge's failure", async () => {
+    const directory = resolve(context.root, ".dojo/evaluations/run-split");
+    mkdirSync(directory, { recursive: true });
+    const material = ["a", "b"].map(judge => ({ judge, verdict: { overall: "pass", criteria: [{ id: "engagement", pass: true }] } }));
+    const teaching = material.map((judge, index) => index ? judge : { ...judge, verdict: { overall: "fail", criteria: [{ id: "engagement", pass: false }] } });
+    const report = { version: 1, startedAt: "2026-10-08T10:00:00Z", status: "passed", lessonIds: ["first"], material, teaching };
+    writeFileSync(resolve(directory, "report.json"), JSON.stringify(report));
+    const response = await authoringRoutes.request("/report?lessonId=first");
+    expect((await response.json()).report.status).toBe("stale");
+    expect(JSON.parse(readFileSync(resolve(directory, "report.json"), "utf8")).status).toBe("passed");
   });
 
   it("uses the shared host evaluator and creates an isolated learner trial", async () => {
@@ -311,15 +379,20 @@ describe("authoring routes", () => {
       writeFileSync(resolve(context.root, directory, "private-state"), "not lesson content");
     }
     symlinkSync(context.root, resolve(context.root, ".dojo/kyoshi-harness/course"), "dir");
+    for (const path of [".env", ".npmrc", "src/001-draw-a-boundary/.env.local"]) {
+      writeFileSync(resolve(context.root, path), "PRIVATE_TOKEN=do-not-copy");
+    }
+    writeFileSync(resolve(context.root, ".env.example"), "PUBLIC_EXAMPLE=\n");
     const original = readFileSync(resolve(context.root, "src/001-draw-a-boundary/solution.ts"), "utf8");
     const response = await authoringRoutes.request("/lessons/001-draw-a-boundary/trials", { method: "POST" });
     expect(response.status).toBe(201);
     const trials = resolve(context.root, ".dojo/trials");
     const trial = resolve(trials, readdirSync(trials)[0]);
     const copied = resolve(trial, ".dojos/systems-thinking");
-    for (const directory of [".dojo", ".git", "node_modules"]) {
+    for (const directory of [".dojo", ".git", "node_modules", ".env", ".npmrc", "src/001-draw-a-boundary/.env.local"]) {
       expect(existsSync(resolve(copied, directory)), directory).toBe(false);
     }
+    expect(readFileSync(resolve(copied, ".env.example"), "utf8")).toBe("PUBLIC_EXAMPLE=\n");
     const learnerFile = resolve(trial, "katas/001-draw-a-boundary/solution.ts");
     expect(readFileSync(learnerFile, "utf8")).toBe(original);
     writeFileSync(learnerFile, "// learner edits stay in the trial\n");
@@ -402,6 +475,16 @@ describe("authoring routes", () => {
     });
   });
 
+  it("summarizes each lesson's evaluation status for the sidebar", async () => {
+    authorLesson();
+    const created = await (await authoringRoutes.request("/lessons", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Second" }),
+    })).json();
+    const response = await authoringRoutes.request("/reports");
+    expect(response.status).toBe(200);
+    expect((await response.json()).statuses).toEqual({ "001-draw-a-boundary": "ready", [created.lessonId]: "draft" });
+  });
+
   it("creates a trial using a new lesson's manifest-selected kata filename", async () => {
     authorLesson();
     const response = await authoringRoutes.request("/lessons", {
@@ -412,7 +495,8 @@ describe("authoring routes", () => {
     const lesson = created.workspace.lessons.find((entry: { id: string }) => entry.id === created.lessonId);
     expect(lesson.templatePath).toBe(`src/${created.lessonId}/kata.ts`);
     expect(lesson.testPath).toBe(`src/${created.lessonId}/kata.test.ts`);
-    expect(lesson.checks.find((check: { id: string }) => check.id === "scaffold").ready).toBe(true);
+    // A new lesson starts with its basic evals in place, failing until filled in.
+    expect(lesson.checks.find((check: { id: string }) => check.id === "scaffold")).toMatchObject({ ready: false, findings: [expect.stringContaining("todo")] });
     const trial = await authoringRoutes.request(`/lessons/${created.lessonId}/trials`, { method: "POST" });
     expect(trial.status).toBe(201);
     const trials = resolve(context.root, ".dojo/trials");
@@ -459,9 +543,9 @@ katas:
     const lessonRoot = resolve(context.root, "src/001-draw-a-boundary");
     mkdirSync(lessonRoot, { recursive: true });
     writeFileSync(resolve(context.root, "DOJO.md"), "# Systems thinking\n\nTeach observable boundary decisions.\n");
-    writeFileSync(resolve(lessonRoot, "SENSEI.md"), "# Draw a Boundary\n\nHelp the learner compare what is inside and outside.\n");
+    writeFileSync(resolve(lessonRoot, "SENSEI.md"), "# Draw a Boundary\n\nHelp the learner compare what is inside and outside.\n\n## Start\n\n- **Hook:** h\n- **Builds on:** b\n- **First move:** f\n\n## Teach\n\n## Stumbling points\n\n## Evidence\n\n## Review\n\n- **Boundary:** b\n- **Predict:** p\n");
     writeFileSync(resolve(lessonRoot, "solution.ts"), "");
-    writeFileSync(resolve(lessonRoot, "solution.test.ts"), "");
+    writeFileSync(resolve(lessonRoot, "solution.test.ts"), 'it("draws a boundary", () => {});');
     writeFileSync(resolve(lessonRoot, "eval.yaml"), `cases:
   - id: introduction
     prompt: Begin the lesson.

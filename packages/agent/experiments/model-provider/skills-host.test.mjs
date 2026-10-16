@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { Client } from "@dojofoo/agent/client";
 
@@ -11,7 +12,11 @@ test("Eve loads an authored skill through the harness provider and retains its s
   const root = await mkdtemp(join(process.cwd(), "hosted-skills-"));
   let server;
   try {
-    await writeFile(join(root, "package.json"), JSON.stringify({ name: "skill-host-fixture", private: true, type: "module" }));
+    await writeFile(join(root, "package.json"), JSON.stringify({ name: "skill-host-fixture", private: true, type: "module",
+      dependencies: { "@dojofoo/agent": "*", "@ai-sdk/sandbox-just-bash": "*" },
+    }));
+    await mkdir(join(root, "node_modules/@dojofoo"), { recursive: true });
+    await symlink(fileURLToPath(new URL("../../", import.meta.url)), join(root, "node_modules/@dojofoo/agent"), "dir");
     await copyFile(new URL("host-agent.fixture.ts", import.meta.url), join(root, "agent.ts"));
     await writeFile(join(root, "instructions.md"), "HOST_INSTRUCTIONS_LOADED: Use the course-outline skill when requested.\n");
     await mkdir(join(root, "tools"));

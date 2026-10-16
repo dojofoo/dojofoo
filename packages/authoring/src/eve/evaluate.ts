@@ -1,6 +1,8 @@
 import { defineTool } from "@dojofoo/agent/tools";
 import { z } from "zod";
+import { MaterialFailure } from "../evaluation/failure.ts";
 import { evaluateFromAuthoring, type EvaluationConfiguration } from "../evaluation/host.ts";
+import { configuredEvaluation, readEvaluationSettings } from "../evaluation/settings.ts";
 
 export function createKyoshiEvaluationTool(runtime: () => Promise<{ courseRoot: string; evaluation?: EvaluationConfiguration }>) {
   return defineTool({
@@ -9,12 +11,26 @@ export function createKyoshiEvaluationTool(runtime: () => Promise<{ courseRoot: 
     label: { start: () => "Evaluating teaching" },
     execute: async ({ lessonIds }, context) => {
       const settings = await runtime();
-      const result = await evaluateFromAuthoring({ root: settings.courseRoot, config: settings.evaluation, lessonIds, callId: context.callId, signal: context.abortSignal });
+      let config: EvaluationConfiguration | undefined;
+      let result;
+      try {
+        const configured = await readEvaluationSettings(settings.courseRoot);
+        config = configured ? await configuredEvaluation(settings.courseRoot) : settings.evaluation;
+        result = await evaluateFromAuthoring({ root: settings.courseRoot, config, lessonIds, callId: context.callId, signal: context.abortSignal });
+      } catch (error) {
+        // Expected outcomes are results for Kyoshi to act on, not tool crashes.
+        const message = error instanceof Error ? error.message : String(error);
+        if (error instanceof MaterialFailure) return { status: "preflight-failed", error: message, next: "Fix these findings and call again; no attempt was used." };
+        if (!config) return { status: "not-configured", error: message, next: "Tell the author once and stop; do not choose models." };
+        if (message.includes("not in this course") || message.includes("Evaluate one lesson")) return { status: "invalid-request", error: message, next: "Use lesson IDs from dojo.yaml: the lesson, optionally preceded by its predecessor." };
+        if (message.includes("allowance exhausted")) return { status: "allowance-exhausted", error: message, next: "Report the remaining issue to the author; do not retry." };
+        throw error;
+      }
       return {
         attempt: result.attempt, remaining: result.remaining,
         status: result.report.status, stage: result.report.stage,
         reportDirectory: result.report.directory, error: result.report.error,
-        // Fix `blocking`; `disputed` (one judge only) are optional refinements.
+        // Keep both raw verdicts: a consensus summary cannot clear a strict failure.
         decisions: result.report.decisions,
         material: result.report.material?.map(({ judge, verdict }) => ({ judge, verdict })),
         teaching: result.report.teaching?.map(({ judge, verdict }) => ({ judge, verdict })),

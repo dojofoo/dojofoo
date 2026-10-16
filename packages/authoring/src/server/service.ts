@@ -13,7 +13,9 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import {
   observeLocalContext,
 } from "@dojofoo/config/local-state";
-import { validateManifest, writeDojoRc } from "@dojofoo/config";
+import { kataTestTemplate, validateManifest, writeDojoRc } from "@dojofoo/config";
+import { checkSensei, checkTests } from "../evaluation/preflight.ts";
+import { readPrompt } from "../prompts.ts";
 import {
   AUTHORING_BOOTSTRAP_MARKER,
   AUTHORING_BOOTSTRAP_PROMPT,
@@ -26,6 +28,7 @@ import {
   acknowledgeAuthoringEdits,
   pendingAuthoringEdits,
   writeAuthoringFile,
+  privateAuthoringEntry,
 } from "./files";
 
 const kyoshiContract = readFileSync(createRequire(import.meta.url).resolve("@dojofoo/authoring/KYOSHI.md"), "utf8");
@@ -61,6 +64,8 @@ export type AuthoringReadinessCheck = {
   id: string;
   label: string;
   ready: boolean;
+  /** What the free lesson preflight still asks for; empty or absent when ready. */
+  findings?: string[];
 };
 
 export type AuthoringWorkspace = {
@@ -175,7 +180,7 @@ export function createLessonTrial(root: string, lessonId: string): {
   if (!lesson) {
     throw new Error(`Lesson not found: ${lessonId}`);
   }
-  const templatePath = lesson.templatePath ?? `src/${lessonId}/solution.ts`;
+  const templatePath = lesson.templatePath ?? `src/${lessonId}/kata.ts`;
   if (!lesson.files.some((file) => file.path === templatePath)) {
     throw new Error("Lesson template must be an existing lesson file");
   }
@@ -189,9 +194,10 @@ export function createLessonTrial(root: string, lessonId: string): {
   mkdirSync(dirname(courseRoot), { recursive: true });
   mkdirSync(courseRoot, { recursive: true });
   for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (entry.name === ".dojo" || entry.name === ".git" || entry.name === "node_modules") continue;
+    if (privateAuthoringEntry(entry.name)) continue;
     cpSync(resolve(root, entry.name), resolve(courseRoot, entry.name), {
       recursive: true,
+      filter: source => !privateAuthoringEntry(basename(source)),
     });
   }
   writeDojoRc(trialRoot, {
@@ -244,16 +250,26 @@ export function createAuthoringLesson(root: string, requestedTitle: string): str
       name: id,
       title,
       template: `src/${id}/kata.ts`,
-      test: `src/${id}/kata.test.ts`,
       description: "",
       difficulty: 1,
     },
   ];
   writeAuthoringFile(root, "dojo.yaml", stringifyYaml(manifest));
-  writeAuthoringFile(root, `src/${id}/SENSEI.md`, `# ${title}\n`);
+  // Every new lesson starts with its evals in place: the SENSEI template the
+  // preflight checks against, and a staircase of todo checks to fill in.
+  writeAuthoringFile(root, `src/${id}/SENSEI.md`, readPrompt("skills/kata-lessons/SENSEI.tmpl").replace("{Lesson title}", title));
   mkdirSync(resolve(root, "src", id), { recursive: true });
   writeFileSync(resolve(root, "src", id, "kata.ts"), "");
-  writeFileSync(resolve(root, "src", id, "kata.test.ts"), "");
+  writeFileSync(resolve(root, "src", id, "kata.test.ts"), [
+    `import { describe, it } from "vitest";`,
+    ``,
+    `// A staircase of checks: the easiest win first, then one test per stumbling point.`,
+    `describe(${JSON.stringify(title)}, () => {`,
+    `  it.todo("the easiest behavior a learner can win");`,
+    `  it.todo("one stumbling point, named as a behavior");`,
+    `});`,
+    ``,
+  ].join("\n"));
   return id;
 }
 
@@ -302,14 +318,24 @@ function draftLessons(root: string, manifest: Record<string, unknown>): Authorin
     const relativeSenseiPath = `src/${id}/${senseiPath?.endsWith(".mdx") ? "SENSEI.mdx" : "SENSEI.md"}`;
     const sensei = senseiPath ? readFileSync(senseiPath, "utf8") : "";
     const files = readAuthoringDirectory(root, directory);
-    const templatePath = String(entry.template ?? `src/${id}/solution.ts`);
-    const testPath = String(entry.test ?? `src/${id}/solution.test.ts`);
+    const templatePath = String(entry.template ?? `src/${id}/kata.ts`);
+    // A manifest's `test` is an executable command, not a filename. Match the
+    // production resolver: tests are named after the actual scaffold.
+    const testPath = kataTestTemplate(templatePath);
     const evalPaths = files
       .map(({ path }) => path)
       .filter((path) => /(?:^|\/)(?:eval|\w[\w.-]*\.eval)\.ya?ml$/u.test(path));
+    // The free lesson preflight: the same findings that block a paid trial.
+    const senseiFindings = substantiveMarkdown(sensei)
+      ? checkSensei(sensei, { mdx: senseiPath?.endsWith(".mdx") })
+      : ["Fill SENSEI.tmpl into this lesson's SENSEI.md."];
+    const tests = files.find((file) => file.path === testPath);
+    const scaffoldFindings = !files.some((file) => file.path === templatePath)
+      ? [`Add the learner scaffold ${templatePath}.`]
+      : tests ? checkTests(tests.content) : [`Add the lesson's checks in ${testPath}.`];
     const checks: AuthoringReadinessCheck[] = [
-      { id: "sensei", label: "Lesson briefing and Sensei guidance", ready: substantiveMarkdown(sensei) },
-      { id: "scaffold", label: "Learner scaffold and checks", ready: files.some((file) => file.path === templatePath) && files.some((file) => file.path === testPath) },
+      { id: "sensei", label: "Lesson briefing and Sensei guidance", ready: !senseiFindings.length, findings: senseiFindings },
+      { id: "scaffold", label: "Learner scaffold and checks", ready: !scaffoldFindings.length, findings: scaffoldFindings },
     ];
     return {
       id,
@@ -330,6 +356,7 @@ function draftLessons(root: string, manifest: Record<string, unknown>): Authorin
 function readAuthoringDirectory(root: string, directory: string): AuthoringSourceFile[] {
   if (!existsSync(directory)) return [];
   return readdirSync(directory, { withFileTypes: true })
+    .filter(entry => !privateAuthoringEntry(entry.name))
     .sort((left, right) => left.name.localeCompare(right.name))
     .flatMap((entry) => {
       const path = resolve(directory, entry.name);
@@ -342,7 +369,7 @@ function readAuthoringDirectory(root: string, directory: string): AuthoringSourc
 function readRootAuthoringFiles(root: string): AuthoringSourceFile[] {
   const excluded = new Set([".dojo", ".git", "evals", "node_modules", "src"]);
   return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => !excluded.has(entry.name))
+    .filter((entry) => !excluded.has(entry.name) && !privateAuthoringEntry(entry.name))
     .sort((left, right) => left.name.localeCompare(right.name))
     .flatMap((entry) => {
       const path = resolve(root, entry.name);

@@ -3,11 +3,22 @@ import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { defineEval } from "@dojofoo/agent/evals";
 import { satisfies } from "@dojofoo/agent/evals/expect";
-import { readMaterial } from "@dojofoo/authoring/evaluation/material";
+import { readLessonMaterial, readMaterial } from "@dojofoo/authoring/evaluation/material";
+import { preservesAcceptedMaterial } from "../../src/accepted-material";
 import { evaluationConfiguration, executeEvaluationWorker } from "@dojofoo/authoring/evaluation/host";
 import type { EvaluationReport } from "@dojofoo/authoring/evaluation/run";
 import instructions from "@dojofoo/authoring/eve/instructions";
 import { chainPrompts } from "./authoring-chain.eval";
+import { requireJudgeResults } from "@dojofoo/authoring/evaluation/judges";
+
+function unanimouslyPassed(report: EvaluationReport | undefined): boolean {
+  if (report?.status !== "passed") return false;
+  try {
+    return [report.material, report.teaching].every(panel =>
+      requireJudgeResults(panel ?? []).every(({ verdict }) =>
+        verdict.overall === "pass" && verdict.criteria.every(({ pass }) => pass)));
+  } catch { return false; }
+}
 
 /** Acceptance invokes the shipped agent/tool, never an extra coaching turn or
  * a developer-run evaluator after the author has already declared success.
@@ -33,6 +44,12 @@ export default defineEval({
         evidence.push({ prompt, events, material });
         await writeFile(join(root, ".dojo/workflow-evidence.json"), JSON.stringify(evidence, null, 2));
         turn.expectOk();
+        if (accepted) {
+          const previous = JSON.parse(await readFile(join(accepted.directory, "material.json"), "utf8"));
+          const current = await readLessonMaterial(root, accepted.lessonIds);
+          await t.require(preservesAcceptedMaterial(previous, current, accepted.lessonIds),
+            satisfies((valid: boolean) => valid, "Later authoring must not invalidate previously accepted lesson material"));
+        }
         await t.require(Object.keys(material).filter(path => /\/SENSEI\.md$/u.test(path)).length === index + 1,
           satisfies((valid: boolean) => valid, "Author one lesson at a time"));
         await t.require(JSON.stringify(events.filter(event => event.type === "actions.requested")).includes('"dojo_authoring_evaluate"'),
@@ -44,7 +61,7 @@ export default defineEval({
         }
         const latest = reports.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
         evidence.push({ afterLesson: index + 1, reports });
-        await t.require(latest?.status === "passed" && latest.lessonIds.length === index + 1,
+        await t.require(unanimouslyPassed(latest) && latest.lessonIds.length === index + 1,
           satisfies((valid: boolean) => valid, "Both judge panels and production teaching must pass; second lesson must check continuity"));
         const evaluatedMaterial = JSON.parse(await readFile(join(latest.directory, "material.json"), "utf8"));
         await t.require(isDeepStrictEqual(evaluatedMaterial, material),
@@ -58,7 +75,7 @@ export default defineEval({
       if (!config || !accepted) throw new Error("Held-out acceptance requires the configured evaluation worker and accepted lessons");
       const heldout = await executeEvaluationWorker(root, accepted.lessonIds, config, AbortSignal.timeout(2_160_000), "confident");
       evidence.push({ heldout });
-      await t.require(heldout.status === "passed" && heldout.materialHash === accepted.materialHash && Boolean(accepted.teachingPolicyHash) && heldout.teachingPolicyHash === accepted.teachingPolicyHash && isDeepStrictEqual(heldout.lessonIds, accepted.lessonIds),
+      await t.require(unanimouslyPassed(heldout) && heldout.materialHash === accepted.materialHash && Boolean(accepted.teachingPolicyHash) && heldout.teachingPolicyHash === accepted.teachingPolicyHash && isDeepStrictEqual(heldout.lessonIds, accepted.lessonIds),
         satisfies((valid: boolean) => valid, "The frozen lessons must also pass held-out teaching without author revision"));
       t.succeeded();
     } finally {

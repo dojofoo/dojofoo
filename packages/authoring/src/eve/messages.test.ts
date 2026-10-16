@@ -1,12 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { defaultMessageReducer, type EveDynamicToolPart, type EveMessage, type EveAgentReducerEvent } from "@dojofoo/agent/client";
 import { eveChatMessages } from "./messages";
+import { KYOSHI_START } from "./bootstrap";
 
 function project(part: EveDynamicToolPart) {
   return eveChatMessages([{ id: "assistant-1", role: "assistant", parts: [part] }])[0].parts[0];
 }
 
 describe("Eve chat projection", () => {
+  it("hides only the first server lifecycle input, not actual messages with similar text", () => {
+    const messages: EveMessage[] = [
+      { id: "start", role: "user", parts: [{ type: "text", text: KYOSHI_START }] },
+      { id: "answer", role: "assistant", parts: [{ type: "text", text: "What would you like to teach?" }] },
+      { id: "human", role: "user", parts: [{ type: "text", text: "Help me author this course." }] },
+    ];
+    expect(eveChatMessages(messages).map(message => message.id)).toEqual(["answer", "human"]);
+    expect(messages).toHaveLength(3);
+  });
   it("preserves streamed arguments, identity and order without mutating source messages", () => {
     const messages: EveMessage[] = [{ id: "assistant-1", role: "assistant", parts: [
       { type: "reasoning", text: "Inspecting the course", stepIndex: 1 },

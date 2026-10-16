@@ -1,6 +1,6 @@
 import type { SessionNotification } from "@agentclientprotocol/sdk";
 import { describe, expect, it, vi } from "vitest";
-import { codexRuntimeEnvironment } from "../harness/codex";
+import { codexHarnessAdapter, codexRuntimeEnvironment } from "../harness/codex";
 import { configureOpenCodeSessionModel, opencodeRuntimeEnvironment } from "../harness/opencode";
 import { dojofooHarness } from "../harness/registry";
 import { AcpClient, type AcpStreamPart } from "./codex-client";
@@ -14,6 +14,37 @@ async function visibleHistory(client: AcpClient, sessionId: string) {
 }
 
 describe("AcpClient projection", () => {
+  it("rejects typed Codex provider failures, including silent turns, without inventing teaching text", async () => {
+    const client = new AcpClient();
+    const runtime = {
+      adapter: codexHarnessAdapter,
+      connection: { cancel: vi.fn(), prompt: vi.fn().mockResolvedValue({
+        stopReason: "end_turn",
+        _meta: { jetbrains: { air: { version: 1, sessionFailure: {
+          id: "turn:error", revision: 1, category: "limit", severity: "error",
+          title: "exceeded retry limit, last status: 429 Too Many Requests", actions: ["retry"],
+        } } } },
+      }) },
+      harness: "codex", root: "/tmp/lesson", developerInstructions: "Teach",
+      loadedSessions: new Set(["session-1"]), loadingSessions: new Map(), ready: Promise.resolve(),
+    };
+    (client as unknown as { runtimes: Map<string, unknown> }).runtimes.set("lesson", runtime);
+    (client as unknown as { sessions: Map<string, unknown> }).sessions.set("session-1", {
+      runtimeKey: "lesson", root: "/tmp/lesson",
+    });
+    for (const visible of [true, false]) {
+      await expect(client.send("session-1", "Continue", undefined, { visible })).rejects.toThrow("429 Too Many Requests");
+    }
+    expect((await client.history("session-1")).filter(entry => entry.role === "assistant")).toEqual([]);
+    runtime.connection.prompt.mockImplementationOnce(async () => {
+      receive(client, { sessionId: "session-1", update: {
+        sessionUpdate: "agent_message_chunk", content: { type: "text", text: "HTTP 429 means too many requests." },
+      } });
+      return { stopReason: "end_turn" };
+    });
+    await expect(client.send("session-1", "Explain HTTP 429")).resolves.toBe("HTTP 429 means too many requests.");
+  });
+
   it("projects and updates the ACP model configuration advertised by a harness", async () => {
     const client = new AcpClient();
     const options = [{

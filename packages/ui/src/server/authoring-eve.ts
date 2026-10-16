@@ -26,7 +26,15 @@ export function mountEveAuthoring(app: Hono, options: {
       runtime = await options.runtime!();
       const { url } = await runtime.start();
       return new Client({ host: url });
-    })();
+    })().catch(async error => {
+      // Failed infrastructure is not a durable conversation. Release it so
+      // an explicit reload can acquire a repaired host; never retry a turn.
+      const failed = runtime;
+      runtime = undefined;
+      try { await failed?.close(); }
+      finally { client = undefined; }
+      throw error;
+    });
   };
   const scope: MiddlewareHandler = async (c, next) => {
     if (realpathSync(options.resolveWorkspace(c.req.raw)) !== root) {

@@ -18,6 +18,9 @@ export function codexRuntimeEnvironment(
   }
   return {
     ...baseEnvironment,
+    // Use the learner's installed CLI, as model discovery and native login do.
+    // ACP otherwise launches its separately pinned, potentially older Codex.
+    CODEX_PATH: baseEnvironment.CODEX_PATH ?? "codex",
     INITIAL_AGENT_MODE: "agent-full-access",
     CODEX_CONFIG: JSON.stringify({
       ...configured,
@@ -31,6 +34,20 @@ export function codexRuntimeEnvironment(
 export function createCodexHarnessAdapter(environment: NodeJS.ProcessEnv = process.env): HarnessAdapter {
   return {
     kind: "codex",
+    // codex-acp's existing Air extension returns terminal failures as typed
+    // metadata instead of presenting provider errors as assistant messages.
+    clientCapabilities: {
+      _meta: { jetbrains: { air: { version: 1, capabilities: ["sessionFailure"] } } },
+    },
+    validatePromptResponse: (response) => {
+      const meta = response._meta as {
+        jetbrains?: { air?: { sessionFailure?: { severity?: string; title?: string } } };
+      } | undefined;
+      const failure = meta?.jetbrains?.air?.sessionFailure;
+      if (failure?.severity === "error") {
+        throw new Error(`Codex: ${failure.title ?? "Provider failed to complete the turn"}`);
+      }
+    },
     configureSession: async () => undefined,
     setModel: async (connection, sessionId, modelId) => {
       const response = await connection.setSessionConfigOption({ sessionId, configId: "model", value: modelId });

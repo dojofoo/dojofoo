@@ -22,7 +22,8 @@
       "esbuild"
     ],
     "patchedDependencies": {
-      "@ai-sdk/harness-opencode@1.0.110": "patches/@ai-sdk__harness-opencode@1.0.110.patch"
+      "@ai-sdk/harness-opencode@1.0.110": "patches/@ai-sdk__harness-opencode@1.0.110.patch",
+      "@tanstack/ai-client@0.25.1": "patches/@tanstack__ai-client@0.25.1.patch"
     }
   },
   "devDependencies": {

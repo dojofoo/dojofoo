@@ -21,7 +21,8 @@ describe("kyoshi scaffold", () => {
     expect(readFileSync(resolve(root, "DOJO.md"), "utf8"))
       .toBe(readFileSync(new URL("../../authoring/templates/katas/DOJO.md", import.meta.url), "utf8"));
     expect(existsSync(resolve(root, "src", "001-normalize-label"))).toBe(false);
-    expect(existsSync(resolve(root, "scripts", "eval.ts"))).toBe(true);
+    expect(existsSync(resolve(root, "scripts", "eval.ts"))).toBe(false);
+    expect(existsSync(resolve(root, "mise.toml"))).toBe(true);
     expect(existsSync(resolve(root, "evals"))).toBe(false);
   });
 

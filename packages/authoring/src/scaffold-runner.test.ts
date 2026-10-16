@@ -31,6 +31,10 @@ it("runs the authored stub locally but the edited learner file in a trial", () =
       }
     };
     expect(JSON.parse(run("")).numFailedTests).toBe(1);
+    // Authoring inherits DOJO_PROJECT_ROOT too, but has src/ rather than katas/.
+    // It must execute the stub, not alias imports into a missing directory.
+    expect(JSON.parse(run(course)).numFailedTests).toBe(1);
+    expect(JSON.parse(run(course)).numTotalTests).toBe(1);
     expect(JSON.parse(run(workspace)).numPassedTests).toBe(1);
     writeFileSync(learner, "export const answer = 0;");
     expect(JSON.parse(run(workspace)).numFailedTests).toBe(1);

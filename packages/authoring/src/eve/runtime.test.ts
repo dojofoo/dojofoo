@@ -60,7 +60,11 @@ it("owns a real packaged Eve server and releases it without launching a model", 
     expect(Object.keys(state).sort()).toEqual(["connection", "courseRoot", "harness", "harnessRoot"]);
     // Eve owns generation paths: verify through its manifest-loading API,
     // not an assumed .eve/compile location.
-    expect((await fetch(new URL("eve/v1/info", first.url))).status).toBe(200);
+    const infoResponse = await fetch(new URL("eve/v1/info", first.url));
+    expect(infoResponse.status).toBe(200);
+    const info = await infoResponse.json();
+    expect(info.skills.static.map((skill: { name: string }) => skill.name).sort())
+      .toEqual(["kata-lessons", "lesson-design", "teaching-evals"]);
     await Promise.all([runtime.close(), runtime.close()]);
     await expect(runtime.start()).rejects.toThrow("closed");
     await expect(fetch(first.url, { signal: AbortSignal.timeout(2000) })).rejects.toThrow();

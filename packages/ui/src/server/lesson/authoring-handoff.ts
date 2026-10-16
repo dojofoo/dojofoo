@@ -1,6 +1,7 @@
 import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { once } from "node:events";
+import { setTimeout as delay } from "node:timers/promises";
 import { resolve } from "node:path";
 import { readLessonSensei } from "@dojofoo/authoring/evaluation/sensei";
 import { createLessonTrial } from "@dojofoo/authoring/service";
@@ -27,11 +28,20 @@ import {
 export async function runAuthoringHandoff(signal: AbortSignal = new AbortController().signal, lessonIds?: string[], options?: {
   fixturesPath?: string;
   learnerProfile?: "struggling" | "confident";
+  /** Focused teaching checks still use the production setup, but do not claim
+   * completion, review or learning outcomes. Empty turns checks just the intro. */
+  turns?: ReadonlyArray<{ message: string; code?: string }>;
   respondToReview?(dialogue: LearnerDialogue, source: string, signal: AbortSignal): Promise<string>;
-  verifyFixtures(root: string, courseId: string, fixtures: Record<string, LearnerFixture>, lessonIds: string[], signal: AbortSignal): Promise<unknown>;
+  verifyFixtures?(root: string, courseId: string, fixtures: Record<string, LearnerFixture>, lessonIds: string[], signal: AbortSignal): Promise<unknown>;
 }) {
   signal.throwIfAborted();
-  const learnerProfile = options?.learnerProfile ?? "struggling";
+  // Live-eval pacing: synthetic learners otherwise send many turns
+  // faster than a human can read. No retry or change to production chat.
+  const turnIntervalMs = Number(process.env.DOJOFOO_EVAL_TURN_INTERVAL_MS ?? 15_000);
+  if (!Number.isSafeInteger(turnIntervalMs) || turnIntervalMs < 0 || turnIntervalMs > 60_000) {
+    throw new Error("Evaluation turn interval must be between 0 and 60000 milliseconds");
+  }
+  const learnerProfile = options?.turns ? "focused" : options?.learnerProfile ?? "struggling";
   if (learnerProfile === "confident" && !options?.respondToReview) throw new Error("Confident scenario requires a learner responder");
   assert.equal(process.env.DOJOFOO_EVALUATION_WORKER, "1", "Production teaching evaluations require an isolated worker");
   const authoredRoot = process.env.DOJOFOO_HANDOFF_COURSE;
@@ -47,12 +57,13 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
   const manifest = parse(await readFile(resolve(authoredRoot, "dojo.yaml"), "utf8"));
   const lessons = lessonIds ? manifest.katas.filter((entry: { name: string }) => lessonIds.includes(entry.name)) : manifest.katas;
   assert.ok(lessons.length >= 1 && lessons.length <= 2, "Evaluate one lesson, or two lessons to check continuity");
+  if (options?.turns) assert.equal(lessons.length, 1, "Focused teaching checks require one lesson");
   if (lessonIds) assert.equal(lessons.length, new Set(lessonIds).size, "Requested lesson is missing");
   // The learner's edits are separate, reviewed fixtures. They never enter the
   // teacher's system prompt and are applied only at the scripted learner stage.
-  const learnerPath = options?.fixturesPath ?? resolve(authoredRoot, ".dojo/learner-fixtures.json");
-  const learner = JSON.parse(await readFile(learnerPath, "utf8")) as Record<string, { misconception: string; wrong: string; solved: string; review: string }>;
-  const evidence: unknown[] = [{ learnerProfile, harness: process.env.DOJOFOO_HARNESS, model: process.env.DOJOFOO_HANDOFF_MODEL, learnerPath }];
+  const learnerPath = options?.turns ? undefined : options?.fixturesPath ?? resolve(authoredRoot, ".dojo/learner-fixtures.json");
+  const learner: Record<string, LearnerFixture> = learnerPath ? JSON.parse(await readFile(learnerPath, "utf8")) : {};
+  const evidence: unknown[] = [{ learnerProfile, harness: process.env.DOJOFOO_HARNESS, model: process.env.DOJOFOO_HANDOFF_MODEL, learnerPath, turnIntervalMs }];
   const persist = () => writeFile(evidencePath, JSON.stringify(evidence, null, 2));
   await mkdir(process.env.DOJOFOO_HOME, { recursive: true });
   const trial = createLessonTrial(authoredRoot, lessons[0].name);
@@ -63,7 +74,7 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
   const installedCourse = resolve(root, ".dojos", trial.courseId);
   const protectedMaterial = await readMaterial(installedCourse);
   await writeFile(resolve(evidenceRoot, "installed-material.json"), JSON.stringify(protectedMaterial, null, 2));
-  if (options) {
+  if (options?.verifyFixtures && !options.turns) {
     try {
       const reports = await options.verifyFixtures(root, trial.courseId, learner, lessons.map((entry: { name: string }) => entry.name), signal);
       evidence.push({ fixturePreflight: "passed", reports });
@@ -96,7 +107,7 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
     for (const entry of lessons) {
       const lessonId: string = entry.name;
       const fixture = learner[lessonId];
-      if (!fixture) throw new Error(`Missing reviewed learner edits for ${lessonId}`);
+      if (!fixture && !options?.turns) throw new Error(`Missing reviewed learner edits for ${lessonId}`);
       // Earlier lessons are prior progress, not taught again: solve, check
       // (which records completion) and advance through the production services.
       if (entry !== lessons.at(-1)) {
@@ -128,7 +139,12 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
       const nextLessonId = lessons[lessons.indexOf(entry) + 1]?.name;
       let navigatedLesson: string | undefined;
       const dialogue: LearnerDialogue = [];
+      let previousTurnStarted: number | undefined;
       async function turn(stage: string, run: (collect: (part: AcpStreamPart) => void, signal: AbortSignal) => Promise<void>, learnerMessage?: string) {
+        const wait = previousTurnStarted === undefined ? 0 : turnIntervalMs - (Date.now() - previousTurnStarted);
+        if (wait > 0) await delay(wait, undefined, { signal });
+        signal.throwIfAborted();
+        previousTurnStarted = Date.now();
         if (learnerMessage) dialogue.push({ role: "user", content: learnerMessage });
         const parts: AcpStreamPart[] = [];
         const answers: Promise<unknown>[] = [];
@@ -173,14 +189,21 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
       }
       const say = (stage: string, message: string) => turn(stage, (collect, signal) => streamSensei(root!, lessonId, message, collect, signal), message);
       await turn("introduction", (collect, signal) => streamLessonIntroduction(root!, lessonId, collect, signal));
+      if (options?.turns) {
+        for (const [index, input] of options.turns.entries()) {
+          if (input.code !== undefined) await writeLessonFile(root, trial.courseId, lessonId, "solution", input.code);
+          await say(`focused-${index + 1}`, input.message);
+        }
+        continue;
+      }
       if (learnerProfile === "confident") {
         await writeLessonFile(root, trial.courseId, lessonId, "solution", fixture.solved);
         const answer = await options!.respondToReview!(dialogue, fixture.solved, signal);
         if (!answer.trim()) throw new Error("Confident learner returned an empty answer");
         await say("quick-understanding", answer);
       } else {
-      await say("uncertainty", scriptedLearner("uncertainty"));
-      await say("unfamiliar-terminology", scriptedLearner("unfamiliar-terminology"));
+      await say("uncertainty", fixture.uncertainty ?? scriptedLearner("uncertainty"));
+      await say("unfamiliar-terminology", fixture.terminology ?? scriptedLearner("unfamiliar-terminology"));
       await say("misconception", fixture.misconception);
       await writeLessonFile(root, trial.courseId, lessonId, "solution", fixture.wrong);
       for (let attempt = 1; attempt <= 2; attempt++) {
@@ -218,7 +241,7 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
         throw new TeachingFailure("Move on must open the next lesson");
       }
     }
-    evidence.push({ deterministicLifecycle: "passed" });
+    evidence.push({ deterministicLifecycle: options?.turns ? "not-evaluated" : "passed" });
   } catch (error) {
     evidence.push({ deterministicLifecycle: "failed", error: error instanceof Error ? error.message : String(error) });
     throw error;

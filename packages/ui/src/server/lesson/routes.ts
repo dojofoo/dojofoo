@@ -53,10 +53,8 @@ app.get("/:workspaceId/courses/:courseId/lessons/:lessonId/messages", async (c) 
 app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/sessions", async (c) => {
   try {
     const { root, courseId, lessonId } = context(c);
-    const lesson = await getLesson(root, lessonId);
-    if (!lesson) return c.json({ error: "Lesson not found" }, 404);
-    assertCourse(lesson.dojo, courseId);
-    return c.json(await startLessonSession(root, lessonId), 201);
+    // Validate the target without requiring the old provider session to resume.
+    return c.json(await startLessonSession(root, lessonId, courseId), 201);
   } catch (cause) {
     return c.json({ error: cause instanceof Error ? cause.message : "Could not start a new lesson session" }, 502);
   }

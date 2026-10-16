@@ -32,8 +32,11 @@ export function AuthoringSidebar({
   onSelectRootFile,
   scope,
   selectedLessonId,
+  statuses = {},
   workspace,
 }: {
+  /** Per-lesson evaluation status from `/api/authoring/reports`. */
+  statuses?: Record<string, string>;
   activeFilePath: string;
   busy: boolean;
   courseExpanded: boolean;
@@ -183,9 +186,12 @@ export function AuthoringSidebar({
             const index = workspace.lessons.findIndex(
               ({ id }) => authoringLessonResourceId(id) === item.id,
             );
-            return index < 0 ? undefined : (
-              <span className="font-mono text-[10px] text-muted-foreground">
+            if (index < 0) return undefined;
+            const status = lessonStatus(statuses[workspace.lessons[index]!.id]);
+            return (
+              <span className="relative font-mono text-[10px] text-muted-foreground" title={status.label}>
                 {String(index + 1).padStart(2, "0")}
+                <span aria-label={status.label} role="img" className={`absolute -right-1.5 -top-0.5 size-1.5 rounded-full ${status.tone}`} />
               </span>
             );
           }}
@@ -445,4 +451,19 @@ export function authoringSidebarSelection(
     }
   }
   return null;
+}
+
+const lessonStatuses: Record<string, { label: string; tone: string }> = {
+  draft: { label: "Preflight: not ready", tone: "border border-muted-foreground/60" },
+  ready: { label: "Preflight passed: ready for a trial", tone: "bg-muted-foreground/60" },
+  running: { label: "Evaluation running", tone: "animate-pulse bg-sky-400" },
+  passed: { label: "Teaching evaluation passed", tone: "bg-emerald-400" },
+  "material-failed": { label: "Material needs a revision", tone: "bg-amber-400" },
+  "teaching-failed": { label: "Teaching needs a revision", tone: "bg-amber-400" },
+  "infrastructure-failed": { label: "Evaluation could not finish", tone: "bg-red-400" },
+  stale: { label: "Changed since the last evaluation", tone: "border border-amber-400" },
+};
+
+function lessonStatus(status = "draft") {
+  return lessonStatuses[status] ?? lessonStatuses.draft!;
 }
