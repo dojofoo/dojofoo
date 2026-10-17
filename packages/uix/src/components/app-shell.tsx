@@ -1566,7 +1566,8 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   font-weight: 550; font-variation-settings: "opsz" 18;
   color: var(--ink);
 }
-.ui-as-user img { flex: none; width: 20px; height: 20px; border-radius: 50%; object-fit: cover; box-shadow: var(--shadow-1); }
+/* The face a squircle, as every avatar */
+.ui-as-user img { flex: none; width: 20px; height: 20px; border-radius: 50%; corner-shape: squircle; object-fit: cover; box-shadow: var(--shadow-1); }
 .ui-as-user svg { margin-left: auto; color: var(--faint); }
 .ui-as-user:hover { background: var(--hover); }
 
@@ -2024,6 +2025,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   width: 20px;
   height: 20px;
   border-radius: 50%;
+  corner-shape: squircle;
   background: var(--accent-soft);
   font-size: 9.5px;
   font-weight: 550; font-variation-settings: "opsz" 18;

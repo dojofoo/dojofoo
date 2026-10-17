@@ -1,13 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { AddCard, ColorCard, ColorCardButton, ColorCardTag } from "~/components/color-card";
+import { AddCard, ColorCard, ColorCardButton, ColorCardCheck, ColorCardTag } from "~/components/color-card";
 import { Icon } from "~/components/app-shell";
 import { DoneIcon, PlusSignIcon } from "~/lib/icons";
 import { BrandLogo } from "../../../ui/src/components/ui/brand-logo";
 
 /*
  * ColorCard – one color, its lines always in the same places and sizes: the header (mark, figure), the main (kicker,
- * title) and the footer (label, value, action, progress). Playground's controls set each; Variants shows the uses.
+ * title) and the footer (label, value, action, progress). Playground's controls set each; Variants shows the uses, then
+ * each again with a long title – it wraps, and still sits on the card's middle line.
  */
+const long = "Build your own Large Language Model";
+/** As long as a title gets: Udemy caps course titles at 60 characters, and this real one uses all of them */
+const longest = "The Ultimate React Course 2025: React, Next.js, Redux & More";
 const meta = {
   title: "Components/Color Card",
   component: ColorCard,
@@ -36,6 +40,19 @@ export const Variants: Story = {
       <ColorCard color="oklch(0.55 0.17 230)" shader="waves" mark={<BrandLogo />} figure="★ 4.7" kicker="With the waves" title="Testing with Vitest" label="Updated" value="2 Oct 2026" action={<ColorCardButton>Install</ColorCardButton>} />
       <ColorCard color="oklch(0.55 0.2 320)" shader="opal" mark={<BrandLogo />} figure="★ 4.5" kicker="With the opal" title="Rust for TypeScript devs" label="Updated" value="14 Sep 2026" action={<ColorCardButton>Install</ColorCardButton>} />
       <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="New course" label="Start from a template" />
+      {/* A long title, on every kind of card */}
+      <ColorCard color="oklch(0.55 0.17 160)" shader mark="Sebastian Raschka" figure="★ 4.9" title={long} label="Updated" value="16 Oct 2026" action={<ColorCardButton>Install</ColorCardButton>} />
+      <ColorCard color="oklch(0.55 0.17 160)" shader="network" mark="Sebastian Raschka" figure="★ 4.9" title={long} label="Updated" value="16 Oct 2026" action={<ColorCardTag><Icon icon={DoneIcon} size={13} />Installed</ColorCardTag>} />
+      <ColorCard color="oklch(0.55 0.17 160)" mark="Sebastian Raschka" title={long} label="03 · Attention" value="Self-attention by hand" action={<span className="ui-card__figure">35%</span>} progress={35} onClick={() => {}} />
+      <label style={{ display: "grid", cursor: "pointer" }}><ColorCard color="oklch(0.55 0.17 160)" shader="waves" mark="Sebastian Raschka" figure="★ 4.9" title={long} label="38 lessons" value="~24 h" action={<ColorCardCheck checked={false} />} /></label>
+      <label style={{ display: "grid", cursor: "pointer" }}><ColorCard color="oklch(0.55 0.17 160)" shader="opal" mark="Sebastian Raschka" figure="★ 4.9" title={long} label="38 lessons" value="~24 h" action={<ColorCardCheck checked />} /></label>
+      <ColorCard color="oklch(0.55 0.17 160)" mark="Sebastian Raschka" figure="Draft" kicker="With a kicker" title={long} label="Not published" value="Edited today" action={<ColorCardButton>Edit</ColorCardButton>} />
+      <ColorCard color="oklch(0.55 0.17 160)" shader shape="square" mark={<BrandLogo />} figure="98%" kicker="Certificate of completion" title={long} label="Issued" value="17 Oct 2026" />
+      {/* The longest a title gets (60 characters) */}
+      <ColorCard color="oklch(0.6 0.15 220)" shader mark="Jonas Schmedtmann" figure="★ 4.8" title={longest} label="Updated" value="9 Oct 2026" action={<ColorCardButton>Install</ColorCardButton>} />
+      <ColorCard color="oklch(0.6 0.15 220)" mark="Jonas Schmedtmann" title={longest} label="05 · Redux Toolkit" value="Slices and thunks" action={<span className="ui-card__figure">62%</span>} progress={62} onClick={() => {}} />
+      <label style={{ display: "grid", cursor: "pointer" }}><ColorCard color="oklch(0.6 0.15 220)" shader="waves" mark="Jonas Schmedtmann" figure="★ 4.8" title={longest} label="84 lessons" value="~68 h" action={<ColorCardCheck checked />} /></label>
+      <ColorCard color="oklch(0.6 0.15 220)" shader="network" shape="square" mark={<BrandLogo />} figure="91%" kicker="Certificate of completion" title={longest} label="Issued" value="17 Oct 2026" />
     </>
   ),
 };

@@ -3,7 +3,7 @@ import { ColorSchemeChoices } from "~/components/agent-chat";
 import { Icon } from "~/components/app-shell";
 import { Button } from "~/components/button";
 import { ChatGPTButton, ChatGPTLogo } from "~/components/chatgpt-button";
-import { ColorCard, type CardShaderKind } from "~/components/color-card";
+import { ColorCard, ColorCardCheck, type CardShaderKind } from "~/components/color-card";
 import { CodeEditor, Editor, EditorTabs } from "~/components/editor";
 import { CodexIcon, OpenCodeIcon, PiIcon } from "~/components/harness-icons";
 import { onboardingCss } from "~/components/onboarding";
@@ -215,7 +215,7 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
                         <input type="checkbox" className="ui-ob-sr" checked={on} onChange={() => setPicked((list) => (on ? list.filter((x) => x !== item.id) : [...list, item.id]))} />
                         <ColorCard color={item.color} shader={item.shader} seed={item.id} mark={item.mark ?? item.author} figure={item.rating !== undefined ? `★ ${item.rating.toFixed(1)}` : undefined} title={item.title}
                           label={item.lessons ? `${item.lessons} lessons` : undefined} value={item.hours ? `~${item.hours} h` : undefined}
-                          action={<span className="ui-setup__tick" aria-hidden="true">{on && <Icon icon={Tick02Icon} size={12} stroke={2.6} />}</span>} />
+                          action={<ColorCardCheck checked={on} />} />
                       </label>
                     );
                   })}
@@ -395,8 +395,6 @@ const css = /* css */ `
 .ui-setup__course { position: relative; display: grid; border-radius: 12px; cursor: pointer; }
 .ui-setup__course:has(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .ui-setup__course[data-on] .ui-card { box-shadow: 0 0 0 2px var(--ink), var(--shadow-3); }
-.ui-setup__tick { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.8); color: var(--fluid-foreground); }
-.ui-setup__course[data-on] .ui-setup__tick { background: #fff; box-shadow: none; color: #111; }
 .ui-setup__later { margin: 14px 0 0; color: var(--muted); font-size: 13px; }
 .ui-setup__later button { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 
