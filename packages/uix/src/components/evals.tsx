@@ -110,10 +110,10 @@ type Status = Verdict | "queued" | "running";
 const Columns = () => (
   <colgroup>
     <col style={{ width: "30%" }} />
-    <col style={{ width: "22%" }} />
+    <col className="ui-ev__col-expected" style={{ width: "22%" }} />
     <col />
-    <col style={{ width: 112 }} />
-    <col style={{ width: 76 }} />
+    <col className="ui-ev__col-score" />
+    <col className="ui-ev__col-latency" style={{ width: 76 }} />
   </colgroup>
 );
 
@@ -210,9 +210,9 @@ export function EvalsPanel() {
                 </button>
               )}
             />
-            <span className="ui-ev__chip">
+            <span className="ui-ev__chip ui-ev__chip--model" title={MODEL}>
               <Icon icon={CpuIcon} size={14} />
-              {MODEL}
+              <span>{MODEL}</span>
             </span>
           </div>
           <div className="ui-ev__actions">
@@ -257,7 +257,6 @@ export function EvalsPanel() {
 
           <InlineDiff
             className="ui-ev__diff"
-            label="Changes in v12 · system prompt, edited by Mara Klein"
             original={promptV11}
             suggested={promptV12}
             onDone={() => showToast("Prompt changes reviewed")}
@@ -270,6 +269,7 @@ export function EvalsPanel() {
               </h2>
               <SegmentedControl
                 size="compact"
+                fill
                 label="Filter test cases"
                 value={filterLabels[filter]}
                 onChange={(label) => setFilter((Object.keys(filterLabels) as Filter[]).find((key) => filterLabels[key] === label) ?? "all")}
@@ -382,6 +382,10 @@ const css = /* css */ `
   --ev-fail-soft: rgba(220, 38, 38, 0.09);
   --ev-run: #2f6bff;
   --ev-run-soft: rgba(47, 107, 255, 0.1);
+  /* The content's side padding, and room in the top left corner for the shell's sidebar button when the header is the
+     window's top bar (the standalone screen, narrow); inside the workspace a toolbar sits above, so there is none */
+  --ui-ev-pad: 16px;
+  --ui-ev-corner: 0px;
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -397,9 +401,13 @@ const css = /* css */ `
   --ev-run-soft: rgba(109, 139, 255, 0.15);
 }
 
-.ui-ev__head { position: relative; display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; height: 60px; padding: 0 16px; }
-.ui-ev__title { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.ui-ev__title h1 { display: flex; align-items: center; gap: 8px; margin: 0 4px 0 0; font-size: var(--fs-title); font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); white-space: nowrap; }
+/* Version and model on the left, the run on the right; out of room, the model's name shortens first, then the run
+   wraps under them */
+.ui-ev__head { position: relative; display: flex; flex: none; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; min-height: 60px; padding: 12px var(--ui-ev-pad) 12px calc(var(--ui-ev-pad) + var(--ui-ev-corner)); }
+.ui-ev__title { display: flex; flex: 1 1 12rem; align-items: center; gap: 8px; min-width: 0; }
+.ui-ev__title > * { flex: none; }
+.ui-ev__title > .ui-ev__chip--model { flex: 0 1 auto; min-width: 0; }
+.ui-ev__chip--model > span { overflow: hidden; text-overflow: ellipsis; }
 .ui-ev__chip {
   display: inline-flex;
   align-items: center;
@@ -416,11 +424,11 @@ const css = /* css */ `
 .ui-ev__chip--btn { font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); transition: background-color 140ms ease; }
 .ui-ev__chip--btn:hover, .ui-ev__chip--btn[aria-expanded="true"] { background: var(--chip-hover); }
 .ui-ev__current { font-weight: 400; color: var(--muted); }
-.ui-ev__actions { display: flex; align-items: center; gap: 12px; }
+.ui-ev__actions { display: flex; flex: none; align-items: center; gap: 12px; margin-left: auto; }
 .ui-ev__meta { font-size: var(--fs-body); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* Thin progress line under the header while a run is going */
-.ui-ev__progress { position: absolute; left: 16px; right: 16px; bottom: 0; height: 2px; border-radius: 1px; overflow: hidden; background: var(--line); opacity: 0; transition: opacity 300ms ease; }
+.ui-ev__progress { position: absolute; left: var(--ui-ev-pad); right: var(--ui-ev-pad); bottom: 0; height: 2px; border-radius: 1px; overflow: hidden; background: var(--line); opacity: 0; transition: opacity 300ms ease; }
 .ui-ev__progress[data-on] { opacity: 1; }
 .ui-ev__progress i { display: block; height: 100%; border-radius: 1px; background: var(--ev-run); transition: width 200ms var(--ease); }
 
@@ -431,15 +439,20 @@ const css = /* css */ `
   grid-template-columns: minmax(0, 1fr) 400px;
   grid-template-rows: auto auto minmax(380px, 1fr);
   gap: 12px;
-  padding: 12px 16px 16px;
+  padding: 0 var(--ui-ev-pad) var(--ui-ev-pad);
 }
 /* One layer of cards on the panel: surface 3 with shadow 3, the panel's 12px corner */
 .ui-ev__card { border-radius: 12px; background: var(--surface-3); box-shadow: var(--shadow-3); }
 .ui-ev__cap { font-size: var(--fs-body); color: var(--muted); }
 
 .ui-ev__stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.ui-ev__stat { display: grid; grid-template-columns: 1fr auto; align-items: baseline; row-gap: 8px; padding: 14px 16px; }
-.ui-ev__stat .ui-ev__cap { grid-column: 1 / -1; }
+/* A stat: its label, then the value with the change beside it – under it once the card is narrow, decided by the
+   card's own width, so all four read alike */
+.ui-ev__stat { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; padding: 14px 16px; container-type: inline-size; }
+@container (max-width: 220px) { .ui-ev__delta { flex-basis: 100%; } }
+.ui-ev__stat .ui-ev__cap { flex-basis: 100%; }
+.ui-ev__stat strong { white-space: nowrap; }
+.ui-ev__delta { white-space: nowrap; }
 .ui-ev__stat strong { font-size: 22px; font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); font-variant-numeric: tabular-nums; }
 .ui-ev__stat small { margin-left: 1px; font-size: var(--fs-body); font-weight: 400; color: var(--faint); }
 .ui-ev__delta { font-size: var(--fs-caption); font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ev-fail); font-variant-numeric: tabular-nums; }
@@ -471,7 +484,9 @@ const css = /* css */ `
 /* Test cases: the table scrolls inside its card, so the row always fits the screen */
 /* Full width, with the same room above it as a section in the other screens (38px from the content above) */
 .ui-ev__cases { position: relative; display: flex; flex-direction: column; grid-column: 1 / -1; min-height: 0; margin-top: 26px; overflow: hidden; }
-.ui-ev__cases-head { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; height: 32px; margin-bottom: 10px; padding-left: 2px; }
+.ui-ev__cases-head { display: flex; flex: none; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; min-height: 32px; margin-bottom: 10px; padding-left: 2px; }
+/* The filter's options share its width equally; on a phone it takes a row of its own */
+.ui-ev__cases-head > .ui-seg[data-fill] { flex: none; width: auto; }
 .ui-ev__cases-head h2 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--fs-title); line-height: var(--lh-title); font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); }
 .ui-ev__cases-head h2 span { font-weight: 400; color: var(--faint); }
 /* Test cases straight on the panel, no tray or card around them – Fluid's Table: 36px rows, a semibold header,
@@ -480,6 +495,7 @@ const css = /* css */ `
 .ui-ev__cases { --ui-accent: var(--fluid-accent); --foreground: var(--fluid-foreground); --muted-foreground: var(--fluid-muted); }
 .ui-ev__scroll { position: relative; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .ui-ev__table { table-layout: fixed; }
+.ui-ev__col-score { width: 112px; }
 .ui-ev__table .ui-ev__num { text-align: right; }
 .ui-ev__in { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ui-ev__table tbody tr { cursor: pointer; }
@@ -527,30 +543,30 @@ const css = /* css */ `
 /* Room for the sidebar icon while the sidebar is collapsed */
 .ui-ev__head { transition: padding-left 420ms var(--ease); }
 
-/* Narrow panels: one column; table and detail get their own height */
+/* Narrow panels: one column; the table gets its own height */
 @container ui-as-main (max-width: 1000px) {
   .ui-ev__content { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
   .ui-ev__cases { height: 440px; }
 }
-@container ui-as-main (max-width: 820px) {
-  .ui-ev__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@container ui-as-main (max-width: 560px) {
-  .ui-ev__stats { gap: 8px; }
+/* The stats, four across down to a phablet's width, then two by two */
+@container ui-as-main (max-width: 640px) {
+  .ui-ev__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .ui-ev__stat { padding: 12px; }
   .ui-ev__stat strong { font-size: 19px; }
-  .ui-ev__cases-head { flex-wrap: wrap; }
+  /* The table keeps what tells the cases apart: input, output and score */
+  .ui-ev__table :is(th, td):nth-child(2), .ui-ev__col-expected { display: none; }
+}
+@container ui-as-main (max-width: 480px) {
+  .ui-ev__cases-head > .ui-seg[data-fill] { flex: 1 1 100%; }
+  .ui-ev__table :is(th, td):nth-child(5), .ui-ev__col-latency { display: none; }
+  .ui-ev__col-score { width: 96px; }
 }
 @container ui-as (max-width: 900px) {
-  .ui-ev__head { padding-left: 52px; }
+  .ui-ev { --ui-ev-corner: 36px; }
   .ui-ev__meta { display: none; }
 }
 @container ui-as (max-width: 600px) {
-  /* Title next to the sidebar icon, version, model and Run on a row below */
-  .ui-ev__head { flex-wrap: wrap; row-gap: 10px; height: auto; padding: 14px 8px 12px 52px; }
-  .ui-ev__title { flex-wrap: wrap; row-gap: 8px; }
-  .ui-ev__title h1 { width: 100%; }
-  .ui-ev__actions { margin-left: auto; }
-  .ui-ev__content { gap: 8px; padding: 8px 8px 8px; }
+  .ui-ev { --ui-ev-pad: 8px; }
+  .ui-ev__content { gap: 8px; }
 }
 `;

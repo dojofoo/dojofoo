@@ -302,7 +302,7 @@ const css = /* css */ `
 }
 .ui-button:disabled {
   opacity: 0.4;
-  cursor: default;
+  cursor: not-allowed;
 }
 .ui-button[data-loading] {
   cursor: default;

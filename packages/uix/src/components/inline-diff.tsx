@@ -760,7 +760,7 @@ const css = /* css */ `
 .ui-df__btn:active:not(:disabled),
 .ui-df__icon:active:not(:disabled) { transform: scale(0.97); }
 .ui-df__btn:disabled,
-.ui-df__icon:disabled { opacity: 0.4; cursor: default; }
+.ui-df__icon:disabled { opacity: 0.4; cursor: not-allowed; }
 .ui-df__btn:focus-visible,
 .ui-df__icon:focus-visible { outline: 2px solid var(--ui-df-focus); outline-offset: 2px; }
 

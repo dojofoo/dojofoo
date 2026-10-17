@@ -11,6 +11,7 @@ import {
   Analytics01Icon,
   ArrowRight01Icon,
   BubbleChatIcon,
+  ChatAiIcon,
   Cancel01Icon,
   CheckListIcon,
   EvalsIcon,
@@ -43,7 +44,7 @@ import {
 } from "~/lib/icons";
 import { Button } from "~/components/button";
 import { ChatMessages, Composer, useChatThread, type ChatReply } from "~/components/assistant-home";
-import { AppShell, Dropdown, Icon, type AppShellProps, type ShellGroup, type ShellNavItem } from "~/components/app-shell";
+import { AppShell, Dropdown, Icon, useShellNarrow, type AppShellProps, type ShellGroup, type ShellNavItem } from "~/components/app-shell";
 import { CommandPalette } from "~/components/command-palette";
 import { SegmentedControl } from "~/components/segmented-control";
 import { Breadcrumbs, type Crumb } from "~/components/breadcrumbs";
@@ -139,6 +140,8 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
 }) {
   const [settingsOpen, setSettingsOpen] = useState(defaultSettingsOpen);
   const toggleSettings = () => setSettingsOpen((open) => !open);
+  // Narrow only: the conversation is a sheet that slides in from the right, pushing the window left
+  const [chatOpen, setChatOpen] = useState(false);
   const [evalsOpen, setEvalsOpen] = useState(defaultEvalsOpen);
   const showEvals = Boolean(evals) && evalsOpen;
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -152,12 +155,21 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
     else onCommand?.(id, query);
   };
   const conversation = <section aria-label="Course conversation" className="ui-as-chat__main" data-surface="page">
-    <header className="ui-as-chat__bar">{header}</header>
+    <header className="ui-as-chat__bar">
+      {header}
+      <button type="button" className="ui-as-icon-btn ui-as-chat__narrow" aria-label="Close chat" onClick={() => setChatOpen(false)}>
+        <Icon icon={Cancel01Icon} size={15} />
+      </button>
+    </header>
     <div ref={scroller} className="ui-as-chat__thread scroll-fade"><div className="ui-as-chat__column">{children}</div></div>
     <div className="ui-as-chat__composer">{composer}</div>
   </section>;
-  // The app's split: IDE and conversation in the golden ratio. Opened, the brief takes the conversation's column
-  return <AppShell {...shell} onSearch={() => setPaletteOpen(true)} aside={conversation} asideColumns="minmax(30rem, 1.618fr) minmax(22rem, 1fr)" asideCovered={settingsOpen}>
+  // The app's split: IDE and conversation in the golden ratio. Opened, the brief takes the conversation's column.
+  // Only the conversation has a floor: where the shell is too narrow for the split (900px up to about 1120px, with the
+  // sidebar open), the IDE gives way, never the page – its content answers to its own width
+  return <AppShell {...shell} onSearch={() => setPaletteOpen(true)} aside={conversation} asideColumns="minmax(0, 1.618fr) minmax(22rem, 1fr)" asideCovered={settingsOpen} asideOpen={chatOpen} onAsideOpenChange={setChatOpen}
+    // Narrow, the settings are a drawer from the right, like the sidebar's; wide, they cover the conversation's column
+    drawer={<SettingsPanel onClose={() => setSettingsOpen(false)} />} drawerOpen={settingsOpen} onDrawerOpenChange={setSettingsOpen}>
     <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} groups={[...commands, workspaceCommands]} onRun={runCommand} placeholder="Search lessons, files and commands…" />
     <style href="ui-screen-agent-chat" precedence="default">{css}</style>
     <div className="ui-as-chat" data-brief={settingsOpen || undefined}>
@@ -173,6 +185,9 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
             <button type="button" className="ui-as-icon-btn" aria-label={settingsOpen ? "Hide settings" : "Show settings"} aria-pressed={settingsOpen} onClick={toggleSettings}>
               <Icon icon={Settings04Icon} size={16} />
             </button>
+            <button type="button" className="ui-as-icon-btn ui-as-chat__narrow" aria-label="Show chat" onClick={() => setChatOpen(true)}>
+              <Icon icon={ChatAiIcon} size={16} />
+            </button>
           </span>
         </header>
         {showEvals ? <div className="ui-as-chat__evals scroll-fade" aria-label="Evals" role="region">{evals}</div>
@@ -180,7 +195,7 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
             {details ? <>{editor && <div className="ui-as-chat__code">{editor}</div>}<div className="ui-as-chat__details scroll-fade">{details}</div></> : editor}
           </div>}
       </section>
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <WideOnly><SettingsPanel onClose={() => setSettingsOpen(false)} /></WideOnly>}
     </div>
   </AppShell>;
 }
@@ -338,6 +353,11 @@ type Asset = { id: string; name: string; type: string; size: number; preview?: s
 const fileSize = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
 
 /** The workspace's settings: the lesson, Sensei and assets as tabs. Header, tabs and the save row stay; only the settings scroll */
+/** What only shows while the shell is wide – narrow, the shell's drawer has it */
+function WideOnly({ children }: { children: ReactNode }) {
+  return useShellNarrow() ? null : children;
+}
+
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const preferences = useUiPreferences();
   const mode = usePageMode();
@@ -538,8 +558,14 @@ function schemeSwatches(theme: Record<string, unknown>) {
   return [find("keyword") ?? find("storage"), find("string"), find("entity.name.function") ?? find("support.function") ?? find("entity.name") ?? find("entity")].filter(Boolean) as string[];
 }
 
+/** The settings' color scheme choices on their own, styles included – for other screens that set the scheme; without
+    notes, each is just its name and swatches */
+export function ColorSchemeChoices({ notes = true }: { notes?: boolean }) {
+  return <><style href="ui-screen-agent-chat" precedence="default">{css}</style><ColorSchemes notes={notes} /></>;
+}
+
 /** The editor's color scheme, apart from the theme: match the theme, or any scheme with any theme to compare */
-function ColorSchemes() {
+function ColorSchemes({ notes = true }: { notes?: boolean }) {
   const preferences = useUiPreferences();
   const current = useEditorScheme();
   const options = [{ id: "match", label: "Match theme", note: `Now ${current.label}`, swatches: [] as string[] }, ...editorSchemes.map((scheme) => ({ id: scheme.id, label: scheme.label, note: scheme.light ? "Light and dark, with the page" : scheme.type === "dark" ? "Dark" : "Light", swatches: schemeSwatches(scheme.theme) }))];
@@ -558,7 +584,7 @@ function ColorSchemes() {
           <span className="ui-as-brief__radio" aria-hidden="true" />
           <span className="ui-as-brief__name">
             {option.label}
-            <small>{option.note}</small>
+            {notes && <small>{option.note}</small>}
           </span>
           <span className="ui-as-brief__swatches" aria-hidden="true">
             {option.swatches.map((color, i) => (
@@ -684,8 +710,8 @@ const css = /* css */ `
 .ui-as-chat__crumbs i { font-style: normal; color: var(--faint); }
 .ui-as-chat__crumbs b { font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); }
 .ui-as-chat__crumbs .ui-as-icon-btn { width: 24px; height: 24px; margin-left: -2px; }
-/* The trail takes what the tools leave and shortens its middle to fit */
-.ui-as-chat__ide .ui-as-chat__crumbs { flex: 1; min-width: 0; }
+/* The trail takes what the tools leave, short of a clear gap before them, and shortens from the left to fit */
+.ui-as-chat__ide .ui-as-chat__crumbs { flex: 1; min-width: 0; margin-right: 16px; }
 .ui-as-chat__tools { display: flex; gap: 2px; }
 .ui-as-chat__tools .ui-as-icon-btn[aria-pressed="true"] { background: var(--chip); color: var(--ink); }
 
@@ -751,6 +777,8 @@ const css = /* css */ `
 /* The IDE column answers the window's container queries itself, so what's in it (the evals) lays out the same with
    the settings open or closed: the column keeps its width either way, the window doesn't */
 .ui-as-chat__ide { container: ui-as-main / inline-size; }
+/* The evals sit under the IDE's toolbar, so their header needs no room for the sidebar's button */
+.ui-as-chat__evals .ui-ev { --ui-ev-corner: 0px; }
 
 /* IDE in place of the thread: a 16:9 code card with the lesson's details below it. Surfaces follow the elevation
    ladder (styles/fluid.css): the window is surface 2, so its cards are surface 3 with shadow 3 */
@@ -942,8 +970,14 @@ const css = /* css */ `
 /* Room for the sidebar icon while the sidebar is collapsed */
 .ui-as-chat__main > .ui-as-chat__bar { transition: padding-left var(--motion-slow) var(--ease-slow); }
 .ui-as-chat__scrim { display: none; }
+/* The chat's own toggles: narrow only, where the conversation is a sheet */
+.ui-as-chat__narrow { display: none; }
+/* In the shell's drawer the brief fills it, with no divider */
+.ui-as-end > .ui-as-brief { flex: 1; width: auto; min-height: 0; }
+.ui-as-end > .ui-as-brief::before { display: none; }
 
-/* Narrow panels: the brief becomes a layer that slides in from the right over the chat */
+/* Narrow panels: the brief becomes a layer that slides in from the right over the chat (the workspace's settings
+   leave the panel for the shell's drawer instead) */
 @container ui-as-main (max-width: 900px) {
   .ui-as-brief {
     position: absolute;
@@ -952,10 +986,9 @@ const css = /* css */ `
     right: 0;
     bottom: 0;
     width: min(400px, calc(100% - 32px));
-    border-left: 0;
     border-radius: 0 var(--radius-panel) var(--radius-panel) 0;
     background: var(--panel);
-    box-shadow: -1px 0 0 var(--line), -20px 0 40px -16px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-4);
     animation: ui-as-brief-in var(--motion-slow) var(--ease-slow) both;
   }
   .ui-as-brief::before { display: none; }
@@ -964,15 +997,22 @@ const css = /* css */ `
     position: absolute;
     z-index: 11;
     inset: 0;
-    border-radius: inherit;
-    background: rgba(0, 0, 0, 0.18);
+    border-radius: var(--radius-panel);
+    background: rgba(0, 0, 0, 0.28);
     animation: ui-as-brief-fade var(--motion-slow) var(--ease-slow) both;
   }
+  :where(.dark, [data-theme="dark"]) .ui-as-chat__scrim { background: rgba(0, 0, 0, 0.55); }
 }
-@keyframes ui-as-brief-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ui-as-brief-in { from { translate: 100% 0; } }
 @keyframes ui-as-brief-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ui-as-brief, .ui-as-chat__scrim { animation-duration: 0s !important; }
+}
 @container ui-as (max-width: 900px) {
-  .ui-as-chat__main > .ui-as-chat__bar { padding-left: 52px; }
+  /* Room for the sidebar's button, which waits in the window's top left corner */
+  .ui-as-main .ui-as-chat__main > .ui-as-chat__bar { padding-left: 52px; }
+  .ui-as-chat__narrow { display: grid; }
+  .ui-as-chat__bar > .ui-as-chat__narrow { flex: none; margin-left: auto; }
 }
 @container ui-as (max-width: 600px) {
   /* Only the chat's name stays in the bar */
@@ -982,6 +1022,7 @@ const css = /* css */ `
   .ui-as-chat__main .ui-as-chat__crumbs > b { overflow: hidden; font-size: var(--fs-body); white-space: nowrap; text-overflow: ellipsis; }
   .ui-as-chat__bar { padding-right: 8px; }
   .ui-as-brief .ui-as-chat__bar { padding-left: 52px; }
+  .ui-as-end > .ui-as-brief .ui-as-chat__bar { padding-left: 20px; }
   .ui-as-chat__thread { padding: 24px 16px 12px; }
   .ui-as-chat__composer { padding: 6px 8px 8px; }
   .ui-as-chat__route { padding-left: 6px; }
@@ -991,5 +1032,26 @@ const css = /* css */ `
   .ui-as-brief__section { padding: 16px; }
   .ui-as-brief__section--split { flex-wrap: wrap; }
   .ui-as-brief__go { padding: 14px 16px 16px; }
+}
+/* Phones: the conversation keeps the window's frame – the composer sits the frame gap from the edges on all three
+   sides, with the window's corners, and what's inside it, the thread and the bar line up with its text */
+@container ui-as (max-width: 420px) {
+  .ui-as-chat__main[data-surface="page"] > .ui-as-chat__composer { padding: 0 var(--frame-gap) var(--frame-gap); }
+  .ui-as-chat__main[data-surface="page"] .ui-as-composer__card { padding: 12px 8px 6px 12px; border-radius: 10px; }
+  .ui-as-chat__main[data-surface="page"] .ui-as-composer__bar { margin-top: 14px; }
+  .ui-as-chat__main[data-surface="page"] > .ui-as-chat__bar { padding: 0 calc(var(--frame-gap) + 8px) 0 calc(var(--frame-gap) + 12px); }
+  .ui-as-chat__main[data-surface="page"] > .ui-as-chat__bar .ui-as-chat__speaker { padding-left: 0; }
+  /* The thread runs to the frame gap too, so cards take the chat's full width like the composer; text keeps the
+     composer's inner inset, so every line of it starts where the composer's does */
+  .ui-as-chat__main[data-surface="page"] > .ui-as-chat__thread { --ui-as-chat-inset: 12px; padding: 12px var(--frame-gap) 16px; }
+  .ui-as-chat__main[data-surface="page"] .ui-as-chat__column { gap: 16px; }
+  .ui-as-chat__main[data-surface="page"] .ui-as-chat__column > :not(.ui-tc, .ui-tc-group) { padding-inline: var(--ui-as-chat-inset); }
+  .ui-as-chat__main[data-surface="page"] .ui-tc-group__list { gap: 6px; padding-top: 6px; }
+  /* The clip's room for the cards' shadows stays inside the thread's own gap, so nothing scrolls sideways */
+  .ui-as-chat__main[data-surface="page"] .ui-tc-group > .ui-tc__body > .ui-tc__clip { margin-inline: calc(-1 * var(--frame-gap)); padding-inline: var(--frame-gap); }
+  /* Cards: tighter insets */
+  .ui-as-chat__main[data-surface="page"] .ui-tc__head { gap: 8px; min-height: 40px; padding: 6px 8px 6px 7px; }
+  .ui-as-chat__main[data-surface="page"] .ui-tc__sections { gap: 10px; padding: 8px; }
+  .ui-as-chat__main[data-surface="page"] .ui-tc__code { padding: 8px 10px; }
 }
 `;

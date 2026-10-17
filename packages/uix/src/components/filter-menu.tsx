@@ -312,7 +312,7 @@ const css = /* css */ `
   transition: color 160ms ease, background-color 160ms ease, opacity 200ms ease;
 }
 .ui-fm__clear:hover:not(:disabled) { color: var(--ui-fm-ink) !important; background: var(--ui-fm-row-hover); }
-.ui-fm__clear:disabled { opacity: 0.45; cursor: default; }
+.ui-fm__clear:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ---------- Chips ---------- */
 

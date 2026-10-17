@@ -3,7 +3,8 @@ import * as Huge from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import * as Iconoir from "iconoir-react";
 import * as Mingcute from "@mingcute/react/core-regular";
-import { Settings4Filled } from "@mingcute/react/core-filled";
+import { AwardFilled, Book2Filled, MoonFilled, SunFilled, CertificateFilled, CommentFilled, GroupFilled, HeartFilled, Chat2AIFilled, CheckFilled, ClaudeFilled, CompassFilled, EyeglassFilled, FolderLockedFilled, GeminiFilled, QuillPenAIFilled, Settings4Filled } from "@mingcute/react/core-filled";
+import { ArrowLeftRegular, LockRegular } from "@mingcute/react/core-regular";
 import { solar, type SolarName } from "./solar-icons";
 import { fluent, type FluentName } from "./fluent-icons";
 
@@ -112,6 +113,33 @@ export const Search01Icon = glyph(Huge.Search01Icon, Iconoir.Search, Mingcute.Se
 export const Settings01Icon = glyph(Huge.Settings01Icon, Iconoir.Settings, Mingcute.Settings1Regular, "settings", "settings");
 /** Settings in the profile menu: MingCute settings-4-fill */
 export const SettingsFillIcon = glyph(Huge.Settings01Icon, Iconoir.Settings, Settings4Filled, "settings", "settings");
+/** The chat's own mark – MingCute's chat-2-ai-fill in every icon set */
+export const ChatAiIcon: IconGlyph = ({ size, color, className }) => <Chat2AIFilled size={size} color={color} className={className} aria-hidden />;
+
+/** MingCute glyphs that stay MingCute in every icon set – the learner's library, chapters and progress */
+const fixed = (Glyph: typeof LockRegular): IconGlyph => ({ size, color, className }) => <Glyph size={size} color={color} className={className} aria-hidden />;
+/** The learner's menu: Study, Explore and Authoring, then the Collection – Certificates and Materials */
+export const StudyIcon = fixed(EyeglassFilled as typeof LockRegular);
+export const ExploreIcon = fixed(CompassFilled as typeof LockRegular);
+export const AuthoringIcon = fixed(QuillPenAIFilled as typeof LockRegular);
+export const CertificateIcon = fixed(CertificateFilled as typeof LockRegular);
+export const MaterialsIcon = fixed(Book2Filled as typeof LockRegular);
+/** Explore's top courses: the rank's plaque, and likes, comments and learners */
+export const AwardIcon = fixed(AwardFilled as typeof LockRegular);
+export const LikesIcon = fixed(HeartFilled as typeof LockRegular);
+export const CommentsIcon = fixed(CommentFilled as typeof LockRegular);
+export const LearnersIcon = fixed(GroupFilled as typeof LockRegular);
+/** Light and dark, for the appearance toggle */
+export const SunIcon = fixed(SunFilled as typeof LockRegular);
+export const MoonIcon = fixed(MoonFilled as typeof LockRegular);
+export const LockIcon = fixed(LockRegular);
+/** Finished: mingcute:check-fill */
+export const DoneIcon = fixed(CheckFilled as typeof LockRegular);
+/** Not open yet: mingcute:folder-locked-fill */
+export const LockedIcon = fixed(FolderLockedFilled as typeof LockRegular);
+export const BackIcon = fixed(ArrowLeftRegular);
+export const ClaudeIcon = fixed(ClaudeFilled as typeof LockRegular);
+export const GeminiIcon = fixed(GeminiFilled as typeof LockRegular);
 /** The player's settings: MingCute settings-2-line */
 export const Settings02Icon = glyph(Huge.Settings02Icon, Iconoir.Settings, Mingcute.Settings2Regular, "settings", "settings");
 /** The workspace settings toggle, next to evals: MingCute settings-4-line */
