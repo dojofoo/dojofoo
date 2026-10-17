@@ -11,6 +11,7 @@ type RunHandlers = {
   ask: QuestionHandler;
   context: ContextHandler;
   show: ShowHandler;
+  observe?: (input: unknown) => Promise<unknown> | unknown;
 };
 
 export class RunCoordinator {
@@ -40,6 +41,13 @@ export class RunCoordinator {
     const run = this.runs.get(capability);
     if (!run) throw new Error("The lesson run is no longer active");
     return run.show(fragmentId);
+  }
+
+  async observe(capability: string, input: unknown): Promise<unknown> {
+    const run = this.runs.get(capability);
+    if (!run) throw new Error("The lesson run is no longer active");
+    if (!run.observe) throw new Error("Learning notes are unavailable in this run");
+    return run.observe(input);
   }
 }
 

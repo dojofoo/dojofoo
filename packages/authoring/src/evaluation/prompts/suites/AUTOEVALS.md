@@ -8,16 +8,16 @@ Does the material ground the lesson in the supplied novice prerequisites and a c
 
 ## engaging-and-concrete
 
-Does the authored guidance make the lesson enjoyable for this novice? Require all of the following:
+Does the guidance make the actual task approachable for this novice and support responsive teaching? Assess:
 
-- a concrete hook from the learner's world and a line on why the skill matters;
-- a winnable first move;
+- a meaningful outcome in the learner's context, without an invented story or compulsory warm-up;
+- room to read, try independently or ask for a starting point;
 - plain-language teaching before jargon;
 - brief, specific acknowledgement of the learner's work;
 - supportive help when they do not know.
 
-Fail dry recitals of interfaces, interrogation, generic "be friendly" text, forced excitement, praise without teaching, or giving the solution. Type-correct values must not be described as type errors merely because they violate exercise requirements.
+Fail dry recitals of interfaces, interrogation, generic "be friendly" text without usable lesson material, forced excitement, praise without teaching, or giving the solution. Do not require a hook, opening quiz or worked example where a clear explanation suffices. Type-correct values must not be described as type errors merely because they violate exercise requirements.
 
 ## feedback-produces-adaptive-teaching
 
-Did the revision make the Sensei genuinely responsive to this learner? Require concrete teaching of the unfamiliar concept with an alternative example before a new question, a way to use the learner's answer to choose the next step, increasing help without repeating failed recall prompts or handing over the solution, and a meaningful post-pass review with a new application. Judge the actual revised teaching instructions, not promises in the final response or keyword presence.
+Did the revision support a response to this learner's actual gap? Look for usable teaching of unfamiliar concepts, changes in help when the learner struggles, reduced help when they understand, and meaningful review when requested. An example or new application can help but is not a required step. Reject repeated recall prompts and prescribed repairs. Judge the revised material, not promises or keyword presence; it cannot prove an unobserved teaching outcome.

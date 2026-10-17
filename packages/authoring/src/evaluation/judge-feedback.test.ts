@@ -1,15 +1,25 @@
 import { expect, it } from "vitest";
-import { criterionIds, judgePrompt, judgeSchema } from "./judges";
+import { criterionIds, judgePrompt, judgeSchema, localJudges } from "./judges";
 import { criterionSections, evaluationPrompts, solutionBoundary, teachingJudgePrompt } from "./prompts";
 import { promptSlots } from "../prompts";
+import { chainJudgePrompt } from "./prompts/suites";
 
-// Rubric wording is calibrated with live judges. These tests pin structure:
+// These tests pin structure, not semantic calibration or teaching quality:
 // one definition per criterion, shared by both judges, with no unfilled slots.
 it("defines each verdict criterion exactly once in CRITERIA.md", () => {
   expect(Object.keys(criterionSections)).toEqual([...criterionIds]);
 });
 
-for (const [name, buildPrompt] of [["material", judgePrompt], ["teaching", teachingJudgePrompt]] as const) {
+it("isolates Codex judge outputs and preserves the mixed panel", () => {
+  const judges = localJudges("/fixture", "codex");
+  expect(judges.map(judge => judge.command)).toEqual(["codex", "codex"]);
+  expect(new Set(judges.map(judge => judge.id)).size).toBe(2);
+  expect(new Set(judges.map(judge => judge.args[judge.args.indexOf("--output-last-message") + 1])).size).toBe(2);
+  expect(localJudges("/fixture", "mixed").map(judge => judge.command)).toEqual(["codex", "claude"]);
+  expect(() => localJudges("/fixture", "unknown")).toThrow("Evaluation judges");
+});
+
+for (const [name, buildPrompt] of [["material", judgePrompt], ["teaching", teachingJudgePrompt], ["authoring chain", chainJudgePrompt]] as const) {
   it(`${name} judge renders the shared criteria, boundary and verdict rules`, () => {
     const prompt = buildPrompt({ "SENSEI.md": "{{not-a-slot}}" }, judgeSchema);
     expect(prompt).toContain(solutionBoundary);

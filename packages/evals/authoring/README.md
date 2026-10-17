@@ -1,6 +1,13 @@
 # Kyoshi teaching baseline
 
-Current simulation acceptance (`sensei-chain-v10`, 2026-10-15) passed twice in
+Current status: **the revised teaching design is not accepted yet.** The
+[ongoing audit](../../../docs/research/kata-teaching/README.md) found that earlier
+passing scores did not predict the user's experience. Its first controlled
+comparison is mixed; human preference review and new full-chain acceptance
+remain pending. Do not use the historical results below to certify current
+instructions or enjoyable learning.
+
+Earlier simulation acceptance (`sensei-chain-v10`, 2026-10-15) passed twice in
 fresh workspaces:
 
 | Workspace suffix | Gates | Duration | Revisions |
@@ -17,7 +24,11 @@ six isolated trial workspaces/sessions, and verified that learner fixture inputs
 excluded SENSEI files and platform teaching policy. No failed attempt was removed.
 
 This verifies the tested kata workflow, not all course types, models, or actual
-human learning gains. See the smaller calibration and production checks in
+human learning gains. Earlier continuity trials seeded prior completion and
+taught the last selected lesson, rather than observing both lesson dialogues.
+The new `priorLessons: "teach"` path requires evidence for each lesson and has
+not yet completed the two fresh live runs required by the current goal.
+See the smaller calibration and production checks in
 `packages/authoring/src/evaluation/fixtures/README.md` before repeating full runs.
 
 ## Earlier investigations (historical)

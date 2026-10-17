@@ -16,7 +16,7 @@ vi.mock("@dojofoo/agent/experimental/local", () => ({ createLocalHarnessSandbox:
 vi.mock("../eve/harness", () => ({ authoringHarness: () => ({}) }));
 
 import { generateLearnerFixtures, parseLearnerFixture } from "./learner-fixtures";
-import { respondAsLearner } from "./learner-response";
+import { answerAsLearner, respondAsLearner } from "./learner-response";
 
 const fixture = {
   uncertainty: "What does a running value remember?",
@@ -103,4 +103,47 @@ it("retains an empty learner response as failure and destroys its session", asyn
   await expect(respondAsLearner({ dialogue: [], source: "code", harness: "pi", model: "chosen-model", signal: AbortSignal.timeout(5000) })).rejects.toThrow("no review answer");
   directories.push(mocks.settings.mock.calls[0][0].sandbox.directory);
   expect(mocks.destroy).toHaveBeenCalledOnce();
+});
+
+const questions = [
+  { id: "approach", title: "How would you like to proceed?", options: [{ title: "Try it" }, { title: "Explain the idea" }], allowOther: false },
+  { id: "uncertainty", title: "What is unclear?", options: [], allowOther: true },
+];
+
+it("answers the actual question form using only public context and the selected model", async () => {
+  mocks.createSession.mockResolvedValue({ destroy: mocks.destroy });
+  const answers = { approach: ["Explain the idea"], uncertainty: ["I do not know what a callback is."] };
+  mocks.generate.mockResolvedValue({ text: JSON.stringify(answers) });
+  const dialogue = [{ role: "user" as const, content: "I am not sure where to start." }];
+  expect(await answerAsLearner({ questions, dialogue, source: "Public learner code", harness: "pi", model: "chosen-model", signal: AbortSignal.timeout(5000) })).toEqual(answers);
+  const settings = mocks.settings.mock.calls[0][0];
+  directories.push(settings.sandbox.directory);
+  expect(settings).toMatchObject({ activeTools: [], model: "chosen-model" });
+  expect(JSON.parse(mocks.generate.mock.calls[0][0].prompt)).toEqual({ questions, dialogue, source: "Public learner code" });
+  expect(settings.instructions).toContain("Do not choose an answer merely to appear knowledgeable");
+  expect(mocks.generate).toHaveBeenCalledOnce();
+  expect(mocks.destroy).toHaveBeenCalledOnce();
+});
+
+it.each([
+  "prose, not JSON",
+  JSON.stringify({ approach: ["Try it"] }),
+  JSON.stringify({ approach: ["Guess"], uncertainty: ["Unclear"] }),
+  JSON.stringify({ approach: ["Try it"], uncertainty: ["  "] }),
+  JSON.stringify({ approach: ["Try it"], uncertainty: ["Unclear"], invented: ["extra"] }),
+])("rejects invalid learner selections without retrying: %s", async text => {
+  mocks.createSession.mockResolvedValue({ destroy: mocks.destroy });
+  mocks.generate.mockResolvedValue({ text });
+  await expect(answerAsLearner({ questions, dialogue: [], source: "code", harness: "pi", model: "chosen-model", signal: AbortSignal.timeout(5000) })).rejects.toThrow();
+  directories.push(mocks.settings.mock.calls[0][0].sandbox.directory);
+  expect(mocks.generate).toHaveBeenCalledOnce();
+  expect(mocks.destroy).toHaveBeenCalledOnce();
+});
+
+it("rejects duplicate question IDs or cancellation before inference", async () => {
+  const request = { questions, dialogue: [], source: "code", harness: "pi", model: "chosen-model", signal: AbortSignal.timeout(5000) };
+  await expect(answerAsLearner({ ...request, questions: [questions[0]!, questions[0]!] })).rejects.toThrow("distinct IDs");
+  await expect(answerAsLearner({ ...request, signal: AbortSignal.abort(new Error("Cancelled")) })).rejects.toThrow("Cancelled");
+  expect(mocks.settings).not.toHaveBeenCalled();
+  expect(mocks.generate).not.toHaveBeenCalled();
 });

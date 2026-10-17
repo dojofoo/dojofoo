@@ -8,11 +8,14 @@ export const runRoutes = new Hono().post("/", async (c) => {
   if (!capability) return c.json({ error: "A run capability is required" }, 401);
   const body = await c.req.json<{
     method?: string;
-    params?: Partial<RunQuestion> & { fragmentId?: string };
+    params?: Partial<RunQuestion> & { fragmentId?: string; observation?: unknown };
   }>();
   try {
     if (body.method === lessonCapabilities.context.method) {
       return c.json({ context: await runCoordinator.context(capability) });
+    }
+    if (body.method === lessonCapabilities.observe.method) {
+      return c.json({ observation: await runCoordinator.observe(capability, body.params?.observation) });
     }
     if (body.method === uiCapabilities.show.method && body.params?.fragmentId) {
       return c.json(await runCoordinator.show(capability, body.params.fragmentId));

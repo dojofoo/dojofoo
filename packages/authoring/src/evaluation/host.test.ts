@@ -155,15 +155,22 @@ it("rejects missing guidance before spending an attempt", async () => {
   await writeFile(join(f.root, "src", "first", "SENSEI.md"), validSensei);
   expect((await f.evaluate("same")).attempt).toBe(1);
 });
-it("preflights lesson structure before spending an attempt", async () => {
+it("rejects unfinished lesson placeholders without imposing teaching headings", async () => {
   const f = await fixture();
   await writeFile(join(f.root, "src", "first", "SENSEI.md"), "# Lesson\n\n## Start\n\n- **Hook:** {situation from the learner's world}\n");
   const failure = await f.evaluate("same").catch(error => error);
   expect(failure).toMatchObject({ name: "MaterialFailure" });
   expect(failure.message).toContain("no attempt was used");
-  expect(failure.message).toContain("## Teach");
+  expect(failure.message).not.toContain("## Teach");
   expect(failure.message).toContain("placeholders");
   expect(f.run).not.toHaveBeenCalled();
   await writeFile(join(f.root, "src", "first", "SENSEI.md"), validSensei);
   expect((await f.evaluate("same")).attempt).toBe(1);
+});
+
+it("allows free-form teaching notes through preflight without certifying their quality", async () => {
+  const f = await fixture();
+  await writeFile(join(f.root, "src", "first", "SENSEI.md"), "A callback is a function passed to another function. Check whether the learner distinguishes passing a function from calling it before assuming this is understood.");
+  expect((await f.evaluate("notes")).attempt).toBe(1);
+  expect(f.run).toHaveBeenCalledOnce();
 });

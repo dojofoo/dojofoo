@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -63,9 +63,10 @@ try {
   await mkdir(join(root, "authoring/src/eve"), { recursive: true });
   await mkdir(join(root, "authoring/src/contracts"));
   await copyFile(new URL("../../../authoring/package.json", import.meta.url), join(root, "authoring/package.json"));
-  for (const path of ["eve/instructions.ts", "eve/ask.ts", "eve/routes.ts", "eve/resume.ts", "eve/messages.ts", "eve/stream.ts", "contracts/KYOSHI.md"]) {
+  for (const path of ["prompts.ts", "eve/instructions.ts", "eve/ask.ts", "eve/routes.ts", "eve/resume.ts", "eve/messages.ts", "eve/stream.ts", "contracts/KYOSHI.md", "contracts/NATIVE-HARNESS.md"]) {
     await copyFile(new URL(`../../../authoring/src/${path}`, import.meta.url), join(root, "authoring/src", path));
   }
+  await cp(new URL("../../../authoring/skills", import.meta.url), join(root, "authoring/skills"), { recursive: true });
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--registry=https://registry.npmjs.org"]);
   await symlink(join(root, "authoring"), join(root, "node_modules/@dojofoo/authoring"), "dir");
   const lock = JSON.parse(await readFile(join(root, "package-lock.json"), "utf8"));

@@ -4,6 +4,7 @@ import { codexHarnessAdapter, codexRuntimeEnvironment } from "../harness/codex";
 import { configureOpenCodeSessionModel, opencodeRuntimeEnvironment } from "../harness/opencode";
 import { dojofooHarness } from "../harness/registry";
 import { AcpClient, type AcpStreamPart } from "./codex-client";
+import { runCoordinator } from "../run/coordinator";
 
 function receive(client: AcpClient, notification: SessionNotification) {
   (client as unknown as { sessionUpdate(value: SessionNotification): void }).sessionUpdate(notification);
@@ -14,6 +15,35 @@ async function visibleHistory(client: AcpClient, sessionId: string) {
 }
 
 describe("AcpClient projection", () => {
+  it("binds learning observations to the active runtime and removes access on shutdown", async () => {
+    const client = new AcpClient();
+    const internal = client as unknown as {
+      initialize(key: string): Promise<void>;
+      ensureRuntime(config: { root: string; runtimeKey: string; harness: "codex"; developerInstructions: string; learnerObservation: (input: unknown) => unknown }): Promise<unknown>;
+      runtimes: Map<string, { connection: unknown; capability: string }>;
+    };
+    const initialize = vi.spyOn(internal, "initialize").mockImplementation(async key => {
+      internal.runtimes.get(key)!.connection = {};
+    });
+    const observe = vi.fn(input => ({ saved: input }));
+    const config = { root: "/tmp/lesson", runtimeKey: "observation-test", harness: "codex" as const, developerInstructions: "Teach", learnerObservation: observe };
+    try {
+      await internal.ensureRuntime(config);
+      const capability = internal.runtimes.get(config.runtimeKey)!.capability;
+      await expect(runCoordinator.observe(capability, { interpretation: "Initial note" })).resolves.toEqual({ saved: { interpretation: "Initial note" } });
+      const updated = vi.fn(() => ({ updated: true }));
+      await internal.ensureRuntime({ ...config, learnerObservation: updated });
+      await expect(runCoordinator.observe(capability, {})).resolves.toEqual({ updated: true });
+      expect(observe).toHaveBeenCalledOnce();
+      expect(updated).toHaveBeenCalledOnce();
+      client.shutdown();
+      await expect(runCoordinator.observe(capability, {})).rejects.toThrow("no longer active");
+    } finally {
+      client.shutdown();
+      initialize.mockRestore();
+    }
+  });
+
   it("rejects typed Codex provider failures, including silent turns, without inventing teaching text", async () => {
     const client = new AcpClient();
     const runtime = {

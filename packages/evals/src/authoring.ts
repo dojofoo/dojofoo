@@ -22,7 +22,7 @@ if (live && !localJudges && !process.env.AI_GATEWAY_API_KEY && !process.env.VERC
   throw new Error("The Eve judge requires AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN.");
 }
 const cli = resolve(dirname(fileURLToPath(import.meta.resolve("@dojofoo/agent/eve/package.json"))), "bin/eve.js");
-const dojoCli = resolve(import.meta.dirname, "../../cli/dist/index.js");
+const dojoCli = process.env.DOJO_CLI ?? resolve(import.meta.dirname, "../../cli/dist/index.js");
 if (live && (chained || workflow)) await access(dojoCli);
 const root = await mkdtemp(resolve(tmpdir(), "dojofoo-kyoshi-eval-"));
 let runtime: Awaited<ReturnType<typeof createKyoshiRuntime>> | undefined;

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readDojoRc } from "@dojofoo/config";
-import { answerSenseiQuestion, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, shouldIntroduceLesson, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
+import { answerSenseiQuestion, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, saveLearnerObservation, shouldIntroduceLesson, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
 import { dojofooHarness } from "../harness/registry";
 import { acpClient } from "./codex-client";
 import kataTeaching from "./contracts/KATAS.md?raw";
@@ -116,6 +116,117 @@ describe("fresh lesson state", () => {
       id: "starter",
       completedLessons: [{ id: "001-first", title: initial!.title, summary: initial!.lessons[0].summary }],
     });
+  });
+
+  it("carries source-linked learner statements and help into a subsequent lesson after history is unavailable", async () => {
+    const root = freshCourse();
+    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("first-thread");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    await startLessonSession(root, "001-first");
+    history.mockResolvedValue([
+      { role: "user", kind: "message", text: "I do not know callbacks yet." },
+      { role: "assistant", kind: "message", text: "A callback is a function passed to another function." },
+    ]);
+    await getLesson(root, "001-first");
+    const rc = readDojoRc(root);
+    rc.progress = { starter: { completed: ["001-first"], lastActive: "001-first" } };
+    writeFileSync(resolve(root, ".dojorc"), JSON.stringify(rc));
+    history.mockResolvedValue([]);
+    const next = await getLesson(root, "002-second");
+    const evidence = dojoLessonContext(next!).learner.evidence;
+    expect(evidence?.map(entry => [entry.role, entry.text])).toEqual([
+      ["user", "I do not know callbacks yet."],
+      ["assistant", "A callback is a function passed to another function."],
+    ]);
+    expect(evidence?.every(entry => entry.source.sessionId === "first-thread" && entry.source.lessonId === "001-first")).toBe(true);
+    expect(dojoLessonContext(next!).learner).not.toHaveProperty("mastery");
+    start.mockResolvedValue("second-thread");
+    const send = vi.spyOn(acpClient, "send").mockRejectedValue(new Error("capture context"));
+    await expect(streamLessonIntroduction(root, "002-second", () => {})).rejects.toThrow("capture context");
+    expect(send).toHaveBeenLastCalledWith("second-thread", "Begin the lesson.", expect.any(Function), expect.objectContaining({
+      context: [expect.objectContaining({ text: expect.stringContaining('"text":"I do not know callbacks yet."') })],
+    }));
+    expect(dojoLessonContext((await getLesson(freshCourse(), "002-second"))!).learner.evidence).toBeUndefined();
+  });
+
+  it("preserves newer state changes while capturing native history", async () => {
+    const root = freshCourse();
+    vi.spyOn(acpClient, "startThread").mockResolvedValue("first-thread");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    await startLessonSession(root, "001-first");
+    history.mockImplementationOnce(async () => {
+      const path = resolve(root, ".dojo/web.json");
+      const state = JSON.parse(readFileSync(path, "utf8"));
+      state.observations.concurrent = { code: "new work", failureSignature: "updated", attempt: 2 };
+      writeFileSync(path, JSON.stringify(state));
+      return [{ role: "user", kind: "message", text: "I want to try independently." }];
+    });
+    await getLesson(root, "001-first");
+    const state = JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8"));
+    expect(state.observations.concurrent).toEqual({ code: "new work", failureSignature: "updated", attempt: 2 });
+    expect(state.learnerEvidence["starter/001-first"][0].text).toBe("I want to try independently.");
+  });
+
+  it("keeps historical help when an existing lesson starts a fresh agent session", async () => {
+    const root = freshCourse();
+    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("old-thread");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    await startLessonSession(root, "001-first");
+    history.mockResolvedValue([{ role: "assistant", kind: "message", text: "We discussed how a block body returns a value." }]);
+    await getLesson(root, "001-first");
+    start.mockResolvedValue("fresh-thread");
+    history.mockResolvedValue([]);
+    const fresh = await startLessonSession(root, "001-first", "starter");
+    expect(fresh.sessionId).toBe("fresh-thread");
+    const evidence = dojoLessonContext(fresh).learner.evidence;
+    expect(evidence).toEqual([expect.objectContaining({
+      text: "We discussed how a block body returns a value.",
+      source: expect.objectContaining({ sessionId: "old-thread" }),
+    })]);
+    const unchanged = readFileSync(resolve(root, ".dojo/web.json"), "utf8");
+    await getLesson(root, "001-first");
+    expect(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).toBe(unchanged);
+  });
+
+  it("persists and corrects source-backed interpretations across lessons without keeping stale advice active", async () => {
+    const root = freshCourse();
+    vi.spyOn(acpClient, "startThread").mockResolvedValue("first-thread");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    await startLessonSession(root, "001-first");
+    history.mockResolvedValue([{ role: "user", kind: "message", text: "I do not know what a callback is." }]);
+    const initial = await getLesson(root, "001-first");
+    const citation = (index: number, snapshot = initial!) => {
+      const { sessionId, messageId, sha256 } = snapshot.learnerEvidence![index]!.source;
+      return { sessionId, messageId, sha256 };
+    };
+    const note = await saveLearnerObservation(root, "001-first", {
+      category: "uncertainty", interpretation: "Learner reports unfamiliarity with callbacks.", status: "active", source: citation(0),
+    });
+    history.mockResolvedValue([
+      { role: "user", kind: "message", text: "I do not know what a callback is." },
+      { role: "assistant", kind: "message", text: "A callback is a function passed to another function." },
+      { role: "user", kind: "message", text: "I understand the term now; I still need to try applying it." },
+    ]);
+    const updated = await getLesson(root, "001-first");
+    await expect(saveLearnerObservation(root, "001-first", {
+      category: "understanding", interpretation: "Learner understands callbacks.", status: "resolved", source: citation(1, updated!),
+    })).rejects.toThrow("needs a user message");
+    const replacement = await saveLearnerObservation(root, "001-first", {
+      category: "uncertainty", interpretation: "Learner reports the term is clear; application remains untested.", status: "resolved", source: citation(2, updated!), replaces: note.id,
+    });
+    history.mockResolvedValue([]);
+    const rc = readDojoRc(root);
+    rc.progress = { starter: { completed: ["001-first"], lastActive: "001-first" } };
+    writeFileSync(resolve(root, ".dojorc"), JSON.stringify(rc));
+    const next = dojoLessonContext((await getLesson(root, "002-second"))!);
+    expect(next.learner.interpretations).toEqual([replacement]);
+    expect(next.learner.interpretations?.some(entry => entry.id === note.id)).toBe(false);
+    expect(next.learner.interpretations?.[0]?.evidence.text).toContain("still need to try");
+    expect(dojoLessonContext((await getLesson(freshCourse(), "002-second"))!).learner.interpretations).toBeUndefined();
   });
 
   it("retries an introduction until the lifecycle marks it complete", () => {

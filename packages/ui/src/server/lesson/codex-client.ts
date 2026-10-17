@@ -39,7 +39,7 @@ export type SessionModelConfiguration = {
   options: Array<{ value: string; name: string; description?: string; group?: string }>;
 };
 
-type UserQuestion = {
+export type UserQuestion = {
   id: string;
   title: string;
   options: Array<{ id: string; title: string; description?: string }>;
@@ -65,6 +65,7 @@ type RuntimeConfiguration = {
   developerInstructions: string;
   lessonContext?: () => Promise<unknown> | unknown;
   lessonFragment?: (fragmentId: string) => Promise<{ fragmentId: string }> | { fragmentId: string };
+  learnerObservation?: (input: unknown) => Promise<unknown> | unknown;
   lessonTools?: boolean;
   toolProfile?: "lesson" | "authoring" | "none";
 };
@@ -78,6 +79,7 @@ interface AcpRuntime {
   developerInstructions: string;
   lessonContext: () => Promise<unknown> | unknown;
   lessonFragment: (fragmentId: string) => Promise<{ fragmentId: string }> | { fragmentId: string };
+  learnerObservation?: RuntimeConfiguration["learnerObservation"];
   capability: string;
   loadedSessions: Set<string>;
   loadingSessions: Map<string, Promise<void>>;
@@ -429,6 +431,7 @@ export class AcpClient {
         developerInstructions: configuration.developerInstructions,
         lessonContext: configuration.lessonContext ?? (() => ({})),
         lessonFragment: configuration.lessonFragment ?? ((fragmentId) => ({ fragmentId })),
+        learnerObservation: configuration.learnerObservation,
         capability: crypto.randomUUID(),
         loadedSessions: new Set(),
         loadingSessions: new Map(),
@@ -440,10 +443,15 @@ export class AcpClient {
         ask: (question) => this.askRunQuestion(runtime!, question),
         context: () => runtime!.lessonContext(),
         show: (fragmentId) => runtime!.lessonFragment(fragmentId),
+        observe: (input) => {
+          if (!runtime!.learnerObservation) throw new Error("Learning notes are unavailable in this run");
+          return runtime!.learnerObservation(input);
+        },
       });
     } else {
       if (configuration.lessonContext) runtime.lessonContext = configuration.lessonContext;
       if (configuration.lessonFragment) runtime.lessonFragment = configuration.lessonFragment;
+      if (configuration.learnerObservation) runtime.learnerObservation = configuration.learnerObservation;
     }
     if (!runtime.ready) runtime.ready = this.initialize(configuration.runtimeKey, runtime);
     await runtime.ready;

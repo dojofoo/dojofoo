@@ -3,12 +3,32 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { criterionIds, type judgeMaterial } from "./judges";
-import { evaluateAuthoredCourse } from "./run";
+import { compactTeachingParts, evaluateAuthoredCourse } from "./run";
 import { TeachingFailure } from "./failure";
 import { materialHash } from "./material";
 import { teachingRubricVersion } from "./teaching-rubric";
 
 const roots: string[] = [];
+it("compacts token envelopes without deleting repeated answers or crossing tools and messages", () => {
+  const parts = [
+    { type: "text-start", id: "first" },
+    { type: "text-delta", id: "first", delta: "A callback " },
+    { type: "text-delta", id: "first", delta: "is a function." },
+    { type: "text-end", id: "first" },
+    { type: "reasoning-delta", delta: "private" },
+    { type: "tool-output-available", id: "source" },
+    { type: "text-start", id: "second" },
+    { type: "text-delta", id: "second", delta: "A callback is a function." },
+  ];
+  const original = structuredClone(parts);
+  const compact = compactTeachingParts(parts);
+  expect(compact.filter(part => part.type === "text-delta")).toEqual([
+    { type: "text-delta", id: "first", delta: "A callback is a function." },
+    { type: "text-delta", id: "second", delta: "A callback is a function." },
+  ]);
+  expect(compact.map(part => part.type)).toEqual(["text-start", "text-delta", "text-end", "tool-output-available", "text-start", "text-delta"]);
+  expect(parts).toEqual(original);
+});
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 function panel(pass = true): Awaited<ReturnType<typeof judgeMaterial>> {
   return ["first", "second"].map(judge => ({ judge, root: "/judge", promptHash: "hash", verdict: {
@@ -208,6 +228,48 @@ it("rejects evidence that taught a prior lesson again", async () => {
   const f = await fixture();
   await writeFile(join(f.root, "trial/evidence.json"), JSON.stringify([...taught("first"), ...taught("second"), { deterministicLifecycle: "passed" }]));
   expect((await f.run()).error).toContain("requested isolated lesson sessions");
+});
+
+it("grades both observed lesson dialogues when explicitly requesting a full chain", async () => {
+  const f = await fixture();
+  await writeFile(join(f.root, "trial/evidence.json"), JSON.stringify([
+    { learnerProfile: "struggling", priorLessons: "teach" },
+    ...taught("first"), ...taught("second"), { deterministicLifecycle: "passed" },
+  ]));
+  const report = await evaluateAuthoredCourse({ root: f.root, lessonIds: ["first", "second"],
+    priorLessons: "teach", signal: AbortSignal.timeout(5000), trial: f.trial, judge: f.judge });
+  expect(report.status).toBe("passed");
+  expect(report.priorLessons).toBe("teach");
+  expect(JSON.parse(f.judge.mock.calls[0][0]["evaluation-scope.json"]))
+    .toMatchObject({ teachingLessonIds: ["first", "second"], completedBefore: [] });
+  expect(JSON.parse(f.judge.mock.calls[1][0].lessonIds)).toEqual(["first", "second"]);
+  expect(f.judge.mock.calls[1][0].priorLessons).toBe("teach");
+});
+
+it("cannot relabel seeded completion as a full teaching chain", async () => {
+  const f = await fixture();
+  const report = await evaluateAuthoredCourse({ root: f.root, lessonIds: ["first", "second"],
+    priorLessons: "teach", signal: AbortSignal.timeout(5000), trial: f.trial, judge: f.judge });
+  expect(report.status).toBe("infrastructure-failed");
+  expect(report.error).toContain("prior-lesson coverage");
+  expect(f.judge).toHaveBeenCalledTimes(1);
+});
+
+it.each(["missing-stage", "shared-session", "reversed-order", "seeded-lesson"])("rejects incomplete full-chain evidence: %s", async flaw => {
+  const f = await fixture();
+  let first = taught("first");
+  const second = taught("second");
+  if (flaw === "missing-stage") first = first.filter(turn => turn.stage !== "uncertainty");
+  if (flaw === "shared-session") second[0].sessionId = "session-first";
+  const turns = flaw === "reversed-order" ? [...second, ...first] : [...first, ...second];
+  if (flaw === "seeded-lesson") turns.unshift({ lessonId: "first", fastForward: true });
+  await writeFile(join(f.root, "trial/evidence.json"), JSON.stringify([
+    { priorLessons: "teach" }, ...turns, { deterministicLifecycle: "passed" },
+  ]));
+  const report = await evaluateAuthoredCourse({ root: f.root, lessonIds: ["first", "second"],
+    priorLessons: "teach", signal: AbortSignal.timeout(5000), trial: f.trial, judge: f.judge });
+  expect(report.status).toBe("infrastructure-failed");
+  expect(f.judge).toHaveBeenCalledTimes(1);
 });
 
 it("fails a split teaching verdict while preserving the disagreement", async () => {

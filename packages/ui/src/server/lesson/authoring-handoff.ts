@@ -15,11 +15,11 @@ import { scriptedLearner } from "@dojofoo/authoring/evaluation/prompts";
 import type { LearnerFixture } from "@dojofoo/authoring/evaluation/learner-fixtures";
 import type { LearnerDialogue } from "@dojofoo/authoring/evaluation/learner-response";
 import { isDeepStrictEqual } from "node:util";
-import { acpClient, type AcpStreamPart } from "./codex-client";
+import { acpClient, type AcpStreamPart, type UserQuestion } from "./codex-client";
 import { runRoutes } from "../run/routes";
 import { senseiInstructions } from "./instructions";
 import {
-  answerSenseiQuestion, checkLesson, getLesson, nextLesson, setLessonModel,
+  answerSenseiQuestion, checkLesson, dojoLessonContext, getLesson, nextLesson, setLessonModel,
   startLessonSession, streamCheckObservation, streamLessonIntroduction,
   streamSensei, writeLessonFile,
 } from "./service";
@@ -28,10 +28,15 @@ import {
 export async function runAuthoringHandoff(signal: AbortSignal = new AbortController().signal, lessonIds?: string[], options?: {
   fixturesPath?: string;
   learnerProfile?: "struggling" | "confident";
+  /** Complete a real teaching dialogue for each lesson instead of seeding
+   * earlier completion. Required when claiming a full two-lesson chain. */
+  priorLessons?: "seed-completion" | "teach";
   /** Focused teaching checks still use the production setup, but do not claim
    * completion, review or learning outcomes. Empty turns checks just the intro. */
   turns?: ReadonlyArray<{ message: string; code?: string }>;
   respondToReview?(dialogue: LearnerDialogue, source: string, signal: AbortSignal): Promise<string>;
+  /** Answer the actual teaching question; no hidden guidance or expected answer. */
+  respondToQuestion?(questions: UserQuestion[], dialogue: LearnerDialogue, source: string, signal: AbortSignal): Promise<Record<string, string[]>>;
   verifyFixtures?(root: string, courseId: string, fixtures: Record<string, LearnerFixture>, lessonIds: string[], signal: AbortSignal): Promise<unknown>;
 }) {
   signal.throwIfAborted();
@@ -42,6 +47,7 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
     throw new Error("Evaluation turn interval must be between 0 and 60000 milliseconds");
   }
   const learnerProfile = options?.turns ? "focused" : options?.learnerProfile ?? "struggling";
+  const maxTeachingQuestionReplies = 4;
   if (learnerProfile === "confident" && !options?.respondToReview) throw new Error("Confident scenario requires a learner responder");
   assert.equal(process.env.DOJOFOO_EVALUATION_WORKER, "1", "Production teaching evaluations require an isolated worker");
   const authoredRoot = process.env.DOJOFOO_HANDOFF_COURSE;
@@ -63,7 +69,8 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
   // teacher's system prompt and are applied only at the scripted learner stage.
   const learnerPath = options?.turns ? undefined : options?.fixturesPath ?? resolve(authoredRoot, ".dojo/learner-fixtures.json");
   const learner: Record<string, LearnerFixture> = learnerPath ? JSON.parse(await readFile(learnerPath, "utf8")) : {};
-  const evidence: unknown[] = [{ learnerProfile, harness: process.env.DOJOFOO_HARNESS, model: process.env.DOJOFOO_HANDOFF_MODEL, learnerPath, turnIntervalMs }];
+  const priorLessons = options?.priorLessons ?? "seed-completion";
+  const evidence: unknown[] = [{ learnerProfile, priorLessons, maxTeachingQuestionReplies, harness: process.env.DOJOFOO_HARNESS, model: process.env.DOJOFOO_HANDOFF_MODEL, learnerPath, turnIntervalMs }];
   const persist = () => writeFile(evidencePath, JSON.stringify(evidence, null, 2));
   await mkdir(process.env.DOJOFOO_HOME, { recursive: true });
   const trial = createLessonTrial(authoredRoot, lessons[0].name);
@@ -110,7 +117,7 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
       if (!fixture && !options?.turns) throw new Error(`Missing reviewed learner edits for ${lessonId}`);
       // Earlier lessons are prior progress, not taught again: solve, check
       // (which records completion) and advance through the production services.
-      if (entry !== lessons.at(-1)) {
+      if (entry !== lessons.at(-1) && priorLessons === "seed-completion") {
         await writeLessonFile(root, trial.courseId, lessonId, "solution", fixture.solved);
         const { observation } = await checkLesson(root, trial.courseId, lessonId);
         assert.equal(observation.report.complete, true, "Prior lesson's solved fixture must pass actual checks");
@@ -136,6 +143,7 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
       sessions.add(lesson.sessionId);
       let reviewChosen = false;
       let prompts = 0;
+      let teachingQuestionReplies = 0;
       const nextLessonId = lessons[lessons.indexOf(entry) + 1]?.name;
       let navigatedLesson: string | undefined;
       const dialogue: LearnerDialogue = [];
@@ -148,31 +156,70 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
         if (learnerMessage) dialogue.push({ role: "user", content: learnerMessage });
         const parts: AcpStreamPart[] = [];
         const answers: Promise<unknown>[] = [];
-        const before = (await getLesson(root!, lessonId))!.code;
+        const snapshot = (await getLesson(root!, lessonId))!;
+        const before = snapshot.code;
+        const contextBeforeTurn = dojoLessonContext(snapshot);
+        const answerController = new AbortController();
+        const turnSignal = AbortSignal.any([signal, answerController.signal, AbortSignal.timeout(120_000)]);
+        let answerFailure: unknown;
+        let recordedTextLength = 0;
+        const recordText = () => {
+          const text = parts.flatMap(part => part.type === "text-delta" ? [part.delta] : []).join("");
+          const fresh = text.slice(recordedTextLength);
+          if (fresh.trim()) dialogue.push({ role: "assistant", content: fresh });
+          recordedTextLength = text.length;
+        };
         try {
           await run(part => {
             parts.push(part);
             if (part.type !== "tool-input-available" || part.toolName !== "elicitation") return;
-            const input = part.input as { questions: Array<{ id: string; options: Array<{ id: string; title: string }> }> };
-            const selections: Record<string, string[]> = {};
-            for (const question of input.questions) {
-              const afterReview = nextLessonId ? "move on" : "pause";
-              const wanted = reviewChosen ? afterReview : "review";
-              const option = question.options.find(option => option.title.toLowerCase().includes(wanted));
-              if (!option) throw new Error(`Unexpected learner question during ${stage}: ${JSON.stringify(input)}`);
-              selections[question.id] = [option.title];
-            }
-            prompts++;
-            reviewChosen = true;
+            const input = part.input as { questions: UserQuestion[] };
+            const completion = input.questions.length > 0 && input.questions.every(question =>
+              question.options.length > 0 && question.options.every(option =>
+                ["review", "move on", "pause"].includes(option.title.toLowerCase())));
+            const publicText = parts.flatMap(part => part.type === "text-delta" ? [part.delta] : []).join("");
+            const publicDialogue: LearnerDialogue = [...dialogue, ...(publicText.trim() ? [{ role: "assistant" as const, content: publicText }] : [])];
             // The production client registers its pending answer after emitting
             // the UI event; match a browser responding on the next microtask.
             answers.push(Promise.resolve().then(async () => {
+              let selections: Record<string, string[]>;
+              if (completion) {
+                selections = {};
+                const wanted = reviewChosen ? (nextLessonId ? "move on" : "pause") : "review";
+                for (const question of input.questions) {
+                  const option = question.options.find(option => option.title.toLowerCase() === wanted);
+                  if (!option) throw new TeachingFailure(`Completion prompt omitted ${wanted} during ${stage}`);
+                  selections[question.id] = [option.title];
+                }
+                prompts++;
+                reviewChosen = true;
+              } else {
+                if (!options?.respondToQuestion) throw new Error(`Evaluation learner cannot answer teaching questions during ${stage}; configure respondToQuestion`);
+                if (teachingQuestionReplies >= maxTeachingQuestionReplies) throw new Error(`Evaluation learner reached its ${maxTeachingQuestionReplies}-question reply limit`);
+                teachingQuestionReplies++;
+                selections = await options.respondToQuestion(input.questions, publicDialogue, before, turnSignal);
+                for (const question of input.questions) {
+                  const values = selections[question.id];
+                  if (!values?.length || values.some(value => !value.trim() || (!question.allowOther && !question.options.some(option => option.title === value)))) {
+                    throw new Error(`Evaluation learner returned an invalid answer for ${question.id}`);
+                  }
+                }
+              }
+              turnSignal.throwIfAborted();
+              recordText();
+              dialogue.push({ role: "assistant", content: JSON.stringify({ questions: input.questions }) });
+              dialogue.push({ role: "user", content: JSON.stringify({ answers: selections }) });
+              evidence.push({ lessonId, duringStage: stage, questionKind: completion ? "completion" : "teaching", questions: input.questions, selections });
               const result = await answerSenseiQuestion(root!, lessonId, selections);
               if (result && "kata" in result) navigatedLesson = result.kata;
-              evidence.push({ lessonId, completionChoices: selections, navigatedLesson });
+              if (completion) evidence.push({ lessonId, completionChoices: selections, navigatedLesson });
+            }).catch(error => {
+              answerFailure = error;
+              answerController.abort(error);
             }));
-          }, AbortSignal.any([signal, AbortSignal.timeout(120_000)]));
+          }, turnSignal);
           await Promise.all(answers);
+          if (answerFailure) throw answerFailure;
           // Some runtimes stream provider failures as agent text. That is an
           // infrastructure failure, never teaching evidence for the judges.
           const providerError = parts.flatMap(part => part.type === "text-delta" ? [part.delta] : []).join("")
@@ -180,10 +227,12 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
           if (providerError) throw new Error(`Teaching runtime returned a provider error during ${stage}: ${providerError}`);
           if ((await getLesson(root!, lessonId))!.code !== before) throw new TeachingFailure("Sensei edited learner code");
           if (!isDeepStrictEqual(await readMaterial(installedCourse), protectedMaterial)) throw new TeachingFailure("Sensei changed installed material");
+        } catch (error) {
+          await Promise.all(answers);
+          throw answerFailure ?? error;
         } finally {
-          const text = parts.flatMap(part => part.type === "text-delta" ? [part.delta] : []).join("");
-          if (text.trim()) dialogue.push({ role: "assistant", content: text });
-          evidence.push({ lessonId, stage, learnerMessage, parts, sourceBefore: before, sourceAfter: (await getLesson(root!, lessonId))?.code });
+          recordText();
+          evidence.push({ lessonId, stage, learnerMessage, contextBeforeTurn, parts, sourceBefore: before, sourceAfter: (await getLesson(root!, lessonId))?.code });
           await persist();
         }
       }

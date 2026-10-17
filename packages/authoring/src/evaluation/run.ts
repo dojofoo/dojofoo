@@ -14,6 +14,7 @@ export type EvaluationReport = {
   materialHash: string;
   teachingPolicyHash?: string;
   lessonIds: string[];
+  priorLessons?: "seed-completion" | "teach";
   status: "running" | "passed" | "material-failed" | "teaching-failed" | "infrastructure-failed" | "stale";
   stage: "material" | "trial" | "teaching";
   startedAt: string;
@@ -41,24 +42,44 @@ async function abortableStage<T>(signal: AbortSignal, run: () => Promise<T>): Pr
   try { return await Promise.race([run(), cancelled]); }
   finally { signal.removeEventListener("abort", onAbort); }
 }
-type RecordedTurn = { learnerProfile?: string; lessonId?: string; sessionId?: string; fastForward?: boolean; stage?: string; deterministicLifecycle?: string; parts?: Array<{ type: string; delta?: string }> };
+type RecordedTurn = { learnerProfile?: string; priorLessons?: string; lessonId?: string; sessionId?: string; fastForward?: boolean; stage?: string; deterministicLifecycle?: string; parts?: Array<{ type: string; delta?: string }> };
+
+/** Judge the same content without paying for one JSON envelope per token.
+ * Preserve message/tool boundaries and repetitions; raw events stay on disk. */
+export function compactTeachingParts<T extends { type: string; delta?: string; id?: string }>(parts: readonly T[]): T[] {
+  const result: T[] = [];
+  let text: T | undefined;
+  for (const part of parts) {
+    if (part.type.startsWith("reasoning-")) { text = undefined; continue; }
+    if (part.type === "text-delta" && typeof part.delta === "string") {
+      if (text && text.id === part.id) text.delta = (text.delta ?? "") + part.delta;
+      else { text = { ...part }; result.push(text); }
+    } else {
+      text = undefined;
+      result.push({ ...part });
+    }
+  }
+  return result;
+}
 
 /** Read evidence produced by the production worker, never the author's claims. */
-export async function readTeachingEvidence(directory: string, lessonIds?: string[]) {
+export async function readTeachingEvidence(directory: string, lessonIds?: string[], priorLessons: "seed-completion" | "teach" = "seed-completion") {
   const turns: RecordedTurn[] = JSON.parse(await readFile(join(directory, "evidence.json"), "utf8"));
   if (!Array.isArray(turns) || turns.at(-1)?.deterministicLifecycle !== "passed") {
     throw new Error("Production lifecycle did not pass");
   }
   const learnerProfile = turns[0]?.learnerProfile ?? "struggling";
   if (!["struggling", "confident"].includes(learnerProfile)) throw new Error("Unknown learner scenario");
+  if ((turns[0]?.priorLessons ?? "seed-completion") !== priorLessons) throw new Error("Teaching evidence does not match the requested prior-lesson coverage");
   const stages = learnerProfile === "confident" ? ["introduction", "quick-understanding", "success", "review"] : requiredStages;
   const sessions = turns.filter(turn => turn.sessionId && turn.lessonId);
-  // Only the last requested lesson is taught. Earlier lessons are completed
-  // progress (solved and checked without a Sensei), which lets the judges assess
-  // continuity without replaying, and re-judging, a lesson that already passed.
+  // Keep seeded completion distinct from a dialogue across both lessons.
+  // Neither the caller nor an evidence marker alone can certify full coverage.
   const prior = turns.filter(turn => turn.fastForward && turn.lessonId).map(turn => turn.lessonId);
   const distinct = new Set(sessions.map(turn => turn.sessionId)).size === sessions.length && new Set(sessions.map(turn => turn.lessonId)).size === sessions.length;
-  const scoped = !lessonIds || (sessions.length === 1 && sessions[0]!.lessonId === lessonIds.at(-1) && JSON.stringify(prior) === JSON.stringify(lessonIds.slice(0, -1)));
+  const scoped = !lessonIds || (priorLessons === "teach"
+    ? prior.length === 0 && JSON.stringify(sessions.map(session => session.lessonId)) === JSON.stringify(lessonIds)
+    : sessions.length === 1 && sessions[0]!.lessonId === lessonIds.at(-1) && JSON.stringify(prior) === JSON.stringify(lessonIds.slice(0, -1)));
   if (!sessions.length || !distinct || !scoped) {
     throw new Error("Teaching evidence does not match the requested isolated lesson sessions");
   }
@@ -79,9 +100,10 @@ export async function readTeachingEvidence(directory: string, lessonIds?: string
   const evidence: Record<string, string> = {
     rubric: teachingRubricVersion,
     learnerProfile,
+    priorLessons,
     lessonIds: JSON.stringify(sessions.map(session => session.lessonId)),
     completedBefore: JSON.stringify(prior),
-    transcript: JSON.stringify(turns.map(turn => ({ ...turn, parts: turn.parts?.filter(part => !part.type.startsWith("reasoning-")) }))),
+    transcript: JSON.stringify(turns.map(turn => ({ ...turn, parts: turn.parts && compactTeachingParts(turn.parts) }))),
   };
   for (const name of await readdir(directory)) {
     if (name.endsWith("-instructions.md")) evidence[name] = await readFile(join(directory, name), "utf8");
@@ -93,11 +115,12 @@ export async function readTeachingEvidence(directory: string, lessonIds?: string
 /** One bounded attempt. Revisions create new attempts; old failures stay intact.
  * The trial callback invokes the isolated production worker, not another teacher.
  */
-export async function evaluateAuthoredCourse({ root, lessonIds, signal, trial, teachingPolicy, judge = judgeMaterial }: {
+export async function evaluateAuthoredCourse({ root, lessonIds, signal, trial, teachingPolicy, priorLessons = "seed-completion", judge = judgeMaterial }: {
   root: string;
   lessonIds: string[];
   signal: AbortSignal;
   teachingPolicy?: string;
+  priorLessons?: "seed-completion" | "teach";
   trial(signal: AbortSignal): Promise<string>;
   judge?: typeof judgeMaterial;
 }): Promise<EvaluationReport> {
@@ -109,7 +132,7 @@ export async function evaluateAuthoredCourse({ root, lessonIds, signal, trial, t
   await mkdir(join(root, ".dojo/evaluations"), { recursive: true });
   const directory = await mkdtemp(join(root, ".dojo/evaluations/run-"));
   const report: EvaluationReport = {
-    version: 1, directory, lessonIds, materialHash: materialHash(files),
+    version: 1, directory, lessonIds, priorLessons, materialHash: materialHash(files),
     status: "running", stage: "material", startedAt: new Date().toISOString(),
   };
   if (teachingPolicy !== undefined) {
@@ -138,8 +161,11 @@ export async function evaluateAuthoredCourse({ root, lessonIds, signal, trial, t
       "evaluation-scope.json": JSON.stringify({
         lessonIds,
         teachingLessonId: lessonIds.at(-1),
-        completedBefore: lessonIds.slice(0, -1),
-        scope: "Evaluate the teaching lesson and shared course guidance. Earlier lessons are completed-learning context for continuity, not material to revise in this trial. This result does not certify those earlier lessons.",
+        teachingLessonIds: priorLessons === "teach" ? lessonIds : lessonIds.slice(-1),
+        completedBefore: priorLessons === "teach" ? [] : lessonIds.slice(0, -1),
+        scope: priorLessons === "teach"
+          ? "Evaluate teaching across all requested lessons and shared course guidance. Each lesson requires its own observed dialogue. Scripted edits and passing checks do not establish learner acquisition."
+          : "Evaluate the teaching lesson and shared course guidance. Earlier lessons are seeded completion context, not observed learning. This result does not certify those earlier lessons.",
       }),
     };
     report.material = requireJudgeResults(await abortableStage(signal, () => judge(materialEvidence, signal)));
@@ -155,7 +181,7 @@ export async function evaluateAuthoredCourse({ root, lessonIds, signal, trial, t
     await persist();
     report.trialDirectory = await abortableStage(signal, () => trial(signal));
     await unchanged();
-    const evidence = await readTeachingEvidence(report.trialDirectory, lessonIds);
+    const evidence = await readTeachingEvidence(report.trialDirectory, lessonIds, priorLessons);
     report.stage = "teaching";
     await writeFile(join(directory, "teaching-evidence.json"), JSON.stringify(evidence, null, 2));
     await persist();
