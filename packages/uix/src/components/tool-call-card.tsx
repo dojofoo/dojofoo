@@ -575,7 +575,7 @@ const css = /* css */ `
 }
 @media (hover: hover) {
   .ui-tc__head:hover { background: var(--ui-tc-hover); }
-  .ui-tc-group__head:hover { background: var(--ui-tc-hover); color: var(--ui-tc-ink); }
+  .ui-tc-group__head:hover { color: var(--ui-tc-ink); }
   .ui-tc__copy:hover { background: var(--ui-tc-hover); color: var(--ui-tc-ink); }
   .ui-tc__more:hover { color: var(--ui-tc-ink); }
   .ui-tc__retry:hover { background: var(--ui-tc-hover); }
@@ -659,6 +659,7 @@ const css = /* css */ `
 /* Body: grows from 0fr to 1fr, so the height animates without measuring */
 .ui-tc__body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 0fr;
   opacity: 0;
   transition: grid-template-rows 380ms var(--ui-tc-ease), opacity 240ms ease;
@@ -810,7 +811,8 @@ const css = /* css */ `
 .ui-tc__retry:active svg { transform: rotate(-60deg); transition: transform 200ms var(--ui-tc-ease); }
 
 /* Group: one quiet line with the tool icons stacked, the cards below */
-.ui-tc-group { display: grid; }
+/* One column that never grows past the group: a summary that doesn't wrap shortens instead of widening the cards */
+.ui-tc-group { display: grid; grid-template-columns: minmax(0, 1fr); }
 .ui-tc-group__head {
   all: unset;
   box-sizing: border-box;
@@ -820,8 +822,9 @@ const css = /* css */ `
   justify-self: start;
   max-width: 100%;
   min-height: 36px;
-  padding: 4px 10px 4px 5px;
-  border-radius: 10px;
+  /* No inset: the icons start on the cards' left edge below */
+  padding: 0;
+  border-radius: 6px;
   color: var(--ui-tc-text);
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease;

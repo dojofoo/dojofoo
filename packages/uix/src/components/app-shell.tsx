@@ -1,5 +1,5 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode, type CSSProperties } from "react";
-import { LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode, type CSSProperties } from "react";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { Tooltip } from "radix-ui";
 import { spring } from "~/lib/springs";
 import type { IconGlyph } from "~/lib/icons";
@@ -24,6 +24,9 @@ import {
   SettingsFillIcon,
   HelpCircleIcon,
   Logout01Icon,
+  Megaphone01Icon,
+  DoneIcon,
+  LockedIcon,
 } from "~/lib/icons";
 import { FilterMenu, type FilterGroup, type FilterValue } from "~/components/filter-menu";
 import { SetupGuide, type SetupGroup } from "~/components/setup-guide";
@@ -46,9 +49,23 @@ export type ShellNavItem = { label: string; icon: IconGlyph; /** Small number at
 /** A labelled list under the menu – replaces Projects when given */
 export type ShellGroup = { label: string; items: ShellNavItem[]; /** Text shown while the list is empty */ empty?: string };
 /** A row in the sidebar; with children it is a group that folds open */
-export type ShellEntry = { id: string; label: string; icon?: IconGlyph; /** Short text in the icon's place, e.g. a lesson's number */ marker?: string; count?: number; children?: ShellEntry[] };
-/** A block of rows, with an optional heading. Rows in one `layout` share a highlight that glides between them */
-export type ShellSection = { id: string; heading?: string; items: ShellEntry[]; layout?: string; empty?: string };
+export type ShellEntry = {
+  id: string;
+  label: string;
+  icon?: IconGlyph;
+  /** Short text in the icon's place, e.g. a lesson's number */
+  marker?: string;
+  count?: number;
+  /** Progress, shown at the row's end: done (a check in the brand's color), active (in progress, a ring) or locked
+      (a locked folder – the row can't be opened) */
+  state?: "done" | "active" | "locked";
+  /** Says why, in the row's tooltip and to screen readers – e.g. what unlocks it */
+  note?: string;
+  children?: ShellEntry[];
+};
+/** A block of rows, with an optional heading. Rows in one `layout` share a highlight that glides between them, so two
+    sections with layouts of their own each keep one lit – a chapter and its lesson, say */
+export type ShellSection = { id: string; heading?: string; items: ShellEntry[]; layout?: string; empty?: string; /** Above the heading, e.g. the course card above its chapters */ before?: ReactNode };
 
 export const defaultNav: ShellNavItem[] = [
   { label: "New chat", icon: PencilEdit02Icon },
@@ -107,6 +124,11 @@ export type AppShellProps = {
   groups?: ShellGroup[];
   /** Tasks behind "Getting started" */
   setup?: SetupGroup[];
+  /** The account menu at the sidebar's foot – none yet before onboarding */
+  showUser?: boolean;
+  /** Names the menu that's showing (e.g. "dashboard", a course's id); when it changes, the old rows swipe out to the right
+      and the new ones in from the left */
+  navigationKey?: string;
   /** Project-specific navigation below the main menu. */
   sidebar?: ReactNode;
   showFooter?: boolean;
@@ -125,6 +147,15 @@ export type AppShellProps = {
   asideColumns?: string;
   /** The main panel widens over the aside, e.g. while a settings panel is open in it */
   asideCovered?: boolean;
+  /** Narrow only: the aside is in view – it slides in from the right and pushes the main panel left */
+  asideOpen?: boolean;
+  /** Narrow only: asks to put the aside away, e.g. after a tap on the panel it pushed aside */
+  onAsideOpenChange?: (open: boolean) => void;
+  /** Narrow only: a drawer from the right, the sidebar's mirror – e.g. settings that sit in the panel when it's wide.
+      Screens read `useShellNarrow()` to show the wide version in its place */
+  drawer?: ReactNode;
+  drawerOpen?: boolean;
+  onDrawerOpenChange?: (open: boolean) => void;
   className?: string;
 };
 
@@ -161,18 +192,23 @@ type ShellRowProps = {
 };
 
 /** One sidebar row: icon, label, count (a dot in the rail), a chevron for groups, and the highlight when it is lit */
+const stateText = { done: "done", active: "in progress", locked: "locked" } as const;
+
 function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expanded, turned, controls, onClick }: ShellRowProps) {
+  const locked = entry.state === "locked";
   return (
-    <RailTip enabled={rail} label={entry.label} note={entry.count ? String(entry.count) : undefined}>
+    <RailTip enabled={rail || !!entry.note} label={rail ? entry.label : entry.note ?? entry.label} note={rail ? (entry.note ?? (entry.count ? String(entry.count) : undefined)) : undefined}>
       <button
         type="button"
         className="ui-as-side__item"
         data-nested={nested || undefined}
         data-lit={lit || undefined}
+        data-state={entry.state}
         aria-current={current ? "page" : undefined}
         aria-expanded={expanded}
         aria-controls={controls}
-        onClick={onClick}
+        aria-disabled={locked || undefined}
+        onClick={locked ? undefined : onClick}
       >
         {lit && <motion.span layoutId={layoutId} className="ui-as-side__lit" transition={reduce ? { duration: 0 } : spring.moderate} />}
         {entry.marker ? <span className="ui-as-side__marker" aria-hidden="true">{entry.marker}</span> : entry.icon ? <Icon icon={entry.icon} size={16} /> : null}
@@ -188,10 +224,20 @@ function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expande
             <Icon icon={ArrowRight01Icon} size={14} />
           </span>
         )}
+        {entry.state && (
+          <span className="ui-as-side__state" data-state={entry.state}>
+            {entry.state === "done" ? <Icon icon={DoneIcon} size={14} /> : entry.state === "locked" ? <Icon icon={LockedIcon} size={14} /> : <i />}
+            <span className="sr-only">({stateText[entry.state]}{entry.note ? ` – ${entry.note}` : ""})</span>
+          </span>
+        )}
       </button>
     </RailTip>
   );
 }
+
+const ShellNarrow = createContext(false);
+/** Whether the shell is in its narrow layout (tablet, phone) – for content that moves between the panel and a drawer */
+export const useShellNarrow = () => useContext(ShellNarrow);
 
 export function AppShell({
   children,
@@ -206,6 +252,8 @@ export function AppShell({
   sidebar,
   showFooter = true,
   showOnboarding = true,
+  showUser = true,
+  navigationKey = "menu",
   brand,
   sidebarWidth = "220px",
   onSearch,
@@ -214,6 +262,11 @@ export function AppShell({
   aside,
   asideColumns = "minmax(0, 1fr) minmax(20rem, 26rem)",
   asideCovered = false,
+  asideOpen = false,
+  onAsideOpenChange,
+  drawer: endDrawer,
+  drawerOpen: endDrawerOpen = false,
+  onDrawerOpenChange,
   className,
 }: AppShellProps) {
   const [news, setNews] = useState(2);
@@ -222,6 +275,7 @@ export function AppShell({
   const root = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
   const [drawer, setDrawer] = useState(false);
+  const endOpen = Boolean(endDrawer) && endDrawerOpen;
   useLayoutEffect(() => {
     const el = root.current;
     if (!el) return;
@@ -327,9 +381,27 @@ export function AppShell({
     return () => document.removeEventListener("keydown", key);
   }, [drawer, guide]);
   const [done, setDone] = useState(() => setup.flatMap((g) => g.tasks.filter((t) => t.done).map((t) => t.id)));
+  // Tasks the app marks done later (onboarding finished, a course installed) join the ones ticked here
+  const setupDone = setup.flatMap((g) => g.tasks.filter((t) => t.done).map((t) => t.id)).join(",");
+  useEffect(() => {
+    if (setupDone) setDone((current) => [...new Set([...current, ...setupDone.split(",")])]);
+  }, [setupDone]);
   const total = setup.reduce((n, g) => n + g.tasks.length, 0);
   const pct = total ? Math.round((done.length / total) * 100) : 0;
   const initials = user.name.split(" ").map((w) => w[0]).slice(0, 2).join("");
+  // Getting started's summary, folded
+  const guideSummary = <>
+    <span className="ui-as-steps__title">
+      Getting started
+      <Icon icon={ArrowRight01Icon} size={13} />
+    </span>
+    <span className="ui-as-steps__sub">
+      {pct}% done · <span className="ui-as-steps__cheer">{cheer(pct)}</span>
+    </span>
+    <span className="ui-as-steps__bar">
+      <i style={{ width: `${Math.max(pct, 4)}%` }} />
+    </span>
+  </>;
 
   return (
     <Tooltip.Provider delayDuration={250} skipDelayDuration={300}>
@@ -338,9 +410,13 @@ export function AppShell({
       className={["ui-as", "ui-as-app", className].filter(Boolean).join(" ")}
       style={{ "--ui-as-sidebar-width": sidebarWidth, "--ui-as-aside-columns": asideColumns } as CSSProperties}
       data-aside={aside ? "" : undefined}
-      data-aside-covered={aside && asideCovered ? "" : undefined}
+      // Narrow, the aside is a sheet beside the panel rather than a column, so nothing covers it
+      data-aside-covered={aside && asideCovered && !narrow ? "" : undefined}
+      data-aside-open={aside && narrow && asideOpen ? "" : undefined}
+      data-narrow={narrow || undefined}
       data-collapsed={rail || undefined}
       data-drawer={(narrow && drawer) || undefined}
+      data-end-drawer={(narrow && endOpen) || undefined}
     >
       <style href="ui-app-shell" precedence="default">
         {css}
@@ -356,7 +432,7 @@ export function AppShell({
         <Icon icon={SidebarLeftIcon} size={16} />
       </button>
       {/* Narrow only: dims the main area behind the open drawer; a tap closes it */}
-      <div className="ui-as-scrim" aria-hidden="true" onClick={() => setDrawer(false)} />
+      <div className="ui-as-scrim" aria-hidden="true" onClick={() => { setDrawer(false); onDrawerOpenChange?.(false); }} />
       <aside className="ui-as-side" inert={sideHidden}>
         <header className="ui-as-side__head">
           <span className="ui-as-side__brand" data-logo={brand ? "" : undefined}>{brand ?? <Dropdown
@@ -393,12 +469,18 @@ export function AppShell({
 
         <LayoutGroup id={baseId}>
         <nav className="ui-as-side__nav scroll-fade" aria-label="Main menu">
+          {/* Screens that name their menu also swipe it in when they open – entering a course is a screen of its own */}
+          <AnimatePresence mode="wait" initial={navigationKey !== "menu"}>
+          <motion.div key={navigationKey} className="ui-as-side__menu"
+            initial={reduce ? false : { x: -24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={reduce ? undefined : { x: 24, opacity: 0 }}
+            transition={reduce ? { duration: 0 } : spring.moderate}>
           {sections.map((section, index) => {
             const headingId = `${baseId}-${section.id}`;
             const layoutId = `${baseId}-${section.layout ?? "nav"}-lit`;
             const shared = { layoutId, rail, reduce };
             return (
               <div key={section.id} className="ui-as-side__group" role={section.heading ? "group" : undefined} aria-labelledby={section.heading ? headingId : undefined}>
+                {section.before && <div className="ui-as-side__before">{section.before}</div>}
                 {section.heading && (
                   <span className="ui-as-side__label">
                     <span id={headingId} className="ui-as-side__label-text">{section.heading}</span>
@@ -432,6 +514,8 @@ export function AppShell({
               </div>
             );
           })}
+          </motion.div>
+          </AnimatePresence>
         </nav>
         </LayoutGroup>
 
@@ -479,28 +563,21 @@ export function AppShell({
                 </div>
               ) : (
                 <button type="button" className="ui-as-steps ui-as-guide__content" key="summary" aria-expanded={false} onClick={() => setGuideOpen(true)}>
-                  <span className="ui-as-steps__title">
-                    Getting started
-                    <Icon icon={ArrowRight01Icon} size={13} />
-                  </span>
-                  <span className="ui-as-steps__sub">
-                    {pct}% done · <span className="ui-as-steps__cheer">{cheer(pct)}</span>
-                  </span>
-                  <span className="ui-as-steps__bar">
-                    <i style={{ width: `${Math.max(pct, 4)}%` }} />
-                  </span>
+                  {guideSummary}
                 </button>
               )}
             </div>
           </div>
           </div>}
 
-          <Dropdown
+          {showUser && <Dropdown
             side="top"
             className="ui-as-user-menu"
             items={[
               { label: "Profile", icon: UserIcon },
               { label: "Settings", icon: SettingsFillIcon },
+              // What changed lately – reported to onNavigate as "changelog"
+              { label: "Changelog", icon: Megaphone01Icon, onSelect: () => go("changelog") },
               { label: "Help & feedback", icon: HelpCircleIcon },
               { label: "Log out", icon: Logout01Icon, danger: true },
             ]}
@@ -513,12 +590,15 @@ export function AppShell({
                 </button>
               </RailTip>
             )}
-          />
+          />}
         </div>}
       </aside>
-      <main className="ui-as-main">{children}</main>
+      <main className="ui-as-main" inert={Boolean(aside) && narrow && asideOpen}><ShellNarrow.Provider value={narrow}>{children}</ShellNarrow.Provider></main>
+      {narrow && endDrawer && <div className="ui-as-end" inert={!endOpen}>{endDrawer}</div>}
+      {/* Narrow only: over the panel the aside pushed aside, clear – a tap brings it back */}
+      {aside && <div className="ui-as-aside-scrim" aria-hidden="true" onClick={() => onAsideOpenChange?.(false)} />}
       {/* A plain column: the content brings its own labeled region, so the page keeps one complementary landmark */}
-      {aside && <div className="ui-as-aside">{aside}</div>}
+      {aside && <div className="ui-as-aside" inert={narrow && !asideOpen}>{aside}</div>}
       {/* Over everything, clicks passing through: light from the stage, e.g. a video's ambient glow. The video keeps
           a hole in it and stays on top; the sidebar, window, settings and conversation lie under it */}
       <div className="ui-as-light" data-glow-layer="" aria-hidden="true" />
@@ -990,7 +1070,6 @@ const css = /* css */ `
   --shadow: var(--shadow-2);
   --line-strong: var(--fluid-border);
   --subtle: var(--surface-2);
-  --disabled: var(--ui-disabled, #dcdcdc);
   --on-ink: var(--ui-on-ink, #ffffff);
   --ink-hover: #3a3a3a;
   --select: var(--fluid-active);
@@ -1033,7 +1112,6 @@ const css = /* css */ `
 :where(.dark, [data-theme="dark"]) .ui-as {
   --button: var(--ui-button, #f4f4f5);
   --button-hover: var(--ui-button-hover, #ffffff);
-  --disabled: var(--ui-disabled, #3a3a3f);
   --on-ink: var(--ui-on-ink, #111113);
   --ink-hover: #d4d4d8;
   --toggle-off: var(--ui-disabled, #3a3a3f);
@@ -1090,7 +1168,7 @@ const css = /* css */ `
   grid-template-columns: var(--ui-as-sidebar-width) minmax(0, 1fr);
   height: 100%;
   min-height: 560px;
-  background: var(--page);
+  background: var(--ui-page-fill, var(--page));
   isolation: isolate;
   transition: grid-template-columns var(--motion-slow) var(--ease-slow);
 }
@@ -1129,6 +1207,10 @@ const css = /* css */ `
   padding: 0 12px 12px;
   transition: opacity var(--motion-moderate) var(--ease-moderate), translate var(--motion-slow) var(--ease-slow), visibility 0s;
 }
+
+/* While one of its menus is open (the account's, say – in the rail it is wider than the sidebar) the sidebar lets it
+   out and lies over the window, the stage's glow included */
+.ui-as-app:not([data-narrow]) > .ui-as-side:has(.ui-as-popover) { z-index: 40; overflow: visible; }
 
 /* The icon to bring the drawer back on narrow screens, in the top left corner of the main area */
 .ui-as-side-open {
@@ -1265,6 +1347,21 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-side__chevron { display: grid; flex: none; margin-left: auto; color: var(--faint); transition: rotate var(--motion-moderate) var(--ease-moderate), opacity var(--motion-slow) var(--ease-slow) 100ms; }
 .ui-as-side__chevron svg { color: currentColor; }
 .ui-as-side__chevron[data-turned] { rotate: 90deg; }
+/* Progress at the row's end: done a quiet check, in progress a ring in the brand's color, locked a faint lock – and a
+   locked row reads faint and doesn't light under the pointer */
+.ui-as-side__state { display: grid; flex: none; place-items: center; width: 16px; height: 16px; margin-left: auto; color: var(--faint); transition: opacity var(--motion-slow) var(--ease-slow) 100ms; }
+.ui-as-side__chevron + .ui-as-side__state { margin-left: 4px; }
+.ui-as-side__item .ui-as-side__state svg { color: currentColor; }
+.ui-as-side__item .ui-as-side__state[data-state="done"] { color: var(--brand); }
+.ui-as-side__state[data-state="active"] > i { width: 9px; height: 9px; border: 2px solid var(--brand); border-radius: 50%; }
+.ui-as-side__item[data-state="locked"]:not([data-lit]) { color: var(--faint); }
+.ui-as-side__item[data-state="locked"] .ui-as-side__marker { color: var(--faint); }
+.ui-as-side__item[data-state="locked"]:hover { background: none; color: var(--faint); }
+.ui-as-app[data-collapsed] .ui-as-side__state { opacity: 0; transition: opacity var(--motion-moderate-exit) var(--ease-exit); }
+/* What a section puts above its heading – the course card above its chapters */
+.ui-as-side__before { margin: 4px 0 6px; }
+/* The menu's rows, as one block that swipes when the menu changes */
+.ui-as-side__menu { display: flex; flex-direction: column; }
 
 /* Labels leave quickly so they are gone a beat before the rail settles, and come back a beat after it opens */
 .ui-as-side__text, .ui-as-side__count, .ui-as-side__label-text, .ui-as-user__name, .ui-as-user > svg:last-child {
@@ -1964,9 +2061,10 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
     bottom: 0;
     left: 0;
     width: min(264px, calc(100% - 56px));
-    padding: 10px 10px 10px 12px;
+    /* No top padding: the head's own frame-gap margin puts it on the window's toolbar line */
+    padding: 0 10px 10px 12px;
     border-radius: 0 18px 18px 0;
-    background: var(--page);
+    background: var(--ui-page-fill, var(--page));
     box-shadow: var(--shadow-6);
   }
   .ui-as-app:not([data-drawer]) > .ui-as-side {
@@ -1990,7 +2088,26 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
     opacity: 0;
     transition: opacity var(--motion-moderate-exit) var(--ease-exit), visibility 0s var(--motion-moderate-exit);
   }
-  .ui-as-app[data-drawer] > .ui-as-scrim { visibility: visible; opacity: 1; transition: opacity var(--motion-slow) var(--ease-slow), visibility 0s; }
+  .ui-as-app:is([data-drawer], [data-end-drawer]) > .ui-as-scrim { visibility: visible; opacity: 1; transition: opacity var(--motion-slow) var(--ease-slow), visibility 0s; }
+  /* The drawer from the right mirrors the sidebar's: over everything, the stage's glow included */
+  .ui-as-app > .ui-as-end {
+    position: absolute;
+    z-index: 50;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    width: min(400px, calc(100% - 56px));
+    overflow: hidden;
+    border-radius: 18px 0 0 18px;
+    background: var(--panel);
+    box-shadow: var(--shadow-6);
+    visibility: hidden;
+    translate: calc(100% + 24px) 0;
+    transition: translate var(--motion-slow-exit) var(--ease-exit), visibility 0s var(--motion-slow-exit);
+  }
+  .ui-as-app[data-end-drawer] > .ui-as-end { visibility: visible; translate: 0 0; transition: translate var(--motion-slow) var(--ease-slow), visibility 0s; }
   :where(.dark, [data-theme="dark"]) .ui-as-app > .ui-as-scrim { background: rgba(0, 0, 0, 0.55); }
   /* The icon to open it always waits in the top left corner of the panel */
   .ui-as-app:not([data-drawer]) > .ui-as-side-open {
@@ -2031,5 +2148,41 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   .ui-as-popover--filter .ui-fm { width: 300px; }
   .ui-as-main .ui-as-file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 10px; }
   .ui-as-main .ui-as-file-grid .ui-as-template__preview { height: 128px; }
+}
+
+/* Narrow with an aside (the workspace's conversation): the panel keeps the full width, framed like the desktop's, and
+   the aside waits off screen to the right. Opened, it slides in and pushes the panel left by its own width – a phone's
+   all the way out, a tablet's still showing its left part, dimmed, where a tap brings it back. Attributes rather than
+   the container query, since the app can't restyle its own grid from one */
+.ui-as-aside-scrim { display: none; }
+.ui-as-app[data-narrow][data-aside] { overflow: clip; grid-template-columns: minmax(0, 1fr); }
+.ui-as-app[data-narrow][data-aside] > * { --ui-as-aside-width: min(26rem, 100cqi); }
+.ui-as-app[data-narrow][data-aside] > :is(.ui-as-main, .ui-as-aside-scrim, .ui-as-aside) { grid-row: 1; grid-column: 1; }
+.ui-as-app[data-narrow][data-aside] > :is(.ui-as-main, .ui-as-aside-scrim) {
+  margin: var(--frame-gap);
+  transition: margin-left var(--motion-slow) var(--ease-slow), translate var(--motion-slow-exit) var(--ease-exit), visibility 0s var(--motion-slow-exit);
+}
+.ui-as-app[data-narrow][data-aside] > .ui-as-aside-scrim { display: block; z-index: 2; visibility: hidden; cursor: pointer; }
+.ui-as-app[data-narrow][data-aside] > .ui-as-aside {
+  z-index: 3;
+  justify-self: end;
+  width: var(--ui-as-aside-width);
+  visibility: hidden;
+  translate: 100% 0;
+  transition: translate var(--motion-slow-exit) var(--ease-exit), visibility 0s var(--motion-slow-exit);
+}
+.ui-as-app[data-narrow][data-aside-open] > :is(.ui-as-main, .ui-as-aside-scrim) {
+  translate: calc(-1 * var(--ui-as-aside-width)) 0;
+  transition: margin-left var(--motion-slow) var(--ease-slow), translate var(--motion-slow) var(--ease-slow), visibility 0s;
+}
+.ui-as-app[data-narrow][data-aside-open] > .ui-as-aside-scrim { visibility: visible; }
+.ui-as-app[data-narrow][data-aside-open] > .ui-as-aside { visibility: visible; translate: 0 0; transition: translate var(--motion-slow) var(--ease-slow), visibility 0s; }
+/* A stage's glow lies over everything; while the stage is pushed aside it fades */
+.ui-as-app[data-narrow] > .ui-as-light { transition: opacity var(--motion-slow) var(--ease-slow); }
+.ui-as-app[data-narrow][data-aside-open] > .ui-as-light { opacity: 0; }
+/* The sidebar's button belongs to the panel, so it leaves with it */
+.ui-as-app[data-narrow][data-aside-open] > .ui-as-side-open { visibility: hidden; opacity: 0; transition: opacity var(--motion-moderate-exit) var(--ease-exit), visibility 0s var(--motion-moderate-exit); }
+@media (prefers-reduced-motion: reduce) {
+  .ui-as-app[data-narrow][data-aside] > :is(.ui-as-main, .ui-as-aside-scrim, .ui-as-aside) { transition-duration: 0s; }
 }
 `;

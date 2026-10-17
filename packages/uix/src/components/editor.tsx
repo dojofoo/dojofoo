@@ -158,9 +158,15 @@ export function EditorTabs(props: EditorTabsProps) {
             if (event.altKey) { if (props.mode === "authoring") props.onMove(tab.path, next); }
             else { props.onSelect(props.tabs[next].path); (container.current?.querySelectorAll('[role="tab"]')[next] as HTMLButtonElement)?.focus(); }
           }}>
-          {tab.label}{tab.dirty ? <span aria-label="Unsaved changes" className="ui-ed__dirty" /> : null}
+          {tab.label}{tab.dirty ? <span className="sr-only">, unsaved changes</span> : null}
         </button>
-        {props.mode === "authoring" ? <button type="button" aria-label={`Close ${tab.path}`} title="Close tab (keeps unsaved edits)" className="ui-ed__close" onClick={() => props.onClose(tab.path)}><CloseRegular size={12} aria-hidden /></button> : null}
+        {/* Unsaved changes show as a dot where the close button sits, VS Code's way – it turns back into the close
+            button while the pointer is on the tab. Learning tabs have no close button, so the dot sits there alone */}
+        {props.mode === "authoring"
+          ? <button type="button" aria-label={`Close ${tab.path}`} title="Close tab (keeps unsaved edits)" className="ui-ed__close" data-dirty={tab.dirty || undefined} onClick={() => props.onClose(tab.path)}>
+            <CloseRegular size={12} aria-hidden /><span className="ui-ed__dirty" aria-hidden />
+          </button>
+          : tab.dirty ? <span className="ui-ed__close" data-dirty data-static aria-hidden><span className="ui-ed__dirty" /></span> : null}
       </div>;
     })}
   </div>;
@@ -440,10 +446,9 @@ const css = /* css */ `
 .ui-ed__tab:not([data-active])::after { content: ""; position: absolute; top: -2px; right: -1px; width: 1px; height: 2px; background: var(--ui-ed-line); }
 .ui-ed__tab:has(+ .ui-ed__tab[data-active])::after { content: none; }
 .ui-ed__tab[data-dragging] { opacity: 0.4; }
-.ui-ed__tab-label { all: unset; box-sizing: border-box; position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; min-width: 0; height: 100%; padding: 0 4px 0 16px; cursor: pointer; }
+.ui-ed__tab-label { all: unset; box-sizing: border-box; position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; min-width: 0; height: 100%; padding: 0 6px 0 16px; cursor: pointer; }
 .ui-ed__tab-label:focus-visible { outline: 1px solid var(--focus-ring); outline-offset: -4px; border-radius: 6px; }
 .ui-ed__tab:not(:has(.ui-ed__close)) .ui-ed__tab-label { padding-right: 16px; }
-.ui-ed__dirty { width: 6px; height: 6px; border-radius: 50%; background: #14cbb7; }
 .ui-ed__close {
   all: unset;
   position: relative;
@@ -452,16 +457,27 @@ const css = /* css */ `
   place-items: center;
   width: 18px;
   height: 18px;
-  margin: 0 6px 2px 0;
+  margin: 0 6px 0 0;
   border-radius: 50%;
   color: var(--fluid-muted);
   cursor: pointer;
-  opacity: 0;
   transition: opacity var(--motion-fast) var(--ease-fast), background-color var(--motion-fast) var(--ease-fast), color var(--motion-fast) var(--ease-fast);
 }
-/* Close sits on the open tab, and shows on another as the pointer reaches it */
-.ui-ed__tab[data-active] .ui-ed__close, .ui-ed__tab:hover .ui-ed__close, .ui-ed__close:focus-visible { opacity: 1; }
-.ui-ed__close:hover { background: var(--active); color: var(--fluid-foreground); }
+/* Close is always there on every tab – an edited tab shows its dot in its place until the pointer reaches it */
+.ui-ed__close:not([data-static]):hover { background: var(--active); color: var(--fluid-foreground); }
+.ui-ed__close[data-static] { cursor: default; }
+/* Unsaved: the dot, in the brand's color, holds the close button's place; the tab under the pointer (or the button
+   in focus) swaps it for the cross and back – a quick crossfade on Fluid's fast tier: what arrives fades and grows in
+   on the enter spring, what leaves fades out on the quicker exit tween */
+.ui-ed__close > * { grid-area: 1 / 1; }
+.ui-ed__dirty { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); opacity: 0; }
+/* At rest: the dot in, the cross out */
+.ui-ed__close[data-dirty] > .ui-ed__dirty { opacity: 1; scale: 1; transition: opacity var(--motion-fast) var(--ease-fast), scale var(--motion-fast) var(--ease-fast); }
+.ui-ed__close[data-dirty]:not([data-static]) > svg { opacity: 0; scale: 0.8; transition: opacity var(--motion-fast-exit) var(--ease-exit), scale var(--motion-fast-exit) var(--ease-exit); }
+/* Hovered: the cross in, the dot out */
+.ui-ed__tab:hover > .ui-ed__close[data-dirty]:not([data-static]) > svg, .ui-ed__close[data-dirty]:focus-visible > svg { opacity: 1; scale: 1; transition: opacity var(--motion-fast) var(--ease-fast), scale var(--motion-fast) var(--ease-fast); }
+.ui-ed__tab:hover > .ui-ed__close[data-dirty]:not([data-static]) > .ui-ed__dirty, .ui-ed__close[data-dirty]:focus-visible > .ui-ed__dirty { opacity: 0; scale: 0.5; transition: opacity var(--motion-fast-exit) var(--ease-exit), scale var(--motion-fast-exit) var(--ease-exit); }
+@media (prefers-reduced-motion: reduce) { .ui-ed__close > * { transition-duration: 0s !important; } }
 .ui-ed__close:focus-visible { outline: 1px solid var(--focus-ring); }
 .ui-ed__marker { position: absolute; z-index: 2; top: 4px; bottom: 6px; width: 2px; border-radius: 1px; background: var(--focus-ring); pointer-events: none; }
 .ui-ed__marker[data-side="start"] { left: -1px; }

@@ -26,6 +26,7 @@ import {
 } from "~/lib/icons";
 import { Button } from "~/components/button";
 import { SegmentedControl } from "~/components/segmented-control";
+import { SetupChecklist } from "~/components/setup-checklist";
 import { AppShell, Icon, MenuButton, useToast, type AppShellProps, type ShellNavItem } from "~/components/app-shell";
 
 const nav: ShellNavItem[] = [
@@ -464,52 +465,14 @@ export function OnboardingScreen({ defaultStep = 2, onComplete, ...props }: Onbo
         </div>
 
         <aside className="ui-ob-aside" aria-label="Setup checklist">
-          <div className="ui-ob-check">
-            <div className="ui-ob-check__head">
-              <b>Setup checklist</b>
-              <span className="ui-ob-check__count">
-                <span key={doneCount}>{doneCount}</span>/{STEPS.length}
-              </span>
-            </div>
-            <span className="ui-ob-check__bar" aria-hidden="true">
-              <i style={{ transform: `scaleX(${doneCount / STEPS.length})` }} />
-            </span>
-            <ol className="ui-ob-check__list">
-              {STEPS.map((s, i) => {
-                const st = status[i] ?? (i === step ? "current" : "todo");
-                return (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      className="ui-ob-check__item"
-                      data-state={st}
-                      aria-current={i === step ? "step" : undefined}
-                      onClick={() => go(i)}
-                    >
-                      <span className="ui-ob-check__mark" aria-hidden="true">
-                        {st === "done" ? <Icon key="done" icon={Tick02Icon} size={11} stroke={2.6} /> : st === "skipped" ? <i className="ui-ob-dash" /> : null}
-                      </span>
-                      <span className="ui-ob-check__text">
-                        <span className="ui-ob-check__label">{s.title}</span>
-                        <span className="ui-ob-check__sub">
-                          {st === "done" ? summary(i) : st === "skipped" ? "Skipped – pick it up anytime" : st === "current" ? "In progress" : s.time}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-          <button type="button" className="ui-ob-help">
-            <span className="ui-ob-help__icon">
-              <Icon icon={CustomerSupportIcon} size={15} />
-            </span>
-            <span>
-              <b>Need a hand?</b>
-              <span>Book a free 15-minute setup call</span>
-            </span>
-          </button>
+          <SetupChecklist
+            onSelect={go}
+            help={{ icon: CustomerSupportIcon, title: "Need a hand?", text: "Book a free 15-minute setup call" }}
+            steps={STEPS.map((s, i) => {
+              const st = status[i] ?? (i === step ? "current" : "todo");
+              return { id: s.id, title: s.title, state: st, sub: st === "done" ? summary(i) : st === "skipped" ? "Skipped – pick it up anytime" : st === "current" ? "In progress" : s.time };
+            })}
+          />
         </aside>
       </div>
       {toast}
@@ -1031,70 +994,6 @@ input.ui-ob-input { width: 100%; padding: 0 12px; }
 .ui-ob-next__text b { font-size: 14px; line-height: 19px; font-weight: 500; color: var(--ink); }
 .ui-ob-next__text span { font-size: 13px; line-height: 18px; color: var(--muted); }
 
-/* Checklist beside the card */
-.ui-ob-check {
-  padding: 16px 8px 8px;
-  border-radius: 14px;
-  background: var(--subtle);
-}
-.ui-ob-check__head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 8px; }
-.ui-ob-check__head b { font-size: 13.5px; font-weight: 600; color: var(--ink); }
-.ui-ob-check__count { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.ui-ob-check__count span { display: inline-block; color: var(--ink); animation: ui-ob-rise 360ms var(--ease); }
-.ui-ob-check__bar { display: block; height: 4px; margin: 12px 8px 8px; overflow: hidden; border-radius: 999px; background: var(--chip-hover); }
-.ui-ob-check__bar i { display: block; height: 100%; border-radius: inherit; background: var(--ink); transform-origin: left; transition: transform 620ms var(--ease); }
-.ui-ob-check__list { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
-.ui-ob-check__item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  padding: 8px;
-  border-radius: 9px;
-  text-align: left;
-  transition: background-color 140ms ease;
-}
-.ui-ob-check__item:hover { background: var(--hover); }
-.ui-ob-check__item[aria-current] { background: var(--card); box-shadow: var(--shadow-3); }
-.ui-ob-check__mark {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 16px;
-  height: 16px;
-  margin-top: 1px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px var(--line-strong);
-  color: var(--on-ink);
-  transition: background-color 200ms ease, box-shadow 200ms ease;
-}
-.ui-ob-check__mark svg { animation: ui-as-pop 260ms var(--ease); }
-.ui-ob-check__item[data-state="current"] .ui-ob-check__mark { box-shadow: inset 0 0 0 1.5px var(--ink); }
-.ui-ob-check__item[data-state="done"] .ui-ob-check__mark { background: var(--ink); box-shadow: none; }
-.ui-ob-check__item[data-state="skipped"] .ui-ob-check__mark { box-shadow: inset 0 0 0 1.5px var(--line-strong); }
-.ui-ob-dash { display: block; width: 6px; height: 1.5px; border-radius: 1px; background: var(--faint); }
-.ui-ob-check__text { display: grid; gap: 1px; min-width: 0; }
-.ui-ob-check__label { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink); }
-.ui-ob-check__item[data-state="todo"] .ui-ob-check__label { color: var(--text); font-weight: 400; }
-.ui-ob-check__item[data-state="done"] .ui-ob-check__label { color: var(--muted); }
-.ui-ob-check__sub { overflow: hidden; font-size: 12px; line-height: 16px; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
-.ui-ob-check__item[data-state="todo"] .ui-ob-check__sub { color: var(--faint); }
-
-.ui-ob-help {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  text-align: left;
-  transition: background-color 140ms ease;
-}
-.ui-ob-help:hover { background: var(--hover); }
-.ui-ob-help__icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 8px; background: var(--chip); color: var(--text); }
-.ui-ob-help > span:last-child { display: grid; gap: 1px; }
-.ui-ob-help b { font-size: 13px; font-weight: 500; color: var(--ink); }
-.ui-ob-help > span:last-child > span { font-size: 12px; color: var(--muted); }
-
 /* Narrower panels: one column, the checklist moves below the card */
 @container ui-as-main (max-width: 1000px) {
   .ui-ob {
@@ -1132,3 +1031,6 @@ input.ui-ob-input { width: 100%; padding: 0 12px; }
   .ui-ob-success__badge path { stroke-dashoffset: 0; }
 }
 `;
+
+/** The onboarding's styles, for screens built from the same parts (the learner's agent setup) */
+export { css as onboardingCss };

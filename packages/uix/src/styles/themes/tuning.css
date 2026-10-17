@@ -6,6 +6,8 @@
  *   step above the window, in the theme's plum.
  * - Light: the page stays; the window is the cards' color (window and cards are one surface, set apart by shadow alone),
  *   and sidebar rows lighten toward it, as T3 Code's rows do – the open row a step, a row under the pointer two.
+ * - Dark: the page is T3 Chat's plum gradient, top to bottom (#1d151a to #0f0b0e), and a sidebar row, open or under the
+ *   pointer, is one plum step above it (#261922).
  */
 :root[data-ui-theme="t3-chat"] { --ui-ed-blend: 100%; }
 
@@ -16,4 +18,14 @@
      the pointer 70% – page < open < hover < window */
   --side-selected: color-mix(in oklab, var(--surface-1), var(--surface-3) 40%);
   --side-hover: color-mix(in oklab, var(--surface-1), var(--surface-3) 70%);
+  /* A light island in a dark page keeps the plain page */
+  --ui-page-fill: initial;
+}
+
+:root[data-ui-theme="t3-chat"]:is(.dark, [data-theme="dark"]),
+[data-ui-theme="t3-chat"] .dark {
+  /* What the shell paints the page with; --surface-1 stays a color, since others mix it */
+  --ui-page-fill: linear-gradient(to bottom, oklch(0.2078 0.0159 340.68), oklch(0.1562 0.0092 334.84));
+  --side-selected: oklch(0.2337 0.0261 338.2);
+  --side-hover: oklch(0.2337 0.0261 338.2);
 }

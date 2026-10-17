@@ -207,4 +207,18 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Whatever can be pressed shows the hand – buttons, tabs, toggles, selects – and, disabled, that it can't. In the
+     base layer, so a component's own cursor (a menu's items, a drag handle) still wins */
+  :is(button, select, summary, label[for], [role="button"], [role="tab"], [role="radio"], [role="checkbox"], [role="switch"], input:is([type="checkbox"], [type="radio"], [type="range"])) {
+    cursor: pointer;
+  }
+  :is(button, input, select, textarea):disabled, [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+/* Feature spotlight's highlighter ink (lab.xevrion.dev) */
+:root {
+  --marker: #d93d31;
 }

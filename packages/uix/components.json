@@ -35,6 +35,7 @@
     },
     "@soundcn": "https://soundcn.xyz/r/{name}.json",
     "@reui": "https://reui.io/r/{style}/{name}.json",
-    "@videocn": "https://videocn.dev/r/{name}.json"
+    "@videocn": "https://videocn.dev/r/{name}.json",
+    "@uiarc": "https://uiarc.dev/r/{name}.json"
   }
 }

@@ -831,9 +831,10 @@ const composerCss = /* css */ `
   border-radius: 50%;
   background: var(--ink);
   color: var(--on-ink);
-  transition: background-color var(--motion-fast) var(--ease-fast), transform var(--motion-fast) var(--ease-fast);
+  transition: background-color var(--motion-fast) var(--ease-fast), opacity var(--motion-fast) var(--ease-fast), transform var(--motion-fast) var(--ease-fast);
 }
-.ui-as-send:disabled { background: var(--disabled); cursor: default; }
+/* Nothing to send: the same button, faded like any disabled one */
+.ui-as-send:disabled { opacity: 0.4; cursor: not-allowed; }
 .ui-as-send:not(:disabled):active { transform: scale(0.94); }
 
 .ui-as-composer__tray {
