@@ -7,8 +7,8 @@ import { AppDirectory, categoryIcons, type App, type AppCategory } from "~/compo
 import { AppShell, EmptyState, Icon, useToast, type AppShellProps, type ShellEntry, type ShellSection } from "~/components/app-shell";
 import { ChatMessages, Composer, useChatThread } from "~/components/assistant-home";
 import { Button } from "~/components/button";
-import { AddCard, ColorCard, ColorCardButton, ColorCardTag } from "~/components/color-card";
-import { CertificateFlipCard, CourseArt, CourseFlipCard, courseCardCss, type CourseArtwork, type CourseInfo } from "~/components/course-card";
+import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardTag } from "~/components/color-card";
+import { CertificateCard, CourseArt, CourseCard, type CourseArtwork, type CourseInfo } from "~/components/course-card";
 import { ChangelogFeed, type ChangelogEntry, type ChangelogMonth } from "~/components/arc/blocks/changelog-feed/changelog-feed";
 import { CodeEditor, Editor, EditorStatus, EditorTabs } from "~/components/editor";
 import { LessonBrief } from "~/components/lesson-brief";
@@ -25,7 +25,7 @@ import { BrandLogo } from "../../../ui/src/components/ui/brand-logo";
  * - Fresh: setting up the agent on this machine, in the affectUI onboarding's card and wizard – Agent, Courses, Profile,
  *   Style, Workspace – with a few lines on the right about each step. The sidebar has Documentation and Getting started,
  *   which follows the steps; no account yet.
- * - Dashboard: Courses (the ones you study, then the ones you write) and Explore (new ones, the top three ranked), then
+ * - Dashboard: Courses (the ones you study, then the ones you write) and Explore (one featured course), then
  *   a Collection – Certificates and Materials (cheatsheets, books, exercises). Getting started now waits at the foot,
  *   above the account.
  * - In a course: the course as a square card that turns over for its details – your version (or Update, once a newer
@@ -64,7 +64,7 @@ const course = (info: Omit<Course, "chapters" | "lessons"> & { chapters?: number
 
 const library: Course[] = [
   course({
-    id: "everyday", shader: "topography", likes: "3.2k", reviews: 1284, title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript", author: "Dojo", version: "v1.4.0", latest: "v1.5.0", updated: "12 Oct 2026", language: "TypeScript", hours: 6, rating: 4.9, learners: "12.4k",
+    id: "everyday", shader: "topography", likes: "3.2k", reviews: 1284, title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript", author: "Dojo.foo", version: "v1.4.0", latest: "v1.5.0", updated: "12 Oct 2026", language: "TypeScript", hours: 6, rating: 4.9, learners: "12.4k",
     art: { hue: 350, glyph: "TS" }, blurb: "Arrays, objects and the types that keep them honest – one small program at a time.",
     chapterList: [
       { id: "arrays", title: "Arrays", state: "done", blurb: "Walk a list, keep what matters, fold it into one value.", lessons: [
@@ -90,7 +90,7 @@ const library: Course[] = [
     ],
   }),
   course({
-    id: "advanced", shader: "waves", title: "Advanced TypeScript", repo: "dojofoo/advanced-typescript", author: "Dojo", version: "v0.9.2", updated: "30 Sep 2026", language: "TypeScript", hours: 9, rating: 4.6, learners: "3.1k",
+    id: "advanced", shader: "waves", title: "Advanced TypeScript", repo: "dojofoo/advanced-typescript", author: "Dojo.foo", version: "v0.9.2", updated: "30 Sep 2026", language: "TypeScript", hours: 9, rating: 4.6, learners: "3.1k",
     art: { hue: 255, glyph: "ATS" }, blurb: "Types that compute: mapped, conditional and template literal types.",
     chapterList: [
       { id: "shapes", title: "Narrowing shapes", state: "active", blurb: "Unions you can trust in every branch.", lessons: [
@@ -101,11 +101,11 @@ const library: Course[] = [
       { id: "conditional", title: "Conditional types", state: "locked", blurb: "Types that ask questions.", lessons: [lesson("unwrap", "Unwrap a promise", "locked", "unwrap", "Ask a type what it holds.")] },
     ],
   }),
-  course({ id: "async", shader: "network", likes: "2.4k", reviews: 962, title: "Async JavaScript", repo: "dojofoo/async-javascript", author: "Dojo", version: "v2.0.1", updated: "8 Oct 2026", language: "JavaScript", hours: 5, rating: 4.8, learners: "9.8k", chapters: 5, lessons: 21, art: { hue: 190, glyph: "JS" }, blurb: "Promises, async and await, and cancelling what you started.", chapterList: [] }),
+  course({ id: "async", shader: "network", likes: "2.4k", reviews: 962, title: "Async JavaScript", repo: "dojofoo/async-javascript", author: "Dojo.foo", version: "v2.0.1", updated: "8 Oct 2026", language: "JavaScript", hours: 5, rating: 4.8, learners: "9.8k", chapters: 5, lessons: 21, art: { hue: 190, glyph: "JS" }, blurb: "Promises, async and await, and cancelling what you started.", chapterList: [] }),
   course({ id: "vitest", shader: "waves", likes: "1.1k", reviews: 541, title: "Testing with Vitest", repo: "vitest-dev/learn-vitest", author: "Vitest", version: "v1.2.0", updated: "2 Oct 2026", language: "TypeScript", hours: 4, rating: 4.7, learners: "6.2k", chapters: 4, lessons: 16, art: { hue: 145, glyph: "VT" }, blurb: "Tests that tell you what broke and why.", chapterList: [] }),
   course({ id: "regex", shader: "network", title: "Regex Katas", repo: "katacommunity/regex", author: "Community", version: "v3.1.0", updated: "21 Aug 2026", language: "JavaScript", hours: 3, rating: 4.4, learners: "2.7k", chapters: 6, lessons: 24, art: { hue: 235, glyph: "RX" }, blurb: "Patterns from simple matches to lookarounds.", chapterList: [] }),
   course({ id: "rust", shader: "topography", title: "Rust for TypeScript devs", repo: "ferris-school/rust-for-ts", author: "Community", version: "v0.6.0", updated: "14 Sep 2026", language: "Rust", hours: 12, rating: 4.5, learners: "4.0k", chapters: 7, lessons: 30, art: { hue: 35, glyph: "RS" }, blurb: "Ownership and borrowing, from what you already know.", chapterList: [] }),
-  course({ id: "sql", shader: "network", title: "SQL Foundations", repo: "dojofoo/sql-foundations", author: "Dojo", version: "v1.0.3", updated: "1 Oct 2026", language: "SQL", hours: 5, rating: 4.3, learners: "5.5k", chapters: 5, lessons: 20, art: { hue: 295, glyph: "SQL" }, blurb: "Select, join and group – queries you can read later.", chapterList: [] }),
+  course({ id: "sql", shader: "network", title: "SQL Foundations", repo: "dojofoo/sql-foundations", author: "Dojo.foo", version: "v1.0.3", updated: "1 Oct 2026", language: "SQL", hours: 5, rating: 4.3, learners: "5.5k", chapters: 5, lessons: 20, art: { hue: 295, glyph: "SQL" }, blurb: "Select, join and group – queries you can read later.", chapterList: [] }),
 ];
 const byId = (id: string) => library.find((item) => item.id === id)!;
 
@@ -142,8 +142,9 @@ const voices: Record<string, Testimonial[]> = {
 };
 
 const certificates = [
-  { id: "js-foundations", title: "JavaScript Foundations", learner: "Sam Rivera", art: { hue: 35, glyph: "JS" }, issued: "12 Sep 2026", lessons: 24, score: 96 },
-  { id: "ts-arrays", title: "Everyday TypeScript · Arrays", learner: "Sam Rivera", art: library[0].art, issued: "3 Oct 2026", lessons: 3, score: 100 },
+  // SHA-256 of demo issuer/learner/course records, not issued credentials.
+  { id: "js-foundations", title: "JavaScript Foundations", learner: "Sam Rivera", art: { hue: 35, glyph: "JS" }, issued: "12 Sep 2026", lessons: 24, score: 96, digest: "d1d0ac5f87007c80c7a0d1773773b4ac9361c8aba3c175473f46bff44da78f8d" },
+  { id: "ts-arrays", title: "Everyday TypeScript · Arrays", learner: "Sam Rivera", art: library[0].art, issued: "3 Oct 2026", lessons: 3, score: 100, digest: "8aabeef599580a6a9cb47c2b59b7b722db0194054c0f297fc824944b738c0026" },
 ];
 const authored = [
   { id: "everyday", status: "Published", learners: "128 learners", edited: "Edited 2 days ago" },
@@ -176,7 +177,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /** A course's color, for the cards drawn from one */
 const colorOf = (item: { art: CourseArtwork }) => `oklch(0.58 0.2 ${item.art.hue})`;
 /** Our own courses carry our logo, at the author name's size; others their author's name */
-const markOf = (item: Course) => (item.author === "Dojo" ? <BrandLogo /> : undefined);
+const markOf = (item: Course) => (item.author === "Dojo.foo" ? <BrandLogo /> : undefined);
 const lockNote = (items: Array<{ title: string; state: Progress }>, index: number, what: string) =>
   items[index].state === "locked" && index > 0 ? `Finish “${items[index - 1].title}” to unlock this ${what}` : undefined;
 
@@ -186,7 +187,7 @@ type View = "courses" | "explore" | "certificates" | "materials" | "changelog";
 
 function LearnerJourney({ start }: { start: Start }) {
   // The cards' classes are used here without a card component (the rectangles), so their styles load with the story
-  return <div style={{ height: "100dvh" }}><style href="ui-course-card" precedence="default">{courseCardCss}</style><style href="ui-onboarding" precedence="default">{onboardingCss}</style><style href="lj" precedence="default">{css}</style><Journey key={start} start={start} /></div>;
+  return <div style={{ height: "100dvh" }}><style href="ui-onboarding" precedence="default">{onboardingCss}</style><style href="lj" precedence="default">{css}</style><Journey key={start} start={start} /></div>;
 }
 
 function Journey({ start }: { start: Start }) {
@@ -198,11 +199,11 @@ function Journey({ start }: { start: Start }) {
   const [courseId, setCourseId] = useState<string | null>(start === "Course" ? "everyday" : null);
   const [toast, showToast] = useToast();
 
-  const setup: SetupGroup[] = !onboarded ? [
-    { id: "setup", title: "Set up Dojo", tasks: setupSteps.map((item, index) => ({ id: item.id, label: item.title, done: setupDone.includes(index) })) },
-  ] : [
-    { id: "learn", title: "Start learning", tasks: [
-      { id: "agent", label: "Set up your agent", done: onboarded },
+  // One list from the first run on: setting Dojo up (the wizard's steps, ticked as they're done), then learning, then
+  // sharing what you know
+  const setup: SetupGroup[] = [
+    { id: "setup", title: "Set up Dojo", tasks: setupSteps.map((item, index) => ({ id: item.id, label: item.title, done: onboarded || setupDone.includes(index) })) },
+    { id: "learn", title: "Set up learning", tasks: [
       { id: "install", label: "Install a course", done: installed.length > 0 },
       { id: "lesson", label: "Finish your first lesson", done: onboarded },
       { id: "certificate", label: "Earn a certificate" },
@@ -217,6 +218,8 @@ function Journey({ start }: { start: Start }) {
     showNews: false,
     setup,
     showUser: onboarded,
+    // While Dojo is set up, Getting started stays open and follows the steps
+    setupPinned: !onboarded,
   };
 
   if (courseId) return <CourseWorkspace key={courseId} shell={shell} item={byId(courseId)} onClose={() => { setCourseId(null); setView("courses"); }} />;
@@ -251,7 +254,11 @@ function Journey({ start }: { start: Start }) {
         : view === "certificates" ? <Certificates />
         : view === "materials" ? <Materials />
         : view === "changelog" ? <Changelog />
-        : <Courses installed={installed} onOpen={setCourseId} onExplore={() => setView("explore")} />}
+        : <Courses installed={installed} onOpen={setCourseId} onAuthor={(id) => {
+          const url = new URL("/", window.location.href);
+          url.search = new URLSearchParams({ path: "/story/workspaces-authoring--course", args: `initialCourse:${byId(id).title}` }).toString();
+          (window.parent ?? window).location.assign(url);
+        }} onExplore={() => setView("explore")} />}
       {toast}
     </AppShell>
   );
@@ -285,7 +292,7 @@ function CourseWorkspace({ shell, item, onClose }: { shell: Partial<AppShellProp
     {
       id: "chapters", heading: "Chapters", layout: "chapters",
       // Inset to the logo's and the rows' text line on the left, the same on the right
-      before: <div className="lj-course"><CourseFlipCard course={item} mark={markOf(item)} enrolled={{ version, latest: item.latest, updating, onUpdate: update, progress: progressOf(item), label: at && `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}`, value: at && currentLesson(at)?.title }} /></div>,
+      before: <div className="lj-course"><CourseCard course={item} mark={markOf(item)} enrolled={{ version, latest: item.latest, updating, onUpdate: update, progress: progressOf(item), label: at && `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}`, value: at && currentLesson(at)?.title }} /></div>,
       items: item.chapterList.map((x, index): ShellEntry => ({ id: `chapter:${x.id}`, label: x.title, marker: pad(index + 1), state: x.state, note: lockNote(item.chapterList, index, "chapter") })),
     },
     {
@@ -358,7 +365,7 @@ function Tile({ title, art, meta, inside, onClick }: { title: string; art: Cours
 }
 
 /** Courses: the ones you study – where you are in each – and below them the ones you write */
-function Courses({ installed, onOpen, onExplore }: { installed: string[]; onOpen: (id: string) => void; onExplore: () => void }) {
+function Courses({ installed, onOpen, onAuthor, onExplore }: { installed: string[]; onOpen: (id: string) => void; onAuthor: (id: string) => void; onExplore: () => void }) {
   const mine = library.filter((item) => installed.includes(item.id));
   return (
     <Page kicker="Courses" title="Your courses" sub="The ones you're learning, with how far you are – and the ones you're writing with Kyoshi.">
@@ -370,9 +377,10 @@ function Courses({ installed, onOpen, onExplore }: { installed: string[]; onOpen
               const pct = progressOf(item);
               const at = currentChapter(item);
               const next = at ? currentLesson(at) : undefined;
-              return <ColorCard key={item.id} color={colorOf(item)} mark={markOf(item) ?? item.author} title={item.title}
-                label={at ? `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}` : `${item.chapters} chapters`} value={pct && next ? next.title : "Not started"}
-                action={<span className="ui-card__figure">{pct}%</span>} progress={pct} onClick={() => onOpen(item.id)} aria-label={`${item.title}, ${pct}% done`} />;
+              return <ColorCard key={item.id} color={colorOf(item)}
+                header={<CardMark>{markOf(item) ?? item.author}</CardMark>} main={<CardTitle>{item.title}</CardTitle>}
+                footer={<><CardText label={at ? `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}` : `${item.chapters} chapters`} value={pct && next ? next.title : "Not started"} /><CardFigure>{pct}%</CardFigure></>}
+                progress={pct} onClick={() => onOpen(item.id)} aria-label={`${item.title}, ${pct}% done`} />;
             })}
             {/* One more, dashed – it finds a course to add */}
             <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="Add a course" label="Find one in Explore" onClick={onExplore} />
@@ -384,8 +392,9 @@ function Courses({ installed, onOpen, onExplore }: { installed: string[]; onOpen
         <div className="lj-grid lj-grid--cards">
           {authored.map((entry) => {
             const item = byId(entry.id);
-            return <ColorCard key={entry.id} color={colorOf(item)} mark={markOf(item) ?? item.author} figure={entry.status} title={item.title}
-              label={entry.learners} value={entry.edited} aria-label={item.title} action={<ColorCardButton aria-label={`Edit ${item.title}`}>Edit</ColorCardButton>} />;
+            return <ColorCard key={entry.id} color={colorOf(item)}
+              header={<><CardMark>{markOf(item) ?? item.author}</CardMark><CardFigure>{entry.status}</CardFigure></>} main={<CardTitle>{item.title}</CardTitle>}
+              footer={<CardText label={entry.learners} value={entry.edited} />} aria-label={`Open ${item.title}`} onClick={() => onAuthor(item.id)} />;
           })}
           <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="New course" label="Start from a template" />
         </div>
@@ -401,7 +410,7 @@ function Stars({ value }: { value: number }) {
 function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const install = (id: string) => { setBusy(id); window.setTimeout(() => { setBusy(null); onInstall(id); }, 700); };
-  const top = [...library].sort((a, b) => b.rating - a.rating).slice(0, 3);
+  const top = [...library].sort((a, b) => b.rating - a.rating).slice(0, 1);
   const action = (item: Course) => {
     const has = installed.includes(item.id);
     // Installed reads as the cards say it – a check and the word – at the Install button's height
@@ -411,12 +420,11 @@ function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id
   };
   return (
     <Page kicker="Explore" title="Find your next course" sub="Courses from Dojo and the community. Install one and it joins your courses, ready to start.">
-      {/* The top three: one box each – the card, and beside it what learners say, with the numbers and install */}
-      <h2 className="lj-section">Top courses</h2>
-      <ol className="lj-top">
-        {top.map((item, index) => (
+      <h2 className="ui-ob-step__title lj-heading">Featuring</h2>
+      <ol className="lj-top" aria-label="Featuring">
+        {top.map((item) => (
           <li key={item.id} className="lj-top__box">
-            <CourseFlipCard course={item} mark={markOf(item)} />
+            <CourseCard course={item} mark={markOf(item)} />
             {/* The quote fills the box beside the card – its mark and the numbers share the top line, its speaker sits
                 on the card's bottom line, the rating after the quote's own controls */}
             <div className="lj-top__side">
@@ -436,7 +444,7 @@ function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id
       </ol>
       {/* Every course: the app directory's search, filter and categories, our course cards in its grid */}
       <div className="lj-browse">
-        <h2 className="ui-ob-step__title">Browse every course</h2>
+        <h2 className="ui-ob-step__title">Browse courses</h2>
         <p className="ui-ob-step__text">Search by name or topic, show only what you haven't installed, or pick a category on the left.</p>
       </div>
       <AppDirectory className="lj-directory" title="All courses" defaultCategory="all" categories={courseCategories}
@@ -448,12 +456,12 @@ function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id
             {apps.map((app) => {
               const item = byId(app.id);
               const busy = state.busy.has(app.id);
-              // Still: only the top three above move
-              return <ColorCard key={app.id} color={colorOf(item)} mark={markOf(item) ?? item.author} figure={`★ ${item.rating.toFixed(1)}`} title={item.title}
-                label="Updated" value={item.updated} aria-label={item.title}
-                action={state.connected.has(app.id)
+              // Still: only the featured card above moves
+              return <ColorCard key={app.id} color={colorOf(item)} aria-label={item.title}
+                header={<><CardMark>{markOf(item) ?? item.author}</CardMark><CardFigure>★ {item.rating.toFixed(1)}</CardFigure></>} main={<CardTitle>{item.title}</CardTitle>}
+                footer={<><CardText label="Updated" value={item.updated} />{state.connected.has(app.id)
                   ? <ColorCardTag><Icon icon={DoneIcon} size={13} />Installed</ColorCardTag>
-                  : <ColorCardButton disabled={busy} aria-label={`Install ${item.title}`} onClick={() => state.toggle(app)}>{busy ? "Installing…" : "Install"}</ColorCardButton>} />;
+                  : <ColorCardButton disabled={busy} aria-label={`Install ${item.title}`} onClick={() => state.toggle(app)}>{busy ? "Installing…" : "Install"}</ColorCardButton>}</>} />;
             })}
           </div>
         )} />
@@ -488,11 +496,12 @@ const releaseMonths: ChangelogMonth[] = [
   { key: "2026-09", label: "September 2026", short: "Sep" },
 ];
 
+/** The changelog as every page is set: its kicker, title and lead, then the feed (its own heading left out) */
 function Changelog() {
   return (
-    <div className="lj-page">
-      <ChangelogFeed entries={releases} months={releaseMonths} title="Changelog" subtitle="Dojo 0.9 shipped on October 14, 2026" endNote="That's everything since Dojo 0.7 in September." />
-    </div>
+    <Page kicker="What's new" title="Changelog" sub="Dojo 0.9 shipped on October 14, 2026.">
+      <ChangelogFeed heading={false} entries={releases} months={releaseMonths} title="Changelog" endNote="That's everything since Dojo 0.7 in September." />
+    </Page>
   );
 }
 
@@ -500,7 +509,7 @@ function Certificates() {
   return (
     <Page kicker="Collection" title="Certificates" sub="What you finished – turn a card over for its details.">
       <div className="lj-squares">
-        {certificates.map((item) => <CertificateFlipCard key={item.id} certificate={item} mark={<BrandLogo />} />)}
+        {certificates.map((item) => <CertificateCard key={item.id} certificate={item} />)}
       </div>
     </Page>
   );
@@ -535,10 +544,22 @@ export const Journey_: Story = {
   },
 };
 export const Fresh: Story = { args: { start: "Fresh" } };
+export const CoursesDashboard: Story = { name: "Courses", args: { start: "Dashboard" } };
 export const InACourse: Story = { name: "In a course", args: { start: "Course" } };
-export const ExploreCourses: Story = { name: "Explore", args: { start: "Explore" } };
+export const ExploreCourses: Story = { name: "Explore", args: { start: "Explore" }, play: async ({ canvasElement }) => {
+  const canvas = within(canvasElement);
+  const featured = canvas.getByRole("list", { name: "Featuring" });
+  await expect(within(featured).getAllByRole("listitem")).toHaveLength(1);
+  await expect(canvas.queryByRole("heading", { name: "Top courses" })).not.toBeInTheDocument();
+} };
 export const MaterialsCollection: Story = { name: "Materials", args: { start: "Materials" } };
-export const CertificatesCollection: Story = { name: "Certificates", args: { start: "Certificates" } };
+export const CertificatesCollection: Story = { name: "Certificates", args: { start: "Certificates" }, play: async ({ canvasElement }) => {
+  const canvas = within(canvasElement);
+  const seals = canvas.getAllByRole("img", { name: "Dojo certificate seal" });
+  await expect(seals).toHaveLength(2);
+  await expect(seals[0]).toHaveAttribute("data-digest", certificates[0].digest);
+  await expect(seals[1]).toHaveAttribute("data-digest", certificates[1].digest);
+} };
 
 const css = /* css */ `
 /* Pages as the onboarding sets them: a centered column with room around it; its kicker, title and lead */
@@ -546,6 +567,10 @@ const css = /* css */ `
 .lj-page__head { margin-bottom: 32px; }
 .lj-page__head .ui-ob-sub { max-width: 34rem; font-size: 15px; line-height: 1.55; text-wrap: pretty; }
 .lj-browse { margin-top: 56px; }
+/* A section's big title, as Browse courses sets it */
+.lj-heading { margin: 0 0 16px; }
+/* The directory's list heading (All courses, or a category) between two dotted rules */
+.lj-directory .ui-ad__heading { margin: 4px 0 16px; padding: 12px 0; border-block: 1px dotted color-mix(in oklab, var(--ink) 28%, transparent); }
 .lj-browse .ui-ob-step__text { max-width: 36rem; text-wrap: pretty; }
 @container ui-as-main (max-width: 620px) { .lj-page { padding: 40px 20px 48px; } }
 .lj-section { margin: 0 0 14px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
@@ -590,7 +615,7 @@ button.lj-tile:hover .lj-box--new { background: var(--hover); color: var(--ink);
 .lj-top__voice blockquote p > svg { display: none; }
 @container ui-as-main (max-width: 640px) {
   .lj-top__box { grid-template-columns: minmax(0, 1fr); }
-  .lj-top__box .ui-cf { max-width: 14rem; }
+  .lj-top__box .ui-card { max-width: 14rem; }
   .lj-top__line { position: static; margin-bottom: 12px; }
 }
 /* Five stars as one mask, filled in the brand's color up to the rating */

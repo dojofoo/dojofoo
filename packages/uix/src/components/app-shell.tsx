@@ -124,6 +124,9 @@ export type AppShellProps = {
   groups?: ShellGroup[];
   /** Tasks behind "Getting started" */
   setup?: SetupGroup[];
+  /** Getting started stays open – no summary, no closing – and follows the tasks as they're done (e.g. during the app's
+      own setup) */
+  setupPinned?: boolean;
   /** The account menu at the sidebar's foot – none yet before onboarding */
   showUser?: boolean;
   /** Names the menu that's showing (e.g. "dashboard", a course's id); when it changes, the old rows swipe out to the right
@@ -249,6 +252,7 @@ export function AppShell({
   projects = defaultProjects,
   groups,
   setup = defaultSetup,
+  setupPinned = false,
   sidebar,
   showFooter = true,
   showOnboarding = true,
@@ -368,11 +372,11 @@ export function AppShell({
   }, []);
 
   useEffect(() => {
-    if (!guideOpen) return;
+    if (!guideOpen || setupPinned) return;
     const key = (e: KeyboardEvent) => e.key === "Escape" && setGuideOpen(false);
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
-  }, [guideOpen]);
+  }, [guideOpen, setupPinned]);
   // Escape closes the drawer – unless the setup guide is open, then it closes the guide first
   useEffect(() => {
     if (!drawer || guide !== "closed") return;
@@ -544,7 +548,15 @@ export function AppShell({
 
           {/* The card itself grows upward into the full setup guide – one block that morphs, no second panel */}
           {/* The slot keeps the closed card's height in the sidebar; the open card grows over the cards above it */}
-          {showOnboarding && <div className="ui-as-guide-slot" style={closedHeight ? { height: closedHeight } : undefined}>
+          {/* Pinned, the full guide sits in the sidebar's flow, open, following the tasks as they're done */}
+          {showOnboarding && setupPinned && (
+            <div className="ui-as-guide ui-as-guide--pinned" data-open>
+              <div className="ui-as-guide__inner">
+                <SetupGuide pinned title="Getting started" groups={setup.map((g) => ({ ...g, tasks: g.tasks.map((t) => ({ ...t, done: done.includes(t.id) })) }))} onChange={setDone} />
+              </div>
+            </div>
+          )}
+          {showOnboarding && !setupPinned && <div className="ui-as-guide-slot" style={closedHeight ? { height: closedHeight } : undefined}>
           <div
             className="ui-as-guide"
             data-open={guide !== "closed" || undefined}
@@ -1510,6 +1522,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   transition: height var(--motion-slow) var(--ease-slow), border-radius var(--motion-slow) var(--ease-slow), box-shadow var(--motion-moderate) var(--ease-moderate);
 }
 .ui-as-guide:not([data-open]):hover { box-shadow: var(--shadow-4); }
+.ui-as-guide--pinned { position: relative; flex: none; margin: 4px 0; }
 .ui-as-guide[data-open] { border-radius: 14px; box-shadow: var(--shadow-5); }
 .ui-as-guide__content { animation: ui-as-guide-in var(--motion-slow) var(--ease-slow) both; }
 /* Closing: the guide fades out while the card shrinks back to the summary's height */
