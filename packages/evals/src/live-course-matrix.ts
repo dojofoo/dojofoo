@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { HarnessAgent } from "@ai-sdk/harness/agent";
 import { createPi } from "@ai-sdk/harness-pi";
-import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
+import { createJustBashNetworkSandboxSession } from "@ai-sdk/sandbox-just-bash";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { AcpClient } from "../../ui/src/server/lesson/codex-client";
@@ -107,15 +107,21 @@ class LivePiCourseDriver implements FullCourseDriver {
       agentDir: process.env.DOJOFOO_EVAL_PI_AGENT_DIR ?? join(homedir(), ".pi", "agent"),
     }),
     instructions: "You are a concise kata teacher. Teach one small step at a time. Do not provide a complete solution.",
-    sandbox: createJustBashSandbox({ cwd: "/lesson" }),
   });
   private session: Awaited<ReturnType<typeof this.agent.createSession>> | null = null;
+  private sandboxSession: Awaited<ReturnType<typeof createJustBashNetworkSandboxSession>> | null = null;
   private source = "";
   private introduction = "";
 
   async begin(lesson: CourseLesson): Promise<void> {
-    if (this.session) await this.session.destroy();
-    this.session = await this.agent.createSession();
+    await this.shutdown();
+    this.sandboxSession = await createJustBashNetworkSandboxSession({ cwd: "/lesson" });
+    try {
+      this.session = await this.agent.createSession({ sandboxSession: this.sandboxSession });
+    } catch (error) {
+      await this.shutdown();
+      throw error;
+    }
     this.source = lesson.initialSource;
     this.introduction = "";
   }
@@ -156,7 +162,12 @@ class LivePiCourseDriver implements FullCourseDriver {
   }
 
   async shutdown(): Promise<void> {
-    if (this.session) await this.session.destroy();
+    try { await this.session?.destroy(); }
+    finally {
+      this.session = null;
+      try { await this.sandboxSession?.destroy(); }
+      finally { this.sandboxSession = null; }
+    }
   }
 }
 

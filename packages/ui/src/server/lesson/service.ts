@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
@@ -14,7 +15,9 @@ import {
   writeDojoRc,
 } from "@dojofoo/config";
 import type { UIMessage } from "@tanstack/ai-client";
-import { formatLessonContext, type DojoLessonContext } from "@dojofoo/protocol";
+import { formatLessonContext, type DojoLessonContext, type LearnerEvidenceExcerpt, type LearnerObservation } from "@dojofoo/protocol";
+import { retainLearnerEvidence, lessonEvidence } from "./learner-evidence";
+import { recordLearnerObservation } from "./learner-observations";
 import { senseiInstructions, senseiTurn } from "./instructions";
 import type { HarnessKind } from "../harness/adapter";
 import { dojofooHarness } from "../harness/registry";
@@ -23,9 +26,12 @@ import { parseSenseiContent } from "./sensei-content";
 
 type WebState = {
   version: 4;
+  defaultHarness?: HarnessKind;
   threads: Record<string, { sessionId: string; harness: HarnessKind; contractHash: string; aliases: string[]; resumeFailed?: boolean }>;
   results: Record<string, TestReport>;
   checkpoints: Record<string, { at: string; threadId?: string }>;
+  learnerEvidence: Record<string, LearnerEvidenceExcerpt[]>;
+  learnerObservations: Record<string, LearnerObservation[]>;
   observations: Record<string, {
     code: string;
     failureSignature: string;
@@ -80,6 +86,8 @@ export type LessonSnapshot = {
   isCurrent: boolean;
   result: TestReport | null;
   messages: UIMessage[];
+  learnerEvidence?: LearnerEvidenceExcerpt[];
+  learnerObservations?: LearnerObservation[];
   fragments: Record<string, string>;
   lessons: Array<{ name: string; title: string; summary: string; state: string; isCurrent: boolean }>;
 };
@@ -113,6 +121,8 @@ export function dojoLessonContext(snapshot: LessonSnapshot): DojoLessonContext {
     learner: {
       file: { path: snapshot.filePath, language: snapshot.language, content: snapshot.code },
       latestCheck: snapshot.result,
+      ...(snapshot.learnerEvidence?.length ? { evidence: snapshot.learnerEvidence } : {}),
+      ...(snapshot.learnerObservations?.length ? { interpretations: snapshot.learnerObservations } : {}),
     },
   };
 }
@@ -180,6 +190,13 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
     }
   } else if (threadId) threadId = undefined;
 
+  if (threadId) {
+    webState.learnerEvidence = rememberLearnerEvidence(root, key, selected.name, threadId, messages);
+  }
+  const priorLesson = katas.slice(0, katas.indexOf(selected)).reverse().find(kata => kataState(kata, progress) === "completed");
+  const learnerEvidence = lessonEvidence(webState.learnerEvidence[key] ?? [],
+    priorLesson ? webState.learnerEvidence[lessonKey(rc.currentDojo, priorLesson.name)] ?? [] : []);
+
   const selectedState = kataState(selected, progress);
   const scaffoldPath = resolve(root, ".dojos", rc.currentDojo, selected.template);
   const starterCode = existsSync(scaffoldPath) ? readFileSync(scaffoldPath, "utf8") : "";
@@ -221,6 +238,8 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
     isCurrent: selected.name === current?.name,
     result,
     messages,
+    learnerEvidence,
+    learnerObservations: webState.learnerObservations[rc.currentDojo] ?? [],
     fragments: senseiContent.fragments,
     lessons: katas.map((kata) => ({
       name: kata.name,
@@ -538,10 +557,16 @@ export async function nextLesson(
     const state = readWebState(root);
     const key = lessonKey(rc.currentDojo, rc.currentKata);
     const threadId = state.threads[key]?.sessionId;
+    if (threadId) {
+      // Use already received events; navigation must not restart an old harness.
+      const messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
+      rememberLearnerEvidence(root, key, rc.currentKata, threadId, messages);
+    }
     if (threadId && options.checkpointCurrent !== false) await acpClient.checkpoint(threadId);
     if (options.checkpointCurrent !== false) {
-      state.checkpoints[key] = { at: new Date().toISOString(), ...(threadId ? { threadId } : {}) };
-      writeWebState(root, state);
+      const current = readWebState(root);
+      current.checkpoints[key] = { at: new Date().toISOString(), ...(threadId ? { threadId } : {}) };
+      writeWebState(root, current);
     }
   }
   const scaffoldPath = resolve(root, ".dojos", rc.currentDojo, next.template);
@@ -560,12 +585,12 @@ export function wantsNextLesson(answers: Record<string, string[]>): boolean {
   );
 }
 
-async function lessonThread(root: string, kataName: string, options: { forceNew?: boolean } = {}) {
+async function lessonThread(root: string, kataName: string, options: { forceNew?: boolean; harness?: HarnessKind } = {}) {
   const rc = readDojoRc(root);
   const key = lessonKey(rc.currentDojo, kataName);
   const state = readWebState(root);
   const existing = state.threads[key];
-  const harness = !options.forceNew && existing ? existing.harness : dojofooHarness();
+  const harness = !options.forceNew && existing ? existing.harness : options.harness ?? state.defaultHarness ?? dojofooHarness({ DOJOFOO_HARNESS: resolveRuntimeHarness("lesson", root) });
   const runtimeKey = lessonRuntimeKey(root, key, harness);
   if (!options.forceNew && existing) {
     const catalog = readCatalog(root, rc.currentDojo);
@@ -585,6 +610,7 @@ async function lessonThread(root: string, kataName: string, options: { forceNew?
         return dojoLessonContext(current);
       },
       lessonFragment: (fragmentId) => lessonFragment(root, kataName, fragmentId),
+      learnerObservation: (input) => saveLearnerObservation(root, kataName, input),
     });
     if (existing.contractHash !== contractHash) {
       state.threads[key] = { ...existing, contractHash };
@@ -609,6 +635,7 @@ async function lessonThread(root: string, kataName: string, options: { forceNew?
       return dojoLessonContext(current);
     },
     lessonFragment: (fragmentId) => lessonFragment(root, kataName, fragmentId),
+    learnerObservation: (input) => saveLearnerObservation(root, kataName, input),
   });
   state.threads[key] = {
     sessionId: threadId,
@@ -641,9 +668,15 @@ export async function startLessonSession(
   root: string,
   kataName: string,
   courseId?: string,
+  harness?: HarnessKind,
 ): Promise<LessonSnapshot> {
   if (courseId) lessonTarget(root, courseId, kataName);
-  await lessonThread(root, kataName, { forceNew: true });
+  await lessonThread(root, kataName, { forceNew: true, harness });
+  if (harness) {
+    const state = readWebState(root);
+    state.defaultHarness = harness;
+    writeWebState(root, state);
+  }
   const lesson = await getLesson(root, kataName);
   if (!lesson) throw new Error(`Lesson not found: ${kataName}`);
   return lesson;
@@ -804,14 +837,29 @@ function webStatePath(root: string): string {
   return resolve(root, ".dojo", "web.json");
 }
 
+export async function saveLearnerObservation(root: string, lessonId: string, input: unknown): Promise<LearnerObservation> {
+  const snapshot = await getLesson(root, lessonId);
+  if (!snapshot) throw new Error("No lesson selected");
+  const state = readWebState(root);
+  const sources = Object.entries(state.learnerEvidence)
+    .filter(([key]) => key.startsWith(`${snapshot.dojo}/`)).flatMap(([, entries]) => entries);
+  const result = recordLearnerObservation(state.learnerObservations[snapshot.dojo] ?? [], input, sources);
+  state.learnerObservations[snapshot.dojo] = result.observations;
+  writeWebState(root, state);
+  return result.observation;
+}
+
 function readWebState(root: string): WebState {
   const path = webStatePath(root);
-  if (!existsSync(path)) return { version: 4, threads: {}, results: {}, checkpoints: {}, observations: {} };
+  if (!existsSync(path)) return { version: 4, threads: {}, results: {}, checkpoints: {}, observations: {}, learnerEvidence: {}, learnerObservations: {} };
   const stored = JSON.parse(readFileSync(path, "utf8")) as {
+    defaultHarness?: HarnessKind;
     threads?: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; resumeFailed?: boolean }>;
     results?: Record<string, string | TestReport>;
     checkpoints?: Record<string, { at: string; threadId?: string }>;
     observations?: WebState["observations"];
+    learnerEvidence?: WebState["learnerEvidence"];
+    learnerObservations?: WebState["learnerObservations"];
   };
   const results = Object.fromEntries(
     Object.entries(stored.results ?? {}).map(([key, result]) => [
@@ -821,11 +869,27 @@ function readWebState(root: string): WebState {
   );
   return {
     version: 4,
+    defaultHarness: stored.defaultHarness,
     threads: normalizeLessonThreads(stored.threads),
     results,
     checkpoints: stored.checkpoints ?? {},
     observations: stored.observations ?? {},
+    learnerEvidence: stored.learnerEvidence ?? {},
+    learnerObservations: stored.learnerObservations ?? {},
   };
+}
+
+function rememberLearnerEvidence(root: string, key: string, lessonId: string, sessionId: string, messages: UIMessage[]): WebState["learnerEvidence"] {
+  // Re-read after awaiting native history so recording it cannot overwrite
+  // test results or other state written while that history was loading.
+  const state = readWebState(root);
+  const previous = state.learnerEvidence[key] ?? [];
+  const retained = retainLearnerEvidence(previous, messages, lessonId, sessionId);
+  if (JSON.stringify(previous) !== JSON.stringify(retained)) {
+    state.learnerEvidence[key] = retained;
+    writeWebState(root, state);
+  }
+  return state.learnerEvidence;
 }
 
 export function normalizeLessonThreads(

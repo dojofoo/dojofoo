@@ -1,18 +1,25 @@
 import type { CSSProperties, ReactNode } from "react";
-import { FlipCard } from "~/components/flip-card";
-import { CardShader, type CardShaderKind } from "~/components/color-card";
+import { CardDetails, CardFigure, CardKicker, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, type CardShaderKind } from "~/components/color-card";
+import { CertificateSeal } from "~/components/certificate-seal";
 import { cn } from "~/lib/utils";
 
 /*
- * Course cards. CourseArt draws a course's artwork – a gradient in its hue with its monogram – at any size, or as a
- * square cover the width of its column. CourseFlipCard is the course as a square card that turns over (FlipCard): the
- * front in the course's colors, white contour lines drifting over it (Topography) – who made it top left (a mark, e.g.
- * our logo, else the author's name), its rating top right, the repository and the course's name, when it was updated
- * bottom left; the back only what the front doesn't say – version, language, chapters, lessons and the time it takes.
+ * Courses and certificates, as compositions of ColorCard. CourseArt draws a course's artwork – a gradient in its hue
+ * with its monogram – at any size, or as a square cover the width of its column.
  *
- *   <CourseFlipCard mark={<BrandLogo />} course={{ title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript",
- *     author: "Dojo", rating: 4.9, version: "v1.4.0", updated: "12 Oct 2026", language: "TypeScript", chapters: 4,
- *     lessons: 12, hours: 6, art: { hue: 350, glyph: "TS" } }} />
+ * CourseCard is the course as a big card that turns over: who made it top left (a mark, e.g. our logo, else the
+ * author's name), its rating top right, the repository and the course's name, when it was updated at the foot; the back
+ * only what the front doesn't say – version, language, chapters, lessons and the time it takes. A course you study
+ * (`enrolled`) says what you have instead: your version top left – an Update button once there is a newer one – its
+ * author over the title, and your progress at the foot, as the small cards show it.
+ *
+ *   <CourseCard mark={<BrandLogo />} course={{ title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript",
+ *     author: "Dojo.foo", rating: 4.9, version: "v1.4.0", updated: "12 Oct 2026", language: "TypeScript", chapters: 4,
+ *     lessons: 12, hours: 6, art: { hue: 350, glyph: "TS" } }}
+ *     enrolled={{ version: "v1.4.0", latest: "v1.5.0", onUpdate, progress: 42, label: "02 · Objects", value: "Merge settings" }} />
+ *
+ * CertificateCard is a certificate as a big, centered card that turns over: the badge at the top, what it certifies
+ * from the middle line down, who earned it and when at the foot; the back its details and its hash.
  */
 export type CourseArtwork = { /** OKLCH hue of the gradient */ hue: number; /** One to three letters */ glyph: string };
 
@@ -35,6 +42,21 @@ export type CourseInfo = {
   art: CourseArtwork;
 };
 
+/** A course you study: the version you have (a newer `latest` turns it into an Update button) and how far you are */
+export type CourseEnrollment = {
+  version: string;
+  latest?: string;
+  /** While the update runs */
+  updating?: boolean;
+  onUpdate?: () => void;
+  /** 0–100 */
+  progress: number;
+  /** Where you are, e.g. the chapter */
+  label?: ReactNode;
+  /** What's next, e.g. the lesson */
+  value?: ReactNode;
+};
+
 export function CourseArt({ art, size = 44, cover = false, className }: { art: CourseArtwork; size?: number; /** Square, as wide as its column – a tile's cover */ cover?: boolean; className?: string }) {
   return (
     <span className={cn("ui-cc-art", className)} data-cover={cover || undefined} aria-hidden="true" style={{ "--art-hue": art.hue, "--art-size": `${size}px` } as CSSProperties}>
@@ -44,95 +66,56 @@ export function CourseArt({ art, size = 44, cover = false, className }: { art: C
   );
 }
 
-/** The card's front: the course's colors with its contour map, who made it, its rating, its name and when it changed */
-function CourseFront({ course, mark }: { course: CourseInfo; mark?: ReactNode }) {
-  return (
-    <div className="ui-cf__face ui-cf__front" style={{ "--art-hue": course.art.hue } as CSSProperties}>
-      <style href="ui-course-card" precedence="default">{css}</style>
-      <CardShader kind={course.shader ?? "topography"} seed={seedOf(course.repo)} className="ui-cf__lines" />
-      <div className="ui-cf__row">
-        <span className="ui-cf__author">{mark ?? course.author}</span>
-        {course.rating !== undefined && <span className="ui-cf__rating" aria-label={`Rated ${course.rating} out of 5`}>★ {course.rating.toFixed(1)}</span>}
-      </div>
-      <div className="ui-cf__name">
-        <span className="ui-cf__repo">{course.repo}</span>
-        <b>{course.title}</b>
-      </div>
-      <div className="ui-cf__row ui-cf__row--end">
-        <span className="ui-cf__updated"><small>Updated</small>{course.updated}</span>
-        <FlipHint>Details</FlipHint>
-      </div>
-    </div>
-  );
+/** A course's color, for the cards drawn from one */
+export const courseColor = (art: CourseArtwork) => `oklch(0.58 0.2 ${art.hue})`;
+
+export function CourseCard({ course, mark, enrolled, className }: { course: CourseInfo; /** In the author's name's place, e.g. our logo on our own courses */ mark?: ReactNode; /** A course you study: your version and progress */ enrolled?: CourseEnrollment; className?: string }) {
+  const outdated = enrolled?.latest !== undefined && enrolled.latest !== enrolled.version;
+  return (<>
+    <style href="ui-course-card" precedence="default">{css}</style>
+    <ColorCard size="big" flip color={courseColor(course.art)} shader={course.shader ?? "topography"} seed={course.repo} className={cn("ui-course", className)}
+      aria-label={enrolled ? `${course.title}, ${enrolled.progress}% done` : course.title}
+      header={<>
+        {!enrolled ? <CardMark>{mark ?? course.author}</CardMark>
+          : outdated ? (
+            // Over the card's turn-over button (and not pressing it), so it updates rather than turns
+            <ColorCardButton disabled={enrolled.updating} title={`${enrolled.version} → ${enrolled.latest}`} aria-label={`Update ${course.title} to ${enrolled.latest}`}
+              onPointerDown={(event) => event.stopPropagation()} onClick={enrolled.onUpdate}>{enrolled.updating ? "Updating…" : "Update"}</ColorCardButton>
+          ) : <CardFigure>{enrolled.version}</CardFigure>}
+        {course.rating !== undefined && <CardFigure aria-label={`Rated ${course.rating} out of 5`}>★ {course.rating.toFixed(1)}</CardFigure>}
+      </>}
+      // Its version has the top left, so a course you study names its author over the title (others, their repository)
+      main={<>{enrolled ? <CardKicker>{course.author}</CardKicker> : <CardKicker code>{course.repo}</CardKicker>}<CardTitle>{course.title}</CardTitle></>}
+      footer={enrolled ? <><CardText label={enrolled.label} value={enrolled.value} /><CardFigure>{enrolled.progress}%</CardFigure></> : <CardText label="Updated" value={course.updated} />}
+      progress={enrolled?.progress}>
+      <CardDetails items={[["Version", enrolled?.version ?? course.version], ["Language", course.language], ["Chapters", course.chapters], ["Lessons", course.lessons], ["Time to complete", `~${course.hours}\u00a0h`]]} />
+    </ColorCard>
+  </>);
 }
 
-export function CourseFlipCard({ course, mark, className }: { course: CourseInfo; /** In the author's name's place, e.g. our logo on our own courses */ mark?: ReactNode; className?: string }) {
-  return (
-    <FlipCard className={cn("ui-cf h-auto w-full aspect-square", className)} frontLabel={`${course.title} – show details`} backLabel={`${course.title} – show the front`}
-      front={<CourseFront course={course} mark={mark} />}
-      back={
-        <div className="ui-cf__face ui-cf__back">
-          <span className="ui-cf__kicker">Details</span>
-          <dl>
-            <div><dt>Version</dt><dd>{course.version}</dd></div>
-            <div><dt>Language</dt><dd>{course.language}</dd></div>
-            <div><dt>Chapters</dt><dd>{course.chapters}</dd></div>
-            <div><dt>Lessons</dt><dd>{course.lessons}</dd></div>
-            <div><dt>Time to complete</dt><dd>~{course.hours} h</dd></div>
-          </dl>
-          <div className="ui-cf__row ui-cf__row--end"><span /><FlipHint>Front</FlipHint></div>
-        </div>
-      } />
-  );
-}
+export type CertificateInfo = { id: string; title: string; learner: string; issued: string; lessons: number; score: number; art: CourseArtwork; digest?: string };
 
-export type CertificateInfo = { id: string; title: string; learner: string; issued: string; lessons: number; score: number; art: CourseArtwork };
-
-/**
- * CertificateFlipCard – a certificate as the course cards are: square, in its course's colors with the contour map, the
- * mark top left and the score top right, what it certifies in the middle and when at the foot; turned over, its details.
- */
-export function CertificateFlipCard({ certificate, mark, className }: { certificate: CertificateInfo; mark?: ReactNode; className?: string }) {
-  return (
-    <FlipCard className={cn("ui-cf h-auto w-full aspect-square", className)} frontLabel={`Certificate: ${certificate.title} – show details`} backLabel={`Certificate: ${certificate.title} – show the front`}
-      front={
-        <div className="ui-cf__face ui-cf__front" style={{ "--art-hue": certificate.art.hue } as CSSProperties}>
-          <style href="ui-course-card" precedence="default">{css}</style>
-          <CardShader kind="topography" seed={seedOf(certificate.id)} className="ui-cf__lines" />
-          <div className="ui-cf__row"><span className="ui-cf__author">{mark ?? "Dojo"}</span><span className="ui-cf__rating">{certificate.score}%</span></div>
-          <div className="ui-cf__name"><span className="ui-cf__repo">Certificate of completion</span><b>{certificate.title}</b></div>
-          <div className="ui-cf__row ui-cf__row--end"><span className="ui-cf__updated"><small>Issued</small>{certificate.issued}</span><FlipHint>Details</FlipHint></div>
-        </div>
-      }
-      back={
-        <div className="ui-cf__face ui-cf__back">
-          <span className="ui-cf__kicker">Details</span>
-          <dl>
-            <div><dt>Learner</dt><dd>{certificate.learner}</dd></div>
-            <div><dt>Lessons</dt><dd>{certificate.lessons}</dd></div>
-            <div><dt>Score</dt><dd>{certificate.score}%</dd></div>
-            <div><dt>ID</dt><dd>DOJO-{certificate.id.toUpperCase()}</dd></div>
-          </dl>
-          <div className="ui-cf__row ui-cf__row--end"><span /><FlipHint>Front</FlipHint></div>
-        </div>
-      } />
-  );
-}
-
-/** Each course its own contour map: a number from its repository's name */
-const seedOf = (text: string) => [...text].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 9973, 7);
-
-/** The turn-over glyph and its word, as in the lab's FlipCard demo */
-function FlipHint({ children }: { children: string }) {
-  return (
-    <span className="ui-cf__hint">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M13.25 8a5.25 5.25 0 0 1-9.4 3.2M2.75 8a5.25 5.25 0 0 1 9.4-3.2" />
-        <path d="M12.5 2.25v2.5H10M3.5 13.75v-2.5H6" />
-      </svg>
-      {children}
-    </span>
-  );
+/** A certificate: the badge – its rings drawn from the certificate's hash – what it certifies, who and when; turned
+    over, its details and the hash itself (shortened to its ends; whole on hover and read aloud). The hash reproduces
+    the badge; it doesn't prove the certificate was issued */
+export function CertificateCard({ certificate, className }: { certificate: CertificateInfo; className?: string }) {
+  return (<>
+    <style href="ui-course-card" precedence="default">{css}</style>
+    <ColorCard size="big" flip centered color={courseColor(certificate.art)} shader="topography" seed={certificate.id} className={cn("ui-certificate", className)}
+      aria-label={`Certificate: ${certificate.title}`}
+      header={<CertificateSeal digest={certificate.digest} className="ui-certificate__seal" />}
+      main={<CardTitle>{certificate.title}</CardTitle>}
+      footer={<CardText value={certificate.learner} label={`Issued ${certificate.issued}`} labelBelow />}>
+      <CardDetails items={[
+        ["Learner", certificate.learner],
+        ["Lessons", certificate.lessons],
+        ["Score", `${certificate.score}%`],
+        ["ID", certificate.digest
+          ? <span className="ui-certificate__hash" title={certificate.digest} aria-label={certificate.digest}>{certificate.digest.slice(0, 8)}…{certificate.digest.slice(-8)}</span>
+          : `DOJO-${certificate.id.toUpperCase()}`],
+      ]} />
+    </ColorCard>
+  </>);
 }
 
 const css = /* css */ `
@@ -159,46 +142,11 @@ const css = /* css */ `
 .ui-cc-art[data-cover] { container-type: inline-size; width: 100%; height: auto; aspect-ratio: 1; padding: 9%; border-radius: 10px; }
 .ui-cc-art[data-cover] b { font-size: 34cqi; }
 
-/* The flip card, square: type in proportion to its width, so it reads the same in the sidebar and on a page */
-.ui-cf { --flip-radius: 14px; container-type: inline-size; }
-.ui-cf__face { position: relative; display: flex; flex-direction: column; justify-content: space-between; height: 100%; padding: 8cqi; overflow: hidden; border-radius: inherit; }
-.ui-cf__face > :not(.ui-cf__lines) { position: relative; }
-/* The contour lines: drawn white on black and screened over the colors, so only the lines show */
-.ui-cf__lines { position: absolute; inset: 0; mix-blend-mode: screen; opacity: 0.55; pointer-events: none; }
-/* The network and the waves draw brighter than the contours, so they stay quieter */
-.ui-cf__lines[data-kind="network"] { opacity: 0.45; image-rendering: pixelated; }
-.ui-cf__lines[data-kind="waves"] { opacity: 0.4; }
-.ui-cf__lines[data-kind="opal"] { opacity: 0.6; }
-.ui-cf__front {
-  background:
-    radial-gradient(120% 90% at 0% 0%, oklch(0.74 0.16 var(--art-hue) / 0.85), transparent 60%),
-    linear-gradient(140deg, oklch(0.58 0.2 var(--art-hue)), oklch(0.3 0.12 calc(var(--art-hue) + 40)));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
-  color: #fff;
-}
-.ui-cf__back { background: var(--card); box-shadow: var(--shadow-3); color: var(--ink); }
-.ui-cf__row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.ui-cf__row--end { align-items: flex-end; }
-.ui-cf__author { display: flex; align-items: center; height: max(9px, 4cqi); font-size: max(12px, 5.6cqi); font-weight: 600; letter-spacing: -0.01em; }
-/* A mark sits at the name's height, in the front's white */
-.ui-cf__author > * { height: 100%; width: auto; color: #fff; }
-.ui-cf__rating { font-size: max(11.5px, 5cqi); font-weight: 600; font-variant-numeric: tabular-nums; }
-.ui-cf__kicker { font-size: max(10px, 4.2cqi); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
-.ui-cf__name { display: flex; flex-direction: column; gap: 1.6cqi; min-width: 0; }
-.ui-cf__repo { overflow: hidden; font-family: var(--font-mono); font-size: max(10.5px, 4.6cqi); opacity: 0.72; white-space: nowrap; text-overflow: ellipsis; }
-.ui-cf__name b { font-size: 10cqi; line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; text-wrap: balance; }
-.ui-cf__updated { display: flex; flex-direction: column; gap: 1px; font-size: max(12px, 5cqi); font-weight: 500; font-variant-numeric: tabular-nums; }
-.ui-cf__updated small { font-size: max(10.5px, 4.4cqi); font-weight: 400; opacity: 0.65; }
-.ui-cf__hint { display: inline-flex; align-items: center; gap: 5px; font-size: max(11px, 4.8cqi); font-weight: 500; opacity: 0.65; }
-.ui-cf__hint svg { width: 1.2em; height: 1.2em; }
-.ui-cf__back dl { display: flex; flex-direction: column; margin: 0; }
-.ui-cf__back dl div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 2.4cqi 0; border-top: 1px solid var(--fluid-hairline); font-size: max(12px, 5.2cqi); }
-.ui-cf__back dt { color: var(--muted); }
-.ui-cf__back dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+/* The certificate's badge (116 by 102.2, cropped to what it draws), 28% of the card high: its word starts on the top
+   padding; the hash on the back in monospace */
+.ui-certificate .ui-certificate__seal { width: 32cqi; height: 28cqi; }
+.ui-certificate__hash { font-family: var(--font-mono); font-size: 0.92em; }
 
-/* The rail: the card leaves the sidebar */
-.ui-as-app[data-collapsed] .ui-as-side .ui-cf { display: none; }
+/* The rail: the course card leaves the sidebar */
+.ui-as-app[data-collapsed] .ui-as-side .ui-course { display: none; }
 `;
-
-/** The cards' styles, for screens that lay out their own cards from these classes (ui-cf__*) */
-export { css as courseCardCss };

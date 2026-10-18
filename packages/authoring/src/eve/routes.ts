@@ -1,4 +1,4 @@
-import { ClientError, defaultMessageReducer, parseInputResponses, type Client, type ClientSession } from "@dojofoo/agent/client";
+import { ClientError, defaultMessageReducer, parseInputResponses, type Client, type ClientSession, type MessageStreamEvent } from "@dojofoo/agent/client";
 import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSentEventsResponse } from "@tanstack/ai";
 import { Hono } from "hono";
 import { eveChatMessages } from "./messages";
@@ -23,7 +23,9 @@ async function authoringInput(body: unknown): Promise<{ message?: unknown; runId
  * chooses the authored agent host; request bodies cannot select a remote host.
  * Eve owns IDs, cursors, durable history, validation and execution.
  */
-export function createEveAuthoringRoutes(source: Client | (() => Promise<Client>)) {
+export function createEveAuthoringRoutes(source: Client | (() => Promise<Client>), options: {
+  legacyHistory?: (sessionId: string) => Promise<MessageStreamEvent[] | null>;
+} = {}) {
   const getClient = typeof source === "function" ? source : async () => source;
   const reducer = defaultMessageReducer();
   const read = async (sessionId: string, signal: AbortSignal) => {
@@ -40,6 +42,12 @@ export function createEveAuthoringRoutes(source: Client | (() => Promise<Client>
       status: error instanceof ClientError ? error.status : error instanceof SyntaxError ? 400 : 500,
       headers: { "content-type": "application/json" },
     }))
+    .use("/sessions/:sessionId/*", async (c, next) => {
+      if (c.req.method === "POST" && await options.legacyHistory?.(c.req.param("sessionId"))) {
+        return c.json({ code: "session_archived", error: "This conversation is read-only after the runtime upgrade. Start a new conversation; your course files are unchanged." }, 409);
+      }
+      await next();
+    })
     .post("/sessions/start", async c => {
       // Eve starts the durable turn on acceptance. The browser subsequently
       // joins that session through the same snapshot/follow path as a refresh.
@@ -59,6 +67,11 @@ export function createEveAuthoringRoutes(source: Client | (() => Promise<Client>
       }));
     })
     .get("/sessions/:sessionId", async c => {
+      const legacy = await options.legacyHistory?.(c.req.param("sessionId"));
+      if (legacy) return c.json({
+        session: { sessionId: c.req.param("sessionId"), readOnly: true },
+        messages: eveChatMessages(legacy.reduce(reducer.reduce, reducer.initial()).messages),
+      });
       const { session, projection } = await read(c.req.param("sessionId"), c.req.raw.signal);
       const runId = `${session.state.sessionId}:${session.state.streamIndex}`;
       const pendingInterrupts = eveQuestionInterrupts(projection, runId);
@@ -72,6 +85,11 @@ export function createEveAuthoringRoutes(source: Client | (() => Promise<Client>
     .get("/sessions/:sessionId/messages", async c => {
       const sessionId = c.req.param("sessionId");
       const runId = c.req.query("runId") || crypto.randomUUID();
+      const legacy = await options.legacyHistory?.(sessionId);
+      if (legacy) return toServerSentEventsResponse(streamEveAsAgUi({
+        events: (async function* () { yield* legacy; })(),
+        initial: reducer.initial(), threadId: sessionId, runId,
+      }));
       const { session, projection, events } = await read(sessionId, c.req.raw.signal);
       return toServerSentEventsResponse(streamEveAsAgUi({
         events: resumeEveEvents(session, c.req.raw.signal, events),

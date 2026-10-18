@@ -44,7 +44,7 @@ export async function prepareKyoshiApp(courseRoot: string): Promise<string> {
   const agent = join(app, "agents", "kyoshi");
   await mkdir(join(agent, "tools"), { recursive: true });
   await mkdir(join(agent, "sandbox"), { recursive: true });
-  // Register the same shipped material with Eve's native load_skill tool.
+  // Register the same shipped material with Eve's native eve__skill tool.
   // These are managed app assets, never edits to the author's course files.
   for (const [skill, assets] of Object.entries(kyoshiSkills)) {
     const directory = join(agent, "skills", skill);
@@ -59,7 +59,7 @@ import { createKyoshiAgent } from "@dojofoo/authoring/eve/agent";
 export default createKyoshiAgent(async () => JSON.parse(await readFile(${JSON.stringify(join(agent, "runtime.json"))}, "utf8")));
 `,
     "instructions.ts": 'export { default } from "@dojofoo/authoring/eve/instructions";\n',
-    "sandbox/sandbox.ts": `import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox";\nexport default createAuthoringSandbox(${JSON.stringify(course)});\n`,
+    "sandbox/sandbox.ts": `import { defineSandbox } from "@dojofoo/agent/sandbox";\nimport { createAuthoringSandbox } from "@dojofoo/authoring/sandbox";\nexport const environment = createAuthoringSandbox(${JSON.stringify(course)});\nexport default defineSandbox(() => environment.open());\n`,
     "tools/dojo_ui_ask.ts": 'export { default } from "@dojofoo/authoring/eve/ask";\n',
     "tools/dojo_authoring_evaluate.ts": `import { readFile } from "node:fs/promises";
 import { createKyoshiEvaluationTool } from "@dojofoo/authoring/eve/evaluate";

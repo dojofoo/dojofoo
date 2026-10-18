@@ -3,7 +3,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promi
 import { join } from "node:path";
 import { test } from "node:test";
 import { Client, EveAgentStore, defaultMessageReducer } from "@dojofoo/agent/client";
-import { createAuthoringSandbox } from "./authoring-sandbox.ts";
+import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox";
 
 import { createDevelopmentServer } from "@dojofoo/agent/server";
 
@@ -22,7 +22,11 @@ test("authoring rejects ambiguous or filesystem-root mounts", () => {
 
 for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates conversations, recovers, and delegates (specialist=${specialist})`, { timeout: 180_000 }, async () => {
   const root = await mkdtemp(join(process.cwd(), "hosted-provider-"));
+  // Match production: editable course material lives outside the Eve app,
+  // so saving it must not race a rebuild of the authored agent itself.
+  const course = await mkdtemp(join(process.cwd(), "hosted-course-"));
   let server;
+  let observedSession;
   let stage = "prepare host";
   try {
     await writeFile(join(root, "package.json"), JSON.stringify({ name: "hosted-provider-fixture", private: true, type: "module" }));
@@ -34,10 +38,8 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     await writeFile(join(root, "tools/root_only.ts"), 'import { defineTool } from "@dojofoo/agent/tools"; import read from "@dojofoo/agent/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
     await writeFile(join(root, "tools/write_file.ts"), 'export { default } from "@dojofoo/agent/tools/write_file";\n');
     await mkdir(join(root, "sandbox/workspace"), { recursive: true });
-    await mkdir(join(root, "course"));
-    await writeFile(join(root, "course/note.md"), "Authored in the editor.\n");
-    await copyFile(new URL("authoring-sandbox.ts", import.meta.url), join(root, "authoring-sandbox.ts"));
-    await writeFile(join(root, "sandbox/sandbox.ts"), `import { createAuthoringSandbox } from "../authoring-sandbox"; export default createAuthoringSandbox(${JSON.stringify(join(root, "course"))});\n`);
+    await writeFile(join(course, "note.md"), "Authored in the editor.\n");
+    await writeFile(join(root, "sandbox/sandbox.ts"), `import { defineSandbox } from "@dojofoo/agent/sandbox"; import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox"; export const environment = createAuthoringSandbox(${JSON.stringify(course)}); export default defineSandbox(() => environment.open());\n`);
     await writeFile(join(root, "sandbox/workspace/note.md"), "Original lesson note.\n");
     if (specialist) {
       await mkdir(join(root, "subagents/reviewer/tools"), { recursive: true });
@@ -45,10 +47,10 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
       await writeFile(join(root, "subagents/reviewer/agent.ts"), 'import { defineAgent } from "@dojofoo/agent"; import root from "../../agent"; export default defineAgent({ ...root, description: "Review lesson evidence independently." });\n');
       await writeFile(join(root, "subagents/reviewer/instructions.md"), "SPECIALIST_INSTRUCTIONS_LOADED: Read your own lesson evidence before reviewing.\n");
       await copyFile(join(root, "tools/read_file.ts"), join(root, "subagents/reviewer/tools/read_file.ts"));
-      await writeFile(join(root, "subagents/reviewer/sandbox/sandbox.ts"), 'import { defineSandbox } from "@dojofoo/agent/sandbox"; import { justbash } from "@dojofoo/agent/sandbox/just-bash"; export default defineSandbox({ backend: justbash({ autoInstall: false }) });\n');
+      await writeFile(join(root, "subagents/reviewer/sandbox/sandbox.ts"), 'import { defineSandbox } from "@dojofoo/agent/sandbox"; import { JustBashSandbox } from "@dojofoo/agent/sandbox/just-bash"; export const environment = JustBashSandbox.environment({ autoInstall: false }); export default defineSandbox(() => environment.open());\n');
       await writeFile(join(root, "subagents/reviewer/sandbox/workspace/note.md"), "Specialist-only evidence.\n");
     }
-    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject" });
+    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
     const { url } = await server.start();
     const client = new Client({ host: url });
     const signal = AbortSignal.timeout(60_000);
@@ -98,37 +100,37 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     const savedUi = JSON.parse(JSON.stringify({ initialEvents: other.snapshot.events, initialSession: other.snapshot.session }));
     unsubscribe();
     await server.close();
-    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject" });
+    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
     const restarted = await server.start();
     const rehydrated = new EveAgentStore({ host: restarted.url, reducer: defaultMessageReducer(), ...savedUi });
     stage = "restore UI question";
     await rehydrated.resume();
     assert.equal(rehydrated.snapshot.error, undefined);
     assert.equal(rehydrated.snapshot.data.messages.filter(message => message.role === "user").length, 2, "Optimistic and persisted messages must not duplicate on replay");
-    await rehydrated.send({ inputResponses: [{ requestId: questionPart.toolMetadata.eve.inputRequest.requestId, optionId: "review" }], signal: AbortSignal.timeout(60_000) });
+    await rehydrated.send({ inputResponses: [{ requestId: questionPart.toolMetadata.eve.inputRequest.requestId, optionId: "Review" }], signal: AbortSignal.timeout(60_000) });
     assert.equal(rehydrated.snapshot.status, "ready");
     assert.equal(rehydrated.snapshot.error, undefined);
     const answeredPart = rehydrated.snapshot.data.messages.flatMap(message => message.parts)
       .find(part => part.type === "dynamic-tool" && part.toolName === "ask_question");
-    // Native questions resolve input; unlike ordinary tools they do not emit
-    // action.result. Render their retained inputResponse as the locked answer.
-    assert.equal(answeredPart.state, "approval-responded");
-    assert.equal(answeredPart.toolMetadata.eve.inputResponse.optionId, "review");
+    // The question is now a workflow tool: its result completes the outer tool
+    // while the retained inputResponse still locks the selected answer.
+    assert.equal(answeredPart.state, "output-available");
+    assert.equal(answeredPart.toolMetadata.eve.inputResponse.optionId, "Review");
     assert.ok(rehydrated.snapshot.events.some(event => event.type === "input.resolved"
       && event.data.resolutions.some(resolution => resolution.requestId === questionPart.toolMetadata.eve.inputRequest.requestId && resolution.outcome === "answered")));
     const uiAnswer = JSON.parse(rehydrated.snapshot.data.messages.at(-1).parts.filter(part => part.type === "text").map(part => part.text).join(""));
     assert.equal(uiAnswer.sessionId, bText.sessionId);
-    assert.deepEqual(uiAnswer.history.filter(entry => typeof entry === "object"), [{ answer: { status: "answered", optionId: "review" } }]);
+    assert.deepEqual(uiAnswer.history.filter(entry => typeof entry === "object"), [{ answer: { status: "answered", answer: "Review" } }]);
     // Respond has no new message delivery ID; preserve the client's durable
     // cursor so it does not mistake an earlier turn boundary for this answer.
     const restored = new Client({ host: restarted.url }).sessions.attach(first.session.state.sessionId, { streamIndex: first.session.state.streamIndex });
     stage = "restore client question";
-    const answered = await (await restored.respond([{ requestId: waiting.inputRequests[0].requestId, optionId: "review" }], { signal: AbortSignal.timeout(60_000) })).result();
+    const answered = await (await restored.respond([{ requestId: waiting.inputRequests[0].requestId, optionId: "Review" }], { signal: AbortSignal.timeout(60_000) })).result();
     const answerText = JSON.parse(answered.message);
     assert.equal(answerText.sessionId, aText.sessionId);
     assert.equal(answerText.selectedModel, aText.selectedModel);
     const answers = answerText.history.filter(item => typeof item === "object");
-    assert.deepEqual(answers, [{ answer: { optionId: "review", status: "answered" } }], JSON.stringify({ answerText, events: answered.events }));
+    assert.deepEqual(answers, [{ answer: { answer: "Review", status: "answered" } }], JSON.stringify({ answerText, events: answered.events }));
     const afterRestart = await (await restored.send("After restart", { signal: AbortSignal.timeout(60_000) })).result();
     const recoveredText = JSON.parse(afterRestart.message);
     assert.equal(recoveredText.sessionId, aText.sessionId);
@@ -142,30 +144,32 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     const courseRead = await (await restored.send("Read authoring note", { signal: AbortSignal.timeout(60_000) })).result();
     assert.match(JSON.parse(courseRead.message).history.at(-1).output.content, /Authored in the editor/);
     await (await restored.send("Write authoring note", { signal: AbortSignal.timeout(60_000) })).result();
-    assert.equal(await readFile(join(root, "course/note.md"), "utf8"), "Edited by Kyoshi.\n");
-    await writeFile(join(root, "course/note.md"), "Edited again by the human.\n");
+    assert.equal(await readFile(join(course, "note.md"), "utf8"), "Edited by Kyoshi.\n");
+    await writeFile(join(course, "note.md"), "Edited again by the human.\n");
     await server.close();
-    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject" });
+    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
     const finalHost = await server.start();
     const finalSession = new Client({ host: finalHost.url }).sessions.attach(restored.state.sessionId, { streamIndex: restored.state.streamIndex });
+    observedSession = finalSession;
     stage = "restore filesystem";
     const courseAfterRestart = await (await finalSession.send("Read authoring note", { signal: AbortSignal.timeout(60_000) })).result();
     assert.match(JSON.parse(courseAfterRestart.message).history.at(-1).output.content, /Edited again by the human/);
     const reread = await (await finalSession.send("Read lesson note", { signal: AbortSignal.timeout(60_000) })).result();
     assert.match(JSON.parse(reread.message).history.at(-1).output.content, /Learner progress saved/);
+    stage = "dispatch child";
     const delegation = await (await finalSession.send(specialist ? "Delegate specialist review" : "Delegate lesson review", { signal: AbortSignal.timeout(60_000) })).result();
     stage = "observe delegation admission";
     assert.equal(delegation.status, "waiting", JSON.stringify(delegation));
-    let called = delegation.events.find(event => event.type === "subagent.called");
+    let called = delegation.events.find(event => event.type === "agent.started");
     // Background admission can arrive after the initiating response boundary.
     if (!called) {
       for await (const event of finalSession.stream({ signal: AbortSignal.timeout(60_000) })) {
         assert.notEqual(event.type, "session.failed", JSON.stringify(event));
-        if (event.type === "subagent.called") { called = event; break; }
+        if (event.type === "agent.started") { called = event; break; }
       }
     }
     assert.ok(called);
-    const child = new Client({ host: finalHost.url }).sessions.attach(called.data.childSessionId);
+    const child = finalSession.agent(called);
     stage = "observe child completion";
     let childReply;
     for await (const event of child.stream({ signal: AbortSignal.timeout(60_000) })) {
@@ -176,7 +180,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     assert.ok(childReply);
     assert.notEqual(childReply.sessionId, aText.sessionId);
     assert.equal(childReply.history.length, specialist ? 2 : 1);
-    assert.match(childReply.history[0], /Caller message:\nReview this isolated lesson$/);
+    assert.match(childReply.history[0], /Review this isolated lesson$/);
     assert.ok(!childReply.history[0].includes("Lesson A"));
     if (specialist) {
       assert.equal(childReply.history[1].tool, "read_file");
@@ -185,9 +189,9 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     }
     // Eve must wake the parent with the actual child answer, not just return a
     // dispatch receipt. No user message is sent to manufacture that wake-up.
-    let parentReceivedAnswer = false;
+    let parentReceivedAnswer = delegation.events.some(event => event.type === "message.completed" && event.data.message?.includes(childReply.sessionId));
     stage = "observe automatic parent wake-up";
-    for await (const event of finalSession.stream({ signal: AbortSignal.timeout(60_000) })) {
+    for await (const event of parentReceivedAnswer ? [] : finalSession.stream({ signal: AbortSignal.timeout(60_000) })) {
       assert.notEqual(event.type, "session.failed", JSON.stringify(event));
       assert.notEqual(event.type, "turn.failed", JSON.stringify(event));
       if (event.type === "message.completed" && event.data.message?.includes(childReply.sessionId)) {
@@ -197,9 +201,14 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     }
     assert.ok(parentReceivedAnswer);
   } catch (cause) {
+    if (observedSession) {
+      const snapshot = await observedSession.snapshot({ signal: AbortSignal.timeout(2000) }).catch(() => null);
+      console.error("HOST_FAILURE_SNAPSHOT", JSON.stringify(snapshot));
+    }
     throw new Error(`Workflow host failed during ${stage} (specialist=${specialist})`, { cause });
   } finally {
     await server?.close();
     await rm(root, { recursive: true, force: true });
+    await rm(course, { recursive: true, force: true });
   }
 });

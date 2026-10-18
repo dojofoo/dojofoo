@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   root: "", code: "stub", attempt: 0, questions: 0,
   turns: [] as string[], mutate: false, waitForReviewAnswer: false,
   choices: [] as string[], wrongNextLesson: false,
+  teachingQuestion: false, waitForQuestionAnswer: false, questionCopies: 1,
 }));
 vi.mock("@dojofoo/authoring/service", () => ({ createLessonTrial: () => ({ workspaceId: "trial", courseId: "course" }) }));
 vi.mock("@dojofoo/config/local-state", () => ({ listWorkspaces: () => [{ id: "trial", path: state.root }] }));
@@ -23,13 +24,27 @@ vi.mock("./service", () => ({
     return { sessionId: `session-${lesson}` };
   },
   getLesson: async () => ({ code: state.code }),
+  dojoLessonContext: (snapshot: { code: string }) => ({ learner: { file: { content: snapshot.code } } }),
   setLessonModel: async () => {},
   writeLessonFile: async (_root: string, _course: string, _lesson: string, _file: string, code: string) => { state.code = code; },
   checkLesson: async () => ({ observation: {
     attempt: ++state.attempt,
     report: { total: 2, failed: state.code === "solved" ? 0 : 1, complete: state.code === "solved" },
   } }),
-  streamLessonIntroduction: async () => { state.turns.push("introduction"); if (state.mutate) state.code = "agent edit"; },
+  streamLessonIntroduction: async (_root: string, _lesson: string, collect: (part: unknown) => void, signal: AbortSignal) => {
+    state.turns.push("introduction"); if (state.mutate) state.code = "agent edit";
+    if (state.teachingQuestion) {
+      collect({ type: "text-delta", delta: "Would you like to try, or discuss what is unclear?" });
+      for (let i = 0; i < state.questionCopies; i++) collect({ type: "tool-input-available", toolName: "elicitation", input: { questions: [
+        { id: "approach", title: "How would you like to begin?", options: [{ id: "try", title: "Try independently" }, { id: "review", title: "Review my understanding" }], allowOther: false, secret: false },
+        { id: "uncertainty", title: "What is unclear?", options: [], allowOther: true, secret: false },
+      ] } });
+      if (state.waitForQuestionAnswer) await new Promise<void>((_resolve, reject) => {
+        if (signal.aborted) reject(signal.reason);
+        else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+    }
+  },
   streamSensei: async (_root: string, _lesson: string, message: string, collect: (part: unknown) => void) => {
     state.turns.push(message);
     if (message === "review" && state.waitForReviewAnswer) collect({ type: "text-delta", delta: "What would happen for a different input?" });
@@ -56,6 +71,7 @@ afterEach(async () => {
   vi.unstubAllEnvs(); vi.clearAllMocks();
   state.turns = []; state.questions = 0; state.mutate = false; state.waitForReviewAnswer = false;
   state.choices = []; state.wrongNextLesson = false;
+  state.teachingQuestion = false; state.waitForQuestionAnswer = false; state.questionCopies = 1;
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
 });
 
@@ -124,6 +140,8 @@ it("runs focused learner turns without fixtures or claiming lifecycle completion
   expect(evidence[0]).toMatchObject({ learnerProfile: "focused" });
   expect(evidence.at(-1)).toEqual({ deterministicLifecycle: "not-evaluated" });
   expect(evidence.find((row: { stage?: string }) => row.stage === "focused-1")).toMatchObject({ sourceBefore: "my attempt", sourceAfter: "my attempt" });
+  expect(evidence.find((row: { stage?: string }) => row.stage === "focused-1").contextBeforeTurn)
+    .toEqual({ learner: { file: { content: "my attempt" } } });
   expect(acpClient.shutdown).toHaveBeenCalledOnce();
 });
 
@@ -132,6 +150,63 @@ it("can inspect only the production introduction", async () => {
   const directory = await runAuthoringHandoff(undefined, ["001-first"], { turns: [] });
   expect(state.turns).toEqual(["introduction"]);
   expect(JSON.parse(await readFile(join(directory, "evidence.json"), "utf8")).at(-1)).toEqual({ deterministicLifecycle: "not-evaluated" });
+});
+
+it("answers teaching questions separately from completion and records the actual selection", async () => {
+  await fixture(); state.teachingQuestion = true;
+  const respondToQuestion = vi.fn(async () => ({ approach: ["Review my understanding"], uncertainty: ["What does the input represent?"] }));
+  const directory = await runAuthoringHandoff(undefined, ["001-first"], { turns: [], respondToQuestion });
+  expect(respondToQuestion).toHaveBeenCalledOnce();
+  expect(respondToQuestion.mock.calls[0]).toEqual([
+    expect.arrayContaining([expect.objectContaining({ id: "approach" }), expect.objectContaining({ id: "uncertainty" })]),
+    [{ role: "assistant", content: "Would you like to try, or discuss what is unclear?" }], "stub", expect.any(AbortSignal),
+  ]);
+  expect(state.choices).toEqual(["Review my understanding"]);
+  const evidence = JSON.parse(await readFile(join(directory, "evidence.json"), "utf8"));
+  expect(evidence.find((row: { questionKind?: string }) => row.questionKind === "teaching")).toMatchObject({
+    selections: { approach: ["Review my understanding"], uncertainty: ["What does the input represent?"] },
+  });
+  expect(evidence.some((row: { completionChoices?: unknown }) => row.completionChoices)).toBe(false);
+});
+
+it("aborts a pending question if the evaluation has no learner responder", async () => {
+  await fixture(); state.teachingQuestion = true; state.waitForQuestionAnswer = true;
+  await expect(runAuthoringHandoff(undefined, ["001-first"], { turns: [] }))
+    .rejects.toThrow("Evaluation learner cannot answer teaching questions");
+  expect(state.choices).toEqual([]);
+  expect(acpClient.shutdown).toHaveBeenCalledOnce();
+}, 2000);
+
+it("carries prior question answers into later learner dialogue without duplicating streamed text", async () => {
+  await fixture(); state.teachingQuestion = true; state.waitForReviewAnswer = true;
+  const respondToQuestion = vi.fn(async () => ({ approach: ["Review my understanding"], uncertainty: ["What is a callback?"] }));
+  const respondToReview = vi.fn(async () => "My new prediction");
+  await runAuthoringHandoff(undefined, ["001-first"], { respondToQuestion, respondToReview });
+  const [dialogue] = respondToReview.mock.calls[0] as unknown as [Array<{ role: string; content: string }>];
+  expect(dialogue.filter(turn => turn.content === "Would you like to try, or discuss what is unclear?")).toHaveLength(1);
+  const questionIndex = dialogue.findIndex(turn => turn.role === "assistant" && turn.content.includes('"questions"'));
+  expect(questionIndex).toBeGreaterThan(0);
+  expect(dialogue[questionIndex + 1]).toEqual({ role: "user", content: JSON.stringify({ answers: {
+    approach: ["Review my understanding"], uncertainty: ["What is a callback?"],
+  } }) });
+});
+
+it("does not send an invalid simulated answer to the real session", async () => {
+  await fixture(); state.teachingQuestion = true; state.waitForQuestionAnswer = true;
+  const respondToQuestion = vi.fn(async () => ({ approach: ["Invented option"], uncertainty: ["Not sure"] }));
+  await expect(runAuthoringHandoff(undefined, ["001-first"], { turns: [], respondToQuestion }))
+    .rejects.toThrow("Evaluation learner returned an invalid answer for approach");
+  expect(state.choices).toEqual([]);
+  expect(acpClient.shutdown).toHaveBeenCalledOnce();
+}, 2000);
+
+it("caps paid question replies instead of answering an unlimited stream of forms", async () => {
+  await fixture(); state.teachingQuestion = true; state.questionCopies = 5;
+  const respondToQuestion = vi.fn(async () => ({ approach: ["Try independently"], uncertainty: ["Not sure"] }));
+  await expect(runAuthoringHandoff(undefined, ["001-first"], { turns: [], respondToQuestion }))
+    .rejects.toThrow("4-question reply limit");
+  expect(respondToQuestion).toHaveBeenCalledTimes(4);
+  expect(acpClient.shutdown).toHaveBeenCalledOnce();
 });
 
 it("rejects a multi-lesson focused run before starting the teacher", async () => {
@@ -173,6 +248,33 @@ it("fast-forwards the prior lesson and teaches only the evaluated lesson", async
 it("rejects prior progress that does not open the evaluated lesson", async () => {
   await fixture(); state.wrongNextLesson = true;
   await expect(runAuthoringHandoff()).rejects.toThrow("Prior progress must open the evaluated lesson");
+});
+
+it("teaches both lessons in isolated sessions when evaluating the full chain", async () => {
+  await fixture();
+  const directory = await runAuthoringHandoff(undefined, undefined, { priorLessons: "teach" });
+  const evidence = JSON.parse(await readFile(join(directory, "evidence.json"), "utf8"));
+  expect(evidence[0].priorLessons).toBe("teach");
+  expect(evidence.some((row: { fastForward?: boolean }) => row.fastForward)).toBe(false);
+  expect(evidence.filter((row: { sessionId?: string }) => row.sessionId).map((row: { sessionId: string }) => row.sessionId))
+    .toEqual(["session-001-first", "session-002-second"]);
+  for (const lessonId of ["001-first", "002-second"]) {
+    expect(evidence.filter((row: { lessonId?: string; stage?: string; parts?: unknown[] }) => row.lessonId === lessonId && row.parts)
+      .map((row: { stage: string }) => row.stage)).toEqual([
+        "introduction", "uncertainty", "unfamiliar-terminology", "misconception",
+        "failure-1", "failure-2", "frustration", "independence", "success", "review",
+      ]);
+  }
+  expect(state.choices).toEqual(["Review", "Move on", "Review", "Pause"]);
+  expect(evidence.at(-1)).toEqual({ deterministicLifecycle: "passed" });
+});
+
+it("fails a full-chain run if the first teaching session navigates to the wrong lesson", async () => {
+  await fixture(); state.wrongNextLesson = true;
+  await expect(runAuthoringHandoff(undefined, undefined, { priorLessons: "teach" }))
+    .rejects.toThrow("Move on must open the next lesson");
+  expect(state.turns.filter(turn => turn === "introduction")).toHaveLength(1);
+  expect(acpClient.shutdown).toHaveBeenCalledOnce();
 });
 
 it("uses lesson-specific learner questions when the fixture provides them", async () => {

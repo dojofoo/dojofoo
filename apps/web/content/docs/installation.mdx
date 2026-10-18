@@ -15,7 +15,7 @@ npx dojofoo --help
 
 ## Requirements
 
-- Node.js 22.13 or newer.
+- Node.js 24 or newer for Dojofoo's local agent and authoring runtime.
 - A supported coding harness that can read project files and run shell
   commands: OpenCode, Codex, or Pi.
 - `mise`, installed automatically for the current user by `npx dojofoo install`
@@ -23,6 +23,8 @@ npx dojofoo --help
   `winget install jdx.mise`.
 
 ## Reproducible environments with mise
+
+Courses can pin their own language and runtime versions independently of Dojofoo.
 
 Dojofoo recognizes a checked-in `mise.toml` or `.mise.toml` as the project's
 environment contract. Before it starts or restores a lesson, it runs

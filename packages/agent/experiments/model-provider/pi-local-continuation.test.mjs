@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { createPi } from "@ai-sdk/harness-pi";
 import { generateText, jsonSchema, tool } from "ai";
 import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
-import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
+import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
 import { startLoopbackModel } from "./loopback-openai.mjs";
 
 test("Pi native filesystem remains usable after an Eve-owned tool boundary", { timeout: 60000 }, async t => {
   const root = await mkdtemp(join(tmpdir(), "pi-local-continuation-"));
   t.after(() => rm(root, { recursive: true, force: true }));
+  const home = join(root, "home");
+  await mkdir(home);
+  const sandboxSession = await createLocalSandbox(root, { environment: { HOME: home, PATH: process.env.PATH } });
+  t.after(() => sandboxSession.stop());
   const endpoint = await startLoopbackModel({
     selectResponsesTool: (_input, requested) => [
       { name: "bash", input: { command: "pwd" } },
@@ -21,11 +25,10 @@ test("Pi native filesystem remains usable after an Eve-owned tool boundary", { t
   });
   t.after(() => endpoint.close());
   const { model } = experimental_createHarnessModel({
-    harness: createPi({ auth: { OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL } }),
+    harness: createPi({ agentDir: join(home, ".pi/agent"), auth: { OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL } }),
     model: "openai/gpt-4o",
     permissionMode: "allow-all",
-    sandbox: createLocalHarnessSandbox(root),
-  });
+  }, { sandboxSession });
   const tools = { ask_question: tool({
       inputSchema: jsonSchema({ type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] }),
     }) };

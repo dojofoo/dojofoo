@@ -3,69 +3,219 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "exports": {
     "./package.json": "./package.json",
-    "./evaluation/material": "./src/evaluation/material.ts",
-    "./evaluation/sensei": "./src/evaluation/sensei.ts",
-    "./evaluation/host": "./src/evaluation/host.ts",
-    "./evaluation/settings": "./src/evaluation/settings.ts",
-    "./evaluation/learner-fixtures": "./src/evaluation/learner-fixtures.ts",
-    "./evaluation/learner-response": "./src/evaluation/learner-response.ts",
-    "./evaluation/judges": "./src/evaluation/judges.ts",
-    "./evaluation/teaching-rubric": "./src/evaluation/teaching-rubric.ts",
-    "./evaluation/run": "./src/evaluation/run.ts",
-    "./evaluation/panel": "./src/evaluation/panel.ts",
-    "./evaluation/preflight": "./src/evaluation/preflight.ts",
-    "./evaluation/failure": "./src/evaluation/failure.ts",
-    "./evaluation/prompts": "./src/evaluation/prompts/index.ts",
-    "./evaluation/prompts/suites": "./src/evaluation/prompts/suites.ts",
-    "./eve/agent": "./src/eve/agent.ts",
-    "./eve/runtime": "./src/eve/runtime.ts",
+    "./evaluation/material": {
+      "types": "./src/evaluation/material.ts",
+      "development": "./src/evaluation/material.ts",
+      "import": "./dist/evaluation/material.js",
+      "default": "./dist/evaluation/material.js"
+    },
+    "./evaluation/sensei": {
+      "types": "./src/evaluation/sensei.ts",
+      "development": "./src/evaluation/sensei.ts",
+      "import": "./dist/evaluation/sensei.js",
+      "default": "./dist/evaluation/sensei.js"
+    },
+    "./evaluation/host": {
+      "types": "./src/evaluation/host.ts",
+      "development": "./src/evaluation/host.ts",
+      "import": "./dist/evaluation/host.js",
+      "default": "./dist/evaluation/host.js"
+    },
+    "./evaluation/settings": {
+      "types": "./src/evaluation/settings.ts",
+      "development": "./src/evaluation/settings.ts",
+      "import": "./dist/evaluation/settings.js",
+      "default": "./dist/evaluation/settings.js"
+    },
+    "./evaluation/learner-fixtures": {
+      "types": "./src/evaluation/learner-fixtures.ts",
+      "development": "./src/evaluation/learner-fixtures.ts",
+      "import": "./dist/evaluation/learner-fixtures.js",
+      "default": "./dist/evaluation/learner-fixtures.js"
+    },
+    "./evaluation/learner-response": {
+      "types": "./src/evaluation/learner-response.ts",
+      "development": "./src/evaluation/learner-response.ts",
+      "import": "./dist/evaluation/learner-response.js",
+      "default": "./dist/evaluation/learner-response.js"
+    },
+    "./evaluation/judges": {
+      "types": "./src/evaluation/judges.ts",
+      "development": "./src/evaluation/judges.ts",
+      "import": "./dist/evaluation/judges.js",
+      "default": "./dist/evaluation/judges.js"
+    },
+    "./evaluation/teaching-rubric": {
+      "types": "./src/evaluation/teaching-rubric.ts",
+      "development": "./src/evaluation/teaching-rubric.ts",
+      "import": "./dist/evaluation/teaching-rubric.js",
+      "default": "./dist/evaluation/teaching-rubric.js"
+    },
+    "./evaluation/run": {
+      "types": "./src/evaluation/run.ts",
+      "development": "./src/evaluation/run.ts",
+      "import": "./dist/evaluation/run.js",
+      "default": "./dist/evaluation/run.js"
+    },
+    "./evaluation/panel": {
+      "types": "./src/evaluation/panel.ts",
+      "development": "./src/evaluation/panel.ts",
+      "import": "./dist/evaluation/panel.js",
+      "default": "./dist/evaluation/panel.js"
+    },
+    "./evaluation/preflight": {
+      "types": "./src/evaluation/preflight.ts",
+      "development": "./src/evaluation/preflight.ts",
+      "import": "./dist/evaluation/preflight.js",
+      "default": "./dist/evaluation/preflight.js"
+    },
+    "./evaluation/failure": {
+      "types": "./src/evaluation/failure.ts",
+      "development": "./src/evaluation/failure.ts",
+      "import": "./dist/evaluation/failure.js",
+      "default": "./dist/evaluation/failure.js"
+    },
+    "./evaluation/prompts": {
+      "types": "./src/evaluation/prompts/index.ts",
+      "development": "./src/evaluation/prompts/index.ts",
+      "import": "./dist/evaluation/prompts/index.js",
+      "default": "./dist/evaluation/prompts/index.js"
+    },
+    "./evaluation/prompts/suites": {
+      "types": "./src/evaluation/prompts/suites.ts",
+      "development": "./src/evaluation/prompts/suites.ts",
+      "import": "./dist/evaluation/prompts/suites.js",
+      "default": "./dist/evaluation/prompts/suites.js"
+    },
+    "./eve/agent": {
+      "types": "./src/eve/agent.ts",
+      "development": "./src/eve/agent.ts",
+      "import": "./dist/eve/agent.js",
+      "default": "./dist/eve/agent.js"
+    },
+    "./eve/runtime": {
+      "types": "./src/eve/runtime.ts",
+      "development": "./src/eve/runtime.ts",
+      "import": "./dist/eve/runtime.js",
+      "default": "./dist/eve/runtime.js"
+    },
     "./KYOSHI.md": "./src/contracts/KYOSHI.md",
     "./NATIVE-HARNESS.md": "./src/contracts/NATIVE-HARNESS.md",
-    "./prompts": "./src/prompts.ts",
-    "./eve/instructions": "./src/eve/instructions.ts",
-    "./eve/ask": "./src/eve/ask.ts",
-    "./eve/evaluate": "./src/eve/evaluate.ts",
-    "./eve/messages": "./src/eve/messages.ts",
-    "./eve/stream": "./src/eve/stream.ts",
-    "./eve/server": "./src/eve/routes.ts",
-    "./sandbox": "./src/sandbox.ts",
-    "./scaffold": "./src/scaffold.ts",
-    "./files": "./src/server/files.ts",
-    "./server": "./src/server/routes.ts",
-    "./service": "./src/server/service.ts",
-    "./types": "./src/server/types.ts",
+    "./prompts": {
+      "types": "./src/prompts.ts",
+      "development": "./src/prompts.ts",
+      "import": "./dist/prompts.js",
+      "default": "./dist/prompts.js"
+    },
+    "./eve/instructions": {
+      "types": "./src/eve/instructions.ts",
+      "development": "./src/eve/instructions.ts",
+      "import": "./dist/eve/instructions.js",
+      "default": "./dist/eve/instructions.js"
+    },
+    "./eve/ask": {
+      "types": "./src/eve/ask.ts",
+      "development": "./src/eve/ask.ts",
+      "import": "./dist/eve/ask.js",
+      "default": "./dist/eve/ask.js"
+    },
+    "./eve/evaluate": {
+      "types": "./src/eve/evaluate.ts",
+      "development": "./src/eve/evaluate.ts",
+      "import": "./dist/eve/evaluate.js",
+      "default": "./dist/eve/evaluate.js"
+    },
+    "./eve/messages": {
+      "types": "./src/eve/messages.ts",
+      "development": "./src/eve/messages.ts",
+      "import": "./dist/eve/messages.js",
+      "default": "./dist/eve/messages.js"
+    },
+    "./eve/stream": {
+      "types": "./src/eve/stream.ts",
+      "development": "./src/eve/stream.ts",
+      "import": "./dist/eve/stream.js",
+      "default": "./dist/eve/stream.js"
+    },
+    "./eve/server": {
+      "types": "./src/eve/routes.ts",
+      "development": "./src/eve/routes.ts",
+      "import": "./dist/eve/routes.js",
+      "default": "./dist/eve/routes.js"
+    },
+    "./sandbox": {
+      "types": "./src/sandbox.ts",
+      "development": "./src/sandbox.ts",
+      "import": "./dist/sandbox.js",
+      "default": "./dist/sandbox.js"
+    },
+    "./scaffold": {
+      "types": "./src/scaffold.ts",
+      "development": "./src/scaffold.ts",
+      "import": "./dist/scaffold.js",
+      "default": "./dist/scaffold.js"
+    },
+    "./files": {
+      "types": "./src/server/files.ts",
+      "development": "./src/server/files.ts",
+      "import": "./dist/server/files.js",
+      "default": "./dist/server/files.js"
+    },
+    "./server": {
+      "types": "./src/server/routes.ts",
+      "development": "./src/server/routes.ts",
+      "import": "./dist/server/routes.js",
+      "default": "./dist/server/routes.js"
+    },
+    "./service": {
+      "types": "./src/server/service.ts",
+      "development": "./src/server/service.ts",
+      "import": "./dist/server/service.js",
+      "default": "./dist/server/service.js"
+    },
+    "./types": {
+      "types": "./src/server/types.ts",
+      "development": "./src/server/types.ts",
+      "import": "./dist/server/types.js",
+      "default": "./dist/server/types.js"
+    },
     "./skills/*": "./skills/*",
     "./evaluation/prompts/*.md": "./src/evaluation/prompts/*.md"
   },
   "scripts": {
     "test": "vitest run",
-    "types:check": "tsc --noEmit"
+    "types:check": "tsc --noEmit",
+    "build": "tsup"
   },
   "dependencies": {
-    "@ai-sdk/harness-codex": "1.0.110",
-    "@ai-sdk/harness-cursor": "1.0.21",
-    "@ai-sdk/harness-fx": "1.0.21",
-    "@ai-sdk/harness-grok-build": "1.0.45",
-    "@ai-sdk/harness-opencode": "1.0.110",
-    "@ai-sdk/harness-pi": "1.0.110",
+    "@ai-sdk/harness-codex": "1.0.155",
+    "@ai-sdk/harness-cursor": "1.0.67",
+    "@ai-sdk/harness-fx": "1.0.67",
+    "@ai-sdk/harness-grok-build": "1.0.91",
+    "@ai-sdk/harness-opencode": "1.0.155",
+    "@ai-sdk/harness-pi": "1.0.155",
     "@dojofoo/agent": "workspace:*",
     "@dojofoo/config": "workspace:*",
-    "@earendil-works/pi-ai": "0.84.4",
-    "@earendil-works/pi-coding-agent": "0.84.4",
-    "@tanstack/ai": "0.47.1",
+    "@earendil-works/pi-ai": "1.3.0",
+    "@earendil-works/pi-coding-agent": "1.3.0",
+    "@tanstack/ai": "0.69.0",
     "hono": "^4.13.1",
     "json-rpc-2.0": "1.7.0",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@tanstack/ai-client": "0.25.1",
+    "@tanstack/ai-client": "0.39.3",
     "@types/node": "^26.1.2",
     "pnpm": "10.34.5",
     "typescript": "6.0.3",
     "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "tsup": "8.5.1"
   }
 }

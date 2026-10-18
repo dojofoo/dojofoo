@@ -39,6 +39,24 @@ function fixture() {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
 describe("Eve authoring HTTP routes using the real Eve client", () => {
+  it("renders archived events read-only and rejects every write before contacting Eve", async () => {
+    const events: MessageStreamEvent[] = [
+      { type: "message.received", data: { ...data, message: "Earlier course question" }, meta },
+      { type: "message.completed", data: { ...data, message: "Earlier guidance", finishReason: "stop" }, meta }, wait,
+    ];
+    const upstream = vi.fn(async () => { throw new Error("Archived sessions must not contact the runtime"); });
+    const app = createEveAuthoringRoutes(upstream, { legacyHistory: async id => id === "archived" ? events : null });
+    const snapshot = await (await app.request("/sessions/archived")).json();
+    expect(snapshot.session).toEqual({ sessionId: "archived", readOnly: true });
+    expect(JSON.stringify(snapshot.messages)).toContain("Earlier guidance");
+    expect(snapshot.initialResumeSnapshot).toBeUndefined();
+    for (const path of ["messages", "answers", "cancel"]) {
+      const response = await app.request(`/sessions/archived/${path}`, { method: "POST", body: "{}" });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: "session_archived" });
+    }
+    expect(upstream).not.toHaveBeenCalled();
+  });
   it("starts with server-owned context and hides the lifecycle input on replay", async () => {
     const { app, requests } = fixture();
     const response = await app.request("/sessions/start", { method: "POST" });

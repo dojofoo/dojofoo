@@ -24,6 +24,18 @@ it("requires an explicitly selected harness", () => {
   expect(result.stderr).toContain("Select the teaching harness");
 });
 
+it("rejects unknown prior-lesson coverage before starting a model", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
+  const result = spawnSync(process.execPath, [worker, "--evaluate", root], {
+    encoding: "utf8", timeout: 15_000, env: {
+      ...process.env, DOJOFOO_HARNESS: "codex", DOJOFOO_EVAL_PRIOR_LESSONS: "assume-passed",
+    },
+  });
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain("Prior-lesson evaluation must be teach or seed-completion");
+  expect(result.stderr).not.toContain("ENOENT");
+});
+
 it.each(["--run", "--evaluate", "--evaluate-heldout"])("rejects an unsupported lesson harness before paid work in %s", async mode => {
   const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
   const result = spawnSync(process.execPath, [worker, mode, root], {

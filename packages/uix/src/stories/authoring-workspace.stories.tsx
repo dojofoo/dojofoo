@@ -160,13 +160,13 @@ const videoCues = (src: string): VideoCue[] => src === sampleYoutube
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 /** How a cue reads where the agent hears about it */
 const cueSummary = ({ cue, time }: VideoCueEvent) => cue.kind === "skip" ? `Skipped ${cue.label} · ${clock(cue.from)}–${clock(cue.to)}` : `${cue.kind === "done" ? cue.label ?? "Watched" : cue.label} · ${clock(time)}`;
-function WorkspaceDemo({ mode = "Authoring", question = false, settings = false, evals = false, video = sampleVideo }: { mode?: "Authoring" | "Evaluation" | "Trial"; question?: boolean; settings?: boolean; evals?: boolean; video?: string }) {
+function WorkspaceDemo({ mode = "Authoring", initialCourse = "Everyday TypeScript", question = false, settings = false, evals = false, video = sampleVideo }: { mode?: "Authoring" | "Evaluation" | "Trial"; initialCourse?: string; question?: boolean; settings?: boolean; evals?: boolean; video?: string }) {
   const [courses, setCourses] = useState(initialCourses);
   const cues = useMemo(() => videoCues(video), [video]);
   const [videoEvents, setVideoEvents] = useState<VideoCueEvent[]>([]);
   // A course is a page, not files: its intro video (Everyday TypeScript has one) on the stage and its description. Only
   // lessons open in the editor
-  const [page, setPage] = useState<string | null>(initialCourses[0].name);
+  const [page, setPage] = useState<string | null>(initialCourses.find(course => course.name === initialCourse)?.name ?? initialCourses[0].name);
   const files = useMemo(() => courses.flatMap(course => course.lessons.flatMap(lesson => lesson.files)), [courses]);
   const editor = useAuthoringFiles(files);
   const file = editor.tabs.active ?? "";
@@ -267,9 +267,11 @@ function WorkspaceDemo({ mode = "Authoring", question = false, settings = false,
   </div>;
 }
 
-const meta = { title: "Workspaces/Authoring", component: WorkspaceDemo, parameters: { layout: "fullscreen" }, argTypes: { mode: { control: "select", options: ["Authoring", "Evaluation", "Trial"] }, question: { control: "boolean" }, settings: { control: "boolean" }, evals: { control: "boolean" }, video: { control: "text" } }, args: { mode: "Authoring", question: false, settings: false, evals: false, video: sampleVideo } } satisfies Meta<typeof WorkspaceDemo>;
+const meta = { title: "Workspaces/Authoring", component: WorkspaceDemo, render: args => <WorkspaceDemo key={args.initialCourse} {...args} />, parameters: { layout: "fullscreen" }, argTypes: { initialCourse: { control: "select", options: ["Everyday TypeScript", "Advanced TypeScript"] }, mode: { control: "select", options: ["Authoring", "Evaluation", "Trial"] }, question: { control: "boolean" }, settings: { control: "boolean" }, evals: { control: "boolean" }, video: { control: "text" } }, args: { initialCourse: "Everyday TypeScript", mode: "Authoring", question: false, settings: false, evals: false, video: sampleVideo } } satisfies Meta<typeof WorkspaceDemo>;
 export default meta;
 type Story = StoryObj<typeof meta>;
+/** Navigation target for the selected course, without the scripted walkthrough. */
+export const Course: Story = {};
 export const Workspace: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

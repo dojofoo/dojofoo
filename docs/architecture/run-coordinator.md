@@ -1,5 +1,17 @@
 # Run coordination
 
+Scope: this describes the existing **ACP learning path**, not the Eve-backed
+authoring runtime. See [runtime consolidation](./agent-runtime-consolidation.md)
+for their different ownership boundaries and the
+[dependency ledger](./dependency-upgrade-ledger.md) for verified versions.
+
+The current learning transport uses ACP SDK 1.9.0 and Codex ACP 2.2.2. Form
+questions register through `createElicitation`; URL elicitation is not advertised.
+Codex explicitly opts into `terminal_output_delta`, so command chunks still
+produce the structured lesson-check report. Session loading still uses the
+existing `loadSession` replay path. New resume/steering capabilities are not
+claimed as product features merely because the SDK now exposes them.
+
 A Dojofoo run is the application boundary. Browser connections, ACP harness threads,
 and local tool processes are replaceable attachments to that run; none of them owns
 the run or becomes a second session model.

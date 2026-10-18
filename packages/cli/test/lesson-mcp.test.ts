@@ -1,11 +1,11 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 const { handlers } = vi.hoisted(() => ({
-  handlers: new Map<string, () => Promise<unknown>>(),
+  handlers: new Map<string, (...args: unknown[]) => Promise<unknown>>(),
 }));
 vi.mock("@modelcontextprotocol/sdk/server/mcp.js", () => ({
   McpServer: class {
-    registerTool(name: string, _schema: unknown, handler: () => Promise<unknown>) {
+    registerTool(name: string, _schema: unknown, handler: (...args: unknown[]) => Promise<unknown>) {
       handlers.set(name, handler);
     }
     async connect() {}
@@ -17,6 +17,33 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.resetModules();
   handlers.clear();
+});
+
+it("sends learning observations through the current run rather than exposing routing credentials", async () => {
+  vi.stubEnv("DOJO_PROJECT_ROOT", "/test-course");
+  vi.stubEnv("DOJO_CLI", "/test-cli.js");
+  vi.stubEnv("DOJOFOO_TOOL_PROFILE", "lesson");
+  vi.stubEnv("DOJOFOO_COORDINATOR_URL", "http://coordinator.test");
+  vi.stubEnv("DOJOFOO_RUN_CAPABILITY", "test-only");
+  const observation = { category: "uncertainty", interpretation: "Learner reports a gap.", status: "active", source: { sessionId: "source", messageId: "1", sha256: "a".repeat(64) } };
+  const saved = { ...observation, id: "saved-note" };
+  const fetch = vi.fn().mockResolvedValue(Response.json({ observation: saved }));
+  vi.stubGlobal("fetch", fetch);
+  await import("../src/lesson-mcp");
+  const handler = handlers.get("dojo_learner_observe");
+  expect(handler).toBeDefined();
+  expect(await handler!(observation)).toEqual({ content: [{ type: "text", text: JSON.stringify(saved) }], structuredContent: { observation: saved } });
+  expect(fetch).toHaveBeenCalledWith(new URL("http://coordinator.test/api/run-command"), expect.objectContaining({
+    body: JSON.stringify({ method: "dojo.learner.observe", params: { observation } }),
+  }));
+});
+
+it("does not install the learning observation tool in an authoring-only profile", async () => {
+  vi.stubEnv("DOJO_PROJECT_ROOT", "/test-course");
+  vi.stubEnv("DOJO_CLI", "/test-cli.js");
+  vi.stubEnv("DOJOFOO_TOOL_PROFILE", "authoring");
+  await import("../src/lesson-mcp");
+  expect(handlers.has("dojo_learner_observe")).toBe(false);
 });
 
 it("provides numbered MCP text and unchanged structured learner source", async () => {

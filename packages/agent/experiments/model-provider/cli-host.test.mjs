@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -16,7 +16,7 @@ import { startLoopbackModel } from "./loopback-openai.mjs";
 // server imports or custom HTTP routes; only inference is deterministic.
 function startCli(root, home) {
   const executable = fileURLToPath(new URL("bin/eve.js", import.meta.resolve("@dojofoo/agent/eve/package.json")));
-  return startServer(root, home, [executable, "dev", "--no-ui", "--host", "127.0.0.1", "--port", "0"]);
+  return startServer(root, home, [executable, "dev", "--no-ui", "--host", "127.0.0.1", "--port", "0", "--resume"]);
 }
 
 function startServer(root, home, args, env = {}, urlPattern = /http:\/\/127\.0\.0\.1:\d+/) {
@@ -57,7 +57,7 @@ test(`public Eve CLI restores a Pi question and native history after process res
   const runtime = join(directory, "runtime");
   const home = join(directory, "home");
   const endpoint = await startLoopbackModel({ toolRequest: {
-    name: "ask_question", input: { prompt: "Review or continue?", options: [{ id: "review", label: "Review" }, { id: "next", label: "Continue" }] },
+    name: "ask_question", input: { question: "Review or continue?", options: [{ label: "Review", description: "Review the lesson" }, { label: "Continue", description: "Continue learning" }] },
   } });
   let server;
   try {
@@ -93,11 +93,11 @@ test(`public Eve CLI restores a Pi question and native history after process res
       // in development and packaged builds, after the original CLI was stopped.
       const uiHost = await answerInBrowser({ root: process.env.DOJO_AGENT_UI_ROOT, course: runtime, agentRoot: root, home, sessionId: saved.sessionId });
       assert.equal(endpoint.requestedTools.length, 1);
-      assert.equal(uiHost.receipt.optionId, "review");
+      assert.equal(uiHost.receipt.optionId, "Review");
       const receipts = endpoint.requests.flatMap(request => request.input?.filter(item => item.type === "function_call_output") ?? []);
       assert.equal(receipts.length, 1);
       const history = JSON.stringify(endpoint.requests.at(-1));
-      for (const expected of ["Introduce the lesson", "CLI_HOST_INSTRUCTIONS", "review"]) assert.ok(history.includes(expected), expected);
+      for (const expected of ["Introduce the lesson", "CLI_HOST_INSTRUCTIONS", "Review"]) assert.ok(history.includes(expected), expected);
       return;
     }
     const client = new Client({ host: await server.url });
@@ -135,7 +135,7 @@ test(`public Eve CLI restores a Pi question and native history after process res
       assert.equal(question?.id, parked.inputRequests[0].requestId);
       assert.equal(question.kind, "generic");
       assert.equal(question.canResolve, true);
-      question.resolveInterrupt({ optionId: "review" });
+      question.resolveInterrupt({ optionId: "Review" });
       await continued.promise;
       // The public state notification itself runs inside submission cleanup.
       // Let that callback stack and its promise continuations finish before
@@ -146,19 +146,29 @@ test(`public Eve CLI restores a Pi question and native history after process res
       assert.equal(chat.getMessages().filter(message => message.role === "user").length, 1);
       const receipt = chat.getMessages().flatMap(message => message.parts)
         .filter(part => part.type === "tool-call").map(eveQuestion).find(Boolean);
-      assert.equal(receipt?.response?.optionId, "review");
+      assert.equal(receipt?.response?.optionId, "Review");
       assert.equal(receipt?.settled, true);
       assert.ok(chat.getMessages().some(message => message.parts.some(part => part.type === "text" && part.content === "Ready to teach.")));
     } finally { chat.dispose(); }
     assert.equal(endpoint.requestedTools.length, 1);
     const receipts = endpoint.requests.flatMap(request => request.input?.filter(item => item.type === "function_call_output") ?? []);
     assert.equal(receipts.length, 1);
-    assert.match(receipts[0].output, /review/);
+    assert.match(receipts[0].output, /Review/);
     const restored = client.sessions.attach(saved.sessionId, { streamIndex: (await client.sessions.attach(saved.sessionId).snapshot()).session.streamIndex });
     const next = await (await restored.send("Continue teaching.", { signal: AbortSignal.timeout(60_000) })).result();
     assert.equal(next.message, "Ready to teach.");
     const history = JSON.stringify(endpoint.requests.at(-1));
-    for (const expected of ["Introduce the lesson", "CLI_HOST_INSTRUCTIONS", "review", "Continue teaching"]) assert.ok(history.includes(expected), expected);
+    for (const expected of ["Introduce the lesson", "CLI_HOST_INSTRUCTIONS", "Review", "Continue teaching"]) assert.ok(history.includes(expected), expected);
+    // Optional upgrade artifact: real persisted data, generated only by the
+    // loopback fixture (never a user's conversation or credentials).
+    if (process.env.DOJO_AGENT_CAPTURE_LEGACY_HISTORY) {
+      const target = process.env.DOJO_AGENT_CAPTURE_LEGACY_HISTORY;
+      const snapshot = await restored.snapshot();
+      await server.close();
+      await mkdir(target, { recursive: true });
+      await cp(root, join(target, "app"), { recursive: true });
+      await writeFile(join(target, "snapshot.json"), JSON.stringify(snapshot, null, 2));
+    }
   } finally {
     await server?.close();
     await endpoint.close();
@@ -213,7 +223,17 @@ async function answerInBrowser({ root, course, agentRoot, home, sessionId }) {
     await page.reload();
     await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(review).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    // Monaco always mounts two empty .monaco-alert announcers for screen
+    // readers. They are infrastructure, not application error messages.
+    const applicationAlerts = page.locator('[role="alert"]:not(.monaco-alert)');
+    try {
+      await expect(applicationAlerts).toHaveCount(0);
+    } catch (cause) {
+      throw new Error(JSON.stringify({
+        alerts: await applicationAlerts.allTextContents(),
+        errors, failedResponses: await Promise.all(failedResponses),
+      }), { cause });
+    }
     assert.deepEqual(requests, [`/api/authoring/eve/sessions/${sessionId}/messages`]);
     assert.deepEqual(errors, []);
     const response = await page.request.get(`${await ui.url}/api/authoring/eve/sessions/${sessionId}`);

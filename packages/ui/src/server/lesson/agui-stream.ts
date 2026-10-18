@@ -37,7 +37,6 @@ function acpPartEvents(part: AcpStreamPart): StreamChunk[] {
         type: EventType.TOOL_CALL_START,
         toolCallId: part.toolCallId,
         toolCallName: part.toolName,
-        toolName: part.toolName,
       }];
     case "tool-input-available":
       return [
@@ -45,9 +44,7 @@ function acpPartEvents(part: AcpStreamPart): StreamChunk[] {
         {
           type: EventType.TOOL_CALL_END,
           toolCallId: part.toolCallId,
-          toolCallName: part.toolName,
-          toolName: part.toolName,
-          input: part.input,
+          metadata: { tanstack: { input: part.input } },
         },
       ];
     case "tool-output-available":
@@ -57,7 +54,7 @@ function acpPartEvents(part: AcpStreamPart): StreamChunk[] {
         toolCallId: part.toolCallId,
         content: jsonContent(part.output),
         role: "tool",
-        state: "output-available",
+        metadata: { tanstack: { state: "output-available" } },
       }];
   }
 }
@@ -84,7 +81,7 @@ export async function* streamAcpAsAgUi({
     notify();
   }).then(
     () => {
-      queued.push({ type: EventType.RUN_FINISHED, runId, threadId, finishReason: "stop" });
+      queued.push({ type: EventType.RUN_FINISHED, runId, threadId, metadata: { tanstack: { finishReason: "stop" } } });
       settled = true;
       notify();
     },
@@ -93,6 +90,7 @@ export async function* streamAcpAsAgUi({
         type: EventType.RUN_ERROR,
         message: cause instanceof Error ? cause.message : String(cause),
         code: "DOJOFOO_AGENT_ERROR",
+        metadata: { tanstack: { runId, threadId } },
       });
       settled = true;
       notify();

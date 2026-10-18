@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { AgentChatWorkspace } from "~/components/agent-chat";
 import { AgentSetup, setupSteps } from "~/components/agent-setup";
@@ -7,18 +7,16 @@ import { AppDirectory, categoryIcons, type App, type AppCategory } from "~/compo
 import { AppShell, EmptyState, Icon, useToast, type AppShellProps, type ShellEntry, type ShellSection } from "~/components/app-shell";
 import { ChatMessages, Composer, useChatThread } from "~/components/assistant-home";
 import { Button } from "~/components/button";
-import { AddCard, ColorCard, ColorCardButton, ColorCardTag } from "~/components/color-card";
-import { CertificateFlipCard, CourseArt, CourseFlipCard, courseCardCss, type CourseArtwork, type CourseInfo } from "~/components/course-card";
+import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardTag } from "~/components/color-card";
+import { CertificateCard, CourseArt, CourseCard, type CourseArtwork, type CourseInfo } from "~/components/course-card";
 import { ChangelogFeed, type ChangelogEntry, type ChangelogMonth } from "~/components/arc/blocks/changelog-feed/changelog-feed";
 import { CodeEditor, Editor, EditorStatus, EditorTabs } from "~/components/editor";
-import { Leaderboard, type Player } from "~/components/leaderboard";
-import { SegmentedControl } from "~/components/segmented-control";
 import { LessonBrief } from "~/components/lesson-brief";
 import { onboardingCss } from "~/components/onboarding";
 import type { SetupGroup } from "~/components/setup-guide";
 import { TestimonialHighlight, type Testimonial } from "~/components/testimonial-highlight";
 import { VideoStage } from "~/components/video-stage";
-import { AuthoringIcon, BackIcon, BookOpen01Icon, CertificateIcon, CommentsIcon, DoneIcon, ExploreIcon, LearnersIcon, LikesIcon, MaterialsIcon, PlusSignIcon, StudyIcon } from "~/lib/icons";
+import { BackIcon, BookOpen01Icon, CertificateIcon, CommentsIcon, CoursesIcon, DoneIcon, ExploreIcon, LearnersIcon, LikesIcon, MaterialsIcon, PlusSignIcon } from "~/lib/icons";
 import { BrandLogo } from "../../../ui/src/components/ui/brand-logo";
 
 /*
@@ -27,10 +25,11 @@ import { BrandLogo } from "../../../ui/src/components/ui/brand-logo";
  * - Fresh: setting up the agent on this machine, in the affectUI onboarding's card and wizard – Agent, Courses, Profile,
  *   Style, Workspace – with a few lines on the right about each step. The sidebar has Documentation and Getting started,
  *   which follows the steps; no account yet.
- * - Dashboard: Study (the installed courses), Explore (new ones, the top three ranked) and Authoring (the courses you
- *   write), then a Collection – Certificates and Materials (cheatsheets, books, exercises). Getting started now waits
- *   at the foot, above the account.
- * - In a course: the course as a square card that turns over for its details, then its Chapters and the open chapter's
+ * - Dashboard: Courses (the ones you study, then the ones you write) and Explore (one featured course), then
+ *   a Collection – Certificates and Materials (cheatsheets, books, exercises). Getting started now waits at the foot,
+ *   above the account.
+ * - In a course: the course as a square card that turns over for its details – your version (or Update, once a newer
+ *   one is out) and how far you are on its front – then its Chapters and the open chapter's
  *   Lessons – done, in progress or locked. The window is the learner's workspace, as in the Authoring story's Trial: a
  *   chapter opens on its video, a lesson in the editor, and the Sensei teaches in the chat. Dashboard, in the
  *   breadcrumbs, closes the course.
@@ -54,7 +53,7 @@ type Story = StoryObj<typeof meta>;
 type Progress = "done" | "active" | "locked";
 type Lesson = { id: string; title: string; state: Progress; lead: string; goal: string; fn: string };
 type Chapter = { id: string; title: string; state: Progress; blurb: string; lessons: Lesson[] };
-type Course = CourseInfo & { id: string; blurb: string; rating: number; reviews?: number; likes?: string; learners: string; chapterList: Chapter[] };
+type Course = CourseInfo & { id: string; /** A newer version than the one installed */ latest?: string; blurb: string; rating: number; reviews?: number; likes?: string; learners: string; chapterList: Chapter[] };
 
 const lesson = (id: string, title: string, state: Progress, fn: string, lead: string, goal = `Write ${fn}() so the tests pass – without reaching for a library.`): Lesson => ({ id, title, state, fn, lead, goal });
 const course = (info: Omit<Course, "chapters" | "lessons"> & { chapters?: number; lessons?: number }): Course => ({
@@ -65,7 +64,7 @@ const course = (info: Omit<Course, "chapters" | "lessons"> & { chapters?: number
 
 const library: Course[] = [
   course({
-    id: "everyday", shader: "topography", likes: "3.2k", reviews: 1284, title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript", author: "Dojo", version: "v1.4.0", updated: "12 Oct 2026", language: "TypeScript", hours: 6, rating: 4.9, learners: "12.4k",
+    id: "everyday", shader: "topography", likes: "3.2k", reviews: 1284, title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript", author: "Dojo.foo", version: "v1.4.0", latest: "v1.5.0", updated: "12 Oct 2026", language: "TypeScript", hours: 6, rating: 4.9, learners: "12.4k",
     art: { hue: 350, glyph: "TS" }, blurb: "Arrays, objects and the types that keep them honest – one small program at a time.",
     chapterList: [
       { id: "arrays", title: "Arrays", state: "done", blurb: "Walk a list, keep what matters, fold it into one value.", lessons: [
@@ -91,7 +90,7 @@ const library: Course[] = [
     ],
   }),
   course({
-    id: "advanced", shader: "waves", title: "Advanced TypeScript", repo: "dojofoo/advanced-typescript", author: "Dojo", version: "v0.9.2", updated: "30 Sep 2026", language: "TypeScript", hours: 9, rating: 4.6, learners: "3.1k",
+    id: "advanced", shader: "waves", title: "Advanced TypeScript", repo: "dojofoo/advanced-typescript", author: "Dojo.foo", version: "v0.9.2", updated: "30 Sep 2026", language: "TypeScript", hours: 9, rating: 4.6, learners: "3.1k",
     art: { hue: 255, glyph: "ATS" }, blurb: "Types that compute: mapped, conditional and template literal types.",
     chapterList: [
       { id: "shapes", title: "Narrowing shapes", state: "active", blurb: "Unions you can trust in every branch.", lessons: [
@@ -102,11 +101,11 @@ const library: Course[] = [
       { id: "conditional", title: "Conditional types", state: "locked", blurb: "Types that ask questions.", lessons: [lesson("unwrap", "Unwrap a promise", "locked", "unwrap", "Ask a type what it holds.")] },
     ],
   }),
-  course({ id: "async", shader: "network", likes: "2.4k", reviews: 962, title: "Async JavaScript", repo: "dojofoo/async-javascript", author: "Dojo", version: "v2.0.1", updated: "8 Oct 2026", language: "JavaScript", hours: 5, rating: 4.8, learners: "9.8k", chapters: 5, lessons: 21, art: { hue: 190, glyph: "JS" }, blurb: "Promises, async and await, and cancelling what you started.", chapterList: [] }),
+  course({ id: "async", shader: "network", likes: "2.4k", reviews: 962, title: "Async JavaScript", repo: "dojofoo/async-javascript", author: "Dojo.foo", version: "v2.0.1", updated: "8 Oct 2026", language: "JavaScript", hours: 5, rating: 4.8, learners: "9.8k", chapters: 5, lessons: 21, art: { hue: 190, glyph: "JS" }, blurb: "Promises, async and await, and cancelling what you started.", chapterList: [] }),
   course({ id: "vitest", shader: "waves", likes: "1.1k", reviews: 541, title: "Testing with Vitest", repo: "vitest-dev/learn-vitest", author: "Vitest", version: "v1.2.0", updated: "2 Oct 2026", language: "TypeScript", hours: 4, rating: 4.7, learners: "6.2k", chapters: 4, lessons: 16, art: { hue: 145, glyph: "VT" }, blurb: "Tests that tell you what broke and why.", chapterList: [] }),
   course({ id: "regex", shader: "network", title: "Regex Katas", repo: "katacommunity/regex", author: "Community", version: "v3.1.0", updated: "21 Aug 2026", language: "JavaScript", hours: 3, rating: 4.4, learners: "2.7k", chapters: 6, lessons: 24, art: { hue: 235, glyph: "RX" }, blurb: "Patterns from simple matches to lookarounds.", chapterList: [] }),
   course({ id: "rust", shader: "topography", title: "Rust for TypeScript devs", repo: "ferris-school/rust-for-ts", author: "Community", version: "v0.6.0", updated: "14 Sep 2026", language: "Rust", hours: 12, rating: 4.5, learners: "4.0k", chapters: 7, lessons: 30, art: { hue: 35, glyph: "RS" }, blurb: "Ownership and borrowing, from what you already know.", chapterList: [] }),
-  course({ id: "sql", shader: "network", title: "SQL Foundations", repo: "dojofoo/sql-foundations", author: "Dojo", version: "v1.0.3", updated: "1 Oct 2026", language: "SQL", hours: 5, rating: 4.3, learners: "5.5k", chapters: 5, lessons: 20, art: { hue: 295, glyph: "SQL" }, blurb: "Select, join and group – queries you can read later.", chapterList: [] }),
+  course({ id: "sql", shader: "network", title: "SQL Foundations", repo: "dojofoo/sql-foundations", author: "Dojo.foo", version: "v1.0.3", updated: "1 Oct 2026", language: "SQL", hours: 5, rating: 4.3, learners: "5.5k", chapters: 5, lessons: 20, art: { hue: 295, glyph: "SQL" }, blurb: "Select, join and group – queries you can read later.", chapterList: [] }),
 ];
 const byId = (id: string) => library.find((item) => item.id === id)!;
 
@@ -143,8 +142,9 @@ const voices: Record<string, Testimonial[]> = {
 };
 
 const certificates = [
-  { id: "js-foundations", title: "JavaScript Foundations", learner: "Sam Rivera", art: { hue: 35, glyph: "JS" }, issued: "12 Sep 2026", lessons: 24, score: 96 },
-  { id: "ts-arrays", title: "Everyday TypeScript · Arrays", learner: "Sam Rivera", art: library[0].art, issued: "3 Oct 2026", lessons: 3, score: 100 },
+  // SHA-256 of demo issuer/learner/course records, not issued credentials.
+  { id: "js-foundations", title: "JavaScript Foundations", learner: "Sam Rivera", art: { hue: 35, glyph: "JS" }, issued: "12 Sep 2026", lessons: 24, score: 96, digest: "d1d0ac5f87007c80c7a0d1773773b4ac9361c8aba3c175473f46bff44da78f8d" },
+  { id: "ts-arrays", title: "Everyday TypeScript · Arrays", learner: "Sam Rivera", art: library[0].art, issued: "3 Oct 2026", lessons: 3, score: 100, digest: "8aabeef599580a6a9cb47c2b59b7b722db0194054c0f297fc824944b738c0026" },
 ];
 const authored = [
   { id: "everyday", status: "Published", learners: "128 learners", edited: "Edited 2 days ago" },
@@ -177,17 +177,17 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /** A course's color, for the cards drawn from one */
 const colorOf = (item: { art: CourseArtwork }) => `oklch(0.58 0.2 ${item.art.hue})`;
 /** Our own courses carry our logo, at the author name's size; others their author's name */
-const markOf = (item: Course) => (item.author === "Dojo" ? <BrandLogo /> : undefined);
+const markOf = (item: Course) => (item.author === "Dojo.foo" ? <BrandLogo /> : undefined);
 const lockNote = (items: Array<{ title: string; state: Progress }>, index: number, what: string) =>
   items[index].state === "locked" && index > 0 ? `Finish “${items[index - 1].title}” to unlock this ${what}` : undefined;
 
 /* ---------- The journey ---------- */
 
-type View = "study" | "explore" | "authoring" | "certificates" | "materials" | "changelog";
+type View = "courses" | "explore" | "certificates" | "materials" | "changelog";
 
 function LearnerJourney({ start }: { start: Start }) {
   // The cards' classes are used here without a card component (the rectangles), so their styles load with the story
-  return <div style={{ height: "100dvh" }}><style href="ui-course-card" precedence="default">{courseCardCss}</style><style href="ui-onboarding" precedence="default">{onboardingCss}</style><style href="lj" precedence="default">{css}</style><Journey key={start} start={start} /></div>;
+  return <div style={{ height: "100dvh" }}><style href="ui-onboarding" precedence="default">{onboardingCss}</style><style href="lj" precedence="default">{css}</style><Journey key={start} start={start} /></div>;
 }
 
 function Journey({ start }: { start: Start }) {
@@ -195,15 +195,15 @@ function Journey({ start }: { start: Start }) {
   const [setupDone, setSetupDone] = useState<number[]>([]);
   const [onboarded, setOnboarded] = useState(start !== "Fresh");
   const [installed, setInstalled] = useState<string[]>(start === "Fresh" ? [] : ["everyday", "advanced"]);
-  const [view, setView] = useState<View>(start === "Explore" ? "explore" : start === "Certificates" ? "certificates" : start === "Materials" ? "materials" : "study");
+  const [view, setView] = useState<View>(start === "Explore" ? "explore" : start === "Certificates" ? "certificates" : start === "Materials" ? "materials" : "courses");
   const [courseId, setCourseId] = useState<string | null>(start === "Course" ? "everyday" : null);
   const [toast, showToast] = useToast();
 
-  const setup: SetupGroup[] = !onboarded ? [
-    { id: "setup", title: "Set up Dojo", tasks: setupSteps.map((item, index) => ({ id: item.id, label: item.title, done: setupDone.includes(index) })) },
-  ] : [
-    { id: "learn", title: "Start learning", tasks: [
-      { id: "agent", label: "Set up your agent", done: onboarded },
+  // One list from the first run on: setting Dojo up (the wizard's steps, ticked as they're done), then learning, then
+  // sharing what you know
+  const setup: SetupGroup[] = [
+    { id: "setup", title: "Set up Dojo", tasks: setupSteps.map((item, index) => ({ id: item.id, label: item.title, done: onboarded || setupDone.includes(index) })) },
+    { id: "learn", title: "Set up learning", tasks: [
       { id: "install", label: "Install a course", done: installed.length > 0 },
       { id: "lesson", label: "Finish your first lesson", done: onboarded },
       { id: "certificate", label: "Earn a certificate" },
@@ -218,9 +218,11 @@ function Journey({ start }: { start: Start }) {
     showNews: false,
     setup,
     showUser: onboarded,
+    // While Dojo is set up, Getting started stays open and follows the steps
+    setupPinned: !onboarded,
   };
 
-  if (courseId) return <CourseWorkspace key={courseId} shell={shell} item={byId(courseId)} onClose={() => { setCourseId(null); setView("study"); }} />;
+  if (courseId) return <CourseWorkspace key={courseId} shell={shell} item={byId(courseId)} onClose={() => { setCourseId(null); setView("courses"); }} />;
 
   // Fresh: the only menu point is Documentation; Getting started follows the steps
   if (!onboarded) {
@@ -231,16 +233,15 @@ function Journey({ start }: { start: Start }) {
         <AgentSetup step={setupStep} done={setupDone}
           // The top courses, as their cards
           courses={[...library].sort((a, b) => b.rating - a.rating).slice(0, 4).map((item) => ({ id: item.id, title: item.title, color: colorOf(item), shader: item.shader, mark: markOf(item), author: item.author, rating: item.rating, lessons: item.lessons, hours: item.hours }))} onNext={next} onBack={() => setSetupStep((n) => Math.max(n - 1, 0))} onSkip={() => setSetupStep((n) => Math.min(n + 1, setupSteps.length - 1))}
-          onFinish={(values) => { setSetupDone(setupSteps.map((_, index) => index)); setInstalled(values.courses); setOnboarded(true); setView("study"); }} />
+          onFinish={(values) => { setSetupDone(setupSteps.map((_, index) => index)); setInstalled(values.courses); setOnboarded(true); setView("courses"); }} />
       </AppShell>
     );
   }
 
   const navigation: ShellSection[] = [
     { id: "main", items: [
-      { id: "study", label: "Study", icon: StudyIcon, count: installed.length || undefined },
+      { id: "courses", label: "Courses", icon: CoursesIcon, count: installed.length || undefined },
       { id: "explore", label: "Explore", icon: ExploreIcon },
-      { id: "authoring", label: "Authoring", icon: AuthoringIcon },
     ] },
     { id: "collection", heading: "Collection", items: [
       { id: "certificates", label: "Certificates", icon: CertificateIcon, count: certificates.length },
@@ -249,12 +250,15 @@ function Journey({ start }: { start: Start }) {
   ];
   return (
     <AppShell {...shell} navigation={navigation} navigationKey="dashboard" active={[view]} onNavigate={(id) => setView(id as View)}>
-      {view === "explore" ? <Explore installed={installed} onInstall={(id) => { setInstalled((list) => [...list, id]); showToast(`${byId(id).title} is in Study`); }} />
-        : view === "authoring" ? <Authoring />
+      {view === "explore" ? <Explore installed={installed} onInstall={(id) => { setInstalled((list) => [...list, id]); showToast(`${byId(id).title} is in your courses`); }} />
         : view === "certificates" ? <Certificates />
         : view === "materials" ? <Materials />
         : view === "changelog" ? <Changelog />
-        : <Study installed={installed} onOpen={setCourseId} onExplore={() => setView("explore")} />}
+        : <Courses installed={installed} onOpen={setCourseId} onAuthor={(id) => {
+          const url = new URL("/", window.location.href);
+          url.search = new URLSearchParams({ path: "/story/workspaces-authoring--course", args: `initialCourse:${byId(id).title}` }).toString();
+          (window.parent ?? window).location.assign(url);
+        }} onExplore={() => setView("explore")} />}
       {toast}
     </AppShell>
   );
@@ -277,13 +281,18 @@ function CourseWorkspace({ shell, item, onClose }: { shell: Partial<AppShellProp
   const [file, setFile] = useState<"kata.ts" | "kata.test.ts">("kata.ts");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const scroller = useRef<HTMLDivElement>(null);
+  // A newer version is out: the card's Update brings it in
+  const [version, setVersion] = useState(item.version);
+  const [updating, setUpdating] = useState(false);
+  const update = () => { setUpdating(true); window.setTimeout(() => { setUpdating(false); setVersion(item.latest ?? item.version); }, 900); };
+  const at = currentChapter(item);
   const chat = useChatThread(() => ({ steps: [{ kind: "step", label: "Reading the lesson and your code" }], paragraphs: ["Before you change anything: what should happen when the settings you're given leave a value out?", "Write that down as a guess – then we'll check it against the first test."] }));
 
   const navigation: ShellSection[] = [
     {
       id: "chapters", heading: "Chapters", layout: "chapters",
       // Inset to the logo's and the rows' text line on the left, the same on the right
-      before: <div className="lj-course"><CourseFlipCard course={item} mark={markOf(item)} /></div>,
+      before: <div className="lj-course"><CourseCard course={item} mark={markOf(item)} enrolled={{ version, latest: item.latest, updating, onUpdate: update, progress: progressOf(item), label: at && `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}`, value: at && currentLesson(at)?.title }} /></div>,
       items: item.chapterList.map((x, index): ShellEntry => ({ id: `chapter:${x.id}`, label: x.title, marker: pad(index + 1), state: x.state, note: lockNote(item.chapterList, index, "chapter") })),
     },
     {
@@ -355,82 +364,41 @@ function Tile({ title, art, meta, inside, onClick }: { title: string; art: Cours
   return onClick ? <button type="button" className="lj-tile" onClick={onClick}>{box}{text}</button> : <article className="lj-tile">{box}{text}</article>;
 }
 
-/** This week's league: points from lessons finished, you among the others; a few move up now and then */
-const leagues: Record<"Week" | "Month", Player[]> = {
-  Week: [
-    { id: "amara", name: "Amara Okafor", score: 2480 },
-    { id: "jonas", name: "Jonas Weber", score: 2310 },
-    { id: "you", name: "You", score: 2265 },
-    { id: "rafael", name: "Rafael Costa", score: 2140 },
-    { id: "sara", name: "Sara Lindqvist", score: 2055 },
-    { id: "ivy", name: "Ivy Nakamura", score: 1920 },
-  ],
-  Month: [
-    { id: "jonas", name: "Jonas Weber", score: 9840 },
-    { id: "you", name: "You", score: 9310 },
-    { id: "amara", name: "Amara Okafor", score: 9125 },
-    { id: "ivy", name: "Ivy Nakamura", score: 8460 },
-    { id: "rafael", name: "Rafael Costa", score: 8020 },
-    { id: "sara", name: "Sara Lindqvist", score: 7790 },
-  ],
-};
-
-/** The leaderboard: points from lessons finished, you among the others, this week or this month; now and then a few
-    move up */
-function League() {
-  const [period, setPeriod] = useState<"Week" | "Month">("Week");
-  const [players, setPlayers] = useState(leagues.Week);
-  const [moves, setMoves] = useState<Record<string, number>>({});
-  useEffect(() => {
-    setPlayers(leagues[period]);
-    setMoves({});
-    // Every few seconds one or two players finish something: their points rise, and whoever passes someone shows it
-    let seed = 7;
-    const next = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const rank = (list: Player[]) => Object.fromEntries([...list].sort((a, b) => b.score - a.score).map((p, i) => [p.id, i]));
-    let clear: number | undefined;
-    const tick = window.setInterval(() => {
-      setPlayers((list) => {
-        const before = rank(list);
-        const after = list.map((p) => (next() < 0.35 ? { ...p, score: p.score + Math.round(40 + next() * 140) } : p));
-        const now = rank(after);
-        setMoves(Object.fromEntries(after.map((p) => [p.id, before[p.id] - now[p.id]])));
-        return after;
-      });
-      window.clearTimeout(clear);
-      clear = window.setTimeout(() => setMoves({}), 1600);
-    }, 5000);
-    return () => { window.clearInterval(tick); window.clearTimeout(clear); };
-  }, [period]);
-  return (
-    <section className="lj-league" aria-label="Leaderboard">
-      <header><b>Leaderboard</b><SegmentedControl size="compact" label="Period" options={["Week", "Month"]} value={period} onChange={(next) => setPeriod(next as "Week" | "Month")} /></header>
-      <Leaderboard players={players} moves={moves} label={`Leaderboard this ${period.toLowerCase()}`} />
-    </section>
-  );
-}
-
-function Study({ installed, onOpen, onExplore }: { installed: string[]; onOpen: (id: string) => void; onExplore: () => void }) {
+/** Courses: the ones you study – where you are in each – and below them the ones you write */
+function Courses({ installed, onOpen, onAuthor, onExplore }: { installed: string[]; onOpen: (id: string) => void; onAuthor: (id: string) => void; onExplore: () => void }) {
   const mine = library.filter((item) => installed.includes(item.id));
   return (
-    <Page kicker="Study" title="Pick up where you left off" sub="Your courses, and how far you are in each.">
-      <div className="lj-study">
-      {mine.length === 0 ? <EmptyState title="No courses yet" text="Install one from Explore to start learning." action={<Button onClick={onExplore}>Explore courses</Button>} /> : (
+    <Page kicker="Courses" title="Your courses" sub="The ones you're learning, with how far you are – and the ones you're writing with Kyoshi.">
+      <section>
+        <h2 className="lj-section">Studying</h2>
+        {mine.length === 0 ? <EmptyState title="No courses yet" text="Install one from Explore to start learning." action={<Button onClick={onExplore}>Explore courses</Button>} /> : (
+          <div className="lj-grid lj-grid--cards">
+            {mine.map((item) => {
+              const pct = progressOf(item);
+              const at = currentChapter(item);
+              const next = at ? currentLesson(at) : undefined;
+              return <ColorCard key={item.id} color={colorOf(item)}
+                header={<CardMark>{markOf(item) ?? item.author}</CardMark>} main={<CardTitle>{item.title}</CardTitle>}
+                footer={<><CardText label={at ? `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}` : `${item.chapters} chapters`} value={pct && next ? next.title : "Not started"} /><CardFigure>{pct}%</CardFigure></>}
+                progress={pct} onClick={() => onOpen(item.id)} aria-label={`${item.title}, ${pct}% done`} />;
+            })}
+            {/* One more, dashed – it finds a course to add */}
+            <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="Add a course" label="Find one in Explore" onClick={onExplore} />
+          </div>
+        )}
+      </section>
+      <section className="lj-courses__next">
+        <h2 className="lj-section">Authoring</h2>
         <div className="lj-grid lj-grid--cards">
-          {mine.map((item) => {
-            const pct = progressOf(item);
-            const at = currentChapter(item);
-            const next = at ? currentLesson(at) : undefined;
-            return <ColorCard key={item.id} color={colorOf(item)} mark={markOf(item) ?? item.author} title={item.title}
-              label={at ? `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}` : `${item.chapters} chapters`} value={pct && next ? next.title : "Not started"}
-              action={<span className="ui-card__figure">{pct}%</span>} progress={pct} onClick={() => onOpen(item.id)} aria-label={`${item.title}, ${pct}% done`} />;
+          {authored.map((entry) => {
+            const item = byId(entry.id);
+            return <ColorCard key={entry.id} color={colorOf(item)}
+              header={<><CardMark>{markOf(item) ?? item.author}</CardMark><CardFigure>{entry.status}</CardFigure></>} main={<CardTitle>{item.title}</CardTitle>}
+              footer={<CardText label={entry.learners} value={entry.edited} />} aria-label={`Open ${item.title}`} onClick={() => onAuthor(item.id)} />;
           })}
-          {/* As in Authoring: one more, dashed – here it finds a course to add */}
-          <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="Add a course" label="Find one in Explore" onClick={onExplore} />
+          <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="New course" label="Start from a template" />
         </div>
-      )}
-      <League />
-      </div>
+      </section>
     </Page>
   );
 }
@@ -442,7 +410,7 @@ function Stars({ value }: { value: number }) {
 function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const install = (id: string) => { setBusy(id); window.setTimeout(() => { setBusy(null); onInstall(id); }, 700); };
-  const top = [...library].sort((a, b) => b.rating - a.rating).slice(0, 3);
+  const top = [...library].sort((a, b) => b.rating - a.rating).slice(0, 1);
   const action = (item: Course) => {
     const has = installed.includes(item.id);
     // Installed reads as the cards say it – a check and the word – at the Install button's height
@@ -451,13 +419,12 @@ function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id
       : <Button size="sm" loading={busy === item.id} onClick={() => install(item.id)}>Install</Button>;
   };
   return (
-    <Page kicker="Explore" title="Find your next course" sub="Courses from Dojo and the community. Install one and it joins Study, ready to start.">
-      {/* The top three: one box each – the card, and beside it what learners say, with the numbers and install */}
-      <h2 className="lj-section">Top courses</h2>
-      <ol className="lj-top">
-        {top.map((item, index) => (
+    <Page kicker="Explore" title="Find your next course" sub="Courses from Dojo and the community. Install one and it joins your courses, ready to start.">
+      <h2 className="ui-ob-step__title lj-heading">Featuring</h2>
+      <ol className="lj-top" aria-label="Featuring">
+        {top.map((item) => (
           <li key={item.id} className="lj-top__box">
-            <CourseFlipCard course={item} mark={markOf(item)} />
+            <CourseCard course={item} mark={markOf(item)} />
             {/* The quote fills the box beside the card – its mark and the numbers share the top line, its speaker sits
                 on the card's bottom line, the rating after the quote's own controls */}
             <div className="lj-top__side">
@@ -477,7 +444,7 @@ function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id
       </ol>
       {/* Every course: the app directory's search, filter and categories, our course cards in its grid */}
       <div className="lj-browse">
-        <h2 className="ui-ob-step__title">Browse every course</h2>
+        <h2 className="ui-ob-step__title">Browse courses</h2>
         <p className="ui-ob-step__text">Search by name or topic, show only what you haven't installed, or pick a category on the left.</p>
       </div>
       <AppDirectory className="lj-directory" title="All courses" defaultCategory="all" categories={courseCategories}
@@ -489,30 +456,15 @@ function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id
             {apps.map((app) => {
               const item = byId(app.id);
               const busy = state.busy.has(app.id);
-              // Each course its own effect – the same as on its card above
-              return <ColorCard key={app.id} color={colorOf(item)} shader={item.shader} seed={item.repo} mark={markOf(item) ?? item.author} figure={`★ ${item.rating.toFixed(1)}`} title={item.title}
-                label="Updated" value={item.updated} aria-label={item.title}
-                action={state.connected.has(app.id)
+              // Still: only the featured card above moves
+              return <ColorCard key={app.id} color={colorOf(item)} aria-label={item.title}
+                header={<><CardMark>{markOf(item) ?? item.author}</CardMark><CardFigure>★ {item.rating.toFixed(1)}</CardFigure></>} main={<CardTitle>{item.title}</CardTitle>}
+                footer={<><CardText label="Updated" value={item.updated} />{state.connected.has(app.id)
                   ? <ColorCardTag><Icon icon={DoneIcon} size={13} />Installed</ColorCardTag>
-                  : <ColorCardButton disabled={busy} aria-label={`Install ${item.title}`} onClick={() => state.toggle(app)}>{busy ? "Installing…" : "Install"}</ColorCardButton>} />;
+                  : <ColorCardButton disabled={busy} aria-label={`Install ${item.title}`} onClick={() => state.toggle(app)}>{busy ? "Installing…" : "Install"}</ColorCardButton>}</>} />;
             })}
           </div>
         )} />
-    </Page>
-  );
-}
-
-function Authoring() {
-  return (
-    <Page kicker="Authoring" title="Courses you write" sub="Drafts and published ones – open one to keep shaping it with Kyoshi.">
-      <div className="lj-grid lj-grid--cards">
-        {authored.map((entry) => {
-          const item = byId(entry.id);
-          return <ColorCard key={entry.id} color={colorOf(item)} mark={markOf(item) ?? item.author} figure={entry.status} title={item.title}
-            label={entry.learners} value={entry.edited} aria-label={item.title} action={<ColorCardButton aria-label={`Edit ${item.title}`}>Edit</ColorCardButton>} />;
-        })}
-        <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="New course" label="Start from a template" />
-      </div>
     </Page>
   );
 }
@@ -534,7 +486,7 @@ function Materials() {
 
 /** What changed in Dojo lately – from the account menu's Changelog */
 const releases: ChangelogEntry[] = [
-  { id: "learner", month: "2026-10", date: "Oct 14", iso: "2026-10-14", version: "0.9.0", kind: "new", title: "Study, Explore and the weekly league", summary: "Your courses with how far you are, every course to install, and a league to keep you going.", details: ["Explore ranks the top courses and lets you search and filter the rest.", "Study shows the chapter and lesson you're on.", "The weekly league ranks points from lessons you finish."] },
+  { id: "learner", month: "2026-10", date: "Oct 14", iso: "2026-10-14", version: "0.9.0", kind: "new", title: "Courses and Explore", summary: "The courses you study and the ones you write on one page, and every course to install.", details: ["Explore ranks the top courses and lets you search and filter the rest.", "Courses shows the chapter and lesson you're on.", "A course's card offers the update when a newer version is out."] },
   { id: "setup", month: "2026-10", date: "Oct 9", iso: "2026-10-09", version: "0.8.2", kind: "improved", title: "Set up with the agent you already use", summary: "Dojo finds Claude Code, Codex and others on your machine and teaches through them.", details: ["Pick your theme and code colors while you set up, with a live preview."] },
   { id: "cues", month: "2026-09", date: "Sep 30", iso: "2026-09-30", version: "0.8.0", kind: "new", title: "Video cues tell your Sensei what you watched", summary: "Markers, skipped ranges and a watched point before the end reach the chat as they happen.", details: ["Authors set cues per lesson; sponsor segments can be skipped."] },
   { id: "tabs", month: "2026-09", date: "Sep 22", iso: "2026-09-22", version: "0.7.4", kind: "fixed", title: "Editor tabs keep their unsaved dot", summary: "An edited file shows a dot where its close button sits, and the button on hover.", details: ["The dot uses your theme's brand color."] },
@@ -544,11 +496,12 @@ const releaseMonths: ChangelogMonth[] = [
   { key: "2026-09", label: "September 2026", short: "Sep" },
 ];
 
+/** The changelog as every page is set: its kicker, title and lead, then the feed (its own heading left out) */
 function Changelog() {
   return (
-    <div className="lj-page">
-      <ChangelogFeed entries={releases} months={releaseMonths} title="Changelog" subtitle="Dojo 0.9 shipped on October 14, 2026" endNote="That's everything since Dojo 0.7 in September." />
-    </div>
+    <Page kicker="What's new" title="Changelog" sub="Dojo 0.9 shipped on October 14, 2026.">
+      <ChangelogFeed heading={false} entries={releases} months={releaseMonths} title="Changelog" endNote="That's everything since Dojo 0.7 in September." />
+    </Page>
   );
 }
 
@@ -556,7 +509,7 @@ function Certificates() {
   return (
     <Page kicker="Collection" title="Certificates" sub="What you finished – turn a card over for its details.">
       <div className="lj-squares">
-        {certificates.map((item) => <CertificateFlipCard key={item.id} certificate={item} mark={<BrandLogo />} />)}
+        {certificates.map((item) => <CertificateCard key={item.id} certificate={item} />)}
       </div>
     </Page>
   );
@@ -568,8 +521,12 @@ export const Journey_: Story = {
   name: "Journey",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Study → a course: its card, chapters and lessons; the chapter in progress is open, at its lesson
+    // Courses → a course: its card, chapters and lessons; the chapter in progress is open, at its lesson
     await userEvent.click(await canvas.findByRole("button", { name: /^Everyday TypeScript/ }));
+    // A newer version is out: the card offers it, and updating leaves the new version in its place
+    await userEvent.click(await canvas.findByRole("button", { name: "Update Everyday TypeScript to v1.5.0" }));
+    // (the front's version; the back lists it too)
+    await expect((await canvas.findAllByText("v1.5.0", {}, { timeout: 3000 }))[0]).toBeVisible();
     const chapters = within(await canvas.findByRole("group", { name: "Chapters" }));
     const objects = chapters.getByRole("button", { name: /^Objects \(/ });
     await expect(objects).toHaveAttribute("aria-current", "page");
@@ -582,15 +539,27 @@ export const Journey_: Story = {
     await expect(chapters.getByRole("button", { name: /^Arrays \(/ })).toHaveAttribute("data-lit", "true");
     // Dashboard, in the breadcrumbs, closes the course
     await userEvent.click(canvas.getByRole("button", { name: "Dashboard" }));
-    await expect(await canvas.findByRole("heading", { name: "Pick up where you left off" })).toBeVisible();
+    await expect(await canvas.findByRole("heading", { name: "Your courses" })).toBeVisible();
     await expect(canvas.queryByRole("group", { name: "Chapters" })).not.toBeInTheDocument();
   },
 };
 export const Fresh: Story = { args: { start: "Fresh" } };
+export const CoursesDashboard: Story = { name: "Courses", args: { start: "Dashboard" } };
 export const InACourse: Story = { name: "In a course", args: { start: "Course" } };
-export const ExploreCourses: Story = { name: "Explore", args: { start: "Explore" } };
+export const ExploreCourses: Story = { name: "Explore", args: { start: "Explore" }, play: async ({ canvasElement }) => {
+  const canvas = within(canvasElement);
+  const featured = canvas.getByRole("list", { name: "Featuring" });
+  await expect(within(featured).getAllByRole("listitem")).toHaveLength(1);
+  await expect(canvas.queryByRole("heading", { name: "Top courses" })).not.toBeInTheDocument();
+} };
 export const MaterialsCollection: Story = { name: "Materials", args: { start: "Materials" } };
-export const CertificatesCollection: Story = { name: "Certificates", args: { start: "Certificates" } };
+export const CertificatesCollection: Story = { name: "Certificates", args: { start: "Certificates" }, play: async ({ canvasElement }) => {
+  const canvas = within(canvasElement);
+  const seals = canvas.getAllByRole("img", { name: "Dojo certificate seal" });
+  await expect(seals).toHaveLength(2);
+  await expect(seals[0]).toHaveAttribute("data-digest", certificates[0].digest);
+  await expect(seals[1]).toHaveAttribute("data-digest", certificates[1].digest);
+} };
 
 const css = /* css */ `
 /* Pages as the onboarding sets them: a centered column with room around it; its kicker, title and lead */
@@ -598,6 +567,10 @@ const css = /* css */ `
 .lj-page__head { margin-bottom: 32px; }
 .lj-page__head .ui-ob-sub { max-width: 34rem; font-size: 15px; line-height: 1.55; text-wrap: pretty; }
 .lj-browse { margin-top: 56px; }
+/* A section's big title, as Browse courses sets it */
+.lj-heading { margin: 0 0 16px; }
+/* The directory's list heading (All courses, or a category) between two dotted rules */
+.lj-directory .ui-ad__heading { margin: 4px 0 16px; padding: 12px 0; border-block: 1px dotted color-mix(in oklab, var(--ink) 28%, transparent); }
 .lj-browse .ui-ob-step__text { max-width: 36rem; text-wrap: pretty; }
 @container ui-as-main (max-width: 620px) { .lj-page { padding: 40px 20px 48px; } }
 .lj-section { margin: 0 0 14px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
@@ -636,37 +609,21 @@ button.lj-tile:hover .lj-box--new { background: var(--hover); color: var(--ink);
 .lj-installed { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; background: var(--fluid-hover); color: var(--ink); font-size: 12.5px; font-weight: 550; }
 .lj-top__rating { display: inline-flex; align-items: center; gap: 8px; margin-left: 10px; color: var(--ink); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .lj-top__rating b { font-weight: 600; }
-/* Speakers' faces round (the shell squares every rounded corner off) */
-.lj-top__voice [class*="rounded"] { corner-shape: round; }
 /* The quotes sit flat in the box: the box is their card (their own ring is a custom shadow the class merge can't drop) */
 .lj-top__box .lj-top__voice { box-shadow: none; }
 /* No highlighter: its strokes stay hidden, the quote reads plain */
 .lj-top__voice blockquote p > svg { display: none; }
 @container ui-as-main (max-width: 640px) {
   .lj-top__box { grid-template-columns: minmax(0, 1fr); }
-  .lj-top__box .ui-cf { max-width: 14rem; }
+  .lj-top__box .ui-card { max-width: 14rem; }
   .lj-top__line { position: static; margin-bottom: 12px; }
 }
 /* Five stars as one mask, filled in the brand's color up to the rating */
 .lj-stars { display: inline-flex; }
 .lj-stars i { width: 70px; height: 14px; background: linear-gradient(90deg, var(--brand) calc(var(--rating) / 5 * 100%), var(--line-strong) 0); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 1l1.8 3.7 4 .6-2.9 2.8.7 4L7 10.2 3.4 12.1l.7-4L1.2 5.3l4-.6z'/%3E%3C/svg%3E") 0 0 / 14px 14px repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 1l1.8 3.7 4 .6-2.9 2.8.7 4L7 10.2 3.4 12.1l.7-4L1.2 5.3l4-.6z'/%3E%3C/svg%3E") 0 0 / 14px 14px repeat-x; }
 
-/* Study: the courses as Authoring lays them out, the leaderboard below them */
-.lj-study { display: grid; gap: 48px; }
-.lj-study > .lj-league { max-width: 30rem; }
-/* Study's cards: no wider than the course card in the sidebar */
-/* The leaderboard: a narrow column at the page's right, beside the courses; rows unboxed, ranks and faces round */
-.lj-league { display: flex; flex-direction: column; gap: 4px; }
-.lj-league header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; margin-bottom: 4px; }
-.lj-league header b { font-size: var(--fs-body); font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); }
-.lj-league li { gap: 8px; padding-inline: 4px; background: none !important; }
-/* Narrow: the name gets the room – smaller type, a slimmer move cue, the score as wide as its digits */
-.lj-league li > span:nth-child(3) { font-size: 13.5px; }
-.lj-league li > span:nth-last-child(2) { width: 24px; }
-.lj-league li > span:last-child { width: auto; font-size: 13.5px; }
-.lj-league [class*="rounded"] { corner-shape: round; }
-
-/* Courses as ColorCards – in Study, the directory and Authoring */
+/* Courses as ColorCards – on Courses and in the directory; what you write a section below what you study */
+.lj-courses__next { margin-top: 48px; }
 .lj-grid--cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); margin-top: 0; }
 
 /* The directory lies flat on the window: only its search, filter, categories and grid – no tray, bar, card or intro */

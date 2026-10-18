@@ -3,18 +3,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import { readPrompt } from "../prompts";
-import { checkSensei, checkTests, preflightLessons, senseiRequirements, senseiWordBudget } from "./preflight";
+import { checkSensei, checkTests, preflightLessons, senseiWordBudget } from "./preflight";
 
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 
-it("derives required structure from the shipped template, skipping optional lines", () => {
-  const { sections, labels } = senseiRequirements();
-  expect(sections.length).toBeGreaterThan(0);
-  expect(labels.length).toBeGreaterThan(0);
-  const template = readPrompt("skills/kata-lessons/SENSEI.tmpl");
-  for (const label of labels) expect(template).toContain(`**${label}:**`);
-  expect(labels.some(label => /optional/u.test(template.split(`**${label}:**`)[1]!.split("\n")[0]!))).toBe(false);
+it("does not require a prescribed teaching sequence or specific headings", () => {
+  expect(checkSensei("# Callback values\n\nA callback is a function passed to another function. The learner may confuse passing it with calling it. A returned value and a discarded expression differ.\n\nAn explanation of that distinction on a fresh example gives evidence beyond a passing test.")).toEqual([]);
+});
+it("rejects empty guidance without pretending to grade pedagogy", () => {
+  expect(checkSensei(" \n ")).toEqual(["Add lesson-specific teaching material to SENSEI."]);
 });
 it("flags the unfilled template itself", () => {
   expect(checkSensei(readPrompt("skills/kata-lessons/SENSEI.tmpl")).join("\n")).toContain("placeholders");

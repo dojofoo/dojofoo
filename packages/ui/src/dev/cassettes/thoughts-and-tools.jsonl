@@ -6,10 +6,10 @@
 {"delayMs":170,"chunk":{"type":"REASONING_MESSAGE_CONTENT","messageId":"reasoning-1","delta":"current lesson state**"}}
 {"delayMs":300,"chunk":{"type":"REASONING_MESSAGE_END","messageId":"reasoning-1"}}
 {"delayMs":0,"chunk":{"type":"REASONING_END","messageId":"reasoning-1"}}
-{"delayMs":180,"chunk":{"type":"TOOL_CALL_START","toolCallId":"check-1","toolCallName":"dojo_lesson_verify","toolName":"dojo_lesson_verify"}}
+{"delayMs":180,"chunk":{"type":"TOOL_CALL_START","toolCallId":"check-1","toolCallName":"dojo_lesson_verify"}}
 {"delayMs":100,"chunk":{"type":"TOOL_CALL_ARGS","toolCallId":"check-1","delta":"{}"}}
-{"delayMs":100,"chunk":{"type":"TOOL_CALL_END","toolCallId":"check-1","toolCallName":"dojo_lesson_verify","toolName":"dojo_lesson_verify","input":{}}}
-{"delayMs":850,"chunk":{"type":"TOOL_CALL_RESULT","messageId":"check-result-1","toolCallId":"check-1","role":"tool","state":"output-available","content":"{\"passed\":2,\"failed\":1,\"skipped\":0,\"total\":3,\"complete\":false,\"tests\":[{\"name\":\"collapses mixed whitespace\",\"suite\":[\"normalizeHandle\"],\"status\":\"failed\",\"failureMessages\":[\"Expected ada-lovelace but received ada lovelace\"]}]}"}}
+{"delayMs":100,"chunk":{"type":"TOOL_CALL_END","toolCallId":"check-1","metadata":{"tanstack":{"input":{}}}}}
+{"delayMs":850,"chunk":{"type":"TOOL_CALL_RESULT","messageId":"check-result-1","toolCallId":"check-1","role":"tool","content":"{\"passed\":2,\"failed\":1,\"skipped\":0,\"total\":3,\"complete\":false,\"tests\":[{\"name\":\"collapses mixed whitespace\",\"suite\":[\"normalizeHandle\"],\"status\":\"failed\",\"failureMessages\":[\"Expected ada-lovelace but received ada lovelace\"]}]}","metadata":{"tanstack":{"state":"output-available"}}}}
 {"delayMs":100,"chunk":{"type":"REASONING_START","messageId":"reasoning-2"}}
 {"delayMs":0,"chunk":{"type":"REASONING_MESSAGE_START","messageId":"reasoning-2","role":"reasoning"}}
 {"delayMs":140,"chunk":{"type":"REASONING_MESSAGE_CONTENT","messageId":"reasoning-2","delta":"The learner has not yet connected adjacent whitespace with one repeated match."}}
@@ -20,4 +20,4 @@
 {"delayMs":120,"chunk":{"type":"TEXT_MESSAGE_CONTENT","messageId":"assistant-1","delta":"The remaining failure treats three adjacent whitespace characters differently from one—"}}
 {"delayMs":100,"chunk":{"type":"TEXT_MESSAGE_CONTENT","messageId":"assistant-1","delta":"what relationship do you notice between those cases?"}}
 {"delayMs":100,"chunk":{"type":"TEXT_MESSAGE_END","messageId":"assistant-1"}}
-{"delayMs":0,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-check","finishReason":"stop"}}
+{"delayMs":0,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-check","metadata":{"tanstack":{"finishReason":"stop"}}}}

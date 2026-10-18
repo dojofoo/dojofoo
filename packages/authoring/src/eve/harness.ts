@@ -6,7 +6,6 @@ import { createOpenCode } from "@ai-sdk/harness-opencode";
 import { createPi, pi } from "@ai-sdk/harness-pi";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { canonicalLocalPi } from "./local-pi.ts";
 
 const harnesses = {
   codex: createCodex({ port: 0 }),
@@ -28,9 +27,9 @@ export function authoringHarness(environment: NodeJS.ProcessEnv = process.env) {
   // Custom providers (including credentials referenced by models.json) belong
   // to Pi's native setup. The adapter's default only discovers auth.json.
   if (name === "pi") {
-    return canonicalLocalPi(createPi({
+    return createPi({
       agentDir: resolve(environment.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent")),
-    }));
+    });
   }
   return harnesses[name as AuthoringHarness];
 }

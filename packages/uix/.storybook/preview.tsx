@@ -106,11 +106,14 @@ const preview: Preview = {
       document.body.classList.add(
         "m-0",
         "h-full",
-        "overflow-hidden",
         "bg-background",
         "text-foreground",
         "antialiased",
       );
+      // Fullscreen stories are apps sized to the window – the page itself never scrolls; centered and padded ones
+      // (a grid of variants, say) scroll when they run taller than the window
+      document.body.classList.toggle("overflow-hidden", context.parameters.layout === "fullscreen");
+      document.body.classList.toggle("overflow-auto", context.parameters.layout !== "fullscreen");
       document.body.style.fontFamily = "var(--font-sans)";
       document.body.style.fontWeight = "var(--font-weight-normal)";
       // Reduced motion is fewer and gentler, not none: transforms drop, opacity and colour fades stay

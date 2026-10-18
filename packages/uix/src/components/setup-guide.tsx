@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /*
  * Setup Guide – an onboarding panel with a progress bar and collapsible task groups, in a single self-contained file.
@@ -27,16 +27,27 @@ export type SetupGuideProps = {
   onClose?: () => void;
   /** Called with the ids of all finished tasks */
   onChange?: (done: string[]) => void;
+  /** Always open: no minimize or close – e.g. while the app's own setup runs and the guide follows it */
+  pinned?: boolean;
   className?: string;
 };
 
-export function SetupGuide({ title = "Setup guide", groups, onEdit, onClose, onChange, className }: SetupGuideProps) {
+export function SetupGuide({ title = "Setup guide", groups, onEdit, onClose, onChange, pinned = false, className }: SetupGuideProps) {
   const [done, setDone] = useState(
     () => new Set(groups.flatMap((g) => g.tasks.filter((t) => t.done).map((t) => t.id))),
   );
   const firstOpen = groups.find((g) => g.tasks.some((t) => !done.has(t.id)));
   const [open, setOpen] = useState<string | null>(firstOpen?.id ?? null);
   const [minimized, setMinimized] = useState(false);
+  // It follows the tasks it's given: when the app marks one done (a setup step finished), the guide ticks it and opens
+  // the group with the next one
+  const givenDone = groups.flatMap((g) => g.tasks.filter((t) => t.done).map((t) => t.id)).join(",");
+  useEffect(() => {
+    const next = new Set(givenDone ? givenDone.split(",") : []);
+    setDone(next);
+    setOpen(groups.find((g) => g.tasks.some((t) => !next.has(t.id)))?.id ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the done ids stand for the groups
+  }, [givenDone]);
 
   const total = groups.reduce((n, g) => n + g.tasks.length, 0);
   const progress = total ? done.size / total : 0;
@@ -68,7 +79,7 @@ export function SetupGuide({ title = "Setup guide", groups, onEdit, onClose, onC
                 Edit
               </button>
             )}
-            <button
+            {!pinned && <button
               type="button"
               className="ui-sg__icon-btn"
               aria-label={minimized ? "Expand setup guide" : "Minimize setup guide"}
@@ -76,8 +87,8 @@ export function SetupGuide({ title = "Setup guide", groups, onEdit, onClose, onC
               onClick={() => setMinimized((m) => !m)}
             >
               {minimized ? <ExpandIcon /> : <MinimizeIcon />}
-            </button>
-            {onClose && (
+            </button>}
+            {onClose && !pinned && (
               <button type="button" className="ui-sg__icon-btn" aria-label="Close setup guide" onClick={onClose}>
                 <CloseIcon />
               </button>

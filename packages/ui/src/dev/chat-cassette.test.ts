@@ -19,6 +19,17 @@ describe("AG-UI chat cassettes", () => {
     expect(prompt).toBeTruthy();
     expect(chunks[0]?.type).toBe("RUN_STARTED");
     expect(chunks.at(-1)?.type).toMatch(/^RUN_(?:FINISHED|ERROR)$/u);
+    for (const chunk of chunks) {
+      if (chunk.type === "TOOL_CALL_START" || chunk.type === "TOOL_CALL_END") {
+        expect(chunk).not.toHaveProperty("toolName");
+      }
+      if (chunk.type === "TOOL_CALL_END") {
+        expect(chunk).not.toHaveProperty("toolCallName");
+        expect(chunk).not.toHaveProperty("input");
+      }
+      if (chunk.type === "TOOL_CALL_RESULT") expect(chunk).not.toHaveProperty("state");
+      if (chunk.type === "RUN_FINISHED") expect(chunk).not.toHaveProperty("finishReason");
+    }
 
     let messages: UIMessage[] = [];
     const client = new ChatClient({
@@ -34,5 +45,15 @@ describe("AG-UI chat cassettes", () => {
 
     expect(messages.some((message) => message.role === "user")).toBe(true);
     expect(messages.some((message) => message.role === "assistant")).toBe(true);
+    const calls = messages.flatMap(message => message.parts.filter(part => part.type === "tool-call"));
+    for (const chunk of chunks) {
+      if (chunk.type === "TOOL_CALL_END") {
+        expect(calls.find(call => call.id === chunk.toolCallId)?.input)
+          .toEqual(chunk.metadata?.tanstack?.input);
+      }
+      if (chunk.type === "TOOL_CALL_RESULT") {
+        expect(calls.find(call => call.id === chunk.toolCallId)?.state).toBe("complete");
+      }
+    }
   });
 });

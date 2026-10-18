@@ -6,11 +6,11 @@ Run with Node 24+ from `packages/agent`:
 pnpm test
 ```
 
-The runner installs pinned registry Eve, AI SDK and HarnessAgent into a fresh
-temporary directory. It verifies registry URLs, versions and integrity entries;
-the baseline loads no workspace patches, aliases, copied Eve checkout or Dojo backend.
-After the baseline passes, it applies only `patches/eve@0.53.0.patch` and reruns
-the provider and Pi suites with native-compaction cases enabled.
+The runner installs the packed `@dojofoo/agent`, pinned AI SDK and official
+HarnessAgent adapters into a fresh temporary consumer. Eve 0.80.1 and its three
+audited patches are already assembled in that package; consumers install no
+separate Eve and run no patch scripts. The runner verifies registry URLs,
+integrity and production/eval version alignment, then tests that exact runtime.
 It removes only its own temporary directory afterwards. No paid model is called.
 
 The compile-only `adapter-types.ts` matrix covers the ten published
@@ -26,9 +26,10 @@ authentication, streaming or lifecycle behavior for those adapters.
 `pi.test.mjs` additionally uses the official Pi adapter and coding-agent runtime
 with a loopback Responses API fixture. It verifies native journal recovery,
 stable session identity, and retained system instructions across two provider
-calls. It also suspends a real Pi host-tool call and restores it with one answer,
-then exercises the same path through Eve's actual `ask_question` handler and
-serialized session state (`input.requested` → response → `input.resolved`).
+calls. It also suspends a real Pi host-tool call and restores it with one answer.
+The removed pre-0.80 internal request-input behavior is not emulated: Eve's
+current workflow question is exercised by `cli-host.test.mjs` (real Pi, CLI
+and browser restart) and `native-host.test.mjs` (real OpenCode and host restart).
 Only inference is canned; Pi's adapter/session implementation is real.
 Non-loopback fetches are rejected, credentials are fixture-only, and no personal
 Pi agent directory is supplied. The fixture event sequence follows the

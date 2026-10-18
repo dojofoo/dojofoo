@@ -12,12 +12,51 @@ import { experimental_createHarnessModel as createHarnessModel } from "@dojofoo/
 // Exercise the exact runtime shipped to consumers, not a workspace dependency.
 const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
 const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
-const { compactMessages } = await import(new URL("dist/src/harness/compaction.js", eveRoot));
+const { maybeCompact } = await import(new URL("dist/src/harness/compaction/step.js", eveRoot));
 const { compileAgentConfig } = await import(new URL("dist/src/compiler/normalize-agent-config.js", eveRoot));
 const { ContextContainer, contextStorage } = await import(new URL("dist/src/context/container.js", eveRoot));
 const { SessionKey } = await import(new URL("dist/src/context/keys.js", eveRoot));
 const { resolveRuntimeModelSelection } = await import(new URL("dist/src/runtime/agent/resolve-model.js", eveRoot));
 const { resolveWebSearchBackend } = await import(new URL("dist/src/harness/provider-tools.js", eveRoot));
+const { resolveModelProfile } = await import(new URL("dist/src/harness/model-profile.js", eveRoot));
+const { createUserMessage } = await import(new URL("dist/src/harness/messages.js", eveRoot));
+
+// Drive the current compaction step rather than the removed 0.53 engine API.
+// It returns failures as data so the session machine can preserve its history.
+async function compactMessages(messages, model, config, _providerOptions, _telemetry, _headers, abortSignal) {
+  const history = messages.some(message => message.role === "user" && !message.kind)
+    ? messages.map(message => message.role === "user" && !message.kind ? createUserMessage("user", message.content) : message)
+    : messages;
+  const result = await maybeCompact({
+    abortSignal, auth: null, force: true, messages: history, model,
+    emissionState: { sequence: 1, stepIndex: 0, turnId: "compaction-test" },
+    publish: async () => {}, resolveModel: async () => model,
+    session: { sessionId: "compaction-test", continuationToken: "compaction-test", history,
+      agent: { system: "", modelReference: { id: model.modelId }, tools: [] }, compaction: config },
+  });
+  if (result.failure) throw result.failure.error;
+  return result.messages;
+}
+
+function mockStreamingModel({ doGenerate, ...options }) {
+  let index = 0;
+  return new MockLanguageModelV4({ ...options, doStream: async () => {
+    const result = Array.isArray(doGenerate) ? doGenerate[index++] : doGenerate;
+    return { stream: new ReadableStream({ start(controller) {
+      controller.enqueue({ type: "stream-start", warnings: result.warnings ?? [] });
+      for (const [i, content] of result.content.entries()) {
+        if (content.type === "text") {
+          const id = `text-${i}`;
+          controller.enqueue({ type: "text-start", id });
+          controller.enqueue({ type: "text-delta", id, delta: content.text });
+          controller.enqueue({ type: "text-end", id, providerMetadata: content.providerMetadata });
+        } else controller.enqueue(content);
+      }
+      controller.enqueue({ type: "finish", finishReason: result.finishReason, usage: result.usage, providerMetadata: result.providerMetadata });
+      controller.close();
+    } }) };
+  } });
+}
 
 test("dynamic external models retain provider routing without injecting Gateway tools", {
   skip: process.env.EVE_NATIVE_COMPACTION !== "1",
@@ -37,13 +76,12 @@ test("dynamic external models retain provider routing without injecting Gateway 
       state: new ContextContainer(),
     });
     assert.equal(reference.provider, provider);
-    assert.equal(resolveWebSearchBackend(reference), expected);
+    assert.equal(resolveWebSearchBackend(resolveModelProfile(model)), expected);
+    assert.equal(reference.provider, provider);
   }
-  assert.equal(resolveWebSearchBackend({ id: "openai/gpt-4o" }), "exa");
-  assert.equal(resolveWebSearchBackend({ id: "openai/gpt-4o" }, "parallel"), "parallel");
-  assert.equal(resolveWebSearchBackend({
-    id: "harness/fixture", source: { logicalPath: "agent.ts" },
-  }), null);
+  const gateway = resolveModelProfile(new MockLanguageModelV4({ provider: "gateway", modelId: "openai/gpt-4o" }));
+  assert.equal(resolveWebSearchBackend(gateway), "exa");
+  assert.equal(resolveWebSearchBackend(gateway, { provider: "parallel" }), "parallel");
 });
 const usage = { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } };
 const finish = { unified: "stop", raw: "stop" };
@@ -613,46 +651,25 @@ for (const failure of [false, true]) test(`unmodified Eve settles the tool once 
   } finally { assert.equal(native.active, 0); }
 });
 
-test("Eve parks its real ask_question tool and resumes from serialized session state", async () => {
-  const native = fixture(false, true);
-  const sandbox = fixtureSandbox();
-  const events = [];
-  const schema = { type: "object" };
-  const toolDefinition = { name: "ask_question", description: "Ask the student", inputSchema: schema };
-  const config = {
-    mode: "conversation", capabilities: { requestInput: true },
-    handleEvent: async event => { events.push(event); },
-    tools: new Map([["ask_question", {
-      ...toolDefinition, inputSchema: jsonSchema(schema),
-      behavior: { availability: ["requires-request-input"], handling: { kind: "request-input", request: "question" } },
-    }]]),
-  };
-  const freshStep = () => createToolLoopHarness({ ...config, resolveModel: async () =>
-    createHarnessModel({ harness: native.harness, sandbox }).model });
-  const session = {
-    agent: { modelReference: { id: "local" }, system: "Teach", tools: [toolDefinition] },
-    compaction: { recentWindowSize: 10, threshold: 100000 },
-    continuationToken: "question-test", sessionId: randomUUID(), history: [],
-  };
-  const parked = await freshStep()(session, { message: "Use the tool." });
-  assert.equal(parked.next, null);
-  assert.equal(parked.settledTurn, undefined);
-  const request = events.find(event => event.type === "input.requested")?.data.requests[0];
-  assert.equal(request.kind, "question");
-  assert.equal(request.prompt, "How would you like to continue?");
-  assert.deepEqual(request.options, [{ id: "review", label: "Review" }, { id: "next", label: "Move on" }]);
-  assert.equal(native.results.length, 0);
-  assert.equal(native.active, 0);
-  const resumed = await freshStep()(JSON.parse(JSON.stringify(parked.session)), {
-    inputResponses: [{ requestId: request.requestId, optionId: "review" }],
+test("Eve's question workflow waits for ctx.ask and returns its actual answer", async () => {
+  // 0.80 uses durable workflow tools, not the removed request-input behavior.
+  // The CLI/host suites cover persistence and provider continuation.
+  const { askQuestion } = await import("@dojofoo/agent/tools/ask_question");
+  const answer = Promise.withResolvers();
+  const requests = [];
+  let completed = false;
+  const pending = askQuestion().execute({ question: "How would you like to continue?", options: [
+    { label: "Review", description: "Review the lesson" },
+    { label: "Move on", description: "Start the next lesson" },
+  ] }, { ask: request => { requests.push(request); return answer.promise; } }).then(result => {
+    completed = true;
+    return result;
   });
-  assert.equal(resumed.next, null);
-  assert.ok(resumed.settledTurn);
-  assert.equal(native.results.length, 1);
-  assert.deepEqual(native.results[0].output, { optionId: "review", text: undefined, status: "answered" });
-  assert.equal(new Set(native.starts).size, 1);
-  assert.equal(native.active, 0);
-  assert.ok(events.some(event => event.type === "input.resolved"));
+  assert.equal(completed, false);
+  assert.equal(requests[0].prompt, "How would you like to continue?");
+  assert.deepEqual(requests[0].options.map(({ id }) => id), ["Review", "Move on"]);
+  answer.resolve({ status: "answered", optionId: "Review" });
+  assert.deepEqual(await pending, { answer: "Review", status: "answered" });
 });
 
 for (const failure of [false, true]) test(`native tool calls retain execution ownership, results and stream order (failure=${failure})`, async () => {
@@ -865,7 +882,7 @@ test("a non-resumable sandbox is rejected instead of silently replacing the nati
 
 if (process.env.EVE_NATIVE_COMPACTION === "1") {
   for (const contextTokens of [undefined, -1, "100"]) test(`Eve preserves ordinary usage accounting without valid native context (${contextTokens})`, async () => {
-    const model = new MockLanguageModelV4({ doGenerate: {
+    const model = mockStreamingModel({ doGenerate: {
       content: [{ type: "text", text: "Ready." }], finishReason: finish, usage, warnings: [],
       ...(contextTokens === undefined ? {} : { providerMetadata: { harness: { contextTokens } } }),
     } });
@@ -937,7 +954,7 @@ if (process.env.EVE_NATIVE_COMPACTION === "1") {
     assert.equal(adapter.compactions.length, 1);
     assert.equal(adapter.prompts.length, 1, "No summarization prompt sent through Eve");
     assert.equal(compacted.length, 2);
-    assert.equal(compacted[1], next);
+    assert.deepEqual(compacted[1], createUserMessage("user", next.content));
     const resumed = await generateText({ model, messages: compacted });
     assert.deepEqual(JSON.parse(resumed.text), ["Native summary of the earlier lesson.", "Now teach whitespace."]);
     assert.equal(new Set(adapter.starts).size, 1);
@@ -955,7 +972,7 @@ if (process.env.EVE_NATIVE_COMPACTION === "1") {
     assert.equal(adapter.starts.length, 0);
     const first = await generateText({ model, prompt: "Use the tool.", tools: { echo: tool({ inputSchema: jsonSchema({ type: "object" }) }) } });
     const deferred = await compactMessages(first.response.messages, model, config);
-    assert.equal(deferred, first.response.messages);
+    assert.deepEqual(deferred, first.response.messages);
     assert.equal(adapter.compactions.length, 0);
     const resumed = await generateText({ model, messages: [...deferred, { role: "tool", content: [{ type: "tool-result", toolCallId: "echo-1", toolName: "echo", output: { type: "text", value: "receipt" } }] }], tools: { echo: tool({ inputSchema: jsonSchema({ type: "object" }) }) } });
     assert.equal(resumed.text, "Tool received: receipt.");
@@ -963,6 +980,24 @@ if (process.env.EVE_NATIVE_COMPACTION === "1") {
     await compactMessages([...deferred, ...resumed.response.messages], model, config);
     assert.equal(adapter.compactions.length, 1);
     assert.equal(new Set(adapter.starts).size, 1);
+  });
+
+  test("deferred compaction preserves Eve state and emits no completed compaction", async () => {
+    const adapter = fixture();
+    const { model } = createHarnessModel({ harness: adapter.harness, sandbox: fixtureSandbox() });
+    const first = await generateText({ model, prompt: "Use the tool.", tools: { echo: tool({ inputSchema: jsonSchema({ type: "object" }) }) } });
+    const history = first.response.messages;
+    const session = { sessionId: "deferred", continuationToken: "deferred", history,
+      agent: { system: "", modelReference: { id: model.modelId }, tools: [] },
+      compaction: { threshold: 1000, recentWindowSize: 1 } };
+    const events = [];
+    const result = await maybeCompact({ auth: null, force: true, messages: history, model, session,
+      emissionState: { sequence: 1, stepIndex: 0, turnId: "deferred" },
+      publish: async event => { events.push(event); }, resolveModel: async () => model });
+    assert.equal(result.compacted, false);
+    assert.equal(result.session, session);
+    assert.deepEqual(events, []);
+    assert.equal(adapter.compactions.length, 0);
   });
 
   test("compaction failures propagate without falling back to Eve summarization", async () => {
@@ -1014,7 +1049,7 @@ if (process.env.EVE_NATIVE_COMPACTION === "1") {
 for (const dropTail of [false, true]) test(`Eve compaction drops summary metadata; native checkpoint depends on retained tail (dropTail=${dropTail})`, async () => {
   const checkpoint = { harness: { sessionId: "native-before-compaction", resumeFrom: { opaque: "fixture" } } };
   const summaryCheckpoint = { harness: { sessionId: "native-summary", resumeFrom: { opaque: "summary-fixture" } } };
-  const model = new MockLanguageModelV4({ doGenerate: {
+  const model = mockStreamingModel({ doGenerate: {
     content: [{ type: "text", text: "The learner understands trimming.", providerMetadata: summaryCheckpoint }],
     finishReason: finish, usage, warnings: [],
   } });
@@ -1023,16 +1058,16 @@ for (const dropTail of [false, true]) test(`Eve compaction drops summary metadat
     { role: "assistant", content: [{ type: "text", text: "Trimming removes outer whitespace.".repeat(dropTail ? 1000 : 1), providerOptions: checkpoint }] },
   ];
   const compacted = await compactMessages(history, model, { recentWindowSize: 1, threshold: 1000 }, undefined, undefined, undefined, undefined, true);
-  assert.equal(model.doGenerateCalls.length, 1);
+  assert.equal(model.doStreamCalls.length, 1);
   assert.ok(JSON.stringify(compacted).includes("The learner understands trimming."));
   assert.equal(JSON.stringify(compacted).includes("native-before-compaction"), !dropTail);
   assert.ok(!JSON.stringify(compacted).includes("native-summary"));
-  assert.ok(!JSON.stringify(model.doGenerateCalls[0].prompt).includes("native-before-compaction"));
+  assert.ok(!JSON.stringify(model.doStreamCalls[0].prompt).includes("native-before-compaction"));
 });
 
 for (const location of ["content", "response"]) test(`Eve metadata round trip: ${location}`, async () => {
   const marker = { harness: { checkpoint: { sessionId: "native-marker", cursor: 7 } } };
-  const model = new MockLanguageModelV4({
+  const model = mockStreamingModel({
     doGenerate: {
       content: [{ type: "text", text: "Hello.", ...(location === "content" ? { providerMetadata: marker } : {}) }],
       finishReason: finish, usage, warnings: [],
@@ -1051,7 +1086,7 @@ for (const location of ["content", "response"]) test(`Eve metadata round trip: $
     // Exercise the JSON boundary; do not retain an object-identity side channel.
     session = JSON.parse(JSON.stringify(result.session));
   }
-  const assistant = model.doGenerateCalls[1].prompt.find(message => message.role === "assistant");
+  const assistant = model.doStreamCalls[1].prompt.find(message => message.role === "assistant");
   const restored = assistant.content.find(part => part.type === "text").providerOptions;
   assert.deepEqual(restored, location === "content" ? marker : undefined);
 });
@@ -1080,7 +1115,7 @@ test("streamed text-end metadata survives standard response-message serializatio
 
 test("Eve returns tool-call metadata beside the externally executed tool result", async () => {
   const marker = { harness: { checkpoint: { sessionId: "tool-marker", cursor: 9 } } };
-  const model = new MockLanguageModelV4({ doGenerate: [
+  const model = mockStreamingModel({ doGenerate: [
     {
       content: [{ type: "tool-call", toolCallId: "echo-metadata", toolName: "echo", input: "{}", providerMetadata: marker }],
       finishReason: { unified: "tool-calls", raw: "tool-calls" }, usage, warnings: [],
@@ -1104,7 +1139,7 @@ test("Eve returns tool-call metadata beside the externally executed tool result"
   }
   assert.equal(step, null);
   assert.equal(output, "Received.");
-  const prompt = JSON.parse(JSON.stringify(model.doGenerateCalls[1].prompt));
+  const prompt = JSON.parse(JSON.stringify(model.doStreamCalls[1].prompt));
   const call = prompt.flatMap(message => Array.isArray(message.content) ? message.content : [])
     .find(part => part.type === "tool-call");
   assert.deepEqual(call.providerOptions, marker);

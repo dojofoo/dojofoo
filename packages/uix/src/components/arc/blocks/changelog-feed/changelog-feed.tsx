@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FocusEvent, type FormEvent, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useAnimate, useReducedMotion, type Transition, type Variants } from "motion/react";
-import { ArrowRight, Bell, Check, ChevronDown } from "lucide-react";
+import { ArrowRight, Bell, ChevronDown } from "lucide-react";
+import { Button } from "~/components/button";
+import { SegmentedControl } from "~/components/segmented-control";
 import { CopyButton } from "../../copy-button/copy-button";
 import { motionTokens } from "../../lib/motion-tokens";
 import { photo } from "../../lib/media";
@@ -150,9 +152,10 @@ function SubscribeControl({ reduce }: { reduce: boolean }) {
       <motion.div className={styles.subscribe} data-state={state} data-error={error || undefined} initial={false} animate={{ width: width ?? "auto" }} transition={reduce ? instant : motionTokens.spring.morph}>
         <div ref={innerRef} className={styles.subscribeInner}>
           <AnimatePresence mode="popLayout" initial={false}>
-            {state === "idle" && <motion.button key="idle" ref={idleRef} type="button" className={styles.subscribeIdle} onClick={() => go("editing")} initial={{ opacity: 0, scale: 0.96, filter: blurSubtle }} animate={{ opacity: 1, scale: 1, filter: none }} exit={leave} transition={swap}>
-              <Bell size={14} aria-hidden="true" />Subscribe
-            </motion.button>}
+            {/* uix: idle, it's the app's own secondary button */}
+            {state === "idle" && <motion.div key="idle" className={styles.subscribeIdle} initial={{ opacity: 0, scale: 0.96, filter: blurSubtle }} animate={{ opacity: 1, scale: 1, filter: none }} exit={leave} transition={swap}>
+              <Button ref={idleRef} variant="secondary" size="sm" icon={<Bell size={14} aria-hidden="true" />} onClick={() => go("editing")}>Subscribe</Button>
+            </motion.div>}
             {state === "editing" && <motion.form key="form" className={styles.subscribeForm} noValidate onSubmit={submit} onKeyDown={onKeyDown} onBlur={onBlur} initial={{ opacity: 0, scale: 0.96, filter: blurSubtle }} animate={{ opacity: 1, scale: 1, filter: none }} exit={leave} transition={swap}>
               <label className={styles.srOnly} htmlFor={inputId}>Email address</label>
               <input ref={inputRef} id={inputId} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={email} aria-invalid={error || undefined} onChange={(event) => { setEmail(event.target.value); if (error) setError(false); }} />
@@ -244,6 +247,8 @@ export interface ChangelogFeedProps {
   endNote?: string;
   /** Entry ids open on first render. Defaults to the newest entry. */
   defaultOpen?: string[];
+  /** uix: false when the page already sets the title and lead – Subscribe then joins the filters' row */
+  heading?: boolean;
   className?: string;
 }
 
@@ -254,6 +259,7 @@ export function ChangelogFeed({
   subtitle = "Halden 4.12 shipped on September 18, 2026",
   endNote = "That is everything since Halden 4.5 in June.",
   defaultOpen,
+  heading = true,
   className,
 }: ChangelogFeedProps = {}) {
   const uid = useId();
@@ -300,7 +306,6 @@ export function ChangelogFeed({
   }, [onScroll]);
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
-  function toggleFilter(kind: Kind) { setFilters((previous) => previous.includes(kind) ? previous.filter((item) => item !== kind) : [...previous, kind]); }
   function toggleEntry(id: string) { setOpen((previous) => previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id]); }
   function jumpTo(key: string) {
     const scroller = scrollRef.current;
@@ -314,36 +319,30 @@ export function ChangelogFeed({
   const layout: Transition = reduce ? instant : motionTokens.spring.smooth;
 
   return <section className={[styles.feed, className].filter(Boolean).join(" ")} aria-labelledby={`${uid}-title`}>
-    <header className={styles.header}>
-      <div className={styles.heading}>
-        <h2 id={`${uid}-title`}>{title}</h2>
-        {subtitle && <p>{subtitle}</p>}
-      </div>
-      <SubscribeControl reduce={reduce} />
-    </header>
+    {heading ? (
+      <header className={styles.header}>
+        <div className={styles.heading}>
+          <h2 id={`${uid}-title`}>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
+        <SubscribeControl reduce={reduce} />
+      </header>
+    ) : <h2 id={`${uid}-title`} className={styles.srOnly}>{title}</h2>}
 
     <div className={styles.toolbar}>
-      <div className={styles.chips} role="group" aria-label="Filter by type">
-        {kinds.map((kind) => {
-          const on = filters.includes(kind.id);
-          return <button key={kind.id} type="button" className={styles.chip} data-kind={kind.id} aria-pressed={on} onClick={() => toggleFilter(kind.id)}>
-            <motion.span className={styles.chipMark} aria-hidden="true" initial={false} animate={{ width: on ? 16 : 7, height: on ? 16 : 7 }} transition={reduce ? instant : motionTokens.spring.morph}>
-              <motion.span className={styles.chipTick} initial={false} animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 0.4 }} transition={reduce ? instant : { ...motionTokens.spring.snappy, delay: on ? 0.05 : 0 }}><Check size={11} strokeWidth={2.6} /></motion.span>
-            </motion.span>
-            <span>{kind.label}</span>
-            <span className={styles.chipCount}>{kindCounts[kind.id]}</span>
-          </button>;
-        })}
-        <AnimatePresence initial={false}>
-          {filters.length > 0 && <motion.button key="clear" type="button" className={styles.clear} onClick={() => setFilters([])} initial={{ opacity: 0, x: -6, filter: blurSubtle }} animate={{ opacity: 1, x: 0, filter: none }} exit={{ opacity: 0, x: -4, filter: blurSubtle, transition: { duration: motionTokens.duration.instant } }} transition={reduce ? instant : motionTokens.spring.snappy}>Show all</motion.button>}
-        </AnimatePresence>
-      </div>
+      {/* uix: the kinds as the app's segmented control – all of them, or one */}
+      <SegmentedControl size="compact" label="Filter by type" options={["All", ...kinds.map((kind) => kind.label)]}
+        value={filters.length === 0 ? "All" : kinds.find((kind) => kind.id === filters[0])!.label}
+        onChange={(label) => setFilters(label === "All" ? [] : [kinds.find((kind) => kind.label === label)!.id])} />
+      <div className={styles.toolbarEnd}>
       <p className={styles.shown} aria-hidden="true">
         <motion.span className={styles.shownCount} layout="position" transition={layout}><RollingNumber value={visible.length} reduce={reduce} /></motion.span>
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span key={filters.length === 0 ? "all" : "some"} initial={{ opacity: 0, filter: blurSubtle }} animate={{ opacity: 1, filter: none }} exit={{ opacity: 0, transition: { duration: motionTokens.duration.instant } }} transition={reduce ? instant : { duration: motionTokens.duration.standard }}>{filters.length === 0 ? "updates" : `of ${totalCount} updates`}</motion.span>
         </AnimatePresence>
       </p>
+      {!heading && <SubscribeControl reduce={reduce} />}
+      </div>
       <p className={styles.srOnly} role="status" aria-live="polite">{`Showing ${shownLabel}`}</p>
     </div>
 
@@ -356,15 +355,9 @@ export function ChangelogFeed({
         </span>
         <motion.span className={styles.monthCount} layout="position" transition={layout}><RollingNumber value={current?.items.length ?? 0} reduce={reduce} />{current?.items.length === 1 ? "update" : "updates"}</motion.span>
       </div>
-      <nav className={styles.monthNav} aria-label="Jump to month">
-        {groups.map((group) => {
-          const selected = group.key === current?.key;
-          return <button key={group.key} type="button" aria-label={`Jump to ${group.label}`} aria-current={selected ? "true" : undefined} onClick={() => jumpTo(group.key)}>
-            {selected && <motion.span layoutId={`${uid}-month`} className={styles.monthPill} transition={reduce ? instant : motionTokens.spring.morph} />}
-            <span className={styles.monthShort}>{group.short}</span>
-          </button>;
-        })}
-      </nav>
+      {/* uix: the months as the app's segmented control, following the scroll */}
+      {groups.length > 1 && <SegmentedControl size="compact" label="Jump to month" options={groups.map((group) => group.short)} value={current?.short ?? ""}
+        onChange={(short) => { const group = groups.find((item) => item.short === short); if (group) jumpTo(group.key); }} />}
     </div>
 
     <motion.div layoutScroll ref={scrollRef} className={styles.scroller} onScroll={onScroll} tabIndex={0} aria-label="Release notes">

@@ -24,7 +24,7 @@ async function runWorker(input) {
   return JSON.parse(stdout);
 }
 
-for (const backend of ["official", "provider", "process", "eve", "eve-tools", "eve-question", "eve-native"]) test(`OpenCode runs and resumes native history through ${backend}`, { timeout: 120000 }, async () => {
+for (const backend of ["official", "provider", "process", "eve", "eve-tools", "eve-native"]) test(`OpenCode runs and resumes native history through ${backend}`, { timeout: 120000 }, async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dojo-opencode-startup-")));
   const home = join(root, "home");
   await mkdir(home);
@@ -34,40 +34,10 @@ for (const backend of ["official", "provider", "process", "eve", "eve-tools", "e
   await writeFile(lessonFile, evidence);
   const endpoint = await startLoopbackModel({ toolRequest: backend === "eve-tools"
     ? { name: "lesson_context", input: {} }
-    : backend === "eve-question" ? { name: "dojo_ui_ask", input: { prompt: "Review or move on?" } }
     : backend === "eve-native" ? { name: "read", input: { filePath: lessonFile } } : undefined });
   const { sandboxSession, runtime } = await createRuntime(root, endpoint.baseURL);
   try {
-    if (backend === "eve-question") {
-      const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
-      const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
-      const events = [];
-      const definition = { name: "dojo_ui_ask", description: "Ask the author", inputSchema: { type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] } };
-      const config = { mode: "conversation", capabilities: { requestInput: true },
-        resolveModel: async () => experimental_createHarnessModel(runtime, { sandboxSession }).model,
-        handleEvent: async event => { events.push(event); },
-        tools: new Map([[definition.name, { ...definition, inputSchema: jsonSchema(definition.inputSchema),
-          behavior: { availability: ["requires-request-input"], handling: { kind: "request-input", request: "question" } },
-        }]]),
-      };
-      const session = { agent: { modelReference: { id: "local-opencode" }, system: "Ask the author how to proceed.", tools: [definition] },
-        compaction: { recentWindowSize: 10, threshold: 100000 }, continuationToken: "native-question", sessionId: "native-question", history: [] };
-      const parked = await createToolLoopHarness(config)(session, { message: "Introduce the lesson." });
-      assert.equal(parked.next, null);
-      assert.equal(parked.settledTurn, undefined);
-      const request = events.find(event => event.type === "input.requested")?.data.requests[0];
-      assert.equal(request?.prompt, "Review or move on?");
-      const resumed = await createToolLoopHarness(config)(JSON.parse(JSON.stringify(parked.session)), {
-        inputResponses: [{ requestId: request.requestId, text: "Review" }],
-      });
-      assert.equal(resumed.settledTurn?.output, "Ready to teach.");
-      assert.equal(events.filter(event => event.type === "input.resolved").length, 1);
-      const resultRequest = endpoint.requests.find(request => request.input?.some(item => item.type === "function_call_output"));
-      const outputs = resultRequest?.input.filter(item => item.type === "function_call_output");
-      assert.equal(outputs?.length, 1);
-      assert.match(outputs[0].output, /Review/);
-      return;
-    } else if (backend.startsWith("eve")) {
+    if (backend.startsWith("eve")) {
       const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
       const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
       const definition = { name: "lesson_context", description: "Read the current lesson context", inputSchema: { type: "object", properties: {}, additionalProperties: false } };

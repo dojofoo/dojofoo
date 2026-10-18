@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { HarnessAgent } from "@dojofoo/agent/harness";
-import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
+import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
 import { z } from "zod";
 import { authoringHarness } from "../eve/harness";
 import { fixtureGeneratorInstructions } from "./prompts";
@@ -59,13 +59,14 @@ export async function generateLearnerFixtures({ material, lessonIds, harness, mo
     model,
     activeTools: [],
     instructions,
-    sandbox: createLocalHarnessSandbox(directory),
     stopWhen: ({ steps }) => steps.length >= 1,
   });
   for (const [index, lessonId] of lessonIds.entries()) {
     const abortSignal = AbortSignal.any([signal, AbortSignal.timeout(120_000)]);
-    const session = await agent.createSession({ abortSignal });
+    const sandboxSession = await createLocalSandbox(directory);
+    let session: Awaited<ReturnType<typeof agent.createSession>> | undefined;
     try {
+      session = await agent.createSession({ abortSignal, sandboxSession });
       const result = await agent.generate({ session, abortSignal, prompt: JSON.stringify({ lessonId, completedBefore: lessonIds.slice(0, index), material: learnerMaterial }) });
       await writeFile(join(directory, `${index + 1}-response.txt`), result.text);
       const fixture = parseLearnerFixture(result.text);
@@ -74,7 +75,8 @@ export async function generateLearnerFixtures({ material, lessonIds, harness, mo
       }
       fixtures[lessonId] = fixture;
     } finally {
-      await session.destroy();
+      try { await session?.destroy(); }
+      finally { await sandboxSession.stop(); }
     }
   }
   const path = join(directory, "learner-fixtures.json");

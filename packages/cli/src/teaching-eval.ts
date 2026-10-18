@@ -24,6 +24,8 @@ if (!["--run", "--evaluate", "--evaluate-heldout"].includes(process.argv[2]) || 
   process.env.DOJOFOO_HANDOFF_COURSE = await realpath(process.argv[3]);
   process.env.DOJO_CLI = fileURLToPath(new URL("./index.js", import.meta.url));
   try {
+    const priorLessons = process.env.DOJOFOO_EVAL_PRIOR_LESSONS ?? "seed-completion";
+    if (priorLessons !== "teach" && priorLessons !== "seed-completion") throw new Error("Prior-lesson evaluation must be teach or seed-completion");
     // Validate against the production lesson runtime before either judge or
     // learner fixture generation can consume model usage.
     const { dojofooHarness } = await import("../../ui/src/server/harness/registry");
@@ -46,26 +48,28 @@ if (!["--run", "--evaluate", "--evaluate-heldout"].includes(process.argv[2]) || 
         for (const lessonId of lessonIds) parseLearnerFixture(JSON.stringify(fixtures[lessonId]));
       }
       const { readLessonMaterial } = await import("@dojofoo/authoring/evaluation/material");
-      const { respondAsLearner } = await import("@dojofoo/authoring/evaluation/learner-response");
+      const { respondAsLearner, answerAsLearner } = await import("@dojofoo/authoring/evaluation/learner-response");
       const { senseiEvaluationPolicy } = await import("../../ui/src/server/lesson/instructions");
       const report = await evaluateAuthoredCourse({
         teachingPolicy: senseiEvaluationPolicy(manifest.mode ?? "katas"),
-        root, lessonIds, signal: AbortSignal.any([stopped.signal, AbortSignal.timeout(2_100_000)]), trial: async signal => {
+        root, lessonIds, priorLessons, signal: AbortSignal.any([stopped.signal, AbortSignal.timeout(2_100_000)]), trial: async signal => {
           const fixtures = replayPath ? { path: replayPath } : await generateLearnerFixtures({
             material: await readLessonMaterial(root, lessonIds), lessonIds,
             harness: fixtureHarness, model: fixtureModel, signal,
           });
           return runAuthoringHandoff(signal, lessonIds, {
+            priorLessons,
             learnerProfile: process.argv[2] === "--evaluate-heldout" ? "confident" : "struggling",
             fixturesPath: fixtures.path, verifyFixtures: verifyLearnerFixtures,
             respondToReview: (dialogue, source, signal) => respondAsLearner({ dialogue, source, signal, harness: fixtureHarness, model: fixtureModel }),
+            respondToQuestion: (questions, dialogue, source, signal) => answerAsLearner({ questions, dialogue, source, signal, harness: fixtureHarness, model: fixtureModel }),
           });
         },
       });
       process.stdout.write(`${JSON.stringify(report)}\n`);
       if (report.status !== "passed") process.exitCode = 1;
     } else {
-      const evidenceRoot = await runAuthoringHandoff();
+      const evidenceRoot = await runAuthoringHandoff(undefined, undefined, { priorLessons });
       process.stdout.write(`${JSON.stringify({ evidenceRoot })}\n`);
     }
   } catch (error) {

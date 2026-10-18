@@ -11,6 +11,7 @@ Use the supplied lesson-scoped Dojofoo tools.
 
 - DO use supplied lesson context first. It is current for this turn.
 - DO use `dojo_context` only when no lesson context was supplied. DO NOT refresh supplied context.
+- DO use `dojo_learner_observe` for meaningful learning changes, not every turn. Cite supplied message sources; use `replaces` to correct stale notes. DO NOT infer understanding from passing tests.
 - DO use `dojo_lesson_verify` for authored checks. Trust its result. DO NOT run a shell substitute or repeat JSON in chat.
 - DO use `dojo_lesson_complete` when the lesson is complete. Wait for and honor its answer. DO NOT ask again.
 - DO use `dojo_ui_ask` only for an authored structured question. Wait for its answer.

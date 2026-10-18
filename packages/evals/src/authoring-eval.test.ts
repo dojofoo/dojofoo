@@ -46,23 +46,31 @@ it("judges file snapshots before and after revision, not just the final response
   vi.stubEnv("DOJOFOO_EVAL_WORKSPACE", root);
   let turns = 0;
   const gate = vi.fn();
-  const closedQA = vi.fn((_criteria: string, _options: unknown) => ({ label: () => ({ gate }) }));
+  const judge = vi.fn((_criteria: string, _options: unknown) => ({ label: () => ({ gate }) }));
+  const writeTurn = async () => {
+    turns += 1;
+    await writeFile(join(root, "src/001-example/SENSEI.md"), turns === 1 ? "Before" : "Revised");
+    return {
+      events: [{ type: "message.completed", data: { message: `Actual turn ${turns}` } }],
+      session: { send: followUp },
+      expectOk() { return this; },
+    };
+  };
+  const followUp = vi.fn(writeTurn);
   const context = {
-    send: vi.fn(async () => {
-      turns += 1;
-      await writeFile(join(root, "src/001-example/SENSEI.md"), turns === 1 ? "Before" : "Revised");
-      return { expectOk() {} };
-    }),
-    succeeded: vi.fn(), check: vi.fn(), transcript: "Agent claims success",
-    judge: { autoevals: { closedQA } },
+    send: vi.fn(writeTurn),
+    succeeded: vi.fn(), check: vi.fn(), judge,
   };
   await teaching.test(context as unknown as Parameters<typeof teaching.test>[0]);
-  expect(context.send).toHaveBeenCalledTimes(2);
-  expect(closedQA).toHaveBeenCalledTimes(3);
-  expect(closedQA.mock.calls[0]?.[1]).toMatchObject({ on: { files: { "src/001-example/SENSEI.md": "Before" } } });
-  expect(closedQA.mock.calls[2]?.[1]).toMatchObject({ on: {
+  expect(context.send).toHaveBeenCalledTimes(1);
+  expect(followUp).toHaveBeenCalledTimes(1);
+  expect(judge).toHaveBeenCalledTimes(3);
+  expect(judge.mock.calls[0]?.[1]).toMatchObject({ on: { files: { "src/001-example/SENSEI.md": "Before" } } });
+  expect(judge.mock.calls[2]?.[1]).toMatchObject({ on: {
     before: { "src/001-example/SENSEI.md": "Before" },
     after: { "src/001-example/SENSEI.md": "Revised" },
   } });
+  expect(JSON.stringify(judge.mock.calls[2]?.[1])).toContain("Actual turn 1");
+  expect(JSON.stringify(judge.mock.calls[2]?.[1])).toContain("Actual turn 2");
   expect(gate.mock.calls).toEqual([[0.8], [0.8], [0.8]]);
 });

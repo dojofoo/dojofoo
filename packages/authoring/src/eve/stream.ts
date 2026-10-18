@@ -26,7 +26,7 @@ export async function* streamEveAsAgUi({ events, initial, threadId, runId }: {
   try {
     for await (const event of events) {
       if (isTurnFailureEvent(event)) {
-        yield { type: EventType.RUN_ERROR, code: event.data.code, message: event.data.message };
+        yield { type: EventType.RUN_ERROR, code: event.data.code, message: event.data.message, metadata: { tanstack: { threadId, runId } } };
         return;
       }
       const next = reducer.reduce(data, event);
@@ -39,11 +39,11 @@ export async function* streamEveAsAgUi({ events, initial, threadId, runId }: {
     if (!boundary) throw new Error("Eve stream ended before a durable turn boundary.");
     const interrupts = eveQuestionInterrupts(data, runId);
     yield {
-      type: EventType.RUN_FINISHED, threadId, runId, finishReason: "stop",
+      type: EventType.RUN_FINISHED, threadId, runId, metadata: { tanstack: { finishReason: "stop" } },
       outcome: interrupts.length ? { type: "interrupt", interrupts } : { type: "success" },
     };
   } catch (error) {
-    yield { type: EventType.RUN_ERROR, code: "EVE_STREAM_ERROR", message: error instanceof Error ? error.message : String(error) };
+    yield { type: EventType.RUN_ERROR, code: "EVE_STREAM_ERROR", message: error instanceof Error ? error.message : String(error), metadata: { tanstack: { threadId, runId } } };
   }
 }
 

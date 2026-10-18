@@ -5,8 +5,8 @@
 {"delayMs":180,"chunk":{"type":"REASONING_MESSAGE_CONTENT","messageId":"reasoning-1","delta":"Preparing the authored lesson handoff."}}
 {"delayMs":350,"chunk":{"type":"REASONING_MESSAGE_END","messageId":"reasoning-1"}}
 {"delayMs":0,"chunk":{"type":"REASONING_END","messageId":"reasoning-1"}}
-{"delayMs":250,"chunk":{"type":"TOOL_CALL_START","toolCallId":"choice-1","toolCallName":"elicitation","toolName":"elicitation"}}
+{"delayMs":250,"chunk":{"type":"TOOL_CALL_START","toolCallId":"choice-1","toolCallName":"elicitation"}}
 {"delayMs":120,"chunk":{"type":"TOOL_CALL_ARGS","toolCallId":"choice-1","delta":"{\"id\":\"completion\",\"question\":\"What would you like to do next?\","}}
 {"delayMs":160,"chunk":{"type":"TOOL_CALL_ARGS","toolCallId":"choice-1","delta":"\"options\":[{\"id\":\"review\",\"label\":\"Review\"},{\"id\":\"move-on\",\"label\":\"Move on\"},{\"id\":\"pause\",\"label\":\"Pause\"}]}"}}
-{"delayMs":220,"chunk":{"type":"TOOL_CALL_END","toolCallId":"choice-1","toolCallName":"elicitation","toolName":"elicitation","input":{"id":"completion","question":"What would you like to do next?","options":[{"id":"review","label":"Review"},{"id":"move-on","label":"Move on"},{"id":"pause","label":"Pause"}]}}}
-{"delayMs":0,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-choice","finishReason":"tool_calls"}}
+{"delayMs":220,"chunk":{"type":"TOOL_CALL_END","toolCallId":"choice-1","metadata":{"tanstack":{"input":{"id":"completion","question":"What would you like to do next?","options":[{"id":"review","label":"Review"},{"id":"move-on","label":"Move on"},{"id":"pause","label":"Pause"}]}}}}}
+{"delayMs":0,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-choice","metadata":{"tanstack":{"finishReason":"tool_calls"}}}}

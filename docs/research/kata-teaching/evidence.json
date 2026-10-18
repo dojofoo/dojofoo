@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "inspectedAt": "2026-10-17",
+  "checkout": "fe3f07f",
+  "status": "bounded Codex comparison completed; mixed result; human output review pending",
+  "humanReview": {
+    "date": "2026-10-17",
+    "response": "Approve the direction and boundaries",
+    "scope": "Reference conversations A–I: pacing and assistance boundaries, not mandatory wording or labels for unseen outputs"
+  },
+  "authorizedComparison": {
+    "teacherCalls": 12,
+    "judgeCalls": 2,
+    "judgeHarness": "codex",
+    "scope": "Fixed-state shared-prompt comparison, not a cross-model matrix or full-course evaluation"
+  },
+  "comparisonExecution": {
+    "failedLaunch": "/private/var/folders/6s/2ny5mlnd483gf8f67x6xrhfc0000gn/T/dojo-teaching-comparison-ni9Umy",
+    "output": "/private/var/folders/6s/2ny5mlnd483gf8f67x6xrhfc0000gn/T/dojo-teaching-comparison-ssziWq",
+    "plannedSuccessfulTeachingCalls": 10,
+    "plannedJudgeCalls": 2,
+    "omittedCase": "returning",
+    "status": "completed",
+    "baselinePolicySha256": "585ad4e8c258847f19b9281751c83feb54c7b41c1922fb0a150580fb21209f47",
+    "candidatePolicySha256": "220db639b6ed73d511d69fa35d7046f001e38e9d632baf410bb1326ddcee57bc",
+    "successfulTeachingCalls": 10,
+    "completedJudgeCalls": 2,
+    "failedTeachingLaunches": 1,
+    "judgeResults": [
+      {
+        "id": "arrival",
+        "judge1": "candidate",
+        "judge2": "candidate"
+      },
+      {
+        "id": "still-reading",
+        "judge1": "tie",
+        "judge2": "tie"
+      },
+      {
+        "id": "unknown-callback",
+        "judge1": "tie",
+        "judge2": "baseline"
+      },
+      {
+        "id": "missing-return",
+        "judge1": "baseline",
+        "judge2": "baseline"
+      },
+      {
+        "id": "independent",
+        "judge1": "tie",
+        "judge2": "tie"
+      }
+    ],
+    "conclusion": "Mixed result, not accepted as an overall improvement. Blind human preference review pending.",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "authoringAudit": [
+    {
+      "rootSuffix": "0aeNzG",
+      "workflowSha256": "0bfdc6b8c5de244436ae7fa8853f84192766d1e3d0b89be00ad629d77a933f05",
+      "turns": [
+        {
+          "lesson": 1,
+          "bashCalls": 17,
+          "evaluationCalls": 3,
+          "readEvaluationInstructionFile": true,
+          "structuredAuthorQuestions": 0
+        },
+        {
+          "lesson": 2,
+          "bashCalls": 6,
+          "evaluationCalls": 2,
+          "readEvaluationInstructionFile": false,
+          "structuredAuthorQuestions": 0
+        }
+      ]
+    },
+    {
+      "rootSuffix": "zBfs82",
+      "workflowSha256": "f3083e758ba5465d3093395ea90b12d0476406d579535fb18dc052322765b047",
+      "turns": [
+        {
+          "lesson": 1,
+          "bashCalls": 18,
+          "evaluationCalls": 2,
+          "readEvaluationInstructionFile": false,
+          "structuredAuthorQuestions": 0
+        },
+        {
+          "lesson": 2,
+          "bashCalls": 7,
+          "evaluationCalls": 1,
+          "readEvaluationInstructionFile": false,
+          "structuredAuthorQuestions": 0
+        }
+      ]
+    }
+  ],
+  "scope": "Dojofoo kata authoring and teaching artifacts only; no unrelated harness history",
+  "liveExample": {
+    "root": "/private/tmp/dojo-kyoshi-review.jRDE1P",
+    "sessionId": "01a141dc-71ad-7032-a4e8-c8a057f4bce8",
+    "sourceEndpoint": "https://dojo-authoring.td/api/workspaces/9d0be97a-3f29-4208-bb99-c7360c1eacf5/courses/array-transformations-in-typescript/lessons/001-map/messages",
+    "senseiFile": "src/001-map/SENSEI.md",
+    "senseiSha256": "cc63fe6ecd5c72135c8effb9851e757fc6a3ca0eae3734ee71cd04b934821416",
+    "learnerVisibleOpening": "An API might give you a list of names, while your UI needs a value calculated from each name. `map` lets you transform every item into a new array.\n\nStart with a small experiment: imagine doubling each number in `[2, 5, 7]`. What would the resulting array contain?",
+    "humanFeedback": "User rejected the opening as unrelated, rushed, dry, and prematurely helpful.",
+    "humanFeedbackSource": "Current conversation; feedback was not stored in the existing evaluation report."
+  },
+  "instructionRevision": "fe3f07f",
+  "authoringCandidate": {
+    "status": "free checks passed; live authoring and teaching evaluation pending",
+    "change": "Remove mandatory conversation-shaped headings from preflight and provide concept-focused reference notes instead.",
+    "senseiTemplateSha256": "18b27e4c8903acddcbc48c821fcf01c382a0d24495145c7130f286dc8c59903f",
+    "kataSkillSha256": "4d4f774b1ceeaba721adbaa8e7a51f56325390cc15c9b7863c2efa154389a24e",
+    "templateWordsBefore": 182,
+    "templateWordsAfter": 111,
+    "paidCalls": 0
+  },
+  "instructionSources": [
+    {
+      "path": "packages/authoring/src/contracts/KYOSHI.md",
+      "sha256": "d2e20a7d4a89a29d3fcbab3b84b394e0450de299fc7342d07ba4dd3c912bdfea"
+    },
+    {
+      "path": "packages/authoring/skills/kata-lessons/SENSEI.tmpl",
+      "sha256": "ee4db184e05fcd85fb02ac4e9a37a31ffea733331e8ea95d04c8dbabd05d5ffe"
+    },
+    {
+      "path": "packages/ui/src/server/lesson/contracts/DOJOFOO.md",
+      "sha256": "772423e3f8a38a5eabfc1ff50dd500b3c0d10246a93acefd109d888afb5fcb92"
+    },
+    {
+      "path": "packages/authoring/src/evaluation/prompts/CRITERIA.md",
+      "sha256": "a7112f64b7ef81da6f7103b1bd19517bd403293bd376c4f628e7e83f41f4b348"
+    }
+  ],
+  "historicalRoot": "/private/var/folders/6s/2ny5mlnd483gf8f67x6xrhfc0000gn/T/dojofoo-kyoshi-eval-0aeNzG",
+  "historicalRuns": [
+    {
+      "id": "run-7ibxLT",
+      "status": "teaching-failed",
+      "materialHash": "707719f77db30ded08e51a70b09ef2c904f3a5f0853c7d31ccf3bfcf67132ce3",
+      "trialId": "run-sYCjeb",
+      "finding": "Judges disagreed over whether an indexing example combined with a line reference supplied the initializer repair."
+    },
+    {
+      "id": "run-VHQalc",
+      "status": "passed",
+      "materialHash": "91edf212ab061e15c4004317c980ea88b202ab836e7e3f3c26c66f746500b40c",
+      "trialId": "run-FbVLmr",
+      "finding": "Both judges accepted a hook, stub reference, and immediate small comparison as engagement. This does not establish human preference."
+    },
+    {
+      "id": "run-3MD8XJ",
+      "status": "passed",
+      "materialHash": "aac0ae68ae8cab5625fac7b5ad5e291342b875f5b5e60a1ab62ebe2e72f2959e",
+      "trialId": "run-f5BI0n",
+      "finding": "Passing continuation uses completed lesson context, not a persistent evidence-based learner profile."
+    }
+  ],
+  "historicalTeachingPolicyHash": "30802fa0539ebab03fb9752e9a14d4d420db44771074a9b5cdf6ecef83d2d10e",
+  "historicalPaths": {
+    "report": ".dojo/evaluations/{runId}/report.json",
+    "material": ".dojo/evaluations/{runId}/material.json",
+    "teachingEvidence": ".dojo/evaluations/{runId}/teaching-evidence.json",
+    "rawTrial": ".dojo/handoffs/{trialId}/evidence.json",
+    "judgeInputs": "Use each report's material/teaching result.root; prompt.txt is stored there."
+  },
+  "limitations": [
+    "Temporary-directory references may expire; this is not a complete archived dataset.",
+    "Reference conversations are authored examples with human-approved direction, not observed learning outcomes.",
+    "Historical judges are evidence of evaluator behavior, not ground truth for human learning.",
+    "Two fresh Codex calls share a model family and may share biases; single-turn comparisons are not full-course or learning-outcome evidence."
+  ],
+  "broadVerification": {
+    "ui": {
+      "passed": 322,
+      "failed": 5,
+      "skipped": 3,
+      "failures": [
+        "Untouched icon-source test",
+        "Four untouched chat-renderer fixture assertions"
+      ]
+    },
+    "authoring": {
+      "passed": 217,
+      "failed": 2,
+      "skipped": 30,
+      "failures": [
+        "Grok loopback runtime timeout",
+        "FX installed adapter requests unavailable ACP code mode"
+      ]
+    },
+    "newPaidCalls": 0,
+    "scope": "Broad suites retain failures; focused tests do not imply full-suite or teaching acceptance"
+  }
+}

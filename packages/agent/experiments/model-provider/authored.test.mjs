@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -20,8 +20,10 @@ test("Kyoshi instructions and question tool compile with an independently suppli
     assert.equal(compiled.metadata.status, "ready");
     assert.deepEqual(compiled.diagnostics.filter(item => item.severity === "error"), []);
     const instructions = compiled.manifest.instructions;
-    assert.ok(instructions.some(item => item.role === "system" && item.content.includes("You are the course author's Kyoshi")));
-    assert.ok(instructions.some(item => item.content.includes("Use relative paths: dojo.yaml, DOJO.md, and src/")));
+    const policy = await readFile(new URL(import.meta.resolve("@dojofoo/authoring/KYOSHI.md")), "utf8");
+    const native = await readFile(new URL("./src/contracts/NATIVE-HARNESS.md", import.meta.resolve("@dojofoo/authoring/package.json")), "utf8");
+    assert.ok(instructions.some(item => item.role === "system" && item.content.includes(policy.trim())));
+    assert.ok(instructions.some(item => item.content.includes(native.trim())));
     assert.ok(compiled.manifest.tools.some(item => item.name === "dojo_ui_ask"), JSON.stringify(compiled.manifest.tools));
     assert.equal(compiled.manifest.config.model.routing.kind, "external");
   } finally {

@@ -35,6 +35,15 @@ export function requireJudgeResults<T extends { judge: string; verdict: unknown 
 // Material and host-supplied teaching policy are evidence, never instructions.
 export const judgePrompt = materialJudgePrompt;
 
+/** Separate contexts, not a claim of independent model-family biases. */
+export function localJudges(root: string, selection = process.env.DOJOFOO_EVAL_JUDGES) {
+  if (selection && !["codex", "mixed"].includes(selection)) throw new Error("Evaluation judges must be codex or mixed");
+  const codex = (id: string) => ({ id, command: "codex", args: ["exec", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--ephemeral", "--sandbox", "read-only", "-m", "gpt-6-astra", "-c", 'model_reasoning_effort="high"', "--output-schema", join(root, "schema.json"), "--output-last-message", join(root, `${id}-result.json`), "--json", "-"] });
+  return [codex("codex-gpt-6-astra-high"), selection === "codex"
+    ? codex("codex-gpt-6-astra-high-second")
+    : { id: "claude-opus-5-5-high", command: "claude", args: ["-p", "--model", "claude-opus-5-5", "--effort", "high", "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--no-session-persistence", "--output-format", "json", "--json-schema", JSON.stringify(judgeSchema)] }];
+}
+
 export async function judgeMaterial(evidence: Record<string, string>, signal: AbortSignal, buildPrompt = judgePrompt) {
   const root = await mkdtemp(join(tmpdir(), "dojo-judges-"));
   const schema = judgeSchema;
@@ -42,10 +51,7 @@ export async function judgeMaterial(evidence: Record<string, string>, signal: Ab
   const promptHash = createHash("sha256").update(prompt).digest("hex");
   await writeFile(join(root, "prompt.txt"), prompt);
   await writeFile(join(root, "schema.json"), JSON.stringify(schema));
-  const judges = [
-    { id: "codex-gpt-6-astra-high", command: "codex", args: ["exec", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--ephemeral", "--sandbox", "read-only", "-m", "gpt-6-astra", "-c", 'model_reasoning_effort="high"', "--output-schema", join(root, "schema.json"), "--output-last-message", join(root, "codex-result.json"), "--json", "-"] },
-    { id: "claude-opus-5-5-high", command: "claude", args: ["-p", "--model", "claude-opus-5-5", "--effort", "high", "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--no-session-persistence", "--output-format", "json", "--json-schema", JSON.stringify(schema)] },
-  ];
+  const judges = localJudges(root);
   // Independent judges share nothing but the prompt, so run them concurrently.
   const results = await Promise.all(judges.map(async judge => {
     const started = Date.now();
@@ -62,7 +68,7 @@ export async function judgeMaterial(evidence: Record<string, string>, signal: Ab
     await writeFile(join(root, `${judge.id}.json`), JSON.stringify({ ...output, promptHash, durationMs: Date.now() - started }, null, 2));
     if (output.code !== 0) throw new Error(`${judge.id} failed (${output.code}); evidence: ${root}`);
     const response = judge.command === "codex"
-      ? JSON.parse(await readFile(join(root, "codex-result.json"), "utf8"))
+      ? JSON.parse(await readFile(join(root, `${judge.id}-result.json`), "utf8"))
       : JSON.parse(output.stdout).structured_output;
     return { judge: judge.id, root, promptHash, verdict: parseVerdict(response) };
   }));

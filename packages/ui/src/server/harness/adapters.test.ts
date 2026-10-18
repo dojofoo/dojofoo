@@ -11,7 +11,7 @@ describe("ACP harness adapters", () => {
   it("negotiates Codex's existing typed failures without classifying ordinary text or retry warnings", () => {
     const adapter = createCodexHarnessAdapter();
     expect(adapter.clientCapabilities).toEqual({
-      _meta: { jetbrains: { air: { version: 1, capabilities: ["sessionFailure"] } } },
+      _meta: { jetbrains: { air: { version: 1, capabilities: ["sessionFailure"] } }, terminal_output_delta: true },
     });
     for (const response of [
       { stopReason: "end_turn" as const },

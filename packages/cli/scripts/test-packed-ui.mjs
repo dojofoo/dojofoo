@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 
 const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = resolve(cliRoot, "../..");
-const configRoot = resolve(workspaceRoot, "packages/config");
 const expectedPackage = JSON.parse(readFileSync(resolve(cliRoot, "package.json"), "utf8"));
 const scratch = mkdtempSync(resolve(tmpdir(), "dojo-packed-install-"));
 const packs = resolve(scratch, "packs");
@@ -23,7 +22,11 @@ try {
   mkdirSync(projectRoot, { recursive: true });
   writeFileSync(resolve(installRoot, "package.json"), JSON.stringify({ private: true }));
 
-  pack(configRoot, packs);
+  // Install local runtime dependencies as tarballs too. They are not all
+  // published, and registry copies would test a different implementation.
+  for (const packageName of ["config", "agent", "authoring"]) {
+    pack(resolve(workspaceRoot, "packages", packageName), packs);
+  }
   pack(cliRoot, packs);
   const tarballs = readdirSync(packs).map((name) => resolve(packs, name));
   execFileSync("npm", ["install", "--ignore-scripts", "--no-package-lock", ...tarballs], {

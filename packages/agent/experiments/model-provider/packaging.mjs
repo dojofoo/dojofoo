@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,10 +25,12 @@ try {
   assert.ok(!Object.keys(lock.packages).some(path => path.endsWith("node_modules/eve")), "Consumer must not install a separate Eve");
   const installed = JSON.parse(await readFile(join(root, "node_modules/@dojofoo/agent/package.json"), "utf8"));
   assert.equal(installed.scripts.postinstall, undefined);
-  for (const file of ["provider.test.mjs", "recovery-worker.mjs", "filesystem.test.mjs", "exports.test.mjs"]) {
+  for (const file of ["provider.test.mjs", "recovery-worker.mjs", "filesystem.test.mjs", "exports.test.mjs", "local-history.test.mjs"]) {
     await copyFile(join(source, "experiments/model-provider", file), join(root, file));
   }
-  execFileSync(process.execPath, ["--test", "--test-timeout=30000", "provider.test.mjs", "filesystem.test.mjs", "exports.test.mjs"], {
+  await mkdir(join(root, "fixtures"));
+  await copyFile(join(source, "experiments/model-provider/fixtures/legacy-world-v25.json"), join(root, "fixtures/legacy-world-v25.json"));
+  execFileSync(process.execPath, ["--test", "--test-timeout=30000", "provider.test.mjs", "filesystem.test.mjs", "exports.test.mjs", "local-history.test.mjs"], {
     cwd: root, stdio: "inherit", env: { ...process.env, EVE_NATIVE_COMPACTION: "1" },
   });
 } finally {

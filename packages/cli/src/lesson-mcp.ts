@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { formatLessonContext, lessonCapabilities, uiCapabilities, type DojoLessonContext } from "@dojofoo/protocol";
+import { formatLessonContext, lessonCapabilities, uiCapabilities, type DojoLessonContext, type LearnerObservation } from "@dojofoo/protocol";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -45,6 +45,21 @@ if (profile === "lesson") server.registerTool(lessonCapabilities.context.tool, {
   } catch (cause) {
     return { content: [{ type: "text", text: cause instanceof Error ? cause.message : String(cause) }], isError: true };
   }
+});
+
+if (profile === "lesson") server.registerTool(lessonCapabilities.observe.tool, {
+  description: lessonCapabilities.observe.description,
+  inputSchema: {
+    category: z.enum(["uncertainty", "understanding", "misconception", "support", "transfer"]),
+    interpretation: z.string().trim().min(1).max(240),
+    status: z.enum(["active", "resolved"]),
+    source: z.object({ sessionId: z.string(), messageId: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/u) }).strict(),
+    replaces: z.string().optional(),
+  },
+}, async (observation) => {
+  const result = await runCommand(lessonCapabilities.observe.method, { observation });
+  if (!result.observation) throw new Error("The learning note was not saved");
+  return { content: [{ type: "text", text: JSON.stringify(result.observation) }], structuredContent: { observation: result.observation } };
 });
 
 server.registerTool(uiCapabilities.ask.tool, {
@@ -95,6 +110,7 @@ async function runCommand(method: string, params: unknown): Promise<{
   context?: DojoLessonContext;
   error?: string;
   fragmentId?: string;
+  observation?: LearnerObservation;
 }> {
   const coordinator = process.env.DOJOFOO_COORDINATOR_URL;
   const capability = process.env.DOJOFOO_RUN_CAPABILITY;
@@ -109,6 +125,7 @@ async function runCommand(method: string, params: unknown): Promise<{
     context?: DojoLessonContext;
     error?: string;
     fragmentId?: string;
+    observation?: LearnerObservation;
   };
   if (!response.ok) throw new Error(result.error ?? "The lesson run command failed");
   return result;

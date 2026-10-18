@@ -374,6 +374,8 @@ describe("authoring routes", () => {
 
   it("trials authored files without copying Kyoshi runtime or repository state", async () => {
     authorLesson();
+    mkdirSync(resolve(context.root, ".dojo"), { recursive: true });
+    writeFileSync(resolve(context.root, ".dojo/runtimes.json"), JSON.stringify({ authoring: "pi", lesson: "codex" }));
     for (const directory of [".dojo/kyoshi-app", ".dojo/kyoshi-harness", ".git"]) {
       mkdirSync(resolve(context.root, directory), { recursive: true });
       writeFileSync(resolve(context.root, directory, "private-state"), "not lesson content");
@@ -388,6 +390,7 @@ describe("authoring routes", () => {
     expect(response.status).toBe(201);
     const trials = resolve(context.root, ".dojo/trials");
     const trial = resolve(trials, readdirSync(trials)[0]);
+    expect(JSON.parse(readFileSync(resolve(trial, ".dojo/runtimes.json"), "utf8"))).toEqual({ lesson: "codex" });
     const copied = resolve(trial, ".dojos/systems-thinking");
     for (const directory of [".dojo", ".git", "node_modules", ".env", ".npmrc", "src/001-draw-a-boundary/.env.local"]) {
       expect(existsSync(resolve(copied, directory)), directory).toBe(false);

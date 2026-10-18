@@ -487,10 +487,11 @@ const css = /* css */ `
   --ui-ad-ink: #171717;
   --ui-ad-text: #404040;
   --ui-ad-muted: #8f8f8f;
-  --ui-ad-accent: #2f6bff;
+  /* The accent – focus, the active filter, its checked options – is the theme's brand color (blue without one) */
+  --ui-ad-accent: var(--brand, #2f6bff);
   --ui-ad-ok: #1f8a4c;
-  --ui-ad-accent-text: #2f6bff;
-  --ui-ad-accent-ring: #cddbff;
+  --ui-ad-accent-text: var(--brand, #2f6bff);
+  --ui-ad-accent-ring: color-mix(in oklab, var(--brand, #2f6bff) 32%, transparent);
   --ui-ad-card-line: #e5e5e5;
   --ui-ad-shadow: rgba(0, 0, 0, 0.06);
   --ui-ad-field: #ffffff;
@@ -597,7 +598,7 @@ const css = /* css */ `
   color: var(--ui-ad-muted);
   transition: box-shadow 160ms ease;
 }
-.ui-ad__search:focus-within { box-shadow: 0 0 0 1px var(--ui-ad-accent), 0 0 0 4px rgba(47, 107, 255, 0.12); }
+.ui-ad__search:focus-within { box-shadow: 0 0 0 1px var(--ui-ad-accent), 0 0 0 4px color-mix(in oklab, var(--ui-ad-accent) 14%, transparent); }
 .ui-ad__search input {
   flex: 1;
   min-width: 0;
@@ -865,8 +866,8 @@ const css = /* css */ `
   --ui-ad-text: #c4c4c4;
   --ui-ad-muted: #8f8f8f;
   --ui-ad-ok: #4ade80;
-  --ui-ad-accent-text: #6b95ff;
-  --ui-ad-accent-ring: rgba(107, 149, 255, 0.45);
+  --ui-ad-accent-text: var(--brand, #6b95ff);
+  --ui-ad-accent-ring: color-mix(in oklab, var(--brand, #6b95ff) 45%, transparent);
   --ui-ad-card-line: rgba(255, 255, 255, 0.08);
   --ui-ad-shadow: rgba(0, 0, 0, 0.4);
   --ui-ad-field: #2a2a2d;

@@ -3,7 +3,7 @@ import * as Huge from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import * as Iconoir from "iconoir-react";
 import * as Mingcute from "@mingcute/react/core-regular";
-import { AwardFilled, Book2Filled, MoonFilled, SunFilled, CertificateFilled, CommentFilled, GroupFilled, HeartFilled, Chat2AIFilled, CheckFilled, ClaudeFilled, CompassFilled, EyeglassFilled, FolderLockedFilled, GeminiFilled, QuillPenAIFilled, Settings4Filled } from "@mingcute/react/core-filled";
+import { AwardFilled, GithubFilled, MortarboardFilled, Book2Filled, MoonFilled, SunFilled, CertificateFilled, CommentFilled, GroupFilled, HeartFilled, Chat2AIFilled, CheckFilled, ClaudeFilled, CompassFilled, EyeglassFilled, FolderLockedFilled, GeminiFilled, QuillPenAIFilled, Settings4Filled } from "@mingcute/react/core-filled";
 import { ArrowLeftRegular, LockRegular } from "@mingcute/react/core-regular";
 import { solar, type SolarName } from "./solar-icons";
 import { fluent, type FluentName } from "./fluent-icons";
@@ -118,7 +118,9 @@ export const ChatAiIcon: IconGlyph = ({ size, color, className }) => <Chat2AIFil
 
 /** MingCute glyphs that stay MingCute in every icon set – the learner's library, chapters and progress */
 const fixed = (Glyph: typeof LockRegular): IconGlyph => ({ size, color, className }) => <Glyph size={size} color={color} className={className} aria-hidden />;
-/** The learner's menu: Study, Explore and Authoring, then the Collection – Certificates and Materials */
+/** The learner's menu: Courses (once Study and Authoring), Explore, then the Collection – Certificates and Materials */
+/** Courses: the ones you study and the ones you write, on one page */
+export const CoursesIcon = fixed(MortarboardFilled as typeof LockRegular);
 export const StudyIcon = fixed(EyeglassFilled as typeof LockRegular);
 export const ExploreIcon = fixed(CompassFilled as typeof LockRegular);
 export const AuthoringIcon = fixed(QuillPenAIFilled as typeof LockRegular);
@@ -140,6 +142,8 @@ export const LockedIcon = fixed(FolderLockedFilled as typeof LockRegular);
 export const BackIcon = fixed(ArrowLeftRegular);
 export const ClaudeIcon = fixed(ClaudeFilled as typeof LockRegular);
 export const GeminiIcon = fixed(GeminiFilled as typeof LockRegular);
+/** GitHub Copilot, as an agent: the GitHub mark */
+export const GitHubCopilotIcon = fixed(GithubFilled as typeof LockRegular);
 /** The player's settings: MingCute settings-2-line */
 export const Settings02Icon = glyph(Huge.Settings02Icon, Iconoir.Settings, Mingcute.Settings2Regular, "settings", "settings");
 /** The workspace settings toggle, next to evals: MingCute settings-4-line */

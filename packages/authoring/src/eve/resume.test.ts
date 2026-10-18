@@ -56,10 +56,10 @@ describe("read-only Eve observer using the public store", () => {
   it("follows a seeded projection without replaying its earlier message parts", async () => {
     const source = fixture();
     const result = collect(resumeEveEvents(source.atTail, new AbortController().signal, prefix));
-    await vi.waitFor(() => expect(source.requests).toHaveLength(2));
+    await source.opened;
     source.finish();
     expect(await result).toEqual(finish);
-    expect(source.requests).toEqual([{ start: 2, method: "GET" }, { start: 2, method: "GET" }]);
+    expect(source.requests).toEqual([{ start: 2, method: "GET" }]);
   });
 
   it("replays the prefix then follows the active turn from the durable cursor", async () => {

@@ -17,6 +17,7 @@ import { getTypeScriptCompletions, getTypeScriptDiagnostics, getTypeScriptHover 
 import { resolveWorkspaceId } from "../control/workspace";
 import type { AcpStreamPart } from "./codex-client";
 import { streamAcpAsAgUi } from "./agui-stream";
+import { dojofooHarness } from "../harness/registry";
 
 const app = new Hono();
 
@@ -54,6 +55,13 @@ app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/sessions", async (c)
   try {
     const { root, courseId, lessonId } = context(c);
     // Validate the target without requiring the old provider session to resume.
+    const body = await c.req.text();
+    const input = body ? JSON.parse(body) as { harness?: unknown } : {};
+    if (input.harness !== undefined) {
+      if (typeof input.harness !== "string") return c.json({ error: "Select a lesson harness" }, 422);
+      const harness = dojofooHarness({ DOJOFOO_HARNESS: input.harness });
+      return c.json(await startLessonSession(root, lessonId, courseId, harness), 201);
+    }
     return c.json(await startLessonSession(root, lessonId, courseId), 201);
   } catch (cause) {
     return c.json({ error: cause instanceof Error ? cause.message : "Could not start a new lesson session" }, 502);

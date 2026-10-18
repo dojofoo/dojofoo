@@ -33,13 +33,13 @@ Call `dojo_authoring_evaluate` with the lesson ID. To check continuity, list the
 - **Disputed** (`decisions.*.disputed`): one judge failed it. Read both citations, address the learning problem without copying the judge's proposed dialogue, and retest within the allowance. A combined pass does not clear a failed criterion.
 - **Improvement on a passing criterion:** optional polish, not a reason to spend another attempt.
 - **Root cause:** find the file that caused the behavior.
-  - A missing hook, example or revealing input belongs in SENSEI.md.
+  - Missing concept support or a useful boundary belongs in SENSEI.md. A hook or extra exercise is not a requirement.
   - A wrong learner assumption belongs in DOJO.md.
   - A behavior no lesson file can change, such as a platform rule, goes to the author as a finding, not as a contortion of the lesson.
 
 ## 5. Refactor: revise once, well
 
-Treat judge suggestions as diagnoses, not text to copy. Change the smallest thing that fixes the cited problem, keeping the hook, examples and warmth; cut a line for every line you add. Rehearse the changed exchange: could the learner answer by repeating the explanation? Then ask a fresh prediction instead. Re-run the leak diff, then the trial.
+Treat judge suggestions as diagnoses, not text to copy. Change the smallest thing that fixes the cited problem. Keep useful explanations; remove prescribed dialogue. Rehearse whether the learner can proceed without guessing or copying the repair. Re-run the leak diff, then the trial.
 
 ## Stop rules
 

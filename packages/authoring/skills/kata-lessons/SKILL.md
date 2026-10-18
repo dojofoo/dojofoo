@@ -32,10 +32,10 @@ The tests are the learner's feedback loop, so order and name them like a stairca
 
 ## Templates
 
-Fill `DOJO.tmpl` into the course's `DOJO.md` and `SENSEI.tmpl` into each lesson's `SENSEI.md`. Replace every `{placeholder}` with real material; drop optional lines you have nothing for.
+Use `DOJO.tmpl` and `SENSEI.tmpl` as starting notes, not required headings. Replace every `{placeholder}` with real material; omit irrelevant sections.
 
 - **DOJO.md is durable.** It holds the learner's entry baseline, broad course outcomes and shared rules, not live progress or a lesson inventory. New concepts and restrictions belong in each SENSEI.md. `dojo.yaml` holds the order; an installed Sensei runs `dojofoo kata --list` for inventory and progress.
-- **The learner's world** drives every hook. Use what the author said. When they said nothing, propose a plausible world for the stated learner and mark it as an assumption in your hand-over.
+- **Relevance.** Use the author's context when supplied. Otherwise explain the value in the actual task; don't invent a separate story or warm-up exercise.
 - **SENSEI.md is private and lesson-specific.** Tone, turn length, help selection and solution protection come from the shared Sensei policy, so leave them out.
 - **Isolated examples.** Illustrate a missing operation, not the kata's algorithm in another story.
 - **General names.** Name each operation by what it does anywhere ("a running value", "a guard for missing data"), never by the edit it implies here ("start from `numbers[0]`"). Read in order, the headings must not recite the algorithm.

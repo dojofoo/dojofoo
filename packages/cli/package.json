@@ -25,7 +25,7 @@
   },
   "type": "module",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=24"
   },
   "publishConfig": {
     "access": "public"
@@ -48,10 +48,10 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@agentclientprotocol/codex-acp": "^1.4.0",
+    "@agentclientprotocol/codex-acp": "2.2.2",
     "@dojofoo/authoring": "workspace:*",
     "@dojofoo/config": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "giget": "^3.3.1",
     "jiti": "^2.7.0",
     "typescript": "6.0.3",

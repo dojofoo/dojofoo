@@ -5,21 +5,21 @@
 {"delayMs":140,"chunk":{"type":"REASONING_MESSAGE_CONTENT","messageId":"reasoning-chained-tools","delta":"**Inspecting the lesson and its implementation**"}}
 {"delayMs":120,"chunk":{"type":"REASONING_MESSAGE_END","messageId":"reasoning-chained-tools"}}
 {"delayMs":0,"chunk":{"type":"REASONING_END","messageId":"reasoning-chained-tools"}}
-{"delayMs":120,"chunk":{"type":"TOOL_CALL_START","toolCallId":"read-1","toolCallName":"read_file","toolName":"read_file"}}
+{"delayMs":120,"chunk":{"type":"TOOL_CALL_START","toolCallId":"read-1","toolCallName":"read_file"}}
 {"delayMs":100,"chunk":{"type":"TOOL_CALL_ARGS","toolCallId":"read-1","delta":"{\"path\":\"katas/001-normalize-handle/KATA.md\"}"}}
-{"delayMs":500,"chunk":{"type":"TOOL_CALL_END","toolCallId":"read-1","toolCallName":"read_file","toolName":"read_file","input":{"path":"katas/001-normalize-handle/KATA.md"}}}
-{"delayMs":300,"chunk":{"type":"TOOL_CALL_RESULT","messageId":"read-result-1","toolCallId":"read-1","role":"tool","state":"output-available","content":"{\"lines\":18,\"summary\":\"Normalize a display name into a stable handle.\"}"}}
+{"delayMs":500,"chunk":{"type":"TOOL_CALL_END","toolCallId":"read-1","metadata":{"tanstack":{"input":{"path":"katas/001-normalize-handle/KATA.md"}}}}}
+{"delayMs":300,"chunk":{"type":"TOOL_CALL_RESULT","messageId":"read-result-1","toolCallId":"read-1","role":"tool","content":"{\"lines\":18,\"summary\":\"Normalize a display name into a stable handle.\"}","metadata":{"tanstack":{"state":"output-available"}}}}
 {"delayMs":0,"chunk":{"type":"REASONING_START","messageId":"reasoning-search"}}
 {"delayMs":0,"chunk":{"type":"REASONING_MESSAGE_START","messageId":"reasoning-search","role":"reasoning"}}
 {"delayMs":100,"chunk":{"type":"REASONING_MESSAGE_CONTENT","messageId":"reasoning-search","delta":"Locate the implementation before checking it."}}
 {"delayMs":0,"chunk":{"type":"REASONING_MESSAGE_END","messageId":"reasoning-search"}}
 {"delayMs":0,"chunk":{"type":"REASONING_END","messageId":"reasoning-search"}}
-{"delayMs":180,"chunk":{"type":"TOOL_CALL_START","toolCallId":"search-1","toolCallName":"search_files","toolName":"search_files"}}
+{"delayMs":180,"chunk":{"type":"TOOL_CALL_START","toolCallId":"search-1","toolCallName":"search_files"}}
 {"delayMs":100,"chunk":{"type":"TOOL_CALL_ARGS","toolCallId":"search-1","delta":"{\"query\":\"normalizeHandle\",\"path\":\"katas/001-normalize-handle\"}"}}
-{"delayMs":450,"chunk":{"type":"TOOL_CALL_END","toolCallId":"search-1","toolCallName":"search_files","toolName":"search_files","input":{"query":"normalizeHandle","path":"katas/001-normalize-handle"}}}
-{"delayMs":280,"chunk":{"type":"TOOL_CALL_RESULT","messageId":"search-result-1","toolCallId":"search-1","role":"tool","state":"output-available","content":"{\"matches\":[\"src/normalize-handle.ts:1\",\"tests/normalize-handle.test.ts:4\"]}"}}
-{"delayMs":180,"chunk":{"type":"TOOL_CALL_START","toolCallId":"check-1","toolCallName":"run_command","toolName":"run_command"}}
+{"delayMs":450,"chunk":{"type":"TOOL_CALL_END","toolCallId":"search-1","metadata":{"tanstack":{"input":{"query":"normalizeHandle","path":"katas/001-normalize-handle"}}}}}
+{"delayMs":280,"chunk":{"type":"TOOL_CALL_RESULT","messageId":"search-result-1","toolCallId":"search-1","role":"tool","content":"{\"matches\":[\"src/normalize-handle.ts:1\",\"tests/normalize-handle.test.ts:4\"]}","metadata":{"tanstack":{"state":"output-available"}}}}
+{"delayMs":180,"chunk":{"type":"TOOL_CALL_START","toolCallId":"check-1","toolCallName":"run_command"}}
 {"delayMs":100,"chunk":{"type":"TOOL_CALL_ARGS","toolCallId":"check-1","delta":"{\"command\":\"dojofoo kata --check --reporter=json\"}"}}
-{"delayMs":450,"chunk":{"type":"TOOL_CALL_END","toolCallId":"check-1","toolCallName":"run_command","toolName":"run_command","input":{"command":"dojofoo kata --check --reporter=json"}}}
-{"delayMs":650,"chunk":{"type":"TOOL_CALL_RESULT","messageId":"check-result-1","toolCallId":"check-1","role":"tool","state":"output-available","content":"{\"total\":4,\"passed\":3,\"failed\":1,\"complete\":false}"}}
-{"delayMs":250,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-chained-tools","finishReason":"stop"}}
+{"delayMs":450,"chunk":{"type":"TOOL_CALL_END","toolCallId":"check-1","metadata":{"tanstack":{"input":{"command":"dojofoo kata --check --reporter=json"}}}}}
+{"delayMs":650,"chunk":{"type":"TOOL_CALL_RESULT","messageId":"check-result-1","toolCallId":"check-1","role":"tool","content":"{\"total\":4,\"passed\":3,\"failed\":1,\"complete\":false}","metadata":{"tanstack":{"state":"output-available"}}}}
+{"delayMs":250,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-chained-tools","metadata":{"tanstack":{"finishReason":"stop"}}}}

@@ -14,7 +14,7 @@ const harness = {
     let pendingCall = stored?.pendingCall;
     const usage = { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } };
     const finishReason = { unified: "stop", raw: "stop" };
-    const question = { type: "tool-call", toolCallId: "host-question", toolName: "ask_question", input: JSON.stringify({ prompt: "Review or continue?", options: [{ id: "review", label: "Review" }, { id: "next", label: "Continue" }] }) };
+    const question = { type: "tool-call", toolCallId: "host-question", toolName: "ask_question", input: JSON.stringify({ question: "Review or continue?", options: [{ label: "Review", description: "Review the lesson" }, { label: "Continue", description: "Continue learning" }] }) };
     const reply = (turn: any) => {
       for (const event of [
         { type: "text-start", id: "reply" },
@@ -27,7 +27,9 @@ const harness = {
     return {
       sessionId: start.sessionId,
       isResume: Boolean(start.resumeFrom || start.continueFrom),
-      async doCompact() { history.splice(0, history.length, "Native lesson summary."); },
+      async doCompact() {
+        history.splice(0, history.length, "Native lesson summary.");
+      },
       async doPromptTurn(turn: any) {
         const specialist = turn.instructions?.includes("SPECIALIST_INSTRUCTIONS_LOADED");
         if (specialist && turn.instructions.includes("HOST_INSTRUCTIONS_LOADED")) throw new Error("Parent instructions leaked into specialist");
@@ -38,7 +40,7 @@ const harness = {
         history.push(turn.prompt);
         pendingCall = specialist ? { type: "tool-call", toolCallId: "specialist-read", toolName: "read_file", input: JSON.stringify({ filePath: "/workspace/note.md" }) }
           : turn.prompt === "Ask before continuing" ? question
-          : turn.prompt === "Load authoring skill" ? { type: "tool-call", toolCallId: "host-skill", toolName: "load_skill", input: JSON.stringify({ skill: "course-outline" }) }
+          : turn.prompt === "Load authoring skill" ? { type: "tool-call", toolCallId: "host-skill", toolName: "eve__skill", input: JSON.stringify({ name: "course-outline" }) }
           : turn.prompt === "Delegate lesson review" ? { type: "tool-call", toolCallId: "host-delegate", toolName: "agent", input: JSON.stringify({ message: "Review this isolated lesson" }) }
           : turn.prompt === "Delegate specialist review" ? { type: "tool-call", toolCallId: "host-specialist", toolName: "reviewer", input: JSON.stringify({ message: "Review this isolated lesson" }) }
           : turn.prompt === "Read lesson note" ? { type: "tool-call", toolCallId: "host-read", toolName: "read_file", input: JSON.stringify({ filePath: "/workspace/note.md" }) }
@@ -46,7 +48,10 @@ const harness = {
           : turn.prompt === "Write authoring note" ? { type: "tool-call", toolCallId: "host-course-write", toolName: "write_file", input: JSON.stringify({ filePath: "/course/note.md", content: "Edited by Kyoshi.\n" }) }
           : turn.prompt === "Write lesson note" ? { type: "tool-call", toolCallId: "host-write", toolName: "write_file", input: JSON.stringify({ filePath: "/workspace/note.md", content: "Learner progress saved.\n" }) }
           : undefined;
-        if (pendingCall) turn.emit(pendingCall);
+        if (pendingCall) {
+          if (!tools.includes(pendingCall.toolName)) throw new Error(`Fixture requested unavailable tool ${pendingCall.toolName}; available: ${tools.join(", ")}`);
+          turn.emit(pendingCall);
+        }
         else reply(turn);
         return { done: Promise.resolve(), async submitToolResult() {} };
       },

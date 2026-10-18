@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { defaultMessageReducer, type MessageStreamEvent } from "@dojofoo/agent/client";
 import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
 import { eveQuestionInterrupts, streamEveAsAgUi } from "@dojofoo/authoring/eve/stream";
-import { toServerSentEventsResponse } from "@tanstack/ai";
+import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSentEventsResponse } from "@tanstack/ai";
 
 const draft = { root: "/tmp/eve-course", style: "katas", name: "Eve course", description: "Author a course together", language: "TypeScript", manifestSource: "name: Eve course\n", courseGuidance: "# Course", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: Eve course\n" }], lessons: [], issues: [], courseChecks: [] };
 const action = { callId: "call-review", kind: "tool-call" as const, toolName: "dojo_ui_ask", input: {} };
@@ -15,6 +15,14 @@ const opening: MessageStreamEvent[] = [
   { type: "actions.requested", data: { ...data, actions: [action] }, meta },
   { type: "input.requested", data: { ...data, requests: [{ action, requestId: "question-review", kind: "question", prompt: "Choose a starting point", display: "select", options: [{ id: "review", label: "Review the outline" }, { id: "write", label: "Write a lesson" }] }] }, meta }, wait,
 ];
+
+async function latestUserText(body: unknown) {
+  const input = await chatParamsFromRequestBody(body);
+  const latest = convertMessagesToModelMessages(input.messages).at(-1);
+  expect(latest?.role).toBe("user");
+  const content = latest?.content;
+  return typeof content === "string" ? content : content?.flatMap(part => part.type === "text" ? [part.content] : []).join("") ?? "";
+}
 
 test("workspace startup failure can be retried without replacing the conversation", async ({ page }) => {
   let repaired = false;
@@ -48,6 +56,32 @@ test("workspace startup failure can be retried without replacing the conversatio
   await expect(page.getByText("Keep my existing course conversation", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/session=saved/);
   expect(starts).toEqual([]);
+});
+
+test("archived history stays readable until the user explicitly starts a new conversation", async ({ page }) => {
+  const writes: string[] = [];
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === "POST") writes.push(path);
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/sessions/archived")) return route.fulfill({ json: {
+      session: { sessionId: "archived", readOnly: true }, messages: [
+        { id: "old-guidance", role: "assistant", parts: [{ type: "text", content: "Preserved teaching conversation" }] },
+      ],
+    } });
+    if (path.endsWith("/sessions/start")) return route.fulfill({ json: { sessionId: "fresh" } });
+    if (path.endsWith("/sessions/fresh")) return route.fulfill({ json: { session: { sessionId: "fresh" }, messages: [] } });
+    return route.fulfill({ contentType: "text/event-stream", body: "" });
+  });
+  await page.goto("/authoring?session=archived");
+  await expect(page.getByText("Preserved teaching conversation", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeDisabled();
+  expect(writes).toEqual([]);
+  await page.getByRole("button", { name: "Start new conversation", exact: true }).click();
+  await expect(page).toHaveURL(/session=fresh/);
+  expect(writes).toEqual(["/api/authoring/eve/sessions/start"]);
 });
 
 test("a failed save stays with its file and preserves the unsaved content", async ({ page }) => {
@@ -89,8 +123,7 @@ test("messages sent during a turn stay visible in the queue and are delivered on
     if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
     if (path.endsWith("/sessions/saved/messages")) {
       const body = route.request().postDataJSON();
-      const latest = body.messages.at(-1);
-      const message = latest.parts.filter((part: { type: string }) => part.type === "text").map((part: { content: string }) => part.content).join("");
+      const message = await latestUserText(body);
       requests.push(message);
       if (requests.length === 1) await release.promise;
       const turn = { ...data, sequence: requests.length, turnId: `turn-${requests.length}` };
@@ -150,7 +183,7 @@ test("keeps a pending question while queuing messages through its continuation",
         { type: "message.completed", data: { ...data, sequence: 2, turnId: "resume", message: "Let's review.", finishReason: "stop" }, meta }, wait,
       ];
     } else {
-      const message = body.messages.at(-1).parts.filter((part: { type: string }) => part.type === "text").map((part: { content: string }) => part.content).join("");
+      const message = await latestUserText(body);
       delivered.push(message);
       const turn = { ...data, sequence: 2 + delivered.length, turnId: `queued-${delivered.length}` };
       events = [

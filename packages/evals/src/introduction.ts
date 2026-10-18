@@ -1,6 +1,6 @@
 import { HarnessAgent } from "@ai-sdk/harness/agent";
 import { createPi } from "@ai-sdk/harness-pi";
-import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
+import { createJustBashNetworkSandboxSession } from "@ai-sdk/sandbox-just-bash";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { introductionScenario, printResult } from "./introduction-scenario";
@@ -15,7 +15,6 @@ const agent = new HarnessAgent({
     agentDir: process.env.DOJOFOO_EVAL_PI_AGENT_DIR ?? join(homedir(), ".pi", "agent"),
   }),
   instructions: scenario.instructions,
-  sandbox: createJustBashSandbox({ cwd: "/lesson" }),
   skills: [{
     name: "dojofoo",
     description: "Use Dojofoo's lesson-scoped teaching capabilities.",
@@ -32,8 +31,10 @@ const agent = new HarnessAgent({
   },
 });
 
+let sandboxSession: Awaited<ReturnType<typeof createJustBashNetworkSandboxSession>> | undefined;
 try {
-  const session = await agent.createSession();
+  sandboxSession = await createJustBashNetworkSandboxSession({ cwd: "/lesson" });
+  const session = await agent.createSession({ sandboxSession });
   try {
     const result = await agent.generate({
       session,
@@ -54,4 +55,6 @@ try {
     reason: message.replace(/(?:sk|key)-[A-Za-z0-9_-]+/gu, "[credential redacted]"),
   }, null, 2)}\n`);
   process.exitCode = 2;
+} finally {
+  await sandboxSession?.destroy();
 }
