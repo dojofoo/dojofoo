@@ -9,11 +9,12 @@ import { ChatTranscript } from "./chat/assistant-response";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 
 /** Shared presentation for ACP and Eve. Neither backend owns a separate layout. */
-export function AuthoringChat({ messages, status, busy, inputDisabled = false, value, onValueChange, onSend, onAnswer, error, onRetryAnswer, onRetryLoad, queue = [], onCancelQueued, queueLabel = "Kyoshi is responding" }: {
+export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onAnswer, error, onRetryAnswer, onRetryLoad, queue = [], onCancelQueued, queueLabel = "Kyoshi is responding" }: {
   messages: UIMessage[];
   status: string;
   busy: boolean;
   inputDisabled?: boolean;
+  readOnly?: boolean;
   value: string;
   onValueChange(value: string): void;
   onSend(value: string): void;
@@ -30,14 +31,14 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, v
   return <ChatContainer data-testid="authoring-chat-pane">
     <ChatContainerContent viewportRef={viewportRef}>
       <ChatTranscript messages={messages} streaming={busy || status === "submitted" || status === "streaming"}
-        renderMessage={(message, streaming) => <StreamedChatMessage fragments={{}} message={message} onToolAnswer={answers => { scrollToBottom(); return onAnswer(answers); }} streaming={streaming} workspaceId="" />} />
+        renderMessage={(message, streaming) => <StreamedChatMessage fragments={{}} message={message} onToolAnswer={readOnly ? undefined : answers => { scrollToBottom(); return onAnswer(answers); }} streaming={streaming} workspaceId="" />} />
       {!active && error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {!active && onRetryAnswer ? <Button onClick={() => { scrollToBottom(); onRetryAnswer(); }}>Retry answer</Button> : null}
       {!active && error && onRetryLoad ? <Button onClick={onRetryLoad}>Reload conversation</Button> : null}
     </ChatContainerContent>
     <ChatContainerFooter data-testid="authoring-chat-composer">
       {queue.length > 0 ? <MessageQueue className="max-w-none" running={queueLabel} queued={queue} onCancel={onCancelQueued} /> : null}
-      <InputMessage disabled={inputDisabled}
+      <InputMessage disabled={inputDisabled || readOnly}
         history={messages.filter(({ role }) => role === "user").map(entry => entry.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
         onSend={text => { scrollToBottom(); onSend(text); }} onValueChange={onValueChange} placeholder="Shape the course with Kyoshi…" sendLabel="Send"
         status={busy || status === "streaming" || status === "submitted" ? "streaming" : "idle"} value={value} />

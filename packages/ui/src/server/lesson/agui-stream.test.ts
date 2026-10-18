@@ -38,6 +38,12 @@ describe("ACP to AG-UI stream", () => {
     ]);
     expect(events[0]).toMatchObject({ runId: "run-1", threadId: "thread-1" });
     expect(events.at(-1)).toMatchObject({ runId: "run-1", threadId: "thread-1" });
+    expect(events[6]).toEqual({ type: "TOOL_CALL_START", toolCallId: "tool-1", toolCallName: "dojo_lesson_verify" });
+    expect(events[8]).toEqual({ type: "TOOL_CALL_END", toolCallId: "tool-1", metadata: { tanstack: { input: {} } } });
+    expect(events[9]).toMatchObject({ metadata: { tanstack: { state: "output-available" } } });
+    expect(events[9]).not.toHaveProperty("state");
+    expect(events.at(-1)).toMatchObject({ metadata: { tanstack: { finishReason: "stop" } } });
+    expect(events.at(-1)).not.toHaveProperty("finishReason");
   });
 
   it("converts harness failures into RUN_ERROR", async () => {
@@ -49,6 +55,7 @@ describe("ACP to AG-UI stream", () => {
     })) events.push(event);
     expect(events.map(({ type }) => type)).toEqual(["RUN_STARTED", "RUN_ERROR"]);
     expect(events[1]).toMatchObject({ message: "provider unavailable" });
+    expect(events[1]).toMatchObject({ metadata: { tanstack: { threadId: "thread-1", runId: "run-error" } } });
   });
 
   it("streams introduction preparation before learner-facing text", async () => {

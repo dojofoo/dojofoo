@@ -49,6 +49,29 @@ function freshCourse(): string {
 }
 
 describe("fresh lesson state", () => {
+  it("uses an explicitly selected trial harness across lessons without inheriting Pi from authoring", async () => {
+    const root = freshCourse();
+    vi.stubEnv("DOJOFOO_HARNESS", "pi");
+    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("codex-trial");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    await startLessonSession(root, "001-first", "starter", "codex");
+    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "codex" }));
+    start.mockResolvedValueOnce("next-trial");
+    await startLessonSession(root, "002-second", "starter");
+    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "codex" }));
+    expect(process.env.DOJOFOO_HARNESS).toBe("pi");
+  });
+
+  it("does not persist a trial harness when session creation fails", async () => {
+    const root = freshCourse();
+    vi.spyOn(acpClient, "startThread").mockRejectedValue(new Error("Login required"));
+    await expect(startLessonSession(root, "001-first", "starter", "codex")).rejects.toThrow("Login required");
+    const { existsSync } = await import("node:fs");
+    const path = resolve(root, ".dojo/web.json");
+    expect(existsSync(path) ? JSON.parse(readFileSync(path, "utf8")).defaultHarness : undefined).toBeUndefined();
+  });
+
   it("rejects an authoring-only harness before starting a trial, without silently substituting one", async () => {
     const root = freshCourse();
     const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("trial-session");

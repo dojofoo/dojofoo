@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
@@ -25,6 +26,7 @@ import { parseSenseiContent } from "./sensei-content";
 
 type WebState = {
   version: 4;
+  defaultHarness?: HarnessKind;
   threads: Record<string, { sessionId: string; harness: HarnessKind; contractHash: string; aliases: string[]; resumeFailed?: boolean }>;
   results: Record<string, TestReport>;
   checkpoints: Record<string, { at: string; threadId?: string }>;
@@ -583,12 +585,12 @@ export function wantsNextLesson(answers: Record<string, string[]>): boolean {
   );
 }
 
-async function lessonThread(root: string, kataName: string, options: { forceNew?: boolean } = {}) {
+async function lessonThread(root: string, kataName: string, options: { forceNew?: boolean; harness?: HarnessKind } = {}) {
   const rc = readDojoRc(root);
   const key = lessonKey(rc.currentDojo, kataName);
   const state = readWebState(root);
   const existing = state.threads[key];
-  const harness = !options.forceNew && existing ? existing.harness : dojofooHarness();
+  const harness = !options.forceNew && existing ? existing.harness : options.harness ?? state.defaultHarness ?? dojofooHarness({ DOJOFOO_HARNESS: resolveRuntimeHarness("lesson", root) });
   const runtimeKey = lessonRuntimeKey(root, key, harness);
   if (!options.forceNew && existing) {
     const catalog = readCatalog(root, rc.currentDojo);
@@ -666,9 +668,15 @@ export async function startLessonSession(
   root: string,
   kataName: string,
   courseId?: string,
+  harness?: HarnessKind,
 ): Promise<LessonSnapshot> {
   if (courseId) lessonTarget(root, courseId, kataName);
-  await lessonThread(root, kataName, { forceNew: true });
+  await lessonThread(root, kataName, { forceNew: true, harness });
+  if (harness) {
+    const state = readWebState(root);
+    state.defaultHarness = harness;
+    writeWebState(root, state);
+  }
   const lesson = await getLesson(root, kataName);
   if (!lesson) throw new Error(`Lesson not found: ${kataName}`);
   return lesson;
@@ -845,6 +853,7 @@ function readWebState(root: string): WebState {
   const path = webStatePath(root);
   if (!existsSync(path)) return { version: 4, threads: {}, results: {}, checkpoints: {}, observations: {}, learnerEvidence: {}, learnerObservations: {} };
   const stored = JSON.parse(readFileSync(path, "utf8")) as {
+    defaultHarness?: HarnessKind;
     threads?: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; resumeFailed?: boolean }>;
     results?: Record<string, string | TestReport>;
     checkpoints?: Record<string, { at: string; threadId?: string }>;
@@ -860,6 +869,7 @@ function readWebState(root: string): WebState {
   );
   return {
     version: 4,
+    defaultHarness: stored.defaultHarness,
     threads: normalizeLessonThreads(stored.threads),
     results,
     checkpoints: stored.checkpoints ?? {},

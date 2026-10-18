@@ -195,13 +195,11 @@ OpenCode fixture externalizes `@ai-sdk/harness-opencode` and `@dojofoo/agent`;
 bundling the adapter relocates `import.meta.url` without copying its bridge
 assets. Keep native runtime state outside the authored source directory, so
 database and journal writes do not trigger Eve's development watcher.
-This does not override HarnessAgent's suspended-turn settings. Eve 0.53.0 loses
-provider identity for dynamic live models and consequently assigns Gateway Exa
-search to external providers. Our narrow dependency patch retains that identity
-and uses it for web-search routing. Regression coverage includes external,
-OpenAI, Anthropic, Google and Gateway selections; existing static routing stays
-unchanged. No tools are silently discarded and no provider-specific session
-registry is introduced.
+This does not override HarnessAgent's suspended-turn settings. The pinned Eve
+0.80.1 uses its upstream model profiles for web-search routing. Our narrow patch
+still retains dynamic provider identity in model references. Regression coverage
+includes external, OpenAI, Anthropic, Google and Gateway selections. No tools are
+silently discarded and no provider-specific session registry is introduced.
 
 Use the official `prepareCall` callback for dynamic selection; it is accepted
 unchanged by this provider. Tests verify changing model, instructions and skills
@@ -364,8 +362,8 @@ authentication strategy. Missing CLI installation is an explicit error.
 
 ## Native compaction
 
-`patches/eve@0.53.0.patch` adds `experimental_compact` dispatch at Eve's existing
-compaction entry point and a public capability type. Models without the method
+`patches/eve@0.80.1.patch` adds `experimental_compact` dispatch at Eve's
+compaction step and a public capability type. Models without the method
 follow the unchanged Eve path. This is an experimental Eve extension, not an
 AI SDK standard. Our build downloads the pinned registry release and applies the
 patch before packaging it under `dist/eve`. Public exports reference that runtime,
@@ -384,6 +382,10 @@ The provider resumes the checkpoint, calls official `session.compact()`, stops
 the session and returns its refreshed checkpoint plus any unsent trailing messages.
 The native harness owns the summary and durable history; Eve sends no duplicate
 summary prompt. No adapter code or opaque checkpoint data is rewritten.
+
+`experimental_canCompact` keeps a paused native tool turn out of Eve's
+compaction lifecycle. Deferral preserves the same session state and emits no
+false completion event; compaction can run after that turn finishes.
 
 For compaction accounting, the provider reports the last native request's input
 plus output as `providerMetadata.harness.contextTokens`. The packaged Eve loop

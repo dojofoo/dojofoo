@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { HarnessAgent } from "@dojofoo/agent/harness";
-import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
+import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
 import { authoringHarness } from "../eve/harness";
 import { learnerInstructions } from "./prompts";
 
@@ -62,17 +62,19 @@ async function runLearner({ dialogue, source, harness, model, signal }: LearnerR
     id: "dojo-review-learner",
     harness: authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness }),
     model, instructions, activeTools: [],
-    sandbox: createLocalHarnessSandbox(directory),
     stopWhen: ({ steps }) => steps.length >= 1,
   });
   const abortSignal = AbortSignal.any([signal, AbortSignal.timeout(120_000)]);
-  const session = await agent.createSession({ abortSignal });
+  const sandboxSession = await createLocalSandbox(directory);
+  let session: Awaited<ReturnType<typeof agent.createSession>> | undefined;
   try {
+    session = await agent.createSession({ abortSignal, sandboxSession });
     const result = await agent.generate({ session, abortSignal, prompt: JSON.stringify(input) });
     await writeFile(join(directory, "response.txt"), result.text);
     if (!result.text.trim()) throw new Error(`Learner returned no review answer; evidence: ${directory}`);
     return result.text.trim();
   } finally {
-    await session.destroy();
+    try { await session?.destroy(); }
+    finally { await sandboxSession.stop(); }
   }
 }

@@ -486,7 +486,7 @@ export class AcpClient {
     const connection = new acp.ClientSideConnection(() => ({
       requestPermission: (request) => this.requestPermission(request),
       sessionUpdate: (notification) => this.sessionUpdate(notification),
-      unstable_createElicitation: (request) => this.createElicitation(request),
+      createElicitation: (request) => this.createElicitation(request),
     }), stream);
     runtime.connection = connection;
     const initialized = await connection.initialize({

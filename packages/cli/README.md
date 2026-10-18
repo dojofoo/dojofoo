@@ -4,6 +4,9 @@ Installable coding dojos that turn your AI agent into a sensei.
 
 ## Usage
 
+Requires Node.js 24 or newer for the local agent and authoring runtime. Course
+toolchains are configured separately by each course.
+
 ```sh
 npx dojofoo install       # set up your dojo (auto-detects your agent via env vars)
 npx dojofoo add dojofoo/effect-ts # install a training pack (a "dojo")

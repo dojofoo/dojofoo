@@ -1,10 +1,19 @@
 import type { SessionNotification } from "@agentclientprotocol/sdk";
+import { AgentSideConnection, ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
+import * as childProcess from "node:child_process";
+import { EventEmitter } from "node:events";
+import { PassThrough, Readable, Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { codexHarnessAdapter, codexRuntimeEnvironment } from "../harness/codex";
 import { configureOpenCodeSessionModel, opencodeRuntimeEnvironment } from "../harness/opencode";
 import { dojofooHarness } from "../harness/registry";
 import { AcpClient, type AcpStreamPart } from "./codex-client";
 import { runCoordinator } from "../run/coordinator";
+
+vi.mock("node:child_process", async importOriginal => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return { ...actual, spawn: vi.fn(actual.spawn) };
+});
 
 function receive(client: AcpClient, notification: SessionNotification) {
   (client as unknown as { sessionUpdate(value: SessionNotification): void }).sessionUpdate(notification);
@@ -15,6 +24,55 @@ async function visibleHistory(client: AcpClient, sessionId: string) {
 }
 
 describe("AcpClient projection", () => {
+  it("registers form elicitation with the actual ACP SDK connection", async () => {
+    const stdin = new PassThrough();
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    const child = Object.assign(new EventEmitter(), {
+      stdin, stdout, stderr,
+      kill: () => { stdin.end(); stdout.end(); stderr.end(); return true; },
+    });
+    const spawn = vi.mocked(childProcess.spawn).mockReturnValue(child as unknown as childProcess.ChildProcess);
+    const initialized = vi.fn(() => ({ protocolVersion: PROTOCOL_VERSION, agentCapabilities: {} }));
+    const agent = new AgentSideConnection(() => ({
+      initialize: initialized,
+      authenticate: async () => ({}),
+      newSession: async () => ({ sessionId: "session-1" }),
+      prompt: async () => ({ stopReason: "end_turn" as const }),
+      cancel: async () => {},
+    }), ndJsonStream(Writable.toWeb(stdout), Readable.toWeb(stdin) as unknown as ReadableStream<Uint8Array>));
+    const client = new AcpClient();
+    const internals = client as unknown as {
+      initialize(key: string, runtime: unknown): Promise<void>;
+      runtimes: Map<string, unknown>;
+      callbacks: Map<string, (part: AcpStreamPart) => void>;
+    };
+    const runtime = { adapter: codexHarnessAdapter, root: "/tmp/offline-acp", harness: "codex", developerInstructions: "", loadedSessions: new Set(), loadingSessions: new Map() };
+    internals.runtimes.set("offline", runtime);
+    const shown = Promise.withResolvers<void>();
+    internals.callbacks.set("session-1", part => {
+      if (part.type === "tool-input-available") shown.resolve();
+    });
+    try {
+      await internals.initialize("offline", runtime);
+      expect(initialized).toHaveBeenCalledWith(expect.objectContaining({
+        clientCapabilities: expect.objectContaining({
+          elicitation: { form: {} },
+          _meta: expect.objectContaining({ terminal_output_delta: true }),
+        }),
+      }));
+      const answer = agent.createElicitation({
+        sessionId: "session-1", mode: "form", message: "Review?",
+        requestedSchema: { type: "object", properties: { reply: { type: "string" } }, required: ["reply"] },
+      });
+      await shown.promise;
+      client.answerUserInput("session-1", { reply: ["Yes"] });
+      await expect(answer).resolves.toEqual({ action: "accept", content: { reply: "Yes" } });
+    } finally {
+      client.shutdown();
+      spawn.mockRestore();
+    }
+  });
   it("binds learning observations to the active runtime and removes access on shutdown", async () => {
     const client = new AcpClient();
     const internal = client as unknown as {
@@ -716,7 +774,7 @@ describe("AcpClient projection", () => {
     expect(await visibleHistory(client, "session-1")).toEqual([]);
   });
 
-  it("projects an agent-run JSON kata check as the lesson-check tool", async () => {
+  it.each(["rawOutput", "terminal_output_delta"])("projects an agent-run JSON kata check from %s as the lesson-check tool", async outputChannel => {
     const client = new AcpClient();
     const parts: AcpStreamPart[] = [];
     (client as unknown as { callbacks: Map<string, (part: AcpStreamPart) => void> })
@@ -734,13 +792,27 @@ describe("AcpClient projection", () => {
         content: [],
       },
     });
+    if (outputChannel === "terminal_output_delta") {
+      for (const data of ['{"passed":2,"failed":', '2,"total":4,"tests":[]}']) {
+        receive(client, {
+          sessionId: "session-1",
+          update: {
+            sessionUpdate: "tool_call_update",
+            toolCallId: "check-1",
+            _meta: { terminal_output_delta: { data, terminal_id: "check-1" } },
+          },
+        });
+      }
+    }
     receive(client, {
       sessionId: "session-1",
       update: {
         sessionUpdate: "tool_call_update",
         toolCallId: "check-1",
         status: "completed",
-        rawOutput: { formatted_output: '{"passed":2,"failed":2,"total":4,"tests":[]}', exit_code: 1 },
+        rawOutput: outputChannel === "rawOutput"
+          ? { formatted_output: '{"passed":2,"failed":2,"total":4,"tests":[]}', exit_code: 1 }
+          : { exit_code: 1 },
       },
     });
 

@@ -1,11 +1,14 @@
 import { realpathSync } from "node:fs";
 import { Client } from "@dojofoo/agent/client";
 import { createEveAuthoringRoutes } from "@dojofoo/authoring/eve/server";
+import { readLegacyLocalHistory } from "@dojofoo/agent/local-history";
+import { join } from "node:path";
 import type { Hono, MiddlewareHandler } from "hono";
 
 /** An explicitly configured Eve host belongs to one course workspace. */
 export function mountEveAuthoring(app: Hono, options: {
   host?: string;
+  historyRoot?: string;
   runtime?: () => Promise<{ start(): Promise<{ url: string }>; close(): Promise<void> }>;
   root(): string;
   resolveWorkspace(request: Request): string;
@@ -47,7 +50,11 @@ export function mountEveAuthoring(app: Hono, options: {
   app.use("/backend", scope);
   app.use("/eve/*", scope);
   app.get("/backend", c => c.json({ backend: "eve" }));
-  app.route("/eve", createEveAuthoringRoutes(getClient));
+  app.route("/eve", createEveAuthoringRoutes(getClient, {
+    legacyHistory: sessionId => readLegacyLocalHistory(
+      options.historyRoot ?? join(root, ".dojo/kyoshi-app"), sessionId,
+    ),
+  }));
   return () => closing ??= (async () => {
     closed = true;
     await client?.catch(() => {});

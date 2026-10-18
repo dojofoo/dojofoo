@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@dojofoo/agent/client";
+import { askQuestion } from "@dojofoo/agent/tools/ask_question";
 import { expect, it, vi } from "vitest";
 // Shared deterministic HTTP fixture; it performs no external inference.
 // @ts-expect-error Existing JavaScript test fixture has no declaration file.
@@ -10,22 +11,26 @@ import { startLoopbackModel } from "../../../agent/experiments/model-provider/lo
 import { createKyoshiRuntime } from "./runtime";
 import instructions from "./instructions";
 
+const question = { question: "Which learner?", options: [
+  { label: "Beginner", description: "New to the topic" },
+  { label: "Experienced", description: "Already knows the basics" },
+] };
+
+it("uses the shipped question schema before starting a harness", async () => {
+  const schema = askQuestion().inputSchema["~standard"];
+  if (!schema || typeof schema !== "object" || !("validate" in schema) || typeof schema.validate !== "function") {
+    throw new Error("The question tool must expose a Standard Schema validator.");
+  }
+  expect((await schema.validate(question)).issues).toBeUndefined();
+  expect((await schema.validate({ prompt: question.question, options: [{ id: "beginner", label: "Beginner" }] })).issues).toBeDefined();
+});
+
 it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes through official authoring runtime with %s model selection", async (selection) => {
   const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-turn-"));
   const home = join(root, "home");
   await mkdir(home);
   if (selection === "codex") await mkdir(join(home, ".codex"));
   const endpoint = await startLoopbackModel({ responses: selection !== "grok", latencyMs: selection === "grok" ? 250 : 0,
-    selectResponsesTool: selection === "codex" ? (request: { input?: unknown }, requested: string[]) => {
-      if (requested.includes("exec_command")) return undefined;
-      // The official Codex adapter supplies host tools through this CLI relay.
-      // Follow its actual prompt instruction rather than invent an MCP server.
-      const content = JSON.stringify(request.input);
-      const command = content.match(/node ([^\s]+\/harness-tool\.mjs) <toolName>/);
-      if (!command) throw new Error("Official Codex host-tool instruction missing");
-      const input = JSON.stringify({ prompt: "Which learner?", options: [{ id: "beginner", label: "Beginner" }] });
-      return { name: "exec_command", input: { cmd: `node ${command[1]} dojo_ui_ask '${input}'`, yield_time_ms: 1000 } };
-    } : undefined,
     selectChatTool: selection === "grok" ? (request: { messages?: Array<{ role: string; content?: string }> }, requested: string[]) => {
       if (requested.length === 0) return { name: "search_tool", input: { query: "dojo_ui_ask" } };
       if (requested.includes("use_tool")) return undefined;
@@ -37,13 +42,11 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
         return content.includes('"partial"') && requested.length < 8
           ? { name: "search_tool", input: { query: "dojo_ui_ask" } } : undefined;
       }
-      return { name: "use_tool", input: { tool_name: qualified[0], tool_input: {
-        prompt: "Which learner?", options: [{ id: "beginner", label: "Beginner" }],
-      } } };
+      return { name: "use_tool", input: { tool_name: qualified[0], tool_input: question } };
     } : undefined, toolRequest: {
     name: "dojo_ui_ask",
     ...(selection === "fx" ? { discovery: { name: "capability_search", input: { query: "dojo_ui_ask" } } } : {}),
-    input: { prompt: "Which learner?", options: [{ id: "beginner", label: "Beginner" }] },
+    input: question,
   } });
   if (selection === "native") {
     const config = join(home, "config", "opencode");
@@ -107,18 +110,18 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
     const restarted = await runtime.start();
     const session = new Client({ host: restarted.url }).sessions.attach(state.sessionId, { streamIndex: state.streamIndex });
     const result = await (await session.respond([{
-      requestId: parked.inputRequests[0].requestId, optionId: "beginner",
+      requestId: parked.inputRequests[0].requestId, optionId: "Beginner",
     }], { signal: AbortSignal.timeout(60_000) })).result();
     expect(result.message, JSON.stringify(result)).toBe("Ready to teach.");
     if (selection === "grok") expect(endpoint.requestedTools.filter((name: string) => name === "use_tool")).toHaveLength(1);
     else if (selection === "fx") expect(endpoint.requestedTools.filter((name: string) => name.endsWith("dojo_ui_ask"))).toHaveLength(1);
-    else if (selection === "codex") expect(endpoint.requestedTools).toEqual(["exec_command"]);
+    else if (selection === "codex") expect(endpoint.requestedTools).toEqual(["dojo_ui_ask"]);
     else expect(endpoint.requestedTools).toHaveLength(1);
     expect(JSON.stringify(endpoint.requests)).toContain(
       JSON.stringify(instructions.content).slice(1, -1),
     );
     expect(JSON.stringify(endpoint.requests)).toContain("Help me author a course.");
-    expect(JSON.stringify(endpoint.requests)).toContain("beginner");
+    expect(JSON.stringify(endpoint.requests)).toContain("Beginner");
     if (selection === "runtime") {
       // Exercise the authored dynamic model resolver, not a scripted adapter.
       // Selection changes apply at the next normal native turn boundary.
@@ -132,7 +135,7 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
       const switched = endpoint.requests.find((request: { model?: string }) => request.model === "gpt-4.1");
       expect(switched, "The native harness must actually request the newly selected model").toBeDefined();
       expect(JSON.stringify(switched)).toContain("Help me author a course.");
-      expect(JSON.stringify(switched)).toContain("beginner");
+      expect(JSON.stringify(switched)).toContain("Beginner");
       expect(JSON.stringify(switched)).toContain("Continue with the selected model.");
       expect(session.state.sessionId).toBe(state.sessionId);
     }

@@ -16,8 +16,8 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
   const root = join(container, "app");
   const runtimeRoot = join(container, "runtime");
   const endpoint = await startLoopbackModel({ toolRequest: {
-    name: "ask_question", input: { prompt: "Review or continue?", options: [
-      { id: "review", label: "Review" }, { id: "next", label: "Continue" },
+    name: "ask_question", input: { question: "Review or continue?", options: [
+      { label: "Review", description: "Review the lesson" }, { label: "Continue", description: "Continue learning" },
     ] },
   } });
   let server;
@@ -71,7 +71,7 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
         },
       } }) });
     `);
-    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject" });
+    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
     const { url } = await server.start();
     const created = await new Client({ host: url }).sessions.create({
       message: "Introduce the lesson.", signal: AbortSignal.timeout(60_000),
@@ -81,11 +81,11 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
     assert.equal(parked.inputRequests[0].prompt, "Review or continue?");
     const saved = JSON.parse(JSON.stringify(created.session.state));
     await server.close();
-    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject" });
+    server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
     const restarted = await server.start();
     const restored = new Client({ host: restarted.url }).sessions.attach(saved.sessionId, { streamIndex: saved.streamIndex });
     const answered = await (await restored.respond([{
-      requestId: parked.inputRequests[0].requestId, optionId: "review",
+      requestId: parked.inputRequests[0].requestId, optionId: "Review",
     }], { signal: AbortSignal.timeout(60_000) })).result();
     assert.equal(answered.message, "Ready to teach.", JSON.stringify(answered));
     assert.equal(endpoint.requestedTools.length, 1, "Restart must not request the question again");
@@ -95,13 +95,13 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
     const withAnswer = endpoint.requests.find(request => request.input?.some(item => item.type === "function_call_output"));
     const receipts = withAnswer?.input.filter(item => item.type === "function_call_output");
     assert.equal(receipts?.length, 1);
-    assert.match(receipts[0].output, /review/);
+    assert.match(receipts[0].output, /Review/);
     assert.match(JSON.stringify(withAnswer.input), /Introduce the lesson/);
     assert.match(JSON.stringify(withAnswer.input), /NATIVE_HOST_INSTRUCTIONS/);
     const next = await (await restored.send("Continue teaching.", { signal: AbortSignal.timeout(60_000) })).result();
     assert.equal(next.message, "Ready to teach.");
     const continued = endpoint.requests.find(request => JSON.stringify(request.input).includes("Continue teaching."));
-    assert.match(JSON.stringify(continued?.input), /review/);
+    assert.match(JSON.stringify(continued?.input), /Review/);
     await processHost.close();
     const remaining = execFileSync("ps", ["-axo", "command"], { encoding: "utf8" })
       .split("\n").filter(command => command.includes(runtimeRoot));

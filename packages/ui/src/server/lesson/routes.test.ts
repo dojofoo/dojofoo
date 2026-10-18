@@ -6,6 +6,24 @@ import { lessonRoutes } from "./routes";
 vi.mock("../control/workspace", () => ({ resolveWorkspaceId: () => "/course" }));
 afterEach(() => vi.restoreAllMocks());
 
+it("starts a trial with its explicit harness instead of the authoring process default", async () => {
+  const start = vi.spyOn(service, "startLessonSession").mockResolvedValue({ sessionId: "trial" } as service.LessonSnapshot);
+  const response = await new Hono().route("/", lessonRoutes).request("/workspace/courses/course/lessons/first/sessions", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ harness: "codex" }),
+  });
+  expect(response.status).toBe(201);
+  expect(start).toHaveBeenCalledWith("/course", "first", "course", "codex");
+});
+
+it("rejects an unsupported trial harness before starting a session", async () => {
+  const start = vi.spyOn(service, "startLessonSession");
+  const response = await new Hono().route("/", lessonRoutes).request("/workspace/courses/course/lessons/first/sessions", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ harness: "unknown" }),
+  });
+  expect(response.status).not.toBe(201);
+  expect(start).not.toHaveBeenCalled();
+});
+
 it("lets an explicit new session recover without resuming the broken old conversation", async () => {
   const read = vi.spyOn(service, "getLesson").mockRejectedValue(new Error("Provider unavailable"));
   const start = vi.spyOn(service, "startLessonSession").mockResolvedValue({ sessionId: "new-session" } as service.LessonSnapshot);

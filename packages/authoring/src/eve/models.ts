@@ -85,7 +85,7 @@ export async function codexModels(signal: AbortSignal, executable = "codex", arg
 
 export async function piModels(signal: AbortSignal, agentDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent")): Promise<HarnessModelChoice[]> {
   const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");
-  const { getSupportedThinkingLevels } = await import("@earendil-works/pi-ai/compat");
+  const { getSupportedThinkingLevels } = await import("@earendil-works/pi-ai/models");
   const runtime = await ModelRuntime.create({
     authPath: join(agentDir, "auth.json"), modelsPath: join(agentDir, "models.json"),
     allowModelNetwork: false, signal,

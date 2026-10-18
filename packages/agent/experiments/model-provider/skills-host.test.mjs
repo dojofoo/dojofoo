@@ -16,7 +16,7 @@ test("Eve loads an authored skill through the harness provider and retains its s
       dependencies: { "@dojofoo/agent": "*", "@ai-sdk/sandbox-just-bash": "*" },
     }));
     await mkdir(join(root, "node_modules/@dojofoo"), { recursive: true });
-    await symlink(fileURLToPath(new URL("../../", import.meta.url)), join(root, "node_modules/@dojofoo/agent"), "dir");
+    await symlink(fileURLToPath(new URL("./", import.meta.resolve("@dojofoo/agent/package.json"))), join(root, "node_modules/@dojofoo/agent"), "dir");
     await copyFile(new URL("host-agent.fixture.ts", import.meta.url), join(root, "agent.ts"));
     await writeFile(join(root, "instructions.md"), "HOST_INSTRUCTIONS_LOADED: Use the course-outline skill when requested.\n");
     await mkdir(join(root, "tools"));
@@ -31,14 +31,14 @@ test("Eve loads an authored skill through the harness provider and retains its s
     const result = await created.response.result();
     assert.equal(result.status, "waiting", JSON.stringify(result));
     const reply = JSON.parse(result.message);
-    const loaded = reply.history.filter(item => typeof item === "object" && item.tool === "load_skill");
+    const loaded = reply.history.filter(item => typeof item === "object" && item.tool === "eve__skill");
     assert.equal(loaded.length, 1, JSON.stringify(result));
     assert.match(loaded[0].output, /OUTLINE_SKILL_EVIDENCE/);
     assert.ok(result.events.some(event => event.type === "action.result"), "Skill load must remain visible as a tool result");
     const continued = await (await created.session.send("Continue", { signal: AbortSignal.timeout(30_000) })).result();
     const next = JSON.parse(continued.message);
     assert.equal(next.sessionId, reply.sessionId);
-    assert.equal(next.history.filter(item => typeof item === "object" && item.tool === "load_skill").length, 1);
+    assert.equal(next.history.filter(item => typeof item === "object" && item.tool === "eve__skill").length, 1);
   } finally {
     await server?.close();
     await rm(root, { recursive: true, force: true });

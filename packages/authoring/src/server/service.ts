@@ -191,6 +191,8 @@ export function createLessonTrial(root: string, lessonId: string): {
   if (!courseId) throw new Error("Course name must contain letters or numbers");
   const trialRoot = resolve(root, ".dojo", "trials", `${lessonId}-${randomUUID()}`);
   const courseRoot = resolve(trialRoot, ".dojos", courseId);
+  mkdirSync(resolve(trialRoot, ".dojo"), { recursive: true });
+  writeFileSync(resolve(trialRoot, ".dojo/runtimes.json"), JSON.stringify({ lesson: resolveRuntimeHarness("lesson", root) }));
   mkdirSync(dirname(courseRoot), { recursive: true });
   mkdirSync(courseRoot, { recursive: true });
   for (const entry of readdirSync(root, { withFileTypes: true })) {
@@ -472,3 +474,4 @@ function humanTitle(id: string): string {
 function substantiveMarkdown(markdown: string): boolean {
   return markdown.replace(/^#.*$/gmu, "").trim().length > 0;
 }
+import { resolveRuntimeHarness } from "@dojofoo/config/runtime";

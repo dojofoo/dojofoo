@@ -17,6 +17,7 @@ import { convertDataContentToBase64String, jsonSchema, Output, tool, type ModelM
 
 /** Opt-in Eve extension; no dependency on Eve's execution internals. */
 export interface HarnessModel extends LanguageModelV4 {
+  experimental_canCompact(input: { messages: ModelMessage[] }): boolean;
   experimental_compact(input: { messages: ModelMessage[]; abortSignal?: AbortSignal }): Promise<ModelMessage[]>;
 }
 
@@ -44,6 +45,9 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
     provider: "harness",
     modelId: runtime.model ?? runtime.harness.harnessId,
     supportedUrls: {},
+    experimental_canCompact({ messages }) {
+      return !readCheckpoint(messages)?.resumeFrom.continueFrom;
+    },
     async experimental_compact({ messages, abortSignal }) {
       abortSignal?.throwIfAborted();
       const checkpoint = readCheckpoint(messages);

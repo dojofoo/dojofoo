@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { copyFile, cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +10,7 @@ const root = await realpath(await mkdtemp(join(tmpdir(), "dojo-unpatched-provide
 const cliOnly = process.argv.includes("--cli-only");
 const hostOnly = process.argv.includes("--host-only");
 const versions = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8"));
+const authoringVersions = JSON.parse(await readFile(new URL("../../../authoring/package.json", import.meta.url), "utf8"));
 const run = (command, args) => new Promise((resolve, reject) => {
   const child = spawn(command, args, {
     cwd: root, stdio: "inherit", env: { ...process.env, NODE_OPTIONS: "" },
@@ -21,16 +22,28 @@ try {
   const dependencies = Object.fromEntries(["ai", "@ai-sdk/harness"].map(name => [name, versions.dependencies[name]]));
   dependencies["@ai-sdk/sandbox-just-bash"] = versions.devDependencies["@ai-sdk/sandbox-just-bash"];
   dependencies["@ai-sdk/harness-pi"] = versions.devDependencies["@ai-sdk/harness-pi"];
+  for (const name of ["ui", "evals"]) {
+    const consumer = JSON.parse(await readFile(new URL(`../../../${name}/package.json`, import.meta.url), "utf8"));
+    for (const dependency of ["ai", "@ai-sdk/harness"]) {
+      assert.equal(consumer.dependencies[dependency], dependencies[dependency], `${name} must test the production ${dependency}`);
+    }
+  }
   dependencies.pnpm = "10.34.5";
-  dependencies["@tanstack/ai"] = "0.47.1";
-  dependencies["@tanstack/ai-client"] = "0.25.1";
+  dependencies["@tanstack/ai"] = authoringVersions.dependencies["@tanstack/ai"];
+  dependencies["@tanstack/ai-client"] = authoringVersions.devDependencies["@tanstack/ai-client"];
   dependencies.hono = "4.13.1";
   dependencies.tsx = "4.21.0";
-  // Compile-only compatibility matrix; these adapters are never started.
+  // Use production adapter pins for the clean consumer too, rather than a
+  // second, independently maintained version matrix.
+  for (const [name, version] of Object.entries(authoringVersions.dependencies)) {
+    if (!name.startsWith("@ai-sdk/harness-")) continue;
+    if (dependencies[name]) assert.equal(dependencies[name], version, `${name} must match authoring`);
+    dependencies[name] = version;
+  }
+  // Additional compile-only adapters; these are never started or authenticated.
   for (const [adapter, version] of Object.entries({
-    "claude-code": "1.0.112", cline: "1.0.35", codex: "1.0.110",
-    cursor: "1.0.21", deepagents: "1.0.108", fx: "1.0.21",
-    "github-copilot": "1.0.3", "grok-build": "1.0.45", opencode: "1.0.110",
+    "claude-code": "1.0.157", cline: "1.0.80", deepagents: "1.0.153",
+    "github-copilot": "1.0.49",
   })) {
     dependencies[`@ai-sdk/harness-${adapter}`] = version;
   }
@@ -38,9 +51,16 @@ try {
     cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8",
   }));
   assert.ok(packed.files.every(({ path }) => path.startsWith("dist/") || path.startsWith("patches/") || ["package.json", "README.md"].includes(path)));
-  assert.ok(packed.files.some(({ path }) => path === "patches/eve@0.53.0.patch"));
+  assert.ok(packed.files.some(({ path }) => path === `patches/eve@${versions.devDependencies.eve}.patch`));
+  const localPackages = { "@dojofoo/agent": `file:./${packed.filename}` };
+  for (const name of ["authoring", "config"]) {
+    const artifact = JSON.parse(execFileSync("pnpm", ["pack", "--json", "--pack-destination", root], {
+      cwd: fileURLToPath(new URL(`../../../${name}/`, import.meta.url)), encoding: "utf8",
+    }));
+    localPackages[artifact.name] = `file:${artifact.filename}`;
+  }
   await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module", dependencies: {
-    ...dependencies, "@dojofoo/agent": `file:./${packed.filename}`,
+    ...dependencies, ...localPackages,
   } }));
   await copyFile(new URL("provider.test.mjs", import.meta.url), join(root, "provider.test.mjs"));
   await copyFile(new URL("recovery-worker.mjs", import.meta.url), join(root, "recovery-worker.mjs"));
@@ -59,16 +79,7 @@ try {
   await copyFile(new URL("native-host.test.mjs", import.meta.url), join(root, "native-host.test.mjs"));
   await copyFile(new URL("cli-host.test.mjs", import.meta.url), join(root, "cli-host.test.mjs"));
   await copyFile(new URL("host-agent.fixture.ts", import.meta.url), join(root, "host-agent.fixture.ts"));
-  await copyFile(new URL("../../../authoring/src/sandbox.ts", import.meta.url), join(root, "authoring-sandbox.ts"));
-  await mkdir(join(root, "authoring/src/eve"), { recursive: true });
-  await mkdir(join(root, "authoring/src/contracts"));
-  await copyFile(new URL("../../../authoring/package.json", import.meta.url), join(root, "authoring/package.json"));
-  for (const path of ["prompts.ts", "eve/instructions.ts", "eve/ask.ts", "eve/routes.ts", "eve/resume.ts", "eve/messages.ts", "eve/stream.ts", "contracts/KYOSHI.md", "contracts/NATIVE-HARNESS.md"]) {
-    await copyFile(new URL(`../../../authoring/src/${path}`, import.meta.url), join(root, "authoring/src", path));
-  }
-  await cp(new URL("../../../authoring/skills", import.meta.url), join(root, "authoring/skills"), { recursive: true });
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--registry=https://registry.npmjs.org"]);
-  await symlink(join(root, "authoring"), join(root, "node_modules/@dojofoo/authoring"), "dir");
   const lock = JSON.parse(await readFile(join(root, "package-lock.json"), "utf8"));
   for (const [name, version] of Object.entries(dependencies)) {
     const entry = lock.packages[`node_modules/${name}`];

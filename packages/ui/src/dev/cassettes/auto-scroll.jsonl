@@ -11,4 +11,4 @@
 {"delayMs":220,"chunk":{"type":"TEXT_MESSAGE_CONTENT","messageId":"assistant-final","delta":"then use Check. We’ll use the resulting behavior—"}}
 {"delayMs":220,"chunk":{"type":"TEXT_MESSAGE_CONTENT","messageId":"assistant-final","delta":"not syntax recall—to decide what to explore next."}}
 {"delayMs":100,"chunk":{"type":"TEXT_MESSAGE_END","messageId":"assistant-final"}}
-{"delayMs":0,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-scroll","finishReason":"stop"}}
+{"delayMs":0,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-scroll","metadata":{"tanstack":{"finishReason":"stop"}}}}

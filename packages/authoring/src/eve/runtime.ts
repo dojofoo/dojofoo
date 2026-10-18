@@ -5,6 +5,7 @@ import { authoringHarness, type AuthoringHarness } from "./harness.ts";
 import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness } from "./prepare.ts";
 import { authoringEnvironment } from "./environment.ts";
 import { evaluationConfiguration } from "../evaluation/host.ts";
+import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
 
 // Native Node module lifetime, not Vite's reloadable route-module lifetime.
 // These are owned process resources. Eve remains the only session/history owner.
@@ -33,7 +34,7 @@ export async function acquireKyoshiRuntime(courseRoot: string) {
 
 /** Owns infrastructure, never the course files or the harness credentials. */
 export async function createKyoshiRuntime(courseRoot: string, options: { model?: string } = {}) {
-  const harnessId = authoringHarness().harnessId;
+  const harnessId = authoringHarness({ ...process.env, DOJOFOO_HARNESS: resolveRuntimeHarness("authoring", courseRoot) }).harnessId;
   const harness = (harnessId === "grok-build" ? "grok" : harnessId) as AuthoringHarness;
   const app = await prepareKyoshiApp(courseRoot);
   const harnessRoot = await prepareKyoshiHarness(courseRoot);
@@ -52,7 +53,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   const load = createRequire(join(app, "package.json"));
   const { createDevelopmentServer } = await import(load.resolve("@dojofoo/agent/server")) as typeof import("@dojofoo/agent/server");
   const { createLocalSandbox, registerLocalProcessHost, prepareHarnessEnvironment } = await import(load.resolve("@dojofoo/agent/experimental/local")) as typeof import("@dojofoo/agent/experimental/local");
-  const server = createDevelopmentServer(app, { host: "127.0.0.1", port: 0, existing: "reject" });
+  const server = createDevelopmentServer(app, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
   let host: ReturnType<typeof registerLocalProcessHost> | undefined;
   let starting: Promise<{ url: string }> | undefined;
   let closing: Promise<void> | undefined;

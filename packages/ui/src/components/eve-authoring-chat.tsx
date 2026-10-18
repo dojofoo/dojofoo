@@ -4,8 +4,9 @@ import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AuthoringChat } from "./authoring-chat";
 import { httpError } from "@/lib/http-error";
+import { Button } from "@dojofoo/ui/button";
 
-type Snapshot = { session?: { sessionId: string }; messages: UIMessage[]; initialResumeSnapshot?: ChatClientOptions["initialResumeSnapshot"] };
+type Snapshot = { session?: { sessionId: string; readOnly?: boolean }; messages: UIMessage[]; initialResumeSnapshot?: ChatClientOptions["initialResumeSnapshot"] };
 
 export function EveAuthoringChat({ sessionId, api, onSession }: {
   sessionId?: string;
@@ -52,6 +53,17 @@ export function EveAuthoringChat({ sessionId, api, onSession }: {
   }, [sessionId, api, loadAttempt]);
   if (!snapshot) return <AuthoringChat messages={[]} status="ready" busy={!error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}} error={error}
     onRetryLoad={sessionId ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
+  if (snapshot.session?.readOnly) return <div className="flex h-full min-h-0 flex-col">
+    <div role="status" className="flex items-center justify-between gap-3 border-b border-dashed border-border p-3 text-sm text-muted-foreground">
+      <span>Archived conversation. Your course files are unchanged.</span>
+      <Button onClick={() => {
+        const next = new URL(window.location.href);
+        next.searchParams.delete("session");
+        window.location.assign(next.href);
+      }}>Start new conversation</Button>
+    </div>
+    <div className="min-h-0 flex-1"><AuthoringChat messages={snapshot.messages} status="ready" busy={false} readOnly value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}} /></div>
+  </div>;
   return <EveConversation key={snapshot.session?.sessionId ?? "new"} snapshot={snapshot} api={api} onSession={id => {
     current.current = id;
     onSession(id);

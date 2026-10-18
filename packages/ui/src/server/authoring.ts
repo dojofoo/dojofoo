@@ -56,12 +56,13 @@ authoringRoutes.post("/language/hover", async (c) => {
 });
 export const closeAuthoringRuntime = mountEveAuthoring(authoringRoutes, {
   host: process.env.EVE_BASE_URL,
+  historyRoot: eveRoot,
   runtime: eveRoot ? async () => {
     // Native Node loading keeps the application's runtime and workers outside
     // Vite's UI module graph, preserving their own package scope.
     const load = createRequire(resolve(eveRoot, "package.json"));
     const { createDevelopmentServer } = load("@dojofoo/agent/server") as typeof import("@dojofoo/agent/server");
-    return createDevelopmentServer(eveRoot, { host: "127.0.0.1", port: 0 });
+    return createDevelopmentServer(eveRoot, { host: "127.0.0.1", port: 0, resume: true });
   } : () => {
     const load = createRequire(import.meta.url);
     const { acquireKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");

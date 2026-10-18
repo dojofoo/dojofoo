@@ -1,0 +1,51 @@
+diff --git a/src/bridge/index.ts b/src/bridge/index.ts
+index 9758055..6067a8c 100644
+--- a/src/bridge/index.ts
++++ b/src/bridge/index.ts
+@@ -186,7 +186,6 @@ async function runTurn(start: StartMessage, turn: BridgeTurn): Promise<void> {
+       await client.instance.dispose({ directory: workdir });
+     }
+     const sessionId = await ensureSession({ client, start, emit });
+-    await switchSessionModel({ client, sessionId, start });
+ 
+     if (start.operation === 'compact') {
+       await runCompaction({ client, sessionId, start, turn, emit });
+@@ -205,27 +204,6 @@ async function runTurn(start: StartMessage, turn: BridgeTurn): Promise<void> {
+   }
+ }
+ 
+-async function switchSessionModel({
+-  client,
+-  sessionId,
+-  start,
+-}: {
+-  client: OpenCodeClient;
+-  sessionId: string;
+-  start: StartMessage;
+-}): Promise<void> {
+-  const model = modelRefFromStart(start);
+-  if (model == null) return;
+-  const response = await client.v2.session.switchModel({
+-    sessionID: sessionId,
+-    model: {
+-      id: model.modelID,
+-      providerID: model.providerID,
+-    },
+-  });
+-  if (response.error != null) throw response.error;
+-}
+-
+ async function ensureRuntime({
+   start,
+ }: {
+@@ -560,8 +538,10 @@ async function legacySessionPrompt({
+ }): Promise<{ error?: unknown; data?: unknown }> {
+   const session = (client as any).session;
+   const submitPrompt = session.promptAsync ?? session.prompt;
++  const model = modelRefFromStart(start);
+   return submitPrompt.call(session, {
+     sessionID: sessionId,
++    ...(model ? { model } : {}),
+     ...(start.instructions ? { system: start.instructions } : {}),
+     ...(start.variant ? { variant: start.variant } : {}),
+     ...(start.responseFormat?.type === 'json' &&

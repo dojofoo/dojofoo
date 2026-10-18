@@ -66,6 +66,7 @@ function AuthoringPage() {
   const [error, setError] = useState<string | null>(null);
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
   const [trialError, setTrialError] = useState<{ lessonId: string; message: string } | null>(null);
+  const [trialHarness, setTrialHarness] = useState("");
   const [evaluationReport, setEvaluationReport] = useState<AuthoringEvalReport | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [evaluationSettingsOpen, setEvaluationSettingsOpen] = useState(false);
@@ -357,6 +358,11 @@ function AuthoringPage() {
         authoringApi(`/api/authoring/lessons/${encodeURIComponent(lessonId)}/trials`),
         { method: "POST" }
       );
+      await request(`/api/workspaces/${encodeURIComponent(trial.workspaceId)}/courses/${encodeURIComponent(trial.courseId)}/lessons/${encodeURIComponent(trial.lessonId)}/sessions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(trialHarness ? { harness: trialHarness } : {}),
+      });
       if (!tab.closed) tab.location.replace(`/course/${encodeURIComponent(trial.workspaceId)}/${encodeURIComponent(trial.courseId)}/lesson/${encodeURIComponent(trial.lessonId)}`);
     } catch (cause) {
       tab.close();
@@ -574,7 +580,17 @@ function AuthoringPage() {
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => setEvaluationSettingsOpen(true)}>Evaluation settings</WorkspaceAction>
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}><RefreshCw className="size-3.5" /> Refresh</WorkspaceAction>
                 {visibleReport ? <WorkspaceAction disabled={false} onClick={() => setReportOpen(!reportOpen)}>{reportOpen ? "Hide evaluation" : "Evaluation results"}</WorkspaceAction> : null}
-                {scope === "lesson" && selectedLesson ? <WorkspaceAction disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}><ExternalLink className="size-3.5" /> Trial</WorkspaceAction> : null}
+                {scope === "lesson" && selectedLesson ? <>
+                  <select aria-label="Trial harness" className="bg-background px-2 text-xs" value={trialHarness} disabled={Boolean(busy)} onChange={event => setTrialHarness(event.target.value)}>
+                    <option value="">Configured trial harness</option>
+                    <option value="codex">Codex</option>
+                    <option value="opencode">OpenCode</option>
+                    <option value="cursor">Cursor</option>
+                    <option value="grok">Grok</option>
+                    <option value="fx">FX</option>
+                  </select>
+                  <WorkspaceAction disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}><ExternalLink className="size-3.5" /> Trial</WorkspaceAction>
+                </> : null}
                 {scope === "lesson" && selectedLessonId ? <button className="bg-[#0070f3] px-4 text-xs text-white hover:bg-[#0761d1] disabled:bg-[#242424] disabled:text-[#878787]" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</button> : null}
               </div>
             </div>

@@ -15,7 +15,7 @@ try {
     "--ignore-scripts", "--json", "--registry=https://registry.npmjs.org"], {
     cwd: staging, encoding: "utf8",
   }));
-  assert.equal(packed.integrity, "sha512-UXmo5QVn2LdB4HLUFmpUnny6iJMJMOpjaapR8gVg1/QkoYoM4NJh6kOR4VkhORb/OMcvyyrJ1uM9b/5q+2igyw==",
+  assert.equal(packed.integrity, "sha512-s890vy5W9Cqovq2ceIb+oe7zLVclPPidceso9ln17ljNwRLGE+92uGz1K7tayvhcXVK/z5bjx0szLNeLR2ItPA==",
     "Re-audit the upstream artifact and patch before updating Eve");
   execFileSync("tar", ["-xzf", packed.filename], { cwd: staging });
   const upstream = join(staging, "package");
@@ -41,24 +41,6 @@ try {
   await rm(destination, { recursive: true, force: true });
   // Preserve package scope, internal imports, workers, assets and license notices.
   await cp(upstream, destination, { recursive: true });
-  // Upstream emits ESM chunks beneath node_modules without package scopes.
-  // Node treats these as CommonJS even though their contents are ESM.
-  // Vite masks this packaging defect; the native eval CLI does not.
-  for (const entry of await readdir(join(destination, "dist/src/node_modules/.pnpm"))) {
-    const dependencies = join(destination, "dist/src/node_modules/.pnpm", entry, "node_modules");
-    for (const name of await readdir(dependencies)) {
-      const names = name.startsWith("@")
-        ? (await readdir(join(dependencies, name))).map((child) => `${name}/${child}`)
-        : [name];
-      for (const dependency of names) {
-        try {
-          await writeFile(join(dependencies, dependency, "package.json"), '{"type":"module"}\n', { flag: "wx" });
-        } catch (error) {
-          if (error.code !== "EEXIST") throw error;
-        }
-      }
-    }
-  }
   await writeFile(join(destination, "dojo-build.json"), JSON.stringify({
     upstream: `eve@${version}`, integrity: packed.integrity,
   }, null, 2) + "\n");

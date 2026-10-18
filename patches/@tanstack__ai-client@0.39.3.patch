@@ -1,17 +1,21 @@
 diff --git a/dist/esm/chat-client.js b/dist/esm/chat-client.js
-index 8cb373b289ce763fb759a3e38f9903a1ced96dbc..ef7d43b169c93fa42b1a9a0d5cfa80b8b1c954db 100644
+index bae9ddd..3b7105e 100644
 --- a/dist/esm/chat-client.js
 +++ b/dist/esm/chat-client.js
-@@ -1047,7 +1047,15 @@ var ChatClient = class {
+@@ -1302,11 +1302,19 @@ var ChatClient = class {
  	async sendMessage(content, body, sendOptions) {
  		this.mountDevtools();
  		if (typeof content === "string" && !content.trim()) return;
--		if (this.hasBlockingInterrupts()) throw new Error("ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.");
-+		if (this.hasBlockingInterrupts()) {
+-		if (this.hasPendingInterrupts()) throw new Error("ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.");
+ 		const resolvedBody = {
+ 			...body,
+ 			...sendOptions?.body
+ 		};
++		if (this.hasPendingInterrupts()) {
 +			const { action, id } = this.decideWhenBusy(content, sendOptions);
 +			if (action === "drop") return;
 +			if (action === "queue") {
-+				this.enqueueMessage(content, body, id);
++				this.enqueueMessage(content, resolvedBody, id);
 +				return;
 +			}
 +			throw new Error("ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.");
@@ -19,7 +23,7 @@ index 8cb373b289ce763fb759a3e38f9903a1ced96dbc..ef7d43b169c93fa42b1a9a0d5cfa80b8
  		if (this.isSendBusy()) {
  			const { action, id } = this.decideWhenBusy(content, sendOptions);
  			if (action === "drop") return;
-@@ -1516,7 +1524,7 @@ var ChatClient = class {
+@@ -1924,7 +1932,7 @@ var ChatClient = class {
  	* by control-flow analysis.
  	*/
  	shouldAbortMessageQueueDrain() {
@@ -28,7 +32,7 @@ index 8cb373b289ce763fb759a3e38f9903a1ced96dbc..ef7d43b169c93fa42b1a9a0d5cfa80b8
  	}
  	/**
  	* Deliver queued messages after a successful settle.
-@@ -1529,7 +1537,7 @@ var ChatClient = class {
+@@ -1937,7 +1945,7 @@ var ChatClient = class {
  	* busy/queue policy (which would re-queue items and strand the rest).
  	*/
  	async drainQueue() {
@@ -37,24 +41,40 @@ index 8cb373b289ce763fb759a3e38f9903a1ced96dbc..ef7d43b169c93fa42b1a9a0d5cfa80b8
  		this.messageQueueDraining = true;
  		this.stopMessageQueueDrain = false;
  		try {
+@@ -2114,4 +2122,4 @@ var ChatClient = class {
+ //#endregion
+ export { ChatClient, normalizeQueueOption };
+ 
+-//# sourceMappingURL=chat-client.js.map
+\ No newline at end of file
++//# sourceMappingURL=chat-client.js.map
 diff --git a/src/chat-client.ts b/src/chat-client.ts
-index 4a40c3a3dccea62f4379f5fd5a131c5cd96a5cdf..80670e84c3e707c895576b42a375d16a2f7f9ed9 100644
+index a94a3d3..5dbe3fa 100644
 --- a/src/chat-client.ts
 +++ b/src/chat-client.ts
-@@ -1901,6 +1901,12 @@ export class ChatClient<
+@@ -2346,14 +2346,19 @@ export class ChatClient<
+     if (emptyMessage) {
        return
      }
-     if (this.hasBlockingInterrupts()) {
++    const resolvedBody = { ...body, ...sendOptions?.body }
+     if (this.hasPendingInterrupts()) {
 +      const { action, id } = this.decideWhenBusy(content, sendOptions)
 +      if (action === 'drop') return
 +      if (action === 'queue') {
-+        this.enqueueMessage(content, body, id)
++        this.enqueueMessage(content, resolvedBody, id)
 +        return
 +      }
        throw new Error(
          'ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.',
        )
-@@ -2727,7 +2733,7 @@ export class ChatClient<
+     }
+ 
+-    const resolvedBody = { ...body, ...sendOptions?.body }
+-
+     if (this.isSendBusy()) {
+       const { action, id } = this.decideWhenBusy(content, sendOptions)
+       if (action === 'drop') {
+@@ -3409,7 +3414,7 @@ export class ChatClient<
     * by control-flow analysis.
     */
    private shouldAbortMessageQueueDrain(): boolean {
@@ -63,7 +83,7 @@ index 4a40c3a3dccea62f4379f5fd5a131c5cd96a5cdf..80670e84c3e707c895576b42a375d16a
    }
  
    /**
-@@ -2747,6 +2753,7 @@ export class ChatClient<
+@@ -3429,6 +3434,7 @@ export class ChatClient<
      if (
        this.messageQueueDraining ||
        this.isLoading ||

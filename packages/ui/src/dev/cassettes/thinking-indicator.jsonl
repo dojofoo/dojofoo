@@ -11,4 +11,4 @@
 {"delayMs":100,"chunk":{"type":"TEXT_MESSAGE_CONTENT","messageId":"assistant-1","delta":"handles adjacent spaces as one group. "}}
 {"delayMs":140,"chunk":{"type":"TEXT_MESSAGE_CONTENT","messageId":"assistant-1","delta":"What input would help verify tabs behave the same way?"}}
 {"delayMs":100,"chunk":{"type":"TEXT_MESSAGE_END","messageId":"assistant-1"}}
-{"delayMs":0,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-thinking","finishReason":"stop"}}
+{"delayMs":0,"chunk":{"type":"RUN_FINISHED","threadId":"storybook-session","runId":"run-thinking","metadata":{"tanstack":{"finishReason":"stop"}}}}

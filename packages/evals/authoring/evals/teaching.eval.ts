@@ -13,7 +13,7 @@ export default defineEval({
   async test(t: EveEvalContext) {
     const root = process.env.DOJOFOO_EVAL_WORKSPACE;
     if (!root) throw new Error("Use pnpm eval:authoring --live to create an isolated workspace.");
-    (await t.send(brief)).expectOk();
+    const first = (await t.send(brief)).expectOk();
     t.succeeded();
     const before = await readMaterial(root);
     const manifest = parse(before["dojo.yaml"] ?? before["dojo.json"] ?? "");
@@ -21,21 +21,21 @@ export default defineEval({
       satisfies((errors: string[]) => errors.length === 0, "valid course manifest"));
     t.check(manifest?.katas, satisfies((lessons: unknown) => Array.isArray(lessons) && lessons.length === 1, "exactly one focused lesson"));
     t.check(Object.keys(before), satisfies((paths: string[]) => paths.some((path) => /\/SENSEI\.md$/u.test(path)), "authored Sensei material"));
-    t.judge.autoevals.closedQA(
+    t.judge(
       autoevalQuestion("novice-teaching-not-solution-recipe"),
-      { on: { brief, files: before, dialogue: t.transcript } },
+      { on: { brief, files: before, dialogue: first.events.map(event => JSON.stringify(event)) } },
     ).label("novice-teaching-not-solution-recipe").gate(0.8);
-    t.judge.autoevals.closedQA(
+    t.judge(
       autoevalQuestion("engaging-and-concrete"),
       { on: { brief, files: before } },
     ).label("engaging-and-concrete").gate(0.8);
-    await t.send(authorBrief("collapse-whitespace-feedback"));
+    const feedback = (await first.session.send(authorBrief("collapse-whitespace-feedback"))).expectOk();
     t.succeeded();
     const after = await readMaterial(root);
     t.check(after, satisfies((files: Record<string, string>) => JSON.stringify(files) !== JSON.stringify(before), "feedback changes the authored files"));
-    t.judge.autoevals.closedQA(
+    t.judge(
       autoevalQuestion("feedback-produces-adaptive-teaching"),
-      { on: { brief, before, after, dialogue: t.transcript } },
+      { on: { brief, before, after, dialogue: [...first.events, ...feedback.events].map(event => JSON.stringify(event)) } },
     ).label("feedback-produces-adaptive-teaching").gate(0.8);
   },
 });

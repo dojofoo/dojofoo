@@ -6,12 +6,9 @@ import { createPi } from "@ai-sdk/harness-pi";
 import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
 import { generateText, jsonSchema, tool } from "ai";
 import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
-const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
-const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
-const { compactMessages } = await import(new URL("dist/src/harness/compaction.js", eveRoot));
 
-for (const mode of ["conversation", "tool", "eve-question", ...(process.env.EVE_NATIVE_COMPACTION === "1" ? ["compaction"] : [])]) test(`official Pi journal recovery without paid inference (${mode})`, async () => {
-  const question = mode === "tool" || mode === "eve-question";
+for (const mode of ["conversation", "tool", ...(process.env.EVE_NATIVE_COMPACTION === "1" ? ["compaction"] : [])]) test(`official Pi journal recovery without paid inference (${mode})`, async () => {
+  const question = mode === "tool";
   const requests = [];
   const blockedOrigins = [];
   const server = createServer(async (request, response) => {
@@ -63,34 +60,6 @@ for (const mode of ["conversation", "tool", "eve-question", ...(process.env.EVE_
   try {
     const harness = createPi({ auth: { OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: `${baseUrl}/v1` } });
     const { model } = experimental_createHarnessModel({ harness, model: "openai/gpt-4o", permissionMode: "allow-all" }, { sandboxSession });
-    if (mode === "eve-question") {
-      const events = [];
-      const definition = { name: "ask_question", description: "Ask the student", inputSchema: { type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] } };
-      const config = { mode: "conversation", capabilities: { requestInput: true },
-        resolveModel: async () => model, handleEvent: async event => { events.push(event); },
-        tools: new Map([["ask_question", { ...definition, inputSchema: jsonSchema(definition.inputSchema),
-          behavior: { availability: ["requires-request-input"], handling: { kind: "request-input", request: "question" } } }]]),
-      };
-      const session = { agent: { modelReference: { id: "pi" }, system: "Teach one concept at a time.", tools: [definition] },
-        compaction: { recentWindowSize: 10, threshold: 100000 }, continuationToken: "pi-question", sessionId: "eve-pi-question", history: [] };
-      const parked = await createToolLoopHarness(config)(session, { message: "Introduce the lesson." });
-      assert.equal(parked.next, null);
-      assert.equal(parked.settledTurn, undefined);
-      assert.equal(requests.length, 1);
-      const request = events.find(event => event.type === "input.requested")?.data.requests[0];
-      assert.equal(request.prompt, "Review or move on?");
-      const resumed = await createToolLoopHarness(config)(JSON.parse(JSON.stringify(parked.session)), {
-        inputResponses: [{ requestId: request.requestId, text: "Review" }],
-      });
-      assert.equal(resumed.settledTurn.output, "Ready to teach.");
-      assert.ok(events.some(event => event.type === "input.resolved"));
-      assert.equal(requests.length, 2);
-      const results = requests[1].input.filter(item => item.type === "function_call_output");
-      assert.equal(results.length, 1);
-      assert.match(results[0].output, /Review/);
-      assert.deepEqual(blockedOrigins, []);
-      return;
-    }
     const tools = question ? { ask_question: tool({ inputSchema: jsonSchema({ type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] }) }) } : undefined;
     const introduction = mode === "compaction" ? "Earlier lesson evidence. ".repeat(4000) : "Introduce the lesson.";
     const first = await generateText({ model, tools, system: "Teach one concept at a time.", prompt: introduction });
@@ -101,11 +70,11 @@ for (const mode of ["conversation", "tool", "eve-question", ...(process.env.EVE_
       const second = await generateText({ model, messages: [
         { role: "user", content: introduction }, ...first.response.messages, recent,
       ] });
-      const compacted = await compactMessages([
+      const compacted = await model.experimental_compact({ messages: [
         { role: "user", content: introduction }, ...first.response.messages,
         recent, ...second.response.messages,
         { role: "user", content: "Continue after compaction." },
-      ], model, { threshold: 1000, recentWindowSize: 1 });
+      ] });
       assert.equal(requests.length, 3, "Pi itself requests the native summary");
       const next = await generateText({ model, system: "Teach one concept at a time.", messages: compacted });
       assert.equal(next.text, "Ready to teach.");

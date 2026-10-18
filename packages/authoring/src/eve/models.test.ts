@@ -4,7 +4,7 @@ import { codexModels, parseOpenCodeModels, piModels } from "./models.ts";
 const createModelRuntime = vi.hoisted(() => vi.fn());
 const thinkingLevels = vi.hoisted(() => vi.fn());
 vi.mock("@earendil-works/pi-coding-agent", () => ({ ModelRuntime: { create: createModelRuntime } }));
-vi.mock("@earendil-works/pi-ai/compat", () => ({ getSupportedThinkingLevels: thinkingLevels }));
+vi.mock("@earendil-works/pi-ai/models", () => ({ getSupportedThinkingLevels: thinkingLevels }));
 
 const server = (response: string) => ["--input-type=module", "-e", `
   import { createInterface } from 'node:readline';

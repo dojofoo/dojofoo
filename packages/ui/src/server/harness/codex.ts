@@ -37,7 +37,12 @@ export function createCodexHarnessAdapter(environment: NodeJS.ProcessEnv = proce
     // codex-acp's existing Air extension returns terminal failures as typed
     // metadata instead of presenting provider errors as assistant messages.
     clientCapabilities: {
-      _meta: { jetbrains: { air: { version: 1, capabilities: ["sessionFailure"] } } },
+      _meta: {
+        jetbrains: { air: { version: 1, capabilities: ["sessionFailure"] } },
+        // Codex 2.x sends command output as chunks only when AIR clients opt in.
+        // The ACP projection appends these chunks, including JSON lesson checks.
+        terminal_output_delta: true,
+      },
     },
     validatePromptResponse: (response) => {
       const meta = response._meta as {
