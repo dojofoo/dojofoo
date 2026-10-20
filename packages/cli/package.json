@@ -61,7 +61,7 @@
   "devDependencies": {
     "@dojofoo/protocol": "workspace:*",
     "@dojofoo/ui": "workspace:*",
-    "tsup": "^8.0.0",
-    "vitest": "^4.1.10"
+    "tsup": "^9.0.0",
+    "vitest": "^5.0.5"
   }
 }
