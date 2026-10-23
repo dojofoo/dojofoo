@@ -256,6 +256,9 @@ importers:
 
   packages/authoring:
     dependencies:
+      '@ai-sdk/harness':
+        specifier: 1.0.153
+        version: 1.0.153(ws@8.21.0)(zod@4.6.5)
       '@ai-sdk/harness-codex':
         specifier: 1.0.155
         version: 1.0.155(zod@4.6.5)
@@ -274,6 +277,12 @@ importers:
       '@ai-sdk/harness-pi':
         specifier: 1.0.155
         version: 1.0.155(@aws-sdk/credential-provider-node@3.972.86)(@modelcontextprotocol/sdk@1.32.1(zod@4.6.5))(@smithy/signature-v4@5.7.4)(ws@8.21.0)(zod@4.6.5)
+      '@ai-sdk/provider':
+        specifier: 4.0.28
+        version: 4.0.28
+      '@ai-sdk/provider-utils':
+        specifier: 5.0.61
+        version: 5.0.61(zod@4.6.5)
       '@dojofoo/agent':
         specifier: workspace:*
         version: link:../agent
@@ -298,6 +307,9 @@ importers:
       json-rpc-2.0:
         specifier: 1.7.0
         version: 1.7.0
+      ws:
+        specifier: 8.21.0
+        version: 8.21.0
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -9080,9 +9092,9 @@ snapshots:
 
   '@ai-sdk/harness-acp@1.0.92(zod@4.6.5)':
     dependencies:
-      '@ai-sdk/harness': 1.0.153(ws@8.21.3)(zod@4.6.5)
+      '@ai-sdk/harness': 1.0.153(ws@8.21.0)(zod@4.6.5)
       '@ai-sdk/provider-utils': 5.0.61(zod@4.6.5)
-      ws: 8.21.3
+      ws: 8.21.0
       zod: 4.6.5
     transitivePeerDependencies:
       - bufferutil
@@ -9090,10 +9102,10 @@ snapshots:
 
   '@ai-sdk/harness-codex@1.0.155(zod@4.6.5)':
     dependencies:
-      '@ai-sdk/harness': 1.0.153(ws@8.21.3)(zod@4.6.5)
+      '@ai-sdk/harness': 1.0.153(ws@8.21.0)(zod@4.6.5)
       '@ai-sdk/provider': 4.0.28
       '@ai-sdk/provider-utils': 5.0.61(zod@4.6.5)
-      ws: 8.21.3
+      ws: 8.21.0
       zod: 4.6.5
     transitivePeerDependencies:
       - bufferutil
@@ -10386,7 +10398,7 @@ snapshots:
       google-auth-library: 10.9.1
       p-retry: 4.6.2
       protobufjs: 7.6.6
-      ws: 8.21.3
+      ws: 8.21.0
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -10397,7 +10409,7 @@ snapshots:
       google-auth-library: 10.9.1
       p-retry: 4.6.2
       protobufjs: 7.6.6
-      ws: 8.21.3
+      ws: 8.21.0
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.32.1(zod@4.4.3)
     transitivePeerDependencies:
@@ -10410,7 +10422,7 @@ snapshots:
       google-auth-library: 10.9.1
       p-retry: 4.6.2
       protobufjs: 7.6.6
-      ws: 8.21.3
+      ws: 8.21.0
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.32.1(zod@4.6.5)
     transitivePeerDependencies:
@@ -10620,7 +10632,7 @@ snapshots:
   '@libsql/isomorphic-ws@0.1.5':
     dependencies:
       '@types/ws': 8.18.1
-      ws: 8.21.3
+      ws: 8.21.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -13276,7 +13288,7 @@ snapshots:
       obug: 2.2.1
       std-env: 4.3.0
       tinyrainbow: 3.2.0
-      vitest: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.6.4)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.6.4)(typescript@6.0.3))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
+      vitest: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.6.4)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.6.4)(typescript@7.0.2))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
     optional: true
 
   '@vitest/expect@3.2.4':

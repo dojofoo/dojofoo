@@ -32,10 +32,30 @@ try {
   const tarballs = readdirSync(packs).map((name) => resolve(packs, name));
   execFileSync("npm", ["install", "--ignore-scripts", "--no-package-lock", ...tarballs], {
     cwd: installRoot,
-    stdio: "pipe",
+    stdio: "inherit",
+    timeout: 300_000,
   });
 
   const installedRequire = createRequire(resolve(installRoot, "package.json"));
+  const bridge = readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/authoring/package.json")), "dist/bridge/index.mjs"), "utf8");
+  const helper = (name, next) => bridge.slice(bridge.indexOf(`function ${name}(`), bridge.indexOf(next, bridge.indexOf(`function ${name}(`) + 1));
+  const { legacySessionPrompt } = await import(`data:text/javascript,${encodeURIComponent([
+    "const procEnv2 = {};",
+    helper("splitModel", "\nfunction "),
+    helper("modelRefFromStart", "\nfunction "),
+    `async ${helper("legacySessionPrompt", "async function legacySessionSummarize(")}`,
+    "export { legacySessionPrompt };",
+  ].join("\n"))}`);
+  await legacySessionPrompt({
+    client: { session: { promptAsync: async (request) => {
+      if (request.sessionID !== "same-session" || request.model?.providerID !== "zai-coding-plan" || request.model?.modelID !== "glm-5.3") {
+        throw new Error("Packed OpenCode bridge lost model selection for an existing session.");
+      }
+      return { data: {} };
+    } } },
+    sessionId: "same-session",
+    start: { model: "zai-coding-plan/glm-5.3", prompt: "Continue" },
+  });
   const { scaffoldAuthoringWorkspace } = await import(
     pathToFileURL(installedRequire.resolve("@dojofoo/authoring/scaffold")).href
   );
