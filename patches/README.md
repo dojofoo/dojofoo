@@ -30,7 +30,10 @@ the same session and API; native defaults remain untouched when no model is set.
 Compaction already supplies its model to the legacy summarize API.
 
 Regression coverage: `packages/authoring/src/eve/opencode-model.test.ts`.
-This is a workspace dependency patch, not a replacement harness. Remove it when
+This is a dependency patch, not a replacement harness. Authoring bundles the
+tested adapter and its bridge assets so npm consumers receive the same fix;
+the packed-install smoke verifies model selection against that shipped bridge.
+Remove it when
 the upstream adapter consistently uses a compatible session/model API. The
 published 1.0.155 bridge still mixes these APIs; the rebased patch's model
 selection regression passes against that installed bridge.

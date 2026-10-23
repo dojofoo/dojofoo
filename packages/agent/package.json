@@ -1,7 +1,9 @@
 {
   "name": "@dojofoo/agent",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "description": "Eve with an experimental provider for official AI SDK harness adapters.",
   "license": "Apache-2.0",

@@ -1,5 +1,19 @@
 # @dojofoo/config
 
+## 0.1.0
+
+### Minor Changes
+
+- 5067020: Serve the durable local workspace, dojo run, harness session, and event index
+  through the bundled lesson UI's ephemeral Hono control plane. List unfinished
+  courses across indexed workspaces and continue any of them from the lesson UI.
+  Prefer a stable Portless URL when available, recover automatically through a
+  direct localhost server when Portless fails, and expose explicit fallback and
+  port controls with installation and troubleshooting documentation.
+- Publish the agent and authoring runtime required by CLI installations. Support
+  editable master courses, portable Kyoshi definitions, chapter-based course
+  material, isolated lesson trials, and durable authoring question/queue recovery.
+
 ## 0.0.7
 
 ### Patch Changes
