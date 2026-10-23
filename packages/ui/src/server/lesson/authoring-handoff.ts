@@ -7,6 +7,7 @@ import { readLessonSensei } from "@dojofoo/authoring/evaluation/sensei";
 import { createLessonTrial } from "@dojofoo/authoring/service";
 import { listWorkspaces } from "@dojofoo/config/local-state";
 import { prepareWorkspace } from "@dojofoo/config/project-preparation";
+import { dojoDir } from "@dojofoo/config";
 import { parse } from "yaml";
 import assert from "node:assert/strict";
 import { readMaterial } from "@dojofoo/authoring/evaluation/material";
@@ -78,7 +79,7 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
   if (!root) throw new Error("Production trial did not register its workspace");
   evidence.push({ trialWorkspace: root });
   await prepareWorkspace(root);
-  const installedCourse = resolve(root, ".dojos", trial.courseId);
+  const installedCourse = dojoDir(root, trial.courseId);
   const protectedMaterial = await readMaterial(installedCourse);
   await writeFile(resolve(evidenceRoot, "installed-material.json"), JSON.stringify(protectedMaterial, null, 2));
   if (options?.verifyFixtures && !options.turns) {

@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { resolveRequestWorkspace } from "../control/workspace";
 import {
   completedCount,
+  dojoDir,
   findCurrentKata,
   findNextKata,
   kataState,
@@ -153,7 +154,7 @@ const app = new Hono<{ Variables: ProjectVariables }>()
   const { root, rc } = c.get("project");
   if (!rc.currentDojo) return c.json({ path: null, markdown: "", sections: [] });
 
-  const path = resolve(root, ".dojos", rc.currentDojo, "JOURNAL.md");
+  const path = resolve(dojoDir(root, rc.currentDojo), "JOURNAL.md");
   const markdown = existsSync(path) ? readFileSync(path, "utf8") : "";
   return c.json({
     path: relative(root, path),

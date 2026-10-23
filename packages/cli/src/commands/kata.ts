@@ -458,7 +458,7 @@ function scaffold(
   }
 
   mkdirSync(dirname(target.workspacePath), { recursive: true });
-  copyFileSync(templateSrc, target.workspacePath);
+  if (resolve(templateSrc) !== resolve(target.workspacePath)) copyFileSync(templateSrc, target.workspacePath);
 
   rc.currentKata = target.name;
   writeDojoRc(root, rc);

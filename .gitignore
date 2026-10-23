@@ -47,3 +47,7 @@ packages/ui/playwright-report/
 /.opencode/
 /dojo.config.ts
 /tsconfig.json
+.env*
+!.env.example
+!.env.sample
+!.env.template

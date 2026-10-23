@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FocusEvent, type FormEvent, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useAnimate, useReducedMotion, type Transition, type Variants } from "motion/react";
-import { ArrowRight, Bell, ChevronDown } from "lucide-react";
+import { ArrowRight, Bell, ChevronDown } from "@mynaui/icons-react";
 import { Button } from "~/components/button";
 import { SegmentedControl } from "~/components/segmented-control";
 import { CopyButton } from "../../copy-button/copy-button";

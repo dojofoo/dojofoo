@@ -1,4 +1,9 @@
-.dojo/
+.dojo/*
+!.dojo/sensei/
+!.dojo/kyoshi/
+.eve/
+node_modules/
+.pnpm-store/
 .env
 .env.*
 !.env.example

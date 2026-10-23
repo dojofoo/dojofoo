@@ -108,7 +108,6 @@ if (profile === "lesson") server.registerTool(lessonCapabilities.complete.tool, 
 async function runCommand(method: string, params: unknown): Promise<{
   answers?: Record<string, string[]>;
   context?: DojoLessonContext;
-  error?: string;
   fragmentId?: string;
   observation?: LearnerObservation;
 }> {
@@ -123,11 +122,15 @@ async function runCommand(method: string, params: unknown): Promise<{
   const result = await response.json() as {
     answers?: Record<string, string[]>;
     context?: DojoLessonContext;
-    error?: string;
+    error?: unknown;
+    message?: string;
     fragmentId?: string;
     observation?: LearnerObservation;
   };
-  if (!response.ok) throw new Error(result.error ?? "The lesson run command failed");
+  if (!response.ok) {
+    const message = typeof result.error === "string" ? result.error : result.message ?? "The lesson run command failed";
+    throw new Error(`${message} (HTTP ${response.status})`);
+  }
   return result;
 }
 

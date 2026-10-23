@@ -2,6 +2,9 @@ import type { SessionNotification } from "@agentclientprotocol/sdk";
 import { AgentSideConnection, ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import * as childProcess from "node:child_process";
 import { EventEmitter } from "node:events";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PassThrough, Readable, Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { codexHarnessAdapter, codexRuntimeEnvironment } from "../harness/codex";
@@ -24,6 +27,31 @@ async function visibleHistory(client: AcpClient, sessionId: string) {
 }
 
 describe("AcpClient projection", () => {
+  it("targets the public UI coordinator rather than Nitro's private worker port", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "dojo-mcp-address-"));
+    writeFileSync(join(directory, "lesson-mcp.js"), "// fixture");
+    vi.stubEnv("DOJO_CLI", join(directory, "index.js"));
+    vi.stubEnv("DOJO_UI_BASE_URL", "http://127.0.0.1:4594");
+    vi.stubEnv("PORT", "58830");
+    const newSession = vi.fn(async () => ({ sessionId: "public-ui" }));
+    const client = new AcpClient();
+    const internal = client as unknown as { ensureRuntime(config: unknown): Promise<unknown>; runtimes: Map<string, unknown> };
+    internal.runtimes.set("public-ui", { capability: "test-only", loadedSessions: new Set(), loadingSessions: new Map(),
+      adapter: { configureSession: async () => [] } });
+    const connection = vi.spyOn(internal, "ensureRuntime").mockResolvedValue({ newSession });
+    try {
+      await client.startThread({ root: directory, runtimeKey: "public-ui", harness: "opencode", developerInstructions: "Teach" });
+      expect(newSession).toHaveBeenCalledWith(expect.objectContaining({ mcpServers: [expect.objectContaining({
+        env: expect.arrayContaining([{ name: "DOJOFOO_COORDINATOR_URL", value: "http://127.0.0.1:4594" }]),
+      })] }));
+    } finally {
+      client.shutdown();
+      connection.mockRestore();
+      vi.unstubAllEnvs();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("registers form elicitation with the actual ACP SDK connection", async () => {
     const stdin = new PassThrough();
     const stdout = new PassThrough();

@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readDojoRc } from "@dojofoo/config";
-import { answerSenseiQuestion, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, saveLearnerObservation, shouldIntroduceLesson, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
+import * as preparation from "@dojofoo/config/project-preparation";
+import { answerSenseiQuestion, checkLesson, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, saveLearnerObservation, shouldIntroduceLesson, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
 import { dojofooHarness } from "../harness/registry";
 import { acpClient } from "./codex-client";
 import kataTeaching from "./contracts/KATAS.md?raw";
@@ -49,6 +50,13 @@ function freshCourse(): string {
 }
 
 describe("fresh lesson state", () => {
+  it("awaits the normal workspace setup before checking a fresh trial", async () => {
+    const root = freshCourse();
+    const setup = vi.spyOn(preparation, "prepareWorkspace").mockRejectedValue(new Error("Course setup failed"));
+    await expect(checkLesson(root, "starter", "001-first")).rejects.toThrow("Course setup failed");
+    expect(setup).toHaveBeenCalledExactlyOnceWith(root);
+  });
+
   it("uses an explicitly selected trial harness across lessons without inheriting Pi from authoring", async () => {
     const root = freshCourse();
     vi.stubEnv("DOJOFOO_HARNESS", "pi");

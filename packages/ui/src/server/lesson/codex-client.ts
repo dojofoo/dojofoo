@@ -862,7 +862,7 @@ function dojoMcpServers(root: string, capability: string, profile: "lesson" | "a
       { name: "DOJO_CLI", value: cli },
       { name: "DOJO_SKIP_PREPARE", value: "1" },
       { name: "DOJOFOO_RUN_CAPABILITY", value: capability },
-      { name: "DOJOFOO_COORDINATOR_URL", value: `http://127.0.0.1:${process.env.PORT ?? "4567"}` },
+      { name: "DOJOFOO_COORDINATOR_URL", value: process.env.DOJO_UI_BASE_URL || `http://127.0.0.1:${process.env.PORT ?? "4567"}` },
       { name: "DOJOFOO_TOOL_PROFILE", value: profile },
     ],
   }];

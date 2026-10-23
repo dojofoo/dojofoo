@@ -18,6 +18,24 @@ async function course() {
   return root;
 }
 
+it("loads installed Kyoshi definitions directly without overwriting authored instructions, tools or skills", async () => {
+  const root = await course();
+  const authored = join(root, ".dojo/kyoshi");
+  await mkdir(join(authored, "tools"), { recursive: true });
+  await mkdir(join(authored, "skills/local"), { recursive: true });
+  await writeFile(join(authored, "instructions.md"), "COURSE_KYOSHI: Teach this course's authors.\n");
+  await writeFile(join(authored, "tools/course_marker.ts"), "export default 'AUTHOR TOOL';\n");
+  await writeFile(join(authored, "skills/local/SKILL.md"), "---\nname: local\ndescription: Course-specific authoring guidance.\n---\nAUTHOR SKILL\n");
+  const app = await prepareKyoshiApp(root);
+  expect(app).toBe(join(await realpath(root), ".dojo/kyoshi"));
+  expect(await prepareKyoshiApp(root)).toBe(app);
+  expect(await readFile(join(app, "instructions.md"), "utf8")).toContain("COURSE_KYOSHI");
+  expect(await readFile(join(app, "tools/course_marker.ts"), "utf8")).toContain("AUTHOR TOOL");
+  expect(await readFile(join(app, "skills/local/SKILL.md"), "utf8")).toContain("AUTHOR SKILL");
+  await expect(readFile(join(app, "instructions.ts"))).rejects.toMatchObject({ code: "ENOENT" });
+  await expect(readFile(join(app, "package.json"))).rejects.toMatchObject({ code: "ENOENT" });
+});
+
 it("provides a private CLI executable with literal paths and arguments", async () => {
   const root = await course();
   const cli = join(root, "owner's cli.mjs");

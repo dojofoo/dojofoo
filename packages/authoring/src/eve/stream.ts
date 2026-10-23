@@ -1,12 +1,12 @@
 import {
   defaultMessageReducer,
-  isCurrentTurnBoundaryEvent,
   isTurnFailureEvent,
   type EveMessageData,
   type MessageStreamEvent,
 } from "@dojofoo/agent/client";
 import { EventType, uiMessagesToWire, withInterruptBinding, type StreamChunk } from "@tanstack/ai";
 import { eveChatMessages, eveQuestion } from "./messages";
+import { isEveResponseBoundary } from "./resume";
 
 /** Consume a public Eve MessageResponse. Seed with the projection corresponding
  * to its saved cursor; neither this function nor the UI stores native history.
@@ -34,7 +34,7 @@ export async function* streamEveAsAgUi({ events, initial, threadId, runId }: {
         data = next;
         yield messageSnapshot(data);
       }
-      boundary = isCurrentTurnBoundaryEvent(event);
+      boundary = isEveResponseBoundary(event);
     }
     if (!boundary) throw new Error("Eve stream ended before a durable turn boundary.");
     const interrupts = eveQuestionInterrupts(data, runId);

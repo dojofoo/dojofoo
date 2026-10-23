@@ -11,6 +11,14 @@ import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
 // These are owned process resources. Eve remains the only session/history owner.
 const runtimes = new Map<string, Promise<Awaited<ReturnType<typeof createKyoshiRuntime>>>>();
 
+/** Route modules may be duplicated by the dev runner; this native registry owns
+ * their resources. Finish every close before returning a shutdown failure. */
+export async function closeKyoshiRuntimes(): Promise<void> {
+  const results = await Promise.allSettled([...runtimes.values()].map(async owner => (await owner).close()));
+  const failures = results.filter(result => result.status === "rejected").map(result => result.reason);
+  if (failures.length) throw new AggregateError(failures, "Failed to close authoring runtimes.");
+}
+
 export async function acquireKyoshiRuntime(courseRoot: string) {
   const root = await realpath(courseRoot);
   let runtime = runtimes.get(root);
@@ -38,7 +46,8 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   const harness = (harnessId === "grok-build" ? "grok" : harnessId) as AuthoringHarness;
   const app = await prepareKyoshiApp(courseRoot);
   const harnessRoot = await prepareKyoshiHarness(courseRoot);
-  const runtimePath = join(app, "runtime.json");
+  const runtimePath = app === join(await realpath(courseRoot), ".dojo", "kyoshi")
+    ? join(app, ".eve", "dojo-runtime.json") : join(app, "runtime.json");
   let model = options.model;
   if (model === undefined) {
     try {
@@ -50,7 +59,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
     }
   }
   // Keep Node workers and the coordinator in the same installed package scope.
-  const load = createRequire(join(app, "package.json"));
+  const load = createRequire(import.meta.url);
   const { createDevelopmentServer } = await import(load.resolve("@dojofoo/agent/server")) as typeof import("@dojofoo/agent/server");
   const { createLocalSandbox, registerLocalProcessHost, prepareHarnessEnvironment } = await import(load.resolve("@dojofoo/agent/experimental/local")) as typeof import("@dojofoo/agent/experimental/local");
   const server = createDevelopmentServer(app, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
@@ -58,8 +67,11 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   let starting: Promise<{ url: string }> | undefined;
   let closing: Promise<void> | undefined;
   const cleanup = async () => {
-    try { await server.close(); }
-    finally { await host?.close(); }
+    // Workers can still be waiting on native process pipes. Close both owners
+    // together so server shutdown cannot prevent the process host from stopping.
+    const results = await Promise.allSettled([server.close(), host?.close()]);
+    const failures = results.filter(result => result.status === "rejected").map(result => result.reason);
+    if (failures.length) throw new AggregateError(failures, "Failed to close Kyoshi runtime.");
   };
   return {
     start() {

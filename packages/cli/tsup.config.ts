@@ -7,7 +7,7 @@ export default defineConfig({
   target: "node24",
   removeNodeProtocol: false,
   external: ["node:sqlite", "yaml"],
-  noExternal: ["@dojofoo/authoring/service", /^@dojofoo\/authoring\/evaluation\//],
+  noExternal: ["@dojofoo/authoring/service"],
   clean: true,
   esbuildPlugins: [{
     name: "teaching-instructions",

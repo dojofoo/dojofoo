@@ -54,6 +54,7 @@
     "build": "tsup"
   },
   "dependencies": {
+    "globby": "16.2.4",
     "jiti": "^2.7.0",
     "yaml": "^2.9.0"
   },

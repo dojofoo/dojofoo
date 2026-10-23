@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { chatParamsFromRequestBody, toServerSentEventsResponse, type UIMessage as TanStackUIMessage } from "@tanstack/ai";
+import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSentEventsResponse } from "@tanstack/ai";
 import {
   answerSenseiQuestion,
   checkLesson,
@@ -157,7 +157,7 @@ app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/messages", async (c)
   };
   const body = {
     ...forwarded,
-    message: forwarded.message ?? latestUserText(params.messages as TanStackUIMessage[]),
+    message: forwarded.message ?? latestUserText(params.messages),
   };
   if (body.kind === "check-observation" && !body.observation) {
     return c.json({ error: "Check observation is required" }, 422);
@@ -182,9 +182,10 @@ app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/messages", async (c)
   return toServerSentEventsResponse(stream);
 });
 
-function latestUserText(messages: TanStackUIMessage[]): string {
-  const message = messages.findLast((candidate) => candidate.role === "user");
-  return message?.parts.flatMap((part) => part.type === "text" ? [part.content] : []).join("") ?? "";
+function latestUserText(messages: Parameters<typeof convertMessagesToModelMessages>[0]): string {
+  const message = convertMessagesToModelMessages(messages).findLast(candidate => candidate.role === "user");
+  const content = message?.content;
+  return typeof content === "string" ? content : content?.flatMap(part => part.type === "text" ? [part.content] : []).join("") ?? "";
 }
 
 app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/files/:fileId/diagnostics", async (c) => {

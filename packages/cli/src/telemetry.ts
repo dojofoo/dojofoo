@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { readInstalledSource } from "./source";
+import { dojoDir } from "@dojofoo/config";
 import { recordDojoLifecycle, workspaceIdFor } from "@dojofoo/config/local-state";
 
 export type CourseEventName = "installed" | "started" | "kata_completed" | "finished";
@@ -106,7 +107,7 @@ export function queueCourseEvent(
 ) {
   recordDojoLifecycle(root, event, kata);
   if (telemetryDisabled()) return;
-  const recorded = readInstalledSource(resolve(root, ".dojos", courseName));
+  const recorded = readInstalledSource(dojoDir(root, courseName.split("/").at(-1)!));
   const githubSource = source ?? (recorded?.type === "github" ? recorded : undefined);
   const queued: QueuedCourseEvent = {
     root,

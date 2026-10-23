@@ -1,19 +1,24 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import {
   observeLocalContext,
 } from "@dojofoo/config/local-state";
-import { kataTestTemplate, validateManifest, writeDojoRc } from "@dojofoo/config";
+import { chapterCurriculum, courseFileFilter, courseRelativePath, createStateDirectory, kataTestTemplate, validateManifest, writeDojoRc } from "@dojofoo/config";
 import { checkSensei, checkTests } from "../evaluation/preflight.ts";
 import { readPrompt } from "../prompts.ts";
 import {
@@ -28,7 +33,7 @@ import {
   acknowledgeAuthoringEdits,
   pendingAuthoringEdits,
   writeAuthoringFile,
-  privateAuthoringEntry,
+  authoringFileFilter,
 } from "./files";
 
 const kyoshiContract = readFileSync(createRequire(import.meta.url).resolve("@dojofoo/authoring/KYOSHI.md"), "utf8");
@@ -189,34 +194,64 @@ export function createLessonTrial(root: string, lessonId: string): {
   }
   const courseId = slugify(String(manifest.name));
   if (!courseId) throw new Error("Course name must contain letters or numbers");
-  const trialRoot = resolve(root, ".dojo", "trials", `${lessonId}-${randomUUID()}`);
-  const courseRoot = resolve(trialRoot, ".dojos", courseId);
-  mkdirSync(resolve(trialRoot, ".dojo"), { recursive: true });
-  writeFileSync(resolve(trialRoot, ".dojo/runtimes.json"), JSON.stringify({ lesson: resolveRuntimeHarness("lesson", root) }));
-  mkdirSync(dirname(courseRoot), { recursive: true });
-  mkdirSync(courseRoot, { recursive: true });
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (privateAuthoringEntry(entry.name)) continue;
-    cpSync(resolve(root, entry.name), resolve(courseRoot, entry.name), {
-      recursive: true,
-      filter: source => !privateAuthoringEntry(basename(source)),
+  const trialRoot = mkdtempSync(resolve(tmpdir(), "dojofoo-trial-"));
+  const courseRoot = resolve(trialRoot, "courses", courseId);
+  // mkdtemp owns this exact isolated workspace; cleanup never targets the draft.
+  try {
+    mkdirSync(resolve(trialRoot, ".dojo"), { recursive: true });
+    writeFileSync(resolve(trialRoot, ".dojo/runtimes.json"), JSON.stringify({ lesson: resolveRuntimeHarness("lesson", root) }));
+    mkdirSync(dirname(courseRoot), { recursive: true });
+    mkdirSync(courseRoot, { recursive: true });
+    const include = trialCopyFilter(root);
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (!include(resolve(root, entry.name))) continue;
+      cpSync(resolve(root, entry.name), resolve(courseRoot, entry.name), {
+        recursive: true, dereference: true, filter: include,
+      });
+    }
+    writeDojoRc(trialRoot, {
+      currentDojo: courseId,
+      currentKata: lessonId,
+      editor: null,
+      progress: {
+        [courseId]: { completed: [], lastActive: lessonId, kataIntros: [] },
+      },
     });
+    const template = resolve(courseRoot, templatePath);
+    const starters = createStateDirectory(trialRoot, courseId, "starters");
+    writeFileSync(resolve(starters, lessonId), readFileSync(template));
+    const observed = observeLocalContext(trialRoot);
+    if (!observed) throw new Error("Could not register the lesson trial workspace");
+    return { workspaceId: observed.workspaceId, courseId, lessonId };
+  } catch (error) {
+    rmSync(trialRoot, { recursive: true, force: true });
+    throw error;
   }
-  writeDojoRc(trialRoot, {
-    currentDojo: courseId,
-    currentKata: lessonId,
-    editor: null,
-    progress: {
-      [courseId]: { completed: [], lastActive: lessonId, kataIntros: [] },
-    },
-  });
-  const template = resolve(courseRoot, templatePath);
-  const workspace = resolve(trialRoot, "katas", lessonId, basename(template));
-  mkdirSync(dirname(workspace), { recursive: true });
-  writeFileSync(workspace, readFileSync(template, "utf8"));
-  const observed = observeLocalContext(trialRoot);
-  if (!observed) throw new Error("Could not register the lesson trial workspace");
-  return { workspaceId: observed.workspaceId, courseId, lessonId };
+}
+
+/** Materialize safe internal links; never retain a path back into the draft. */
+function trialCopyFilter(root: string): (source: string) => boolean {
+  const logicalRoot = resolve(root);
+  const physicalRoot = realpathSync(root);
+  const include = courseFileFilter(root);
+  return source => {
+    if (!include(relative(logicalRoot, source))) return false;
+    const target = realpathSync(source);
+    const path = relative(physicalRoot, target);
+    if (path === ".." || path.startsWith(`..${sep}`) || isAbsolute(path)) {
+      throw new Error(`Trial link points outside the course: ${relative(logicalRoot, source)}`);
+    }
+    if (!include(path)) {
+      throw new Error(`Trial link points to private course state: ${relative(logicalRoot, source)}`);
+    }
+    if (lstatSync(source).isSymbolicLink()) {
+      for (let parent = dirname(source); ; parent = dirname(parent)) {
+        if (realpathSync(parent) === target) throw new Error(`Trial link cycle: ${relative(logicalRoot, source)}`);
+        if (parent === logicalRoot) break;
+      }
+    }
+    return true;
+  };
 }
 
 export function authoringEvalReadiness(root: string): AuthoringReadinessCheck[] {
@@ -308,19 +343,20 @@ function readDraftManifest(root: string): Record<string, unknown> {
 }
 
 function draftLessons(root: string, manifest: Record<string, unknown>): AuthoringLesson[] {
-  const entries = Array.isArray(manifest.katas)
+  const entries = manifest.chapters !== undefined ? chapterCurriculum(manifest).katas : Array.isArray(manifest.katas)
     ? manifest.katas.filter(isRecord)
     : [];
   return entries.map((entry) => {
     const id = String(entry.name ?? basename(dirname(String(entry.template ?? ""))));
-    const directory = resolve(root, "src", id);
+    const templatePath = String(entry.template ?? `src/${id}/kata.ts`);
+    if (!courseRelativePath(templatePath)) throw new Error(`Lesson template must stay inside the course: ${id}`);
+    const directory = dirname(resolve(root, templatePath));
     const senseiPath = ["SENSEI.mdx", "SENSEI.md"]
       .map((name) => resolve(directory, name))
       .find(existsSync);
-    const relativeSenseiPath = `src/${id}/${senseiPath?.endsWith(".mdx") ? "SENSEI.mdx" : "SENSEI.md"}`;
+    const relativeSenseiPath = relative(root, resolve(directory, senseiPath?.endsWith(".mdx") ? "SENSEI.mdx" : "SENSEI.md"));
     const sensei = senseiPath ? readFileSync(senseiPath, "utf8") : "";
     const files = readAuthoringDirectory(root, directory);
-    const templatePath = String(entry.template ?? `src/${id}/kata.ts`);
     // A manifest's `test` is an executable command, not a filename. Match the
     // production resolver: tests are named after the actual scaffold.
     const testPath = kataTestTemplate(templatePath);
@@ -355,27 +391,28 @@ function draftLessons(root: string, manifest: Record<string, unknown>): Authorin
   });
 }
 
-function readAuthoringDirectory(root: string, directory: string): AuthoringSourceFile[] {
+function readAuthoringDirectory(root: string, directory: string, include = authoringFileFilter(root)): AuthoringSourceFile[] {
   if (!existsSync(directory)) return [];
   return readdirSync(directory, { withFileTypes: true })
-    .filter(entry => !privateAuthoringEntry(entry.name))
+    .filter(entry => include(relative(root, resolve(directory, entry.name))))
     .sort((left, right) => left.name.localeCompare(right.name))
     .flatMap((entry) => {
       const path = resolve(directory, entry.name);
-      if (entry.isDirectory()) return readAuthoringDirectory(root, path);
+      if (entry.isDirectory()) return readAuthoringDirectory(root, path, include);
       if (!entry.isFile()) return [];
       return [{ content: readOptionalFile(path), label: entry.name, path: relative(root, path) }];
     });
 }
 
 function readRootAuthoringFiles(root: string): AuthoringSourceFile[] {
+  const include = authoringFileFilter(root);
   const excluded = new Set([".dojo", ".git", "evals", "node_modules", "src"]);
   return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => !excluded.has(entry.name) && !privateAuthoringEntry(entry.name))
+    .filter((entry) => !excluded.has(entry.name) && include(entry.name))
     .sort((left, right) => left.name.localeCompare(right.name))
     .flatMap((entry) => {
       const path = resolve(root, entry.name);
-      if (entry.isDirectory()) return readAuthoringDirectory(root, path);
+      if (entry.isDirectory()) return readAuthoringDirectory(root, path, include);
       if (!entry.isFile()) return [];
       return [{ content: readOptionalFile(path), label: entry.name, path: relative(root, path) }];
     });

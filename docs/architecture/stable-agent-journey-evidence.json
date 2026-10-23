@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "status": "passed",
+  "lessonIds": [
+    "001-largest-number",
+    "002-filter-positive-numbers"
+  ],
+  "priorLessons": "teach",
+  "materialHash": "e6e9a44f4bfe5b2001f2b4ec9365a2eb6da73aa988d14ecfff9380fe07286a87",
+  "teachingPolicyHash": "bd123695600aeeef8ffd24a06260352a72d68ed05b51537731f05b8e6169a69b",
+  "startedAt": "2026-10-20T14:28:06.111Z",
+  "completedAt": "2026-10-20T14:29:13.106Z",
+  "decisions": {
+    "material": {
+      "outcome": "pass",
+      "blocking": [],
+      "disputed": []
+    },
+    "teaching": {
+      "outcome": "pass",
+      "blocking": [],
+      "disputed": []
+    }
+  },
+  "material": [
+    {
+      "judge": "codex-gpt-6-astra-high",
+      "promptHash": "9f7b9a9182f79b6eb287fa79271334b25ea7b4db74881070cc846a15eef0cfe5",
+      "verdict": {
+        "criteria": [
+          {
+            "id": "engagement",
+            "pass": true,
+            "evidence": "production-teaching-policy.md instructs: \"Welcome them briefly on their first lesson and leave room to read,\" \"Notice progress specifically, without filler praise,\" and \"Acknowledge frustration and adjust the help.\" Both SENSEI.md files provide concise practical purposes without compulsory warm-ups. The finish policy honors Move on / Pause without another exercise.",
+            "improvement": ""
+          },
+          {
+            "id": "learner-grounding",
+            "pass": true,
+            "evidence": "DOJO.md states the prerequisites and requires teaching \"additional syntax and operations when needed.\" Lesson 001 explains zero-based indexing, number | undefined, conditional execution, and return. Lesson 002 explains strict comparison, push, shared array references, and const. Its reference to the previous lesson describes the topic rather than asserting mastery. The shared policy explicitly says historical evidence does not prove mastery.",
+            "improvement": ""
+          },
+          {
+            "id": "adaptive-instruction",
+            "pass": true,
+            "evidence": "Lesson 001 defines a running value as \"a small summary of what has been examined so far\" and explains why an arbitrary starting number makes an unsupported claim. It distinguishes initialization errors from early returns. Lesson 002 explains membership, positivity, truthiness, appending, and array identity, directly supporting its likely gaps. The shared policy requires explaining missing knowledge, changing approach when stuck, reducing support with understanding, and never answering its own probe.",
+            "improvement": ""
+          },
+          {
+            "id": "solution-withholding",
+            "pass": true,
+            "evidence": "Both kata.ts scaffolds remain unsolved, with TODO comments and placeholder returns. Lesson 001 supplies principles and isolated indexing and conditional operations without assembling the maximum-finding process. Lesson 002's colours.push(\"blue\") example teaches appending without demonstrating the filtering algorithm. The shared policy prohibits supplying \"the repair or a complete solution in code or prose, even across turns\" and explicitly rejects equivalent algorithms under different stories or data.",
+            "improvement": ""
+          },
+          {
+            "id": "review-transfer",
+            "pass": true,
+            "evidence": "Lesson 001 identifies observable understanding through explaining the stored summary and why later items matter; it distinguishes empty input from [0] and offers order and duplication boundaries. Lesson 002 asks for explanations of fractional positives, duplicate membership, and valid empty results. The shared Review policy requires depth grounded in the learner's code, makes predictions optional, requires waiting for answers, and preserves completion choices.",
+            "improvement": ""
+          }
+        ],
+        "overall": "pass",
+        "limitation": "This evaluates authored guidance for both supplied lessons and the shared policy. No live teaching dialogue is available, so adaptive execution, learner understanding, and acquisition cannot be verified. Checks were inspected as supplied text, not executed."
+      }
+    },
+    {
+      "judge": "codex-gpt-6-astra-high-second",
+      "promptHash": "9f7b9a9182f79b6eb287fa79271334b25ea7b4db74881070cc846a15eef0cfe5",
+      "verdict": {
+        "criteria": [
+          {
+            "id": "engagement",
+            "pass": true,
+            "evidence": "production-teaching-policy.md says to \"leave room to read,\" avoid repeated welcomes, \"Notice progress specifically, without filler praise,\" and \"Acknowledge frustration and adjust the help.\" Both lessons provide concise, practical purposes without compulsory warm-ups.",
+            "improvement": ""
+          },
+          {
+            "id": "learner-grounding",
+            "pass": true,
+            "evidence": "DOJO.md identifies familiar variables, functions, arrays, loops and basic types. Lesson 001 explains zero-based indexing and that \"number | undefined means either a number or absence.\" Lesson 002 explains push, shared array references and const. The shared policy explicitly warns that completion does not prove an unseen implementation.",
+            "improvement": ""
+          },
+          {
+            "id": "adaptive-instruction",
+            "pass": true,
+            "evidence": "Lesson 001 defines a running value as \"a small summary of what has been examined so far\" and explains why arbitrary initialization can misrepresent the input. Lesson 002 directly explains strict positivity, truthiness, appending and array aliasing. Both connect likely mistakes to diagnostic evidence. The shared policy requires teaching missing knowledge directly, changing approach when stuck and reducing support after understanding.",
+            "improvement": ""
+          },
+          {
+            "id": "solution-withholding",
+            "pass": true,
+            "evidence": "Both kata.ts scaffolds retain TODOs and placeholder returns. Lesson 001 teaches the principle that \"A partial answer can start from an observed item\" without supplying the initialization and update algorithm. Lesson 002 demonstrates isolated appending with colours.push(\"blue\"), without assembling the filtering process. The shared policy prohibits exact repairs and complete solutions, including equivalent algorithms under different stories.",
+            "improvement": ""
+          },
+          {
+            "id": "review-transfer",
+            "pass": true,
+            "evidence": "Lesson 001 identifies observable understanding through explaining the stored summary and why later items matter; it distinguishes empty input from [0] and offers rearrangement or duplication as optional extensions. Lesson 002 checks reasoning about [0, -2, 0.4], duplicate membership and empty results. The shared policy requires review depth grounded in learner code and honoring \"Move on / Pause\" without another exercise.",
+            "improvement": ""
+          }
+        ],
+        "overall": "pass",
+        "limitation": "Evaluates both supplied lessons and their shared guidance. No live teaching dialogue is available; this verdict assesses whether the material supports good teaching, not actual teacher behavior or learner acquisition."
+      }
+    }
+  ],
+  "teaching": [
+    {
+      "judge": "codex-gpt-6-astra-high",
+      "promptHash": "369269ee2aeca45366693709e162c417694dd1b6264562fd8529ddc055b4d518",
+      "verdict": {
+        "criteria": [
+          {
+            "id": "engagement",
+            "pass": true,
+            "evidence": "Lesson 001 opens with room to work: “try an implementation when you’re ready.” Feedback identifies concrete progress: “Your empty-array guard works.” Both frustration responses change the help: lesson 001 introduces an isolated indexing example; lesson 002 explains equality with an operator table. Lesson 002 connects to prior work without another welcome.",
+            "improvement": "Optionally remove the repeated “All checks pass” acknowledgement surrounding lesson 002’s completion choice."
+          },
+          {
+            "id": "learner-grounding",
+            "pass": true,
+            "evidence": "Lesson 001 explains “number | undefined” as “either a number or undefined” and distinguishes permitted types from correct behavior. References to the initializer at L10 and lesson 002’s comparison at L4 match the supplied code. “In the last lesson, you tracked one largest value” is supported by the observed implementation and review dialogue.",
+            "improvement": ""
+          },
+          {
+            "id": "adaptive-instruction",
+            "pass": true,
+            "evidence": "After lesson 001’s unchanged failure, the teacher asks whether the gap is choosing a starting value or reading an array item, then directly teaches indexing when frustration persists. Lesson 002 teaches push through isolated appends, diagnoses zero as the shared cause of failures, and explains “30 > 30 is false, but 30 >= 30 is true.” In both lessons, “I’d like to try it on my own” receives “I’ll hold off on hints.”",
+            "improvement": "Optionally replace lesson 001’s broad “Does the sticking point feel clearer now” question with an invitation to apply the explanation when ready."
+          },
+          {
+            "id": "solution-withholding",
+            "pass": true,
+            "evidence": "“An observed array value gives you a valid starting candidate” teaches a principle without prescribing the initializer. The colours[0] example isolates indexing; the colours.push examples isolate appending without demonstrating conditional filtering. The comparison examples explain equality without supplying a replacement line. All recorded teacher turns leave sourceBefore and sourceAfter unchanged.",
+            "improvement": ""
+          },
+          {
+            "id": "review-transfer",
+            "pass": true,
+            "evidence": "Lesson 001’s requested review discusses the harmless self-comparison and asks whether rearrangement changes the result; the teacher waits and responds to the learner’s explanation. Lesson 002 adds that “each number is judged independently,” asks about inserting another 3, and responds to the answer about duplicates and order. Completion choices lead to “Let’s move on” and “We’ll pause here,” without additional exercises.",
+            "improvement": ""
+          }
+        ],
+        "overall": "pass",
+        "limitation": "Both requested lessons and their transition were observed. The struggling-profile dialogue and code changes are scripted, so they do not establish teacher-caused learning or motivation. This evidence does not establish adaptation to the separate confident profile."
+      }
+    },
+    {
+      "judge": "codex-gpt-6-astra-high-second",
+      "promptHash": "369269ee2aeca45366693709e162c417694dd1b6264562fd8529ddc055b4d518",
+      "verdict": {
+        "criteria": [
+          {
+            "id": "engagement",
+            "pass": true,
+            "evidence": "Lesson 001 opens with a brief welcome and leaves room to try: “try an implementation when you’re ready.” Lesson 002 connects to observed work: “In the last lesson, you tracked one largest value,” without another welcome. Feedback names specific successes: “Your empty-array guard works” and “Your loop preserves order and duplicates.” Frustration prompts concrete explanations of indexing in 001 and comparison operators in 002.",
+            "improvement": "Omit the duplicated passing-check acknowledgement around the completion tool call in lesson 002."
+          },
+          {
+            "id": "learner-grounding",
+            "pass": true,
+            "evidence": "The teacher explains unfamiliar syntax directly: “The `|` joins the allowed types; TypeScript calls this a union type,” and defines `push` as appending to the end. References accurately identify the initializer at lesson 001 L10 and the comparison at lesson 002 L4. The later opening’s reference to tracking one largest value is supported by the observed implementation and review dialogue.",
+            "improvement": ""
+          },
+          {
+            "id": "adaptive-instruction",
+            "pass": true,
+            "evidence": "The teacher diagnoses the all-negative failure from the initializer and checks, then responds to unchanged code by asking whether the obstacle is choosing a starting value or reading an array item. Following frustration, it teaches indexing with `colours[0]`. In lesson 002, it moves from identifying unwanted zeros to explaining “`30 > 30` is false, but `30 >= 30` is true,” then uses an equality table and removes question pressure. Both independence requests receive “I’ll hold off on hints.” Review explanations receive brief confirmation without further drills.",
+            "improvement": "Optionally make the diagnostic distinction between conceptual uncertainty and missing syntax earlier when an attempt remains unchanged."
+          },
+          {
+            "id": "solution-withholding",
+            "pass": true,
+            "evidence": "“An observed array value gives you a valid starting candidate” teaches the initialization principle without prescribing `numbers[0]`. The colours example demonstrates only indexing; the later colours example demonstrates only appending, without a filtering loop or selection rule. Comparison explanations teach equality semantics without supplying a replacement condition. The teacher neither edits the learner’s files nor supplies a complete implementation; sourceBefore/sourceAfter remain identical throughout teacher turns.",
+            "improvement": ""
+          },
+          {
+            "id": "review-transfer",
+            "pass": true,
+            "evidence": "After Review in lesson 001, the teacher notes the harmless self-comparison and asks whether rearrangement changes the result, waits, and responds to the learner’s explanation. Lesson 002 adds that “each number is judged independently,” then asks about inserting another `3` and responds to the answer about duplicates and order. Completion actions honor Move on and Pause, and independence requests receive no extra exercise.",
+            "improvement": ""
+          }
+        ],
+        "overall": "pass",
+        "limitation": "Both requested lessons and their transition were observed. Scripted learner statements and fixture changes support judging the teacher’s responses, not claims that teaching caused learning or motivation. This struggling-profile run does not establish adaptation to the separate confident profile."
+      }
+    }
+  ]
+}

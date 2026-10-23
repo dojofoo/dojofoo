@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, extname, relative, resolve } from "node:path";
-import { readDojoRc } from "@dojofoo/config";
+import { dojoDir, readDojoRc } from "@dojofoo/config";
 import { resolveRequestWorkspace, resolveWorkspaceId } from "../control/workspace";
 import { advanceInteractiveLesson, answerInteractiveQuestion, getInteractiveLesson } from "./service";
 
@@ -21,7 +21,7 @@ export const interactiveRoutes = new Hono()
     const requested = c.req.query("path");
     if (!requested) return c.json({ error: "An asset path is required." }, 400);
     const rc = readDojoRc(projectRoot);
-    const courseRoot = realpathSync(resolve(projectRoot, ".dojos", rc.currentDojo));
+    const courseRoot = realpathSync(dojoDir(projectRoot, rc.currentDojo));
     const unresolved = resolve(courseRoot, requested);
     if (!existsSync(unresolved)) return c.json({ error: "Asset not found." }, 404);
     const path = realpathSync(unresolved);

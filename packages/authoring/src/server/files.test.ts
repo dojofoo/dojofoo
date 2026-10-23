@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, onTestFinished } from "vitest";
@@ -6,10 +6,11 @@ import { readAuthoringFile, writeAuthoringFile } from "./files";
 import { readAuthoringDraft } from "./service";
 import { scaffoldAuthoringWorkspace } from "../scaffold";
 
-it("does not project secret files or nested runtime files through draft/inspect or the file API", () => {
+it("respects author-owned ignore rules and excludes runtime files from draft/inspect and the file API", () => {
   const root = mkdtempSync(join(tmpdir(), "dojo-authoring-private-"));
   onTestFinished(() => rmSync(root, { recursive: true, force: true }));
   scaffoldAuthoringWorkspace({ root, style: "katas", name: "Private" });
+  appendFileSync(join(root, ".gitignore"), "\n.npmrc\n");
   const paths = [".env", ".env.local", ".npmrc", "scripts/.env", "scripts/.dojo/runtime.json"];
   for (const path of paths) {
     mkdirSync(join(root, path, ".."), { recursive: true });

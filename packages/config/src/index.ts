@@ -1,11 +1,46 @@
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, lstatSync, mkdirSync } from "node:fs";
 import { resolve, basename, dirname, join } from "node:path";
 import { createJiti } from "jiti";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, parseDocument } from "yaml";
+import { chapterCurriculum, type ChapterReference } from "./curriculum";
+
+export { chapterCurriculum, courseRelativePath, type ChapterReference } from "./curriculum";
+export { courseFileFilter } from "./publication";
 
 export const CLI = "npx dojofoo";
-export const DOJOS_DIR = ".dojos";
+export const DOJOS_DIR = "courses";
 export const MANIFEST_NAMES = ["dojo.yaml", "dojo.yml", "dojo.json"] as const;
+
+/** Private local state, never teaching material. Install the ignore rule first. */
+export function createStateDirectory(root: string, ...identifiers: string[]): string {
+  for (const id of identifiers) {
+    if (!/^[a-zA-Z0-9_-][a-zA-Z0-9._-]*$/u.test(id)) {
+      throw new Error(`Invalid state identifier: ${id}`);
+    }
+  }
+  const directory = (parent: string, name: string) => {
+    const path = resolve(parent, name);
+    try {
+      const stat = lstatSync(path);
+      if (stat.isSymbolicLink()) throw new Error("State directories must not be symbolic links");
+      if (!stat.isDirectory()) throw new Error("State path must be a directory");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      mkdirSync(path);
+    }
+    return path;
+  };
+  let state = directory(directory(root, ".dojo"), "state");
+  const ignore = resolve(state, ".gitignore");
+  try {
+    if (lstatSync(ignore).isSymbolicLink()) throw new Error("State ignore file must not be a symbolic link");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  writeFileSync(ignore, "*\n!.gitignore\n");
+  for (const id of identifiers) state = directory(state, id);
+  return state;
+}
 
 // --- User-facing config types ---
 
@@ -108,6 +143,8 @@ export function validateDojoRc(data: unknown): DojoRc {
 // --- Manifest types ---
 
 export interface KataEntry {
+  id?: string;
+  chapter?: ChapterReference;
   template: string;
   test?: string;
   name?: string;
@@ -126,6 +163,7 @@ export interface DojoManifest {
   description: string;
   test: string;
   katas: KataEntry[];
+  chapters?: Array<ChapterReference & { lessons: KataEntry[] }>;
   runner?: RunnerConfig;
   author?: string;
   language?: string;
@@ -180,6 +218,11 @@ export function validateManifest(data: unknown): string[] {
   }
 
   const obj = data as Record<string, unknown>;
+
+  if ("chapters" in obj && obj.chapters !== undefined) {
+    const curriculum = chapterCurriculum(obj);
+    return [...curriculum.errors, ...validateManifest({ ...obj, chapters: undefined, katas: curriculum.katas })];
+  }
 
   for (const field of ["name", "version", "description"] as const) {
     if (!(field in obj)) {
@@ -296,6 +339,9 @@ export function parseManifest(source: string, path: string): CourseManifest {
   if (errors.length > 0) {
     throw new ManifestValidationError(errors, path);
   }
+  if (typeof data === "object" && data !== null && "chapters" in data) {
+    return { ...data, katas: chapterCurriculum(data as Record<string, unknown>).katas } as unknown as CourseManifest;
+  }
   return data as CourseManifest;
 }
 
@@ -309,20 +355,51 @@ export interface ResolvedKata {
   senseiPath: string;
   dojoKataDir: string;
   test?: string;
+  title?: string;
+  chapter?: ChapterReference;
+  workspaceIsSource?: boolean;
+  starterPath?: string;
 }
 
 // --- Config loading ---
 
 export function findProjectRoot(): string {
   let dir = process.cwd();
-  while (dir !== "/") {
-    if (existsSync(resolve(dir, ".dojorc"))) return dir;
-    dir = dirname(dir);
+  let course: string | undefined;
+  for (;;) {
+    if (existsSync(resolve(dir, ".dojo/config.yaml")) || existsSync(resolve(dir, ".dojorc"))) return dir;
+    if (!course && findManifestPath(dir)) course = dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
   }
-  return process.cwd();
+  return course ?? process.cwd();
+}
+
+export function hasWorkspaceConfiguration(root: string): boolean {
+  return existsSync(resolve(root, ".dojo/config.yaml")) || existsSync(resolve(root, ".dojorc"));
 }
 
 export function readDojoRc(root: string): DojoRc {
+  const configuration = resolve(root, ".dojo/config.yaml");
+  if (existsSync(configuration)) {
+    const rc = validateDojoRc(parseYaml(readFileSync(configuration, "utf8")));
+    rc.progress = {};
+    for (const course of listDojos(root)) {
+      const manifest = readCourseManifest(root, course) as CourseManifest & { progress?: {
+        lastActive?: string; introduced?: boolean; lessonIntros?: string[];
+        lessons?: Record<string, { status?: string }>;
+      } };
+      const progress = manifest.progress;
+      rc.progress[course] = {
+        completed: Object.entries(progress?.lessons ?? {}).filter(([, lesson]) => lesson.status === "completed").map(([id]) => id),
+        lastActive: progress?.lastActive ?? null,
+        introduced: progress?.introduced,
+        kataIntros: progress?.lessonIntros ?? [],
+      };
+    }
+    return rc;
+  }
   const rcPath = resolve(root, ".dojorc");
   if (!existsSync(rcPath)) {
     throw new Error(".dojorc not found — run `npx dojofoo install` first");
@@ -332,7 +409,37 @@ export function readDojoRc(root: string): DojoRc {
 
 export function writeDojoRc(root: string, rc: DojoRc): void {
   const rcPath = resolve(root, ".dojorc");
-  writeFileSync(rcPath, JSON.stringify(rc, null, 2) + "\n");
+  const configuration = resolve(root, ".dojo/config.yaml");
+  if (existsSync(rcPath) && !existsSync(configuration)) {
+    writeFileSync(rcPath, JSON.stringify(rc, null, 2) + "\n");
+    return;
+  }
+  createStateDirectory(root);
+  const settings = existsSync(configuration) ? parseDocument(readFileSync(configuration, "utf8")) : parseDocument("{}");
+  settings.set("currentDojo", rc.currentDojo);
+  settings.set("currentKata", rc.currentKata);
+  settings.set("editor", rc.editor);
+  writeFileSync(configuration, settings.toString());
+  for (const [id, progress] of Object.entries(rc.progress ?? {})) {
+    const manifest = findManifestPath(dojoDir(root, id));
+    if (!manifest) continue;
+    const source = readFileSync(manifest, "utf8");
+    const data = manifest.endsWith(".json") ? JSON.parse(source) : parseYaml(source);
+    const previous = data.progress ?? {};
+    const lessons = { ...previous.lessons };
+    for (const completed of progress.completed) {
+      lessons[completed] = { ...lessons[completed], status: "completed", completedAt: lessons[completed]?.completedAt ?? new Date().toISOString() };
+    }
+    const active = id === rc.currentDojo ? rc.currentKata : progress.lastActive;
+    if (active && lessons[active]?.status !== "completed") lessons[active] = { ...lessons[active], status: "in-progress" };
+    const value = { ...previous, lastActive: active, introduced: progress.introduced, lessonIntros: progress.kataIntros, lessons };
+    if (manifest.endsWith(".json")) writeFileSync(manifest, `${JSON.stringify({ ...data, progress: value }, null, 2)}\n`);
+    else {
+      const document = parseDocument(source);
+      document.set("progress", value);
+      writeFileSync(manifest, document.toString());
+    }
+  }
 }
 
 export function readCatalog(root: string, active: string): DojoManifest {
@@ -355,24 +462,28 @@ export function findManifestPath(directory: string): string | null {
 }
 
 export function readCourseManifest(root: string, active: string): CourseManifest {
-  const directory = resolve(root, DOJOS_DIR, active);
+  const directory = dojoDir(root, active);
   const catalogPath = findManifestPath(directory);
   if (!catalogPath) throw new Error(`Dojo manifest not found in ${directory}`);
   return parseManifest(readFileSync(catalogPath, "utf8"), catalogPath);
 }
 
 export function dojoDir(root: string, active: string): string {
-  return resolve(root, DOJOS_DIR, active);
+  if (!active || active === "." || active === ".." || /[\\/\0]/u.test(active)) throw new Error("Invalid course installation name");
+  const visible = resolve(root, DOJOS_DIR, active);
+  const legacy = resolve(root, ".dojos", active);
+  return !existsSync(visible) && existsSync(legacy) ? legacy : visible;
 }
 
 export function readDojoMd(root: string, active: string): string {
   if (active) {
-    const activePath = resolve(root, DOJOS_DIR, active, "DOJO.md");
+    const activePath = resolve(dojoDir(root, active), "DOJO.md");
     if (existsSync(activePath)) return readFileSync(activePath, "utf8");
   }
-  // Fallback to root .dojos/DOJO.md
-  const rootDojoPath = resolve(root, DOJOS_DIR, "DOJO.md");
-  if (existsSync(rootDojoPath)) return readFileSync(rootDojoPath, "utf8");
+  for (const base of [DOJOS_DIR, ".dojos"]) {
+    const rootDojoPath = resolve(root, base, "DOJO.md");
+    if (existsSync(rootDojoPath)) return readFileSync(rootDojoPath, "utf8");
+  }
   return "";
 }
 
@@ -424,17 +535,23 @@ export function resolveKata(
   const wp = katasPath(root);
   const name = entry.name ?? basename(dirname(entry.template));
   const templateBasename = basename(entry.template);
+  const workspaceIsSource = dojo === resolve(root, DOJOS_DIR, rc.currentDojo);
+  const starterPath = resolve(root, ".dojo/state", rc.currentDojo, "starters", name);
 
   return {
     name,
     template: entry.template,
-    workspacePath: resolve(wp, name, templateBasename),
+    workspacePath: workspaceIsSource ? resolve(dojo, entry.template) : resolve(wp, name, templateBasename),
     testPath: resolve(dojo, kataTestTemplate(entry.template)),
     senseiPath: ["SENSEI.mdx", "SENSEI.md"]
       .map((name) => resolve(dojo, dirname(entry.template), name))
       .find(existsSync) ?? resolve(dojo, dirname(entry.template), "SENSEI.md"),
     dojoKataDir: resolve(dojo, dirname(entry.template)),
     test: entry.test,
+    title: entry.title,
+    chapter: entry.chapter,
+    workspaceIsSource,
+    ...(existsSync(starterPath) ? { starterPath } : {}),
   };
 }
 
@@ -450,6 +567,7 @@ export type KataState = "not-started" | "ongoing" | "completed";
 
 export function kataState(kata: ResolvedKata, progress?: KataProgress): KataState {
   if (progress?.completed.includes(kata.name)) return "completed";
+  if (kata.workspaceIsSource) return progress?.lastActive === kata.name || progress?.kataIntros?.includes(kata.name) ? "ongoing" : "not-started";
   return existsSync(kata.workspacePath) ? "ongoing" : "not-started";
 }
 
@@ -467,7 +585,7 @@ export function findCurrentKata(
 export function findNextKata(katas: ResolvedKata[], progress?: KataProgress): ResolvedKata | null {
   return katas.find((k) => {
     if (progress?.completed.includes(k.name)) return false;
-    return !existsSync(k.workspacePath);
+    return k.workspaceIsSource || !existsSync(k.workspacePath);
   }) ?? null;
 }
 
@@ -492,11 +610,15 @@ export function findKataByIdOrName(
 }
 
 export function listDojos(root: string): string[] {
-  const dojosPath = resolve(root, DOJOS_DIR);
-  if (!existsSync(dojosPath)) return [];
-  return readdirSync(dojosPath, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => d.name);
+  const names = new Set<string>();
+  for (const base of [DOJOS_DIR, ".dojos"]) {
+    const directory = resolve(root, base);
+    if (!existsSync(directory)) continue;
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.isDirectory() && findManifestPath(resolve(directory, entry.name))) names.add(entry.name);
+    }
+  }
+  return [...names];
 }
 
 // --- Registry types ---

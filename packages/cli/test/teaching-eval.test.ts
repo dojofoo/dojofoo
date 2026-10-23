@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -8,6 +8,14 @@ const worker = process.env.DOJOFOO_TEST_EVAL_WORKER ?? resolve(import.meta.dirna
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
+});
+
+it("keeps filesystem-relative fixture adapters in their installed authoring package", async () => {
+  // Inlining this helper also inlines official adapters. Their import.meta.url
+  // then points into cli/dist, where their bridge/package.json does not exist.
+  const bundle = await readFile(worker, "utf8");
+  expect(bundle).toContain('import("@dojofoo/authoring/evaluation/learner-fixtures")');
+  expect(bundle).toContain('import("@dojofoo/authoring/evaluation/learner-response")');
 });
 
 it("describes usage without loading a teaching harness", () => {

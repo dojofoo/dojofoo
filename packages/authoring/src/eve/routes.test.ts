@@ -63,7 +63,9 @@ describe("Eve authoring HTTP routes using the real Eve client", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({ sessionId: "session-1" });
     expect(requests[0].body).toEqual({ message: KYOSHI_START });
-    const snapshot = await (await app.request("/sessions/session-1")).json();
+    const snapshotResponse = await app.request("/sessions/session-1");
+    expect(snapshotResponse.status).toBe(200);
+    const snapshot = await snapshotResponse.json();
     expect(snapshot.messages.map((message: { role: string }) => message.role)).toEqual(["assistant"]);
     expect(JSON.stringify(snapshot)).not.toContain(KYOSHI_START);
   });
@@ -90,13 +92,53 @@ describe("Eve authoring HTTP routes using the real Eve client", () => {
     expect(requests.filter(request => request.body)).toHaveLength(0);
   });
 
-  it("supplies a read-only resume pointer after a completed answer as well", async () => {
+  it("does not mark a completed answer as an in-flight run when reopening the chat", async () => {
     const { app } = fixture();
     await (await app.request("/sessions/session-1/answers", { method: "POST", body: JSON.stringify({ responses: [{ requestId: "question-1", optionId: "review" }] }) })).text();
     const response = await app.request("/sessions/session-1");
-    expect((await response.json()).initialResumeSnapshot).toMatchObject({
-      resumeState: { threadId: "session-1" }, pendingInterrupts: [],
+    expect(response.status).toBe(200);
+    expect((await response.json()).initialResumeSnapshot).toBeUndefined();
+  });
+
+  it("sends new input immediately after hydrating a completed conversation", async () => {
+    const { app, requests } = fixture();
+    await (await app.request("/sessions/session-1/answers", { method: "POST", body: JSON.stringify({ responses: [{ requestId: "question-1", optionId: "review" }] }) })).text();
+    const response = await app.request("/sessions/session-1");
+    expect(response.status).toBe(200);
+    const snapshot = await response.json();
+    const chat = new ChatClient({
+      threadId: "session-1", persistence: false,
+      initialMessages: snapshot.messages, initialResumeSnapshot: snapshot.initialResumeSnapshot,
+      connection: fetchServerSentEvents("http://authoring.local/sessions/session-1/messages", {
+        fetchClient: async (input, options) => app.fetch(new Request(input, options)),
+      }),
     });
+    try {
+      await chat.sendMessage("Continue authoring");
+      expect(chat.getQueue()).toEqual([]);
+      expect(requests.some(request => request.body?.message === "Continue authoring")).toBe(true);
+    } finally { chat.dispose(); }
+  });
+
+  it("finishes an in-flight rejoin and releases queued input", async () => {
+    const { app, requests } = fixture();
+    await (await app.request("/sessions/session-1/answers", { method: "POST", body: JSON.stringify({ responses: [{ requestId: "question-1", optionId: "review" }] }) })).text();
+    const snapshot = await (await app.request("/sessions/session-1")).json();
+    const chunks: string[] = [];
+    const chat = new ChatClient({
+      threadId: "session-1", persistence: false, initialMessages: snapshot.messages,
+      initialResumeSnapshot: { resumeState: { threadId: "session-1", runId: "active" }, pendingInterrupts: [] },
+      onChunk: chunk => { chunks.push(chunk.type); },
+      connection: fetchServerSentEvents("http://authoring.local/sessions/session-1/messages", {
+        fetchClient: async (input, options) => app.fetch(new Request(input, options)),
+      }),
+    });
+    try {
+      chat.attach();
+      await chat.sendMessage("Continue authoring");
+      await vi.waitFor(() => expect(requests.some(request => request.body?.message === "Continue authoring")).toBe(true));
+      expect(chunks).toContain("RUN_FINISHED");
+    } finally { chat.dispose(); }
   });
 
   it("accepts AG-UI resume entries and retains the client's run correlation", async () => {

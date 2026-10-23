@@ -27,6 +27,12 @@
       }
     },
     "@assistant-ui": "https://r.assistant-ui.com/{name}.json",
-    "@uiarc": "https://uiarc.dev/r/{name}.json"
+    "@uiarc": "https://uiarc.dev/r/{name}.json",
+    "@useplanes": {
+      "url": "https://useplanes.com/api/registry/{name}",
+      "headers": {
+        "Authorization": "Bearer ${PLANES_LICENSE_KEY}"
+      }
+    }
   }
 }

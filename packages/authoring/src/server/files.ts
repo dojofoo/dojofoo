@@ -1,12 +1,21 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { isGitIgnoredSync } from "globby";
 
 const privateAuthoringDirectories = new Set([".dojo", ".git", "node_modules"]);
 
-export function privateAuthoringEntry(name: string): boolean {
-  return privateAuthoringDirectories.has(name) || name === ".npmrc" || name === ".netrc"
-    || ((name === ".env" || name.startsWith(".env.")) && ![".env.example", ".env.sample", ".env.template"].includes(name));
+function privateAuthoringEntry(name: string): boolean {
+  return privateAuthoringDirectories.has(name);
+}
+
+export function authoringFileFilter(root: string): (path: string) => boolean {
+  const ignored = isGitIgnoredSync({ cwd: root, followSymbolicLinks: false });
+  return path => {
+    if (path.split("/").some(privateAuthoringEntry)) return false;
+    const absolute = resolve(root, path);
+    return !ignored(`${absolute}${lstatSync(absolute, { throwIfNoEntry: false })?.isDirectory() ? "/" : ""}`);
+  };
 }
 
 export function readAuthoringFile(root: string, requestedPath: string): {
@@ -54,7 +63,7 @@ function authoringFilePath(root: string, requestedPath: string): string {
     || isAbsolute(requestedPath)
     || requestedPath.includes("\\")
     || segments.some((segment) => !segment || segment === "." || segment === "..")
-    || segments.some(privateAuthoringEntry)
+    || !authoringFileFilter(root)(requestedPath)
   ) {
     throw new Error(`Unsupported authoring file: ${requestedPath}`);
   }

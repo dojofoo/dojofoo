@@ -1,5 +1,7 @@
 export {
   DOJOS_DIR,
+  createStateDirectory,
+  courseFileFilter,
   type DojoRc,
   type KataProgress,
   type KataEntry,

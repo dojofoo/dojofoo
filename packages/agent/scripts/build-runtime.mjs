@@ -37,6 +37,10 @@ try {
   const nativeTurnPatch = join(root, "patches", `eve-native-turn@${version}.patch`);
   execFileSync("git", ["apply", "--check", nativeTurnPatch], { cwd: upstream });
   execFileSync("git", ["apply", nativeTurnPatch], { cwd: upstream });
+  // Opt-in .dojo roles resolve against this installation, not a course package.
+  const managedProjectPatch = join(root, "patches", `eve-managed-project@${version}.patch`);
+  execFileSync("git", ["apply", "--check", managedProjectPatch], { cwd: upstream });
+  execFileSync("git", ["apply", managedProjectPatch], { cwd: upstream });
   const destination = join(root, "dist/eve");
   await rm(destination, { recursive: true, force: true });
   // Preserve package scope, internal imports, workers, assets and license notices.

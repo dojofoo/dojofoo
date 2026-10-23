@@ -36,6 +36,7 @@ describe("dojo sources", () => {
     roots.push(root);
     const dojo = resolve(root, ".dojos/starter");
     mkdirSync(dojo, { recursive: true });
+    writeFileSync(resolve(dojo, "dojo.yaml"), "name: starter\n");
     writeInstalledSource(dojo, {
       version: 1,
       type: "github",

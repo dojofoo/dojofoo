@@ -1,50 +1,100 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { promisify } from "node:util";
 import { once } from "node:events";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { createServer } from "node:net";
 import { scaffoldAuthoringWorkspace } from "../scaffold.ts";
+import { kyoshiInstructions } from "./instructions.ts";
 import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";
 import { opencodeExecutable } from "../../../ui/src/server/harness/opencode.ts";
 
 // Manual browser fixture: real UI/server/harness; only inference is loopback.
 const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-browser-"));
-const course = join(root, "course");
+const learning = join(root, "learning");
+const source = join(root, "source");
+const course = join(learning, "courses/browser-authoring-fixture");
 const home = join(root, "home");
 // Resolve the installed CLI before isolating HOME. Otherwise trials can fall
 // back to an unrelated (and potentially pre-ACP) executable on PATH.
 const opencode = opencodeExecutable();
-const endpoint = await startLoopbackModel({ toolRequest: {
-  name: "dojo_ui_ask", input: { prompt: "Who should this course teach?", options: [
-    { id: "beginner", label: "Beginners" }, { id: "experienced", label: "Experienced developers" },
+const endpoint = await startLoopbackModel({ latencyMs: 1500,
+  selectResponsesTool(input) {
+    const history = Array.isArray(input.input) ? input.input : [];
+    const user = history.findLastIndex(item => item.role === "user");
+    const content = history[user]?.content;
+    const texts = typeof content === "string" ? [content]
+      : Array.isArray(content) ? content.filter(part => part.type === "input_text" || part.type === "text").map(part => part.text) : [];
+    // Prior-lesson evidence may quote this command. Only an actual message
+    // part with the exact control text should trigger this loopback tool call.
+    if (user < 0 || history.slice(user + 1).some(item => item.type === "function_call_output")) return;
+    const tools = (input.tools ?? []).flatMap(tool => tool.type === "namespace"
+      ? tool.tools.map(child => ({ ...child, namespace: tool.name })) : [tool]);
+    if (!texts.includes("Complete this fixture lesson")) return;
+    const complete = tools.find(tool => tool.name?.endsWith("dojo_lesson_complete"));
+    if (complete) return { ...complete, input: {} };
+  },
+  toolRequest: {
+  name: "harness-tools_course_question", input: { question: "Who should this course teach?", options: [
+    { label: "Beginners", description: "New to the topic" },
+    { label: "Experienced developers", description: "Already knows the basics" },
   ] },
 } });
-const ui = fileURLToPath(new URL("../../../ui/", import.meta.url));
-const require = createRequire(join(ui, "package.json"));
+const cli = fileURLToPath(new URL("../../../cli/dist/index.js", import.meta.url));
+await access(cli);
 const config = join(home, "config/opencode");
 await mkdir(config, { recursive: true });
 await writeFile(join(config, "opencode.json"), JSON.stringify({
   model: "openai/gpt-4o", small_model: "openai/gpt-4o", enabled_providers: ["openai"],
   provider: { openai: { options: { baseURL: endpoint.baseURL, apiKey: "fixture-only" } } },
 }));
-scaffoldAuthoringWorkspace({ root: course, name: "Browser authoring fixture", style: "katas" });
+scaffoldAuthoringWorkspace({ root: source, name: "browser-authoring-fixture", style: "katas" });
+await mkdir(join(source, "src/installed-start"), { recursive: true });
+await writeFile(join(source, "src/installed-start/kata.ts"), "export const start = () => 0;\n");
+await writeFile(join(source, "dojo.yaml"), "mode: katas\nname: browser-authoring-fixture\nversion: 0.0.1\ndescription: Learn pure functions.\ntest: npx vitest run {template}\nkatas:\n  - name: installed-start\n    template: src/installed-start/kata.ts\n");
+await mkdir(join(source, ".dojo/kyoshi/tools"), { recursive: true });
+await mkdir(join(source, ".dojo/kyoshi/skills/master-fixture"), { recursive: true });
+await writeFile(join(source, ".dojo/kyoshi/instructions.md"), `${kyoshiInstructions()}\n\nMASTER_KYOSHI_INSTRUCTIONS\n`);
+await writeFile(join(source, ".dojo/kyoshi/tools/course_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
+await writeFile(join(source, ".dojo/kyoshi/skills/master-fixture/SKILL.md"), "---\nname: master-fixture\ndescription: Course-specific authoring fixture.\n---\nMASTER_KYOSHI_SKILL\n");
+await mkdir(learning, { recursive: true });
+await promisify(execFile)(process.execPath, [cli, "add", source, "--master"], {
+  cwd: learning, timeout: 120_000,
+  env: { ...process.env, DOJO_PROJECT_ROOT: learning, DOJOFOO_HOME: join(home, ".dojofoo"),
+    DO_NOT_TRACK: "1", MISE_TRUSTED_CONFIG_PATHS: root },
+});
 let child;
 let restart = false;
-let port = "0";
+const stop = () => {
+  if (!child?.pid) return;
+  if (process.platform === "win32") child.kill("SIGTERM");
+  else process.kill(-child.pid, "SIGTERM");
+};
+const reservation = createServer();
+reservation.listen(0, "127.0.0.1");
+await once(reservation, "listening");
+let port = String(reservation.address().port);
+await new Promise((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()));
 process.on("message", message => {
-  if (message === "restart") { restart = true; child?.kill("SIGTERM"); }
+  if (message === "restart") { restart = true; stop(); }
 });
-process.once("SIGINT", () => { restart = false; child?.kill("SIGTERM"); });
-process.once("SIGTERM", () => { restart = false; child?.kill("SIGTERM"); });
+process.once("SIGINT", () => { restart = false; stop(); });
+process.once("SIGTERM", () => { restart = false; stop(); });
 try {
 do {
 restart = false;
-child = spawn(process.execPath, [join(dirname(require.resolve("vite/package.json")), "bin/vite.js"), "--host", "127.0.0.1", "--port", port], {
-  cwd: ui, stdio: ["ignore", "pipe", "pipe"],
-  env: { ...process.env, NODE_ENV: "development", EVE_MOCK_AUTHORED_MODELS: "0",
-    DOJO_EVE_ROOT: "", EVE_BASE_URL: "", DOJO_PROJECT_ROOT: course, DOJOFOO_HARNESS: "opencode",
+child = spawn(process.execPath, [cli, "ui", "--authoring", "--no-open"], {
+  cwd: course, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32",
+  env: { ...process.env, NODE_ENV: "production", EVE_MOCK_AUTHORED_MODELS: "0",
+    NODE_PATH: undefined,
+    DOJO_EVE_ROOT: "", EVE_BASE_URL: "", DOJO_PROJECT_ROOT: undefined, DOJOFOO_HARNESS: "opencode",
+    DOJO_UI_DISABLE_PORTLESS: "1",
+    DOJO_CLI: cli, DOJOFOO_HOME: join(home, ".dojofoo"), PORT: port, DOJO_UI_BASE_URL: `http://127.0.0.1:${port}`,
+    DOJOFOO_MODEL: "", DOJOFOO_AUTHORING_MODEL: "", DOJOFOO_LESSON_MODEL: "",
+    MISE_TRUSTED_CONFIG_PATHS: root,
+    MISE_DATA_DIR: process.env.MISE_DATA_DIR ?? join(homedir(), ".local/share/mise"),
     OPENCODE_BIN: opencode,
     HOME: home, XDG_CONFIG_HOME: join(home, "config"), XDG_DATA_HOME: join(home, "data"), XDG_CACHE_HOME: join(home, "cache"),
     OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "",
@@ -54,20 +104,32 @@ child = spawn(process.execPath, [join(dirname(require.resolve("vite/package.json
 child.stdout.pipe(process.stdout);
 child.stderr.pipe(process.stderr);
 console.log(JSON.stringify({ course }));
-let output = "";
-child.stdout.on("data", chunk => {
-  output += chunk;
-  const url = output.match(/Local:\s+(http:\/\/127\.0\.0\.1:(\d+)\/)/);
-  if (url) {
-    port = url[2];
-    process.send?.({ ready: true, url: url[1], course });
-    output = "";
-  }
-});
+const url = `http://127.0.0.1:${port}/`;
+const deadline = Date.now() + 60_000;
+while (true) {
+  if (child.exitCode !== null) throw new Error(`Authoring CLI exited before startup (${child.exitCode})`);
+  const response = await fetch(`${url}api/authoring/backend`).catch(() => null);
+  if (response?.ok) break;
+  if (response) throw new Error(`Authoring startup failed (${response.status}): ${await response.text()}`);
+  if (Date.now() >= deadline) throw new Error("Authoring CLI did not become ready");
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+process.send?.({ ready: true, url, course });
 await once(child, "exit");
 } while (restart);
 }
 finally {
+  if (child && child.exitCode === null && child.signalCode === null) {
+    const exited = once(child, "exit");
+    stop();
+    await exited;
+  }
+  console.log(JSON.stringify({ inference: endpoint.paths, requestedTools: endpoint.requestedTools,
+    masterInstructionsLoaded: endpoint.requests.some(input => JSON.stringify(input).includes("MASTER_KYOSHI_INSTRUCTIONS")),
+    customToolUsed: endpoint.requestedTools.some(name => name.endsWith("course_question")),
+    completionRequests: endpoint.requests.filter(input => JSON.stringify(input.input ?? input.messages ?? []).includes("Complete this fixture lesson"))
+      .map(input => ({ history: (input.input ?? input.messages).map(item => ({ role: item.role, type: item.type })),
+        tools: input.tools?.map(tool => ({ type: tool.type, name: tool.name ?? tool.function?.name })) })) }));
   await endpoint.close();
   await rm(root, { recursive: true, force: true });
   process.disconnect?.();

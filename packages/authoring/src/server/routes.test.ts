@@ -4,7 +4,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -14,10 +13,13 @@ import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
-const context = vi.hoisted(() => ({ root: "" }));
+const context = vi.hoisted(() => ({ root: "", trialRoots: [] as string[] }));
 
 vi.mock("@dojofoo/config/local-state", () => ({
-  observeLocalContext: () => ({ workspaceId: "trial-workspace" }),
+  observeLocalContext: (root: string) => {
+    context.trialRoots.push(root);
+    return { workspaceId: "trial-workspace" };
+  },
 }));
 
 const { createAuthoringRoutes } = await import("./routes");
@@ -113,7 +115,11 @@ describe("authoring routes", () => {
     resume.mockReset().mockResolvedValue(undefined);
     const root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-"));
     context.root = root;
-    onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+    context.trialRoots = [];
+    onTestFinished(() => {
+      for (const trial of context.trialRoots) rmSync(trial, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true });
+    });
     cpSync(resolve(repository, "packages/authoring/templates/katas"), context.root, {
       recursive: true,
       filter: (source) => !source.includes("/.dojo/")
@@ -385,18 +391,20 @@ describe("authoring routes", () => {
       writeFileSync(resolve(context.root, path), "PRIVATE_TOKEN=do-not-copy");
     }
     writeFileSync(resolve(context.root, ".env.example"), "PUBLIC_EXAMPLE=\n");
+    writeFileSync(resolve(context.root, ".gitignore"), ".env\n.env.*\n!.env.example\n.npmrc\n.dojo/*\n!.dojo/sensei/\n");
     const original = readFileSync(resolve(context.root, "src/001-draw-a-boundary/solution.ts"), "utf8");
     const response = await authoringRoutes.request("/lessons/001-draw-a-boundary/trials", { method: "POST" });
     expect(response.status).toBe(201);
-    const trials = resolve(context.root, ".dojo/trials");
-    const trial = resolve(trials, readdirSync(trials)[0]);
+    const trial = context.trialRoots.at(-1)!;
+    expect(trial.startsWith(`${context.root}/`)).toBe(false);
+    expect(existsSync(resolve(context.root, ".dojo/state/trials"))).toBe(false);
     expect(JSON.parse(readFileSync(resolve(trial, ".dojo/runtimes.json"), "utf8"))).toEqual({ lesson: "codex" });
-    const copied = resolve(trial, ".dojos/systems-thinking");
-    for (const directory of [".dojo", ".git", "node_modules", ".env", ".npmrc", "src/001-draw-a-boundary/.env.local"]) {
+    const copied = resolve(trial, "courses/systems-thinking");
+    for (const directory of [".dojo/kyoshi-app", ".dojo/kyoshi-harness", ".dojo/runtimes.json", ".git", "node_modules", ".env", ".npmrc", "src/001-draw-a-boundary/.env.local"]) {
       expect(existsSync(resolve(copied, directory)), directory).toBe(false);
     }
     expect(readFileSync(resolve(copied, ".env.example"), "utf8")).toBe("PUBLIC_EXAMPLE=\n");
-    const learnerFile = resolve(trial, "katas/001-draw-a-boundary/solution.ts");
+    const learnerFile = resolve(copied, "src/001-draw-a-boundary/solution.ts");
     expect(readFileSync(learnerFile, "utf8")).toBe(original);
     writeFileSync(learnerFile, "// learner edits stay in the trial\n");
     expect(readFileSync(resolve(context.root, "src/001-draw-a-boundary/solution.ts"), "utf8")).toBe(original);
@@ -502,8 +510,7 @@ describe("authoring routes", () => {
     expect(lesson.checks.find((check: { id: string }) => check.id === "scaffold")).toMatchObject({ ready: false, findings: [expect.stringContaining("todo")] });
     const trial = await authoringRoutes.request(`/lessons/${created.lessonId}/trials`, { method: "POST" });
     expect(trial.status).toBe(201);
-    const trials = resolve(context.root, ".dojo/trials");
-    expect(existsSync(resolve(trials, readdirSync(trials)[0], "katas", created.lessonId, "kata.ts"))).toBe(true);
+    expect(existsSync(resolve(context.trialRoots.at(-1)!, "courses/systems-thinking/src", created.lessonId, "kata.ts"))).toBe(true);
   });
 
   it("edits the course title in dojo.yaml", async () => {
