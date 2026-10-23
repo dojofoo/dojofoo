@@ -13,6 +13,7 @@ node_modules
 
 # build outputs
 packages/cli/dist/
+packages/cli/.package/
 packages/config/dist/
 packages/authoring/dist/
 # local eval scratch builds and Storybook crash logs

@@ -64,16 +64,24 @@ Retained deliberately:
 - Support a standalone author course as a normal learning workspace, not only installed courses.
 - Define expired-trial cleanup and friendly resume errors; trials currently live until system/temp cleanup.
 - Extend migration coverage before retiring legacy paths.
-- Broaden installed-package acceptance to the full browser journey and other harnesses. The built-CLI journey and packed startup below do not establish cross-harness reliability.
+- Broaden installed-package acceptance to other harnesses. The OpenCode browser journey below does not establish cross-harness reliability.
 
 No paid model calls are needed for these structural regression tests.
 
 ## Master authoring acceptance (2026-10-23)
 
-- The browser test installs a master into a fresh temporary learner workspace with the built CLI, then starts `ui --authoring` from that installed course. It uses the production UI and explicitly unsets `NODE_PATH`.
+- The browser test installs a master into a fresh temporary learner workspace, then starts `ui --authoring` from that installed course. `DOJO_CLI` lets the same test exercise the CLI installed from its tarball instead of the workspace build. It uses the production UI and explicitly unsets `NODE_PATH`.
 - Course-owned instructions and a custom question tool reach the real Eve/OpenCode runtime. Questions survive a server restart; queued messages and a new message after refresh reach durable history.
 - Two lessons are edited through Monaco. An isolated trial fails checks, passes after an edit, supports review, advances to the next lesson and resumes after another restart. The author's exercise stays unchanged.
 - A separate plain-Node regression boots the retained Kyoshi without monorepo module paths. Packed CLI installation and HTTP startup also pass.
 - Inference is scripted locally. This verifies integration behavior, not teaching quality, every harness or the published npm release.
 
 The reconnect observer now uses Eve's public session stream (60 → 20 LOC). The existing TanStack patch adds four source lines to drain queued messages after a successful rejoin; its regression reproduces the failure through the public chat client and HTTP transport.
+
+## CLI distribution
+
+- Agent and authoring remain private workspace packages; they are not npm releases.
+- The CLI's prepack step stages its normal files plus the three internal runtime packages (agent, authoring, config) and the tested patched Nitro dependency, using their package file lists. pnpm publishes that directory with standard bundled dependencies. The CLI-local hoisted packing setting describes these real directories; the workspace installation layout is unchanged.
+- Public runtime dependencies are declared at the CLI distribution root and installed by npm. Platform-specific third-party binaries are not copied from the build machine.
+- The packed smoke installs **only the CLI tarball**, with install scripts disabled. It checks scaffold assets, the OpenCode bridge's model selection, native Kyoshi readiness, dashboard HTTP startup, and shutdown outside the monorepo. Installing sibling tarballs would mask missing runtime dependencies and is deliberately forbidden by this test setup.
+- The complete browser journey also passes against that installed tarball (1.3 minutes, scripted inference), waiting for full process/pipe closure during restarts and checking the entire fixture directory for leaked native processes. Without the bundled Nitro fix, shutdown left the installed UI process alive.

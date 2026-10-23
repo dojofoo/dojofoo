@@ -1,6 +1,6 @@
 {
   "name": "dojofoo",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Installable coding dojos that turn your AI agent into a sensei.",
   "keywords": [
     "cli",
@@ -28,7 +28,8 @@
     "node": ">=24"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "directory": ".package"
   },
   "files": [
     "dist",
@@ -45,7 +46,8 @@
     "test:package": "node scripts/test-packed-ui.mjs",
     "test:watch": "vitest",
     "types:check": "tsc --noEmit",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm build",
+    "prepack": "node scripts/prepare-package.mjs"
   },
   "dependencies": {
     "@agentclientprotocol/codex-acp": "2.2.2",

@@ -42,7 +42,7 @@ const endpoint = await startLoopbackModel({ latencyMs: 1500,
     { label: "Experienced developers", description: "Already knows the basics" },
   ] },
 } });
-const cli = fileURLToPath(new URL("../../../cli/dist/index.js", import.meta.url));
+const cli = process.env.DOJO_CLI ?? fileURLToPath(new URL("../../../cli/dist/index.js", import.meta.url));
 await access(cli);
 const config = join(home, "config/opencode");
 await mkdir(config, { recursive: true });
@@ -98,7 +98,7 @@ child = spawn(process.execPath, [cli, "ui", "--authoring", "--no-open"], {
     OPENCODE_BIN: opencode,
     HOME: home, XDG_CONFIG_HOME: join(home, "config"), XDG_DATA_HOME: join(home, "data"), XDG_CACHE_HOME: join(home, "cache"),
     OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "",
-    PATH: `${resolve(import.meta.dirname, "../../node_modules/.bin")}:${process.env.PATH}`, CI: "1",
+    PATH: `${resolve(import.meta.dirname, "../../node_modules/.bin")}:${process.env.PATH}`, CI: "", TEST: "",
   },
 });
 child.stdout.pipe(process.stdout);
@@ -114,13 +114,13 @@ while (true) {
   if (Date.now() >= deadline) throw new Error("Authoring CLI did not become ready");
   await new Promise(resolve => setTimeout(resolve, 100));
 }
-process.send?.({ ready: true, url, course });
-await once(child, "exit");
+process.send?.({ ready: true, url, course, root });
+await once(child, "close");
 } while (restart);
 }
 finally {
   if (child && child.exitCode === null && child.signalCode === null) {
-    const exited = once(child, "exit");
+    const exited = once(child, "close");
     stop();
     await exited;
   }

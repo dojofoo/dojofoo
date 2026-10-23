@@ -14,7 +14,7 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     stdio: ["ignore", "pipe", "pipe", "ipc"], execArgv: [],
   });
   let logs = "";
-  let courseRoot: string | undefined;
+  let fixtureRoot: string | undefined;
   fixture.stdout?.on("data", chunk => { logs += chunk; });
   fixture.stderr?.on("data", chunk => { logs += chunk; });
   const ready = async () => {
@@ -24,11 +24,11 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
       once(fixture, "exit").then(() => { throw new Error(`Authoring fixture exited: ${logs}`); }),
     ]);
     expect(message.ready).toBe(true);
-    return message as { url: string; course: string };
+    return message as { url: string; course: string; root: string };
   };
   try {
-    const { url, course } = await ready();
-    courseRoot = course;
+    const { url, course, root } = await ready();
+    fixtureRoot = root;
     await page.goto(`${url}authoring`);
     await expect(page.getByRole("radio", { name: /^Beginners/ })).toBeVisible({ timeout: 120_000 });
     const sessionUrl = page.url();
@@ -192,9 +192,9 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     await test.info().attach("runtime-log", { body: logs, contentType: "text/plain" });
     expect.soft(logs, "The installed Kyoshi instructions must reach the native harness").toContain('"masterInstructionsLoaded":true');
     expect.soft(logs, "The installed course-specific question tool must execute").toContain('"customToolUsed":true');
-    if (courseRoot) {
+    if (fixtureRoot) {
       const surviving = execFileSync("ps", ["-axo", "pid=,args="], { encoding: "utf8" })
-        .split("\n").filter(line => line.includes(join(courseRoot!, "..")));
+        .split("\n").filter(line => line.includes(fixtureRoot!));
       expect.soft(surviving, "Native fixture processes must stop with their server").toEqual([]);
       for (const line of surviving) {
         const pid = Number(line.trim().split(/\s+/)[0]);
