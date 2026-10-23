@@ -56,7 +56,7 @@
   "dependencies": {
     "globby": "16.2.4",
     "jiti": "^2.7.0",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
