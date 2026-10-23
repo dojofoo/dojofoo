@@ -10,8 +10,8 @@ const verdict = readPrompt("evaluation/prompts/VERDICT.md");
 
 /** Bump when a judge, criterion or scripted learner line changes meaning.
  * Verdicts from different versions are not comparable. */
-export const materialRubricVersion = "material-v10";
-export const teachingRubricVersion = "sensei-chain-v11";
+export const materialRubricVersion = "material-v11";
+export const teachingRubricVersion = "sensei-chain-v12";
 
 export const evaluationPrompts = { boundary, criteria, fixtureGenerator, learner, learnerScript, materialJudge, teachingJudge, verdict };
 

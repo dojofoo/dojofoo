@@ -52,7 +52,36 @@ async function collect(source: AsyncIterable<MessageStreamEvent>) {
   return events;
 }
 
-describe("read-only Eve observer using the public store", () => {
+describe("read-only Eve observer using the public session stream", () => {
+  it("settles an input pause without waiting for the whole session to end", async () => {
+    const source = fixture();
+    vi.mocked(fetch).mockRestore();
+    const pause = stamp({ type: "turn.waiting", data: { sequence: 1, turnId: "turn-1", on: "input" } }, 2);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
+      [...prefix, pause].map(event => JSON.stringify(event)).join("\n") + "\n",
+      { headers: { "content-type": "application/x-ndjson", "x-eve-stream-version": "26", "x-eve-stream-tail-index": "2" } },
+    ));
+    expect(await collect(resumeEveEvents(source.session, new AbortController().signal))).toEqual([...prefix, pause]);
+  });
+  it("keeps following when session acceptance precedes its first event", async () => {
+    const source = fixture();
+    vi.mocked(fetch).mockRestore();
+    let push!: ReadableStreamDefaultController<Uint8Array>;
+    let connect!: () => void;
+    const connected = new Promise<void>(resolve => { connect = resolve; });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new ReadableStream({
+      start(controller) { push = controller; connect(); },
+    }), { headers: { "content-type": "application/x-ndjson", "x-eve-stream-version": "25",
+      "x-eve-stream-tail-index": "-1" } }));
+    const result = collect(resumeEveEvents(source.session, new AbortController().signal));
+    await connected;
+    // Let the store observe an empty catch-up prefix before the first event.
+    await new Promise<void>(resolve => setImmediate(resolve));
+    const encoder = new TextEncoder();
+    for (const event of [...prefix, ...finish]) push.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+    expect(await result).toEqual([...prefix, ...finish]);
+  });
+
   it("follows a seeded projection without replaying its earlier message parts", async () => {
     const source = fixture();
     const result = collect(resumeEveEvents(source.atTail, new AbortController().signal, prefix));
@@ -67,8 +96,8 @@ describe("read-only Eve observer using the public store", () => {
     const iterator = resumeEveEvents(source.session, new AbortController().signal)[Symbol.asyncIterator]();
     expect((await iterator.next()).value).toEqual(prefix[0]);
     expect((await iterator.next()).value).toEqual(prefix[1]);
-    await source.opened;
     const pending = iterator.next();
+    await source.opened;
     source.finish();
     expect((await pending).value).toEqual(finish[0]);
     expect((await iterator.next()).value).toEqual(finish[1]);

@@ -22,6 +22,17 @@ vi.mock("../src/source-acquisition", () => ({
     writeFileSync(resolve(directory, "DOJO.md"), "# Remote dojo\n");
     writeFileSync(resolve(directory, "katas", "001-first", "SENSEI.md"), "# Sensei\n");
     writeFileSync(resolve(directory, "katas", "001-first", "solution.ts"), "export const value = 1;\n");
+    for (const role of ["sensei", "kyoshi"]) {
+      mkdirSync(resolve(directory, ".dojo", role, ".eve"), { recursive: true });
+      writeFileSync(resolve(directory, ".dojo", role, "instructions.md"), `${role} guidance\n`);
+      writeFileSync(resolve(directory, ".dojo", role, ".eve/private.json"), "PRIVATE STATE");
+    }
+    mkdirSync(resolve(directory, ".dojo/state"), { recursive: true });
+    writeFileSync(resolve(directory, ".dojo/state/session.json"), "PRIVATE STATE");
+    writeFileSync(resolve(directory, "KYOSHI.md"), "Authoring guidance\n");
+    writeFileSync(resolve(directory, "LICENSE"), "Fixture license\n");
+    writeFileSync(resolve(directory, ".gitignore"), ".env*\n!.env.example\n");
+    writeFileSync(resolve(directory, ".env.local"), "FAKE_FIXTURE=do-not-install\n");
     return directory;
   }),
   gigetLocator: (source: string) => source,
@@ -61,7 +72,11 @@ describe("Giget-backed dojo lifecycle", () => {
 
     await add(root, ["example/remote-dojo"]);
 
-    const dojo = resolve(root, ".dojos", "remote-dojo");
+    const dojo = resolve(root, "courses", "remote-dojo");
+    expect(() => readFileSync(resolve(dojo, ".dojo/kyoshi/instructions.md"))).toThrow();
+    expect(() => readFileSync(resolve(dojo, "KYOSHI.md"))).toThrow();
+    expect(() => readFileSync(resolve(dojo, ".env.local"))).toThrow();
+    expect(readFileSync(resolve(dojo, ".dojo/sensei/instructions.md"), "utf8")).toContain("sensei guidance");
     expect(acquisition.calls).toEqual(["example/remote-dojo"]);
     expect(readInstalledSource(dojo)).toMatchObject({
       type: "github",
@@ -84,5 +99,32 @@ describe("Giget-backed dojo lifecycle", () => {
       currentDojo: "",
       currentKata: null,
     });
+  });
+
+  it("keeps authored Kyoshi definitions only with --master, preserves the license and retains the choice on update", async () => {
+    const root = workspace();
+    await add(root, ["example/remote-dojo", "--master"]);
+    const dojo = resolve(root, "courses/remote-dojo");
+    expect(JSON.parse(readFileSync(resolve(root, ".dojorc"), "utf8")).currentKata).toBeNull();
+    expect(readFileSync(resolve(dojo, "KYOSHI.md"), "utf8")).toContain("Authoring guidance");
+    expect(readFileSync(resolve(dojo, ".dojo/kyoshi/instructions.md"), "utf8")).toContain("kyoshi guidance");
+    expect(readFileSync(resolve(dojo, "LICENSE"), "utf8")).toBe("Fixture license\n");
+    for (const path of [".dojo/state/session.json", ".dojo/kyoshi/.eve/private.json", ".dojo/sensei/.eve/private.json", ".env.local"]) {
+      expect(() => readFileSync(resolve(dojo, path)), path).toThrow();
+    }
+    expect(readInstalledSource(dojo)?.authoring).toBe(true);
+    acquisition.version = "0.0.2";
+    await update(root, ["remote-dojo"]);
+    expect(readFileSync(resolve(dojo, ".dojo/kyoshi/instructions.md"), "utf8")).toContain("kyoshi guidance");
+    expect(readInstalledSource(dojo)?.authoring).toBe(true);
+  });
+
+  it("can opt an unchanged learner installation into authoring without a new upstream version", async () => {
+    const root = workspace();
+    await add(root, ["example/remote-dojo"]);
+    await add(root, ["example/remote-dojo", "--master", "--force"]);
+    const dojo = resolve(root, "courses/remote-dojo");
+    expect(readFileSync(resolve(dojo, "KYOSHI.md"), "utf8")).toContain("Authoring guidance");
+    expect(readInstalledSource(dojo)?.authoring).toBe(true);
   });
 });

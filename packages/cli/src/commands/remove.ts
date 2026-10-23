@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import {
   CLI,
   DOJOS_DIR,
+  dojoDir,
   readDojoRc,
   writeDojoRc,
 } from "../config";
@@ -13,7 +14,7 @@ export function remove(root: string, args: string[]): void {
   const name = args.find((a) => !a.startsWith("--"));
   if (!name) throw new Error(`Usage: ${CLI} remove <name>`);
 
-  const dojoPath = resolve(root, DOJOS_DIR, name);
+  const dojoPath = dojoDir(root, name);
   if (!existsSync(dojoPath)) {
     throw new Error(`Dojo "${name}" not found at ${DOJOS_DIR}/${name}`);
   }

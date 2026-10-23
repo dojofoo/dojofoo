@@ -161,12 +161,12 @@ function AuthoringPage() {
   const visibleReport = scope === "lesson" && selectedLessonId && evaluationReport?.lessonIds.at(-1) === selectedLessonId ? evaluationReport : null;
   const visibleEvaluationError = scope === "lesson" && evaluationError?.lessonId === selectedLessonId ? evaluationError : null;
 
+  const activeFileLessonId = workspace?.lessons.find((entry) => entry.files.some((file) => file.path === activeFile?.path))?.id;
   useEffect(() => {
     if (!activeFile) return;
-    const lesson = workspace?.lessons.find((entry) => entry.files.some((file) => file.path === activeFile.path));
-    setScope(lesson ? "lesson" : "course");
-    if (lesson) { setSelectedLessonId(lesson.id); setExpandedLessonId(lesson.id); }
-  }, [activeFile?.path, workspace]);
+    setScope(activeFileLessonId ? "lesson" : "course");
+    if (activeFileLessonId) { setSelectedLessonId(activeFileLessonId); setExpandedLessonId(activeFileLessonId); }
+  }, [activeFile?.path, activeFileLessonId]);
 
   useEffect(() => {
     const handleSaveShortcut = (event: KeyboardEvent) => {

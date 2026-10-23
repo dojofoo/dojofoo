@@ -8,7 +8,7 @@ import { setup } from "./commands/setup";
 import { add } from "./commands/add";
 import { remove } from "./commands/remove";
 import { status } from "./commands/status";
-import { ui } from "./commands/ui";
+import { resolveAuthoringRoot, ui } from "./commands/ui";
 import { track } from "./commands/track";
 import { update } from "./commands/update";
 import { kyoshi } from "./commands/kyoshi";
@@ -18,7 +18,8 @@ import { miseConfigPath } from "@dojofoo/config/project-preparation";
 
 const [command, ...args] = process.argv.slice(2);
 
-process.env.DOJO_PROJECT_ROOT ??= findProjectRoot();
+process.env.DOJO_PROJECT_ROOT ??= command === "ui" && args.includes("--authoring")
+  ? resolveAuthoringRoot(process.cwd(), findProjectRoot()) : findProjectRoot();
 
 async function main() {
   const projectRoot = process.env.DOJO_PROJECT_ROOT!;
@@ -59,7 +60,7 @@ async function main() {
     status(findProjectRoot(), args);
   } else if (command === "ui") {
     process.env.PORT ??= process.env.DOJO_UI_PORT ?? "4567";
-    await ui(findProjectRoot(), args);
+    await ui(projectRoot, args);
   } else if (command === "track") {
     track(findProjectRoot(), args);
   } else if (command === "kyoshi") {

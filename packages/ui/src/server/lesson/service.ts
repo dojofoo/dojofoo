@@ -1,10 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
+import { prepareWorkspace } from "@dojofoo/config/project-preparation";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import {
   findCurrentKata,
+  dojoDir,
   findKataByIdOrName,
   findNextKata,
   kataState,
@@ -198,7 +200,7 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
     priorLesson ? webState.learnerEvidence[lessonKey(rc.currentDojo, priorLesson.name)] ?? [] : []);
 
   const selectedState = kataState(selected, progress);
-  const scaffoldPath = resolve(root, ".dojos", rc.currentDojo, selected.template);
+  const scaffoldPath = selected.starterPath ?? resolve(dojoDir(root, rc.currentDojo), selected.template);
   const starterCode = existsSync(scaffoldPath) ? readFileSync(scaffoldPath, "utf8") : "";
   let result: TestReport | null = webState.results[key] ?? null;
   let resultChanged = false;
@@ -302,6 +304,9 @@ export async function checkLesson(
 ): Promise<{ lesson: LessonSnapshot; observation: CheckObservation }> {
   const target = lessonTarget(root, courseId, lessonId);
   const code = existsSync(target.workspacePath) ? readFileSync(target.workspacePath, "utf8") : "";
+  // Trials enter through the server rather than the CLI's startup preparation.
+  // Reuse the same cached mise contract before invoking the prepared-only CLI.
+  await prepareWorkspace(root);
   const output = runDojo(root, ["kata", lessonId, "--check", "--reporter=json"]);
   const report = parseTestReport(output);
   const webState = readWebState(root);
@@ -569,7 +574,7 @@ export async function nextLesson(
       writeWebState(root, current);
     }
   }
-  const scaffoldPath = resolve(root, ".dojos", rc.currentDojo, next.template);
+  const scaffoldPath = resolve(dojoDir(root, rc.currentDojo), next.template);
   if (!existsSync(scaffoldPath)) throw new Error(`Lesson scaffold not found: ${next.name}`);
   await writeLessonFile(root, rc.currentDojo, next.name, "solution", readFileSync(scaffoldPath, "utf8"));
   const nextSnapshot = await getLesson(root, next.name);

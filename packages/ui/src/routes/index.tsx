@@ -1325,13 +1325,18 @@ function isActiveThinkingActivity(activity: ToolCallPart): boolean {
 }
 
 function ActivityTimeline({ activities, streaming }: { activities: ActivityPart[]; streaming: boolean }) {
+  // Part durations may overlap; only a single part gives a chain duration.
+  const durationMs = activities.length === 1
+    ? (activities[0] as ActivityPart & { durationMs?: number }).durationMs
+    : undefined;
   const usedTools = activities.some(part => part.type === "tool-call");
   const currentTool = activities.findLast(part => part.type === "tool-call" && isActiveThinkingActivity(part));
   const tail = activities.at(-1);
   const currentActivity = currentTool?.type === "tool-call" ? toolActivity(currentTool.name, currentTool.input ?? currentTool.arguments)
     : tail?.type === "thinking" ? "thinking" : "waiting";
   const visible = activities.filter(part => part.type !== "thinking" || part.content.trim());
-  return <ReasoningTrace autoPlay={false} steps={[]} streaming={streaming} activity={currentActivity} usedTools={usedTools}>
+  return <ReasoningTrace autoPlay={false} steps={[]} streaming={streaming} activity={currentActivity} usedTools={usedTools}
+    durationMs={typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs >= 0 ? durationMs : undefined}>
     {visible.length > 0 ? <div className="w-full min-w-0">
     {visible.map((activity, index) => {
       if (activity.type === "thinking") return <ToolCallCard key={`thinking-${index}`} name="Reasoning" autoPlay={false} status="done" showStatus={false}

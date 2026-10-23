@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { resolveUiEntry, resolveUiOpenPath } from "../src/commands/ui";
+import { resolveAuthoringRoot, resolveUiEntry, resolveUiOpenPath } from "../src/commands/ui";
 
 const temporaryRoots: string[] = [];
 
@@ -15,6 +15,19 @@ afterEach(() => {
 });
 
 describe("bundled dojo UI", () => {
+  it("opens the installed master from its course directory or the workspace selection", () => {
+    const workspace = mkdtempSync(join(tmpdir(), "dojo-authoring-root-"));
+    temporaryRoots.push(workspace);
+    const course = join(workspace, "courses/master");
+    const other = join(workspace, "courses/other");
+    for (const path of [course, other]) {
+      mkdirSync(path, { recursive: true });
+      writeFileSync(join(path, "dojo.yaml"), "name: example\n");
+    }
+    writeFileSync(join(workspace, ".dojorc"), JSON.stringify({ currentDojo: "other" }));
+    expect(resolveAuthoringRoot(course, workspace)).toBe(course);
+    expect(resolveAuthoringRoot(workspace, workspace)).toBe(other);
+  });
   it("opens authoring inside the same Portless UI", () => {
     expect(resolveUiOpenPath(["--authoring"])).toBe("/authoring");
     expect(resolveUiOpenPath([])).toBe("");

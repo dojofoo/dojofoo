@@ -9,8 +9,11 @@ patchedDependencies:
     hash: 0f2f1b8522a7a4d1ba7413c5e2037df73ce97c67291898009d888d0bdc19ae46
     path: patches/@ai-sdk__harness-opencode@1.0.155.patch
   '@tanstack/ai-client@0.39.3':
-    hash: 9bc74a09fd67edd3efd3093d478c1b29a0dd2d7b495c73f7a32e9953aaf8216c
+    hash: a16c7f85c2c0a556b762a04507f45adaed248c29a7189ab27ca1ba4e5579e58f
     path: patches/@tanstack__ai-client@0.39.3.patch
+  nitro@3.0.260903-beta:
+    hash: 141f7b2547221c714b7432e11d5b6686265de8196b9d5ad5599f31d856a53c82
+    path: patches/nitro@3.0.260903-beta.patch
 
 importers:
 
@@ -185,7 +188,7 @@ importers:
         version: 0.1.72
       nitro:
         specifier: 3.0.260903-beta
-        version: 3.0.260903-beta
+        version: 3.0.260903-beta(patch_hash=141f7b2547221c714b7432e11d5b6686265de8196b9d5ad5599f31d856a53c82)
       playwright:
         specifier: ^1.62.1
         version: 1.62.1
@@ -230,7 +233,7 @@ importers:
         version: 3.6.0
       nitro:
         specifier: 3.0.260903-beta
-        version: 3.0.260903-beta
+        version: 3.0.260903-beta(patch_hash=141f7b2547221c714b7432e11d5b6686265de8196b9d5ad5599f31d856a53c82)
       undici:
         specifier: 8.10.2
         version: 8.10.2
@@ -286,6 +289,9 @@ importers:
       '@tanstack/ai':
         specifier: 0.69.0
         version: 0.69.0(@opentelemetry/api@1.9.0)(zod@4.6.5)
+      globby:
+        specifier: 16.2.4
+        version: 16.2.4
       hono:
         specifier: ^4.13.1
         version: 4.13.1
@@ -301,7 +307,7 @@ importers:
     devDependencies:
       '@tanstack/ai-client':
         specifier: 0.39.3
-        version: 0.39.3(patch_hash=9bc74a09fd67edd3efd3093d478c1b29a0dd2d7b495c73f7a32e9953aaf8216c)(@opentelemetry/api@1.9.0)(zod@4.6.5)
+        version: 0.39.3(patch_hash=a16c7f85c2c0a556b762a04507f45adaed248c29a7189ab27ca1ba4e5579e58f)(@opentelemetry/api@1.9.0)(zod@4.6.5)
       '@types/node':
         specifier: ^26.1.2
         version: 26.2.0
@@ -381,6 +387,9 @@ importers:
 
   packages/config:
     dependencies:
+      globby:
+        specifier: 16.2.4
+        version: 16.2.4
       jiti:
         specifier: ^2.7.0
         version: 2.7.0
@@ -568,7 +577,7 @@ importers:
         version: 0.69.0(@opentelemetry/api@1.9.0)(zod@4.4.3)
       '@tanstack/ai-client':
         specifier: 0.39.3
-        version: 0.39.3(patch_hash=9bc74a09fd67edd3efd3093d478c1b29a0dd2d7b495c73f7a32e9953aaf8216c)(@opentelemetry/api@1.9.0)(zod@4.4.3)
+        version: 0.39.3(patch_hash=a16c7f85c2c0a556b762a04507f45adaed248c29a7189ab27ca1ba4e5579e58f)(@opentelemetry/api@1.9.0)(zod@4.4.3)
       '@tanstack/ai-react':
         specifier: 0.30.4
         version: 0.30.4(@opentelemetry/api@1.9.0)(@tanstack/ai@0.69.0(@opentelemetry/api@1.9.0)(zod@4.4.3))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
@@ -701,7 +710,7 @@ importers:
         version: 3.0.3(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.9)(react@19.2.8))
       nitro:
         specifier: 3.0.260903-beta
-        version: 3.0.260903-beta
+        version: 3.0.260903-beta(patch_hash=141f7b2547221c714b7432e11d5b6686265de8196b9d5ad5599f31d856a53c82)
       storybook:
         specifier: 10.5.10
         version: 10.5.10(@types/react@19.2.18)(prettier@3.9.9)(react@19.2.8)
@@ -6108,6 +6117,10 @@ packages:
     resolution: {integrity: sha512-jhIXaOzy1sb8IyocaruWSn1TjmnBVs8Ayhcy83rmxNJ8q2uWKCAj3CnJY+KpGSXCueAPc0i05kVvVKtP1t9S3g==}
     engines: {node: '>=10'}
 
+  globby@16.2.4:
+    resolution: {integrity: sha512-c8B/VNLmxRcmqqenRA9t+9IyOjf9+V6lTxPaUJLqOCONdQkWZ0ETYgX0qbtJqPsgCNusT9MZ5Jeidw8Eb9tn2g==}
+    engines: {node: '>=20'}
+
   goober@2.1.19:
     resolution: {integrity: sha512-U7veizMqxyKlM58+Z5j2ngJBH/r9siDmxpvNxSw0PylF6WQvrASJEZrxh1hidRBJc2jqoBVSyOban5u8m+6Rxg==}
     peerDependencies:
@@ -6433,6 +6446,10 @@ packages:
 
   is-obj@3.0.0:
     resolution: {integrity: sha512-IlsXEHOjtKhpN8r/tRFj2nDyTmHvcfNeu/nrRIcXE17ROeatXchkojffa1SpdqW4cr/Fj6QkEf/Gn4zf6KKvEQ==}
+    engines: {node: '>=12'}
+
+  is-path-inside@4.0.0:
+    resolution: {integrity: sha512-lJJV/5dYS+RcL8uQdBDW9c9uWFLLBNRyFhnAKXw5tVqLlKZ4RMGZKv+YQ/IA3OhD+RpbJa1LLFM1FQPGyIXvOA==}
     engines: {node: '>=12'}
 
   is-plain-obj@4.1.0:
@@ -8136,6 +8153,10 @@ packages:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
 
+  slash@5.1.0:
+    resolution: {integrity: sha512-ZA6oR3T/pEyuqwMgAKT0/hAv8oAXckzbkmR0UkUosQ+Mc4RxGoJkRmwHgHufaenlyAgE1Mxgpdcrf75y6XcnDg==}
+    engines: {node: '>=14.16'}
+
   smol-toml@1.9.1:
     resolution: {integrity: sha512-j7WyPdf0CJoutMzMoPLF/bVXHtKZIT9Rb4eGeEbWw8X2t5oirjPgpL+OpaENZrILYaXqYwnVH+qgUwVbl+pUJQ==}
     engines: {node: '>= 18'}
@@ -8584,6 +8605,10 @@ packages:
   unicorn-magic@0.3.0:
     resolution: {integrity: sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA==}
     engines: {node: '>=18'}
+
+  unicorn-magic@0.4.1:
+    resolution: {integrity: sha512-lzlXPoVB0Uy/FvTaUgX39RbixYiSKoc3JSoSf01+0c2B6FR3qdYIPN7Qjo/AV7n6sqLCk0509cT3LRj1oSZ1+A==}
+    engines: {node: '>=20'}
 
   unified@11.0.5:
     resolution: {integrity: sha512-xKvGhPWw3k84Qjh8bI3ZeJjqnyadK+GEFtazSfZv/rKeTkTjOJho6mFqh2SM96iIcZokxiOpg78GazTSg8+KHA==}
@@ -12486,7 +12511,7 @@ snapshots:
       - preact
       - react
 
-  '@tanstack/ai-client@0.39.3(patch_hash=9bc74a09fd67edd3efd3093d478c1b29a0dd2d7b495c73f7a32e9953aaf8216c)(@opentelemetry/api@1.9.0)(zod@4.4.3)':
+  '@tanstack/ai-client@0.39.3(patch_hash=a16c7f85c2c0a556b762a04507f45adaed248c29a7189ab27ca1ba4e5579e58f)(@opentelemetry/api@1.9.0)(zod@4.4.3)':
     dependencies:
       '@tanstack/ai': 0.69.0(@opentelemetry/api@1.9.0)(zod@4.4.3)
       '@tanstack/ai-event-client': 0.13.1
@@ -12495,7 +12520,7 @@ snapshots:
       - '@opentelemetry/api'
       - zod
 
-  '@tanstack/ai-client@0.39.3(patch_hash=9bc74a09fd67edd3efd3093d478c1b29a0dd2d7b495c73f7a32e9953aaf8216c)(@opentelemetry/api@1.9.0)(zod@4.6.5)':
+  '@tanstack/ai-client@0.39.3(patch_hash=a16c7f85c2c0a556b762a04507f45adaed248c29a7189ab27ca1ba4e5579e58f)(@opentelemetry/api@1.9.0)(zod@4.6.5)':
     dependencies:
       '@tanstack/ai': 0.69.0(@opentelemetry/api@1.9.0)(zod@4.6.5)
       '@tanstack/ai-event-client': 0.13.1
@@ -12511,7 +12536,7 @@ snapshots:
   '@tanstack/ai-react@0.30.4(@opentelemetry/api@1.9.0)(@tanstack/ai@0.69.0(@opentelemetry/api@1.9.0)(zod@4.4.3))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)':
     dependencies:
       '@tanstack/ai': 0.69.0(@opentelemetry/api@1.9.0)(zod@4.4.3)
-      '@tanstack/ai-client': 0.39.3(patch_hash=9bc74a09fd67edd3efd3093d478c1b29a0dd2d7b495c73f7a32e9953aaf8216c)(@opentelemetry/api@1.9.0)(zod@4.4.3)
+      '@tanstack/ai-client': 0.39.3(patch_hash=a16c7f85c2c0a556b762a04507f45adaed248c29a7189ab27ca1ba4e5579e58f)(@opentelemetry/api@1.9.0)(zod@4.4.3)
       '@tanstack/markdown': 0.0.13(react@19.2.8)
       '@types/react': 19.2.18
       react: 19.2.8
@@ -13251,7 +13276,7 @@ snapshots:
       obug: 2.2.1
       std-env: 4.3.0
       tinyrainbow: 3.2.0
-      vitest: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.6.4)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.6.4)(typescript@7.0.2))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
+      vitest: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.6.4)(@vitest/coverage-v8@4.1.10)(msw@2.15.0(@types/node@26.6.4)(typescript@6.0.3))(vite@8.2.1(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0))
     optional: true
 
   '@vitest/expect@3.2.4':
@@ -14289,7 +14314,7 @@ snapshots:
   eve@0.80.1(@opentelemetry/api@1.9.0)(ai@7.0.142(zod@4.6.5))(just-bash@3.6.0):
     dependencies:
       ai: 7.0.142(zod@4.6.5)
-      nitro: 3.0.260903-beta
+      nitro: 3.0.260903-beta(patch_hash=141f7b2547221c714b7432e11d5b6686265de8196b9d5ad5599f31d856a53c82)
       undici: 8.10.2
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
@@ -14737,6 +14762,16 @@ snapshots:
       merge2: 1.4.1
       slash: 3.0.0
 
+  globby@16.2.4:
+    dependencies:
+      '@sindresorhus/merge-streams': 4.0.0
+      fast-glob: 3.3.3
+      ignore: 7.0.8
+      is-path-inside: 4.0.0
+      micromatch: 4.0.8
+      slash: 5.1.0
+      unicorn-magic: 0.4.1
+
   goober@2.1.19(csstype@3.2.3):
     dependencies:
       csstype: 3.2.3
@@ -15117,6 +15152,8 @@ snapshots:
   is-obj@2.0.0: {}
 
   is-obj@3.0.0: {}
+
+  is-path-inside@4.0.0: {}
 
   is-plain-obj@4.1.0: {}
 
@@ -16255,7 +16292,7 @@ snapshots:
 
   nf3@0.3.24: {}
 
-  nitro@3.0.260903-beta:
+  nitro@3.0.260903-beta(patch_hash=141f7b2547221c714b7432e11d5b6686265de8196b9d5ad5599f31d856a53c82):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.12(srvx@1.0.4)
@@ -17385,6 +17422,8 @@ snapshots:
 
   slash@3.0.0: {}
 
+  slash@5.1.0: {}
+
   smol-toml@1.9.1: {}
 
   source-map-js@1.2.1: {}
@@ -17859,6 +17898,8 @@ snapshots:
 
   unicorn-magic@0.3.0: {}
 
+  unicorn-magic@0.4.1: {}
+
   unified@11.0.5:
     dependencies:
       '@types/unist': 3.0.3
@@ -17916,7 +17957,7 @@ snapshots:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       acorn: 8.18.0
-      picomatch: 4.0.5
+      picomatch: 4.0.7
       webpack-virtual-modules: 0.6.2
 
   unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.8)(rollup@4.57.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.9.0)):

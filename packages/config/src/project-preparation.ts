@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { dojoDir, readDojoRc } from "./index";
 
 const MISE_CONFIG_NAMES = ["mise.toml", ".mise.toml"] as const;
 const preparations = new Map<string, Promise<ProjectPreparationResult>>();
@@ -59,13 +60,13 @@ export async function prepareWorkspace(
   const results = [await prepareProject(root, options)];
   let activeDojo: string | null = null;
   try {
-    const rc = JSON.parse(readFileSync(resolve(root, ".dojorc"), "utf8")) as { currentDojo?: unknown };
+    const rc = readDojoRc(root);
     if (typeof rc.currentDojo === "string" && rc.currentDojo) activeDojo = rc.currentDojo;
   } catch {
     // Project preparation remains useful before a dojo has been selected.
   }
   if (activeDojo) {
-    const courseRoot = resolve(root, ".dojos", activeDojo);
+    const courseRoot = dojoDir(root, activeDojo);
     if (miseConfigPath(courseRoot)) results.push(await prepareProject(courseRoot, options));
   }
   return results;

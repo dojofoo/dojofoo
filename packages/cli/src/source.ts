@@ -10,6 +10,7 @@ export interface InstalledSource {
   type: "github" | "npm" | "url" | "local";
   locator: string;
   integrity?: string;
+  authoring?: boolean;
 }
 
 export function parseGithubSource(source: string): { repository: string } | null {
@@ -32,6 +33,7 @@ export function readInstalledSource(dojoPath: string): InstalledSource | null {
       || typeof value.locator !== "string"
       || value.locator.length === 0
       || (value.integrity !== undefined && typeof value.integrity !== "string")
+      || (value.authoring !== undefined && typeof value.authoring !== "boolean")
     ) return null;
     return value as InstalledSource;
   } catch {

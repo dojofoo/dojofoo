@@ -24,7 +24,7 @@ Commands:
   status              Show current dojo/kata state
   install [--agent]   Install mise, then set up a project and its agents
   install --skills    Refresh skills for configured or selected agents
-  add <source>        Add a dojo (training pack)
+  add <source> [--master] Add a learner course or editable master copy
   update <source>     Update an installed dojo from its recorded source
   remove <name>       Remove a dojo
   ui [--background]   Start or control the lesson UI

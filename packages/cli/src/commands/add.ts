@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, cpSync, renameSync, unlinkSync, symlinkSync, rea
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
 import { resolve, relative } from "node:path";
+import { parseDocument } from "yaml";
 import { tmpdir } from "node:os";
 import {
   CLI,
@@ -14,6 +15,8 @@ import {
   loadConfig,
   parseManifest,
   readCourseManifest,
+  createStateDirectory,
+  courseFileFilter,
   type RegistryItem,
 } from "../config";
 import { remove as removeDojo } from "./remove";
@@ -37,6 +40,7 @@ export async function add(root: string, args: string[]): Promise<void> {
   if (agents.length > 0) setupAgents(root, agents);
   const source = positionalArgs(args)[0];
   const force = args.includes("--force");
+  const authoring = args.includes("--master");
   if (!source) {
     throw new Error(`Usage: ${CLI} add <source>
 
@@ -48,16 +52,17 @@ Source can be:
 
 Flags:
   --force                  Overwrite existing dojo
+  --master                 Include editable source and Kyoshi definitions; respect the course license when forking
   --agent <name[,name]>    Install support for codex, opencode, claude, gemini, or pi`);
   }
 
   const sourceType = classifySource(source);
   switch (sourceType) {
-    case "local":    addLocal(root, source, force); break;
+    case "local":    addLocal(root, source, force, authoring); break;
     case "npm":      throw deprecatedNpmSource(source);
-    case "github":   await addRemote(root, source, "github", force); break;
-    case "url":      await addRemote(root, source, "url", force); break;
-    case "registry": await addFromRegistry(root, source, force); break;
+    case "github":   await addRemote(root, source, "github", force, authoring); break;
+    case "url":      await addRemote(root, source, "url", force, authoring); break;
+    case "registry": await addFromRegistry(root, source, force, authoring); break;
   }
 }
 
@@ -101,6 +106,12 @@ function handleExisting(root: string, name: string, force: boolean): void {
   if (!force) {
     throw new Error(existingDojoMessage(root, name));
   }
+  if (targetPath === resolve(root, DOJOS_DIR, name)) {
+    const baseline = resolve(root, ".dojo/state", name, "installation.sha256");
+    if (!existsSync(baseline) || readFileSync(baseline, "utf8") !== directoryIntegrity(targetPath)) {
+      throw new Error(`Dojo "${name}" has local changes or no installation baseline. Update stopped to preserve your files. Commit or copy your course before removing and reinstalling it.`);
+    }
+  }
   removeDojo(root, [name]);
 }
 
@@ -113,27 +124,30 @@ export function existingDojoMessage(root: string, name: string): string {
   Remove:   ${CLI} remove ${name}`;
 }
 
-function addLocal(root: string, source: string, force: boolean): void {
+function addLocal(root: string, source: string, force: boolean, authoring: boolean): void {
   const sourcePath = resolve(source);
   if (!existsSync(sourcePath)) {
     throw new Error(`Source not found: ${sourcePath}`);
   }
+  if (!statSync(sourcePath).isDirectory()) throw new Error("Local course sources must be directories; use a Git repository or archive URL for remote sources.");
 
   const tmpDir = mkdtempSync(resolve(tmpdir(), "dojofoo-local-"));
 
   try {
     const staged = resolve(tmpDir, "course");
+    const include = courseFileFilter(sourcePath, authoring);
     cpSync(sourcePath, staged, {
       recursive: true,
       filter: (path) => {
         const relativePath = relative(sourcePath, path);
-        return !relativePath.split("/").some((part) => part === ".git" || part === "node_modules");
+        return !lstatSync(path).isSymbolicLink() && include(relativePath);
       },
     });
     installExtracted(root, staged, source, force, {
       version: 1,
       type: "local",
       locator: sourcePath,
+      authoring,
     });
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -152,12 +166,42 @@ function installExtracted(
     throw new Error(`${source} is not a dojo — missing dojo.yaml, dojo.yml, or dojo.json`);
   }
   const manifest = parseManifest(readFileSync(manifestPath, "utf8"), manifestPath);
+  if (manifestPath.endsWith(".json")) {
+    const document = JSON.parse(readFileSync(manifestPath, "utf8"));
+    delete document.progress;
+    writeFileSync(manifestPath, `${JSON.stringify(document, null, 2)}\n`);
+  } else {
+    const document = parseDocument(readFileSync(manifestPath, "utf8"));
+    document.delete("progress");
+    writeFileSync(manifestPath, document.toString());
+  }
   const name = manifest.name.includes("/") ? manifest.name.split("/").pop()! : manifest.name;
   const targetPath = dojoDir(root, name);
   const currentSource = readInstalledSource(targetPath);
-  if (force && installedSource?.integrity && currentSource?.integrity === installedSource.integrity) {
+  if (force && installedSource?.integrity && currentSource?.integrity === installedSource.integrity
+    && Boolean(currentSource.authoring) === Boolean(installedSource.authoring)) {
     console.log(`Dojo "${name}" is already up to date.`);
     return;
+  }
+
+  // Definition updates must not reset the learner's YAML progress.
+  if (force && existsSync(targetPath)) {
+    const previousPath = findManifestPath(targetPath);
+    if (previousPath) {
+      const previousSource = readFileSync(previousPath, "utf8");
+      const previous = previousPath.endsWith(".json") ? JSON.parse(previousSource) : parseDocument(previousSource).toJS();
+      if (previous.progress !== undefined) {
+        if (manifestPath.endsWith(".json")) {
+          const document = JSON.parse(readFileSync(manifestPath, "utf8"));
+          document.progress = previous.progress;
+          writeFileSync(manifestPath, `${JSON.stringify(document, null, 2)}\n`);
+        } else {
+          const document = parseDocument(readFileSync(manifestPath, "utf8"));
+          document.set("progress", previous.progress);
+          writeFileSync(manifestPath, document.toString());
+        }
+      }
+    }
   }
 
   if (installedSource) writeInstalledSource(extractedDir, installedSource);
@@ -189,7 +233,7 @@ function installExtracted(
   finalize(root, name, targetPath, installedSource);
 }
 
-async function addRemote(root: string, source: string, type: RemoteDojoSource, force: boolean): Promise<void> {
+async function addRemote(root: string, source: string, type: RemoteDojoSource, force: boolean, authoring: boolean): Promise<void> {
   const locator = type === "github" ? parseGithubSource(source)?.repository : source;
   if (!locator) throw new Error(`Invalid GitHub repository: ${source}`);
   const tmpDir = mkdtempSync(resolve(tmpdir(), "dojofoo-giget-"));
@@ -200,11 +244,18 @@ async function addRemote(root: string, source: string, type: RemoteDojoSource, f
     const downloaded = await acquireRemoteDojo(locator, type, staged);
     const extracted = findDownloadedDojo(downloaded);
     if (!extracted) throw new Error(`${source} is not a dojo — missing dojo.yaml, dojo.yml, or dojo.json`);
-    installExtracted(root, extracted, source, force, {
+    const published = resolve(tmpDir, "published");
+    const include = courseFileFilter(extracted, authoring);
+    cpSync(extracted, published, {
+      recursive: true,
+      filter: path => !lstatSync(path).isSymbolicLink() && include(relative(extracted, path)),
+    });
+    installExtracted(root, published, source, force, {
       version: 1,
       type,
       locator,
-      integrity: directoryIntegrity(extracted),
+      integrity: directoryIntegrity(published),
+      authoring,
     });
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -232,7 +283,7 @@ function validateRegistryItem(data: unknown): RegistryItem {
   throw new Error(`Invalid registry item: source must be github or tarball`);
 }
 
-async function addFromRegistry(root: string, name: string, force: boolean): Promise<void> {
+async function addFromRegistry(root: string, name: string, force: boolean, authoring: boolean): Promise<void> {
   const config = loadConfig(root, { command: "add" });
 
   for (const [registryName, urlTemplate] of Object.entries(config.registries)) {
@@ -242,9 +293,9 @@ async function addFromRegistry(root: string, name: string, force: boolean): Prom
       if (!res.ok) continue;
       const item = validateRegistryItem(await res.json());
       if (item.source.type === "github") {
-        return addRemote(root, item.source.repository, "github", force);
+        return addRemote(root, item.source.repository, "github", force, authoring);
       }
-      return addRemote(root, item.source.url, "url", force);
+      return addRemote(root, item.source.url, "url", force, authoring);
     } catch (err) {
       if (err instanceof Error && err.message.startsWith("Invalid registry")) throw err;
       console.log(`Registry "${registryName}" unreachable: ${url}`);
@@ -272,12 +323,23 @@ function directoryIntegrity(directory: string): string {
   const hash = createHash("sha256");
   const visit = (current: string, prefix = "") => {
     for (const entry of readdirSync(current, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
-      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dojo-source.json") continue;
       const path = resolve(current, entry.name);
       const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if ([".git", "node_modules", ".pnpm-store", ".eve", ".dojo-source.json"].includes(entry.name)) continue;
+      if (entry.isSymbolicLink()) {
+        hash.update(`link:${relativePath}\0`);
+        continue;
+      }
       hash.update(`${entry.isDirectory() ? "d" : "f"}:${relativePath}\0`);
       if (entry.isDirectory()) visit(path, relativePath);
-      else if (statSync(path).isFile()) hash.update(readFileSync(path));
+      else if (statSync(path).isFile()) {
+        if (prefix === "" && ["dojo.yaml", "dojo.yml", "dojo.json"].includes(entry.name)) {
+          const source = readFileSync(path, "utf8");
+          const manifest = entry.name.endsWith(".json") ? JSON.parse(source) : parseDocument(source).toJS();
+          delete manifest.progress;
+          hash.update(JSON.stringify(manifest));
+        } else hash.update(readFileSync(path));
+      }
     }
   };
   visit(directory);
@@ -310,7 +372,7 @@ function finalize(root: string, name: string, targetPath: string, source?: Insta
   }
 
   const mode = courseMode(readCourseManifest(root, name));
-  if (mode === "katas") {
+  if (mode === "katas" && existsSync(resolve(root, ".dojorc"))) {
     // Kata courses extend their tooling into the learner's coding workspace.
     const dojo = loadConfig(root);
     const katasInclude = `${relative(root, dojo.katasPath)}/**/*.ts`;
@@ -330,17 +392,34 @@ function finalize(root: string, name: string, targetPath: string, source?: Insta
     );
   }
 
+  if (mode === "katas" && !existsSync(resolve(root, ".dojorc"))) {
+    const catalog = readCourseManifest(root, name);
+    if ("katas" in catalog) {
+      const starters = createStateDirectory(root, name, "starters");
+      for (const lesson of catalog.katas) {
+        const id = lesson.name;
+        if (!id || !/^[a-zA-Z0-9_-][a-zA-Z0-9._-]*$/u.test(id)) throw new Error("Each installed lesson needs a stable ID");
+        const template = resolve(targetPath, lesson.template);
+        const initial = resolve(starters, id);
+        writeFileSync(initial, readFileSync(template));
+      }
+    }
+  }
+
   // Symlink commands/skills to agent directories
   symlinkDojo(root, targetPath);
 
   runLifecycleScript(root, targetPath, "prepare.sh");
-  if (mode === "katas" && !readDojoRc(root).currentKata) startKata(root);
+  if (mode === "katas" && !source?.authoring && !readDojoRc(root).currentKata) startKata(root);
+  if (targetPath === resolve(root, DOJOS_DIR, name)) {
+    writeFileSync(resolve(createStateDirectory(root, name), "installation.sha256"), directoryIntegrity(targetPath));
+  }
 
   console.log(`Dojo "${name}" added.
 
   Location:  ${DOJOS_DIR}/${name}
   Active:    ${name}
-  Start:     ${CLI} ui`);
+  Start:     ${source?.authoring ? `cd ${DOJOS_DIR}/${name} && ${CLI} ui --authoring` : `${CLI} ui`}`);
 
   queueCourseEvent(
     root,

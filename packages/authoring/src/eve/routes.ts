@@ -1,4 +1,4 @@
-import { ClientError, defaultMessageReducer, parseInputResponses, type Client, type ClientSession, type MessageStreamEvent } from "@dojofoo/agent/client";
+import { ClientError, conversationReducer, defaultMessageReducer, parseInputResponses, type Client, type ClientSession, type MessageStreamEvent } from "@dojofoo/agent/client";
 import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSentEventsResponse } from "@tanstack/ai";
 import { Hono } from "hono";
 import { eveChatMessages } from "./messages";
@@ -72,14 +72,18 @@ export function createEveAuthoringRoutes(source: Client | (() => Promise<Client>
         session: { sessionId: c.req.param("sessionId"), readOnly: true },
         messages: eveChatMessages(legacy.reduce(reducer.reduce, reducer.initial()).messages),
       });
-      const { session, projection } = await read(c.req.param("sessionId"), c.req.raw.signal);
+      const { session, projection, events } = await read(c.req.param("sessionId"), c.req.raw.signal);
       const runId = `${session.state.sessionId}:${session.state.streamIndex}`;
       const pendingInterrupts = eveQuestionInterrupts(projection, runId);
+      const lifecycle = conversationReducer;
+      const conversation = events.reduce(lifecycle.reduce, lifecycle.initial());
+      const active = conversation.activeTurnId && conversation.turns[conversation.activeTurnId]?.status === "active";
+      const needsResume = !events.length || active || pendingInterrupts.length > 0;
       return c.json({
         session: session.state, messages: eveChatMessages(projection.messages),
-        initialResumeSnapshot: {
+        initialResumeSnapshot: needsResume ? {
           resumeState: { threadId: session.state.sessionId, runId }, pendingInterrupts,
-        },
+        } : undefined,
       });
     })
     .get("/sessions/:sessionId/messages", async c => {

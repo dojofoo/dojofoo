@@ -1,8 +1,36 @@
 diff --git a/dist/esm/chat-client.js b/dist/esm/chat-client.js
-index bae9ddd..3b7105e 100644
+index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..dfc942d76f50387917bcf77a436d641eea5fc2d0 100644
 --- a/dist/esm/chat-client.js
 +++ b/dist/esm/chat-client.js
-@@ -1302,11 +1302,19 @@ var ChatClient = class {
+@@ -1122,6 +1122,7 @@ var ChatClient = class {
+ 		(async () => {
+ 			let rebuilt = false;
+ 			let attached = false;
++			let completed = false;
+ 			let refused = false;
+ 			const connectTimer = setTimeout(() => {
+ 				if (!attached) controller.abort();
+@@ -1138,9 +1139,11 @@ var ChatClient = class {
+ 						this.dropTrailingInFlightAssistant();
+ 					}
+ 					this.processIncomingChunk(chunk);
++					if (chunk.type === "RUN_FINISHED" && chunk.runId === runId) completed = true;
+ 				}
+ 				if (this.pendingToolExecutions.size > 0) await Promise.all(this.pendingToolExecutions.values());
+ 			} catch (error) {
++				completed = false;
+ 				const isAbort = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
+ 				if (!attached && !isAbort) refused = true;
+ 				if (attached && !isAbort) this.reportStreamError(error instanceof Error ? error : new Error(String(error)));
+@@ -1155,6 +1158,7 @@ var ChatClient = class {
+ 					this.setIsLoading(false);
+ 					if (this.status === "streaming") this.setStatus("ready");
+ 					await this.drainPostStreamActions();
++					if (completed) await this.drainQueue();
+ 				}
+ 			}
+ 		})();
+@@ -1302,11 +1306,19 @@ var ChatClient = class {
  	async sendMessage(content, body, sendOptions) {
  		this.mountDevtools();
  		if (typeof content === "string" && !content.trim()) return;
@@ -23,7 +51,7 @@ index bae9ddd..3b7105e 100644
  		if (this.isSendBusy()) {
  			const { action, id } = this.decideWhenBusy(content, sendOptions);
  			if (action === "drop") return;
-@@ -1924,7 +1932,7 @@ var ChatClient = class {
+@@ -1924,7 +1936,7 @@ var ChatClient = class {
  	* by control-flow analysis.
  	*/
  	shouldAbortMessageQueueDrain() {
@@ -32,7 +60,7 @@ index bae9ddd..3b7105e 100644
  	}
  	/**
  	* Deliver queued messages after a successful settle.
-@@ -1937,7 +1945,7 @@ var ChatClient = class {
+@@ -1937,7 +1949,7 @@ var ChatClient = class {
  	* busy/queue policy (which would re-queue items and strand the rest).
  	*/
  	async drainQueue() {
@@ -41,18 +69,43 @@ index bae9ddd..3b7105e 100644
  		this.messageQueueDraining = true;
  		this.stopMessageQueueDrain = false;
  		try {
-@@ -2114,4 +2122,4 @@ var ChatClient = class {
- //#endregion
- export { ChatClient, normalizeQueueOption };
- 
--//# sourceMappingURL=chat-client.js.map
-\ No newline at end of file
-+//# sourceMappingURL=chat-client.js.map
 diff --git a/src/chat-client.ts b/src/chat-client.ts
-index a94a3d3..5dbe3fa 100644
+index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..ac1e0630c1fc6b470687a11a839b0bd9c7779189 100644
 --- a/src/chat-client.ts
 +++ b/src/chat-client.ts
-@@ -2346,14 +2346,19 @@ export class ChatClient<
+@@ -2073,6 +2073,7 @@ export class ChatClient<
+     void (async () => {
+       let rebuilt = false
+       let attached = false
++      let completed = false
+       // Whether the join FAILED (a thrown non-abort error before any chunk), as
+       // opposed to merely not delivering in time. Only a failure proves the
+       // pointer dead — see the `finally`.
+@@ -2092,6 +2093,7 @@ export class ChatClient<
+             this.dropTrailingInFlightAssistant()
+           }
+           this.processIncomingChunk(chunk)
++          if (chunk.type === 'RUN_FINISHED' && chunk.runId === runId) completed = true
+         }
+         // Same contract as `streamResponse`: client tools may finish (and
+         // queue a resume) while `isLoading` is still true. Wait for them
+@@ -2100,6 +2102,7 @@ export class ChatClient<
+           await Promise.all(this.pendingToolExecutions.values())
+         }
+       } catch (error) {
++        completed = false
+         // Pre-attach failures (unknown/evicted run, connect deadline abort)
+         // stay soft: keep the restored transcript. Post-attach transport/parser
+         // failures are real stream errors and must surface so the UI is not
+@@ -2141,6 +2144,7 @@ export class ChatClient<
+           this.setIsLoading(false)
+           if (this.status === 'streaming') this.setStatus('ready')
+           await this.drainPostStreamActions()
++          if (completed) await this.drainQueue()
+         }
+       }
+     })()
+@@ -2346,14 +2350,19 @@ export class ChatClient<
      if (emptyMessage) {
        return
      }
@@ -74,7 +127,7 @@ index a94a3d3..5dbe3fa 100644
      if (this.isSendBusy()) {
        const { action, id } = this.decideWhenBusy(content, sendOptions)
        if (action === 'drop') {
-@@ -3409,7 +3414,7 @@ export class ChatClient<
+@@ -3409,7 +3418,7 @@ export class ChatClient<
     * by control-flow analysis.
     */
    private shouldAbortMessageQueueDrain(): boolean {
@@ -83,7 +136,7 @@ index a94a3d3..5dbe3fa 100644
    }
  
    /**
-@@ -3429,6 +3434,7 @@ export class ChatClient<
+@@ -3429,6 +3438,7 @@ export class ChatClient<
      if (
        this.messageQueueDraining ||
        this.isLoading ||

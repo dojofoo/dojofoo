@@ -6,6 +6,28 @@ import { lessonRoutes } from "./routes";
 vi.mock("../control/workspace", () => ({ resolveWorkspaceId: () => "/course" }));
 afterEach(() => vi.restoreAllMocks());
 
+it.each(["introduction", "text"])("accepts the shipped client wire format for %s turns", async kind => {
+  vi.spyOn(service, "getLesson").mockResolvedValue({ dojo: "course" } as service.LessonSnapshot);
+  const introduce = vi.spyOn(service, "streamLessonIntroduction").mockResolvedValue(undefined);
+  const send = vi.spyOn(service, "streamSensei").mockResolvedValue(undefined);
+  const response = await lessonRoutes.request("/workspace/courses/course/lessons/first/messages", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+      threadId: "native-session", runId: "turn-1", state: {},
+      messages: [{ id: "message-1", role: "user", content: "Help me understand" }],
+      tools: [], context: [], forwardedProps: { kind },
+    }),
+  });
+  expect(response.status).toBe(200);
+  expect(await response.text()).toContain("RUN_FINISHED");
+  if (kind === "introduction") {
+    expect(introduce).toHaveBeenCalledWith("/course", "first", expect.any(Function), expect.any(AbortSignal));
+    expect(send).not.toHaveBeenCalled();
+  } else {
+    expect(send).toHaveBeenCalledWith("/course", "first", "Help me understand", expect.any(Function), expect.any(AbortSignal));
+    expect(introduce).not.toHaveBeenCalled();
+  }
+});
+
 it("starts a trial with its explicit harness instead of the authoring process default", async () => {
   const start = vi.spyOn(service, "startLessonSession").mockResolvedValue({ sessionId: "trial" } as service.LessonSnapshot);
   const response = await new Hono().route("/", lessonRoutes).request("/workspace/courses/course/lessons/first/sessions", {

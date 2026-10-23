@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
-import { readCourseManifest, readDojoRc } from "@dojofoo/config";
+import { dojoDir, readCourseManifest, readDojoRc } from "@dojofoo/config";
 
 export type InteractiveStep =
   | { id: string; type: "present"; title: string; content: string; contentBase: string | null }
@@ -86,7 +86,7 @@ function readLesson(root: string): { dojo: string; lesson: InteractiveLesson } {
   if (!rc.currentDojo) throw new Error("No dojo is active.");
   const manifest = readCourseManifest(root, rc.currentDojo);
   if (manifest.mode !== "interactive") throw new Error("The active dojo is not interactive.");
-  const path = resolve(root, ".dojos", rc.currentDojo, manifest.lessons);
+  const path = resolve(dojoDir(root, rc.currentDojo), manifest.lessons);
   if (!existsSync(path)) throw new Error(`Interactive lesson not found: ${manifest.lessons}`);
   const lesson = JSON.parse(readFileSync(path, "utf8")) as InteractiveLesson;
   validateLesson(lesson);
@@ -129,7 +129,7 @@ function hydrateStep(root: string, dojo: string, step: AuthoredInteractiveStep):
 
 function authoredContent(root: string, dojo: string, value: string): { body: string; basePath: string | null } {
   if (!value.endsWith(".mdx")) return { body: value, basePath: null };
-  const courseRoot = resolve(root, ".dojos", dojo);
+  const courseRoot = dojoDir(root, dojo);
   const path = resolve(courseRoot, value);
   const relativePath = relative(courseRoot, path);
   if (relativePath.startsWith("..") || relativePath === "") throw new Error(`MDX content escapes the dojo: ${value}`);

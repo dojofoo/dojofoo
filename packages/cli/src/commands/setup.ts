@@ -83,35 +83,6 @@ CLI output uses XML tags to separate directives from student content:
 13. Drive the full session: AskUserQuestion → process response → run commands if needed → AskUserQuestion again. Do not stop after one exchange.
 `;
 
-const ROOT_DOJO_MD = `# Welcome to dojofoo
-
-Your dojo is set up and ready. You just need a dojo (training pack) to start practicing.
-
-## Add a dojo
-
-\`\`\`bash
-npx dojofoo add <source>
-\`\`\`
-
-Source can be:
-- A local path: \`npx dojofoo add ./path/to/dojo\`
-- A git repo: \`npx dojofoo add org/repo\`
-- Official dojos: \`npx dojofoo add dojofoo/effect-ts\`
-
-## Start practicing
-
-Once a dojo is added, run \`npx dojofoo ui\` to begin.
-`;
-
-const LEGACY_DOJO_CONFIG = `import { defineConfig } from "@dojofoo/config"
-
-export default defineConfig()
-`;
-
-const DOJO_CONFIG = `export default {}
-`;
-
-
 const DEFAULT_RC: DojoRc = {
   currentDojo: "",
   currentKata: null,
@@ -189,54 +160,10 @@ export async function selectAgentsInteractively(): Promise<AgentName[]> {
 }
 
 export function ensureProject(root: string): void {
-  const rcPath = resolve(root, ".dojorc");
-  if (!existsSync(rcPath)) {
+  if (!existsSync(resolve(root, ".dojorc")) && !existsSync(resolve(root, ".dojo/config.yaml"))) {
     writeDojoRc(root, DEFAULT_RC);
   }
-
   mkdirSync(resolve(root, DOJOS_DIR), { recursive: true });
-
-  const dojoMdPath = resolve(root, DOJOS_DIR, "DOJO.md");
-  if (!existsSync(dojoMdPath)) {
-    writeFileSync(dojoMdPath, ROOT_DOJO_MD);
-  }
-
-  const configPath = resolve(root, "dojo.config.ts");
-  if (!existsSync(configPath)) {
-    writeFileSync(configPath, DOJO_CONFIG);
-  } else if (readFileSync(configPath, "utf8") === LEGACY_DOJO_CONFIG) {
-    writeFileSync(configPath, DOJO_CONFIG);
-  }
-
-  const tsconfigPath = resolve(root, "tsconfig.json");
-  if (!existsSync(tsconfigPath)) {
-    writeFileSync(
-      tsconfigPath,
-      JSON.stringify(
-        {
-          compilerOptions: {
-            target: "ES2022",
-            module: "ES2022",
-            moduleResolution: "bundler",
-            strict: true,
-            noEmit: true,
-          },
-          include: ["katas/**/*.ts"],
-        },
-        null,
-        2,
-      ) + "\n",
-    );
-  }
-
-  const pkgPath = resolve(root, "package.json");
-  if (!existsSync(pkgPath)) {
-    writeFileSync(
-      pkgPath,
-      JSON.stringify({ type: "module", private: true }, null, 2) + "\n",
-    );
-  }
-
 }
 
 export function agentsFromArgs(args: string[]): AgentName[] {

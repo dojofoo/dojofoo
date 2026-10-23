@@ -98,10 +98,13 @@ describe("dojo setup", () => {
     }
   });
 
-  it("generates a dependency-free dojo config", async () => {
+  it("creates YAML workspace settings without a JavaScript setup", async () => {
     await captureLogAsync(() => setup(root, ["--codex"]));
 
-    expect(readFileSync(resolve(root, "dojo.config.ts"), "utf8")).toBe("export default {}\n");
+    expect(existsSync(resolve(root, ".dojo/config.yaml"))).toBe(true);
+    for (const file of ["dojo.config.ts", "package.json", "tsconfig.json", ".dojorc"]) {
+      expect(existsSync(resolve(root, file)), file).toBe(false);
+    }
   });
 
   it("accepts the conventional --agent option", async () => {
@@ -116,7 +119,7 @@ describe("dojo setup", () => {
     for (const key of envKeys) vi.stubEnv(key, "");
     try {
       await captureLogAsync(() => setup(root, [], async () => []));
-      expect(existsSync(resolve(root, ".dojorc"))).toBe(true);
+      expect(existsSync(resolve(root, ".dojo/config.yaml"))).toBe(true);
     } finally {
       vi.unstubAllEnvs();
     }
@@ -309,6 +312,7 @@ describe("dojo intro", () => {
     writeRc(root, { currentDojo: "dojo-a", currentKata: null, editor: null });
     writeDojoMd(root, "dojo-a", "# Dojo A");
     mkdirSync(resolve(root, ".dojos/dojo-b"), { recursive: true });
+    writeFileSync(resolve(root, ".dojos/dojo-b/dojo.yaml"), "name: dojo-b\n");
 
     const output = captureLog(() => intro(root, []));
     expect(output).toContain("dojo-b");

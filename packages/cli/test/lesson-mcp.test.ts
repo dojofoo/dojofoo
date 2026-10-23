@@ -46,6 +46,16 @@ it("does not install the learning observation tool in an authoring-only profile"
   expect(handlers.has("dojo_learner_observe")).toBe(false);
 });
 
+it("preserves a server failure message instead of returning a boolean error flag", async () => {
+  vi.stubEnv("DOJO_PROJECT_ROOT", "/test-course");
+  vi.stubEnv("DOJO_CLI", "/test-cli.js");
+  vi.stubEnv("DOJOFOO_COORDINATOR_URL", "http://coordinator.test");
+  vi.stubEnv("DOJOFOO_RUN_CAPABILITY", "test-only");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ error: true, message: "Coordinator route unavailable" }, { status: 500 })));
+  await import("../src/lesson-mcp");
+  await expect(handlers.get("dojo_lesson_complete")!()).rejects.toThrow("Coordinator route unavailable (HTTP 500)");
+});
+
 it("provides numbered MCP text and unchanged structured learner source", async () => {
   vi.stubEnv("DOJO_PROJECT_ROOT", "/test-course");
   vi.stubEnv("DOJO_CLI", "/test-cli.js");

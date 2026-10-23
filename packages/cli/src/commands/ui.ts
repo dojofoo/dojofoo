@@ -3,6 +3,22 @@ import { execFileSync, spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { dojoDir, findManifestPath, readDojoRc } from "../config";
+
+/** Author the requested course, not its enclosing multi-course workspace. */
+export function resolveAuthoringRoot(cwd: string, workspace: string): string {
+  if (findManifestPath(cwd)) return cwd;
+  try {
+    const { currentDojo } = readDojoRc(workspace);
+    if (currentDojo) {
+      const course = dojoDir(workspace, currentDojo);
+      if (findManifestPath(course)) return course;
+    }
+  } catch {
+    // A standalone draft can be opened before workspace registration.
+  }
+  return cwd;
+}
 
 export async function ui(cwd: string, args: string[]): Promise<void> {
   if (args.includes("--skill")) {

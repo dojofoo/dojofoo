@@ -240,10 +240,14 @@ it("grades both observed lesson dialogues when explicitly requesting a full chai
     priorLessons: "teach", signal: AbortSignal.timeout(5000), trial: f.trial, judge: f.judge });
   expect(report.status).toBe("passed");
   expect(report.priorLessons).toBe("teach");
-  expect(JSON.parse(f.judge.mock.calls[0][0]["evaluation-scope.json"]))
-    .toMatchObject({ teachingLessonIds: ["first", "second"], completedBefore: [] });
+  const scope = JSON.parse(f.judge.mock.calls[0][0]["evaluation-scope.json"]);
+  expect(scope).toMatchObject({ teachingLessonIds: ["first", "second"], completedBefore: [] });
+  expect(scope).not.toHaveProperty("teachingLessonId");
   expect(JSON.parse(f.judge.mock.calls[1][0].lessonIds)).toEqual(["first", "second"]);
   expect(f.judge.mock.calls[1][0].priorLessons).toBe("teach");
+  const prompt = f.judge.mock.calls[1][2]!(f.judge.mock.calls[1][0], {});
+  expect(prompt).toContain("When `priorLessons` is `teach`, judge every observed lesson");
+  expect(prompt).not.toContain("Only the last lesson in `lessonIds` is taught");
 });
 
 it("cannot relabel seeded completion as a full teaching chain", async () => {

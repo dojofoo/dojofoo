@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { courseMode, readCourseManifest, readDojoRc } from "./index";
+import { courseMode, hasWorkspaceConfiguration, readCourseManifest, readDojoRc } from "./index";
 
 export type HarnessSession = {
   harness: string;
@@ -106,8 +106,7 @@ export function sessionFromEnvironment(
 }
 
 export function observeLocalContext(root: string, options: LocalStateOptions = {}): LocalContext | null {
-  const rcPath = resolve(root, ".dojorc");
-  if (!existsSync(rcPath)) return null;
+  if (!hasWorkspaceConfiguration(root)) return null;
   const rc = readDojoRc(root);
 
   const now = options.now ?? Date.now();
@@ -145,7 +144,7 @@ export function recordDojoLifecycle(
   kata?: string,
   options: LocalStateOptions = {},
 ): void {
-  if (!existsSync(resolve(root, ".dojorc"))) return;
+  if (!hasWorkspaceConfiguration(root)) return;
   const now = options.now ?? Date.now();
   const db = openDatabase(options);
   try {

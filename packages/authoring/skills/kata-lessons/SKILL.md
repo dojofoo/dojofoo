@@ -48,3 +48,10 @@ Use `DOJO.tmpl` and `SENSEI.tmpl` as starting notes, not required headings. Repl
 - Reference code passes every test.
 - Every `{placeholder}` in SENSEI.md and DOJO.md is replaced with lesson-specific material.
 - The lesson preflight passes.
+
+## Sharing
+
+- Authors own publication safety. Keep secrets, local configuration and generated state out of Git with `.gitignore`; Dojofoo does not scan or sanitize secrets.
+- Publish through Git commits and version tags. Review tracked files and outgoing changes; `.gitignore` does not untrack files. Push only when the author asks.
+- Normal installs keep the learner course and Sensei definitions. `dojofoo add <source> --master` also keeps Kyoshi definitions for editing; neither mode installs runtime state. Ignore rules still apply.
+- Keep the license and attribution. Check permission before redistributing a modified course.

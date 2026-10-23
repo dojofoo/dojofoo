@@ -2,10 +2,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { UIMessage } from "@tanstack/ai-client";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parseAgentQuestions } from "@/components/chat/agent-question";
 import { StreamedChatMessage } from "./index";
 import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
+
+// This suite verifies routing, not the effect-driven Markdown compiler.
+// Real Markdown rendering is covered by the teaching-content browser tests.
+vi.mock("@/components/teaching-markdown", () => ({
+  TeachingMarkdown: ({ source }: { source: string }) => <div data-teaching-source>{source}</div>,
+}));
 
 const fixture = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "../../e2e/fixtures/chat-kitchen-sink.json"), "utf8"),
@@ -49,7 +55,7 @@ describe("TanStack AI UIMessage renderer", () => {
 
     const ordered = [
       "Help me understand this failure.",
-      "Worked",
+      "Thought",
       "Trimming now works",
       "2/3 lesson checks passed",
       "Whitespace runs use the",
@@ -89,23 +95,53 @@ describe("TanStack AI UIMessage renderer", () => {
       <StreamedChatMessage fragments={{}} message={message} streaming workspaceId="fixture-workspace" />,
     );
 
-    expect(html.match(/data-slot="tool-timeline"/gu)).toHaveLength(1);
-    expect(html).not.toContain("Inspecting the lesson");
+    expect(html.match(/aria-label="Activity details"/gu)).toHaveLength(1);
+    expect(html).toContain("Inspecting the lesson");
+    expect(html).toContain('inert="" aria-hidden="true"');
     expect(html).not.toContain("Parameters &amp; result");
-    expect(html.match(/aria-expanded="false"/gu)).toHaveLength(1);
+    expect(html.match(/aria-expanded="false"/gu)).toHaveLength(5);
   });
 
-  it("retains persisted work duration in the collapsed timeline label", () => {
+  it.each([false, true])("retains persisted activity duration (tool=%s)", (tool) => {
     const message = {
       id: "timed-work",
       role: "assistant",
-      parts: [{ type: "thinking", content: "private", state: "complete", durationMs: 3_700 }],
+      parts: [tool
+        ? { type: "tool-call", id: "timed-tool", name: "read_file", arguments: "{}", state: "complete", durationMs: 3_700 }
+        : { type: "thinking", content: "private", state: "complete", durationMs: 3_700 }],
     } as unknown as UIMessage;
     const html = renderToStaticMarkup(
       <StreamedChatMessage fragments={{}} message={message} workspaceId="fixture-workspace" />,
     );
-    expect(html).toContain("Worked · 4s");
-    expect(html).not.toContain("private");
+    expect(html).toContain(`${tool ? "Worked" : "Thought"} for 4s`);
+    expect(html).toContain('inert="" aria-hidden="true"');
+  });
+
+  it.each([undefined, -1, Number.NaN, Number.POSITIVE_INFINITY])("does not invent a duration from %s", (durationMs) => {
+    const message = {
+      id: "untimed", role: "assistant",
+      parts: [{ type: "thinking", content: "Inspect lesson", durationMs }],
+    } as unknown as UIMessage;
+    const html = renderToStaticMarkup(
+      <StreamedChatMessage fragments={{}} message={message} workspaceId="fixture" />,
+    );
+    expect(html).toContain("Thought");
+    expect(html).not.toContain("Thought for");
+  });
+
+  it("does not sum overlapping tool durations into a chain timer", () => {
+    const message = {
+      id: "parallel-tools", role: "assistant",
+      parts: ["read-1", "read-2"].map(id => ({
+        type: "tool-call", id, name: "read_file", arguments: "{}", state: "complete", durationMs: 3_700,
+      })),
+    } as unknown as UIMessage;
+    const html = renderToStaticMarkup(
+      <StreamedChatMessage fragments={{}} message={message} workspaceId="fixture" />,
+    );
+    expect(html).toContain("Worked");
+    expect(html).not.toContain("Worked for");
+    expect(html.match(/3\.7s/gu)).toHaveLength(2);
   });
 
   it("renders dojo_ui_show as its authored fragment instead of tool machinery", () => {

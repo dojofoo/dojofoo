@@ -1,0 +1,270 @@
+diff --git a/dist/_build/vite.dev.mjs b/dist/_build/vite.dev.mjs
+index 96c006264b3e34a189a51c5663f31d5310196c63..c0fc2d940aa1ed05aadb95b87030d27fb8388023 100644
+--- a/dist/_build/vite.dev.mjs
++++ b/dist/_build/vite.dev.mjs
+@@ -115,6 +115,19 @@ async function configureViteDevServer(ctx, server) {
+ 		scanDirsWatcher.close();
+ 		rootDirWatcher.close();
+ 	});
++	if (!server.config.server.middlewareMode) {
++		const onSigint = async () => {
++			try {
++				await server.close();
++			} finally {
++				process.exit(130);
++			}
++		};
++		process.once("SIGINT", onSigint);
++		nitro.hooks.hook("close", () => {
++			process.off("SIGINT", onSigint);
++		});
++	}
+ 	nitroEnv.devServer.onMessage(async (message) => {
+ 		if (message?.__rpc === "transformHTML") try {
+ 			const html = (await server.transformIndexHtml("/", message.data)).replace("<!--ssr-outlet-->", `{{{ globalThis.__nitro_vite_envs__?.["ssr"]?.fetch($REQUEST) || "" }}}`);
+diff --git a/dist/_build/vite.env.mjs b/dist/_build/vite.env.mjs
+index 477db7d3db9c837fc7ba4dffd12ba0db7723d42e..c266b1f753e1b8b5e56061b0334fb8ef65a39226 100644
+--- a/dist/_build/vite.env.mjs
++++ b/dist/_build/vite.env.mjs
+@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
+ import { pathToFileURL } from "node:url";
+ import { join, resolve } from "node:path";
+ import { RunnerManager, loadRunner } from "env-runner";
++import { shutdownRunner } from "../_dev/shutdown.mjs";
+ async function writeDevWorkerEntry(nitro) {
+ 	const entry = resolve$1(nitro.options.buildDir, "vite/dev-worker.mjs");
+ 	const devWorker = _specifier(entry, resolve$1(runtimeDir, "internal/vite/dev-worker.mjs"));
+@@ -106,6 +107,7 @@ async function initEnvRunner(ctx) {
+ 		const manager = new RunnerManager();
+ 		let _retries = 0;
+ 		manager.onClose((_runner, cause) => {
++			if (ctx._closingEnvRunner) return;
+ 			if (_retries++ < 3) {
+ 				ctx.nitro.logger.info("Restarting env runner...", cause ? `Cause: ${cause}` : "");
+ 				_loadRunner(ctx, manager);
+@@ -132,6 +134,16 @@ function getEnvRunner(ctx) {
+ 	if (!ctx._envRunner) throw new Error("Env runner not initialized. Call initEnvRunner() first.");
+ 	return ctx._envRunner;
+ }
++async function closeEnvRunner(ctx) {
++	const manager = ctx._envRunner;
++	if (!manager || ctx._closingEnvRunner) return;
++	ctx._closingEnvRunner = true;
++	// The miniflare runner performs the same handshake when it is disposed.
++	if (manager.ready && !_isWorkerdRunner(ctx)) {
++		await shutdownRunner(manager, { warn: (message) => ctx.nitro.logger.warn(message) });
++	}
++	await manager.close();
++}
+ async function _loadRunner(ctx, manager) {
+ 	const runnerName = _devRunner(ctx);
+ 	const entry = await writeDevWorkerEntry(ctx.nitro);
+@@ -182,4 +194,4 @@ function tryResolve(id) {
+ 		try: true
+ 	}) || id;
+ }
+-export { createNitroEnvironment, createServiceEnvironment, createServiceEnvironments, getEnvRunner, initEnvRunner };
++export { closeEnvRunner, createNitroEnvironment, createServiceEnvironment, createServiceEnvironments, getEnvRunner, initEnvRunner };
+diff --git a/dist/_dev/shutdown.mjs b/dist/_dev/shutdown.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..17bbcae93e9fe320617d2fa6fc2498bef413f099
+--- /dev/null
++++ b/dist/_dev/shutdown.mjs
+@@ -0,0 +1,35 @@
++const SHUTDOWN_TIMEOUT = 5000;
++
++/**
++ * Ask the dev runner to shut down gracefully and wait for it to acknowledge.
++ *
++ * Closing a runner terminates its runtime outright, so the runtime `close` hooks only run when
++ * the worker is given a chance to run them first (`ipc.onClose` in the dev entries).
++ */
++export async function shutdownRunner(manager, opts = {}) {
++  await new Promise((resolve) => {
++    const done = () => {
++      clearTimeout(timer);
++      manager.offMessage(listener);
++      resolve();
++    };
++    const timer = setTimeout(() => {
++      opts.warn?.("Dev worker did not shut down in time, force closing it...");
++      done();
++    }, SHUTDOWN_TIMEOUT);
++    const listener = (message) => {
++      if (message?.event === "exit") {
++        done();
++      }
++    };
++    manager.onMessage(listener);
++    try {
++      manager.sendMessage({ event: "shutdown" });
++    } catch (error) {
++      opts.warn?.(
++        `Could not send shutdown message to the dev worker: ${error instanceof Error ? error.message : String(error)}`
++      );
++      done();
++    }
++  });
++}
+diff --git a/dist/_dev.mjs b/dist/_dev.mjs
+index d59ee567885835805c5c43fcfef9d71acacffcf4..9ef10627f802d4c0844b473e0dfe48be79a70a0d 100644
+--- a/dist/_dev.mjs
++++ b/dist/_dev.mjs
+@@ -3,6 +3,7 @@ import { watch as watch$1 } from "./_libs/readdirp+chokidar.mjs";
+ import { debounce } from "./_libs/perfect-debounce.mjs";
+ import { createProxyServer } from "./_libs/httpxy.mjs";
+ import { resolveRunnerDeps } from "./_dev2.mjs";
++import { shutdownRunner } from "./_dev/shutdown.mjs";
+ import consola$1 from "consola";
+ import { createReadStream } from "node:fs";
+ import { readFile, stat as stat$1 } from "node:fs/promises";
+@@ -381,7 +382,6 @@ function createHTTPProxy(defaults = {}) {
+ 		}
+ 	};
+ }
+-const SHUTDOWN_TIMEOUT = 5e3;
+ function createDevServer(nitro) {
+ 	return new NitroDevServer(nitro);
+ }
+@@ -522,27 +522,7 @@ var NitroDevServer = class NitroDevServer extends NitroDevApp {
+ 		if (!this.#manager.ready) return;
+ 		this.#shuttingDown = true;
+ 		try {
+-			await new Promise((resolve) => {
+-				const done = () => {
+-					clearTimeout(timer);
+-					this.#manager.offMessage(listener);
+-					resolve();
+-				};
+-				const timer = setTimeout(() => {
+-					this.nitro.logger.warn("Dev worker did not shut down in time, force closing it...");
+-					done();
+-				}, SHUTDOWN_TIMEOUT);
+-				const listener = (message) => {
+-					if (message?.event === "exit") done();
+-				};
+-				this.#manager.onMessage(listener);
+-				try {
+-					this.#manager.sendMessage({ event: "shutdown" });
+-				} catch (error) {
+-					this.nitro.logger.warn(`Could not send shutdown message to the dev worker: ${error instanceof Error ? error.message : String(error)}`);
+-					done();
+-				}
+-			});
++			await shutdownRunner(this.#manager, { warn: (message) => this.nitro.logger.warn(message) });
+ 		} finally {
+ 			this.#shuttingDown = false;
+ 		}
+diff --git a/dist/presets/node/runtime/node-server.mjs b/dist/presets/node/runtime/node-server.mjs
+index 3a33199e0b3579aa0dd77059932f32325123fce9..6994f218db91d1c15607e1cc357567b7b745509c 100644
+--- a/dist/presets/node/runtime/node-server.mjs
++++ b/dist/presets/node/runtime/node-server.mjs
+@@ -25,7 +25,13 @@ const server = serve({
+ 	plugins: [...tracingSrvxPlugins]
+ });
+ if (import.meta._websocket) {
+-	const { handleUpgrade } = wsAdapter({ resolve: resolveWebsocketHooks });
++	const websocket = wsAdapter({ resolve: resolveWebsocketHooks });
++	const { handleUpgrade } = websocket;
++	const closeServer = server.close.bind(server);
++	server.close = async (force) => {
++		await websocket.close(1001, "Server shutting down");
++		await closeServer(force);
++	};
+ 	server.node.server.on("upgrade", (req, socket, head) => {
+ 		handleUpgrade(
+ 			req,
+diff --git a/dist/runtime/internal/vite/dev-entry.mjs b/dist/runtime/internal/vite/dev-entry.mjs
+index cb1176ee093ecfc362080044279eae86abd82f9a..a7d6f758421ca468ecbd57e89afc74d2231d8dd4 100644
+--- a/dist/runtime/internal/vite/dev-entry.mjs
++++ b/dist/runtime/internal/vite/dev-entry.mjs
+@@ -1,7 +1,7 @@
+ import "#nitro/virtual/polyfills";
+ import wsAdapter from "crossws/adapters/node";
+ 
+-import { useNitroApp } from "nitro/app";
++import { useNitroApp, useNitroHooks } from "nitro/app";
+ import { resolveWebsocketHooks } from "#nitro/runtime/app";
+ import { startScheduleRunner } from "#nitro/runtime/task";
+ 
+@@ -16,3 +16,6 @@ if (import.meta._tasks) {
+ }
+ 
+ export const handleUpgrade = ws?.handleUpgrade;
++
++// Called by the dev worker when the runner shuts down (see `ipc.onClose` in `dev-worker.mjs`).
++export const close = () => useNitroHooks().callHook("close");
+diff --git a/dist/runtime/internal/vite/dev-worker.mjs b/dist/runtime/internal/vite/dev-worker.mjs
+index 3ced9371804165a184fbed4a1d5256537ab734f1..776b8a29a5f350ea53806e59a894bc9d9ee98f55 100644
+--- a/dist/runtime/internal/vite/dev-worker.mjs
++++ b/dist/runtime/internal/vite/dev-worker.mjs
+@@ -152,6 +152,16 @@ class ViteEnvRunner {
+     return !!file && !!this.runner.evaluatedModules.getModulesByFile(file)?.size;
+   }
+ 
++  // Runs the environment's `close` hooks before the runner goes away. Waits for any in-flight
++  // reload so the entry the hooks belong to is the one that is closed.
++  async close() {
++    await this.reloadPromise;
++    const entryClose = this.entry?.close || this.entry?.default?.close;
++    if (entryClose) {
++      await entryClose();
++    }
++  }
++
+   // Errors are intentionally not caught here: like production services,
+   // they propagate to the caller (the nitro app's error handler or the
+   // env-runner fetch boundary below).
+@@ -308,7 +318,15 @@ export const ipc = {
+       listener(message);
+     }
+   },
+-  onClose() {},
++  async onClose() {
++    await Promise.all(
++      Object.values(envs).map((env) =>
++        env?.close().catch((error) => {
++          console.error(error);
++        })
++      )
++    );
++  },
+ };
+ 
+ // ----- Error handling -----
+diff --git a/dist/vite.mjs b/dist/vite.mjs
+index 851b1c1a1a3433d836ebbe438041bbb6a1cab9f7..7ee1d453a084df9e680d5fcd92877e78ea29e2f4 100644
+--- a/dist/vite.mjs
++++ b/dist/vite.mjs
+@@ -2,7 +2,7 @@ import { NODE_MODULES_RE, baseBuildConfig, baseBuildPlugins, basename, copyPubli
+ import { formatCompatibilityDate } from "./_libs/compatx.mjs";
+ import { createNitro, installModules, prerender } from "./_chunks/nitro.mjs";
+ import { NitroDevApp } from "./_dev.mjs";
+-import { createNitroEnvironment, createServiceEnvironment, createServiceEnvironments, getEnvRunner, initEnvRunner } from "./_build/vite.env.mjs";
++import { closeEnvRunner, createNitroEnvironment, createServiceEnvironment, createServiceEnvironments, getEnvRunner, initEnvRunner } from "./_build/vite.env.mjs";
+ import { startPreview } from "./_chunks/nitro4.mjs";
+ import { assetsPlugin } from "./_libs/js-tokens+pluginutils.mjs";
+ import { runtimeDir } from "nitro/meta";
+@@ -379,6 +379,13 @@ function nitroMain(ctx) {
+ 			const { configureViteDevServer } = await import("./_build/vite.dev.mjs");
+ 			return configureViteDevServer(ctx, server);
+ 		},
++		closeBundle: {
++			order: "post",
++			handler() {
++				if (!ctx.nitro?.options.dev) return;
++				return (ctx._closePromise ??= ctx.nitro.close());
++			},
++		},
+ 		async hotUpdate({ server, file, modules, timestamp }) {
+ 			const env = this.environment;
+ 			if (env.config.consumer === "client") return;
+@@ -500,7 +507,7 @@ async function setupNitroContext(ctx, configEnv, userConfig) {
+ 	ctx.nitro.fetch = (req) => getEnvRunner(ctx).fetch(req);
+ 	if (ctx.nitro.options.dev && !ctx.devApp) ctx.devApp = new NitroDevApp(ctx.nitro);
+ 	ctx.nitro.hooks.hook("close", async () => {
+-		if (ctx._envRunner) await ctx._envRunner.close();
++		await closeEnvRunner(ctx);
+ 	});
+ }
+ function useLongerAssetHashes(build, isRolldown, assetsDir, opts) {

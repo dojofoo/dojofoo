@@ -160,7 +160,7 @@ export async function evaluateAuthoredCourse({ root, lessonIds, signal, trial, t
       ...(teachingPolicy === undefined ? {} : { "production-teaching-policy.md": teachingPolicy }),
       "evaluation-scope.json": JSON.stringify({
         lessonIds,
-        teachingLessonId: lessonIds.at(-1),
+        ...(priorLessons === "teach" ? {} : { teachingLessonId: lessonIds.at(-1) }),
         teachingLessonIds: priorLessons === "teach" ? lessonIds : lessonIds.slice(-1),
         completedBefore: priorLessons === "teach" ? [] : lessonIds.slice(0, -1),
         scope: priorLessons === "teach"
