@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Course authoring tools and Kyoshi agents for Dojofoo.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dojofoo/dojofoo.git",
+    "directory": "packages/authoring"
+  },
   "publishConfig": {
     "access": "public"
   },

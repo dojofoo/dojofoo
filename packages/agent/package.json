@@ -7,6 +7,11 @@
   "type": "module",
   "description": "Eve with an experimental provider for official AI SDK harness adapters.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dojofoo/dojofoo.git",
+    "directory": "packages/agent"
+  },
   "engines": {
     "node": ">=24"
   },
