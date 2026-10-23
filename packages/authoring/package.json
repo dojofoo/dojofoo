@@ -1,11 +1,9 @@
 {
   "name": "@dojofoo/authoring",
   "version": "0.1.0",
+  "private": true,
   "description": "Course authoring tools and Kyoshi agents for Dojofoo.",
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "files": [
     "dist",
     "skills",

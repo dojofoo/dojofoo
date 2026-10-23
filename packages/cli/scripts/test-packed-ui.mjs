@@ -8,7 +8,6 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const workspaceRoot = resolve(cliRoot, "../..");
 const expectedPackage = JSON.parse(readFileSync(resolve(cliRoot, "package.json"), "utf8"));
 const scratch = mkdtempSync(resolve(tmpdir(), "dojo-packed-install-"));
 const packs = resolve(scratch, "packs");
@@ -24,11 +23,7 @@ try {
   mkdirSync(projectRoot, { recursive: true });
   writeFileSync(resolve(installRoot, "package.json"), JSON.stringify({ private: true }));
 
-  // Install local runtime dependencies as tarballs too. They are not all
-  // published, and registry copies would test a different implementation.
-  for (const packageName of ["config", "agent", "authoring"]) {
-    pack(resolve(workspaceRoot, "packages", packageName), packs);
-  }
+  // The public CLI must carry its private workspace runtime by itself.
   pack(cliRoot, packs);
   const tarballs = readdirSync(packs).map((name) => resolve(packs, name));
   execFileSync("npm", ["install", "--ignore-scripts", "--no-package-lock", ...tarballs], {
@@ -37,7 +32,7 @@ try {
     timeout: 300_000,
   });
 
-  const installedRequire = createRequire(resolve(installRoot, "package.json"));
+  const installedRequire = createRequire(resolve(installRoot, "node_modules/dojofoo/package.json"));
   const bridge = readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/authoring/package.json")), "dist/bridge/index.mjs"), "utf8");
   const helper = (name, next) => bridge.slice(bridge.indexOf(`function ${name}(`), bridge.indexOf(next, bridge.indexOf(`function ${name}(`) + 1));
   const { legacySessionPrompt } = await import(`data:text/javascript,${encodeURIComponent([

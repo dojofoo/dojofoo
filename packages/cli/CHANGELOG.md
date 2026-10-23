@@ -1,5 +1,12 @@
 # dojofoo
 
+## 0.2.1
+
+### Patch Changes
+
+- Include the private agent, authoring runtime and config in the single CLI artifact.
+  Install and verify the CLI without unpublished workspace packages or local links.
+
 ## 0.2.0
 
 ### Minor Changes
