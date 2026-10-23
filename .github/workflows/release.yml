@@ -39,3 +39,8 @@ jobs:
           # Emits Sigstore provenance attestation on every npm publish from CI.
           # Existing packages use their npm Trusted Publisher configuration.
           NPM_CONFIG_PROVENANCE: "true"
+
+      - name: Verify published CLI
+        run: |
+          release_version=$(node -p 'require("./packages/cli/package.json").version')
+          npm exec --yes --package="dojofoo@$release_version" -- dojofoo --help
