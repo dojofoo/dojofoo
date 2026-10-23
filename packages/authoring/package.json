@@ -1,7 +1,20 @@
 {
   "name": "@dojofoo/authoring",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Course authoring tools and Kyoshi agents for Dojofoo.",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "templates",
+    "src/**/*.ts",
+    "src/contracts/*.md",
+    "src/evaluation/prompts/**/*.md",
+    "!src/**/*.test.ts"
+  ],
   "type": "module",
   "engines": {
     "node": ">=24"

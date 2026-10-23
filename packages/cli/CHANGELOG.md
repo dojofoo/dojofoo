@@ -1,5 +1,26 @@
 # dojofoo
 
+## 0.2.0
+
+### Minor Changes
+
+- 5067020: Serve the durable local workspace, dojo run, harness session, and event index
+  through the bundled lesson UI's ephemeral Hono control plane. List unfinished
+  courses across indexed workspaces and continue any of them from the lesson UI.
+  Prefer a stable Portless URL when available, recover automatically through a
+  direct localhost server when Portless fails, and expose explicit fallback and
+  port controls with installation and troubleshooting documentation.
+- Publish the agent and authoring runtime required by CLI installations. Support
+  editable master courses, portable Kyoshi definitions, chapter-based course
+  material, isolated lesson trials, and durable authoring question/queue recovery.
+
+### Patch Changes
+
+- Updated dependencies [5067020]
+- Updated dependencies
+  - @dojofoo/config@0.1.0
+  - @dojofoo/authoring@0.1.0
+
 ## 0.1.0
 
 ### Minor Changes
@@ -79,7 +100,7 @@
 
   - `dojo status` outputs structured state (`no-dojo`, `intro`, `no-kata`, `kata-intro`, `practicing`, `complete`) with dojo, kata, progress, and a `run:` directive for the next command
   - `kata.md` command file reads `dojo status` and follows the `run:` line — replaces verbose routing table with a 3-line file
-  - Remove prompt injection logic (`!`dojo intro`` , `!`dojo kata intro ``) from `kata.ts` smart mode — CLI is now pure data
+  - Remove prompt injection logic (`!`dojo intro``, `!`dojo kata intro``) from `kata.ts` smart mode — CLI is now pure data
   - Remove `!`dojo intro``from`dojos/effect-ts/DOJO.md` — content files are pure content
 
 ## 0.1.0

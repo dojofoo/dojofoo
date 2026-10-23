@@ -26,7 +26,7 @@ export function scaffoldAuthoringWorkspace(input: {
   const createdPackage = !existsSync(resolve(input.root, "package.json"));
   for (const entry of readdirSync(source, { withFileTypes: true })) {
     if (entry.name === ".dojo" || entry.name === "node_modules") continue;
-    const destination = resolve(input.root, entry.name);
+    const destination = resolve(input.root, entry.name === "gitignore" ? ".gitignore" : entry.name);
     if (existsSync(destination)) continue;
     cpSync(resolve(source, entry.name), destination, { recursive: true });
   }

@@ -1,6 +1,6 @@
 {
   "name": "dojofoo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Installable coding dojos that turn your AI agent into a sensei.",
   "keywords": [
     "cli",

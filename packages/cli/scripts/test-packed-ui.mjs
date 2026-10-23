@@ -1,9 +1,10 @@
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = resolve(cliRoot, "../..");
@@ -33,6 +34,40 @@ try {
     cwd: installRoot,
     stdio: "pipe",
   });
+
+  const installedRequire = createRequire(resolve(installRoot, "package.json"));
+  const { scaffoldAuthoringWorkspace } = await import(
+    pathToFileURL(installedRequire.resolve("@dojofoo/authoring/scaffold")).href
+  );
+  const authorRoot = resolve(scratch, "author");
+  scaffoldAuthoringWorkspace({ root: authorRoot, name: "Packed course", style: "katas" });
+  if (!readFileSync(resolve(authorRoot, ".gitignore"), "utf8").includes(".dojo/*") ||
+      !readFileSync(resolve(authorRoot, "mise.toml"), "utf8").includes("[tasks.setup]") ||
+      existsSync(resolve(authorRoot, "gitignore"))) {
+    throw new Error("Packed authoring scaffold is missing its mise setup or private-state ignore rules.");
+  }
+  // Boot the shipped master from an npm installation, not workspace links.
+  // Readiness compiles the agent but never makes a paid model call.
+  mkdirSync(resolve(authorRoot, ".dojo/kyoshi"), { recursive: true });
+  const { createKyoshiRuntime } = await import(
+    pathToFileURL(installedRequire.resolve("@dojofoo/authoring/eve/runtime")).href
+  );
+  const previousHarness = process.env.DOJOFOO_HARNESS;
+  const previousHome = process.env.DOJOFOO_HOME;
+  process.env.DOJOFOO_HARNESS = "opencode";
+  process.env.DOJOFOO_HOME = resolve(scratch, "home");
+  let runtime;
+  try {
+    runtime = await createKyoshiRuntime(authorRoot);
+    await runtime.start();
+    console.log("Packed master authoring agent passed readiness without a model call.");
+  } finally {
+    await runtime?.close();
+    if (previousHarness === undefined) delete process.env.DOJOFOO_HARNESS;
+    else process.env.DOJOFOO_HARNESS = previousHarness;
+    if (previousHome === undefined) delete process.env.DOJOFOO_HOME;
+    else process.env.DOJOFOO_HOME = previousHome;
+  }
 
   const installedPackage = JSON.parse(
     readFileSync(resolve(installRoot, "node_modules/dojofoo/package.json"), "utf8"),
