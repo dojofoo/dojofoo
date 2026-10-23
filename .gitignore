@@ -39,3 +39,4 @@ packages/ui/playwright-report/
 /.opencode/
 /dojo.config.ts
 /tsconfig.json
+.env*

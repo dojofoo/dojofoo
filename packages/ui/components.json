@@ -25,6 +25,12 @@
       "headers": {
         "Authorization": "Bearer ${REACTBITS_API_KEY}"
       }
+    },
+    "@useplanes": {
+      "url": "https://useplanes.com/api/registry/{name}",
+      "headers": {
+        "Authorization": "Bearer ${PLANES_LICENSE_KEY}"
+      }
     }
   }
 }
