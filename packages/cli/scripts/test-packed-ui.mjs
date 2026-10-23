@@ -1,4 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
+import { once } from "node:events";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { createRequire } from "node:module";
@@ -118,6 +119,9 @@ try {
     detached: process.platform !== "win32",
     env: {
       ...process.env,
+      // srvx disables its production shutdown handlers under CI/TEST.
+      CI: "",
+      TEST: "",
       DOJO_PROJECT_ROOT: projectRoot,
       DOJO_UI_DISABLE_PORTLESS: "1",
       PORT: String(port),
@@ -138,11 +142,15 @@ try {
   if (output) process.stderr.write(output);
   throw error;
 } finally {
-  if (child?.pid) {
+  if (child?.pid && child.exitCode === null && child.signalCode === null) {
+    const exited = once(child, "close", { signal: AbortSignal.timeout(10_000) });
     try {
       process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGTERM");
-    } catch {
-      // The server may already have exited and reported its failure above.
+      await exited;
+    } catch (error) {
+      try { process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGKILL"); }
+      catch { /* The process may already be gone. */ }
+      throw new Error(`Packed UI did not shut down cleanly: ${output}`, { cause: error });
     }
   }
   rmSync(scratch, { recursive: true, force: true });
