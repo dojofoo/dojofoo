@@ -30,7 +30,7 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter dojofoo test:package
 
-      - uses: changesets/action@v2
+      - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0; CLI v2
         with:
           publish: pnpm release
           version: pnpm run version
