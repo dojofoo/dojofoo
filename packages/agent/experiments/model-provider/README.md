@@ -7,7 +7,7 @@ pnpm test
 ```
 
 The runner installs the packed `@dojofoo/agent`, pinned AI SDK and official
-HarnessAgent adapters into a fresh temporary consumer. Eve 0.80.1 and its three
+HarnessAgent adapters into a fresh temporary consumer. Eve 0.81.1 and its four
 audited patches are already assembled in that package; consumers install no
 separate Eve and run no patch scripts. The runner verifies registry URLs,
 integrity and production/eval version alignment, then tests that exact runtime.

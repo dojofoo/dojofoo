@@ -28,7 +28,7 @@ function startServer(root, home, args, env = {}, urlPattern = /http:\/\/127\.0\.
   const ready = Promise.withResolvers();
   const exited = new Promise(resolve => child.once("exit", resolve));
   child.once("error", ready.reject);
-  child.once("exit", code => ready.reject(new Error(`Eve CLI exited (${code}): ${output}`)));
+  child.once("exit", (code, signal) => ready.reject(new Error(`Server exited (${code ?? signal}, ${args[0]}): ${output}`)));
   for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => {
     output += chunk.toString();
     const match = output.match(urlPattern);
@@ -187,6 +187,7 @@ async function answerInBrowser({ root, course, agentRoot, home, sessionId }) {
   }, /Local:\s+(http:\/\/127\.0\.0\.1:\d+)/);
   let browser;
   try {
+    const host = await ui.url;
     browser = await chromium.launch();
     const page = await browser.newPage();
     const requests = [];
@@ -201,7 +202,7 @@ async function answerInBrowser({ root, course, agentRoot, home, sessionId }) {
     page.on("request", request => {
       if (request.method() === "POST") requests.push(new URL(request.url()).pathname);
     });
-    await page.goto(`${await ui.url}/authoring?session=${encodeURIComponent(sessionId)}`);
+    await page.goto(`${host}/authoring?session=${encodeURIComponent(sessionId)}`);
     const review = page.getByRole("radio", { name: /Review/ });
     await expect(review).toBeVisible({ timeout: 30_000 });
     const [answerResponse] = await Promise.all([
