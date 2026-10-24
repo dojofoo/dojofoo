@@ -2,7 +2,7 @@
 
 Upgrade status and baseline results live in
 [`docs/architecture/dependency-upgrade-ledger.md`](../docs/architecture/dependency-upgrade-ledger.md).
-The two patches here and three assembled into `@dojofoo/agent` are independent
+The compatibility patches here and four assembled into `@dojofoo/agent` are independent
 compatibility changes. Passing tests against an old release does not justify
 removing them from a new one.
 
@@ -38,7 +38,7 @@ the upstream adapter consistently uses a compatible session/model API. The
 published 1.0.155 bridge still mixes these APIs; the rebased patch's model
 selection regression passes against that installed bridge.
 
-## Bundled Eve patches (0.80.1)
+## Bundled Eve patches (0.81.1)
 
 Consumers do not apply these patches. `packages/agent/scripts/build-runtime.mjs`
 checks the upstream tarball integrity, applies them while assembling the package,
@@ -46,9 +46,17 @@ and ships the resulting runtime with Eve's notices.
 
 | Patch in `packages/agent/patches` | Purpose | Offline regression |
 | --- | --- | --- |
-| `eve@0.80.1.patch` | Delegate compaction to ready providers; retain dynamic provider identity | `experiments/model-provider/provider.test.mjs` and host fixtures |
-| `eve-native-turn@0.80.1.patch` | Honor a native provider's completed turn and context-token accounting | Provider/host continuation and compaction fixtures |
-| `eve-distribution@0.80.1.patch` | Resolve packaged modules, project root and workflow identity; retain the development-server export; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
+| `eve@0.81.1.patch` | Delegate compaction to ready providers instead of summarizing harness-owned history | `experiments/model-provider/provider.test.mjs` and host fixtures |
+| `eve-native-turn@0.81.1.patch` | Honor a native provider's completed turn and context-token accounting; preserve upstream sign-in parking | Provider/host continuation, sign-in parking and compaction fixtures |
+| `eve-distribution@0.81.1.patch` | Resolve packaged modules, project root and workflow identity; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
+| `eve-managed-project@0.81.1.patch` | Compile manifest-free `.dojo/kyoshi` and `.dojo/sensei` using the installed runtime, without project dependencies or symlinks | `experiments/model-provider/manifest-free-project.test.mjs` |
+
+The upgrade audit removed redundant model-reference metadata and capability-type
+patches. Eve's own model profiles handle provider routing; our `HarnessModel`
+already declares compaction capabilities. `createDevelopmentServer` is re-exported
+by our generated server facade instead of editing Eve's public modules. The
+remaining patches touch 11 Eve files rather than 16. These include intentional
+integration extensions, not only upstream bugs; see the dated upgrade ledger.
 
 Web-search routing now uses Eve's upstream model-profile implementation. Its
 previous patch was removed after the capability regression passed. The other

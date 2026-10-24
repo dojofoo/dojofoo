@@ -20,6 +20,9 @@ const { resolveRuntimeModelSelection } = await import(new URL("dist/src/runtime/
 const { resolveWebSearchBackend } = await import(new URL("dist/src/harness/provider-tools.js", eveRoot));
 const { resolveModelProfile } = await import(new URL("dist/src/harness/model-profile.js", eveRoot));
 const { createUserMessage } = await import(new URL("dist/src/harness/messages.js", eveRoot));
+const { requestAuthorization } = await import(new URL("dist/src/harness/authorization.js", eveRoot));
+const { ensureSessionProjection, recordPublishedEvent } = await import(new URL("dist/src/harness/session-machine/current.js", eveRoot));
+const { suspendedSteps } = await import(new URL("dist/src/harness/session-machine/view.js", eveRoot));
 
 // Drive the current compaction step rather than the removed 0.53 engine API.
 // It returns failures as data so the session machine can preserve its history.
@@ -70,14 +73,15 @@ test("dynamic external models retain provider routing without injecting Gateway 
     ["gateway", "exa"],
   ]) {
     const model = new MockLanguageModelV4({ provider, modelId: "fixture" });
-    const { reference } = await resolveRuntimeModelSelection({
+    const { model: selected, reference } = await resolveRuntimeModelSelection({
       selection: { model, modelContextWindowTokens: 32_000 },
       durability: "ephemeral",
       state: new ContextContainer(),
     });
-    assert.equal(reference.provider, provider);
-    assert.equal(resolveWebSearchBackend(resolveModelProfile(model)), expected);
-    assert.equal(reference.provider, provider);
+    assert.equal(selected, model);
+    assert.equal(selected.provider, provider);
+    assert.equal(reference.contextWindowTokens, 32_000);
+    assert.equal(resolveWebSearchBackend(resolveModelProfile(selected)), expected);
   }
   const gateway = resolveModelProfile(new MockLanguageModelV4({ provider: "gateway", modelId: "openai/gpt-4o" }));
   assert.equal(resolveWebSearchBackend(gateway), "exa");
@@ -689,6 +693,46 @@ for (const failure of [false, true]) test(`native tool calls retain execution ow
   assert.equal(await result.text, "Native command finished.");
   assert.equal(native.results.length, 0);
   assert.equal(native.active, 0);
+});
+
+test("Eve parks the original sign-in tool call intact across serialization", async () => {
+  const challenge = { attemptId: "sign-in-fixture", name: "protected_action",
+    challenge: { url: "https://idp.example/authorize" }, hookUrl: "https://app.example/callback" };
+  const schema = { type: "object", properties: { lesson: { type: "string" } }, required: ["lesson"] };
+  const definition = { name: "protected_action", description: "Read protected course material", inputSchema: schema };
+  let executions = 0;
+  const events = [];
+  const model = mockStreamingModel({ doGenerate: {
+    content: [{ type: "tool-call", toolCallId: "protected-read", toolName: definition.name, input: '{"lesson":"chapter-one"}' }],
+    finishReason: { unified: "tool-calls", raw: "tool-calls" }, usage,
+  } });
+  const config = { mode: "conversation", resolveModel: async () => model,
+    // Fold publication as the real Eve host does, preserving the parked step.
+    handleEvent: async event => {
+      const ctx = contextStorage.getStore();
+      ensureSessionProjection(ctx, undefined);
+      recordPublishedEvent(ctx, event);
+      events.push(event);
+    },
+    tools: new Map([[definition.name, { ...definition, inputSchema: jsonSchema(schema),
+      execute: async () => { executions++; return requestAuthorization([challenge]); } }]]),
+  };
+  const session = { agent: { modelReference: { id: "sign-in" }, system: "Teach", tools: [definition] },
+    compaction: { recentWindowSize: 10, threshold: 100000 }, continuationToken: "sign-in-test", sessionId: randomUUID(), history: [] };
+  const context = new ContextContainer();
+  context.set(SessionKey, { sessionId: session.sessionId, auth: { current: null, initiator: null }, turn: { id: "turn_0", sequence: 0 } });
+  const parked = await contextStorage.run(context, () => createToolLoopHarness(config)(session, { message: "Read the material." }));
+  assert.equal(parked.next, null);
+  assert.equal(parked.settledTurn, undefined);
+  assert.equal(model.doStreamCalls.length, 1);
+  assert.equal(events.filter(event => event.type === "authorization.required").length, 1);
+  assert.equal(events.filter(event => event.type === "action.result").length, 0);
+  assert.equal(executions, 1);
+  const [step] = suspendedSteps(JSON.parse(JSON.stringify(parked.session)).state);
+  assert.equal(step.approved.length, 1);
+  assert.deepEqual(step.approved[0].action, { callId: "protected-read", input: { lesson: "chapter-one" }, kind: "tool-call", toolName: definition.name });
+  assert.deepEqual(step.approved[0].signIns, [challenge]);
+  assert.equal(step.messages[0].content[0].toolCallId, "protected-read");
 });
 
 for (const decision of ["approve", "deny"]) test(`Eve authorizes its host tool after serialized suspension (${decision})`, async () => {

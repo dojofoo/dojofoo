@@ -196,8 +196,8 @@ bundling the adapter relocates `import.meta.url` without copying its bridge
 assets. Keep native runtime state outside the authored source directory, so
 database and journal writes do not trigger Eve's development watcher.
 This does not override HarnessAgent's suspended-turn settings. The pinned Eve
-0.80.1 uses its upstream model profiles for web-search routing. Our narrow patch
-still retains dynamic provider identity in model references. Regression coverage
+0.81.1 uses its upstream model profiles for web-search routing. The selected
+model object retains its provider; no model-reference metadata patch is needed. Regression coverage
 includes external, OpenAI, Anthropic, Google and Gateway selections. No tools are
 silently discarded and no provider-specific session registry is introduced.
 
@@ -362,8 +362,9 @@ authentication strategy. Missing CLI installation is an explicit error.
 
 ## Native compaction
 
-`patches/eve@0.80.1.patch` adds `experimental_compact` dispatch at Eve's
-compaction step and a public capability type. Models without the method
+`patches/eve@0.81.1.patch` adds `experimental_compact` dispatch at Eve's
+compaction step. The capability is already typed by our `HarnessModel`; Eve's
+declarations are not modified. Models without the method
 follow the unchanged Eve path. This is an experimental Eve extension, not an
 AI SDK standard. Our build downloads the pinned registry release and applies the
 patch before packaging it under `dist/eve`. Public exports reference that runtime,

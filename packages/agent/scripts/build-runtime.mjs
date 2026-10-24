@@ -15,7 +15,7 @@ try {
     "--ignore-scripts", "--json", "--registry=https://registry.npmjs.org"], {
     cwd: staging, encoding: "utf8",
   }));
-  assert.equal(packed.integrity, "sha512-s890vy5W9Cqovq2ceIb+oe7zLVclPPidceso9ln17ljNwRLGE+92uGz1K7tayvhcXVK/z5bjx0szLNeLR2ItPA==",
+  assert.equal(packed.integrity, "sha512-kOjykogXDocRtz65OJtxFvkvoSXai/sWDonzTVXA2NKkJr4/Nnxt1RAuwQo2haf614CX54oQy1eY4y9pHbc1Iw==",
     "Re-audit the upstream artifact and patch before updating Eve");
   execFileSync("tar", ["-xzf", packed.filename], { cwd: staging });
   const upstream = join(staging, "package");
@@ -45,6 +45,11 @@ try {
   await rm(destination, { recursive: true, force: true });
   // Preserve package scope, internal imports, workers, assets and license notices.
   await cp(upstream, destination, { recursive: true });
+  // Re-export the host API from our facade; do not modify Eve's public module.
+  const server = 'export * from "./eve/dist/src/public/server/index.js";\nexport { createDevelopmentServer } from "./eve/dist/src/internal/nitro/host/start-development-server.js";\n';
+  for (const extension of ["js", "d.ts"]) {
+    await writeFile(join(root, "dist", `server.${extension}`), server);
+  }
   await writeFile(join(destination, "dojo-build.json"), JSON.stringify({
     upstream: `eve@${version}`, integrity: packed.integrity,
   }, null, 2) + "\n");

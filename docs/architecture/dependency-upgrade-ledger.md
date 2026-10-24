@@ -4,6 +4,45 @@ Execution of [the staged upgrade plan](./dependency-upgrade-plan.md). No paid
 model calls are permitted. Native authentication and teaching quality require
 separate live acceptance tests; offline passes do not establish either.
 
+## Eve 0.81.1 audit — 2026-10-24
+
+The merged dependency update changed `eve` from 0.80.1 to 0.81.1 without
+updating the audited artifact hash or versioned patches. The integrity guard
+correctly stopped assembly; this was not evidence of a corrupted release.
+
+Compared both published tarballs and the tagged upstream source. Runtime
+dependencies and public export keys are unchanged. Among our 16 patched files,
+upstream changed only `harness/step/after-model.js`: it now parks a sign-in's
+stopped call rather than asking the model to repeat it. The native-turn rebase
+preserves that change. See the [upstream release notes](https://github.com/vercel/eve/blob/eve@0.81.1/packages/eve/CHANGELOG.md).
+
+| Retained patch | Actual requirement |
+| --- | --- |
+| `eve@0.81.1.patch` | Optional native compaction delegation/readiness. Eve otherwise summarizes the history independently of the harness's checkpoint. |
+| `eve-native-turn@0.81.1.patch` | Stop on a completed native turn and account for current native context rather than cumulative billing; otherwise extra turns and premature compaction result. |
+| `eve-distribution@0.81.1.patch` | The chosen bundled-Eve layout needs its own package/module/workflow resolution and the existing legacy-history guard. These are distribution integration, not four unrelated upstream defects. |
+| `eve-managed-project@0.81.1.patch` | Our chosen manifest-free `.dojo/kyoshi` and `.dojo/sensei` layout resolves against the installed runtime without adding project package files, dependency directories or symlinks. |
+
+Removed five patched-file targets: dynamic model-reference `provider` metadata
+was not consumed by Eve's routing, the capability declaration duplicated our
+`HarnessModel`, and the public server export belongs in our own facade. The
+remaining patches touch **11 unique Eve files instead of 16**. Only the
+native-turn runtime patch needed rebasing; the retained parts of the other
+patches are unchanged. No new provider/session/runtime wrapper was introduced.
+
+Behavior checks at this point:
+
+- Provider suite: 62 pass, including sign-in call/argument retention across serialization.
+- Clean packed agent: 78 pass, including public API identity, filesystem tools, legacy-history safety and manifest-free role execution.
+- All six workspace projects build. Fresh CLI tarball installs outside the workspace, prepares the master authoring agent without inference, and serves the UI with HTTP 200.
+- Native loopback integration: Pi conversation/tool/compaction (3), OpenCode execution/resume (6), authored discovery (2), HTTP isolation/recovery/delegation (3), authored skills (1), and OpenCode question recovery after host restart (1) pass.
+- Both public CLI restart cases pass, including answering the saved Pi question through the real browser and reloading the selected answer. The initial browser run lacked the Chromium revision required by the dependency update; installing it resolves that failure. The fixture now awaits server readiness before browser launch, preventing cleanup from masking a browser-launch error with a server termination error.
+- Native-turn removal: three behavior failures (terminal success/failure and native context accounting); the upstream sign-in parking check still passes.
+- Compaction removal breaks delegation and deferred-compaction behavior; routing is covered through the actual selected model rather than an extra reference field.
+
+All inference is scripted locally. These checks do not certify live provider
+authentication, cross-model teaching quality or arbitrary old-session upgrades.
+
 ## Baseline — 2026-10-18
 
 Checkout: `.worktree/monaco-editor`, starting at `f541b94`. Existing user edits

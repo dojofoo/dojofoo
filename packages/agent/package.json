@@ -20,9 +20,9 @@
       "default": "./dist/local-history.js"
     },
     "./server": {
-      "types": "./dist/eve/dist/src/public/server/index.d.ts",
-      "import": "./dist/eve/dist/src/public/server/index.js",
-      "default": "./dist/eve/dist/src/public/server/index.js"
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
     },
     "./internal/programmatic-source-loader": {
       "types": "./dist/eve/dist/src/internal/programmatic-source-loader.d.ts",
@@ -45,7 +45,7 @@
       "default": "./dist/eve/dist/src/public/tools/write-file.js"
     },
     "./eve/package.json": "./dist/eve/package.json",
-    "./eve.patch": "./patches/eve@0.80.1.patch",
+    "./eve.patch": "./patches/eve@0.81.1.patch",
     "./sveltekit": {
       "types": "./dist/sveltekit.d.ts",
       "import": "./dist/sveltekit.js",
