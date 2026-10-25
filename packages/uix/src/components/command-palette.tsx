@@ -90,7 +90,7 @@ const css = /* css */ `
   padding: 0;
   overflow: hidden;
   border: 0;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--squircle-factor, 1));
   background: var(--surface-5);
   box-shadow: var(--shadow-5);
   color: var(--fluid-foreground);

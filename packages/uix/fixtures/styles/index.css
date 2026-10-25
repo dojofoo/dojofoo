@@ -1,0 +1,4 @@
+@import "@fontsource-variable/inter/opsz.css";
+@import "@fontsource/iosevka/400.css";
+
+.dark .slidev-layout { background: #171717; }

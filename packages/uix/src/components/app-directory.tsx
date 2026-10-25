@@ -124,7 +124,6 @@ export function AppDirectory({
     }, 900);
   };
 
-  const heading = q ? `Results for “${query.trim()}”` : categories.find((c) => c.id === category)?.label ?? "Apps";
   const more = apps.filter((a) => !a.essential);
   const showDiscover = !q && category === "essentials" && status === "all" && more.length > 0;
   const statusLabel = { all: words.all, connected: words.connected, available: words.available }[status];
@@ -224,10 +223,6 @@ export function AppDirectory({
 
             <div className="ui-ad__morph" ref={morphRef}>
             <div className="ui-ad__main" ref={mainRef}>
-              <h3 className="ui-ad__heading" aria-live="polite">
-                {heading}
-                <span>{shown.length}</span>
-              </h3>
               {shown.length === 0 ? (
                 <div className="ui-ad__empty">
                   <p>{words.empty}</p>
@@ -527,7 +522,7 @@ const css = /* css */ `
   background: var(--ui-ad-tray);
   /* The gray tray frames the white card on every side */
   padding: 6px;
-  border-radius: 22px;
+  border-radius: calc(22px * var(--squircle-factor, 1));
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--ui-ad-ink);
   -webkit-font-smoothing: antialiased;
@@ -552,7 +547,7 @@ const css = /* css */ `
   padding: 40px 40px 44px;
   background: var(--ui-ad-card);
   border: 1px solid var(--ui-ad-card-line);
-  border-radius: 16px;
+  border-radius: calc(16px * var(--squircle-factor, 1));
   box-shadow: 0 1px 2px var(--ui-ad-shadow);
 }
 .ui-ad__title {
@@ -592,7 +587,7 @@ const css = /* css */ `
   gap: 8px;
   height: 38px;
   padding: 0 12px;
-  border-radius: 11px;
+  border-radius: calc(11px * var(--squircle-factor, 1));
   background: var(--ui-ad-field);
   box-shadow: 0 0 0 1px var(--ui-ad-ring), 0 1px 2px rgba(0, 0, 0, 0.03);
   color: var(--ui-ad-muted);
@@ -619,7 +614,7 @@ const css = /* css */ `
   height: 38px;
   padding: 0 14px;
   border: 0;
-  border-radius: 11px;
+  border-radius: calc(11px * var(--squircle-factor, 1));
   background: var(--ui-ad-field);
   box-shadow: 0 0 0 1px var(--ui-ad-ring), 0 1px 2px rgba(0, 0, 0, 0.04);
   font-size: 14px !important;
@@ -639,7 +634,7 @@ const css = /* css */ `
   gap: 2px;
   min-width: 180px;
   padding: 4px;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--squircle-factor, 1));
   background: var(--ui-ad-field);
   box-shadow: 0 0 0 1px var(--ui-ad-ring), 0 10px 28px -8px var(--ui-ad-menu-shadow);
   animation: ui-ad-drop 180ms var(--ui-ad-ease);
@@ -651,7 +646,7 @@ const css = /* css */ `
   height: 32px;
   padding: 0 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   background: transparent;
   font-size: 13px !important;
   text-align: left;
@@ -677,7 +672,7 @@ const css = /* css */ `
   height: 34px;
   padding: 0 10px;
   border: 0;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--squircle-factor, 1));
   background: transparent;
   font-size: 14px !important;
   text-align: left;
@@ -690,17 +685,6 @@ const css = /* css */ `
 .ui-ad__nav-item[aria-current] .ui-ad__nav-icon { color: var(--ui-ad-ink); }
 .ui-ad__nav-label { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ui-ad__nav-count { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ui-ad-count); }
-
-.ui-ad__heading {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 4px 0 14px;
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 24px;
-}
-.ui-ad__heading span { font-size: 13px; font-weight: 400; color: var(--ui-ad-muted); }
 
 .ui-ad__grid {
   display: grid;
@@ -715,7 +699,7 @@ const css = /* css */ `
   flex-direction: column;
   padding: 16px;
   border: 1px solid var(--ui-ad-line);
-  border-radius: 16px;
+  border-radius: calc(16px * var(--squircle-factor, 1));
   background: var(--ui-ad-app);
   animation: ui-ad-in 420ms var(--ui-ad-ease) both;
   transition: border-color 160ms ease, box-shadow 160ms ease;
@@ -728,7 +712,7 @@ const css = /* css */ `
   flex: none;
   width: 40px;
   height: 40px;
-  border-radius: 11px;
+  border-radius: calc(11px * var(--squircle-factor, 1));
   background: var(--ui-ad-tile);
   box-shadow: inset 0 0 0 1px var(--ui-ad-tile-line);
 }
@@ -769,7 +753,7 @@ const css = /* css */ `
   height: 30px;
   padding: 0 12px;
   border: 0;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--squircle-factor, 1));
   background: var(--ui-ad-field);
   box-shadow: 0 0 0 1px var(--ui-ad-ring), 0 1px 2px rgba(0, 0, 0, 0.04);
   font-size: 13px !important;
@@ -792,7 +776,7 @@ const css = /* css */ `
   height: 12px;
   border: 1.5px solid var(--ui-ad-spinner-track);
   border-top-color: var(--ui-ad-ink);
-  border-radius: 50%;
+  border-radius: 50%; corner-shape: round;
   animation: ui-ad-spin 700ms linear infinite;
 }
 
@@ -804,9 +788,9 @@ const css = /* css */ `
 }
 .ui-ad__discover-head { display: flex; justify-content: space-between; gap: 12px; }
 .ui-ad__discover-head > span:first-child { display: grid; }
-.ui-ad__discover .ui-ad__btn { align-self: flex-start; height: 30px; margin-top: 18px; padding: 0 12px; font-size: 13px !important; border-radius: 9px; }
+.ui-ad__discover .ui-ad__btn { align-self: flex-start; height: 30px; margin-top: 18px; padding: 0 12px; font-size: 13px !important; border-radius: calc(9px * var(--squircle-factor, 1)); }
 .ui-ad__stack { display: flex; }
-.ui-ad__stack .ui-ad__tile { width: 34px; height: 34px; border-radius: 10px; box-shadow: 0 0 0 2px var(--ui-ad-discover), inset 0 0 0 1px var(--ui-ad-tile-line); }
+.ui-ad__stack .ui-ad__tile { width: 34px; height: 34px; border-radius: calc(10px * var(--squircle-factor, 1)); box-shadow: 0 0 0 2px var(--ui-ad-discover), inset 0 0 0 1px var(--ui-ad-tile-line); }
 .ui-ad__stack .ui-ad__tile + .ui-ad__tile { margin-left: -10px; }
 .ui-ad__stack .ui-ad__tile svg { width: 17px; height: 17px; }
 
@@ -816,7 +800,7 @@ const css = /* css */ `
   gap: 12px;
   padding: 48px 0;
   border: 1px dashed var(--ui-ad-empty-line);
-  border-radius: 16px;
+  border-radius: calc(16px * var(--squircle-factor, 1));
   font-size: 14px;
   color: var(--ui-ad-muted);
 }

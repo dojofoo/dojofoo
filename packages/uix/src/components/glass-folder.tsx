@@ -126,7 +126,7 @@ const css = /* css */ `
 .ui-fd-front {
   position: absolute;
   inset: 21.6% 0 0;
-  border-radius: 6.333cqw;
+  border-radius: calc(6.333cqw * var(--squircle-factor, 1));
   background:
     linear-gradient(180deg, rgba(0, 40, 75, 0) 74%, rgba(0, 40, 75, 0.28) 100%),
     linear-gradient(180deg, rgba(132, 214, 248, 0.45) 0%, rgba(69, 170, 220, 0.45) 100%);
@@ -138,7 +138,7 @@ const css = /* css */ `
 }
 .ui-fd-icon:hover .ui-fd-front {
   top: 24.8%;
-  border-radius: 3cqw 3cqw 6.333cqw 6.333cqw;
+  border-radius: calc(3cqw * var(--squircle-factor, 1)) calc(3cqw * var(--squircle-factor, 1)) calc(6.333cqw * var(--squircle-factor, 1)) calc(6.333cqw * var(--squircle-factor, 1));
   transform: translateZ(2.33cqw) rotateX(-9deg);
 }
 

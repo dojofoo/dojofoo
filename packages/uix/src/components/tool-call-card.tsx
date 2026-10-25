@@ -536,7 +536,7 @@ const css = /* css */ `
 
 .ui-tc {
   position: relative;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--ui-tc-bg);
   /* A card: its level's surface shadow, no edge of its own */
   box-shadow: var(--shadow-3);
@@ -552,7 +552,7 @@ const css = /* css */ `
 
 /* Header: icon, name + summary, status, chevron – everything truncates before it overflows */
 .ui-tc__head {
-  all: unset;
+  all: unset; corner-shape: inherit;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -560,11 +560,11 @@ const css = /* css */ `
   width: 100%;
   min-height: 44px;
   padding: 8px 10px 8px 9px;
-  border-radius: 12px;
+  border-radius: inherit;
   cursor: pointer;
   transition: background-color 160ms ease;
 }
-.ui-tc[data-open] .ui-tc__head { border-radius: 12px 12px 0 0; }
+.ui-tc[data-open] .ui-tc__head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .ui-tc__head:focus-visible,
 .ui-tc-group__head:focus-visible,
 .ui-tc__copy:focus-visible,
@@ -587,7 +587,7 @@ const css = /* css */ `
   flex: none;
   width: 26px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--squircle-factor, 1));
   background: var(--ui-tc-tile);
   box-shadow: var(--shadow-2);
   color: var(--ui-tc-ink);
@@ -692,13 +692,13 @@ const css = /* css */ `
 .ui-tc__pending { margin: 0; color: var(--ui-tc-muted); font-size: 12.5px; }
 
 .ui-tc__copy {
-  all: unset;
+  all: unset; corner-shape: inherit;
   position: relative;
   display: grid;
   place-items: center;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   color: var(--ui-tc-muted);
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease;
@@ -725,7 +725,7 @@ const css = /* css */ `
   margin: 0;
   padding: 10px 12px;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   /* A recessed well: its tint sets it apart, no edge */
   background: var(--ui-tc-code);
   color: var(--ui-tc-muted);
@@ -745,7 +745,7 @@ const css = /* css */ `
   right: 1px;
   bottom: 1px;
   height: 56px;
-  border-radius: 0 0 7px 7px;
+  border-radius: 0 0 calc(7px * var(--squircle-factor, 1)) calc(7px * var(--squircle-factor, 1));
   background: linear-gradient(to bottom, transparent, var(--ui-tc-code));
   opacity: 0;
   transition: opacity 240ms ease;
@@ -758,11 +758,11 @@ const css = /* css */ `
 .ui-tc__t-lit { color: var(--ui-tc-lit); }
 
 .ui-tc__more {
-  all: unset;
+  all: unset; corner-shape: inherit;
   justify-self: start;
   padding: 2px 4px;
   margin-left: -4px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--squircle-factor, 1));
   color: var(--ui-tc-text);
   font-size: 12.5px;
   font-weight: 500;
@@ -776,7 +776,7 @@ const css = /* css */ `
   align-items: flex-start;
   gap: 8px;
   padding: 9px 10px 9px 11px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   background: var(--ui-tc-red-bg);
 }
 .ui-tc__error > .ui-tc__err { flex: none; width: 14px; height: 14px; margin-top: 2px; fill: none; stroke-linecap: round; }
@@ -790,7 +790,7 @@ const css = /* css */ `
   overflow-wrap: anywhere;
 }
 .ui-tc__retry {
-  all: unset;
+  all: unset; corner-shape: inherit;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -798,7 +798,7 @@ const css = /* css */ `
   height: 26px;
   margin: -3px 0;
   padding: 0 10px 0 8px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--squircle-factor, 1));
   background: var(--ui-tc-bg);
   box-shadow: var(--shadow-2);
   color: var(--ui-tc-ink);
@@ -814,7 +814,7 @@ const css = /* css */ `
 /* One column that never grows past the group: a summary that doesn't wrap shortens instead of widening the cards */
 .ui-tc-group { display: grid; grid-template-columns: minmax(0, 1fr); }
 .ui-tc-group__head {
-  all: unset;
+  all: unset; corner-shape: inherit;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -824,7 +824,7 @@ const css = /* css */ `
   min-height: 36px;
   /* No inset: the icons start on the cards' left edge below */
   padding: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   color: var(--ui-tc-text);
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease;
@@ -833,7 +833,7 @@ const css = /* css */ `
 .ui-tc-group__stack .ui-tc__icon {
   width: 24px;
   height: 24px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--squircle-factor, 1));
   /* Raised like any tile, with a 2px cut in the card's color where they overlap */
   box-shadow: var(--shadow-2), 0 0 0 2px var(--ui-tc-ring);
   animation: ui-tc-pop 420ms var(--ui-tc-ease) both;

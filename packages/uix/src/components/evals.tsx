@@ -414,7 +414,7 @@ const css = /* css */ `
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   background: var(--chip);
   font-size: var(--fs-caption);
   color: var(--text);
@@ -428,9 +428,9 @@ const css = /* css */ `
 .ui-ev__meta { font-size: var(--fs-body); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* Thin progress line under the header while a run is going */
-.ui-ev__progress { position: absolute; left: var(--ui-ev-pad); right: var(--ui-ev-pad); bottom: 0; height: 2px; border-radius: 1px; overflow: hidden; background: var(--line); opacity: 0; transition: opacity 300ms ease; }
+.ui-ev__progress { position: absolute; left: var(--ui-ev-pad); right: var(--ui-ev-pad); bottom: 0; height: 2px; border-radius: calc(1px * var(--squircle-factor, 1)); overflow: hidden; background: var(--line); opacity: 0; transition: opacity 300ms ease; }
 .ui-ev__progress[data-on] { opacity: 1; }
-.ui-ev__progress i { display: block; height: 100%; border-radius: 1px; background: var(--ev-run); transition: width 200ms var(--ease); }
+.ui-ev__progress i { display: block; height: 100%; border-radius: calc(1px * var(--squircle-factor, 1)); background: var(--ev-run); transition: width 200ms var(--ease); }
 
 /* Two columns for the chart and the diff; the test cases span both below */
 .ui-ev__content {
@@ -442,7 +442,7 @@ const css = /* css */ `
   padding: 0 var(--ui-ev-pad) var(--ui-ev-pad);
 }
 /* One layer of cards on the panel: surface 3 with shadow 3, the panel's 12px corner */
-.ui-ev__card { border-radius: 12px; background: var(--surface-3); box-shadow: var(--shadow-3); }
+.ui-ev__card { border-radius: calc(12px * var(--squircle-factor, 1)); background: var(--surface-3); box-shadow: var(--shadow-3); }
 .ui-ev__cap { font-size: var(--fs-body); color: var(--muted); }
 
 .ui-ev__stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -468,7 +468,7 @@ const css = /* css */ `
   width: 100%;
   max-width: none;
   border: 0;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--squircle-factor, 1));
 }
 .ui-ev .ui-ev__chart .ui-kpi__chart { flex: 1; grid-template-rows: minmax(116px, 1fr) 20px; }
 
@@ -476,7 +476,7 @@ const css = /* css */ `
    surface, like the other cards; it fills the row whatever the text length */
 .ui-ev .ui-ev__diff.ui-df { align-self: stretch; align-content: stretch; grid-template-rows: auto minmax(0, 1fr); padding: 0; border-radius: 0; background: none; }
 .ui-ev .ui-ev__diff .ui-df__label { padding: 0 2px 8px; color: var(--muted); font-size: var(--fs-caption); line-height: var(--lh-caption); }
-.ui-ev .ui-ev__diff .ui-df__card { display: flex; flex-direction: column; border-radius: 12px; background: var(--surface-3); box-shadow: var(--shadow-3); }
+.ui-ev .ui-ev__diff .ui-df__card { display: flex; flex-direction: column; border-radius: calc(12px * var(--squircle-factor, 1)); background: var(--surface-3); box-shadow: var(--shadow-3); }
 .ui-ev .ui-ev__diff .ui-df__head { border-bottom-color: var(--line); }
 .ui-ev .ui-ev__diff .ui-df__body { padding: 12px 16px 14px; }
 .ui-ev .ui-ev__diff .ui-df__text { font-size: var(--fs-body); line-height: 1.6; }
@@ -500,8 +500,8 @@ const css = /* css */ `
 .ui-ev__in { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ui-ev__table tbody tr { cursor: pointer; }
 .ui-ev__table tbody tr[aria-selected="true"] td { background: var(--active); }
-.ui-ev__table tbody tr[aria-selected="true"] td:first-child { border-radius: 8px 0 0 8px; }
-.ui-ev__table tbody tr[aria-selected="true"] td:last-child { border-radius: 0 8px 8px 0; }
+.ui-ev__table tbody tr[aria-selected="true"] td:first-child { border-radius: calc(8px * var(--squircle-factor, 1)) 0 0 calc(8px * var(--squircle-factor, 1)); }
+.ui-ev__table tbody tr[aria-selected="true"] td:last-child { border-radius: 0 calc(8px * var(--squircle-factor, 1)) calc(8px * var(--squircle-factor, 1)) 0; }
 .ui-ev__table tbody tr[data-state="running"] td { background: var(--ev-run-soft); }
 .ui-ev__table tbody tr:focus-visible { outline: 1px solid var(--focus-ring); outline-offset: -1px; }
 .ui-ev__table tbody tr[data-state="queued"] td { color: var(--muted); }
@@ -517,20 +517,20 @@ const css = /* css */ `
   gap: 5px;
   height: 22px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   font-size: var(--fs-caption);
   font-weight: 550; font-variation-settings: "opsz" 18;
   white-space: nowrap;
   animation: ui-ev-pop 320ms var(--ease) both;
 }
-.ui-ev__pill > i:not(.ui-ev__spin) { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ui-ev__pill > i:not(.ui-ev__spin) { width: 6px; height: 6px; border-radius: 50%; corner-shape: round; background: currentColor; }
 .ui-ev__pill > span { font-weight: 400; opacity: 0.75; font-variant-numeric: tabular-nums; }
 .ui-ev__pill[data-v="pass"] { background: var(--ev-pass-soft); color: var(--ev-pass); }
 .ui-ev__pill[data-v="partial"] { background: var(--ev-partial-soft); color: var(--ev-partial); }
 .ui-ev__pill[data-v="fail"] { background: var(--ev-fail-soft); color: var(--ev-fail); }
 .ui-ev__pill[data-v="queued"] { background: var(--chip); color: var(--faint); font-weight: 400; animation: none; }
 .ui-ev__pill[data-v="running"] { background: var(--ev-run-soft); color: var(--ev-run); animation: none; }
-.ui-ev__spin { width: 10px; height: 10px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ui-ev-spin 700ms linear infinite; }
+.ui-ev__spin { width: 10px; height: 10px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; corner-shape: round; animation: ui-ev-spin 700ms linear infinite; }
 @keyframes ui-ev-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
 @keyframes ui-ev-spin { to { transform: rotate(1turn); } }
 

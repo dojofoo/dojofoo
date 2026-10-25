@@ -228,7 +228,7 @@ const css = /* css */ `
   max-width: 320px;
   padding: 16px 8px 8px;
   background: var(--ui-sg-card);
-  border-radius: 20px;
+  border-radius: calc(20px * var(--squircle-factor, 1));
   box-shadow: var(--shadow-3);
   font-family: var(--ui-font, "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   color: var(--ui-sg-ink);
@@ -269,7 +269,7 @@ const css = /* css */ `
 }
 .ui-sg__edit {
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   font-size: 14px;
   line-height: 20px;
   color: var(--ui-sg-accent) !important;
@@ -281,7 +281,7 @@ const css = /* css */ `
   place-items: center;
   width: 26px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--squircle-factor, 1));
   color: var(--ui-sg-icon) !important;
   transition: background-color 160ms ease, color 160ms ease;
 }
@@ -294,7 +294,7 @@ const css = /* css */ `
   height: 5px;
   margin: 10px 8px 8px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: calc(3px * var(--squircle-factor, 1));
   background: var(--ui-sg-track);
 }
 .ui-sg__fill {
@@ -316,7 +316,7 @@ const css = /* css */ `
 .ui-sg__groups { min-height: 0; overflow: hidden; }
 
 .ui-sg__group {
-  border-radius: 12px;
+  border-radius: calc(12px * var(--squircle-factor, 1));
   transition: background-color 260ms ease;
 }
 .ui-sg__group[data-open] { background: var(--ui-sg-open); }
@@ -327,7 +327,7 @@ const css = /* css */ `
   gap: 12px;
   width: 100%;
   padding: 11px 12px;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--squircle-factor, 1));
   text-align: left;
 }
 .ui-sg__group-title {
@@ -345,7 +345,7 @@ const css = /* css */ `
   right: 0;
   top: 52%;
   height: 1.5px;
-  border-radius: 1px;
+  border-radius: calc(1px * var(--squircle-factor, 1));
   background: currentColor;
   transform: scaleX(0);
   transform-origin: left center;
@@ -382,7 +382,7 @@ const css = /* css */ `
   gap: 12px;
   width: 100%;
   padding: 7px 12px;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--squircle-factor, 1));
   text-align: left;
   opacity: 0;
   transform: translateY(-4px);
@@ -400,7 +400,7 @@ const css = /* css */ `
   width: 16px;
   height: 16px;
   margin-top: 2px;
-  border-radius: 50%;
+  border-radius: 50%; corner-shape: round;
   transition: background-color 200ms ease;
 }
 .ui-sg__task[data-state="current"] .ui-sg__mark { background: var(--ui-sg-dot); }

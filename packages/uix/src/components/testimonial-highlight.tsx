@@ -162,7 +162,7 @@ export function TestimonialHighlight({
         else if (e.key === "ArrowLeft") go(index - 1);
       }}
       className={cn(
-        "flex w-[min(540px,100%)] flex-col gap-6 rounded-[22px] bg-background p-5 shadow-raised sm:gap-7 sm:p-7",
+        "flex w-[min(540px,100%)] flex-col gap-6 rounded-[calc(22px*var(--squircle-factor))] bg-background p-5 shadow-raised sm:gap-7 sm:p-7",
         className,
       )}
     >

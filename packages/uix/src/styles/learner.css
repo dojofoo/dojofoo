@@ -1,0 +1,69 @@
+/* Pages as the onboarding sets them: a centered column with room around it; its kicker, title and lead */
+.lj-page { max-width: 1040px; margin: 0 auto; padding: 52px 40px 64px; }
+.lj-page__head { margin-bottom: 32px; }
+.lj-page__head .ui-ob-sub { max-width: 34rem; font-size: 15px; line-height: 1.55; text-wrap: pretty; }
+.lj-browse { margin-top: 56px; }
+/* A section's big title, as Browse courses sets it */
+.lj-heading { margin: 0 0 16px; }
+.lj-browse .ui-ob-step__text { max-width: 36rem; text-wrap: pretty; }
+@container ui-as-main (max-width: 620px) { .lj-page { padding: 40px 20px 48px; } }
+.lj-section { margin: 0 0 14px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+
+/* The course card, inset to the rows' text line */
+.lj-course { padding: 0 12px; }
+
+/* Tiles as affectUI's file cards: a box on the window (surface 3, shadow 3) holding the artwork, the name below */
+.lj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: 20px 16px; margin-top: 24px; }
+.lj-section + .lj-grid { margin-top: 0; }
+.lj-tile { display: flex; flex-direction: column; min-width: 0; color: var(--ink); text-align: left; }
+.lj-box { position: relative; display: grid; place-items: center; aspect-ratio: 1.52; margin-bottom: 12px; border-radius: calc(12px * var(--squircle-factor, 1)); background: var(--surface-3); box-shadow: var(--shadow-3); transition: box-shadow var(--motion-moderate) var(--ease-moderate); }
+button.lj-tile:hover .lj-box { box-shadow: var(--shadow-4); }
+.lj-tile__name { overflow: hidden; font-size: var(--fs-body); font-weight: 550; font-variation-settings: "opsz" 18; white-space: nowrap; text-overflow: ellipsis; }
+.lj-tile__meta { overflow: hidden; margin-top: 2px; color: var(--muted); font-size: var(--fs-caption); white-space: nowrap; text-overflow: ellipsis; }
+.lj-box--new { box-shadow: none; background: none; outline: 1px dashed var(--line); outline-offset: -1px; color: var(--muted); }
+button.lj-tile:hover .lj-box--new { background: var(--hover); color: var(--ink); }
+
+/* Top courses: the line – rank on its plaque, rating, counts, install – over one box holding the card and the quotes */
+.lj-top { display: grid; gap: 20px; margin: 0; padding: 0; list-style: none; }
+.lj-top__box { display: grid; grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr); gap: 28px; padding: 20px; background: var(--surface-3); box-shadow: var(--shadow-3); }
+/* Beside the card: the quote fills its height – its speaker on the card's bottom line – and the numbers and install sit
+   on the quote mark's line, at the right */
+.lj-top__side { position: relative; min-width: 0; }
+.lj-top__line { position: absolute; z-index: 1; top: 0; right: 0; display: flex; align-items: center; gap: 16px; }
+.lj-top__counts { display: inline-flex; gap: 16px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.lj-top__counts > span { display: inline-flex; align-items: center; gap: 6px; }
+.lj-top__box .lj-top__voice { height: 100%; justify-content: space-between; }
+/* The quote and its mark, together, take the room above the speaker and sit centered in it – three lines at most; the
+   card's height still sets the box */
+.lj-top__voice > div:first-child { flex: 1; align-content: center; padding-top: 16px; }
+/* Each quote right under the mark (their shared cell is as tall as the longest), and 16px over the group as under it */
+.lj-top__voice blockquote { align-self: start; }
+.lj-top__box .lj-top__voice { gap: 16px; }
+.lj-top__voice blockquote p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; font-size: 18px; }
+.lj-installed { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; background: var(--fluid-hover); color: var(--ink); font-size: 12.5px; font-weight: 550; }
+.lj-top__rating { display: inline-flex; align-items: center; gap: 8px; margin-left: 10px; color: var(--ink); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.lj-top__rating b { font-weight: 600; }
+/* The quotes sit flat in the box: the box is their card (their own ring is a custom shadow the class merge can't drop) */
+.lj-top__box .lj-top__voice { box-shadow: none; }
+/* No highlighter: its strokes stay hidden, the quote reads plain */
+.lj-top__voice blockquote p > svg { display: none; }
+@container ui-as-main (max-width: 640px) {
+  .lj-top__box { grid-template-columns: minmax(0, 1fr); }
+  .lj-top__box .ui-card { max-width: 14rem; }
+  .lj-top__line { position: static; margin-bottom: 12px; }
+}
+/* Five stars as one mask, filled in the brand's color up to the rating */
+.lj-stars { display: inline-flex; }
+.lj-stars i { width: 70px; height: 14px; background: linear-gradient(90deg, var(--brand) calc(var(--rating) / 5 * 100%), var(--line-strong) 0); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 1l1.8 3.7 4 .6-2.9 2.8.7 4L7 10.2 3.4 12.1l.7-4L1.2 5.3l4-.6z'/%3E%3C/svg%3E") 0 0 / 14px 14px repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 1l1.8 3.7 4 .6-2.9 2.8.7 4L7 10.2 3.4 12.1l.7-4L1.2 5.3l4-.6z'/%3E%3C/svg%3E") 0 0 / 14px 14px repeat-x; }
+
+/* Courses as ColorCards – on Courses and in the directory; what you write a section below what you study */
+.lj-courses__next { margin-top: 48px; }
+.lj-grid--cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); margin-top: 0; }
+
+/* The directory lies flat on the window: only its search, filter, categories and grid – no tray, bar, card or intro */
+.lj-directory.ui-ad { margin-top: 20px; padding: 0; border-radius: 0; background: none; }
+.lj-directory :is(.ui-ad__bar, .ui-ad__intro) { display: none; }
+.lj-directory .ui-ad__card { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+
+/* Certificates: squares like the course cards */
+.lj-squares { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 16rem)); gap: 24px; }

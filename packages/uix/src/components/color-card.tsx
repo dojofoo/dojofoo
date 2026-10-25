@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
+import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { Icon } from "~/components/app-shell";
 import { FlipCard } from "~/components/flip-card";
 import { Network } from "~/components/network";
@@ -60,9 +60,9 @@ export type ColorCardProps = {
   /** The card's name – for a button or a card that turns, what it is and, say, how far you are */
   "aria-label"?: string;
   className?: string;
-};
+} & Pick<HTMLAttributes<HTMLElement>, "onPointerEnter" | "onFocus">;
 
-export function ColorCard({ color, shader = false, seed, size = "small", header, main, footer, progress, centered = false, flip = false, children, onClick, "aria-label": ariaLabel, className }: ColorCardProps) {
+export function ColorCard({ color, shader = false, seed, size = "small", header, main, footer, progress, centered = false, flip = false, children, onClick, onPointerEnter, onFocus, "aria-label": ariaLabel, className }: ColorCardProps) {
   const seedNumber = typeof seed === "string" ? seedOf(seed) : seed ?? seedOf(color);
   const classes = cn("ui-card", size === "big" && "ui-card--big", centered && "ui-card--centered", progress !== undefined && "ui-card--progress", flip && "ui-card--flip", className);
   const style = { "--card-color": color } as CSSProperties;
@@ -89,7 +89,7 @@ export function ColorCard({ color, shader = false, seed, size = "small", header,
     );
   }
   return onClick
-    ? <button type="button" className={classes} style={style} aria-label={ariaLabel} onClick={onClick}>{face}</button>
+    ? <button type="button" className={classes} style={style} aria-label={ariaLabel} onClick={onClick} onPointerEnter={onPointerEnter} onFocus={onFocus}>{face}</button>
     : <article className={classes} style={style} aria-label={ariaLabel}>{face}</article>;
 }
 
@@ -153,7 +153,7 @@ export function ColorCardTag({ children, className }: { children: ReactNode; cla
 /** A checkbox's tick in the action's place – the card sits in a <label> with the (visually hidden) checkbox */
 export function ColorCardCheck({ checked }: { checked: boolean }) {
   return (
-    <span className="ui-card__check" data-checked={checked || undefined} aria-hidden="true">
+    <span className="ui-card__check rounded-md" data-checked={checked || undefined} aria-hidden="true">
       {checked && <Icon icon={Tick02Icon} size={12} stroke={2.6} />}
     </span>
   );
@@ -180,7 +180,7 @@ const css = /* css */ `
 /* Two sizes, one look. Every measure is a variable: small cards at fixed sizes, big ones in proportion to their width
    (container units, each with a floor), so the rules below are the same for both */
 .ui-card {
-  --pad: 16px; --gap: 8px; --radius: 12px;
+  --pad: 16px; --gap: 8px; --radius: var(--radius-xl);
   --t-mark: 12px; --mark-track: 0; --t-head: 12px; --mark-h: 11px; --logo-h: 19px;
   --t-kicker: 11px; --t-title: 17px; --main-gap: 2px;
   --t-label: 11px; --t-value: 12.5px; --text-gap: 9px; --bar-gap: 12px;
@@ -196,7 +196,7 @@ const css = /* css */ `
 /* Centered, the title starts on the middle line and has only the lower half to grow into: two lines, then the ellipsis */
 .ui-card--centered { --title-lines: 2; }
 .ui-card--big {
-  --pad: 8cqi; --gap: 2cqi; --radius: 14px;
+  --pad: 8cqi; --gap: 2cqi; --radius: calc(14px * var(--squircle-factor, 1));
   --t-mark: max(12px, 5.6cqi); --mark-track: -0.01em; --t-head: max(11.5px, 5cqi); --mark-h: max(9px, 4cqi); --logo-h: max(15.7px, 6.95cqi);
   --t-kicker: max(10.5px, 4.6cqi); --t-title: 8.2cqi; --main-gap: 1.6cqi;
   --t-label: max(10.5px, 4.4cqi); --t-value: max(12px, 5cqi); --text-gap: max(6.5px, calc(2.3cqi + 1px)); --bar-gap: max(10.5px, 4.4cqi);
@@ -256,7 +256,7 @@ button.ui-card:focus-visible { outline: 2px solid var(--focus-ring); outline-off
 .ui-card__label { overflow: clip visible; font-size: var(--t-label); line-height: 1; opacity: 0.72; white-space: nowrap; text-overflow: ellipsis; text-box: trim-both cap alphabetic; }
 .ui-card__value { overflow: clip visible; font-size: var(--t-value); line-height: 1; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; text-box: trim-both cap alphabetic; }
 .ui-card__foot > .ui-card__row > :not(.ui-card__text) { flex: none; }
-.ui-card__bar { display: block; height: 4px; overflow: hidden; border-radius: 2px; background: rgb(255 255 255 / 0.25); }
+.ui-card__bar { display: block; height: 4px; overflow: hidden; border-radius: calc(2px * var(--squircle-factor, 1)); background: rgb(255 255 255 / 0.25); }
 .ui-card__bar i { display: block; height: 100%; border-radius: inherit; background: #fff; }
 
 /* Centered (a certificate): the card in two equal halves – the header at the top of the upper one, the title's first
@@ -284,14 +284,14 @@ button.ui-card:focus-visible { outline: 2px solid var(--focus-ring); outline-off
 
 /* Actions, one size per card size: a light button, a quiet tag (scoped to the card, so a surrounding list can't
    restyle them), a checkbox's tick */
-.ui-card .ui-card__button, .ui-card .ui-card__tag { display: inline-flex; align-items: center; gap: 4px; height: var(--action-h); padding: 0 var(--action-pad); border-radius: 7px; font-size: var(--action-t); font-weight: 550; white-space: nowrap; }
+.ui-card .ui-card__button, .ui-card .ui-card__tag { display: inline-flex; align-items: center; gap: 4px; height: var(--action-h); padding: 0 var(--action-pad); border-radius: calc(7px * var(--squircle-factor, 1)); font-size: var(--action-t); font-weight: 550; white-space: nowrap; }
 .ui-card .ui-card__button { background: var(--surface-6); color: var(--fluid-foreground); box-shadow: 0 1px 2px rgb(0 0 0 / 0.2); transition: opacity var(--motion-fast) var(--ease-fast), scale var(--motion-fast) var(--ease-fast); }
 .ui-card .ui-card__button:hover:not(:disabled) { opacity: 0.9; }
 .ui-card .ui-card__button:active:not(:disabled) { scale: 0.96; }
 .ui-card .ui-card__button:disabled { opacity: 0.7; }
 .ui-card .ui-card__button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .ui-card .ui-card__tag { padding: 0 calc(var(--action-pad) * 0.8); background: rgb(255 255 255 / 0.16); color: #fff; }
-.ui-card__check { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.8); }
+.ui-card__check { display: grid; place-items: center; width: 20px; height: 20px; box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.8); }
 .ui-card__check[data-checked] { background: #fff; box-shadow: none; color: #111; }
 
 /* Adding another: dashed, on the window, the same shape */

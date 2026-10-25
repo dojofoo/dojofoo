@@ -54,7 +54,7 @@ function Resources({ resources }: { resources: LessonResource[] }) {
         <section className="ui-lb__section" aria-label="Resources">
           <h3>Resources</h3>
           <ul ref={list} className="ui-lb__resources" onMouseEnter={hover.handlers.onMouseEnter} onMouseMove={hover.handlers.onMouseMove} onMouseLeave={hover.handlers.onMouseLeave}>
-            <FluidHoverHighlight hover={hover} className="ui-lb__highlight" />
+            <FluidHoverHighlight hover={hover} className="ui-lb__highlight rounded-lg" />
             {resources.map((resource, index) => (
               <li key={resource.href}>
                 <Resource resource={resource} index={index} register={hover.registerItem} />
@@ -70,7 +70,7 @@ function Resource({ resource, index, register }: { resource: LessonResource; ind
   const ref = useRef<HTMLAnchorElement>(null);
   useRegisterFluidHoverItem(register, index, ref);
   return (
-                <a ref={ref} data-fluid-hover-index={index} href={resource.href} target="_blank" rel="noreferrer" className="ui-lb__resource">
+                <a ref={ref} data-fluid-hover-index={index} href={resource.href} target="_blank" rel="noreferrer" className="ui-lb__resource rounded-lg focus-visible:bg-hover">
                   {resource.icon && <span className="ui-lb__resource-icon"><Icon icon={resource.icon} size={16} /></span>}
                   <span className="ui-lb__resource-text">
                     <b>{resource.title}</b>
@@ -110,9 +110,9 @@ const css = /* css */ `
 .ui-lb__body li { position: relative; padding-left: 1.75rem; margin-bottom: 0.375em; text-wrap: pretty; }
 .ui-lb__body ol > li { counter-increment: ui-lb-step; }
 /* Step numbers centred on the first line, figures of one width */
-.ui-lb__body ol > li::before { content: counter(ui-lb-step); position: absolute; left: 0; top: calc((var(--ui-lb-line) - 18px) / 2); width: 18px; height: 18px; border-radius: 50%; background: var(--fluid-hover); color: var(--fluid-muted); font-family: var(--font-mono); font-size: 11px; line-height: 18px; font-variant-numeric: tabular-nums; text-align: center; }
-.ui-lb__body ul > li::before { content: ""; position: absolute; left: 7px; top: calc(var(--ui-lb-line) / 2 - 2px); width: 4px; height: 4px; border-radius: 50%; background: var(--fluid-muted); }
-.ui-lb__body code { padding: 0.1em 0.35em; border-radius: 5px; background: var(--fluid-hover); color: var(--fluid-foreground); font-family: var(--font-mono); font-size: 0.875em; }
+.ui-lb__body ol > li::before { content: counter(ui-lb-step); position: absolute; left: 0; top: calc((var(--ui-lb-line) - 18px) / 2); width: 18px; height: 18px; border-radius: 50%; corner-shape: round; background: var(--fluid-hover); color: var(--fluid-muted); font-family: var(--font-mono); font-size: 11px; line-height: 18px; font-variant-numeric: tabular-nums; text-align: center; }
+.ui-lb__body ul > li::before { content: ""; position: absolute; left: 7px; top: calc(var(--ui-lb-line) / 2 - 2px); width: 4px; height: 4px; border-radius: 50%; corner-shape: round; background: var(--fluid-muted); }
+.ui-lb__body code { padding: 0.1em 0.35em; border-radius: calc(5px * var(--squircle-factor, 1)); background: var(--fluid-hover); color: var(--fluid-foreground); font-family: var(--font-mono); font-size: 0.875em; }
 .ui-lb__body a { color: var(--fluid-foreground); text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--brand) 70%, transparent); text-decoration-thickness: 0.09em; text-underline-offset: 0.2em; transition: text-decoration-color var(--motion-fast) var(--ease-fast); }
 .ui-lb__body a:hover { text-decoration-color: var(--brand); }
 .ui-lb__body strong { color: var(--fluid-foreground); font-weight: 600; }
@@ -124,15 +124,15 @@ const css = /* css */ `
 /* Every cell as tall as the tallest, so the highlight lands on boxes of one size */
 .ui-lb__resources > li { position: relative; z-index: 1; display: flex; }
 .ui-lb__resources > li > .ui-lb__resource { flex: 1; }
-.ui-lb__highlight { z-index: 0; border-radius: 8px; background: var(--fluid-hover); }
-.ui-lb__resource { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 8px; color: inherit; text-decoration: none; }
+.ui-lb__highlight { z-index: 0; background: var(--fluid-hover); }
+.ui-lb__resource { display: flex; align-items: center; gap: 12px; padding: 8px 10px; color: inherit; text-decoration: none; }
 /* The lit link (the highlight's, or the keyboard's): Fluid's fast tier – in on its spring, out on the quicker exit tween,
    never the enter spring reversed. It lights plainly: the icon's box fades away into the highlight */
 .ui-lb__resource-icon::before, .ui-lb__resource-out { transition: opacity var(--motion-fast-exit) var(--ease-exit), color var(--motion-fast-exit) var(--ease-exit), translate var(--motion-fast-exit) var(--ease-exit); }
 .ui-lb__resource:is([data-fluid-hover-active], :focus-visible) .ui-lb__resource-icon::before,
 .ui-lb__resource:is([data-fluid-hover-active], :focus-visible) .ui-lb__resource-out { transition-duration: var(--motion-fast); transition-timing-function: var(--ease-fast); }
 .ui-lb__resource:focus-visible { outline: 1px solid var(--focus-ring); outline-offset: -1px; }
-.ui-lb__resource-icon { position: relative; display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: var(--fluid-muted); }
+.ui-lb__resource-icon { position: relative; display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: calc(8px * var(--squircle-factor, 1)); color: var(--fluid-muted); }
 .ui-lb__resource-icon > * { position: relative; }
 /* The box is its own layer, so it can fade without the icon */
 .ui-lb__resource-icon::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--surface-3); box-shadow: var(--shadow-2); }

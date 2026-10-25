@@ -1,0 +1,29 @@
+/* Toolbar choices map to attributes. Type scale, weight and sizing are CSS-owned. */
+:root[data-ui-font="common"] {
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  --ui-font: var(--font-sans);
+}
+:root[data-ui-font="modern"] {
+  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --ui-font: var(--font-sans);
+  --font-weight-normal: 540;
+  --font-weight-medium: 620;
+  --text-xs: calc(0.75rem * 0.9375);
+  --text-sm: calc(0.875rem * 0.9375);
+  --text-base: calc(1rem * 0.9375);
+  --text-lg: calc(1.125rem * 0.9375);
+  --text-xl: calc(1.25rem * 0.9375);
+  --text-2xl: calc(1.5rem * 0.9375);
+  --text-3xl: calc(1.875rem * 0.9375);
+  --text-4xl: calc(2.25rem * 0.9375);
+  --text-5xl: calc(3rem * 0.9375);
+  --text-6xl: calc(3.75rem * 0.9375);
+  --text-7xl: calc(4.5rem * 0.9375);
+  --text-8xl: calc(6rem * 0.9375);
+  --text-9xl: calc(8rem * 0.9375);
+}
+:root[data-ui-font="noto"] {
+  --font-sans: "Noto Sans Variable", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --ui-font: var(--font-sans);
+}
+body { font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif); }
