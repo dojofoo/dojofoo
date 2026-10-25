@@ -3,6 +3,7 @@ theme: default
 title: One pass, one useful value
 routerMode: hash
 monaco: true
+wakeLock: false
 colorSchema: dark
 fonts:
   sans: Inter Variable
