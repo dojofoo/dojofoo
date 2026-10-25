@@ -287,7 +287,7 @@ const css = /* css */ `
   margin: 0 0 0 -4px;
   padding: 4px 8px 4px 4px;
   border: 0;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   background: none;
   font: inherit;
   font-size: 15px;
@@ -327,7 +327,7 @@ const css = /* css */ `
 }
 /* With who: their dot – the size of the chevron, in the theme's brand color – then the name in the sentence */
 .ui-think__head[data-who] .ui-think__title { gap: 0.3em; }
-.ui-think__avatar { flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--brand, var(--ui-tk-done)); }
+.ui-think__avatar { flex: none; width: 18px; height: 18px; border-radius: 50%; corner-shape: round; background: var(--brand, var(--ui-tk-done)); }
 .ui-think__who { font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ui-tk-ink); }
 
 /* Body collapses smoothly */
@@ -390,7 +390,7 @@ const css = /* css */ `
 .ui-think__dot {
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: 50%; corner-shape: round;
   background: var(--ui-tk-dot);
   transition: background-color 300ms ease, transform 300ms ease;
 }
@@ -445,7 +445,7 @@ const css = /* css */ `
   max-width: 100%;
   height: 28px;
   padding: 0 10px 0 6px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   background: var(--ui-tk-chip);
   font-size: 13px;
   color: var(--ui-tk-ink);
@@ -486,7 +486,7 @@ a.ui-think__source:focus-visible,
   bottom: calc(100% + 6px);
   z-index: 2;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   background: var(--ui-tk-ink);
   color: var(--ui-tk-tip-text);
   font-size: 12px;
@@ -520,7 +520,7 @@ a.ui-think__source:focus-visible,
   flex: none;
   width: 18px;
   height: 18px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--squircle-factor, 1));
   overflow: hidden;
 }
 

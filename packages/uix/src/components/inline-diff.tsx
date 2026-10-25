@@ -614,7 +614,7 @@ const css = /* css */ `
   width: 100%;
   min-width: 0;
   padding: 4px;
-  border-radius: 20px;
+  border-radius: calc(20px * var(--squircle-factor, 1));
   background: var(--ui-df-tray);
   color: var(--ui-df-text);
   font-family: var(--ui-font, "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
@@ -642,7 +642,7 @@ const css = /* css */ `
 .ui-df__card {
   position: relative;
   min-width: 0;
-  border-radius: 16px;
+  border-radius: calc(16px * var(--squircle-factor, 1));
   background: var(--ui-df-bg);
   box-shadow: var(--shadow-3);
 }
@@ -696,7 +696,7 @@ const css = /* css */ `
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: 999px; corner-shape: round;
   background: var(--ui-df-add);
   color: var(--ui-df-add-ink);
   font-size: 11.5px;
@@ -728,7 +728,7 @@ const css = /* css */ `
   height: 30px;
   margin: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   background: transparent;
   color: var(--ui-df-ink);
   font: inherit;
@@ -776,7 +776,7 @@ const css = /* css */ `
   overflow-wrap: anywhere;
 }
 
-.ui-df__chg { border-radius: 4px; cursor: pointer; scroll-margin: 64px 0 24px; }
+.ui-df__chg { border-radius: calc(4px * var(--squircle-factor, 1)); cursor: pointer; scroll-margin: 64px 0 24px; }
 .ui-df__chg:not([data-state="pending"]) { cursor: auto; }
 .ui-df__chg:focus { outline: none; }
 .ui-df__chg:focus-visible { outline: 2px solid var(--ui-df-focus); outline-offset: 2px; }
@@ -784,7 +784,7 @@ const css = /* css */ `
 .ui-df__del,
 .ui-df__ins {
   padding: 1px 2px;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--squircle-factor, 1));
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
   font-size: 1em;
@@ -840,7 +840,7 @@ const css = /* css */ `
   align-items: center;
   gap: 2px;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--squircle-factor, 1));
   background: var(--ui-df-pop);
   color: var(--ui-df-pop-ink);
   box-shadow: 0 6px 20px -6px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -878,7 +878,7 @@ const css = /* css */ `
   margin: 0;
   padding: 0 8px 0 7px;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--squircle-factor, 1));
   background: transparent;
   color: inherit;
   font: inherit;
@@ -905,7 +905,7 @@ const css = /* css */ `
   min-width: 17px;
   height: 17px;
   padding: 0 4px;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--squircle-factor, 1));
   background: var(--ui-df-pop-soft);
   color: var(--ui-df-pop-kbd);
   font: inherit;

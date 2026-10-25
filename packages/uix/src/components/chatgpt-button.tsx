@@ -29,7 +29,7 @@ export function ChatGPTLogo({ size = 20 }: { size?: number }) {
 }
 
 const css = /* css */ `
-.ui-siwc { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 44px; padding: 0 20px; border-radius: 999px; background: #000; color: #fff; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; transition: opacity var(--motion-fast) var(--ease-fast), scale var(--motion-fast) var(--ease-fast); }
+.ui-siwc { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 44px; padding: 0 20px; border-radius: 999px; corner-shape: round; background: #000; color: #fff; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; transition: opacity var(--motion-fast) var(--ease-fast), scale var(--motion-fast) var(--ease-fast); }
 .ui-siwc:hover:not(:disabled) { opacity: 0.88; }
 .ui-siwc:active:not(:disabled) { scale: 0.98; }
 .ui-siwc:disabled { opacity: 0.6; }

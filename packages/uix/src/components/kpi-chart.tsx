@@ -207,7 +207,7 @@ const css = /* css */ `
   max-width: 460px;
   padding: 20px 20px 18px;
   background: var(--ui-kpi-card);
-  border-radius: 20px;
+  border-radius: calc(20px * var(--squircle-factor, 1));
   box-shadow: var(--ui-kpi-shadow);
   font-family: var(--ui-font, "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   color: var(--ui-kpi-ink);
@@ -267,7 +267,7 @@ const css = /* css */ `
   cursor: crosshair;
 }
 .ui-kpi__plot:focus-visible {
-  border-radius: 4px;
+  border-radius: calc(4px * var(--squircle-factor, 1));
   box-shadow: 0 0 0 4px var(--ui-kpi-ring-gap), 0 0 0 6px var(--ui-kpi-ring);
 }
 .ui-kpi__grid {
@@ -317,7 +317,7 @@ const css = /* css */ `
   width: 10px;
   height: 10px;
   margin: -5px 0 0 -5px;
-  border-radius: 50%;
+  border-radius: 50%; corner-shape: round;
   box-shadow: 0 0 0 2px var(--ui-kpi-card);
 }
 
@@ -329,7 +329,7 @@ const css = /* css */ `
   min-width: 176px;
   padding: 10px 12px 12px;
   background: var(--ui-kpi-card);
-  border-radius: 12px;
+  border-radius: calc(12px * var(--squircle-factor, 1));
   box-shadow: var(--ui-kpi-tip-shadow);
   pointer-events: none;
   opacity: 0;
@@ -369,7 +369,7 @@ const css = /* css */ `
   flex: none;
   width: 10px;
   height: 2px;
-  border-radius: 1px;
+  border-radius: calc(1px * var(--squircle-factor, 1));
 }
 .ui-kpi__label {
   flex: 1;

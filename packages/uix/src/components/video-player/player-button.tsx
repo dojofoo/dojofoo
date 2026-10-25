@@ -16,9 +16,9 @@ const variants = {
 } as const;
 
 const sizes = {
-  icon: "size-8 rounded-[10px] text-sm [&_svg:not([class*='size-'])]:size-4",
-  sm: "h-7 gap-1 rounded-[8px] px-2.5 text-[0.8rem] has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-  default: "h-8 gap-1.5 rounded-[10px] px-2.5 text-sm [&_svg:not([class*='size-'])]:size-4",
+  icon: "size-8 rounded-button-md text-sm [&_svg:not([class*='size-'])]:size-4",
+  sm: "h-7 gap-1 rounded-button-sm px-2.5 text-[0.8rem] has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+  default: "h-8 gap-1.5 rounded-button-md px-2.5 text-sm [&_svg:not([class*='size-'])]:size-4",
 } as const;
 
 type PlayerButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: keyof typeof variants; size?: keyof typeof sizes };

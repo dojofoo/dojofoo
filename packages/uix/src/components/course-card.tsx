@@ -129,7 +129,7 @@ const css = /* css */ `
   height: var(--art-size);
   overflow: hidden;
   padding: calc(var(--art-size) * 0.1);
-  border-radius: calc(var(--art-size) * 0.14);
+  border-radius: calc((var(--art-size) * 0.14) * var(--squircle-factor, 1));
   background:
     radial-gradient(120% 90% at 0% 0%, oklch(0.78 0.16 var(--art-hue) / 0.9), transparent 60%),
     linear-gradient(135deg, oklch(0.62 0.2 var(--art-hue)), oklch(0.34 0.13 calc(var(--art-hue) + 40)));
@@ -139,7 +139,7 @@ const css = /* css */ `
 .ui-cc-art b { font-size: calc(var(--art-size) * 0.42); font-weight: 750; line-height: 0.9; letter-spacing: -0.04em; }
 /* A cover: square at the column's width, everything in proportion to it (its padding is a percentage – of the column,
    so of its own width; container units here would measure the window) */
-.ui-cc-art[data-cover] { container-type: inline-size; width: 100%; height: auto; aspect-ratio: 1; padding: 9%; border-radius: 10px; }
+.ui-cc-art[data-cover] { container-type: inline-size; width: 100%; height: auto; aspect-ratio: 1; padding: 9%; border-radius: calc(10px * var(--squircle-factor, 1)); }
 .ui-cc-art[data-cover] b { font-size: 34cqi; }
 
 /* The certificate's badge (116 by 102.2, cropped to what it draws), 28% of the card high: its word starts on the top

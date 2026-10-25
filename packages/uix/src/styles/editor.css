@@ -1,0 +1,249 @@
+/* The card: the tab bar in the window's own color, then the code in the color scheme – its background moved toward
+   the theme's card (surface 3) in tint and lightness by --ui-ed-blend (75%; 0% is the scheme as published). Not
+   flush, the card has its shadow and a stronger inner edge drawn over the code (5% overlay ring, 3% top light) */
+.ui-ed__scheme {
+  --ui-ed-surface: color-mix(in oklab, var(--surface-3) var(--ui-ed-blend, 75%), var(--ui-ed-scheme, var(--surface-3)));
+  background: var(--ui-ed-surface);
+  color: var(--fluid-foreground);
+}
+.ui-ed__scheme.dark { color-scheme: dark; }
+.ui-ed__scheme.light { color-scheme: light; }
+.ui-ed {
+  --ui-ed-edge: inset 0 0 0 1px rgb(var(--overlay) / 0.05), inset 0 1px 0 0 rgb(var(--overlay) / 0.03);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-2);
+  color: var(--fluid-foreground);
+  font-family: var(--ui-font, "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif);
+  font-variation-settings: "opsz" 14;
+}
+.ui-ed::after {
+  content: "";
+  position: absolute;
+  z-index: 50;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--ui-ed-edge), var(--shadow-3);
+  pointer-events: none;
+}
+.ui-ed__body { position: relative; flex: 1; min-height: 0; }
+/* Flush: part of the surrounding UI – no edge or shadow (the editor is square either way) */
+.ui-ed[data-flush]::after { content: none; }
+
+/* Tabs, as in Dojofoo's app: flat cells on the window's own color with a hairline between them, muted, the theme's
+   hover tint under the pointer; the open tab is the code's surface, joined to it, with a 2px line in the brand color
+   along its top */
+/* One line, the window's hairline (taken here, before the scheme's island re-colors it), draws the open tab's outline:
+   along the strip's foot – the open tab covers it, so it joins the code – and up both sides of the open tab */
+.ui-ed { --ui-ed-line: var(--fluid-hairline); }
+.ui-ed__tabs { display: flex; flex: none; height: 40px; background: var(--surface-2); box-shadow: inset 0 -1px 0 var(--ui-ed-line); }
+/* The list reaches 1px past both ends of the strip, where the card clips it: a tab's side line at the very edge – the
+   first tab's left, the last tab's right once the tabs fill the strip – falls outside, so no line doubles the edge */
+.ui-ed__tablist { display: flex; flex: 1; min-width: 0; align-items: stretch; margin: 0 -1px; padding-top: 2px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.ui-ed__tablist::-webkit-scrollbar { display: none; }
+.ui-ed__tab {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-width: 0;
+  max-width: 220px;
+  border-left: 1px solid transparent;
+  border-right: 1px solid var(--ui-ed-line);
+  color: var(--fluid-muted);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  transition: color var(--motion-fast) var(--ease-fast), background-color var(--motion-fast) var(--ease-fast), box-shadow var(--motion-fast) var(--ease-fast), opacity var(--motion-fast) var(--ease-fast);
+}
+/* The hover tint fills the strip's top 2px too (the gap the open tab's line sits in), so it reaches the top edge */
+.ui-ed__tab:not([data-active]):hover { background: var(--fluid-hover); box-shadow: 0 -2px 0 var(--fluid-hover); color: var(--fluid-foreground); }
+/* The brand line sits above the open tab, in the strip's 2px of top padding – a shadow, not a border, as wide as the tab
+   with its side lines, so the corners stay square – and glows softly down into the tab */
+.ui-ed__tab[data-active] {
+  border-left-color: var(--ui-ed-line);
+  border-right-color: var(--ui-ed-line);
+  box-shadow: 0 -2px 0 var(--brand), inset 0 10px 10px -10px color-mix(in oklab, var(--brand) 18%, transparent);
+}
+/* The tab before the open one gives up its separator, so the open tab's own side isn't doubled */
+.ui-ed__tab:has(+ .ui-ed__tab[data-active]) { border-right-color: transparent; }
+/* A separator runs to the strip's top edge: the 2px above the tabs (where the open tab's line sits) is drawn on */
+.ui-ed__tab:not([data-active])::after { content: ""; position: absolute; top: -2px; right: -1px; width: 1px; height: 2px; background: var(--ui-ed-line); }
+.ui-ed__tab:has(+ .ui-ed__tab[data-active])::after { content: none; }
+.ui-ed__tab[data-dragging] { opacity: 0.4; }
+.ui-ed__tab-label { all: unset; corner-shape: inherit; box-sizing: border-box; position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; min-width: 0; height: 100%; padding: 0 6px 0 16px; cursor: pointer; }
+.ui-ed__tab-label:focus-visible { outline: 1px solid var(--focus-ring); outline-offset: -4px; border-radius: calc(6px * var(--squircle-factor, 1)); }
+.ui-ed__tab:not(:has(.ui-ed__close)) .ui-ed__tab-label { padding-right: 16px; }
+.ui-ed__close {
+  all: unset; corner-shape: inherit;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 6px 0 0;
+  border-radius: 50%; corner-shape: round;
+  color: var(--fluid-muted);
+  cursor: pointer;
+  transition: opacity var(--motion-fast) var(--ease-fast), background-color var(--motion-fast) var(--ease-fast), color var(--motion-fast) var(--ease-fast);
+}
+/* Close is always there on every tab – an edited tab shows its dot in its place until the pointer reaches it */
+.ui-ed__close:not([data-static]):hover { background: var(--active); color: var(--fluid-foreground); }
+.ui-ed__close[data-static] { cursor: default; }
+/* Unsaved: the dot, in the brand's color, holds the close button's place; the tab under the pointer (or the button
+   in focus) swaps it for the cross and back – a quick crossfade on Fluid's fast tier: what arrives fades and grows in
+   on the enter spring, what leaves fades out on the quicker exit tween */
+.ui-ed__close > * { grid-area: 1 / 1; }
+.ui-ed__dirty { width: 8px; height: 8px; border-radius: 50%; corner-shape: round; background: var(--brand); opacity: 0; }
+/* At rest: the dot in, the cross out */
+.ui-ed__close[data-dirty] > .ui-ed__dirty { opacity: 1; scale: 1; transition: opacity var(--motion-fast) var(--ease-fast), scale var(--motion-fast) var(--ease-fast); }
+.ui-ed__close[data-dirty]:not([data-static]) > svg { opacity: 0; scale: 0.8; transition: opacity var(--motion-fast-exit) var(--ease-exit), scale var(--motion-fast-exit) var(--ease-exit); }
+/* Hovered: the cross in, the dot out */
+.ui-ed__tab:hover > .ui-ed__close[data-dirty]:not([data-static]) > svg, .ui-ed__close[data-dirty]:focus-visible > svg { opacity: 1; scale: 1; transition: opacity var(--motion-fast) var(--ease-fast), scale var(--motion-fast) var(--ease-fast); }
+.ui-ed__tab:hover > .ui-ed__close[data-dirty]:not([data-static]) > .ui-ed__dirty, .ui-ed__close[data-dirty]:focus-visible > .ui-ed__dirty { opacity: 0; scale: 0.5; transition: opacity var(--motion-fast-exit) var(--ease-exit), scale var(--motion-fast-exit) var(--ease-exit); }
+@media (prefers-reduced-motion: reduce) { .ui-ed__close > * { transition-duration: 0s !important; } }
+.ui-ed__close:focus-visible { outline: 1px solid var(--focus-ring); }
+.ui-ed__marker { position: absolute; z-index: 2; top: 4px; bottom: 6px; width: 2px; border-radius: calc(1px * var(--squircle-factor, 1)); background: var(--focus-ring); pointer-events: none; }
+.ui-ed__marker[data-side="start"] { left: -1px; }
+.ui-ed__marker[data-side="end"] { right: -1px; }
+
+/* Status: a quiet line along the foot – how the file's tests stand */
+.ui-ed__status { display: flex; flex: none; align-items: center; gap: 12px; height: 28px; padding: 0 12px; box-shadow: inset 0 1px 0 var(--fluid-hairline); color: var(--fluid-muted); font-size: var(--fs-caption); line-height: var(--lh-caption); }
+.ui-ed__tests { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.ui-ed__tests b { color: var(--fluid-foreground); font-weight: 550; font-variation-settings: "opsz" 18; }
+.ui-ed__dot { width: 6px; height: 6px; border-radius: 50%; corner-shape: round; background: #f87171; }
+.ui-ed__tests[data-state="partial"] .ui-ed__dot { background: #fbbf24; }
+.ui-ed__tests[data-state="pass"] .ui-ed__dot { background: #4ade80; }
+
+/* The code: Monaco on the card's surface – its own backgrounds go transparent */
+.ui-ed__code { position: relative; height: 100%; min-height: 0; overflow: hidden; }
+/* The scroll fade, as on every scrolling area: 48px of the editor's own background over the code at an edge with more to
+   scroll, shown as far as there is (--ui-ed-fade-*: 1 = none). A layer rather than a mask, so the scrollbars can sit
+   above it – they stay solid while the code under them fades */
+.ui-ed__code::before, .ui-ed__code::after { content: ""; position: absolute; z-index: 10; left: 0; right: 0; height: 48px; pointer-events: none; }
+.ui-ed__code::before { top: 0; background: linear-gradient(to bottom, var(--ui-ed-surface), transparent); opacity: calc(1 - var(--ui-ed-fade-start, 1)); }
+.ui-ed__code::after { bottom: 0; background: linear-gradient(to top, var(--ui-ed-surface), transparent); opacity: calc(1 - var(--ui-ed-fade-end, 1)); }
+.ui-ed .monaco-scrollable-element > .scrollbar { z-index: 11; }
+/* Scrollbars as the content's (styles/fluid.css): transparent track, a thin pill at 8% of the ink, 12% on hover, 16% while
+   dragging – Monaco draws its own, so they're set on its slider */
+.ui-ed .monaco-editor {
+  --vscode-scrollbar-shadow: transparent;
+  --vscode-scrollbarSlider-background: rgb(var(--overlay) / 0.08);
+  --vscode-scrollbarSlider-hoverBackground: rgb(var(--overlay) / 0.12);
+  --vscode-scrollbarSlider-activeBackground: rgb(var(--overlay) / 0.16);
+}
+.ui-ed .monaco-scrollable-element > .scrollbar { background: transparent; }
+.ui-ed .monaco-scrollable-element > .scrollbar > .slider { border-radius: 9999px; corner-shape: round; }
+.ui-ed__monaco { height: 100%; min-height: 0; }
+.ui-ed__state { position: absolute; inset: 0; padding: 16px; color: var(--fluid-muted); font-size: var(--fs-body); }
+.ui-ed .monaco-editor {
+  --vscode-editor-background: transparent;
+  --vscode-editorGutter-background: transparent;
+  --vscode-editorStickyScroll-background: var(--ui-ed-surface);
+}
+/* A solid line highlight moves with the background: the blended surface, stepped in lightness as far as the scheme
+   steps it from its own background. Monaco writes the scheme's color into its own rules, so these override the lines */
+.ui-ed[data-line] .monaco-editor :is(.view-overlays .current-line, .margin-view-overlays .current-line-margin) {
+  background-color: color-mix(in oklab, var(--surface-3) var(--ui-ed-blend, 75%), var(--ui-ed-line-color));
+}
+.ui-ed[data-line-border] .monaco-editor :is(.view-overlays .current-line, .margin-view-overlays .current-line-margin) {
+  border-color: color-mix(in oklab, var(--surface-3) var(--ui-ed-blend, 75%), var(--ui-ed-line-border-color));
+}
+.ui-ed .monaco-editor .margin { border: none; }
+/* Marks: lines a passing run covered, lines that fail, and a flash where Kyoshi points */
+.ui-ed .ui-ed-line-covered { background: rgb(88 199 96 / 6%); }
+.ui-ed .ui-ed-line-failed { background: rgb(240 91 141 / 14%); }
+.ui-ed .ui-ed-number-covered { color: #6f9f72 !important; }
+.ui-ed .ui-ed-number-failed { color: #f05b8d !important; }
+.ui-ed .ui-ed-line-flash { animation: ui-ed-line-flash 1.2s ease-out; }
+@keyframes ui-ed-line-flash {
+  0%, 35% { background: color-mix(in oklab, var(--focus-ring), transparent 60%); }
+  100% { background: transparent; }
+}
+
+/* Hovers and suggestions: a popover's surface (level 5, shadow 4) with the library's 8px corner */
+.ui-ed-overlays { position: fixed; inset: 0; z-index: 1000; pointer-events: none; }
+.ui-ed-overlays .monaco-editor {
+  --vscode-editorHoverWidget-background: var(--surface-5);
+  --vscode-editorHoverWidget-border: var(--fluid-hairline);
+  --vscode-editorSuggestWidget-background: var(--surface-5);
+  --vscode-editorSuggestWidget-border: var(--fluid-hairline);
+  --vscode-editorSuggestWidget-selectedBackground: var(--active);
+  --vscode-list-hoverBackground: var(--hover);
+}
+.ui-ed-overlays .monaco-hover, .ui-ed-overlays .suggest-widget { pointer-events: auto; }
+.ui-ed-overlays .monaco-editor .suggest-widget,
+.ui-ed-overlays .monaco-editor .monaco-hover,
+.ui-ed-overlays .monaco-editor .monaco-resizable-hover { border-radius: calc(8px * var(--squircle-factor, 1)); overflow: hidden; }
+.ui-ed-overlays .monaco-editor .suggest-widget { box-shadow: var(--shadow-4); }
+.ui-ed-overlays .monaco-editor .monaco-resizable-hover {
+  box-shadow: var(--shadow-4);
+  /* This is the border-bearing wrapper, not .monaco-hover. Its native 250px resize limit must not truncate the
+     taller segmented card. */
+  height: auto !important;
+  max-width: min(520px, calc(100vw - 32px)) !important;
+  box-sizing: border-box;
+}
+.ui-ed-overlays .monaco-editor .monaco-hover {
+  --ui-ed-hover-height: min(440px, 70vh);
+  max-width: min(520px, calc(100vw - 32px)) !important;
+  box-sizing: border-box;
+}
+.ui-ed-overlays .monaco-resizable-hover > .monaco-hover { position: relative; max-width: 100% !important; }
+.ui-ed-overlays .monaco-hover,
+.ui-ed-overlays .monaco-hover .monaco-scrollable-element,
+.ui-ed-overlays .monaco-hover .monaco-hover-content {
+  max-height: var(--ui-ed-hover-height) !important;
+  height: auto !important;
+}
+.ui-ed-overlays .monaco-hover .monaco-scrollable-element,
+.ui-ed-overlays .monaco-hover .monaco-hover-content {
+  /* Monaco assigns pixel widths before our card cap is applied. Keep the inner scroll viewport inside the border,
+     including at narrow widths. */
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+.ui-ed-overlays .monaco-hover .hover-row-contents { display: flex; flex-direction: column; max-height: calc(var(--ui-ed-hover-height) - 2px); min-width: 0; }
+.ui-ed-overlays .monaco-hover .hover-row,
+.ui-ed-overlays .monaco-hover .markdown-hover { max-width: 100%; box-sizing: border-box; overflow-wrap: anywhere; }
+/* Segments: the signature in mono, the documentation in Inter (it scrolls on its own), then one-line parameters */
+.ui-ed-overlays .monaco-hover .markdown-hover { padding: 6px 10px; font-family: var(--font-mono); flex: 0 0 auto; min-width: 0; }
+.ui-ed-overlays .monaco-hover .markdown-hover + .markdown-hover { border-top: 1px solid var(--fluid-hairline); }
+.ui-ed-overlays .monaco-hover .markdown-hover p { font-family: inherit; line-height: 1.4; margin: 4px 0; }
+.ui-ed-overlays .monaco-hover .markdown-hover .hover-contents { padding: 0; }
+.ui-ed-overlays .monaco-hover .markdown-hover:nth-child(2) {
+  font-family: var(--ui-font, "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  max-height: min(300px, 45vh);
+  min-height: 0;
+  flex: 0 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ui-ed-overlays .monaco-hover .markdown-hover pre,
+.ui-ed-overlays .monaco-hover .markdown-hover code,
+.ui-ed-overlays .monaco-hover .markdown-hover .monaco-tokenized-source { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ui-ed-overlays .monaco-hover .markdown-hover pre,
+.ui-ed-overlays .monaco-hover .markdown-hover .monaco-tokenized-source {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 6px 8px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
+  background: var(--hover);
+}
+.ui-ed-overlays .monaco-hover .markdown-hover:first-child .monaco-tokenized-source { padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.ui-ed-overlays .monaco-hover .markdown-hover p > code { font-family: var(--font-mono); padding: 1px 4px; border-radius: calc(4px * var(--squircle-factor, 1)); background: var(--hover); }
+.ui-ed-overlays .monaco-hover .markdown-hover a { text-decoration: underline; text-decoration-color: color-mix(in oklab, currentColor 35%, transparent); text-underline-offset: 0.2em; }
+.ui-ed-overlays .monaco-hover .markdown-hover:nth-child(n + 3) .rendered-markdown { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ui-ed-overlays .monaco-hover .markdown-hover:nth-child(n + 3) p { display: inline; }
+.ui-ed-overlays .monaco-hover .markdown-hover:nth-child(n + 3) p + p { margin-inline-start: 6px; }
+.ui-ed-overlays .monaco-hover .markdown-hover:nth-child(n + 3) code { white-space: inherit; }
+.ui-ed-overlays .monaco-hover .markdown-hover:first-child,
+.ui-ed-overlays .monaco-hover .markdown-hover:nth-child(n + 3) { font-size: var(--fs-subtitle); line-height: var(--lh-subtitle); }
+.ui-ed-overlays .monaco-hover .markdown-hover:first-child .monaco-tokenized-source { font-size: var(--fs-subtitle) !important; line-height: var(--lh-subtitle) !important; }

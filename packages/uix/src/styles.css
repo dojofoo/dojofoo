@@ -2,14 +2,15 @@
 @import "tw-animate-css";
 @import "./styles/fluid.css";
 @import "./styles/themes/index.css";
+@import "./styles/editor.css";
+@import "./styles/corners.css";
+@import "./styles/learner.css";
+@import "./styles/typography.css";
+@import "./styles/onboarding.css";
 
 @plugin "@toolwind/corner-shape";
 
 @source "./**/*.{ts,tsx}";
-@source "../../ui/src/components/authoring-sidebar.tsx";
-@source "../../ui/src/components/ui/tree-view.tsx";
-@source "../../ui/src/components/workspace-file-tabs.tsx";
-@source "../../ui/src/components/ui/brand-logo.tsx";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -69,7 +70,6 @@
 .light {
   --radius-base: 0.5rem;
   --radius: calc(var(--radius-base) * var(--squircle-factor));
-  --squircle-factor: 1;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -155,12 +155,6 @@
   transform-origin: center;
 }
 
-@supports (corner-shape: squircle) {
-  :root {
-    --squircle-factor: 1.84;
-  }
-}
-
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -196,12 +190,10 @@
 }
 
 @layer base {
-  [class*="rounded"] {
-    @apply corner-squircle;
-  }
-
-  * {
-    @apply border-border outline-ring/50;
+  /* One shape policy, including the pseudo-elements that draw surface edges.
+     Zero-radius elements stay square; component/Tailwind radii still set the size. */
+  *, ::before, ::after {
+    @apply corner-squircle border-border outline-ring/50;
   }
 
   body {

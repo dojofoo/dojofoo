@@ -581,7 +581,6 @@ function ModelMenu({
           "--from-top": `${place.fromTop}px`,
           "--from-left": `${place.fromLeft}px`,
           "--from-bottom": place.up ? "0px" : `calc(100% - ${place.fromRadius * 2}px)`,
-          "--from-radius": `${place.fromRadius}px`,
         } as CSSProperties
       }
       inert={!visible}
@@ -993,8 +992,8 @@ const css = /* css */ `
   --ui-cc-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ui-cc-ease-pop: cubic-bezier(0.34, 1.5, 0.64, 1);
   /* Corners of the gray tray and the card on it (were 92.758 and 66 design units); 4px is Tailwind's default sm */
-  --ui-cc-tray-radius: 4px;
-  --ui-cc-card-radius: 4px;
+  --ui-cc-tray-radius: calc(4px * var(--squircle-factor, 1));
+  --ui-cc-card-radius: calc(4px * var(--squircle-factor, 1));
 
   container-type: inline-size;
   position: relative;
@@ -1071,7 +1070,7 @@ const css = /* css */ `
   transition: top var(--ui-cc-swap) var(--ui-cc-ease-swap);
   height: calc(68.155 * var(--u));
   gap: calc(27.213 * var(--u));
-  border-radius: calc(24 * var(--u));
+  border-radius: calc((24 * var(--u)) * var(--squircle-factor, 1));
 }
 
 .ui-chat-composer__label {
@@ -1226,7 +1225,7 @@ const css = /* css */ `
 .ui-chat-composer__model {
   display: flex;
   align-items: center;
-  border-radius: calc(24 * var(--u));
+  border-radius: calc((24 * var(--u)) * var(--squircle-factor, 1));
 }
 
 .ui-chat-composer__model {
@@ -1246,7 +1245,7 @@ const css = /* css */ `
   place-items: center;
   width: calc(112 * var(--u));
   height: calc(112 * var(--u));
-  border-radius: 50%;
+  border-radius: 50%; corner-shape: round;
   background: var(--ui-cc-ink) !important;
   transition:
     opacity 200ms ease-out,
@@ -1269,7 +1268,7 @@ const css = /* css */ `
   display: flex;
   align-items: center;
   gap: calc(21.783 * var(--u));
-  border-radius: calc(33.156 * var(--u));
+  border-radius: calc((33.156 * var(--u)) * var(--squircle-factor, 1));
   white-space: nowrap;
   transition: padding 480ms var(--ui-cc-ease-out);
 }
@@ -1595,10 +1594,11 @@ const css = /* css */ `
   flex-direction: column;
   background: var(--ui-cc-card);
   border: calc(4 * var(--u)) solid var(--ui-cc-line);
-  border-radius: calc(92.758 * var(--u)); /* same as the white card */
+  border-radius: calc((92.758 * var(--u)) * var(--squircle-factor, 1)); /* same as the white card */
   outline: none;
   font-family: inherit;
-  clip-path: inset(0 0 0 0 round calc(92.758 * var(--u)));
+  overflow: hidden;
+  clip-path: inset(0);
   transition: clip-path var(--morph);
 }
 /* Moving the closed shape to the button happens instantly, otherwise the opening would start mid-way */
@@ -1606,7 +1606,7 @@ const css = /* css */ `
   transition: none !important;
 }
 .ui-chat-composer__menu[data-open="false"] .ui-chat-composer__menu-panel {
-  clip-path: inset(var(--from-top) 0 var(--from-bottom) var(--from-left) round var(--from-radius));
+  clip-path: inset(var(--from-top) 0 var(--from-bottom) var(--from-left));
   transition: clip-path 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1636,7 +1636,7 @@ const css = /* css */ `
   left: calc(20 * var(--u));
   right: calc(20 * var(--u));
   top: 0;
-  border-radius: calc(68.758 * var(--u)); /* 92.758 − 4 border − 20 padding */
+  border-radius: calc((68.758 * var(--u)) * var(--squircle-factor, 1)); /* 92.758 − 4 border − 20 padding */
   background: var(--ui-cc-menu-fill);
   pointer-events: none;
   transition:
@@ -1654,7 +1654,7 @@ const css = /* css */ `
   align-items: center;
   gap: calc(34 * var(--u));
   padding: calc(32 * var(--u)) calc(48 * var(--u));
-  border-radius: calc(68.758 * var(--u));
+  border-radius: calc((68.758 * var(--u)) * var(--squircle-factor, 1));
   cursor: pointer;
 }
 
@@ -1763,7 +1763,7 @@ const css = /* css */ `
 .ui-chat-composer__trace > span {
   flex: none;
   width: calc(8 * var(--u));
-  border-radius: 999px;
+  border-radius: 999px; corner-shape: round;
   background: var(--ui-cc-ink-hover);
   transition: height 110ms ease-out;
 }
@@ -1777,7 +1777,7 @@ const css = /* css */ `
   width: calc(112 * var(--u));
   height: calc(112 * var(--u));
   border: calc(4 * var(--u)) solid var(--ui-cc-line) !important;
-  border-radius: calc(32 * var(--u)) !important;
+  border-radius: calc((32 * var(--u)) * var(--squircle-factor, 1)) !important;
   background: var(--ui-cc-card) !important;
   box-shadow: 0 calc(3.092 * var(--u)) calc(6.184 * var(--u)) var(--ui-cc-shadow);
   color: var(--ui-cc-ink) !important;

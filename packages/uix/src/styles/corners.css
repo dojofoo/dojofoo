@@ -1,0 +1,15 @@
+/* Match Epicat's diagonal inset for a circular corner (n=2) and a squircle (n=4):
+   r4 / r2 = (1 - 2^(-1/2)) / (1 - 2^(-1/4)) = 1.8408964153.
+   Unsupported browsers keep the intended circular radius, factor 1. */
+:root, .light, .dark { --squircle-factor: 1; }
+
+@supports (corner-shape: squircle) {
+  :root, .light, .dark {
+    --squircle-factor: calc((1 - pow(0.5, 0.5)) / (1 - pow(0.5, 0.25)));
+  }
+}
+
+/* Full rounding remains circular/pill-shaped, including its edge layers. */
+@layer utilities {
+  .rounded-full, .rounded-full::before, .rounded-full::after { corner-shape: round; }
+}

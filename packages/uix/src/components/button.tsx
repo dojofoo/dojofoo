@@ -190,7 +190,7 @@ const css = /* css */ `
   --gap: 8px;
   --fs: 14px;
   --icon: 18px;
-  --radius: 8px;
+  --radius: calc(8px * var(--squircle-factor, 1));
 
   position: relative;
   display: inline-flex;
@@ -228,7 +228,7 @@ const css = /* css */ `
   --gap: 6px;
   --fs: 13px;
   --icon: 16px;
-  --radius: 6px;
+  --radius: calc(6px * var(--squircle-factor, 1));
 }
 .ui-button[data-size="lg"] {
   --h: 48px;
@@ -236,7 +236,7 @@ const css = /* css */ `
   --gap: 10px;
   --fs: 15px;
   --icon: 20px;
-  --radius: 10px;
+  --radius: calc(10px * var(--squircle-factor, 1));
 }
 .ui-button[data-icon-only] {
   width: var(--h);

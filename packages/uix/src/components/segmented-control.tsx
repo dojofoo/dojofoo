@@ -60,7 +60,7 @@ export function SegmentedControl({
   const right = useMotionValue(0);
   const bottom = useMotionValue(0);
   const left = useMotionValue(0);
-  const clipPath = useMotionTemplate`inset(${top}px ${right}px ${bottom}px ${left}px round var(--seg-r))`;
+  const clipPath = useMotionTemplate`inset(${top}px ${right}px ${bottom}px ${left}px)`;
   // Starts "place" so the pill is set without sliding in on page load.
   const mode = useRef<"place" | "click" | "key">("place");
 
@@ -179,7 +179,7 @@ const css = /* css */ `
 .ui-seg {
   --seg-pad: 4px;
   --seg-item: 28px;
-  --seg-r: 6px;
+  --seg-r: calc(6px * var(--squircle-factor, 1));
   --seg-px: 12px;
   --seg-fs: var(--fs-body, 13px);
   position: relative;
@@ -198,7 +198,7 @@ const css = /* css */ `
 .ui-seg[data-fill] { width: 100%; }
 .ui-seg:has(:focus-visible) { outline: 1px solid var(--focus-ring); outline-offset: 2px; }
 .ui-seg__item {
-  all: unset;
+  all: unset; corner-shape: inherit;
   box-sizing: border-box;
   display: flex;
   flex: 0 1 auto;

@@ -280,7 +280,7 @@ const css = /* css */ `
   width: 100%;
   max-width: 420px;
   padding: 6px;
-  border-radius: 24px;
+  border-radius: calc(24px * var(--squircle-factor, 1));
   background: var(--ui-fm-tray);
   font-family: var(--ui-font, "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   color: var(--ui-fm-ink);
@@ -292,7 +292,7 @@ const css = /* css */ `
 
 .ui-fm__card {
   padding: 16px 16px 10px;
-  border-radius: 20px;
+  border-radius: calc(20px * var(--squircle-factor, 1));
   background: var(--ui-fm-card);
   box-shadow: var(--ui-fm-shadow);
 }
@@ -305,7 +305,7 @@ const css = /* css */ `
   padding: 4px 6px;
   margin-right: -6px !important;
   border: 0;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   background: none;
   font-size: 13px;
   color: var(--ui-fm-muted) !important;
@@ -326,7 +326,7 @@ const css = /* css */ `
   gap: 2px;
   height: 30px;
   padding: 0 4px 0 11px;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--squircle-factor, 1));
   background: var(--ui-fm-chip);
   font-size: 13px;
   color: var(--ui-fm-text);
@@ -340,7 +340,7 @@ const css = /* css */ `
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   background: none;
   color: var(--ui-fm-muted);
   transition: background-color 160ms ease, color 160ms ease;
@@ -360,7 +360,7 @@ const css = /* css */ `
   margin: 2px -6px 0 !important;
   padding: 0 8px 0 6px;
   border: 0;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--squircle-factor, 1));
   background: none;
   text-align: left;
   transition: background-color 160ms ease;
@@ -409,7 +409,7 @@ const css = /* css */ `
   margin: 0 -6px !important;
   padding: 0 6px;
   border: 0;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--squircle-factor, 1));
   background: none;
   font-size: 14px;
   color: var(--ui-fm-text) !important;
@@ -424,7 +424,7 @@ const css = /* css */ `
   width: 20px;
   height: 20px;
   flex: none;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   background: var(--ui-fm-box);
   box-shadow: inset 0 0 0 1px var(--ui-fm-box-line);
   transition: background-color 180ms ease, box-shadow 180ms ease;
@@ -453,7 +453,7 @@ const css = /* css */ `
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   background: var(--ui-fm-kbd);
   box-shadow: var(--shadow-2);
 }

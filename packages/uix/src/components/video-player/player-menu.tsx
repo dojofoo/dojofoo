@@ -80,7 +80,7 @@ const TYPEAHEAD_RESET_MS = 500;
  * s'appliqueraient jamais.
  */
 const POPUP_CLASSNAME =
-  "z-50 min-w-32 overflow-x-hidden overflow-y-auto rounded-[10px] bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95";
+  "z-50 min-w-32 overflow-x-hidden overflow-y-auto rounded-button-md bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95";
 
 /**
  * Idem. Le `w-full` est le seul ajout : l'amont rend ses items en `div`, qui
@@ -91,7 +91,7 @@ const POPUP_CLASSNAME =
  * sélection change de ligne.
  */
 const ITEM_CLASSNAME =
-  "relative flex w-full cursor-default items-center gap-1.5 rounded-[8px] py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+  "relative flex w-full cursor-default items-center gap-1.5 rounded-button-sm py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
 interface PlayerMenuContextValue {
   open: boolean;

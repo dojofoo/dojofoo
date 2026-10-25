@@ -54,7 +54,7 @@ const css = /* css */ `
 .ui-crumbs li:first-child > :first-child { padding-left: 0; }
 .ui-crumbs__link, .ui-crumbs__text { color: var(--muted); }
 .ui-crumbs__link {
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   text-decoration: underline;
   text-decoration-color: transparent;
   text-underline-offset: 4px;

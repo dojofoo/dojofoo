@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import catalog from "~/styles/themes/catalog.json";
-import { editorSchemes, type EditorSchemeId } from "../../../ui/src/lib/code-editor-theme";
+import { editorSchemes, type EditorSchemeId } from "./code-editor-theme";
 
 /*
  * The interface's look, chosen by the person using it: a theme (its colors – styles/themes), the editor's color

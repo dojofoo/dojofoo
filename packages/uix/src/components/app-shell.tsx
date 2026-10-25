@@ -203,7 +203,7 @@ function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expande
     <RailTip enabled={rail || !!entry.note} label={rail ? entry.label : entry.note ?? entry.label} note={rail ? (entry.note ?? (entry.count ? String(entry.count) : undefined)) : undefined}>
       <button
         type="button"
-        className="ui-as-side__item"
+        className="ui-as-side__item rounded-lg"
         data-nested={nested || undefined}
         data-lit={lit || undefined}
         data-state={entry.state}
@@ -213,7 +213,7 @@ function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expande
         aria-disabled={locked || undefined}
         onClick={locked ? undefined : onClick}
       >
-        {lit && <motion.span layoutId={layoutId} className="ui-as-side__lit" transition={reduce ? { duration: 0 } : spring.moderate} />}
+        {lit && <motion.span layoutId={layoutId} className="ui-as-side__lit rounded-[inherit]" transition={reduce ? { duration: 0 } : spring.moderate} />}
         {entry.marker ? <span className="ui-as-side__marker" aria-hidden="true">{entry.marker}</span> : entry.icon ? <Icon icon={entry.icon} size={16} /> : null}
         <span className="ui-as-side__text">{entry.label}</span>
         {entry.count !== undefined && (
@@ -1057,7 +1057,7 @@ const css = /* css */ `
   /* Like the affectUI library: gray page, the main area is a rounded panel on it */
   --page: var(--surface-1);
   --panel: var(--surface-2);
-  --radius-panel: 12px;
+  --radius-panel: calc(12px * var(--squircle-factor, 1));
   --frame-gap: 8px;
   --ui-as-rail-width: 64px;
   --line: var(--fluid-hairline);
@@ -1103,12 +1103,12 @@ const css = /* css */ `
 .ui-as .ui-tc__head { min-height: 40px; padding-top: 6px; padding-bottom: 6px; }
 /* Actions look the same in every card: 30px, radius 10, quiet = white with a hairline, primary = ink; never stretched */
 .ui-as .ui-ap__foot .ui-ap__actions { flex: 0 0 auto; margin-left: auto; }
-.ui-as .ui-ap__actions .ui-ap__btn { flex: none; padding: 0 12px; border-radius: 10px; }
+.ui-as .ui-ap__actions .ui-ap__btn { flex: none; padding: 0 12px; border-radius: calc(10px * var(--squircle-factor, 1)); }
 .ui-as .ui-ap__actions .ui-ap__btn--quiet { background: var(--card); box-shadow: var(--shadow-2); }
 .ui-as .ui-ap__actions .ui-ap__btn--quiet:hover { background: var(--subtle); }
-.ui-as .ui-df__head .ui-df__btn, .ui-as .ui-df__head .ui-df__icon { border-radius: 10px; }
+.ui-as .ui-df__head .ui-df__btn, .ui-as .ui-df__head .ui-df__icon { border-radius: calc(10px * var(--squircle-factor, 1)); }
 .ui-as .ui-ap__actions .ui-ap__btn--primary, .ui-as .ui-df__head .ui-df__btn--primary { background: var(--button); }
-.ui-as .ui-um__action { border-radius: 10px; }
+.ui-as .ui-um__action { border-radius: calc(10px * var(--squircle-factor, 1)); }
 /* …and the screens' lighter grays: trays and their hovers a step lighter than the components' own defaults */
 .ui-as .ui-ap { --ui-ap-tray: var(--tray); --ui-ap-hover: #ebebeb; }
 .ui-as .ui-pl { --ui-pl-tray: var(--tray); --ui-pl-quiet-hover: #ebebeb; --ui-pl-marker: var(--chip); }
@@ -1265,7 +1265,7 @@ const css = /* css */ `
   gap: 6px;
   height: 30px;
   padding: 0 6px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   font-size: var(--fs-subtitle);
   font-weight: 550; font-variation-settings: "opsz" 18;
   color: var(--ink);
@@ -1282,7 +1282,7 @@ const css = /* css */ `
   width: 18px;
   height: 18px;
   margin-right: 1px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--squircle-factor, 1));
   background: var(--logo-bg);
   box-shadow: var(--shadow-2);
 }
@@ -1294,7 +1294,7 @@ const css = /* css */ `
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   color: var(--muted);
   transition: background-color var(--motion-fast) var(--ease-fast), color var(--motion-fast) var(--ease-fast);
 }
@@ -1325,7 +1325,6 @@ const css = /* css */ `
   width: 100%;
   height: 32px;
   padding: 0 12px;
-  border-radius: 8px;
   font-size: var(--fs-body);
   color: var(--text);
   text-align: left;
@@ -1337,7 +1336,7 @@ const css = /* css */ `
    window), so its text carries it: the ink pushed toward the mode's extreme (brighter in dark, darker in light) and
    semibold, while every other row sits muted – halfway to the muted text – and comes up to ink under the pointer */
 /* A theme may set its own (--side-selected, e.g. T3 Chat's lighter step) */
-.ui-as-side__item > .ui-as-side__lit { position: absolute; z-index: 0; inset: 0; border-radius: 8px; background: var(--side-selected, color-mix(in oklab, var(--select) 55%, transparent)); }
+.ui-as-side__item > .ui-as-side__lit { position: absolute; z-index: 0; inset: 0; background: var(--side-selected, color-mix(in oklab, var(--select) 55%, transparent)); }
 .ui-as-side__item:not([data-lit]) { color: color-mix(in oklab, var(--text) 50%, var(--muted)); }
 .ui-as-side__item svg { flex: none; color: var(--muted); }
 /* A number in the icon's place: same box, small tabular figures */
@@ -1354,7 +1353,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-side__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ui-as-side__count { margin-left: auto; font-size: var(--fs-caption); color: var(--faint); font-variant-numeric: tabular-nums; }
 /* In the rail a count becomes a dot on the icon's corner */
-.ui-as-side__dot { position: absolute; top: 7px; left: 25px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: 0; scale: 0.3; transition: opacity var(--motion-fast) var(--ease-fast), scale var(--motion-fast) var(--ease-fast); }
+.ui-as-side__dot { position: absolute; top: 7px; left: 25px; width: 6px; height: 6px; border-radius: 50%; corner-shape: round; background: var(--accent); opacity: 0; scale: 0.3; transition: opacity var(--motion-fast) var(--ease-fast), scale var(--motion-fast) var(--ease-fast); }
 .ui-as-app[data-collapsed] .ui-as-side__dot { opacity: 1; scale: 1; transition: opacity var(--motion-moderate) var(--ease-moderate) 160ms, scale var(--motion-moderate) var(--ease-moderate) 160ms; }
 .ui-as-side__chevron { display: grid; flex: none; margin-left: auto; color: var(--faint); transition: rotate var(--motion-moderate) var(--ease-moderate), opacity var(--motion-slow) var(--ease-slow) 100ms; }
 .ui-as-side__chevron svg { color: currentColor; }
@@ -1365,7 +1364,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-side__chevron + .ui-as-side__state { margin-left: 4px; }
 .ui-as-side__item .ui-as-side__state svg { color: currentColor; }
 .ui-as-side__item .ui-as-side__state[data-state="done"] { color: var(--brand); }
-.ui-as-side__state[data-state="active"] > i { width: 9px; height: 9px; border: 2px solid var(--brand); border-radius: 50%; }
+.ui-as-side__state[data-state="active"] > i { width: 9px; height: 9px; border: 2px solid var(--brand); border-radius: 50%; corner-shape: round; }
 .ui-as-side__item[data-state="locked"]:not([data-lit]) { color: var(--faint); }
 .ui-as-side__item[data-state="locked"] .ui-as-side__marker { color: var(--faint); }
 .ui-as-side__item[data-state="locked"]:hover { background: none; color: var(--faint); }
@@ -1431,7 +1430,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   background: var(--surface-5);
   box-shadow: var(--shadow-4);
   color: var(--fluid-foreground);
@@ -1458,7 +1457,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   position: relative;
   z-index: 1;
   padding: 10px 10px 0;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--squircle-factor, 1));
   background: var(--card);
   box-shadow: var(--shadow-3);
 }
@@ -1486,7 +1485,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   width: 18px;
   height: 18px;
   margin: -2px -2px 0 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--squircle-factor, 1));
   color: var(--faint);
 }
 .ui-as-news__close:hover { background: var(--hover); color: var(--ink); }
@@ -1500,7 +1499,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   margin: 10px -10px 0;
   padding: 0 10px;
   border-top: 1px solid var(--line-soft);
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 calc(12px * var(--squircle-factor, 1)) calc(12px * var(--squircle-factor, 1));
   font-size: var(--fs-caption);
   color: var(--muted);
 }
@@ -1516,18 +1515,18 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   bottom: 0;
   left: 0;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--squircle-factor, 1));
   background: var(--card);
   box-shadow: var(--shadow-3);
   transition: height var(--motion-slow) var(--ease-slow), border-radius var(--motion-slow) var(--ease-slow), box-shadow var(--motion-moderate) var(--ease-moderate);
 }
 .ui-as-guide:not([data-open]):hover { box-shadow: var(--shadow-4); }
 .ui-as-guide--pinned { position: relative; flex: none; margin: 4px 0; }
-.ui-as-guide[data-open] { border-radius: 14px; box-shadow: var(--shadow-5); }
+.ui-as-guide[data-open] { border-radius: calc(14px * var(--squircle-factor, 1)); box-shadow: var(--shadow-5); }
 .ui-as-guide__content { animation: ui-as-guide-in var(--motion-slow) var(--ease-slow) both; }
 /* Closing: the guide fades out while the card shrinks back to the summary's height */
 .ui-as-guide[data-state="closing"] .ui-as-guide__content { animation: ui-as-guide-out var(--motion-moderate) var(--ease-moderate) both; }
-.ui-as-guide[data-state="closing"] { border-radius: 12px; box-shadow: var(--shadow-3); }
+.ui-as-guide[data-state="closing"] { border-radius: calc(12px * var(--squircle-factor, 1)); box-shadow: var(--shadow-3); }
 @keyframes ui-as-guide-out { to { opacity: 0; } }
 @keyframes ui-as-guide-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .ui-as-steps {
@@ -1557,7 +1556,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   height: 4px;
   margin-top: 6px;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: calc(2px * var(--squircle-factor, 1));
   background: var(--tray);
 }
 .ui-as-steps__bar i { display: block; min-width: 6px; height: 100%; border-radius: inherit; background: var(--accent); transition: width 600ms var(--ease); }
@@ -1574,13 +1573,13 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   /* The 20px avatar sits on the rail's center line */
   padding: 0 10px;
   white-space: nowrap;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   font-size: var(--fs-body);
   font-weight: 550; font-variation-settings: "opsz" 18;
   color: var(--ink);
 }
 /* The face a squircle, as every avatar */
-.ui-as-user img { flex: none; width: 20px; height: 20px; border-radius: 50%; corner-shape: squircle; object-fit: cover; box-shadow: var(--shadow-1); }
+.ui-as-user img { flex: none; width: 20px; height: 20px; border-radius: 50%; corner-shape: round; object-fit: cover; box-shadow: var(--shadow-1); }
 .ui-as-user svg { margin-left: auto; color: var(--faint); }
 .ui-as-user:hover { background: var(--hover); }
 
@@ -1654,7 +1653,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   top: 0;
   left: 0;
   height: 32px;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--squircle-factor, 1));
   background: var(--chip);
   transition: transform var(--motion-slow) var(--ease-slow), width var(--motion-slow) var(--ease-slow);
 }
@@ -1662,7 +1661,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   position: relative;
   height: 32px;
   padding: 0 10px;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--squircle-factor, 1));
   font-size: var(--fs-body);
   color: var(--muted);
   transition: background-color var(--motion-fast) var(--ease-fast), color var(--motion-fast) var(--ease-fast);
@@ -1678,7 +1677,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   gap: 6px;
   min-width: 32px;
   height: 32px;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--squircle-factor, 1));
   background: var(--card);
   box-shadow: var(--shadow-2);
   color: var(--text);
@@ -1694,14 +1693,14 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   gap: 2px;
   height: 32px;
   padding: 2px;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--squircle-factor, 1));
   background: var(--chip);
 }
 .ui-as-view__btn {
   display: grid;
   place-items: center;
   width: 30px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--squircle-factor, 1));
   color: var(--faint);
 }
 .ui-as-view__btn:hover { color: var(--ink); }
@@ -1714,7 +1713,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   bottom: 2px;
   left: 2px;
   width: 30px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--squircle-factor, 1));
   background: var(--card);
   box-shadow: var(--shadow-2);
   transition: transform var(--motion-slow) var(--ease-slow);
@@ -1727,7 +1726,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   gap: 7px;
   height: 32px;
   padding: 0 10px;
-  border-radius: 9px;
+  border-radius: calc(9px * var(--squircle-factor, 1));
   background: var(--card);
   box-shadow: var(--shadow-2);
   color: var(--faint);
@@ -1752,7 +1751,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   place-items: center;
   width: 18px;
   height: 18px;
-  border-radius: 50%;
+  border-radius: 50%; corner-shape: round;
   background: var(--chip);
   color: var(--muted);
   animation: ui-as-pop var(--motion-moderate) var(--ease-moderate);
@@ -1769,7 +1768,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: 999px; corner-shape: round;
   background: var(--ink);
   font-size: 11px;
   font-weight: 550; font-variation-settings: "opsz" 18;
@@ -1797,7 +1796,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-menu {
   min-width: 168px;
   padding: 4px;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--squircle-factor, 1));
   background: var(--card);
   box-shadow: var(--shadow-4);
 }
@@ -1810,7 +1809,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   width: 100%;
   min-height: 32px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--squircle-factor, 1));
   font-size: var(--fs-body);
   color: var(--text);
   text-align: left;
@@ -1838,7 +1837,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   gap: 8px;
   height: 36px;
   padding: 0 14px 0 12px;
-  border-radius: 999px;
+  border-radius: 999px; corner-shape: round;
   background: var(--ink);
   font-size: var(--fs-body);
   color: var(--on-ink);
@@ -1870,7 +1869,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   margin-top: 16px;
   padding: 48px 24px 52px;
   border: 1px dashed var(--line-strong);
-  border-radius: 14px;
+  border-radius: calc(14px * var(--squircle-factor, 1));
   text-align: center;
 }
 .ui-as-empty[data-tall] { padding: 48px 24px 48px; }
@@ -1879,7 +1878,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   place-items: center;
   width: 42px;
   height: 42px;
-  border-radius: 11px;
+  border-radius: calc(11px * var(--squircle-factor, 1));
   background: var(--chip);
   color: var(--muted);
 }
@@ -1907,7 +1906,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 :is(.ui-as-folder-card, .ui-as-folder-head):hover .ui-fd-doc--middle { transform: translate(166px, 52px) rotate(-7deg); }
 :is(.ui-as-folder-card, .ui-as-folder-head):hover .ui-fd-front {
   top: 24.8%;
-  border-radius: 3cqw 3cqw 6.333cqw 6.333cqw;
+  border-radius: calc(3cqw * var(--squircle-factor, 1)) calc(3cqw * var(--squircle-factor, 1)) calc(6.333cqw * var(--squircle-factor, 1)) calc(6.333cqw * var(--squircle-factor, 1));
   transform: translateZ(2.33cqw) rotateX(-9deg);
 }
 
@@ -1921,7 +1920,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   display: block;
   height: 158px;
   padding: 7px;
-  border-radius: 14px;
+  border-radius: calc(14px * var(--squircle-factor, 1));
   background: var(--card);
   box-shadow: var(--shadow-3);
   transition: box-shadow var(--motion-fast) var(--ease-fast);
@@ -1941,7 +1940,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   align-items: center;
   justify-content: center;
   height: 100%;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--squircle-factor, 1));
   background: var(--card);
 }
 .ui-as-doc[data-color="rose"] {
@@ -1964,7 +1963,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-doc__back {
   position: absolute;
   inset: 0;
-  border-radius: 11px;
+  border-radius: calc(11px * var(--squircle-factor, 1));
   background: var(--doc-back);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 18px -8px rgba(var(--doc-shade), 0.45);
   transform: translate(10px, -4px) rotate(8deg);
@@ -1979,26 +1978,26 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   flex-direction: column;
   gap: 5px;
   padding: 13px 11px;
-  border-radius: 11px;
+  border-radius: calc(11px * var(--squircle-factor, 1));
   background: linear-gradient(180deg, var(--doc-page, #fff) 0%, var(--doc-paper) 100%);
   box-shadow: var(--shadow-2);
   transform: rotate(-3deg);
   transition: transform var(--motion-slow) var(--ease-slow);
 }
-.ui-as-doc__title { display: block; width: 58%; height: 5px; margin-bottom: 3px; border-radius: 3px; background: var(--doc-ink-strong, rgba(0, 0, 0, 0.2)); }
-.ui-as-doc__line { display: block; height: 4px; border-radius: 2px; background: var(--doc-ink, rgba(0, 0, 0, 0.1)); }
+.ui-as-doc__title { display: block; width: 58%; height: 5px; margin-bottom: 3px; border-radius: calc(3px * var(--squircle-factor, 1)); background: var(--doc-ink-strong, rgba(0, 0, 0, 0.2)); }
+.ui-as-doc__line { display: block; height: 4px; border-radius: calc(2px * var(--squircle-factor, 1)); background: var(--doc-ink, rgba(0, 0, 0, 0.1)); }
 .ui-as-doc__image {
   display: block;
   height: 26px;
   margin-bottom: 2px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--squircle-factor, 1));
   background: linear-gradient(160deg, var(--doc-glass-1), var(--doc-glass-2));
   opacity: 0.55;
 }
 
 /* Spreadsheet: a 3 × 6 grid with a darker header row */
 .ui-as-sheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
-.ui-as-sheet i { height: 8px; border-radius: 2px; background: var(--doc-cell, rgba(0, 0, 0, 0.07)); }
+.ui-as-sheet i { height: 8px; border-radius: calc(2px * var(--squircle-factor, 1)); background: var(--doc-cell, rgba(0, 0, 0, 0.07)); }
 .ui-as-sheet i:nth-child(-n + 3) { background: rgba(var(--doc-shade), 0.35); }
 
 /* Small frosted glass tag at the lower right corner, the same recipe as the folder's front pocket */
@@ -2008,7 +2007,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   bottom: 10px;
   z-index: 2;
   padding: 3px 6px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--squircle-factor, 1));
   background:
     linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, rgba(var(--doc-shade), 0.25) 100%),
     linear-gradient(180deg, var(--doc-glass-1), var(--doc-glass-2));
@@ -2037,8 +2036,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   place-items: center;
   width: 20px;
   height: 20px;
-  border-radius: 50%;
-  corner-shape: squircle;
+  border-radius: 50%; corner-shape: round;
   background: var(--accent-soft);
   font-size: 9.5px;
   font-weight: 550; font-variation-settings: "opsz" 18;
@@ -2078,7 +2076,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
     width: min(264px, calc(100% - 56px));
     /* No top padding: the head's own frame-gap margin puts it on the window's toolbar line */
     padding: 0 10px 10px 12px;
-    border-radius: 0 18px 18px 0;
+    border-radius: 0 calc(18px * var(--squircle-factor, 1)) calc(18px * var(--squircle-factor, 1)) 0;
     background: var(--ui-page-fill, var(--page));
     box-shadow: var(--shadow-6);
   }
@@ -2115,7 +2113,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
     flex-direction: column;
     width: min(400px, calc(100% - 56px));
     overflow: hidden;
-    border-radius: 18px 0 0 18px;
+    border-radius: calc(18px * var(--squircle-factor, 1)) 0 0 calc(18px * var(--squircle-factor, 1));
     background: var(--panel);
     box-shadow: var(--shadow-6);
     visibility: hidden;
@@ -2149,7 +2147,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 
 @container ui-as (max-width: 600px) {
   .ui-as-app > * { --frame-gap: 6px; }
-  .ui-as-app > .ui-as-main { border-radius: 10px; }
+  .ui-as-app > .ui-as-main { border-radius: calc(10px * var(--squircle-factor, 1)); }
   .ui-as-page { padding: 52px 16px 40px; }
   .ui-as-page-title { font-size: 20px; line-height: 26px; }
   .ui-as-section-head { margin-top: 32px; }
