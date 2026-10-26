@@ -36,7 +36,8 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter dojofoo test:package
 
-      - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0; CLI v2
+      - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        id: changesets
         with:
           publish: pnpm release
           version: pnpm run version
@@ -47,6 +48,7 @@ jobs:
           NPM_CONFIG_PROVENANCE: "true"
 
       - name: Verify published CLI
+        if: steps.changesets.outputs.published == 'true'
         run: |
           release_version=$(node -p 'require("./packages/cli/package.json").version')
           npm exec --yes --package="dojofoo@$release_version" -- dojofoo --help
