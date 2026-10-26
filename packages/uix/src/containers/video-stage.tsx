@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } f
 import { createPortal } from "react-dom";
 import { Ambient } from "~/components/ambient";
 import { VideoCn } from "~/components/video-player/video-cn";
+import { useContentPreferences } from "~/lib/content-preferences";
 
 /*
  * Video Stage – a lesson video in the 16:9 stage, where the editor otherwise sits, flush to its corners. Files and
@@ -113,7 +114,10 @@ function glowLayers(node: HTMLElement) {
   return layers;
 }
 
-export function VideoStage({ src, title, cues = NO_CUES, onCue }: { src: string; title: string; cues?: readonly VideoCue[]; onCue?: (event: VideoCueEvent) => void }) {
+export function VideoStage({ src, title, cues = NO_CUES, onCue, onNext }: { src: string; title: string; cues?: readonly VideoCue[]; onCue?: (event: VideoCueEvent) => void; onNext?: () => void }) {
+  const { video: preferences } = useContentPreferences();
+  const resume = useRef(preferences.resume);
+  resume.current = preferences.resume;
   const stage = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [placements, setPlacements] = useState<Placement[]>([]);
@@ -127,6 +131,65 @@ export function VideoStage({ src, title, cues = NO_CUES, onCue }: { src: string;
     setMedia(node);
   }, []);
   const { offer, skip } = useVideoCues(media, cues, onCue);
+
+  useEffect(() => {
+    if (!media) return;
+    const apply = () => { media.playbackRate = preferences.speed; };
+    apply();
+    media.addEventListener("loadedmetadata", apply);
+    return () => media.removeEventListener("loadedmetadata", apply);
+  }, [media, preferences.speed]);
+  useEffect(() => {
+    if (!media?.textTracks) return;
+    const tracks = media.textTracks;
+    const apply = () => {
+      let shown = false;
+      for (const track of Array.from(tracks)) {
+        if (track.kind !== "captions" && track.kind !== "subtitles") continue;
+        track.mode = preferences.captions && !shown ? "showing" : "disabled";
+        shown ||= track.mode === "showing";
+      }
+    };
+    apply();
+    tracks.addEventListener("addtrack", apply);
+    return () => tracks.removeEventListener("addtrack", apply);
+  }, [media, preferences.captions]);
+  useEffect(() => {
+    if (!media) return;
+    const key = `uix:video-position:${src}`;
+    const restore = () => {
+      if (!resume.current) return;
+      try {
+        const time = Number(localStorage.getItem(key));
+        if (Number.isFinite(time) && time > 0 && Number.isFinite(media.duration) && time < media.duration - 1) media.currentTime = time;
+      } catch { /* Playback still works with blocked storage. */ }
+    };
+    let lastSaved = -1;
+    const save = () => {
+      if (!resume.current) return;
+      const time = Math.floor(media.currentTime);
+      if (!Number.isFinite(time) || time <= 0 || time === lastSaved) return;
+      lastSaved = time;
+      try { localStorage.setItem(key, String(time)); } catch { /* Keep playing when storage is full. */ }
+    };
+    const ended = () => { try { localStorage.removeItem(key); } catch { /* No stored position to clear. */ } };
+    if (media.readyState >= 1) restore();
+    media.addEventListener("loadedmetadata", restore);
+    media.addEventListener("timeupdate", save);
+    media.addEventListener("pause", save);
+    media.addEventListener("ended", ended);
+    return () => {
+      media.removeEventListener("loadedmetadata", restore);
+      media.removeEventListener("timeupdate", save);
+      media.removeEventListener("pause", save);
+      media.removeEventListener("ended", ended);
+    };
+  }, [media, src]);
+  useEffect(() => {
+    if (!media || !preferences.autoplay || !onNext) return;
+    media.addEventListener("ended", onNext);
+    return () => media.removeEventListener("ended", onNext);
+  }, [media, preferences.autoplay, onNext]);
 
   // Follow the stage's place in each layer, so the light stays lined up as columns resize or the rail folds
   useLayoutEffect(() => {
@@ -164,9 +227,8 @@ export function VideoStage({ src, title, cues = NO_CUES, onCue }: { src: string;
             ref={attachMedia}
             src={src}
             title={title}
-            autoPlay
-            // A video with cues plays through once – its end means something
-            loop={cues.length === 0}
+            autoPlay={preferences.autoplay}
+            loop={false}
             defaultMuted
             className="flex h-full items-center rounded-none border-0"
           />

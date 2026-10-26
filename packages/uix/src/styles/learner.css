@@ -4,7 +4,7 @@
 .lj-page__head .ui-ob-sub { max-width: 34rem; font-size: 15px; line-height: 1.55; text-wrap: pretty; }
 .lj-browse { margin-top: 56px; }
 /* A section's big title, as Browse courses sets it */
-.lj-heading { margin: 0 0 16px; }
+.lj-page .lj-heading { margin: 0 0 32px; }
 .lj-browse .ui-ob-step__text { max-width: 36rem; text-wrap: pretty; }
 @container ui-as-main (max-width: 620px) { .lj-page { padding: 40px 20px 48px; } }
 .lj-section { margin: 0 0 14px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
@@ -23,33 +23,33 @@ button.lj-tile:hover .lj-box { box-shadow: var(--shadow-4); }
 .lj-box--new { box-shadow: none; background: none; outline: 1px dashed var(--line); outline-offset: -1px; color: var(--muted); }
 button.lj-tile:hover .lj-box--new { background: var(--hover); color: var(--ink); }
 
-/* Top courses: the line – rank on its plaque, rating, counts, install – over one box holding the card and the quotes */
+/* Featured course and quotes sit directly on the window, without a surrounding card. */
 .lj-top { display: grid; gap: 20px; margin: 0; padding: 0; list-style: none; }
-.lj-top__box { display: grid; grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr); gap: 28px; padding: 20px; background: var(--surface-3); box-shadow: var(--shadow-3); }
+.lj-top__item { display: grid; grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr); gap: 28px; }
 /* Beside the card: the quote fills its height – its speaker on the card's bottom line – and the numbers and install sit
    on the quote mark's line, at the right */
 .lj-top__side { position: relative; min-width: 0; }
 .lj-top__line { position: absolute; z-index: 1; top: 0; right: 0; display: flex; align-items: center; gap: 16px; }
 .lj-top__counts { display: inline-flex; gap: 16px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .lj-top__counts > span { display: inline-flex; align-items: center; gap: 6px; }
-.lj-top__box .lj-top__voice { height: 100%; justify-content: space-between; }
+.lj-top__item .lj-top__voice { height: 100%; justify-content: space-between; }
 /* The quote and its mark, together, take the room above the speaker and sit centered in it – three lines at most; the
    card's height still sets the box */
 .lj-top__voice > div:first-child { flex: 1; align-content: center; padding-top: 16px; }
 /* Each quote right under the mark (their shared cell is as tall as the longest), and 16px over the group as under it */
 .lj-top__voice blockquote { align-self: start; }
-.lj-top__box .lj-top__voice { gap: 16px; }
+.lj-top__item .lj-top__voice { gap: 16px; }
 .lj-top__voice blockquote p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; font-size: 18px; }
 .lj-installed { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; background: var(--fluid-hover); color: var(--ink); font-size: 12.5px; font-weight: 550; }
 .lj-top__rating { display: inline-flex; align-items: center; gap: 8px; margin-left: 10px; color: var(--ink); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .lj-top__rating b { font-weight: 600; }
-/* The quotes sit flat in the box: the box is their card (their own ring is a custom shadow the class merge can't drop) */
-.lj-top__box .lj-top__voice { box-shadow: none; }
+/* The quotes sit flat on the window; their custom ring is removed as well. */
+.lj-top__item .lj-top__voice { box-shadow: none; }
 /* No highlighter: its strokes stay hidden, the quote reads plain */
 .lj-top__voice blockquote p > svg { display: none; }
 @container ui-as-main (max-width: 640px) {
-  .lj-top__box { grid-template-columns: minmax(0, 1fr); }
-  .lj-top__box .ui-card { max-width: 14rem; }
+  .lj-top__item { grid-template-columns: minmax(0, 1fr); }
+  .lj-top__item .ui-card { max-width: 14rem; }
   .lj-top__line { position: static; margin-bottom: 12px; }
 }
 /* Five stars as one mask, filled in the brand's color up to the rating */

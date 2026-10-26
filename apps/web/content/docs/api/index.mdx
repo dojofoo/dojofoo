@@ -1,0 +1,40 @@
+---
+title: API
+description: Read the course catalog and its progress numbers, and record lifecycle events.
+---
+
+```text
+https://dojo.foo/api/v1
+```
+
+The API is public: there's no key to send. Read routes are cached and follow the
+[skills.sh API](https://www.skills.sh/docs/api), with `skills` renamed to `courses`.
+
+[OpenAPI document](/api/v1/openapi/json) · [API explorer](/api/v1/openapi)
+
+## Collections
+
+- [Courses](/docs/api/list-courses): the catalog, search, each course's files and its learning metrics.
+- [Events](/docs/api/record-course-event): what the CLI records as you install and work through a course. See [Privacy](/docs/privacy) for what each event holds.
+- [Health](/docs/api/get-health): whether the API is up.
+
+## Errors
+
+An error has an HTTP status and a JSON body with a code and a message:
+
+```json
+{ "error": "course_not_found", "message": "Course not found." }
+```
+
+## Pagination
+
+`GET /courses` takes `page`, from `0`, and `per_page`, `1`–`500` (default `100`). The response's
+`pagination` holds `page`, `perPage`, `total` and `hasMore`.
+
+## Listing a course
+
+The first `installed` event for a public GitHub course sends its source along. The API then
+fetches the course's manifest from GitHub, validates it and runs Dojo's security checks, unless
+the manifest sets `private: true`. The course starts in trial: its own routes answer, but it's
+left out of the listings until it's enabled. Its checks are at
+[`GET /courses/audit/{source}/{slug}`](/docs/api/get-course-audit).

@@ -76,6 +76,7 @@ export const Upload04Icon = UploadIcon;
 export const ArrowLeft02Icon = glyph(Huge.ArrowLeft02Icon, Iconoir.ArrowLeft, Mingcute.ArrowLeftRegular, "alt-arrow-left", "chevron-left");
 export const ChatEdit01Icon = glyph(Huge.ChatEdit01Icon, Iconoir.ChatLines, Mingcute.EditRegular, "pen", "edit");
 export const Copy01Icon = glyph(Huge.Copy01Icon, Iconoir.Copy, Mingcute.CopyRegular, "document-text", "document");
+export const CopyrightIcon = glyph(Huge.CopyrightIcon, Iconoir.Copyright, Mingcute.CopyrightRegular, "copyright", "copyright");
 export const CreditCardIcon = glyph(Huge.CreditCardIcon, Iconoir.CreditCard, Mingcute.BankCardRegular, "wallet-money", "money");
 export const CustomerSupportIcon = glyph(Huge.CustomerSupportIcon, Iconoir.Headset, Mingcute.HeadphoneRegular, "question-circle", "question-circle");
 export const Download04Icon = glyph(Huge.Download04Icon, Iconoir.Download, Mingcute.DownloadRegular, "file", "document");

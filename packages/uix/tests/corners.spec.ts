@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 for (const theme of ["dark", "light"]) {
   test(`tool call running and failure controls keep the same shape in ${theme}`, async ({ page }) => {
     for (const status of ["running", "error"]) {
-      await page.goto(`/iframe.html?id=components-tool-call-card--default&viewMode=story&globals=theme:${theme}&args=status:${status}`);
+      await page.goto(`/iframe.html?id=components-organisms-tool-call-card--default&viewMode=story&globals=theme:${theme}&args=status:${status}`);
       const head = page.locator(".ui-tc__head");
       await head.click();
       await expect(head).toHaveAttribute("aria-expanded", "true");
@@ -17,7 +17,7 @@ for (const theme of ["dark", "light"]) {
   });
 
   test(`tool call hover, focus and expanded edges remain squircles in ${theme}`, async ({ page }) => {
-    await page.goto(`/iframe.html?id=components-tool-call-card--default&viewMode=story&globals=theme:${theme}`);
+    await page.goto(`/iframe.html?id=components-organisms-tool-call-card--default&viewMode=story&globals=theme:${theme}`);
     const head = page.locator(".ui-tc__head");
     await expect(head).toBeVisible();
     await head.hover();

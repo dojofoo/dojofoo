@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { animate, motion, useMotionTemplate, useMotionValue } from "motion/react";
-import { useReducedMotion } from "~/hooks/use-reduced-motion";
-import { cn } from "~/lib/utils";
+import { useReducedMotion } from "../hooks/use-reduced-motion";
+import { cn } from "../lib/utils";
 
 // The pill travels like an inchworm: the edge facing the move leaves first
 // and lands first, the trailing edge follows on a softer spring and settles
@@ -103,6 +103,7 @@ export function SegmentedControl({
   }, [value, reduceMotion, top, right, bottom, left]);
 
   const select = (next: string, fromKeyboard: boolean) => {
+    if (next === value) return;
     mode.current = fromKeyboard ? "key" : "click";
     onChange(next);
   };

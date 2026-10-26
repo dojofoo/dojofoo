@@ -1,3 +1,4 @@
+import { fadeViewTransition } from "~/lib/view-transition";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CodeEditor, Editor, EditorStatus, EditorTabs, type EditorLanguage } from "~/containers/editor";
 import { BrandLogo } from "~/components/brand-logo";
@@ -156,7 +157,7 @@ const videoCues = (src: string): VideoCue[] => src === sampleYoutube
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 /** How a cue reads where the agent hears about it */
 const cueSummary = ({ cue, time }: VideoCueEvent) => cue.kind === "skip" ? `Skipped ${cue.label} · ${clock(cue.from)}–${clock(cue.to)}` : `${cue.kind === "done" ? cue.label ?? "Watched" : cue.label} · ${clock(time)}`;
-export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Everyday TypeScript", question = false, settings = false, evals = false, video = sampleVideo }: { mode?: "Authoring" | "Evaluation" | "Trial"; initialCourse?: string; question?: boolean; settings?: boolean; evals?: boolean; video?: string }) {
+export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Everyday TypeScript", question = false, settings = false, evals = false, video = sampleVideo, documentationUrl }: { mode?: "Authoring" | "Evaluation" | "Trial"; initialCourse?: string; question?: boolean; settings?: boolean; evals?: boolean; video?: string; documentationUrl?: string }) {
   const [courses, setCourses] = useState(() => {
     const selected = initialCourses.find(course => course.name === initialCourse) ?? initialCourses[0];
     return [selected, ...initialCourses.filter(course => course !== selected)];
@@ -199,8 +200,8 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
   const course = courses.find(item => item.name === page) ?? courses.find(holds) ?? courses[0];
   const lesson = page ? undefined : course.lessons.find(item => item.files.some(entry => entry.path === file));
   // Where you are: the course, then the open lesson. The mode needs no crumb; the sidebar shows it
-  const openCourse = (target: AuthoringDraft) => setPage(target.name);
-  const openFile = (path: string) => { setPage(null); setFile(path); };
+  const openCourse = (target: AuthoringDraft) => fadeViewTransition(() => setPage(target.name));
+  const openFile = (path: string) => fadeViewTransition(() => { setPage(null); setFile(path); });
   const addLesson = () => {
     const base = course.rootFiles[0].path.replace(/dojo\.yaml$/, "");
     const next = { ...lessons[1], id: `${base}003-new-lesson`, title: "New lesson", files: [{ path: `${base}src/003-new-lesson/SENSEI.md`, label: "SENSEI.md", content: "# New lesson\n" }] };
@@ -210,7 +211,7 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
   const chapter = lesson?.title;
   const language: EditorLanguage = file.endsWith(".md") ? "markdown" : file.endsWith(".yaml") ? "yaml" : "typescript";
   return <div className="h-dvh w-full overflow-hidden">
-    <AgentChatWorkspace key={`${settings}:${evals}`} defaultSettingsOpen={settings} defaultEvalsOpen={evals} evals={view === "Trial" ? undefined : <EvalsPanel />} workspace={course.name} user={{ name: "You" }} active={[view, `course:${course.name}`, ...(page ? [] : [`file:${file}`])]} showOnboarding showNews={false} sidebarWidth="18rem"
+    <AgentChatWorkspace contentKind={page ? course === courses[0] ? "video" : "material" : "code"} key={`${settings}:${evals}`} defaultSettingsOpen={settings} defaultEvalsOpen={evals} evals={view === "Trial" ? undefined : <EvalsPanel />} workspace={course.name} user={{ name: "You" }} active={[view, `course:${course.name}`, ...(page ? [] : [`file:${file}`])]} showOnboarding showNews={false} sidebarWidth="18rem"
       brand={<a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={event => event.preventDefault()}><BrandLogo className="w-11" /></a>}
       navigation={[
         { id: "views", layout: "views", items: [
@@ -242,8 +243,8 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
       ]}
       onCommand={(id, query) => {
         if (id.startsWith("open:")) openFile(id.slice(5));
-        else if (id === "evaluate") setView("Evaluation");
-        else if (id === "trial") setView("Trial");
+        else if (id === "evaluate") fadeViewTransition(() => setView("Evaluation"));
+        else if (id === "trial") fadeViewTransition(() => setView("Trial"));
         else if (id === "ask" && query) setQueue(items => [...items, { id: crypto.randomUUID(), text: query }]);
       }}
       crumbs={chapter ? [{ label: course.name, onClick: () => openCourse(course) }, { label: chapter }] : [{ label: course.name }]}
@@ -253,7 +254,7 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
           onSelect={setFile} onClose={editor.close} onMove={editor.move} />}
         status={lesson && file === lesson.templatePath ? <EditorStatus passed={lessonRuns[lesson.id] ?? 0} total={checkNames(lesson).length} /> : undefined}>
         {view === "Evaluation" ? <div className="h-full overflow-auto p-6 text-sm"><h2 className="mb-3 font-semibold">Teaching review</h2><p>This is a layout preview. No models or paid evaluations are called.</p><ul className="mt-4 list-inside list-disc"><li>Clear opening and achievable first step</li><li>Help changes when the learner gets stuck</li><li>No solution revealed</li></ul></div>
-          : current ? <CodeEditor code={editor.draft} filePath={file} language={language} lessonApiBase="" readOnly={view === "Trial" && !file.endsWith("kata.ts")} coverage={false} onChange={editor.setDraft} onSave={saveFile} />
+          : current ? <CodeEditor code={editor.draft} filePath={file} language={language} lessonApiBase="" documentationUrl={documentationUrl} readOnly={view === "Trial" && !file.endsWith("kata.ts")} coverage={false} onChange={editor.setDraft} onSave={saveFile} />
           : <p className="p-6 text-sm">Open a file from the sidebar.</p>}
       </Editor>}
       header={<span className="ui-as-chat__route ui-as-chat__speaker">

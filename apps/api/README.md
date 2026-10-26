@@ -1,0 +1,13 @@
+The Course API runs on Elysia. Route schemas and descriptions in `src/api-schema.ts`
+power the live OpenAPI document at `/api/v1/openapi/json` and the Scalar explorer at
+`/api/v1/openapi`.
+
+Run `pnpm --filter @dojofoo/api openapi:generate` after changing a documented route.
+It writes the spec and endpoint MDX pages to `apps/web/content/docs/api`. The website
+build runs this step automatically. `openapi:check` verifies the checked-in spec and
+pages; the API test suite also checks that its live spec matches the generated file.
+
+The website uses `fumadocs-openapi` to generate operation MDX and prepare the Elysia
+document. UIX Storybook consumes that same prepared document and native Fumadocs
+renderer, including its playground, schema controls, and generated examples.
+Examples sit beside the endpoint on wide screens and below it on smaller screens.

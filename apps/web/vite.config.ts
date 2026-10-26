@@ -30,6 +30,7 @@ export default defineConfig({
   },
   resolve: {
     tsconfigPaths: true,
+    alias: { 'shiki/core': 'shiki/dist/core.mjs' },
   },
   plugins: [
     monacoAssets(),

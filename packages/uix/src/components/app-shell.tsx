@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode, type CSSProperties } from "react";
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { Tooltip } from "radix-ui";
 import { spring } from "~/lib/springs";
+import { fadeViewTransition, paneViewTransition } from "~/lib/view-transition";
+import { ResizablePanel, ResizablePanels } from "./arc/resizable-panels/resizable-panels";
+import { Avatar } from "./arc/avatar/avatar";
+import { SegmentedControl } from "./segmented-control";
+import { setPageMode, usePageMode } from "~/lib/ui-preferences";
 import type { IconGlyph } from "~/lib/icons";
 import {
   ArrowDown01Icon,
@@ -117,7 +122,7 @@ export type AppShellProps = {
   /** Called with the label of a menu item or project when it is clicked */
   onNavigate?: (label: string) => void;
   workspace?: string;
-  user?: { name: string; avatar?: string };
+  user?: { name: string; avatar?: string; /** Under the name in the account menu */ email?: string };
   nav?: ShellNavItem[];
   projects?: string[];
   /** Lists under the menu instead of Projects, e.g. Tools or Pipelines */
@@ -146,10 +151,12 @@ export type AppShellProps = {
   showNews?: boolean;
   /** A column right of the main panel, on the page surface instead of inside the panel */
   aside?: ReactNode;
-  /** Track sizes of the main panel and the aside, e.g. "1.618fr 1fr" */
+  /** Initial track sizes of the main panel and the aside, e.g. "1.618fr 1fr" */
   asideColumns?: string;
-  /** The main panel widens over the aside, e.g. while a settings panel is open in it */
+  /** Show the drawer in the desktop aside, joining it visually to the main window. */
   asideCovered?: boolean;
+  /** Hide the desktop aside while retaining its resized width and mounted conversation. */
+  asideHidden?: boolean;
   /** Narrow only: the aside is in view – it slides in from the right and pushes the main panel left */
   asideOpen?: boolean;
   /** Narrow only: asks to put the aside away, e.g. after a tap on the panel it pushed aside */
@@ -266,6 +273,7 @@ export function AppShell({
   aside,
   asideColumns = "minmax(0, 1fr) minmax(20rem, 26rem)",
   asideCovered = false,
+  asideHidden = false,
   asideOpen = false,
   onAsideOpenChange,
   drawer: endDrawer,
@@ -278,13 +286,34 @@ export function AppShell({
   // Narrow (tablet, phone): the sidebar waits off screen and slides in as a drawer over the main area
   const root = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
+  const [initialLayout, setInitialLayout] = useState<number[]>();
   const [drawer, setDrawer] = useState(false);
-  const endOpen = Boolean(endDrawer) && endDrawerOpen;
+  const [AccountPage, setAccountPage] = useState<typeof import("./settings-billing").SettingsContent>();
+  const accountOpen = Boolean(AccountPage);
+  const settingsRequest = useRef(0);
+  const rightSettings = asideCovered && !accountOpen;
+  const endOpen = Boolean(endDrawer) && endDrawerOpen && !accountOpen;
+  const closeAccount = () => fadeViewTransition(() => setAccountPage(undefined));
+  const openAccount = async () => {
+    const request = ++settingsRequest.current;
+    const { SettingsContent } = await import("./settings-billing");
+    if (request !== settingsRequest.current) return;
+    fadeViewTransition(() => {
+      setDrawer(false);
+      onAsideOpenChange?.(false);
+      setAccountPage(() => SettingsContent);
+      requestAnimationFrame(() => root.current?.querySelector<HTMLElement>(".ui-as-account-page h1")?.focus({ preventScroll: true }));
+    });
+  };
   useLayoutEffect(() => {
     const el = root.current;
     if (!el) return;
     // Same width as the @container ui-as (max-width: 900px) rules below – measured in layout pixels, so a scaled preview stays wide
-    const measure = () => setNarrow(el.offsetWidth <= NARROW);
+    const measure = () => {
+      setNarrow(el.offsetWidth <= NARROW);
+      const columns = getComputedStyle(el).gridTemplateColumns.split(" ").map(parseFloat);
+      setInitialLayout(current => current ?? columns);
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -313,8 +342,10 @@ export function AppShell({
   const toggleGroup = (id: string) => {
     // The rail has no room to open a group, so the sidebar widens to show it
     if (rail) {
-      setCollapsed(false);
-      setOpenGroups((current) => ({ ...current, [id]: true }));
+      paneViewTransition(() => {
+        setCollapsed(false);
+        setOpenGroups((current) => ({ ...current, [id]: true }));
+      });
       return;
     }
     setOpenGroups((current) => ({ ...current, [id]: !current[id] }));
@@ -326,15 +357,21 @@ export function AppShell({
       const target = event.target as HTMLElement | null;
       if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.closest(".monaco-editor"))) return;
       event.preventDefault();
-      if (narrow) setDrawer((open) => !open);
-      else setCollapsed((value) => !value);
+      paneViewTransition(() => {
+        if (narrow) setDrawer((open) => !open);
+        else setCollapsed((value) => !value);
+      });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [narrow]);
   const go = (label: string) => {
-    setDrawer(false);
-    onNavigate?.(label);
+    settingsRequest.current += 1;
+    fadeViewTransition(() => {
+      setDrawer(false);
+      setAccountPage(undefined);
+      onNavigate?.(label);
+    });
   };
   // closed → open → closing → closed: while closing the guide stays, fades and the card shrinks, then the summary returns
   const [guide, setGuide] = useState<"closed" | "open" | "closing">("closed");
@@ -380,7 +417,7 @@ export function AppShell({
   // Escape closes the drawer – unless the setup guide is open, then it closes the guide first
   useEffect(() => {
     if (!drawer || guide !== "closed") return;
-    const key = (e: KeyboardEvent) => e.key === "Escape" && setDrawer(false);
+    const key = (e: KeyboardEvent) => e.key === "Escape" && paneViewTransition(() => setDrawer(false));
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
   }, [drawer, guide]);
@@ -392,7 +429,6 @@ export function AppShell({
   }, [setupDone]);
   const total = setup.reduce((n, g) => n + g.tasks.length, 0);
   const pct = total ? Math.round((done.length / total) * 100) : 0;
-  const initials = user.name.split(" ").map((w) => w[0]).slice(0, 2).join("");
   // Getting started's summary, folded
   const guideSummary = <>
     <span className="ui-as-steps__title">
@@ -407,37 +443,7 @@ export function AppShell({
     </span>
   </>;
 
-  return (
-    <Tooltip.Provider delayDuration={250} skipDelayDuration={300}>
-    <div
-      ref={root}
-      className={["ui-as", "ui-as-app", className].filter(Boolean).join(" ")}
-      style={{ "--ui-as-sidebar-width": sidebarWidth, "--ui-as-aside-columns": asideColumns } as CSSProperties}
-      data-aside={aside ? "" : undefined}
-      // Narrow, the aside is a sheet beside the panel rather than a column, so nothing covers it
-      data-aside-covered={aside && asideCovered && !narrow ? "" : undefined}
-      data-aside-open={aside && narrow && asideOpen ? "" : undefined}
-      data-narrow={narrow || undefined}
-      data-collapsed={rail || undefined}
-      data-drawer={(narrow && drawer) || undefined}
-      data-end-drawer={(narrow && endOpen) || undefined}
-    >
-      <style href="ui-app-shell" precedence="default">
-        {css}
-      </style>
-      {/* With the sidebar hidden, the same icon sits in the top left corner of the main area to bring it back */}
-      <button
-        className="ui-as-icon-btn ui-as-side-open"
-        type="button"
-        aria-label="Open sidebar"
-        tabIndex={sideHidden ? 0 : -1}
-        onClick={() => (narrow ? setDrawer(true) : setCollapsed(false))}
-      >
-        <Icon icon={SidebarLeftIcon} size={16} />
-      </button>
-      {/* Narrow only: dims the main area behind the open drawer; a tap closes it */}
-      <div className="ui-as-scrim" aria-hidden="true" onClick={() => { setDrawer(false); onDrawerOpenChange?.(false); }} />
-      <aside className="ui-as-side" inert={sideHidden}>
+  const sidebarPane = <aside className="ui-as-side" inert={sideHidden}>
         <header className="ui-as-side__head">
           <span className="ui-as-side__brand" data-logo={brand ? "" : undefined}>{brand ?? <Dropdown
             title="Workspaces"
@@ -464,7 +470,7 @@ export function AppShell({
               aria-label={narrow ? "Close sidebar" : rail ? "Expand sidebar" : "Collapse sidebar"}
               aria-expanded={narrow ? undefined : !rail}
               aria-keyshortcuts="["
-              onClick={() => (narrow ? setDrawer(false) : setCollapsed((value) => !value))}
+              onClick={() => paneViewTransition(() => (narrow ? setDrawer(false) : setCollapsed((value) => !value)))}
             >
               <Icon icon={SidebarLeftIcon} size={16} />
             </button>
@@ -473,11 +479,8 @@ export function AppShell({
 
         <LayoutGroup id={baseId}>
         <nav className="ui-as-side__nav scroll-fade" aria-label="Main menu">
-          {/* Screens that name their menu also swipe it in when they open – entering a course is a screen of its own */}
-          <AnimatePresence mode="wait" initial={navigationKey !== "menu"}>
-          <motion.div key={navigationKey} className="ui-as-side__menu"
-            initial={reduce ? false : { x: -24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={reduce ? undefined : { x: 24, opacity: 0 }}
-            transition={reduce ? { duration: 0 } : spring.moderate}>
+          {/* Page changes use the native fade; individual rows keep their own selection feedback. */}
+          <div key={navigationKey} className="ui-as-side__menu">
           {sections.map((section, index) => {
             const headingId = `${baseId}-${section.id}`;
             const layoutId = `${baseId}-${section.layout ?? "nav"}-lit`;
@@ -518,8 +521,7 @@ export function AppShell({
               </div>
             );
           })}
-          </motion.div>
-          </AnimatePresence>
+          </div>
         </nav>
         </LayoutGroup>
 
@@ -585,18 +587,27 @@ export function AppShell({
           {showUser && <Dropdown
             side="top"
             className="ui-as-user-menu"
+            // The person first – their face, name and email (or the workspace) – then the menu
+            header={<div className="ui-as-menu__profile">
+              <Avatar name={user.name} src={user.avatar} size="lg" status="online" />
+              <span className="ui-as-menu__who"><b>{user.name}</b><small>{user.email ?? workspace}</small></span>
+            </div>}
             items={[
               { label: "Profile", icon: UserIcon },
-              { label: "Settings", icon: SettingsFillIcon },
+              { label: "Settings", icon: SettingsFillIcon, onSelect: () => { void openAccount(); } },
               // What changed lately – reported to onNavigate as "changelog"
               { label: "Changelog", icon: Megaphone01Icon, onSelect: () => go("changelog") },
               { label: "Help & feedback", icon: HelpCircleIcon },
-              { label: "Log out", icon: Logout01Icon, danger: true },
             ]}
+            // Light or dark, right above logging out; choosing keeps the menu open
+            footer={(close) => <>
+              <ThemeRow />
+              <MenuList items={[{ label: "Log out", icon: Logout01Icon, danger: true }]} onPick={close} />
+            </>}
             trigger={({ open, toggle }) => (
               <RailTip enabled={rail} label={user.name}>
                 <button type="button" className="ui-as-user" aria-label={user.name} aria-expanded={open} onClick={toggle}>
-                  {user.avatar ? <img src={user.avatar} alt="" width={20} height={20} /> : <span className="ui-as-user__initials">{initials}</span>}
+                  <Avatar name={user.name} src={user.avatar} size="md" status="online" />
                   <span className="ui-as-user__name">{user.name}</span>
                   <Icon icon={ArrowDown01Icon} size={13} />
                 </button>
@@ -604,13 +615,66 @@ export function AppShell({
             )}
           />}
         </div>}
-      </aside>
-      <main className="ui-as-main" inert={Boolean(aside) && narrow && asideOpen}><ShellNarrow.Provider value={narrow}>{children}</ShellNarrow.Provider></main>
+      </aside>;
+  const mainPane = <main className="ui-as-main" inert={!accountOpen && Boolean(aside) && narrow && asideOpen}>
+    <div className="ui-as-main__scroll scroll-fade" inert={accountOpen} aria-hidden={accountOpen || undefined}>
+      <ShellNarrow.Provider value={narrow}>{children}</ShellNarrow.Provider>
+    </div>
+    {AccountPage && <div className="ui-as-main__scroll ui-as-account-page scroll-fade"><AccountPage workspace={workspace} userName={user.name} onClose={closeAccount} /></div>}
+  </main>;
+
+  return (
+    <Tooltip.Provider delayDuration={250} skipDelayDuration={300}>
+    <div
+      ref={root}
+      className={["ui-as", "ui-as-app", className].filter(Boolean).join(" ")}
+      style={{ "--ui-as-sidebar-width": sidebarWidth, "--ui-as-aside-columns": asideColumns } as CSSProperties}
+      data-aside={aside ? "" : undefined}
+      // Narrow, settings use the existing end drawer; desktop settings share the conversation pane.
+      data-aside-covered={aside && rightSettings && !narrow ? "" : undefined}
+      data-aside-hidden={aside && (asideHidden || accountOpen) && !rightSettings && !narrow ? "" : undefined}
+      data-aside-open={aside && narrow && asideOpen ? "" : undefined}
+      data-narrow={narrow || undefined}
+      data-collapsed={rail || undefined}
+      data-drawer={(narrow && drawer) || undefined}
+      data-end-drawer={(narrow && endOpen) || undefined}
+    >
+      <style href="ui-app-shell" precedence="default">
+        {css}
+      </style>
+      {/* With the sidebar hidden, the same icon sits in the top left corner of the main area to bring it back */}
+      <button
+        className="ui-as-icon-btn ui-as-side-open"
+        type="button"
+        aria-label="Open sidebar"
+        tabIndex={sideHidden ? 0 : -1}
+        onClick={() => paneViewTransition(() => (narrow ? setDrawer(true) : setCollapsed(false)))}
+      >
+        <Icon icon={SidebarLeftIcon} size={16} />
+      </button>
+      {/* Narrow only: dims the main area behind the open drawer; a tap closes it */}
+      <div className="ui-as-scrim" aria-hidden="true" onClick={() => paneViewTransition(() => { setDrawer(false); onDrawerOpenChange?.(false); })} />
+      {initialLayout && <div className="ui-as-panels">
+        <div className="ui-as-sidebar-pane">
+          {sidebarPane}
+        </div>
+        <div className="ui-as-workspace-pane">
+          <ResizablePanels label="Editor and conversation" className="ui-as-workspace-panels">
+            <ResizablePanel id={`${baseId}-editor`} label="Editor" defaultSize={initialLayout[1]} minSize={320} className="ui-as-pane ui-as-editor-pane">
+              {mainPane}
+            </ResizablePanel>
+            {aside && <ResizablePanel id={`${baseId}-conversation`} label="Conversation" defaultSize={initialLayout[2]} minSize={352} className="ui-as-pane ui-as-conversation-pane">
+              <div className="ui-as-aside" inert={narrow ? !asideOpen : (asideHidden || accountOpen) && !rightSettings}>
+                <div className="ui-as-conversation-content" hidden={rightSettings && !narrow}>{aside}</div>
+                {rightSettings && !narrow && endDrawer}
+              </div>
+            </ResizablePanel>}
+          </ResizablePanels>
+        </div>
+      </div>}
       {narrow && endDrawer && <div className="ui-as-end" inert={!endOpen}>{endDrawer}</div>}
       {/* Narrow only: over the panel the aside pushed aside, clear – a tap brings it back */}
       {aside && <div className="ui-as-aside-scrim" aria-hidden="true" onClick={() => onAsideOpenChange?.(false)} />}
-      {/* A plain column: the content brings its own labeled region, so the page keeps one complementary landmark */}
-      {aside && <div className="ui-as-aside" inert={narrow && !asideOpen}>{aside}</div>}
       {/* Over everything, clicks passing through: light from the stage, e.g. a video's ambient glow. The video keeps
           a hole in it and stays on top; the sidebar, window, settings and conversation lie under it */}
       <div className="ui-as-light" data-glow-layer="" aria-hidden="true" />
@@ -651,7 +715,7 @@ export function Tabs({
   }, [current, items.join("|")]);
 
   return (
-    <div ref={list} className="ui-as-tabs" role="tablist">
+    <div ref={list} className="ui-as-tabs scroll-fade-x" role="tablist">
       {pill && <span className="ui-as-tabs__pill" style={{ transform: `translateX(${pill.x}px)`, width: pill.w }} aria-hidden="true" />}
       {items.map((item) => (
         <button key={item} type="button" role="tab" aria-selected={current === item} className="ui-as-tabs__tab" onClick={() => setCurrent(item)}>
@@ -830,7 +894,17 @@ export type MenuItem = {
 /** List of actions or choices inside a popover */
 export function MenuList({ items, onPick }: { items: MenuItem[]; onPick: () => void }) {
   return (
-    <div role="menu" className="ui-as-menu__list">
+    <div role="menu" className="ui-as-menu__list" onKeyDown={event => {
+      const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"]'));
+      const index = items.indexOf(document.activeElement as HTMLButtonElement);
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onPick(); return; }
+      const next = event.key === "ArrowDown" ? (index + 1) % items.length : event.key === "ArrowUp" ? (index - 1 + items.length) % items.length : event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : -1;
+      if (next >= 0) { event.preventDefault(); items[next]?.focus(); }
+      else if (event.key.length === 1 && event.key !== " " && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const match = [...items.slice(index + 1), ...items.slice(0, index + 1)].find(item => item.textContent?.trim().toLowerCase().startsWith(event.key.toLowerCase()));
+        if (match) { event.preventDefault(); match.focus(); }
+      }
+    }}>
       {items.map((item) => (
         <button
           key={item.label}
@@ -864,6 +938,8 @@ export function Dropdown({
   align = "start",
   side = "bottom",
   title,
+  header,
+  footer,
   className,
 }: {
   trigger: (props: { open: boolean; toggle: () => void }) => ReactNode;
@@ -872,17 +948,44 @@ export function Dropdown({
   side?: "bottom" | "top";
   /** Small heading above the items */
   title?: string;
+  /** Above the items, e.g. who's signed in; a rule below it */
+  header?: ReactNode;
+  /** Below the items, after a rule – it gets the menu's close */
+  footer?: (close: () => void) => ReactNode;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLSpanElement>(null);
+  const pick = () => {
+    setOpen(false);
+    anchor.current?.querySelector<HTMLButtonElement>('button[aria-expanded]')?.focus();
+  };
+  useEffect(() => {
+    if (!open) return;
+    const selected = anchor.current?.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]') ?? anchor.current?.querySelector<HTMLElement>('[role="menuitem"], [role="menuitemradio"]');
+    selected?.focus({ preventScroll: true });
+  }, [open]);
   return (
-    <span className={["ui-as-anchor", className].filter(Boolean).join(" ")}>
+    <span ref={anchor} className={["ui-as-anchor", className].filter(Boolean).join(" ")}>
       {trigger({ open, toggle: () => setOpen((o) => !o) })}
       <Popover open={open} onClose={() => setOpen(false)} align={align} side={side} className="ui-as-menu">
+        {header && <>{header}<hr className="ui-as-menu__rule" /></>}
         {title && <span className="ui-as-menu__title">{title}</span>}
-        <MenuList items={items} onPick={() => setOpen(false)} />
+        <MenuList items={items} onPick={pick} />
+        {footer && <><hr className="ui-as-menu__rule" />{footer(() => setOpen(false))}</>}
       </Popover>
     </span>
+  );
+}
+
+/** The page's mode, light or dark, as a menu row – the same switch as the conversation's settings */
+function ThemeRow() {
+  const mode = usePageMode();
+  return (
+    <div className="ui-as-menu__theme">
+      <span>Theme</span>
+      <SegmentedControl size="compact" label="Theme" options={["Light", "Dark"]} value={mode === "dark" ? "Dark" : "Light"} onChange={(next) => setPageMode(next === "Dark" ? "dark" : "light")} />
+    </div>
   );
 }
 
@@ -917,35 +1020,20 @@ export function FilterButton({
 }
 
 /** Plain menu of choices in a popover, e.g. a period picker */
-export function MenuButton<T extends string>({
-  value,
-  options,
-  onChange,
-  icon,
-  align = "end",
-  className,
-}: {
+export function MenuButton<T extends string>({ value, options, onChange, icon, align = "end", className, label }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
   icon?: IconGlyph;
   align?: "start" | "end";
   className?: string;
+  label?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const current = options.find((o) => o.value === value);
-  return (
-    <span className="ui-as-anchor">
-      <button type="button" className={["ui-as-tool ui-as-tool--label", className].filter(Boolean).join(" ")} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)}>
-        {icon && <Icon icon={icon} size={15} />}
-        {current?.label}
-        <Icon icon={ArrowDown01Icon} size={13} />
-      </button>
-      <Popover open={open} onClose={() => setOpen(false)} align={align} className="ui-as-menu">
-        <MenuList items={options.map((o) => ({ label: o.label, checked: o.value === value, onSelect: () => onChange(o.value) }))} onPick={() => setOpen(false)} />
-      </Popover>
-    </span>
-  );
+  const current = options.find(option => option.value === value);
+  return <Dropdown align={align} items={options.map(option => ({ label: option.label, checked: option.value === value, onSelect: () => onChange(option.value) }))}
+    trigger={({ open, toggle }) => <button type="button" className={["ui-as-tool ui-as-tool--label", className].filter(Boolean).join(" ")} aria-label={label ? `${label}: ${current?.label ?? ""}` : undefined} aria-expanded={open} aria-haspopup="menu" onClick={toggle}>
+      {icon && <Icon icon={icon} size={15} />}{current?.label}<Icon icon={ArrowDown01Icon} size={13} />
+    </button>} />;
 }
 
 /** Short confirmation at the bottom of the main area – "Saved to Reports" */
@@ -1193,11 +1281,19 @@ const css = /* css */ `
 /* An aside sits beside the panel on the page surface – no frame, the page shows through */
 .ui-as-app[data-aside] { grid-template-columns: var(--ui-as-sidebar-width) var(--ui-as-aside-columns); }
 .ui-as-app[data-aside][data-collapsed] { grid-template-columns: var(--ui-as-rail-width) var(--ui-as-aside-columns); }
-.ui-as-app[data-aside] > .ui-as-main { grid-row: 1; grid-column: 2; margin-right: 0; }
-.ui-as-app[data-aside] > .ui-as-aside { grid-row: 1; grid-column: 3; }
-/* Covered: the panel spans the aside's column too and keeps its usual gap; the aside waits underneath */
-.ui-as-app[data-aside-covered] > .ui-as-main { z-index: 1; grid-column: 2 / 4; margin-right: var(--frame-gap); }
-.ui-as-app[data-aside-covered] > .ui-as-aside { visibility: hidden; }
+.ui-as-app[data-aside] .ui-as-main { grid-row: 1; grid-column: 2; margin-right: 0; }
+.ui-as-app[data-aside] .ui-as-aside { grid-row: 1; grid-column: 3; }
+/* Settings and conversation occupy the same pane, so switching preserves the divider's position. */
+.ui-as-app[data-aside-covered] .ui-as-main { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.ui-as-conversation-content { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.ui-as-conversation-content[hidden] { display: none; }
+.ui-as-app[data-aside-covered] .ui-as-aside { padding: var(--frame-gap) var(--frame-gap) var(--frame-gap) 0; }
+.ui-as-app[data-aside-covered] .ui-as-aside > .ui-as-brief {
+  flex: 1; width: auto; min-height: 0;
+  background: var(--panel);
+  border-radius: 0 var(--radius-panel) var(--radius-panel) 0;
+  box-shadow: var(--shadow-3);
+}
 .ui-as-aside {
   container: ui-as-aside / inline-size;
   display: flex;
@@ -1222,7 +1318,7 @@ const css = /* css */ `
 
 /* While one of its menus is open (the account's, say – in the rail it is wider than the sidebar) the sidebar lets it
    out and lies over the window, the stage's glow included */
-.ui-as-app:not([data-narrow]) > .ui-as-side:has(.ui-as-popover) { z-index: 40; overflow: visible; }
+.ui-as-app:not([data-narrow]) .ui-as-side:has(.ui-as-popover) { z-index: 40; overflow: visible; }
 
 /* The icon to bring the drawer back on narrow screens, in the top left corner of the main area */
 .ui-as-side-open {
@@ -1275,6 +1371,13 @@ const css = /* css */ `
 .ui-as-user-menu { display: flex; }
 .ui-as-user-menu > .ui-as-user { flex: 1; }
 .ui-as-user-menu .ui-as-menu { width: 100%; }
+/* The account menu's head: who's signed in, then a rule; its foot: the theme above logging out */
+.ui-as-menu__profile { display: flex; align-items: center; gap: 12px; padding: 8px 8px 6px; }
+.ui-as-menu__who { display: grid; min-width: 0; }
+.ui-as-menu__who b { overflow: hidden; font-size: var(--fs-subtitle); font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.ui-as-menu__who small { overflow: hidden; color: var(--muted); font-size: var(--fs-caption); white-space: nowrap; text-overflow: ellipsis; }
+.ui-as-menu__rule { margin: 4px 6px; border: 0; border-top: 1px solid var(--line); }
+.ui-as-menu__theme { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 4px 4px 10px; font-size: var(--fs-body); color: var(--ink); }
 /* Workspace logo on a white tile with a small, tight shadow below */
 .ui-as-side__logo {
   display: grid;
@@ -1569,18 +1672,20 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   align-items: center;
   gap: 10px;
   width: 100%;
-  height: 36px;
-  /* The 20px avatar sits on the rail's center line */
-  padding: 0 10px;
+  height: 48px;
+  /* The 36px avatar sits on the rail's center line */
+  padding: 0 10px 0 2px;
   white-space: nowrap;
   border-radius: calc(8px * var(--squircle-factor, 1));
   font-size: var(--fs-body);
   font-weight: 550; font-variation-settings: "opsz" 18;
   color: var(--ink);
 }
-/* The face a squircle, as every avatar */
-.ui-as-user img { flex: none; width: 20px; height: 20px; border-radius: 50%; corner-shape: round; object-fit: cover; box-shadow: var(--shadow-1); }
-.ui-as-user svg { margin-left: auto; color: var(--faint); }
+/* The face (Arc's Avatar, online – its tokens in styles/arc.css): a circle, kept round under the corners' squircle */
+:is(.ui-as-user, .ui-as-menu__profile) [role="img"], :is(.ui-as-user, .ui-as-menu__profile) [role="img"] * { corner-shape: round; }
+.ui-as-user > svg { margin-left: auto; color: var(--faint); transition: transform var(--motion-moderate) var(--ease-moderate), color var(--motion-fast) var(--ease-standard); }
+/* The chevron turns over while the menu is open */
+.ui-as-user[aria-expanded="true"] > svg { transform: rotate(180deg); color: var(--ink); }
 .ui-as-user:hover { background: var(--hover); }
 
 /* ---------- Main ---------- */
@@ -1592,7 +1697,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   position: relative;
   min-width: 0;
   margin: var(--frame-gap) var(--frame-gap) var(--frame-gap) 0;
-  overflow-y: auto;
+  overflow: hidden;
   /* No rubber-band bounce at the ends – sticky headers stay put */
   overscroll-behavior: none;
   transition: margin-left var(--motion-slow) var(--ease-slow);
@@ -1602,6 +1707,12 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   /* On the page like the composer, so the same shadow */
   box-shadow: var(--shadow-3);
 }
+
+.ui-as-main > .ui-as-main__scroll[aria-hidden="true"] { visibility: hidden; }
+.ui-as-account-page { position: absolute; inset: 0; z-index: 25; background: var(--panel); }
+.ui-as-main__scroll { height: 100%; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; overscroll-behavior: none; }
+/* A lesson workspace fills the panel and scrolls inside its own panes: no gutter, or it shows as a second frame */
+.ui-as-main__scroll:has(> .ui-as-chat) { scrollbar-gutter: auto; }
 
 
 /* Shared page parts: headings, toolbars, tabs, search, empty states – affectUI tokens */
@@ -1647,6 +1758,8 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 
 /* Segmented tabs: the active one gets a soft gray fill */
 .ui-as-tabs { position: relative; display: flex; gap: 2px; }
+/* Its edges fade only where it scrolls, on a narrow shell: a mask anywhere else would clip what it paints past its box */
+@container ui-as (min-width: 601px) { .ui-as-tabs.scroll-fade-x { -webkit-mask-image: none; mask-image: none; } }
 /* The gray pill glides under the active tab */
 .ui-as-tabs__pill {
   position: absolute;
@@ -1821,7 +1934,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-menu__item > svg:last-child:not(:first-child) { margin-left: auto; color: var(--ink); }
 .ui-as-menu__label { display: grid; flex: 1; gap: 1px; min-width: 0; }
 .ui-as-menu__label small { font-size: var(--fs-caption); line-height: 16px; color: var(--faint); }
-.ui-as-menu__item:hover { background: var(--hover); color: var(--ink); }
+.ui-as-menu__item:is(:hover, :focus-visible) { background: var(--hover); color: var(--ink); }
 .ui-as-menu__item[aria-checked="true"] { color: var(--ink); font-weight: 550; font-variation-settings: "opsz" 18; }
 .ui-as-menu__item[aria-checked="true"] small { font-weight: 400; }
 .ui-as-menu__item[data-danger] { color: #dc2626; }
@@ -2028,20 +2141,8 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-template:hover .ui-as-doc__page { transform: translateY(-4px) rotate(-5deg); }
 .ui-as-template:hover .ui-as-doc__type { transform: translate(2px, -2px); }
 
-/* Workspace initial and user initials */
+/* Workspace initial */
 .ui-as-side__logo { font-size: 10.5px; font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); }
-.ui-as-user__initials {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%; corner-shape: round;
-  background: var(--accent-soft);
-  font-size: 9.5px;
-  font-weight: 550; font-variation-settings: "opsz" 18;
-  color: var(--accent);
-}
 
 /* File illustrations in dark mode: dark paper tinted by the file's color, light lines */
 :where(.dark, [data-theme="dark"]) .ui-as-doc {
@@ -2063,11 +2164,11 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 
 @container ui-as (max-width: 900px) {
   /* The main panel takes the whole width; the sidebar slides in over it as a drawer */
-  .ui-as-app > .ui-as-main { grid-row: 1; grid-column: 1 / -1; margin-left: var(--frame-gap); }
+  .ui-as-app .ui-as-main { grid-row: 1; grid-column: 1 / -1; margin-left: var(--frame-gap); }
   /* The container can't restyle its own grid here, so the panel spans the sidebar's column instead */
-  .ui-as-app[data-aside] > .ui-as-main { grid-column: 1 / 3; }
-  .ui-as-app[data-aside-covered] > .ui-as-main { grid-column: 1 / 4; }
-  .ui-as-app > .ui-as-side {
+  .ui-as-app[data-aside] .ui-as-main { grid-column: 1 / 3; }
+  .ui-as-app[data-aside-covered] .ui-as-main { grid-column: 1 / 4; }
+  .ui-as-app .ui-as-side {
     position: absolute;
     z-index: 50;
     top: 0;
@@ -2080,12 +2181,12 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
     background: var(--ui-page-fill, var(--page));
     box-shadow: var(--shadow-6);
   }
-  .ui-as-app:not([data-drawer]) > .ui-as-side {
+  .ui-as-app:not([data-drawer]) .ui-as-side {
     visibility: hidden;
     translate: calc(-100% - 24px) 0;
     transition: translate var(--motion-slow-exit) var(--ease-exit), visibility 0s var(--motion-slow-exit);
   }
-  .ui-as-app[data-drawer] > .ui-as-side {
+  .ui-as-app[data-drawer] .ui-as-side {
     visibility: visible;
     opacity: 1;
     translate: 0 0;
@@ -2147,7 +2248,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 
 @container ui-as (max-width: 600px) {
   .ui-as-app > * { --frame-gap: 6px; }
-  .ui-as-app > .ui-as-main { border-radius: calc(10px * var(--squircle-factor, 1)); }
+  .ui-as-app .ui-as-main { border-radius: calc(10px * var(--squircle-factor, 1)); }
   .ui-as-page { padding: 52px 16px 40px; }
   .ui-as-page-title { font-size: 20px; line-height: 26px; }
   .ui-as-section-head { margin-top: 32px; }
@@ -2170,13 +2271,13 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-aside-scrim { display: none; }
 .ui-as-app[data-narrow][data-aside] { overflow: clip; grid-template-columns: minmax(0, 1fr); }
 .ui-as-app[data-narrow][data-aside] > * { --ui-as-aside-width: min(26rem, 100cqi); }
-.ui-as-app[data-narrow][data-aside] > :is(.ui-as-main, .ui-as-aside-scrim, .ui-as-aside) { grid-row: 1; grid-column: 1; }
-.ui-as-app[data-narrow][data-aside] > :is(.ui-as-main, .ui-as-aside-scrim) {
+.ui-as-app[data-narrow][data-aside] :is(.ui-as-main, .ui-as-aside-scrim, .ui-as-aside) { grid-row: 1; grid-column: 1; }
+.ui-as-app[data-narrow][data-aside] :is(.ui-as-main, .ui-as-aside-scrim) {
   margin: var(--frame-gap);
   transition: margin-left var(--motion-slow) var(--ease-slow), translate var(--motion-slow-exit) var(--ease-exit), visibility 0s var(--motion-slow-exit);
 }
 .ui-as-app[data-narrow][data-aside] > .ui-as-aside-scrim { display: block; z-index: 2; visibility: hidden; cursor: pointer; }
-.ui-as-app[data-narrow][data-aside] > .ui-as-aside {
+.ui-as-app[data-narrow][data-aside] .ui-as-aside {
   z-index: 3;
   justify-self: end;
   width: var(--ui-as-aside-width);
@@ -2184,18 +2285,59 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   translate: 100% 0;
   transition: translate var(--motion-slow-exit) var(--ease-exit), visibility 0s var(--motion-slow-exit);
 }
-.ui-as-app[data-narrow][data-aside-open] > :is(.ui-as-main, .ui-as-aside-scrim) {
+.ui-as-app[data-narrow][data-aside-open] :is(.ui-as-main, .ui-as-aside-scrim) {
   translate: calc(-1 * var(--ui-as-aside-width)) 0;
   transition: margin-left var(--motion-slow) var(--ease-slow), translate var(--motion-slow) var(--ease-slow), visibility 0s;
 }
 .ui-as-app[data-narrow][data-aside-open] > .ui-as-aside-scrim { visibility: visible; }
-.ui-as-app[data-narrow][data-aside-open] > .ui-as-aside { visibility: visible; translate: 0 0; transition: translate var(--motion-slow) var(--ease-slow), visibility 0s; }
+.ui-as-app[data-narrow][data-aside-open] .ui-as-aside { visibility: visible; translate: 0 0; transition: translate var(--motion-slow) var(--ease-slow), visibility 0s; }
 /* A stage's glow lies over everything; while the stage is pushed aside it fades */
 .ui-as-app[data-narrow] > .ui-as-light { transition: opacity var(--motion-slow) var(--ease-slow); }
 .ui-as-app[data-narrow][data-aside-open] > .ui-as-light { opacity: 0; }
 /* The sidebar's button belongs to the panel, so it leaves with it */
 .ui-as-app[data-narrow][data-aside-open] > .ui-as-side-open { visibility: hidden; opacity: 0; transition: opacity var(--motion-moderate-exit) var(--ease-exit), visibility 0s var(--motion-moderate-exit); }
 @media (prefers-reduced-motion: reduce) {
-  .ui-as-app[data-narrow][data-aside] > :is(.ui-as-main, .ui-as-aside-scrim, .ui-as-aside) { transition-duration: 0s; }
+  .ui-as-app[data-narrow][data-aside] :is(.ui-as-main, .ui-as-aside-scrim, .ui-as-aside) { transition-duration: 0s; }
 }
+
+/* Desktop panes use UIarc's dividers; narrow layouts retain the shell's drawers. */
+.ui-as-panels {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  overflow: visible;
+  --border-strong: var(--fluid-foreground);
+  --duration-fast: var(--motion-fast);
+  --ease-standard: var(--ease-fast);
+  --duration-spring: var(--motion-slow);
+  --ease-spring: var(--ease-slow);
+  --radius-pill: 999px;
+}
+.ui-as-pane > div { flex: 1; }
+.ui-as-sidebar-pane { flex: 0 0 var(--ui-as-sidebar-width); min-width: 0; overflow: visible; }
+.ui-as-app[data-collapsed] .ui-as-sidebar-pane { flex-basis: var(--ui-as-rail-width); }
+.ui-as-workspace-pane { flex: 1; min-width: 0; min-height: 0; }
+.ui-as-sidebar-pane .ui-as-side { height: 100%; }
+.ui-as-pane .ui-as-main { flex: 1; min-height: 0; }
+.ui-as-pane .ui-as-aside { height: 100%; }
+.ui-as-panels [role="separator"] { background: transparent; --foreground: var(--fluid-foreground); }
+.ui-as-panels [role="separator"]:is(:hover, :focus-visible, [data-active]) { background: var(--fluid-foreground); }
+.ui-as-panels [role="separator"]:focus-visible { outline: 1px solid var(--fluid-foreground); outline-offset: 0; }
+.ui-as-app[data-collapsed] .ui-as-panels > [role="separator"],
+.ui-as-app[data-aside-hidden] .ui-as-workspace-panels > [role="separator"] { display: none; }
+.ui-as-app[data-aside-hidden] .ui-as-conversation-pane { min-width: 0; max-width: 0; }
+.ui-as-app[data-aside-hidden] .ui-as-aside { visibility: hidden; }
+.ui-as-app[data-aside-hidden] .ui-as-main { margin-right: var(--frame-gap); }
+.ui-as-app[data-narrow] :is(.ui-as-panels, .ui-as-sidebar-pane, .ui-as-workspace-pane, .ui-as-workspace-panels, .ui-as-pane, .ui-as-pane > div) { display: contents; }
+.ui-as-app[data-narrow] .ui-as-panels [role="separator"] { display: none; }
+.ui-as-app[data-narrow] .ui-as-side { height: auto; }
+.ui-as-app[data-narrow] .ui-as-aside { height: auto; }
 `;
+
+/** The shell's styles alone – its tokens, controls and parts – for pages that use them outside AppShell (the website) */
+export function ShellStyles() {
+  return <style href="ui-app-shell" precedence="default">{css}</style>;
+}

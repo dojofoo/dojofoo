@@ -2,3 +2,4 @@ test-results/
 playwright-report/
 public/slides/
 fixtures/.slidev/
+!.env.schema

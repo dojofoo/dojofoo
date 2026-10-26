@@ -1,0 +1,52 @@
+---
+title: Course manifest
+description: The fields of dojo.yaml every course has, the content lessons can use, and the environment.
+---
+
+Every course has exactly one manifest at its root: `dojo.yaml` (preferred – it takes comments),
+`dojo.yml` or `dojo.json`. Point your editor at the schema for completion and checks:
+
+```yaml
+# yaml-language-server: $schema=https://dojo.foo/schema/v1/dojo.json
+```
+
+## Fields
+
+| Field | Description |
+| --- | --- |
+| `name` | Required. The package name, e.g. `@acme/readings` |
+| `version` | Required. A semver version |
+| `description` | Required. What the course teaches, in a sentence |
+| `mode` | `katas` (the default) or `interactive` – each adds its own fields: [katas](/authoring/katas), [interactive](/authoring/interactive) |
+| `author`, `homepage`, `repository` | Shown in the marketplace |
+| `language`, `framework` | The main language and framework, for marketplace filters |
+| `tags` | Topics for discovery; don't repeat the language or framework |
+| `private` | `true` keeps a public course out of the [marketplace](/authoring/publish), as in a `package.json`; `marketplace: false` is its older spelling |
+
+## Lesson content
+
+`.mdx` content renders Markdown, highlighted code, Mermaid diagrams and LaTeX, plus these
+components – self-closing, attributes as plain strings:
+
+```mdx
+<Artifact src="assets/worksheet.pdf" title="Worksheet" />
+<Video src="assets/introduction.mp4" title="Introduction" />
+<Interactive src="components/check.html" title="Environment check" />
+```
+
+`Interactive` HTML runs in a sandboxed frame. Files are served only from inside the course, with
+a size limit. Imports and JavaScript expressions aren't supported.
+
+## Environment
+
+The course's `mise.toml` pins its tools and defines an idempotent `setup` task. dojofoo runs
+both when the course is added – in any language mise supports:
+
+```toml
+[tools]
+python = "3.13"
+uv = "latest"
+
+[tasks.setup]
+run = "uv sync"
+```

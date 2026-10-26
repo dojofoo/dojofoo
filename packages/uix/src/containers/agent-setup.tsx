@@ -1,15 +1,16 @@
-import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { ColorSchemeChoices } from "~/containers/agent-chat";
+import { ProfileFields, useHandleCheck } from "~/containers/profile-fields";
+import { Switch } from "~/components/switch";
+import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { AppearanceSettings } from "~/containers/appearance-settings";
 import { Icon } from "~/components/app-shell";
 import { Button } from "~/components/button";
 import { ChatGPTButton, ChatGPTLogo } from "~/components/chatgpt-button";
 import { OpenRouterButton, OpenRouterLogo } from "~/components/openrouter-button";
 import { CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardCheck, type CardShaderKind } from "~/components/color-card";
-import { CodeEditor, Editor, EditorTabs } from "~/containers/editor";
 import { CodexIcon, CursorIcon, GrokIcon, OpenCodeIcon, PiIcon } from "~/components/harness-icons";
 import { SegmentedControl } from "~/components/segmented-control";
 import { ArrowLeft01Icon, ArrowRight01Icon, ClaudeIcon, DoneIcon, GitHubCopilotIcon, Tick02Icon, type IconGlyph } from "~/lib/icons";
-import { editorSchemes, setPageMode, setUiPreferences, uiThemes, usePageMode, useUiPreferences } from "~/lib/ui-preferences";
+import { editorSchemes, setPageMode, uiThemes, usePageMode, useUiPreferences } from "~/lib/ui-preferences";
 
 /*
  * AgentSetup – a learner's first run, built from the affectUI onboarding's own parts (its stylesheet, its markup): the
@@ -64,11 +65,7 @@ const accounts = [
 ] as const;
 type AccountId = (typeof accounts)[number]["id"];
 
-/** Handles already taken on dojo.foo – the check asks the server for these */
-const takenHandles = ["sam", "admin", "dojo", "sensei", "kyoshi", "root"];
-const handlePattern = /^[a-z0-9](?:[a-z0-9-]{1,22}[a-z0-9])$/;
 
-/** Each step's card head, and what the right side says about it */
 const copy: Record<(typeof setupSteps)[number]["id"], { heading: string; text: string; about: string; tip: string }> = {
   agent: { heading: "Pick your agent", text: "Dojo teaches through a coding agent – one already on this machine, your ChatGPT plan or your OpenRouter credits.", about: "Lessons run on your machine. Your agent reads the kata, runs the tests and coaches you in the chat – Dojo talks to it, never to a model of its own.", tip: "None installed? The steps below get one going in a minute." },
   courses: { heading: "Pick your first courses", text: "The most loved ones to start with – tick any, or leave it for later.", about: "Each course is a git repository of chapters and lessons. Installing clones it into your workspace, so it works offline and updates like any repo.", tip: "Explore has every course, whenever you want more." },
@@ -77,24 +74,6 @@ const copy: Record<(typeof setupSteps)[number]["id"], { heading: string; text: s
   overview: { heading: "Overview", text: "Everything you chose, saved to your Dojo folder.", about: "Your Dojo folder holds it all as plain files – courses, progress, certificates and these settings. Back it up or sync it like any other folder.", tip: "Point it at an existing folder to pick up where you left off on another machine." },
 };
 
-const files = {
-  "merge.ts": `type Settings = { theme: string; fontSize?: number };
-
-/** Defaults first, then what the user chose */
-export function merge(defaults: Settings, overrides: Partial<Settings>): Settings {
-  return { ...defaults, ...overrides };
-}
-
-const settings = merge({ theme: "dojofoo", fontSize: 14 }, { fontSize: 16 });
-`,
-  "merge.test.ts": `import { expect, it } from "vitest";
-import { merge } from "./merge";
-
-it("keeps the defaults it isn't given", () => {
-  expect(merge({ theme: "dojofoo", fontSize: 14 }, {})).toEqual({ theme: "dojofoo", fontSize: 14 });
-});
-`,
-};
 
 export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFinish }: {
   /** The open step, an index into setupSteps */
@@ -119,8 +98,6 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
   const [handle, setHandle] = useState("samrivera");
   const [folder, setFolder] = useState("~/.dojo");
   // Dark by default: setup starts dark, the Style step's switch turns it light
-  useEffect(() => { setPageMode("dark"); }, []);
-  const [file, setFile] = useState<keyof typeof files>("merge.ts");
   const preferences = useUiPreferences();
   const mode = usePageMode();
   const handleState = useHandleCheck(handle);
@@ -185,7 +162,7 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
                 // Light on the left, Dark on the right: a plain switch, on for dark (the default)
                 <span className="ui-setup__mode">
                   <span aria-hidden="true" data-on={mode === "light" || undefined}>Light</span>
-                  <button type="button" role="switch" aria-checked={mode === "dark"} aria-label="Dark mode" className="ui-ob-switch" onClick={() => setPageMode(mode === "dark" ? "light" : "dark")} />
+                  <Switch checked={mode === "dark"} aria-label="Dark mode" onCheckedChange={dark => setPageMode(dark ? "dark" : "light")} />
                   <span aria-hidden="true" data-on={mode === "dark" || undefined}>Dark</span>
                 </span>
               )}
@@ -250,50 +227,11 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
             )}
 
             {id === "profile" && (
-              <div className="ui-ob-fields">
-                <label className="ui-ob-field">
-                  <span className="ui-ob-label">Name</span>
-                  <input className="ui-ob-input" value={name} placeholder="e.g. Sam Rivera" autoComplete="name" onChange={(event) => setName(event.target.value)} />
-                </label>
-                <label className="ui-ob-field">
-                  <span className="ui-ob-label">Handle</span>
-                  <span className="ui-ob-input ui-ob-input--prefix">
-                    <span className="ui-ob-prefix">dojo.foo/u/</span>
-                    <input value={handle} placeholder="samrivera" aria-label="Handle" autoComplete="username" spellCheck={false} aria-invalid={handleState === "taken" || handleState === "invalid" || undefined}
-                      onChange={(event) => setHandle(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
-                  </span>
-                  <span className="ui-ob-hint ui-setup__handle" data-state={handleState} aria-live="polite">
-                    {handleState === "checking" ? "Checking…"
-                      : handleState === "available" ? <><Icon icon={Tick02Icon} size={12} stroke={2.4} />dojo.foo/u/{handle} is yours</>
-                      : handleState === "taken" ? "Taken – try another"
-                      : "3–24 letters, numbers or dashes"}
-                  </span>
-                </label>
-              </div>
+              <ProfileFields name={name} handle={handle} handleState={handleState} onNameChange={setName} onHandleChange={setHandle} />
             )}
 
             {id === "style" && (
-              <div className="ui-setup__style">
-                <div className="ui-setup__looks">
-                  <section className="ui-as-brief__section" role="radiogroup" aria-label="Theme">
-                    <span className="ui-as-brief__label">Theme</span>
-                    {uiThemes.map((theme) => (
-                      <button key={theme.id} type="button" role="radio" aria-checked={preferences.theme === theme.id} className="ui-as-brief__option" onClick={() => setUiPreferences({ theme: theme.id })}>
-                        <span className="ui-as-brief__radio" aria-hidden="true" />
-                        <span className="ui-as-brief__name">{theme.label}</span>
-                        <span className="ui-as-brief__swatches" aria-hidden="true">{theme.swatches.map((color, i) => <i key={i} style={{ background: color }} />)}</span>
-                      </button>
-                    ))}
-                  </section>
-                  <ColorSchemeChoices notes={false} />
-                </div>
-                {/* The code, full width and unframed, in the scheme just picked */}
-                <div className="ui-setup__code">
-                  <Editor flush tabs={<EditorTabs mode="learning" label="Preview files" active={file} tabs={(Object.keys(files) as (keyof typeof files)[]).map((path) => ({ path, label: path }))} onSelect={(path) => setFile(path as keyof typeof files)} />}>
-                    <CodeEditor code={files[file]} filePath={`preview/${file}`} language="typescript" lessonApiBase="" readOnly coverage={false} onChange={() => {}} />
-                  </Editor>
-                </div>
-              </div>
+              <AppearanceSettings showMode={false} />
             )}
 
             {id === "overview" && (
@@ -354,7 +292,7 @@ function InstallHelp({ scanning, onRescan }: { scanning: boolean; onRescan: () =
       <SegmentedControl size="compact" fill label="Agent to install" options={agents.map((entry) => entry.short)} value={which} onChange={setWhich} />
       <ol>
         <li>Run this in a terminal:
-          <span className="ui-setup__cmd"><code>{item.install}</code><button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button></span>
+          <span className="ui-setup__cmd"><code className="scroll-fade-x">{item.install}</code><button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button></span>
         </li>
         <li>Sign in when it asks – see <a href={`https://${item.docs}`} target="_blank" rel="noreferrer">{item.docs}</a>.</li>
         <li>Press Rescan, and it shows up above.</li>
@@ -364,17 +302,6 @@ function InstallHelp({ scanning, onRescan }: { scanning: boolean; onRescan: () =
   );
 }
 
-/** Whether a handle is free on dojo.foo: checked a moment after typing stops */
-function useHandleCheck(handle: string) {
-  const [state, setState] = useState<"invalid" | "checking" | "available" | "taken">("checking");
-  useEffect(() => {
-    if (!handlePattern.test(handle)) { setState("invalid"); return; }
-    setState("checking");
-    const t = window.setTimeout(() => setState(takenHandles.includes(handle) ? "taken" : "available"), 500);
-    return () => window.clearTimeout(t);
-  }, [handle]);
-  return state;
-}
 
 const css = /* css */ `
 /* Only what the onboarding doesn't have */
@@ -421,10 +348,6 @@ const css = /* css */ `
 .ui-setup__later button { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 
 /* Profile: whether the handle is free */
-.ui-setup__handle { display: inline-flex; align-items: center; gap: 5px; }
-.ui-setup__handle[data-state="available"] { color: var(--ev-pass, #16a34a); }
-:where(.dark, [data-theme="dark"]) .ui-setup__handle[data-state="available"] { color: #4ade80; }
-.ui-setup__handle[data-state="taken"] { color: var(--ev-fail, #dc2626); }
 
 /* Style: light or dark as a switch between its two words, the chosen one in ink; theme and color scheme side by side –
    far enough apart that their rows' highlights (which reach past the column) keep a clear gap – the code below */

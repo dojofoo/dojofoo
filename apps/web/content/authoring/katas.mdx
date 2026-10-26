@@ -1,0 +1,47 @@
+---
+title: Kata manifest
+description: What a kata course adds to dojo.yaml – the command that tests a kata, and the katas.
+---
+
+A kata course is the default `mode`: the learner edits a starting file until its tests pass.
+
+## A kata course
+
+```yaml
+name: "@acme/readings"
+version: 1.0.0
+description: Turn a list of measurements into a result you can trust.
+language: TypeScript
+test: npx vitest run {template}
+katas:
+  - name: 001-highest-reading
+    template: katas/001-highest-reading/solution.ts
+    description: Return the highest reading, or undefined when there are none.
+    difficulty: 1
+```
+
+## Fields
+
+Besides [the fields every course has](/authoring/manifest#fields):
+
+| Field | Description |
+| --- | --- |
+| `test` | Required. The command that tests a kata. `{template}` becomes its file's path. |
+| `katas` | The katas, in order |
+| `chapters` | Instead of `katas`: `{ id, title, path, lessons }`, with the katas in `lessons` |
+| `runner` | `adapter`: `vitest` (per-test results, the default) or `exit-code`; `coverage`: `true` to collect line coverage |
+
+## A kata
+
+| Field | Description |
+| --- | --- |
+| `template` | Required. The learner's starting file. Its tests sit beside it: `solution.ts` → `solution.test.ts`. |
+| `name` | Defaults to the template's folder name |
+| `id` | A stable ID that survives renaming and reordering |
+| `title`, `description` | How the kata is listed |
+| `test` | Overrides the course's `test` for this kata |
+| `difficulty` | `1` beginner, `2` intermediate, `3` advanced |
+| `tags`, `prerequisites` | Topics, and the names of katas to finish first |
+
+The kata's [teaching notes](/authoring/teaching) live beside its template as `SENSEI.md` or
+`SENSEI.mdx`.

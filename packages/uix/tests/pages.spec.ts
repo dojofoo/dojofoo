@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["installation-setup", "learner-intro", "learner-kata", "learner-slides", "course-authoring", "certificates", "explore"];
+const pages = ["installation-setup", "learner-intro", "learner-kata", "learner-slides", "course-authoring", "certificates", "explore", "settings", "content-window-settings"];
 
 test("the page catalog is small; originals and animated controls are archived", async ({ request }) => {
   const { entries } = await (await request.get("/index.json")).json();
@@ -17,9 +17,9 @@ for (const theme of ["dark", "light"]) {
     await page.goto(`/iframe.html?id=pages-dojo--explore&viewMode=story&globals=theme:${theme}`);
     await expect(page.getByRole("list", { name: "Featuring" })).toBeVisible();
     const read = () => page.evaluate(() => {
-      const feature = document.querySelector(".lj-top__box")!;
+      const feature = document.querySelector(".lj-top__item")!;
       const card = feature.querySelector(".ui-card")!;
-      const styles = [feature, card, ...card.querySelectorAll(".ui-card__face"),
+      const styles = [card, ...card.querySelectorAll(".ui-card__face"),
         ...card.querySelectorAll("[class*='rounded-']"), feature.querySelector(".lj-installed")!];
       return {
         supported: CSS.supports("corner-shape", "squircle"),
@@ -31,9 +31,10 @@ for (const theme of ["dark", "light"]) {
     });
     const native = await read();
     await page.addStyleTag({ content: ":root, .light, .dark { --squircle-factor: 1 !important; } *, ::before, ::after { corner-shape: round !important; }" });
-    await expect.poll(async () => (await read()).corners[0].radius).toBe(16);
+    await expect.poll(async () => (await read()).corners[0].radius).toBe(14);
+    await expect.poll(async () => (await read()).corners.at(-1)!.radius).toBe(8);
     const fallback = await read();
-    expect(fallback.corners[0].radius).toBe(16);
+    expect(fallback.corners[0].radius).toBe(14);
     expect(fallback.corners.at(-1)!.radius).toBe(8);
     for (let i = 0; i < native.corners.length; i++) {
       expect(fallback.corners[i].radius).toBeGreaterThan(0);
@@ -90,7 +91,7 @@ test("authoring opens, edits, saves and closes files while the conversation stay
 });
 
 test("editor supports undo, coverage, line references, read-only files and keyboard save", async ({ page }) => {
-  await page.goto("/iframe.html?id=components-editor--playground&viewMode=story");
+  await page.goto("/iframe.html?id=components-organisms-editor--playground&viewMode=story");
   const code = page.getByRole("textbox", { name: "Code editor", exact: true });
   await expect(code).toBeVisible();
   await code.focus();
@@ -105,7 +106,7 @@ test("editor supports undo, coverage, line references, read-only files and keybo
   await expect(page.locator(".ui-ed-line-flash").first()).toBeVisible();
   await expect(page.locator(".ui-ed-number-covered").first()).toBeVisible();
   await expect(page.locator(".ui-ed-number-failed").first()).toBeVisible();
-  await page.goto("/iframe.html?id=components-editor--playground&viewMode=story&args=readOnly:true");
+  await page.goto("/iframe.html?id=components-organisms-editor--playground&viewMode=story&args=readOnly:true");
   const readOnly = page.getByRole("textbox", { name: "Code editor", exact: true });
   await readOnly.focus();
   await page.keyboard.press("ControlOrMeta+End");
@@ -130,7 +131,7 @@ test("documentation uses the language API, highlighted examples and reference li
       ],
     } });
   });
-  await page.goto("/iframe.html?id=components-editor--playground&viewMode=story&args=documentationUrl:uix-hover");
+  await page.goto("/iframe.html?id=components-organisms-editor--playground&viewMode=story&args=documentationUrl:uix-hover");
   const declaration = page.locator(".view-lines .view-line").filter({ hasText: "export function positive" });
   await declaration.getByText("positive", { exact: true }).hover();
   const hover = page.getByRole("tooltip").filter({ hasText: "The input stays unchanged." });
@@ -146,7 +147,7 @@ test("documentation uses the language API, highlighted examples and reference li
 });
 
 test("button corners match the calibrated round fallback", async ({ page }) => {
-  await page.goto("/iframe.html?id=components-button--default&viewMode=story");
+  await page.goto("/iframe.html?id=components-atoms-button--default&viewMode=story");
   const button = page.getByRole("button", { name: "Continue", exact: true });
   await expect(button).toBeVisible();
   const radius = () => button.evaluate(element => parseFloat(getComputedStyle(element).borderTopLeftRadius));

@@ -1,0 +1,26 @@
+---
+title: remove
+description: Take an installed course out of the project.
+---
+
+```sh
+npx dojofoo remove <name>
+```
+
+## Example
+
+```sh
+npx dojofoo remove effect-ts
+```
+
+## What it does
+
+1. Runs the course's `teardown.sh`, if it has one.
+2. Deletes `courses/<name>/` and the links to it in `.agents/` and your agents' folders.
+3. Clears it as the active course.
+
+Your solutions in `katas/` stay where they are.
+
+## Related
+
+- [add](/docs/commands/add) – install it again

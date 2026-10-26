@@ -13,7 +13,7 @@ import { BrandLogo } from "~/components/brand-logo";
  * controls set the card's own options; Variants shows every card the app uses, then each with a long title.
  */
 const meta = {
-  title: "Components/Color Card",
+  title: "Components/Molecules/Color Card",
   component: ColorCard,
   parameters: { layout: "centered" },
   args: { color: "oklch(0.58 0.2 350)", size: "small", shader: false, progress: undefined, centered: false, flip: false },

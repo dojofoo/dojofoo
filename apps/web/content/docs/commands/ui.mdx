@@ -1,93 +1,81 @@
 ---
-title: npx dojofoo ui
-description: Open the browser-based dojo lesson workspace with Portless or localhost.
+title: ui
+description: Open the lesson UI in your browser – the lesson, an editor, the tests and the sensei together.
 ---
 
-## Usage
-
 ```sh
-npx dojofoo ui
+npx dojofoo ui [options]
 ```
 
-Dojofoo prefers [Portless](https://github.com/vercel-labs/portless) when the
-`portless` command is installed. It gives the disposable local daemon a stable,
-trusted URL:
+Starts a local server for the UI and opens it. Stopping the command stops the server; your
+courses and sessions stay indexed in `~/.dojofoo/dojofoo.db`. This is how you learn with
+dojofoo.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--background` | Keep the server running after the command exits |
+| `--no-open` | Print the URL without opening a browser |
+| `--authoring` | Open the [authoring UI](/authoring/authoring-ui) for the course in this folder |
+| `--port <port>` | The localhost port (default `4567`) |
+| `--no-portless` | Skip Portless and use localhost |
+| `--name <name>` | The Portless subdomain (default `dojo`) |
+| `--tld <tld>` | The Portless top-level domain, e.g. `test` |
+
+| Variable | Same as |
+| --- | --- |
+| `DOJO_UI_PORT` | `--port`. A `PORT` variable takes precedence over it. |
+| `DOJO_UI_DISABLE_PORTLESS=1` | `--no-portless` |
+| `DOJO_UI_NAME` | `--name` |
+
+## Examples
+
+```sh
+npx dojofoo ui                            # open the UI
+npx dojofoo ui --background --no-open     # keep it running, quietly
+npx dojofoo ui --no-portless --port 4570  # localhost, on another port
+```
+
+## The address
+
+With [Portless](https://github.com/vercel-labs/portless) installed, the UI gets a stable HTTPS
+address:
 
 ```text
 https://dojo.localhost
 ```
 
-The command prints and opens the effective URL. The daemon serves both the UI
-and its same-origin API; stopping the foreground command stops the daemon but
-keeps your course and session index in `~/.dojofoo/dojofoo.db`.
-
-Portless is optional. When it is missing, fails to start, or cannot register a
-route, dojofoo automatically starts the same UI directly at:
-
-```text
-http://localhost:4567
-```
-
-## Options
-
-```sh
-npx dojofoo ui --background       # keep the daemon running in the background
-npx dojofoo ui --no-open          # print the URL without opening a browser
-npx dojofoo ui --name course      # use course.localhost with Portless
-npx dojofoo ui --tld test         # request dojo.test from Portless
-npx dojofoo ui --no-portless      # skip Portless and use localhost directly
-npx dojofoo ui --port 4570        # use a different direct-fallback port
-```
-
-`--port` applies to direct localhost mode and to the automatic fallback. You
-can also set `DOJO_UI_PORT=4570`. Set `DOJO_UI_DISABLE_PORTLESS=1` for the
-environment-variable equivalent of `--no-portless`.
-
-## Installing Portless
-
-Portless recommends a global installation:
+Without it, or when it fails, the UI runs at `http://localhost:4567`. Both serve the same
+courses, progress and sessions. To set Portless up:
 
 ```sh
 npm install -g portless
 portless trust
-portless doctor
 ```
 
-Portless and Dojofoo's local agent runtime require Node.js 24 or newer.
-The localhost fallback remains available when Portless is not installed.
-
-The first Portless launch may ask for administrator access to bind HTTPS and
-trust its local certificate authority. This is Portless setup, not a dojofoo
-requirement.
-
-## Troubleshooting Portless
-
-Start with its read-only health check:
+Its first run may ask for administrator access to serve HTTPS. If the address stops working:
 
 ```sh
-portless doctor
-portless list
+portless doctor      # check its health
+portless trust       # repair certificate trust
+portless hosts sync  # repair .localhost resolution, e.g. in Safari
+portless prune       # clear routes left by crashed processes
 ```
 
-Common recovery commands are:
+## The sensei's agent
 
-```sh
-portless trust       # repair browser certificate trust
-portless hosts sync  # repair .localhost resolution, especially for Safari
-portless prune       # remove registrations left by crashed processes
+In the UI the sensei runs on OpenCode by default. To use Codex, Cursor, Grok or FX instead,
+set it for one project in `.dojo/runtimes.json`, or for all of them in
+`~/.dojofoo/runtimes.json`:
+
+```json
+{ "lesson": "codex" }
 ```
 
-If Portless still cannot start, bypass it without changing your installation:
+The `DOJOFOO_LESSON_HARNESS` variable overrides both for one run. Pick the model in the UI.
 
-```sh
-npx dojofoo ui --no-portless
-```
+## Related
 
-If port `4567` is already occupied, choose another:
-
-```sh
-npx dojofoo ui --no-portless --port 4570
-```
-
-The Portless and localhost URLs expose the same UI, local database, sessions,
-and API. Switching transports does not reset course progress.
+- [add](/docs/commands/add) – install a course
+- [Installation](/docs/installation) – requirements and local files

@@ -1,3 +1,4 @@
+import { useContentPreferences, setContentPreferences } from "~/lib/content-preferences";
 import { useRef, type ReactNode } from "react";
 import { ArrowRightUpRegular } from "@mingcute/react/core-regular";
 import { Icon } from "~/components/app-shell";
@@ -27,13 +28,14 @@ export function LessonBrief({ title, lead, children, resources = [], facts = [] 
   /** Short label–value pairs at the end */
   facts?: Array<[string, ReactNode]>;
 }) {
+  const { material } = useContentPreferences();
   return (
-    <article className="ui-lb">
+    <article className="ui-lb" data-resources={material.resources} style={{ fontSize: `${material.textSize}px`, "--ui-lb-measure": material.width === "wide" ? "100%" : "33rem", "--ui-lb-line": `${material.textSize * 1.6}px` } as import("react").CSSProperties}>
       <style href="ui-lesson-brief" precedence="default">{css}</style>
+      <div className="ui-lb__main">
       <h2 className="ui-lb__title">{title}</h2>
       {lead && <p className="ui-lb__lead">{lead}</p>}
       {children && <div className="ui-lb__body">{children}</div>}
-      {resources.length > 0 && <Resources resources={resources} />}
       {facts.length > 0 && (
         <dl className="ui-lb__facts">
           {facts.map(([term, value]) => (
@@ -41,6 +43,8 @@ export function LessonBrief({ title, lead, children, resources = [], facts = [] 
           ))}
         </dl>
       )}
+      </div>
+      {resources.length > 0 && <Resources resources={resources} />}
     </article>
   );
 }
@@ -48,11 +52,12 @@ export function LessonBrief({ title, lead, children, resources = [], facts = [] 
 /** The resources grid, with Fluid's hover: one highlight that springs from link to link (fast tier) and fades in and
     out, instead of each row lighting on its own */
 function Resources({ resources }: { resources: LessonResource[] }) {
+  const { material } = useContentPreferences();
   const list = useRef<HTMLUListElement>(null);
   const hover = useFluidHover(list, { axis: "xy", gapClick: false });
   return (
-        <section className="ui-lb__section" aria-label="Resources">
-          <h3>Resources</h3>
+        <details className="ui-lb__section" aria-label="Resources" open={material.previews} onToggle={event => { if (event.currentTarget.open !== material.previews) setContentPreferences("material", { previews: event.currentTarget.open }); }}>
+          <summary>Resources ({resources.length})</summary>
           <ul ref={list} className="ui-lb__resources" onMouseEnter={hover.handlers.onMouseEnter} onMouseMove={hover.handlers.onMouseMove} onMouseLeave={hover.handlers.onMouseLeave}>
             <FluidHoverHighlight hover={hover} className="ui-lb__highlight rounded-lg" />
             {resources.map((resource, index) => (
@@ -61,7 +66,7 @@ function Resources({ resources }: { resources: LessonResource[] }) {
               </li>
             ))}
           </ul>
-        </section>
+        </details>
   );
 }
 
@@ -82,6 +87,12 @@ function Resource({ resource, index, register }: { resource: LessonResource; ind
 }
 
 const css = /* css */ `
+.ui-lb__main { min-width: 0; }
+.ui-lb[data-resources="panel"] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(12rem, .65fr); gap: 24px; max-width: none; align-items: start; }
+.ui-lb[data-resources="panel"] > .ui-lb__section { margin-top: 0; position: sticky; top: 0; }
+.ui-lb__section summary { cursor: pointer; font-size: .8em; font-weight: 600; padding: 8px 0; }
+@container ui-as-main (max-width: 800px) { .ui-lb[data-resources="panel"] { grid-template-columns: minmax(0, 1fr); } }
+
 /* Long-form type, after the better-typography rules (jakubkrehel/skills), a step compact: body at 15px with a unitless 1.6
    line, a measure capped near 70 characters, unitless line heights by role (title 1.2, labels 1.3), weights as
    properties and Inter's optical size left to follow the size – the shell pins "opsz" 14 for its UI text, so the brief
@@ -97,7 +108,7 @@ const css = /* css */ `
   font-variation-settings: normal;
   overflow-wrap: break-word;
 }
-.ui-lb__title, .ui-lb__lead, .ui-lb__body { max-width: 33rem; } /* the measure: ≤ 74 characters at 15px */
+.ui-lb__title, .ui-lb__lead, .ui-lb__body { max-width: var(--ui-lb-measure, 33rem); } /* the measure: ≤ 74 characters at 15px */
 .ui-lb__title { margin: 0; font-size: 1.6875rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.015em; text-wrap: balance; }
 .ui-lb__lead { margin: 0.5rem 0 0; color: color-mix(in oklab, var(--fluid-foreground) 88%, var(--fluid-muted)); font-size: 1.0625rem; line-height: 1.55; text-wrap: pretty; }
 

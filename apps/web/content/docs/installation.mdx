@@ -1,13 +1,13 @@
 ---
 title: Installation
-description: Run the dojofoo CLI with npx and verify it works.
+description: Requirements, supported agents, and what dojofoo keeps on your machine.
 ---
 
-## Install
+There's nothing to install globally: the CLI runs through `npx`.
 
 <InstallCommand />
 
-Verify the CLI:
+Check that it runs:
 
 ```sh
 npx dojofoo --help
@@ -15,22 +15,17 @@ npx dojofoo --help
 
 ## Requirements
 
-- Node.js 24 or newer for Dojofoo's local agent and authoring runtime.
-- A supported coding harness that can read project files and run shell
-  commands: OpenCode, Codex, or Pi.
-- `mise`, installed automatically for the current user by `npx dojofoo install`
-  when it is not already available. On Windows, install it first with
-  `winget install jdx.mise`.
+- **Node.js 24** or newer.
+- **A coding agent** for the sensei. The lesson UI runs it on OpenCode (the default), Codex,
+  Cursor, Grok or FX – see [ui](/docs/commands/ui#the-senseis-agent).
+- **mise**, which `npx dojofoo install` adds for you when it's missing. On Windows, install it
+  first with `winget install jdx.mise`.
 
-## Reproducible environments with mise
+## Course environments
 
-Courses can pin their own language and runtime versions independently of Dojofoo.
-
-Dojofoo recognizes a checked-in `mise.toml` or `.mise.toml` as the project's
-environment contract. Before it starts or restores a lesson, it runs
-`mise install` and then `mise run setup` when the project defines a local
-`setup` task. Mise owns runtime versions, trust, task dependencies, and task
-freshness; dojofoo does not maintain a second setup manifest or cache.
+Courses pin their own languages and tools with [mise](https://mise.jdx.dev). When a course has
+a `mise.toml` (or `.mise.toml`), dojofoo runs `mise install` and then the course's `setup` task,
+if it defines one:
 
 ```toml
 [tools]
@@ -41,35 +36,23 @@ pnpm = "10"
 run = "pnpm install"
 ```
 
-Projects without a mise configuration continue unchanged. During initial
-dojofoo setup, the CLI downloads mise's official installer to a temporary file,
-installs the binary at `~/.local/bin/mise`, verifies it, and makes it available
-to the current process. It does not edit shell startup files. Mise handles trust
-for checked-in configuration and may ask for confirmation before loading
-configuration that can execute code. Manual installation options remain
-available in the [mise installation guide](https://mise.jdx.dev/installing-mise.html).
+mise may ask you to trust a course's configuration before it runs it. When dojofoo installs mise,
+it places the binary at `~/.local/bin/mise` and leaves your shell startup files alone.
 
-## Local state
+## What goes where
 
-Dojofoo keeps its local workspace, dojo run, and agent session index in
-`~/.dojofoo/dojofoo.db`. Kata progress and installed dojo files remain in the
-workspace, so existing CLI and agent flows continue to use the same files.
+| Path | What it holds |
+| --- | --- |
+| `courses/<name>/` | An installed course |
+| `katas/` | Your solutions |
+| `.dojo/` | Project settings, progress and the anonymous project ID |
+| `.agents/` | The dojofoo skill, and the deprecated `/kata` and `/dojo` commands, linked into each agent's folder |
+| `~/.dojofoo/dojofoo.db` | The lesson UI's index of workspaces and sessions |
 
-`npx dojofoo ui` starts a disposable local service alongside the lesson UI. It
-reads the durable index on startup and exposes same-origin control-plane routes
-under `/api/control`, including an overview and workspace, run, session, and
-event collections. The service stops with the foreground command; the SQLite
-index remains available for the next launch.
+Everything in the project is a plain file you can commit. Set `DOJOFOO_HOME` to keep the
+`~/.dojofoo` files somewhere else.
 
-When available, Portless provides the stable `https://dojo.localhost` address.
-It is optional: dojofoo automatically falls back to `http://localhost:4567` if
-Portless is absent or fails, and `npx dojofoo ui --no-portless` selects that
-mode explicitly. See the [UI command guide](/docs/commands/ui) for installation,
-custom ports, and troubleshooting.
+## Uninstall
 
-The lesson UI lists unfinished courses from every indexed workspace. Selecting
-one switches all lesson, editor, test, and Sensei requests to that workspace;
-the selection is restored when the UI reconnects.
-
-The CLI runs through `npx`, so there is no global package to uninstall. Remove
-an installed dojo from a project with `npx dojofoo remove <name>`.
+Remove a course with [`npx dojofoo remove <name>`](/docs/commands/remove). To remove dojofoo
+from a project, delete the paths above.

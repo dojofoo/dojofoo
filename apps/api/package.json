@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/index.ts",
+    "openapi:generate": "bun scripts/generate-openapi.ts && pnpm --filter @dojofoo/web docs:generate",
+    "openapi:check": "bun scripts/generate-openapi.ts --check && pnpm --filter @dojofoo/web docs:check",
     "test": "vitest run",
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
+    "@elysiajs/openapi": "1.4.16",
     "@libsql/client": "0.17.4",
     "drizzle-orm": "0.45.2",
     "elysia": "^1.4.18",

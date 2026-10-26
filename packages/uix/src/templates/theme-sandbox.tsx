@@ -1,6 +1,7 @@
 import { createContext, useContext, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { AppShell, type ShellSection } from "~/components/app-shell";
 import { Breadcrumbs } from "~/components/breadcrumbs";
+import { Switch } from "~/components/switch";
 import { Button } from "~/components/button";
 import { CodeEditor, Editor, EditorStatus, EditorTabs } from "~/containers/editor";
 import { SegmentedControl } from "~/components/segmented-control";
@@ -169,8 +170,8 @@ function Components() {
       </div>
       <div className="ts__strip">
         <SegmentedControl label="View" options={["Lesson", "Sensei", "Assets"]} value={view} onChange={setView} />
-        <button type="button" role="switch" aria-checked={on} aria-label="Switch" className="ts__switch" onClick={() => setOn(!on)} />
-        <button type="button" role="switch" aria-checked={false} aria-label="Switch, off" className="ts__switch" />
+        <Switch checked={on} aria-label="Switch" onCheckedChange={setOn} />
+        <Switch aria-label="Switch, off" />
         <span className="ts__tags">
           <span className="ts__tag">Tag</span>
           <span className="ts__tag" data-active>Active tag</span>
@@ -397,10 +398,6 @@ ${ladderCss("reversed", (level) => level - 1)}
 .ts__components { display: grid; gap: 20px; padding: 20px; border-radius: calc(12px * var(--squircle-factor, 1)); background: var(--surface-2); box-shadow: var(--shadow-3); }
 .ts__strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 /* The shell's switch, with the same colors as its own (--switch-on – the brand – and --toggle-off in app-shell) */
-.ts__switch { position: relative; width: 32px; height: 20px; border-radius: calc(10px * var(--squircle-factor, 1)); background: var(--ui-disabled, #e2e2e2); transition: background-color var(--motion-fast) var(--ease-fast); }
-.ts__switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; corner-shape: round; background: white; box-shadow: var(--knob-shadow); transition: translate var(--motion-moderate) var(--ease-moderate); }
-.ts__switch[aria-checked="true"] { background: var(--brand); }
-.ts__switch[aria-checked="true"]::after { translate: 12px 0; }
 .ts__tags { display: inline-flex; gap: 6px; }
 .ts__tag { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: calc(6px * var(--squircle-factor, 1)); background: var(--fluid-hover); color: var(--fluid-muted); font-size: var(--fs-caption); }
 .ts__tag[data-active] { background: var(--fluid-active); color: var(--fluid-foreground); }

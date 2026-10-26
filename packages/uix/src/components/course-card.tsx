@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { CardDetails, CardFigure, CardKicker, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, type CardShaderKind } from "~/components/color-card";
+import { CardDetails, CardFigure, CardKicker, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardTag, type CardShaderKind } from "~/components/color-card";
 import { CertificateSeal } from "~/components/certificate-seal";
 import { cn } from "~/lib/utils";
 
@@ -69,20 +69,20 @@ export function CourseArt({ art, size = 44, cover = false, className }: { art: C
 /** A course's color, for the cards drawn from one */
 export const courseColor = (art: CourseArtwork) => `oklch(0.58 0.2 ${art.hue})`;
 
-export function CourseCard({ course, mark, enrolled, className }: { course: CourseInfo; /** In the author's name's place, e.g. our logo on our own courses */ mark?: ReactNode; /** A course you study: your version and progress */ enrolled?: CourseEnrollment; className?: string }) {
+export function CourseCard({ course, mark, enrolled, badge, className, showVersion = false, flip = true }: { course: CourseInfo; /** In the author's name's place, e.g. our logo on our own courses */ mark?: ReactNode; /** A course you study: your version and progress */ enrolled?: CourseEnrollment; /** A format badge in place of the enrolled version label. */ badge?: ReactNode; className?: string; showVersion?: boolean; flip?: boolean }) {
   const outdated = enrolled?.latest !== undefined && enrolled.latest !== enrolled.version;
   return (<>
     <style href="ui-course-card" precedence="default">{css}</style>
-    <ColorCard size="big" flip color={courseColor(course.art)} shader={course.shader ?? "topography"} seed={course.repo} className={cn("ui-course", className)}
+    <ColorCard size="big" flip={flip} color={courseColor(course.art)} shader={course.shader ?? "topography"} seed={course.repo} className={cn("ui-course", className)}
       aria-label={enrolled ? `${course.title}, ${enrolled.progress}% done` : course.title}
       header={<>
         {!enrolled ? <CardMark>{mark ?? course.author}</CardMark>
-          : outdated ? (
+          : badge ? <ColorCardTag className="ui-course__badge">{badge}</ColorCardTag> : outdated ? (
             // Over the card's turn-over button (and not pressing it), so it updates rather than turns
             <ColorCardButton disabled={enrolled.updating} title={`${enrolled.version} → ${enrolled.latest}`} aria-label={`Update ${course.title} to ${enrolled.latest}`}
               onPointerDown={(event) => event.stopPropagation()} onClick={enrolled.onUpdate}>{enrolled.updating ? "Updating…" : "Update"}</ColorCardButton>
           ) : <CardFigure>{enrolled.version}</CardFigure>}
-        {course.rating !== undefined && <CardFigure aria-label={`Rated ${course.rating} out of 5`}>★ {course.rating.toFixed(1)}</CardFigure>}
+        {showVersion ? <CardFigure aria-label={`Version ${course.version}`}>{course.version}</CardFigure> : course.rating !== undefined && <CardFigure aria-label={`Rated ${course.rating} out of 5`}>★ {course.rating.toFixed(1)}</CardFigure>}
       </>}
       // Its version has the top left, so a course you study names its author over the title (others, their repository)
       main={<>{enrolled ? <CardKicker>{course.author}</CardKicker> : <CardKicker code>{course.repo}</CardKicker>}<CardTitle>{course.title}</CardTitle></>}
@@ -119,6 +119,7 @@ export function CertificateCard({ certificate, className }: { certificate: Certi
 }
 
 const css = /* css */ `
+.ui-course .ui-course__badge { border-radius: 999px; corner-shape: round; }
 /* Artwork: the course's hue, light at the top left and deep at the bottom right, its monogram set large and tight */
 .ui-cc-art {
   position: relative;

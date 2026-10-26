@@ -21,6 +21,11 @@
   --shadow-3-outer: var(--shadow-3);
   /* A selected option's pill (segmented controls): two levels above the window in light, three in dark, with shadow 3 */
   --pill-surface: var(--surface-4);
+  /* A box: a command or code to copy (the landing page's), a request and its response, and the cards beside them – the
+     card surface, raised, with one corner. Code in it keeps the editor scheme's colors, on this surface */
+  --box-surface: var(--surface-3);
+  --box-shadow: var(--shadow-2);
+  --box-radius: calc(10px * var(--squircle-factor, 1));
   /* A switch's knob: a soft drop in light; in dark, the next level's shadow, so the white dot holds its edge */
   --knob-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
 
@@ -95,6 +100,9 @@
   --shadow-3: inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-base), 0 0 0 1px rgba(0, 0, 0, 0.12), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop);
   --shadow-3-outer: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop);
   --pill-surface: var(--surface-5);
+  /* Again here, so a dark island in a light page takes its own surface and shadow */
+  --box-surface: var(--surface-3);
+  --box-shadow: var(--shadow-2);
   --knob-shadow: var(--shadow-4);
   --shadow-4: inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px rgba(0, 0, 0, 0.14), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop);
   --shadow-5: inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px rgba(0, 0, 0, 0.16), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop);
@@ -152,12 +160,39 @@
   }
 }
 
-/* Scrollbars with a fine pointer: a narrow, low-contrast thumb (8% overlay) on a 10px track that stays a comfortable
-   hit target; darker on hover (12%) and while dragging (16%). Touch keeps native overflow scrolling */
+/* Scrollbars with a fine pointer, as the ScrollArea's: out of sight until their area is hovered or scrolls (lib/scrollbars.ts
+   marks a scrolling element for 600ms), then a narrow, low-contrast thumb (8% overlay) – 4px, 2px off the edge, in a
+   10px track that stays a comfortable hit target. Pointing into that track widens it to 6px and darkens it (12%), and
+   dragging darker still (16%). It fades in over 160ms; on the way out it narrows first, then fades over 120ms. The page's
+   own scrollbar shows only while it scrolls or the pointer is on it, as the pointer is always over the page.
+   Chromium drops these ::-webkit-scrollbar styles on an element with scrollbar-width or -color, so those are Firefox's,
+   and won't match :hover before a scrollbar part: the thumb's color and width come from the element instead, as
+   variables reset on every element so a hovered ancestor's never reach it – and the page's scrollbar takes them from
+   the body. All of it at no specificity, so an element's own transition wins over these. Touch keeps native scrolling */
+@property --scrollbar-thumb {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --scrollbar-inset {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 4px;
+}
 @media (pointer: fine) {
   * {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(var(--overlay) / 0.08) transparent;
+    --scrollbar-thumb: transparent;
+    --scrollbar-inset: 4px;
+    transition: --scrollbar-thumb 120ms ease-out 160ms, --scrollbar-inset 160ms ease-in-out;
+  }
+  :where(:where(body *):hover, [data-scrolling], :root[data-scrolling] > body) {
+    --scrollbar-thumb: rgb(var(--overlay) / 0.08);
+    transition: --scrollbar-thumb 160ms ease-out, --scrollbar-inset 160ms ease-in-out;
+  }
+  :where([data-scrollbar-hover], :root[data-scrollbar-hover] > body) {
+    --scrollbar-thumb: rgb(var(--overlay) / 0.12);
+    --scrollbar-inset: 2px;
+    transition: --scrollbar-thumb 160ms ease-out, --scrollbar-inset 160ms ease-in-out;
   }
   ::-webkit-scrollbar {
     width: 10px;
@@ -168,23 +203,24 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background-color: rgb(var(--overlay) / 0.08);
-    border: 3px solid transparent;
-    background-clip: content-box;
+    background-color: var(--scrollbar-thumb);
+    border: solid transparent;
+    background-clip: padding-box;
     border-radius: 9999px; corner-shape: round;
   }
   ::-webkit-scrollbar-thumb:vertical {
-    border-left-width: 1px;
-    border-right-width: 5px;
+    border-width: 4px 2px 4px var(--scrollbar-inset);
   }
   ::-webkit-scrollbar-thumb:horizontal {
-    border-top-width: 1px;
-    border-bottom-width: 5px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(var(--overlay) / 0.12);
+    border-width: var(--scrollbar-inset) 4px 2px;
   }
   ::-webkit-scrollbar-thumb:active {
     background-color: rgb(var(--overlay) / 0.16);
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
   }
 }

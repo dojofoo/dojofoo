@@ -1,0 +1,1869 @@
+{
+  "info": {
+    "title": "Dojo Course API",
+    "description": "Browse and download courses, read learning metrics, and record course lifecycle events.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://dojo.foo"
+    }
+  ],
+  "security": [],
+  "tags": [
+    {
+      "name": "Courses",
+      "description": "The catalog: listings, search, each course's files and its learning metrics."
+    },
+    {
+      "name": "Events",
+      "description": "Lifecycle events the CLI records: installs, starts, kata completions and finishes."
+    },
+    {
+      "name": "Health",
+      "description": "Whether the API is up."
+    }
+  ],
+  "openapi": "3.1.2",
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Check health",
+        "description": "Check whether the Course API is available.",
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/course-profiles": {
+      "get": {
+        "operationId": "listCourseProfiles",
+        "summary": "List course profiles",
+        "description": "Read course descriptions, authors, languages and repository links without the full metrics payload.",
+        "tags": [
+          "Courses"
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "description",
+                          "version",
+                          "publishedAt",
+                          "repository",
+                          "repositoryUrl",
+                          "author",
+                          "language",
+                          "framework",
+                          "tags",
+                          "kataCount"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "publishedAt": {
+                            "type": "string"
+                          },
+                          "repository": {
+                            "type": "string"
+                          },
+                          "repositoryUrl": {
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "language": {
+                            "type": "string"
+                          },
+                          "framework": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "kataCount": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplace": {
+      "get": {
+        "operationId": "getMarketplace",
+        "summary": "Get the marketplace",
+        "description": "Read the complete marketplace catalog, including profiles, lifecycle metrics and trending rank.",
+        "tags": [
+          "Courses"
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "source",
+                          "installs",
+                          "sourceType",
+                          "installUrl",
+                          "url",
+                          "description",
+                          "version",
+                          "publishedAt",
+                          "repository",
+                          "repositoryUrl",
+                          "author",
+                          "language",
+                          "framework",
+                          "tags",
+                          "kataCount",
+                          "metrics",
+                          "trendingRank"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "examples": [
+                              "effect-ts"
+                            ],
+                            "type": "string"
+                          },
+                          "name": {
+                            "examples": [
+                              "Effect TS"
+                            ],
+                            "type": "string"
+                          },
+                          "source": {
+                            "examples": [
+                              "dojofoo"
+                            ],
+                            "type": "string"
+                          },
+                          "installs": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "sourceType": {
+                            "type": "string",
+                            "enum": [
+                              "github",
+                              "well-known",
+                              "npm"
+                            ]
+                          },
+                          "installUrl": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "katas",
+                              "interactive"
+                            ]
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "publishedAt": {
+                            "type": "string"
+                          },
+                          "repository": {
+                            "type": "string"
+                          },
+                          "repositoryUrl": {
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "language": {
+                            "type": "string"
+                          },
+                          "framework": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "kataCount": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "metrics": {
+                            "type": "object",
+                            "required": [
+                              "installs",
+                              "started",
+                              "progressing",
+                              "finished",
+                              "completionRate",
+                              "kataProgress",
+                              "weeklyActivity"
+                            ],
+                            "properties": {
+                              "installs": {
+                                "minimum": 0,
+                                "anyOf": [
+                                  {
+                                    "format": "integer",
+                                    "default": 0,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                ]
+                              },
+                              "started": {
+                                "minimum": 0,
+                                "anyOf": [
+                                  {
+                                    "format": "integer",
+                                    "default": 0,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                ]
+                              },
+                              "progressing": {
+                                "minimum": 0,
+                                "anyOf": [
+                                  {
+                                    "format": "integer",
+                                    "default": 0,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                ]
+                              },
+                              "finished": {
+                                "minimum": 0,
+                                "anyOf": [
+                                  {
+                                    "format": "integer",
+                                    "default": 0,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                ]
+                              },
+                              "completionRate": {
+                                "type": "number"
+                              },
+                              "kataProgress": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "required": [
+                                    "kata",
+                                    "started",
+                                    "finished",
+                                    "active"
+                                  ],
+                                  "properties": {
+                                    "kata": {
+                                      "type": "string"
+                                    },
+                                    "started": {
+                                      "minimum": 0,
+                                      "anyOf": [
+                                        {
+                                          "format": "integer",
+                                          "default": 0,
+                                          "type": "string"
+                                        },
+                                        {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      ]
+                                    },
+                                    "finished": {
+                                      "minimum": 0,
+                                      "anyOf": [
+                                        {
+                                          "format": "integer",
+                                          "default": 0,
+                                          "type": "string"
+                                        },
+                                        {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      ]
+                                    },
+                                    "active": {
+                                      "minimum": 0,
+                                      "anyOf": [
+                                        {
+                                          "format": "integer",
+                                          "default": 0,
+                                          "type": "string"
+                                        },
+                                        {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "weeklyActivity": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "required": [
+                                    "week",
+                                    "installs",
+                                    "started",
+                                    "finished"
+                                  ],
+                                  "properties": {
+                                    "week": {
+                                      "type": "string"
+                                    },
+                                    "installs": {
+                                      "minimum": 0,
+                                      "anyOf": [
+                                        {
+                                          "format": "integer",
+                                          "default": 0,
+                                          "type": "string"
+                                        },
+                                        {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      ]
+                                    },
+                                    "started": {
+                                      "minimum": 0,
+                                      "anyOf": [
+                                        {
+                                          "format": "integer",
+                                          "default": 0,
+                                          "type": "string"
+                                        },
+                                        {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      ]
+                                    },
+                                    "finished": {
+                                      "minimum": 0,
+                                      "anyOf": [
+                                        {
+                                          "format": "integer",
+                                          "default": 0,
+                                          "type": "string"
+                                        },
+                                        {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "trendingRank": {
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "type": "integer"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses": {
+      "get": {
+        "operationId": "listCourses",
+        "summary": "List courses",
+        "description": "Browse courses by lifetime installs, installs over the last seven days, or the change in installs since yesterday. Page numbers start at zero.",
+        "tags": [
+          "Courses"
+        ],
+        "parameters": [
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "description": "Ranking to use. The hot view also includes installsYesterday and change.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all-time",
+                "trending",
+                "hot"
+              ],
+              "default": "all-time"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Zero-based page number.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "description": "Number of courses per page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "source",
+                          "installs",
+                          "sourceType",
+                          "installUrl",
+                          "url"
+                        ],
+                        "properties": {
+                          "id": {
+                            "examples": [
+                              "dojofoo/effect-ts"
+                            ],
+                            "type": "string"
+                          },
+                          "slug": {
+                            "examples": [
+                              "effect-ts"
+                            ],
+                            "type": "string"
+                          },
+                          "name": {
+                            "examples": [
+                              "Effect TS"
+                            ],
+                            "type": "string"
+                          },
+                          "source": {
+                            "examples": [
+                              "dojofoo"
+                            ],
+                            "type": "string"
+                          },
+                          "installs": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "sourceType": {
+                            "type": "string",
+                            "enum": [
+                              "github",
+                              "well-known",
+                              "npm"
+                            ]
+                          },
+                          "installUrl": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "katas",
+                              "interactive"
+                            ]
+                          },
+                          "installsYesterday": {
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "change": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "required": [
+                        "page",
+                        "perPage",
+                        "total",
+                        "hasMore"
+                      ],
+                      "properties": {
+                        "page": {
+                          "minimum": 0,
+                          "anyOf": [
+                            {
+                              "format": "integer",
+                              "default": 0,
+                              "type": "string"
+                            },
+                            {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          ]
+                        },
+                        "perPage": {
+                          "anyOf": [
+                            {
+                              "format": "integer",
+                              "default": 0,
+                              "type": "string"
+                            },
+                            {
+                              "type": "integer"
+                            }
+                          ]
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "anyOf": [
+                            {
+                              "format": "integer",
+                              "default": 0,
+                              "type": "string"
+                            },
+                            {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          ]
+                        },
+                        "hasMore": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Response for status 400",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/search": {
+      "get": {
+        "operationId": "searchCourses",
+        "summary": "Search courses",
+        "description": "Find courses by name, source, description, author, language, framework or tags.",
+        "tags": [
+          "Courses"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search text, with at least two non-whitespace characters.",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "example": "effect"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of results.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "description": "Restrict results to this course owner.",
+            "schema": {
+              "type": "string",
+              "example": "dojofoo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "query",
+                    "searchType",
+                    "count",
+                    "durationMs"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "source",
+                          "installs",
+                          "sourceType",
+                          "installUrl",
+                          "url"
+                        ],
+                        "properties": {
+                          "id": {
+                            "examples": [
+                              "dojofoo/effect-ts"
+                            ],
+                            "type": "string"
+                          },
+                          "slug": {
+                            "examples": [
+                              "effect-ts"
+                            ],
+                            "type": "string"
+                          },
+                          "name": {
+                            "examples": [
+                              "Effect TS"
+                            ],
+                            "type": "string"
+                          },
+                          "source": {
+                            "examples": [
+                              "dojofoo"
+                            ],
+                            "type": "string"
+                          },
+                          "installs": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "sourceType": {
+                            "type": "string",
+                            "enum": [
+                              "github",
+                              "well-known",
+                              "npm"
+                            ]
+                          },
+                          "installUrl": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "katas",
+                              "interactive"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "query": {
+                      "type": "string"
+                    },
+                    "searchType": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "minimum": 0,
+                      "anyOf": [
+                        {
+                          "format": "integer",
+                          "default": 0,
+                          "type": "string"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    "durationMs": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Response for status 400",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/curated": {
+      "get": {
+        "operationId": "listCuratedCourses",
+        "summary": "List courses by owner",
+        "description": "Browse owners and their most installed course, along with each owner's course catalog.",
+        "tags": [
+          "Courses"
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "totalOwners",
+                    "totalCourses",
+                    "generatedAt"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "owner",
+                          "totalInstalls",
+                          "featuredRepo",
+                          "featuredCourse",
+                          "courses"
+                        ],
+                        "properties": {
+                          "owner": {
+                            "type": "string"
+                          },
+                          "totalInstalls": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "featuredRepo": {
+                            "type": "string"
+                          },
+                          "featuredCourse": {
+                            "type": "string"
+                          },
+                          "courses": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "slug",
+                                "name",
+                                "source",
+                                "installs",
+                                "sourceType",
+                                "installUrl",
+                                "url"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "examples": [
+                                    "dojofoo/effect-ts"
+                                  ],
+                                  "type": "string"
+                                },
+                                "slug": {
+                                  "examples": [
+                                    "effect-ts"
+                                  ],
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "examples": [
+                                    "Effect TS"
+                                  ],
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "examples": [
+                                    "dojofoo"
+                                  ],
+                                  "type": "string"
+                                },
+                                "installs": {
+                                  "minimum": 0,
+                                  "anyOf": [
+                                    {
+                                      "format": "integer",
+                                      "default": 0,
+                                      "type": "string"
+                                    },
+                                    {
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    }
+                                  ]
+                                },
+                                "sourceType": {
+                                  "type": "string",
+                                  "enum": [
+                                    "github",
+                                    "well-known",
+                                    "npm"
+                                  ]
+                                },
+                                "installUrl": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "url": {
+                                  "type": "string"
+                                },
+                                "mode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "katas",
+                                    "interactive"
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "totalOwners": {
+                      "minimum": 0,
+                      "anyOf": [
+                        {
+                          "format": "integer",
+                          "default": 0,
+                          "type": "string"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    "totalCourses": {
+                      "minimum": 0,
+                      "anyOf": [
+                        {
+                          "format": "integer",
+                          "default": 0,
+                          "type": "string"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    "generatedAt": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{source}/{slug}/metrics": {
+      "get": {
+        "operationId": "getCourseMetrics",
+        "summary": "Get course metrics",
+        "description": "Read installs, starts, completions, progress by kata and weekly activity for one course.",
+        "tags": [
+          "Courses"
+        ],
+        "parameters": [
+          {
+            "name": "source",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "examples": [
+                "dojofoo"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "examples": [
+                "effect-ts"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "installs",
+                    "started",
+                    "progressing",
+                    "finished",
+                    "completionRate",
+                    "kataProgress",
+                    "weeklyActivity"
+                  ],
+                  "properties": {
+                    "installs": {
+                      "minimum": 0,
+                      "anyOf": [
+                        {
+                          "format": "integer",
+                          "default": 0,
+                          "type": "string"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    "started": {
+                      "minimum": 0,
+                      "anyOf": [
+                        {
+                          "format": "integer",
+                          "default": 0,
+                          "type": "string"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    "progressing": {
+                      "minimum": 0,
+                      "anyOf": [
+                        {
+                          "format": "integer",
+                          "default": 0,
+                          "type": "string"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    "finished": {
+                      "minimum": 0,
+                      "anyOf": [
+                        {
+                          "format": "integer",
+                          "default": 0,
+                          "type": "string"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    "completionRate": {
+                      "type": "number"
+                    },
+                    "kataProgress": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "kata",
+                          "started",
+                          "finished",
+                          "active"
+                        ],
+                        "properties": {
+                          "kata": {
+                            "type": "string"
+                          },
+                          "started": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "finished": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "active": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "weeklyActivity": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "week",
+                          "installs",
+                          "started",
+                          "finished"
+                        ],
+                        "properties": {
+                          "week": {
+                            "type": "string"
+                          },
+                          "installs": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "started": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          },
+                          "finished": {
+                            "minimum": 0,
+                            "anyOf": [
+                              {
+                                "format": "integer",
+                                "default": 0,
+                                "type": "string"
+                              },
+                              {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Response for status 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/audit/{source}/{slug}": {
+      "get": {
+        "operationId": "getCourseAudit",
+        "summary": "Get course audits",
+        "description": "Read the security checks on a course: Dojo's own on every new snapshot, then Cisco's skill-scanner. A fail stops the CLI from installing the course; a warn asks first. Courses without audits return 404.",
+        "tags": [
+          "Courses"
+        ],
+        "parameters": [
+          {
+            "name": "source",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "examples": [
+                "dojofoo"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "examples": [
+                "effect-ts"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "source",
+                    "slug",
+                    "status",
+                    "hash",
+                    "audits"
+                  ],
+                  "properties": {
+                    "id": {
+                      "examples": [
+                        "acme/typescript-basics"
+                      ],
+                      "type": "string"
+                    },
+                    "source": {
+                      "examples": [
+                        "acme"
+                      ],
+                      "type": "string"
+                    },
+                    "slug": {
+                      "examples": [
+                        "typescript-basics"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "trial",
+                        "enabled"
+                      ],
+                      "description": "A trial course installs by its repository but isn't in the catalog yet.",
+                      "type": "string"
+                    },
+                    "hash": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "audits": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "provider",
+                          "slug",
+                          "status",
+                          "riskLevel",
+                          "summary",
+                          "auditedAt",
+                          "hash",
+                          "findings"
+                        ],
+                        "properties": {
+                          "provider": {
+                            "examples": [
+                              "Dojo"
+                            ],
+                            "type": "string"
+                          },
+                          "slug": {
+                            "enum": [
+                              "dojo",
+                              "cisco"
+                            ],
+                            "type": "string"
+                          },
+                          "status": {
+                            "enum": [
+                              "pass",
+                              "warn",
+                              "fail"
+                            ],
+                            "type": "string"
+                          },
+                          "riskLevel": {
+                            "enum": [
+                              "NONE",
+                              "LOW",
+                              "MEDIUM",
+                              "HIGH",
+                              "CRITICAL"
+                            ],
+                            "type": "string"
+                          },
+                          "summary": {
+                            "examples": [
+                              "No risks detected"
+                            ],
+                            "type": "string"
+                          },
+                          "auditedAt": {
+                            "type": "string"
+                          },
+                          "hash": {
+                            "description": "The snapshot the provider audited.",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "findings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "rule",
+                                "riskLevel",
+                                "message"
+                              ],
+                              "properties": {
+                                "rule": {
+                                  "examples": [
+                                    "install_script"
+                                  ],
+                                  "type": "string"
+                                },
+                                "riskLevel": {
+                                  "enum": [
+                                    "NONE",
+                                    "LOW",
+                                    "MEDIUM",
+                                    "HIGH",
+                                    "CRITICAL"
+                                  ],
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                },
+                                "path": {
+                                  "type": "string"
+                                },
+                                "line": {
+                                  "anyOf": [
+                                    {
+                                      "format": "integer",
+                                      "default": 0,
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "integer"
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Response for status 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{source}/{slug}": {
+      "get": {
+        "operationId": "getCourse",
+        "summary": "Download a course",
+        "description": "Read the course's content hash and files. Unknown courses return 404.",
+        "tags": [
+          "Courses"
+        ],
+        "parameters": [
+          {
+            "name": "source",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "examples": [
+                "dojofoo"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "examples": [
+                "effect-ts"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "source",
+                    "slug",
+                    "installs",
+                    "hash",
+                    "files"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "installs": {
+                      "minimum": 0,
+                      "anyOf": [
+                        {
+                          "format": "integer",
+                          "default": 0,
+                          "type": "string"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    "hash": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "files": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "contents"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "contents": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Response for status 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "post": {
+        "operationId": "recordCourseEvent",
+        "summary": "Record a lifecycle event",
+        "description": "Record an install, start, kata completion or finish. Duplicate events are accepted without being counted twice. An installed event can register a public GitHub source when source.repository matches courseId.",
+        "tags": [
+          "Events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "instanceId",
+                  "courseId",
+                  "event"
+                ],
+                "properties": {
+                  "instanceId": {
+                    "description": "Random identifier for the local project; do not send names, email addresses or file contents.",
+                    "examples": [
+                      "a-random-project-id"
+                    ],
+                    "type": "string"
+                  },
+                  "courseId": {
+                    "examples": [
+                      "dojofoo/effect-ts"
+                    ],
+                    "type": "string"
+                  },
+                  "event": {
+                    "enum": [
+                      "installed",
+                      "started",
+                      "kata_completed",
+                      "finished"
+                    ],
+                    "type": "string"
+                  },
+                  "occurredAt": {
+                    "description": "ISO 8601 timestamp; defaults to the server time.",
+                    "type": "string"
+                  },
+                  "kata": {
+                    "examples": [
+                      "001-hello-effect"
+                    ],
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "repository"
+                    ],
+                    "properties": {
+                      "type": {
+                        "const": "github",
+                        "type": "string"
+                      },
+                      "repository": {
+                        "examples": [
+                          "owner/repository"
+                        ],
+                        "type": "string"
+                      },
+                      "integrity": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Response for status 202",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "accepted",
+                    "duplicate"
+                  ],
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean"
+                    },
+                    "duplicate": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Response for status 400",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {}
+  }
+}
