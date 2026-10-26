@@ -28,6 +28,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec changeset status
       - run: pnpm --filter @dojofoo/api openapi:check
       - run: pnpm --filter @dojofoo/api test
       - run: pnpm --filter @dojofoo/uix types:check
