@@ -1,0 +1,62 @@
+/* Shared by the app previews and TanStack website. Local controls keep their own motion. */
+@view-transition { navigation: auto; }
+@keyframes ui-view-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ui-view-fade-in { from { opacity: 0; } to { opacity: 1; } }
+::view-transition { pointer-events: none; }
+::view-transition-group(root) { animation: none; }
+::view-transition-image-pair(root) { isolation: isolate; }
+::view-transition-old(root) { animation: ui-view-fade-out 180ms cubic-bezier(.16, 1, .3, 1) both; mix-blend-mode: plus-lighter; }
+::view-transition-new(root) { animation: ui-view-fade-in 180ms cubic-bezier(.16, 1, .3, 1) both; mix-blend-mode: plus-lighter; }
+
+@supports (view-transition-class: ui-main) and (view-transition-name: match-element) {
+  /* Automatic names stay unique, even when a story contains several app previews. */
+  :root:active-view-transition-type(ui-navigation) :is(.ui-as-side__menu, .ui-docs-tree, #nd-sidebar) { view-transition-name: match-element; view-transition-class: ui-left; }
+  :root:active-view-transition-type(ui-pane) .ui-as-side { view-transition-name: match-element; view-transition-class: ui-left; }
+  :root:active-view-transition-type(ui-navigation) :is(.ui-as-main__scroll:not([aria-hidden="true"]), .ui-web__main:not(:has(.ui-docs-layout)), .ui-docs, #nd-page) { view-transition-name: match-element; view-transition-class: ui-main; }
+  :root:active-view-transition-type(ui-navigation) body:not(:has(.ui-as)) main:not(:has(main)) { view-transition-name: match-element; view-transition-class: ui-main; }
+  :root:active-view-transition-type(ui-pane) .ui-as-main { view-transition-name: match-element; view-transition-class: ui-main; }
+  :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane)) :is(.ui-docs-side, #nd-toc, .ui-as-conversation-content:not([hidden])) { view-transition-name: match-element; view-transition-class: ui-right; }
+  :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane)) :is(.ui-as-aside, .ui-as-end) > .ui-content-settings { view-transition-name: match-element; view-transition-class: ui-right ui-settings; }
+  :root:active-view-transition-type(ui-navigation) :is(.ui-web-head, body:not(:has(.ui-as)) main > header) { view-transition-name: match-element; view-transition-class: ui-stable; }
+
+  :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane))::view-transition-old(root) { animation: none; opacity: 0; }
+  :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane))::view-transition-new(root) { animation: none; opacity: 1; }
+  ::view-transition-group(.ui-left), ::view-transition-group(.ui-main), ::view-transition-group(.ui-right) { animation-duration: 220ms; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
+  ::view-transition-group(.ui-stable) { animation: none; }
+  ::view-transition-old(.ui-stable) { animation: none; opacity: 0; }
+  ::view-transition-new(.ui-stable) { animation: none; }
+  ::view-transition-image-pair(.ui-left), ::view-transition-image-pair(.ui-main), ::view-transition-image-pair(.ui-right) { isolation: isolate; overflow: clip; }
+  ::view-transition-old(.ui-left), ::view-transition-new(.ui-left), ::view-transition-old(.ui-main), ::view-transition-new(.ui-main), ::view-transition-old(.ui-right), ::view-transition-new(.ui-right) { width: 100%; height: 100%; object-fit: none; object-position: left top; }
+  ::view-transition-old(.ui-left), ::view-transition-old(.ui-main), ::view-transition-old(.ui-right) { mix-blend-mode: plus-lighter; animation: ui-view-fade-out 180ms cubic-bezier(.16, 1, .3, 1) both; }
+  ::view-transition-new(.ui-left), ::view-transition-new(.ui-main), ::view-transition-new(.ui-right) { mix-blend-mode: plus-lighter; animation: ui-view-fade-in 180ms cubic-bezier(.16, 1, .3, 1) both; }
+  /* A persistent sidebar keeps its place; a changed menu enters from its own edge. */
+  ::view-transition-old(.ui-left):only-child { animation: ui-left-out 160ms cubic-bezier(.16, 1, .3, 1) both; }
+  ::view-transition-new(.ui-left):only-child { animation: ui-left-in 220ms cubic-bezier(.16, 1, .3, 1) both; }
+  ::view-transition-old(.ui-right):only-child { animation: ui-right-out 160ms cubic-bezier(.16, 1, .3, 1) both; }
+  ::view-transition-new(.ui-right):only-child { animation: ui-right-in 220ms cubic-bezier(.16, 1, .3, 1) both; }
+  /* Settings emerge from behind the main window and return underneath it. */
+  :root:active-view-transition-type(ui-pane):has(.ui-as-app:not([data-narrow]))::view-transition-group(.ui-main) { z-index: 1; }
+  :root:active-view-transition-type(ui-pane)::view-transition-group(.ui-settings) { z-index: 0; }
+  ::view-transition-image-pair(.ui-settings) { overflow: visible; }
+  :root:active-view-transition-type(ui-pane)::view-transition-old(.ui-right):only-child { animation-name: ui-view-fade-out; }
+  :root:active-view-transition-type(ui-pane)::view-transition-new(.ui-right):only-child { animation-name: ui-view-fade-in; }
+  :root:active-view-transition-type(ui-pane)::view-transition-old(.ui-settings):only-child { animation-name: ui-settings-out; }
+  :root:active-view-transition-type(ui-pane)::view-transition-new(.ui-settings):only-child { animation-name: ui-settings-in; }
+  :root:active-view-transition-type(ui-navigation)::view-transition-old(.ui-main) { animation: ui-main-out 180ms cubic-bezier(.16, 1, .3, 1) both; }
+  :root:active-view-transition-type(ui-navigation)::view-transition-new(.ui-main) { animation: ui-main-in 220ms cubic-bezier(.16, 1, .3, 1) both; }
+  :root:active-view-transition-type(ui-pane) :is(.ui-as-main, .ui-as-side, .ui-as-aside, .ui-as-end, .ui-as-aside-scrim) { transition: none !important; }
+}
+@keyframes ui-left-in { from { opacity: 0; transform: translateX(-24px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes ui-left-out { to { opacity: 0; transform: translateX(-24px) scale(.985); } }
+@keyframes ui-right-in { from { opacity: 0; transform: translateX(24px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes ui-right-out { to { opacity: 0; transform: translateX(24px) scale(.97); } }
+@keyframes ui-settings-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes ui-settings-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes ui-main-in { from { opacity: 0; transform: translateX(12px) scale(.99); } to { opacity: 1; transform: none; } }
+@keyframes ui-main-out { to { opacity: 0; transform: translateX(-12px) scale(.99); } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) { animation-duration: 0s !important; }
+  ::view-transition-old(*), ::view-transition-new(*) { animation-duration: 80ms !important; transform: none !important; }
+  ::view-transition-old(.ui-left), ::view-transition-old(.ui-main), ::view-transition-old(.ui-right) { animation-name: ui-view-fade-out !important; }
+  ::view-transition-new(.ui-left), ::view-transition-new(.ui-main), ::view-transition-new(.ui-right) { animation-name: ui-view-fade-in !important; }
+}

@@ -10,7 +10,7 @@ const meta = {
   title: "Pages/Dojo",
   component: LearnerPage,
   parameters: { layout: "fullscreen" },
-  args: { initialCourse: "Everyday TypeScript" },
+  args: { initialCourse: "Everyday TypeScript", settings: false, documentationUrl: "/uix-language/files/solution/hover" },
   argTypes: { start: { table: { disable: true } }, slideSource: { control: "text" }, initialCourse: { control: "select", options: ["Everyday TypeScript", "Advanced TypeScript"] } },
 } satisfies Meta<PageArgs>;
 export default meta;
@@ -40,7 +40,7 @@ export const LearnerSlides: Story = {
 export const CourseAuthoring: Story = {
   name: "Course Authoring",
   args: { start: "Kata" },
-  render: args => <CourseAuthoringPage key={args.initialCourse} initialCourse={args.initialCourse} />,
+  render: args => <CourseAuthoringPage key={args.initialCourse} initialCourse={args.initialCourse} documentationUrl={args.documentationUrl} settings={args.settings} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Show evals" })).toBeVisible();
@@ -57,3 +57,7 @@ export const Explore: Story = { args: { start: "Explore" }, play: async ({ canva
   await expect(within(canvas.getByRole("list", { name: "Featuring" })).getAllByRole("listitem")).toHaveLength(1);
   await expect(canvas.queryByText("Materials", { exact: true })).not.toBeInTheDocument();
 } };
+
+export const Settings: Story = { args: { start: "Settings" } };
+
+export const ContentWindowSettings: Story = { name: "Content Window Settings", args: { start: "Kata", settings: true } };

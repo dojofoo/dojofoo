@@ -1,3 +1,4 @@
+import { routerViewTransition } from "@dojofoo/ui/lib/view-transition"
 import { createRouter } from "@tanstack/react-router"
 import { routeTree } from "./routeTree.gen"
 import { NotFound } from "@/components/not-found"
@@ -6,6 +7,7 @@ export function getRouter() {
   return createRouter({
     routeTree,
     defaultPreload: "intent",
+    defaultViewTransition: routerViewTransition,
     scrollRestoration: true,
     defaultNotFoundComponent: NotFound,
   })

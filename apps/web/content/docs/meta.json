@@ -4,16 +4,18 @@
   "pages": [
     "index",
     "---Getting Started---",
-    "installation",
     "quickstart",
+    "installation",
     "marketplace",
-    "---Commands---",
+    "---CLI---",
     "commands/install",
     "commands/add",
     "commands/update",
+    "commands/remove",
     "commands/ui",
-    "commands/kata",
     "---Reference---",
-    "api"
+    "privacy",
+    "api",
+    "commands/kata"
   ]
 }

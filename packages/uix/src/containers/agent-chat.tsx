@@ -1,3 +1,7 @@
+import { paneViewTransition } from "~/lib/view-transition";
+import { ContentSettings } from "~/components/content-settings";
+import type { ContentKind } from "~/lib/content-preferences";
+import { Switch } from "~/components/switch";
 /*
  * Agent Chat – a chat with an orchestrating agent and a brief beside it, in a single file.
  * The thread shows the agent's answer and which agents are working; the composer sits at the bottom.
@@ -44,7 +48,7 @@ import {
 } from "~/lib/icons";
 import { Button } from "~/components/button";
 import { ChatMessages, Composer, useChatThread, type ChatReply } from "~/containers/assistant-home";
-import { AppShell, Dropdown, Icon, useShellNarrow, type AppShellProps, type ShellGroup, type ShellNavItem } from "~/components/app-shell";
+import { AppShell, Dropdown, Icon, type AppShellProps, type ShellGroup, type ShellNavItem } from "~/components/app-shell";
 import { CommandPalette } from "~/components/command-palette";
 import { SegmentedControl } from "~/components/segmented-control";
 import { Breadcrumbs, type Crumb } from "~/components/breadcrumbs";
@@ -114,9 +118,9 @@ export type AgentChatScreenProps = Pick<AppShellProps, "onNavigate" | "workspace
 /** The example's shell and chat surfaces, with authored content in place of the brief. */
 /**
  * The original agent chat window with a lesson IDE in place of the thread. The conversation sits beside the
- * window on the page; opening the settings widens the window over it, so it reads like the original chat.
+ * window on the page; settings share its resizable pane and join the window's frame.
  */
-export function AgentChatWorkspace({ crumbs, editor, details, evals, header, composer, children, scroller, defaultSettingsOpen = false, defaultEvalsOpen = false, commands = [], onCommand, ...shell }: Omit<AppShellProps, "children" | "aside" | "asideColumns" | "asideCovered"> & {
+export function AgentChatWorkspace({ crumbs, editor, details, evals, header, composer, children, scroller, defaultSettingsOpen = false, defaultEvalsOpen = false, contentKind = "code", commands = [], onCommand, ...shell }: Omit<AppShellProps, "children" | "aside" | "asideColumns" | "asideCovered"> & {
   /** The trail in the window's toolbar – e.g. the mode, then the chapter; "Evals" follows while they are open */
   crumbs: Crumb[];
   editor: ReactNode;
@@ -131,6 +135,8 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
   scroller?: RefObject<HTMLDivElement | null>;
   /** Start with the settings (the brief) open */
   defaultSettingsOpen?: boolean;
+  /** The current content determines which settings section opens. */
+  contentKind?: ContentKind;
   /** Start with the evaluations in place of the IDE */
   defaultEvalsOpen?: boolean;
   /** More groups for the command menu (⌥K or the sidebar's search), after the workspace's own */
@@ -139,8 +145,9 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
   onCommand?: (id: string, query?: string) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(defaultSettingsOpen);
-  const toggleSettings = () => setSettingsOpen((open) => !open);
-  // Narrow only: the conversation is a sheet that slides in from the right, pushing the window left
+  const toggleSettings = () => paneViewTransition(() => setSettingsOpen((open) => !open));
+  const [chatHidden, setChatHidden] = useState(false);
+  // Narrow screens keep their separate conversation drawer.
   const [chatOpen, setChatOpen] = useState(false);
   const [evalsOpen, setEvalsOpen] = useState(defaultEvalsOpen);
   const showEvals = Boolean(evals) && evalsOpen;
@@ -157,7 +164,10 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
   const conversation = <section aria-label="Course conversation" className="ui-as-chat__main" data-surface="page">
     <header className="ui-as-chat__bar">
       {header}
-      <button type="button" className="ui-as-icon-btn ui-as-chat__narrow" aria-label="Close chat" onClick={() => setChatOpen(false)}>
+      <button type="button" className="ui-as-icon-btn ui-as-chat__close ui-as-chat__wide" aria-label="Close chat" onClick={() => paneViewTransition(() => setChatHidden(true))}>
+        <Icon icon={Cancel01Icon} size={15} />
+      </button>
+      <button type="button" className="ui-as-icon-btn ui-as-chat__close ui-as-chat__narrow" aria-label="Close chat" onClick={() => paneViewTransition(() => setChatOpen(false))}>
         <Icon icon={Cancel01Icon} size={15} />
       </button>
     </header>
@@ -167,9 +177,9 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
   // The app's split: IDE and conversation in the golden ratio. Opened, the brief takes the conversation's column.
   // Only the conversation has a floor: where the shell is too narrow for the split (900px up to about 1120px, with the
   // sidebar open), the IDE gives way, never the page – its content answers to its own width
-  return <AppShell {...shell} onSearch={() => setPaletteOpen(true)} aside={conversation} asideColumns="minmax(0, 1.618fr) minmax(22rem, 1fr)" asideCovered={settingsOpen} asideOpen={chatOpen} onAsideOpenChange={setChatOpen}
+  return <AppShell {...shell} onSearch={() => setPaletteOpen(true)} aside={conversation} asideColumns="minmax(0, 1.618fr) minmax(22rem, 1fr)" asideCovered={settingsOpen} asideHidden={chatHidden} asideOpen={chatOpen} onAsideOpenChange={open => paneViewTransition(() => setChatOpen(open))}
     // Narrow, the settings are a drawer from the right, like the sidebar's; wide, they cover the conversation's column
-    drawer={<SettingsPanel onClose={() => setSettingsOpen(false)} />} drawerOpen={settingsOpen} onDrawerOpenChange={setSettingsOpen}>
+    drawer={<ContentSettings kind={contentKind} onClose={() => paneViewTransition(() => setSettingsOpen(false))} />} drawerOpen={settingsOpen} onDrawerOpenChange={open => paneViewTransition(() => setSettingsOpen(open))}>
     <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} groups={[...commands, workspaceCommands]} onRun={runCommand} placeholder="Search lessons, files and commands…" />
     <style href="ui-screen-agent-chat" precedence="default">{css}</style>
     <div className="ui-as-chat" data-brief={settingsOpen || undefined}>
@@ -185,7 +195,11 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
             <button type="button" className="ui-as-icon-btn" aria-label={settingsOpen ? "Hide settings" : "Show settings"} aria-pressed={settingsOpen} onClick={toggleSettings}>
               <Icon icon={Settings04Icon} size={16} />
             </button>
-            <button type="button" className="ui-as-icon-btn ui-as-chat__narrow" aria-label="Show chat" onClick={() => setChatOpen(true)}>
+            <button type="button" className="ui-as-icon-btn ui-as-chat__wide" aria-label={!chatHidden && !settingsOpen ? "Hide chat" : "Show chat"} aria-pressed={!chatHidden && !settingsOpen}
+              onClick={() => paneViewTransition(() => { if (!chatHidden && !settingsOpen) setChatHidden(true); else { setChatHidden(false); setSettingsOpen(false); } })}>
+              <Icon icon={ChatAiIcon} size={16} />
+            </button>
+            <button type="button" className="ui-as-icon-btn ui-as-chat__narrow" aria-label="Show chat" onClick={() => paneViewTransition(() => { setSettingsOpen(false); setChatOpen(true); })}>
               <Icon icon={ChatAiIcon} size={16} />
             </button>
           </span>
@@ -195,7 +209,6 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
             {details ? <>{editor && <div className="ui-as-chat__code">{editor}</div>}<div className="ui-as-chat__details scroll-fade">{details}</div></> : editor}
           </div>}
       </section>
-      {settingsOpen && <WideOnly><SettingsPanel onClose={() => setSettingsOpen(false)} /></WideOnly>}
     </div>
   </AppShell>;
 }
@@ -353,11 +366,6 @@ type Asset = { id: string; name: string; type: string; size: number; preview?: s
 const fileSize = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
 
 /** The workspace's settings: the lesson, Sensei and assets as tabs. Header, tabs and the save row stay; only the settings scroll */
-/** What only shows while the shell is wide – narrow, the shell's drawer has it */
-function WideOnly({ children }: { children: ReactNode }) {
-  return useShellNarrow() ? null : children;
-}
-
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const preferences = useUiPreferences();
   const mode = usePageMode();
@@ -458,7 +466,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                     {c.label}
                     <small>{c.note}</small>
                   </span>
-                  <input type="checkbox" className="ui-as-switch" checked={active.has(c.label)} onChange={() => setActive((prev) => flip(prev, c.label))} />
+                  <Switch aria-label={c.label} checked={active.has(c.label)} onCheckedChange={() => setActive((prev) => flip(prev, c.label))} />
                 </label>
               ))}
             </section>
@@ -527,7 +535,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                     {r.label}
                     <small>{r.note}</small>
                   </span>
-                  <input type="checkbox" className="ui-as-switch" checked={rules.has(r.id)} onChange={() => setRules((prev) => flip(prev, r.id))} />
+                  <Switch aria-label={r.label} checked={rules.has(r.id)} onCheckedChange={() => setRules((prev) => flip(prev, r.id))} />
                 </label>
               ))}
             </section>
@@ -693,7 +701,7 @@ const css = /* css */ `
 /* The window's shadow, drawn again over everything in it: its inner parts on the window itself would sit under the
    editor, the settings and their footer, which paint their own surfaces (the outer parts are clipped here) */
 .ui-as-chat::after { content: ""; position: absolute; z-index: 20; inset: 0; border-radius: var(--radius-panel); box-shadow: var(--shadow-3); pointer-events: none; }
-.ui-as-main:has(> .ui-as-chat) { box-shadow: var(--shadow-3-outer); }
+.ui-as-main:has(> .ui-as-main__scroll > .ui-as-chat) { box-shadow: var(--shadow-3-outer); }
 .ui-as-chat__main { display: flex; flex: 1; flex-direction: column; min-width: 0; }
 
 .ui-as-chat__bar {
@@ -767,13 +775,8 @@ const css = /* css */ `
 .ui-as-chat__composer { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 744px; margin: 0 auto; padding: 8px 32px 24px; }
 .ui-as-chat__route { font-size: var(--fs-body); font-weight: 400; color: var(--muted); }
 
-/* Workspace with the settings open: the window lays the IDE and the brief on the shell's own columns, so the brief
-   covers the conversation exactly and the IDE stays put – the brief's hairline lands where the window's edge was.
-   A size container can't be a subgrid (its layout is contained), so the window stops being one while it's this wide */
-.ui-as-app[data-aside-covered] > .ui-as-main:has(> .ui-as-chat) { container-type: normal; display: grid; grid-template-columns: subgrid; grid-template-rows: minmax(0, 1fr); }
-.ui-as-app[data-aside-covered] > .ui-as-main > .ui-as-chat { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; grid-template-rows: minmax(0, 1fr); }
-.ui-as-app[data-aside-covered] > .ui-as-main > .ui-as-chat > * { min-height: 0; }
-.ui-as-app[data-aside-covered] > .ui-as-main > .ui-as-chat > .ui-as-brief { width: auto; }
+/* Settings use the conversation's resizable pane; the window's inner edge stays square at their join. */
+.ui-as-app[data-aside-covered] .ui-as-chat::after { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 /* The IDE column answers the window's container queries itself, so what's in it (the evals) lays out the same with
    the settings open or closed: the column keeps its width either way, the window doesn't */
 .ui-as-chat__ide { container: ui-as-main / inline-size; }
@@ -800,6 +803,7 @@ const css = /* css */ `
 }
 /* The editor draws its own card (surface 3, its shadow and inner edge) – see components/editor */
 .ui-as-chat__code > * { flex: 1; min-height: 0; }
+.ui-as-chat__code:has(> .ui-slide-deck) { aspect-ratio: auto; max-height: none; }
 .ui-as-chat__details { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 24px 20px; color: var(--muted); font-size: var(--fs-body); line-height: var(--lh-body); }
 
 
@@ -875,35 +879,6 @@ const css = /* css */ `
 
 .ui-as-brief__channel { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
 .ui-as-brief__channel > svg { color: var(--muted); }
-/* Small switch, drawn on the checkbox itself */
-.ui-as-switch {
-  appearance: none;
-  position: relative;
-  flex: none;
-  width: 30px;
-  height: 18px;
-  margin: 0;
-  border-radius: 999px; corner-shape: round;
-  background: var(--toggle-off);
-  cursor: pointer;
-  transition: background-color var(--motion-fast) var(--ease-fast);
-}
-.ui-as-switch::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%; corner-shape: round;
-  background: #fff;
-  box-shadow: var(--knob-shadow);
-  transition: translate var(--motion-moderate) var(--ease-moderate);
-}
-.ui-as-switch:checked { background: var(--switch-on); }
-.ui-as-switch:checked::after { translate: 12px 0; }
-.ui-as-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
 .ui-as-brief__swatches, .ui-as-brief__formats { display: flex; gap: 14px; font-size: var(--fs-caption); line-height: 16px; color: var(--muted); }
 .ui-as-brief__swatches span, .ui-as-brief__formats span { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .ui-as-brief__swatches i { width: 22px; height: 22px; border-radius: 50%; corner-shape: round; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
@@ -972,6 +947,8 @@ const css = /* css */ `
 .ui-as-chat__scrim { display: none; }
 /* The chat's own toggles: narrow only, where the conversation is a sheet */
 .ui-as-chat__narrow { display: none; }
+.ui-as-chat__wide { display: grid; }
+.ui-as-chat__bar > .ui-as-chat__close { flex: none; margin-left: auto; }
 /* In the shell's drawer the brief fills it, with no divider */
 .ui-as-end > .ui-as-brief { flex: 1; width: auto; min-height: 0; }
 .ui-as-end > .ui-as-brief::before { display: none; }
@@ -1012,6 +989,7 @@ const css = /* css */ `
   /* Room for the sidebar's button, which waits in the window's top left corner */
   .ui-as-main .ui-as-chat__main > .ui-as-chat__bar { padding-left: 52px; }
   .ui-as-chat__narrow { display: grid; }
+  .ui-as-chat__wide { display: none; }
   .ui-as-chat__bar > .ui-as-chat__narrow { flex: none; margin-left: auto; }
 }
 @container ui-as (max-width: 600px) {

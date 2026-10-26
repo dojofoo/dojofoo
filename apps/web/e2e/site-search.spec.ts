@@ -1,0 +1,30 @@
+import { expect, test } from "@playwright/test";
+
+test("the shared palette searches docs and marketplace courses and opens results", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/docs", { waitUntil: "networkidle" });
+  const opener = page.getByRole("button", { name: "Open Search", exact: true }).first();
+  await opener.click();
+  const palette = page.locator("dialog.ui-as-palette[open]");
+  const input = palette.getByRole("combobox");
+  await expect(input).toBeFocused();
+  await expect(palette.getByRole("tab", { name: "Docs", exact: true })).toHaveAttribute("aria-selected", "true");
+  await input.fill("installation");
+  await expect(palette.getByRole("option").first()).toContainText("Installation");
+  await palette.getByRole("tab", { name: "Courses", exact: true }).click();
+  await input.fill("effect");
+  await expect(palette.getByRole("option", { name: /Effect TS/ })).toBeVisible();
+  await input.press("Enter");
+  await expect(page).toHaveURL(/\/courses\/dojofoo\/effect-ts/);
+  await expect(palette).toHaveCount(0);
+  await page.getByRole("button", { name: "Open Search", exact: true }).first().click();
+  await expect(palette.getByRole("tab", { name: "Courses", exact: true })).toHaveAttribute("aria-selected", "true");
+  await input.fill("zzzz-no-match");
+  await expect(palette.getByRole("status")).toHaveText("No courses found.");
+  await input.press("Escape");
+  await expect(input).toHaveValue("");
+  await input.press("Escape");
+  await expect(palette).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

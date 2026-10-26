@@ -1,0 +1,56 @@
+---
+title: Teaching notes
+description: Write the notes the sensei teaches from – for the course in DOJO.md, for each kata in SENSEI.md.
+---
+
+The sensei teaches from your notes, not from what it happens to know. Learners don't see the
+notes themselves, only the teaching.
+
+## DOJO.md – the whole course
+
+Who the learners are and what holds in every lesson:
+
+```md
+- Learners know functions, arrays and loops – not how TypeScript represents missing data.
+- A passing test alone doesn't show understanding: ask them to explain their code.
+```
+
+## SENSEI.md – one kata
+
+Next to the kata's `solution.ts`. A useful one has:
+
+- **A briefing** – the goal and the tasks. The sensei presents it when the kata starts.
+- **Prerequisites** – what the learner needs, and what this kata teaches outright.
+- **Where to start** – one opening question or prediction, not a lecture.
+- **When help is needed** – the usual misunderstandings, each with what to explain or show and
+  what to leave to the learner.
+- **Review** – what to discuss once the tests pass.
+
+```md
+# Highest reading
+
+## When help is needed
+
+- **Missing data:** explain that `undefined` means no value. Ask how zero rainfall differs from a
+  missing reading, then return to the empty-input case.
+- **Negative readings:** show that -3 is warmer than -8, then ask which is warmer: -6 or -1.
+
+Examples teach one step at a time. Never demonstrate the complete solution under another name.
+```
+
+## SENSEI.mdx – fragments to show
+
+Name it `SENSEI.mdx` instead to give the sensei passages it may show the learner as written –
+a definition, a worked example. Wrap each in `<Present id="…">`:
+
+```mdx
+<Present id="whitespace-class">
+`\s` matches any whitespace character: a space, a tab or a line break.
+</Present>
+```
+
+Everything outside `<Present>` stays private to the sensei. In the lesson UI it shows a fragment
+by its `id`, so your notes can say when: "If they don't know the syntax, present
+`whitespace-class` before explaining."
+
+When a kata has both, `SENSEI.mdx` wins.

@@ -1,4 +1,6 @@
 import { Elysia } from "elysia";
+import { openapi } from "@elysiajs/openapi";
+import { apiRoutes } from "./api-schema";
 import { MemoryCourseEventStore, type CourseEventStore } from "./event-store";
 
 export interface CourseFile {
@@ -270,8 +272,22 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
   };
 
   return new Elysia()
-    .get("/health", () => ({ status: "ok" }))
-    .get("/api/v1/health", () => ({ status: "ok" }))
+    .use(openapi({
+      path: "/api/v1/openapi",
+      documentation: {
+        info: { title: "Dojo Course API", version: "1.0.0", description: "Browse and download courses, read learning metrics, and record course lifecycle events." },
+        servers: [{ url: "https://dojo.foo" }], security: [],
+        // The collections, in the docs' order
+        tags: [
+          { name: "Courses", description: "The catalog: listings, search, each course's files and its learning metrics." },
+          { name: "Events", description: "Lifecycle events the CLI records: installs, starts, kata completions and finishes." },
+          { name: "Health", description: "Whether the API is up." },
+        ],
+      },
+      exclude: { paths: ["/health", "/api/v1/courses/*"] },
+    }))
+    .get("/health", () => ({ status: "ok" }), { detail: { hide: true } })
+    .get("/api/v1/health", () => ({ status: "ok" }), apiRoutes.health)
     .get("/api/v1/course-profiles", async ({ set }) => {
       set.headers["cache-control"] = snapshotCacheControl;
       return { data: (await allCourses()).map(({ id, description, version, publishedAt, repository, repositoryUrl, author, language, framework, tags, kataCount }) => ({
@@ -287,11 +303,11 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         tags,
         kataCount,
       })) };
-    })
+    }, apiRoutes.profiles)
     .get("/api/v1/marketplace", async ({ set }) => {
       set.headers["cache-control"] = catalogCacheControl;
       return { data: await marketplaceCourses() };
-    })
+    }, apiRoutes.marketplace)
     .get("/api/v1/courses", async ({ query, set, status }) => {
       const view = query.view ?? "all-time";
       if (!new Set(["all-time", "trending", "hot"]).has(view)) {
@@ -341,7 +357,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
           hasMore: offset + perPage < sorted.length,
         },
       };
-    })
+    }, apiRoutes.list)
     .get("/api/v1/courses/search", async ({ query, set, status }) => {
       const startedAt = performance.now();
       const searchQuery = query.q?.trim() ?? "";
@@ -376,7 +392,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         count: matches.length,
         durationMs: Math.max(0, Math.round((performance.now() - startedAt) * 100) / 100),
       };
-    })
+    }, apiRoutes.search)
     .get("/api/v1/courses/curated", async ({ set }) => {
       set.headers["cache-control"] = snapshotCacheControl;
       const owners = new Map<string, Course[]>();
@@ -400,7 +416,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         totalCourses: currentCourses.length,
         generatedAt: new Date().toISOString(),
       };
-    })
+    }, apiRoutes.curated)
     .get("/api/v1/courses/:source/:slug/metrics", async ({ params, set, status }) => {
       const course = await findCourse(params.source, params.slug);
       if (!course) {
@@ -408,12 +424,12 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       }
       set.headers["cache-control"] = catalogCacheControl;
       return courseMetrics(course, await eventsForCourse(course));
-    })
-    .get("/api/v1/courses/audit/*", ({ status }) =>
+    }, apiRoutes.metrics)
+    .get("/api/v1/courses/audit/:source/:slug", ({ status }) =>
       status(404, {
         error: "course_audit_not_found",
         message: "No audits exist for this course.",
-      }))
+      }), apiRoutes.audit)
     .get("/api/v1/courses/:source/:slug", async ({ params, set, status }) => {
       const course = await findCourse(params.source, params.slug);
       if (!course) {
@@ -429,7 +445,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         hash: course.hash,
         files: course.files,
       };
-    })
+    }, apiRoutes.course)
     .get("/api/v1/courses/*", async ({ params, set, status }) => {
       const course = (await allCourses()).find((candidate) => candidate.id === params["*"]);
       if (!course) {
@@ -499,5 +515,5 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       };
       const duplicate = !(await eventStore.append(event));
       return status(202, { accepted: true, duplicate });
-    });
+    }, apiRoutes.events);
 }

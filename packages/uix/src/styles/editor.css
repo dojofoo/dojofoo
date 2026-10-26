@@ -139,6 +139,15 @@
 }
 .ui-ed .monaco-scrollable-element > .scrollbar { background: transparent; }
 .ui-ed .monaco-scrollable-element > .scrollbar > .slider { border-radius: 9999px; corner-shape: round; }
+/* A full-height hit target with a 4px painted thumb, growing inward to 6px over the track. */
+.ui-ed .monaco-scrollable-element > .scrollbar.horizontal > .slider {
+  box-sizing: border-box;
+  border: solid transparent;
+  border-width: 4px 4px 2px;
+  background-clip: padding-box;
+  transition: border-top-width 160ms ease-in-out;
+}
+.ui-ed .monaco-scrollable-element > .scrollbar.horizontal:is(:hover, :has(> .slider.active)) > .slider { border-top-width: 2px; }
 .ui-ed__monaco { height: 100%; min-height: 0; }
 .ui-ed__state { position: absolute; inset: 0; padding: 16px; color: var(--fluid-muted); font-size: var(--fs-body); }
 .ui-ed .monaco-editor {

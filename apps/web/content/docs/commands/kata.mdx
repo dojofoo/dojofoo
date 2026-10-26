@@ -1,41 +1,58 @@
 ---
-title: /kata
-description: The slash command your agent uses to run the next kata.
+title: /kata (deprecated)
+description: The former way to start a lesson from inside your coding agent. Use npx dojofoo ui instead.
 ---
 
-`/kata` is a *slash command*, not a CLI command. You invoke it from inside your
-supported harness once `npx dojofoo install` has registered it.
+<Callout type="warn">
+  `/kata` is deprecated: not every course is made of katas. Learn with
+  [`npx dojofoo ui`](/docs/commands/ui) instead. Projects set up before keep the command for now.
+</Callout>
 
-## What it does
+`/kata` is a command you type in your agent, not in the shell. `npx dojofoo install` adds it,
+along with `/dojo`.
 
-When you type `/kata`, your agent:
+```text
+/kata
+```
 
-1. Reads `.dojorc` to find which dojo is active.
-2. Picks the next kata in the dojo's order — the first one whose tests don't
-   pass.
-3. Reads that kata's `SENSEI.mdx` or `SENSEI.md` for teaching guidance.
-4. Asks you questions, points you at type signatures or docs, and refuses to
-   write the solution for you.
-5. Runs tests when you select Check. Save and Check update local evidence
-   without prompting an unsolicited agent response.
+## What happens
 
-When the test goes green, `/kata` declares victory and you can run it again to
-move on.
+1. The agent starts the [lesson UI](/docs/commands/ui) in the background and reads where you
+   are: no course yet, the course's introduction, a kata's briefing, or practice.
+2. It teaches from the course's notes for that step – asking questions and giving hints, not
+   solutions.
+3. When you're ready, it runs the kata's tests. When they pass, the kata is complete and you
+   choose: review it, move on to the next one, or pause.
+4. Before it stops, it notes what it learned about how you work, so the next session builds on
+   it.
 
-## Arguments
+Progress lives in the project. Run `/kata` again any time to pick up where you left off.
 
-`/kata` is intentionally argument-free. The state lives in the workspace —
-which tests pass, which dojo is active. If you want to skip a kata, just edit
-its solution to be trivial; the next `/kata` will move past it.
+## /dojo
 
-## Sensei rules
+`/dojo` passes its arguments to the CLI, for anything else:
 
-Every dojo ships a `DOJO.md` with project-wide teaching rules and a Sensei
-source per kata. Markdown remains supported. `SENSEI.mdx` can additionally
-define private `TeachingPolicy` and `Stage` blocks plus named learner-facing
-`Present` fragments. The Sensei displays those fragments through
-the lesson interface; it cannot expose arbitrary private lesson content.
+```text
+/dojo --list               list the installed courses
+/dojo --change effect-ts   switch the active course
+```
 
-The first safe authored component is `RegexWorkbench`. Interactive courses and
-Sensei fragments share the same guarded MDX renderer, so Mermaid, LaTeX, code,
-artifacts, video, and sandboxed interactive HTML use one presentation path.
+## The CLI underneath
+
+The agent drives these; you can run them yourself too.
+
+| Command | Does |
+| --- | --- |
+| `npx dojofoo status` | Show where you are in the course |
+| `npx dojofoo kata` | Print the current kata's teaching notes |
+| `npx dojofoo kata intro` | Show the current kata's briefing |
+| `npx dojofoo kata --check` | Run the current kata's tests |
+| `npx dojofoo kata --start` | Set up the next kata |
+| `npx dojofoo kata --list` | List the katas and their state |
+| `npx dojofoo kata --change <name>` | Switch to a kata and set it up |
+| `npx dojofoo kata --note "text"` | Record an observation about the learner |
+
+## Related
+
+- [ui](/docs/commands/ui) – learn in your browser instead
+- [Teaching notes](/authoring/teaching) – what the sensei teaches from

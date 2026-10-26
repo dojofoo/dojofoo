@@ -1,11 +1,35 @@
 ---
 title: Authoring
-description: Create a dojo in your editor or together with an agent in the authoring UI.
+description: A course is a Git repository you own – lessons, tests and notes for the sensei.
 ---
 
-A dojo is a folder of teaching material, lesson files, and a manifest. You own the files and can keep them in Git. The authoring UI edits those same files; it isn't a separate publishing format.
+The authoring UI edits the same files you'd edit by hand; there's no separate publishing format.
 
-- [Create a dojo manually](/authoring/manual) using an existing starter and your editor.
-- [Use the authoring UI](/authoring/authoring-ui) to build lessons together with Kyoshi, the authoring agent.
+## What's in a course
 
-Start with one lesson: define what the learner should understand, provide an exercise, and try it as a student before expanding the course.
+A kata course, laid out like the [starter](https://github.com/dojofoo/starter-kata):
+
+```text
+my-course/
+├── dojo.yaml                  the manifest: name, test command, katas
+├── DOJO.md                    teaching notes for the whole course
+├── mise.toml                  tools and the setup task
+├── package.json
+└── katas/
+    └── 001-first-kata/
+        ├── solution.ts        what the learner starts from
+        ├── solution.test.ts   what checks their work
+        └── SENSEI.md          teaching notes for this kata
+```
+
+Interactive courses swap `katas/` for guided lesson steps – see
+[interactive lessons](/authoring/interactive).
+
+## Two ways to build one
+
+- [Create a course](/authoring/manual) – start from the starter and edit in your editor.
+- [Author with Kyoshi](/authoring/authoring-ui) – build lessons with the authoring agent, then
+  trial and evaluate them.
+
+Either way, start with one lesson: what the learner should understand, an exercise, its tests
+and its notes. Try it as a learner before you write the next.

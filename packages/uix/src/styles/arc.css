@@ -1,0 +1,18 @@
+/* Arc (uiarc.dev) components on UIX's tokens: the names Arc's components read, mapped onto ours, in place of Arc's own
+   foundation.css – whose root tokens (background, foreground, border, accent, surface, type scale, focus) would restyle
+   UIX. Only names UIX doesn't set at the root; a component's own scope still wins. */
+:root, .light {
+  --radius-pill: 999px;
+  /* The card surface: what an avatar's status ring is cut from */
+  --surface: var(--surface-3);
+  --surface-muted: var(--surface-2);
+  --text-muted: var(--fluid-muted);
+  /* The green of "installed" (agent-setup) */
+  --success: var(--ev-pass, #16a34a);
+  --duration-standard: var(--motion-moderate);
+  --ease-enter: var(--ease-moderate);
+}
+
+:is(.dark, [data-theme="dark"]) {
+  --success: #4ade80;
+}

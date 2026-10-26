@@ -1,9 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumadocs-openapi/css/preset.css";
+@import "./styles/api-reference.css";
 @import "./styles/fluid.css";
 @import "./styles/themes/index.css";
 @import "./styles/editor.css";
 @import "./styles/corners.css";
+@import "./styles/arc.css";
+@import "./styles/view-transitions.css";
 @import "./styles/learner.css";
 @import "./styles/typography.css";
 @import "./styles/onboarding.css";

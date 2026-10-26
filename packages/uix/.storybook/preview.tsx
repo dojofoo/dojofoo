@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { themeViewTransition } from "../src/lib/view-transition";
 import type { Preview } from "@storybook/react-vite";
 // Inter with its optical-size axis as well as weight, so a label keeps its width when it turns semibold
 import "@fontsource-variable/inter/opsz.css";
@@ -8,6 +10,9 @@ import "@fontsource-variable/noto-sans";
 import "../src/styles.css";
 import { IconSetContext, type IconSet } from "../src/lib/icons";
 import { MotionConfig } from "motion/react";
+import { revealScrollbars } from "../src/lib/scrollbars";
+
+revealScrollbars();
 
 const preview: Preview = {
   globalTypes: {
@@ -42,15 +47,13 @@ const preview: Preview = {
   parameters: {
     a11y: { test: "error" },
     layout: "fullscreen",
-    options: { storySort: { order: ["Pages", "Templates", "Components", "Archive"] } },
+    options: { storySort: { order: ["Pages", "Web", "Docs", "Templates", "Components", ["Atoms", "Molecules", "Organisms"], "Archive"] } },
   },
   decorators: [
     (Story, context) => {
       document.documentElement.dataset.uiFont = context.globals.font ?? "common";
 
       document.documentElement.lang = "en";
-      document.documentElement.classList.toggle("dark", context.globals.theme === "dark");
-      document.documentElement.style.colorScheme = context.globals.theme === "dark" ? "dark" : "light";
       document.documentElement.classList.add("h-full");
       document.documentElement.style.fontSize = "16px";
       document.body.classList.add(
@@ -65,9 +68,22 @@ const preview: Preview = {
       document.body.classList.toggle("overflow-hidden", context.parameters.layout === "fullscreen");
       document.body.classList.toggle("overflow-auto", context.parameters.layout !== "fullscreen");
       // Reduced motion is fewer and gentler, not none: transforms drop, opacity and colour fades stay
-      return <MotionConfig reducedMotion="user"><IconSetContext.Provider value={(context.globals.icons as IconSet) ?? "mingcute"}><Story /></IconSetContext.Provider></MotionConfig>;
+      return <MotionConfig reducedMotion="user"><IconSetContext.Provider value={(context.globals.icons as IconSet) ?? "mingcute"}><PreviewTheme theme={context.globals.theme} storyId={context.id}><Story /></PreviewTheme></IconSetContext.Provider></MotionConfig>;
     },
   ],
 };
 
 export default preview;
+
+function PreviewTheme({ theme, storyId, children }: { theme: string; storyId: string; children: ReactNode }) {
+  const initialized = useRef(false);
+  useLayoutEffect(() => {
+    const apply = () => {
+      document.documentElement.classList.toggle("dark", theme === "dark");
+      document.documentElement.style.colorScheme = theme === "dark" ? "dark" : "light";
+    };
+    if (!initialized.current) { initialized.current = true; apply(); }
+    else if (document.documentElement.classList.contains("dark") !== (theme === "dark")) themeViewTransition(apply);
+  }, [theme, storyId]);
+  return children;
+}

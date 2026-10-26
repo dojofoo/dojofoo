@@ -1,40 +1,56 @@
 ---
-title: npx dojofoo install
-description: One-time wiring of a project so your agent can run katas.
+title: install
+description: Set up a project and its coding agents for dojofoo.
 ---
 
-## Usage
-
 ```sh
-npx dojofoo install
+npx dojofoo install [--claude] [--opencode] [--codex] [--gemini] [--pi]
 ```
 
-`npx dojofoo install` prepares the current directory to host one or more dojos.
-It is idempotent — running it twice is harmless. `setup` remains available as
-a compatibility alias.
+Run it once in the folder you open in your agent. `setup` is an alias.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--claude` | Set up Claude Code |
+| `--opencode` | Set up OpenCode |
+| `--codex` | Set up Codex |
+| `--gemini` | Set up Gemini CLI |
+| `--pi` | Set up Pi |
+| `--agent <a,b>` | The same, as a list: `--agent claude,codex` |
+| `--skills` | Only refresh the dojofoo skill for the agents already set up |
+
+Without an option, `install` detects the agent it runs in. Outside an agent it asks, offering
+OpenCode, Codex and Pi.
+
+## Examples
+
+```sh
+npx dojofoo install                      # detect, or ask
+npx dojofoo install --claude             # choose
+npx dojofoo install --agent opencode,pi  # several at once
+```
 
 ## What it does
 
-- Detects which supported coding harness you're using and registers the
-  dojofoo skill there.
-- Writes the sensei rules — the agent-side instructions that enforce Socratic
-  teaching: ask questions, never spoil solutions, narrow scope to the next
-  failing test.
-- Creates the expected workspace layout so installed dojos drop in cleanly.
+- Adds mise for your user when it's missing (not with `--skills`).
+- Creates `.dojo/config.yaml` and the `courses/` folder.
+- Writes the [deprecated](/docs/commands/kata) `/kata` and `/dojo` commands to
+  `.agents/commands/` and links them into each agent's folder, e.g. `.claude/commands/`.
+- Writes the dojofoo skill to `.agents/skills/dojofoo/SKILL.md`.
+- For Claude Code, writes `.claude/settings.json` so the agent may run `npx dojofoo` without
+  asking.
 
-## Specifying the agent explicitly
+It's safe to run again, e.g. to add another agent. Commands you've edited in `.agents/commands/`
+are kept; the skill is refreshed.
 
-If `npx dojofoo install` can't detect your agent, or you want to wire up multiple,
-pass one or more flags:
+<Callout type="warn">
+  With `--claude`, `install` replaces `.claude/settings.json`. Back it up first if you've
+  customized it.
+</Callout>
 
-```sh
-npx dojofoo install --opencode        # OpenCode
-npx dojofoo install --codex           # OpenAI Codex CLI
-npx dojofoo install --pi              # Pi
-npx dojofoo install --opencode --codex # multiple at once
-```
+## Related
 
-## Re-running install
-
-Re-run `npx dojofoo install` if you've upgraded the CLI, switched agents, or want
-to reset the agent rules to defaults. Your code is untouched.
+- [add](/docs/commands/add) – install a course
+- [ui](/docs/commands/ui) – start learning in your browser

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { CommandMenu, type CommandGroup } from "~/components/command-menu";
-import { exitFallbackMs, spring } from "~/lib/springs";
+import { CommandMenu, type CommandGroup, type CommandMenuProps } from "./command-menu";
+import { exitFallbackMs, spring } from "../lib/springs";
 
 /*
  * Command Palette – the Command Menu as a modal: a native dialog (focus trap, Esc, top layer) over a half-transparent
@@ -9,18 +9,19 @@ import { exitFallbackMs, spring } from "~/lib/springs";
  * It enters on the slow spring and leaves one tier quicker; with reduced motion only the fades remain.
  */
 
-export type CommandPaletteProps = {
+export type CommandPaletteProps = Pick<CommandMenuProps, "query" | "onQueryChange" | "filter" | "assistant" | "header" | "searchLabel" | "emptyMessage" | "shortcut"> & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groups: CommandGroup[];
   /** Called with the command id; for the assistant fallback with "ask" and the typed text */
   onRun?: (id: string, query?: string) => void;
   placeholder?: string;
+  className?: string;
 };
 
 const isOptionK = (e: KeyboardEvent) => e.altKey && !e.metaKey && !e.ctrlKey && e.code === "KeyK";
 
-export function CommandPalette({ open, onOpenChange, groups, onRun, placeholder }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpenChange, groups, onRun, placeholder, className, ...menu }: CommandPaletteProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   // The menu stays mounted through the exit fade, then leaves – its own ⌘K listener shouldn't run while closed
   const [mounted, setMounted] = useState(open);
@@ -53,8 +54,8 @@ export function CommandPalette({ open, onOpenChange, groups, onRun, placeholder 
   return (
     <dialog
       ref={dialog}
-      className="ui-as-palette"
-      aria-label="Command menu"
+      className={["ui-as-palette", className].filter(Boolean).join(" ")}
+      aria-label={menu.searchLabel ?? "Command menu"}
       // Esc belongs to the menu first (it clears the search); an empty search then closes through onClose
       onCancel={(e) => e.preventDefault()}
       onClose={() => latest.current.open && onOpenChange(false)}
@@ -70,6 +71,7 @@ export function CommandPalette({ open, onOpenChange, groups, onRun, placeholder 
           placeholder={placeholder}
           autoFocus
           shortcut={["⌥", "K"]}
+          {...menu}
           onClose={() => onOpenChange(false)}
           onRun={(id, query) => {
             onOpenChange(false);

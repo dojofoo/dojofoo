@@ -198,7 +198,7 @@ export function AppDirectory({
           </div>
 
           <div className="ui-ad__layout">
-            <nav className="ui-ad__nav" aria-label="Categories">
+            <nav className="ui-ad__nav scroll-fade-x" aria-label="Categories">
               {categories.map((c) => {
                 const count = apps.filter((a) => inCategory(a, c.id)).length;
                 const current = !q && category === c.id;
@@ -665,6 +665,8 @@ const css = /* css */ `
   flex-direction: column;
   gap: 2px;
 }
+/* Its edges fade only where it scrolls, as a row of chips: a mask anywhere else would clip its focus rings */
+@container (min-width: 821px) { .ui-ad__nav.scroll-fade-x { -webkit-mask-image: none; mask-image: none; } }
 .ui-ad__nav-item {
   display: flex;
   align-items: center;

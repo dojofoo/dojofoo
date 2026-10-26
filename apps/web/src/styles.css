@@ -1,9 +1,12 @@
 @import "tailwindcss";
 @import "@dojofoo/ui/styles.css";
+@import "@dojofoo/ui/view-transitions.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
+@import "fumadocs-openapi/css/preset.css";
+@import "@dojofoo/ui/api-reference.css";
 
 @font-face {
   font-family: "Iosevka";

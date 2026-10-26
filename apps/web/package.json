@@ -7,7 +7,9 @@
   "scripts": {
     "predev": "rm -rf .tanstack",
     "dev": "portless dojofoo vite dev",
-    "build": "vite build",
+    "docs:generate": "bun scripts/generate-api-docs.ts",
+    "docs:check": "bun scripts/generate-api-docs.ts --check",
+    "build": "pnpm --filter @dojofoo/api openapi:generate && vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "types:check": "fumadocs-mdx && tsc --noEmit",
@@ -34,6 +36,7 @@
     "echarts": "^6.1.0",
     "fumadocs-core": "16.14.3",
     "fumadocs-mdx": "15.2.3",
+    "fumadocs-openapi": "11.1.0",
     "fumadocs-ui": "16.14.3",
     "metal-fx": "^1.0.4",
     "motion": "^13.1.0",

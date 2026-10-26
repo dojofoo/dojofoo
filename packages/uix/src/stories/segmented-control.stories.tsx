@@ -10,7 +10,7 @@ import { SegmentedControl } from "~/components/segmented-control";
  * the track's radius is the pill's plus the padding.
  */
 const meta = {
-  title: "Components/Segmented Control",
+  title: "Components/Molecules/Segmented Control",
   component: SegmentedControl,
   parameters: { layout: "fullscreen" },
   args: { label: "Range", options: ["Day", "Week", "Month", "Year"], value: "Week", onChange: () => {}, size: "default", fill: false, kind: "radio" },

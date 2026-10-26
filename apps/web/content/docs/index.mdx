@@ -1,26 +1,34 @@
 ---
 title: Usage
-description: Installable coding dojos that turn your AI agent into a sensei. You do the typing, the agent runs tests and asks Socratic questions.
+description: Courses your coding agent teaches. You write the code; the agent asks questions and runs the tests.
 ---
 
-## What's dojofoo?
+Dojo.foo turns your coding agent into a teacher. You install a course into a project, and the
+agent works through it with you as your sensei: it explains, asks questions and runs the tests,
+but leaves the code to you.
 
-dojofoo is a kata-driven training framework for AI coding agents. You install a dojo — a curated set of failing tests with teaching prompts — and your agent guides you through them like a Socratic sensei. No solutions handed out. Just questions, hints, and the next failing test.
+## How it works
 
-You do the typing. The agent runs the tests, watches what you wrote, and asks the next question. Each dojo is a curated set of katas, and each language gets its own pluggable ryu (style/school) so the prompts stay idiomatic.
+- A **course** (or *dojo*) is a Git repository of lessons. Kata courses are small exercises,
+  each with failing tests; interactive courses are guided steps.
+- The **sensei** is your agent, following the course's teaching notes. It hints and asks;
+  it doesn't hand out solutions.
+- Your work and progress stay in your project, as plain files you can commit.
 
-## Quickstart
+## Start
 
 ```sh
 npx dojofoo install
 npx dojofoo add dojofoo/effect-ts
-opencode /kata
+npx dojofoo ui
 ```
 
-`install` detects your coding harness and wires the dojofoo skill into it, `add` pulls in a dojo, and `/kata` puts you in front of your first failing test with the sensei watching. Pass `--opencode`, `--codex`, or `--pi` if you need to override detection.
+Then `npx dojofoo ui` opens the first lesson in your browser. The [Quickstart](/docs/quickstart)
+walks through it.
 
-## Where to go next
+## Find your way
 
-- **Getting Started** — install the CLI, scaffold your first dojo project.
-- **Commands** — the `npx dojofoo` CLI surface: `install`, `add`, `kata`.
-- **Dojos** — the installable catalog (`effect-ts`, `pydantic-agents`, more on the way).
+- [Installation](/docs/installation) – requirements, supported agents and local files
+- [Course marketplace](/docs/marketplace) – find a course to learn
+- [CLI](/docs/commands/install) – every `npx dojofoo` command
+- [Authoring](/authoring) – write a course of your own

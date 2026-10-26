@@ -37,6 +37,14 @@ export type CommandMenuProps = {
   /** Keys shown in the footer as the way to open the menu – defaults to ⌘K (Ctrl K on Windows) */
   shortcut?: string[];
   className?: string;
+  query?: string;
+  onQueryChange?: (query: string) => void;
+  /** Search providers can supply already-ranked results. */
+  filter?: boolean;
+  assistant?: boolean;
+  header?: ReactNode;
+  searchLabel?: string;
+  emptyMessage?: string;
 };
 
 /* ---------- Icons ---------- */
@@ -295,13 +303,22 @@ export function CommandMenu({
   autoFocus,
   shortcut,
   className,
+  query: controlledQuery,
+  onQueryChange,
+  filter = true,
+  assistant = true,
+  header,
+  searchLabel = "Command",
+  emptyMessage = "No results found.",
 }: CommandMenuProps) {
   const id = "ui-cm" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const input = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const [listHeight, setListHeight] = useState(0);
-  const [query, setQuery] = useState("");
+  const [localQuery, setLocalQuery] = useState("");
+  const query = controlledQuery ?? localQuery;
+  const setQuery = (value: string) => { setLocalQuery(value); onQueryChange?.(value); };
   const [active, setActive] = useState<string | null>(null);
   const [ran, setRan] = useState<{ id: string; label: string } | null>(null);
   const [pill, setPill] = useState<{ y: number; h: number } | null>(null);
@@ -313,13 +330,13 @@ export function CommandMenu({
     const result = groups
       .map((g) => ({
         ...g,
-        commands: g.commands.filter((c) => !needle || `${c.label} ${c.hint ?? ""} ${c.keywords ?? ""}`.toLowerCase().includes(needle)),
+        commands: g.commands.filter((c) => !filter || !needle || `${c.label} ${c.hint ?? ""} ${c.keywords ?? ""}`.toLowerCase().includes(needle)),
       }))
       .filter((g) => g.commands.length);
     // With text typed, the first row always offers to ask the assistant about it
-    if (needle) result.unshift({ id: "ask-about", label: "Assistant", commands: [{ id: "ask-about", label: `Ask assistant about “${q}”`, logo: <SparkTile /> }] });
+    if (needle && assistant) result.unshift({ id: "ask-about", label: "Assistant", commands: [{ id: "ask-about", label: `Ask assistant about “${q}”`, logo: <SparkTile /> }] });
     return result;
-  }, [groups, q]);
+  }, [groups, q, filter, assistant]);
   const order = shown.flatMap((g) => g.commands);
   const suggestions = shown.find((g) => g.id === "suggestions")?.commands ?? [];
   const current = order.find((c) => c.id === active) ?? order[0];
@@ -442,7 +459,7 @@ export function CommandMenu({
             ref={input}
             value={query}
             placeholder={placeholder}
-            aria-label="Command"
+            aria-label={searchLabel}
             role="combobox"
             aria-expanded="true"
             aria-controls={`${id}-list`}
@@ -461,9 +478,12 @@ export function CommandMenu({
           </span>
         </label>
 
+        {header}
+
         <div ref={listRef} id={`${id}-list`} className="ui-cm__list scroll-fade" role="listbox" aria-label="Commands" style={listHeight ? { height: listHeight } : undefined}>
           {pill && <span className="ui-cm__pill" style={{ transform: `translateY(${pill.y}px)`, height: pill.h }} aria-hidden="true" />}
           <div ref={innerRef} className="ui-cm__inner">
+          {!order.length && <p className="ui-cm__empty" role="status">{emptyMessage}</p>}
           {shown.map((group) => (
             <div key={group.id} role="group" aria-label={group.label} className="ui-cm__group">
               {group.id !== "ask-about" && <span className="ui-cm__label">{group.label}</span>}
@@ -587,7 +607,8 @@ const css = /* css */ `
 .ui-cm__enter { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ui-cm-faint); }
 .ui-cm__enter svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-.ui-cm__list { position: relative; max-height: 340px; padding: 4px 6px 8px; overflow-y: auto; scrollbar-width: thin; transition: height 320ms var(--ui-cm-ease); }
+.ui-cm__list { position: relative; max-height: 340px; padding: 4px 6px 8px; overflow-y: auto; transition: height 320ms var(--ui-cm-ease); }
+.ui-cm__empty { margin: 0; padding: 24px 10px; text-align: center; color: var(--ui-cm-muted); }
 .ui-cm__group { display: flex; flex-direction: column; }
 .ui-cm__label { padding: 10px 10px 4px; font-size: 12px; font-weight: 500; color: var(--ui-cm-faint); }
 .ui-cm__pill {

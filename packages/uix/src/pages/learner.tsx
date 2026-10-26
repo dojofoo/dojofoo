@@ -1,3 +1,5 @@
+import { fadeViewTransition } from "~/lib/view-transition";
+import { SettingsContent } from "~/components/settings-billing";
 import { SlideDeck } from "~/components/slide-deck";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { prepareEditor } from "~/lib/preload-editor";
@@ -10,13 +12,15 @@ import { Button } from "~/components/button";
 import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardTag } from "~/components/color-card";
 import { CertificateCard, CourseArt, CourseCard, type CourseArtwork, type CourseInfo } from "~/components/course-card";
 import { ChangelogFeed, type ChangelogEntry, type ChangelogMonth } from "~/components/arc/blocks/changelog-feed/changelog-feed";
+import { EditorTestResults } from "~/components/editor-test-results";
 import { CodeEditor, Editor, EditorStatus, EditorTabs } from "~/containers/editor";
 import { LessonBrief } from "~/components/lesson-brief";
 import type { SetupGroup } from "~/components/setup-guide";
 import { TestimonialHighlight, type Testimonial } from "~/components/testimonial-highlight";
 import { VideoStage } from "~/containers/video-stage";
-import { BackIcon, BookOpen01Icon, CertificateIcon, CommentsIcon, CoursesIcon, DoneIcon, ExploreIcon, LearnersIcon, LikesIcon, PlusSignIcon } from "~/lib/icons";
+import { BackIcon, BookOpen01Icon, CertificateIcon, ClaudeIcon, CommentsIcon, CoursesIcon, DoneIcon, ExploreIcon, LearnersIcon, LikesIcon, PlusSignIcon } from "~/lib/icons";
 import { BrandLogo } from "~/components/brand-logo";
+import samAltmanPhoto from "../../../../apps/web/public/sam-altman.jpg?url";
 
 /*
  * The learner's journey, to explore how the sidebar changes along it:
@@ -33,10 +37,10 @@ import { BrandLogo } from "~/components/brand-logo";
  *   chapter opens on its video, a lesson in the editor, and the Sensei teaches in the chat. Dashboard, in the
  *   breadcrumbs, closes the course.
  *
- * Moving between them, the sidebar's rows swipe – out to the right, the new ones in from the left. `start` jumps to a
+ * Moving between them uses the shared page fade. `start` jumps to a
  * state; from there everything is clickable.
  */
-export type LearnerStart = "Fresh" | "Dashboard" | "Explore" | "Intro" | "Kata" | "Slides" | "Certificates";
+export type LearnerStart = "Fresh" | "Dashboard" | "Explore" | "Intro" | "Kata" | "Slides" | "Certificates" | "Settings";
 
 /* ---------- Data ---------- */
 
@@ -156,19 +160,19 @@ const lockNote = (items: Array<{ title: string; state: Progress }>, index: numbe
 
 /* ---------- The journey ---------- */
 
-type View = "courses" | "explore" | "certificates" | "changelog";
+type View = "courses" | "explore" | "certificates" | "changelog" | "settings";
 
-export function LearnerPage({ start, slideSource = "/slides/index.html?embedded=true" }: { start: LearnerStart; slideSource?: string }) {
+export function LearnerPage({ start, slideSource = "/slides/index.html?embedded=true", documentationUrl, settings = false }: { start: LearnerStart; slideSource?: string; documentationUrl?: string; settings?: boolean }) {
   // The cards' classes are used here without a card component (the rectangles), so their styles load with the story
-  return <div style={{ height: "100dvh" }}><Journey key={start} start={start} slideSource={slideSource} /></div>;
+  return <div style={{ height: "100dvh" }}><Journey key={`${start}:${settings}`} start={start} slideSource={slideSource} documentationUrl={documentationUrl} settings={settings} /></div>;
 }
 
-function Journey({ start, slideSource }: { start: LearnerStart; slideSource: string }) {
+function Journey({ start, slideSource, documentationUrl, settings }: { start: LearnerStart; slideSource: string; documentationUrl?: string; settings: boolean }) {
   const [setupStep, setSetupStep] = useState(0);
   const [setupDone, setSetupDone] = useState<number[]>([]);
   const [onboarded, setOnboarded] = useState(start !== "Fresh");
   const [installed, setInstalled] = useState<string[]>(start === "Fresh" ? [] : ["everyday", "advanced"]);
-  const [view, setView] = useState<View>(start === "Explore" ? "explore" : start === "Certificates" ? "certificates" : "courses");
+  const [view, setView] = useState<View>(start === "Settings" ? "settings" : start === "Explore" ? "explore" : start === "Certificates" ? "certificates" : "courses");
   const [courseId, setCourseId] = useState<string | null>(["Intro", "Kata", "Slides"].includes(start) ? "everyday" : null);
   const [toast, showToast] = useToast();
 
@@ -185,7 +189,7 @@ function Journey({ start, slideSource }: { start: LearnerStart; slideSource: str
   ];
   const shell: Partial<AppShellProps> = {
     workspace: "Dojo",
-    user: { name: "Sam Rivera" },
+    user: { name: "Sam Rivera", email: "sam.rivera@example.com" },
     brand: <a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={(event) => event.preventDefault()}><BrandLogo className="w-11" /></a>,
     sidebarWidth: "18rem",
     showNews: false,
@@ -195,18 +199,18 @@ function Journey({ start, slideSource }: { start: LearnerStart; slideSource: str
     setupPinned: !onboarded,
   };
 
-  if (courseId) return <CourseWorkspace key={courseId} shell={shell} item={byId(courseId)} initialView={start === "Intro" ? "intro" : start === "Slides" ? "slides" : "kata"} slideSource={slideSource} onClose={() => { setCourseId(null); setView("courses"); }} />;
+  if (courseId) return <CourseWorkspace key={courseId} settings={settings} shell={shell} item={byId(courseId)} documentationUrl={documentationUrl} initialView={start === "Intro" ? "intro" : start === "Slides" ? "slides" : "kata"} slideSource={slideSource} onClose={() => fadeViewTransition(() => { setCourseId(null); setView("courses"); })} />;
 
   // Fresh: the only menu point is Documentation; Getting started follows the steps
   if (!onboarded) {
     const navigation: ShellSection[] = [{ id: "main", items: [{ id: "docs", label: "Documentation", icon: BookOpen01Icon }] }];
-    const next = () => { setSetupDone((list) => [...new Set([...list, setupStep])]); setSetupStep((n) => Math.min(n + 1, setupSteps.length - 1)); };
+    const next = () => fadeViewTransition(() => { setSetupDone((list) => [...new Set([...list, setupStep])]); setSetupStep((n) => Math.min(n + 1, setupSteps.length - 1)); });
     return (
       <AppShell {...shell} navigation={navigation} navigationKey="setup" active={[]} onNavigate={() => {}}>
         <AgentSetup step={setupStep} done={setupDone}
           // The top courses, as their cards
-          courses={[...library].sort((a, b) => b.rating - a.rating).slice(0, 4).map((item) => ({ id: item.id, title: item.title, color: colorOf(item), shader: item.shader, mark: markOf(item), author: item.author, rating: item.rating, lessons: item.lessons, hours: item.hours }))} onNext={next} onBack={() => setSetupStep((n) => Math.max(n - 1, 0))} onSkip={() => setSetupStep((n) => Math.min(n + 1, setupSteps.length - 1))}
-          onFinish={(values) => { setSetupDone(setupSteps.map((_, index) => index)); setInstalled(values.courses); setOnboarded(true); setView("courses"); }} />
+          courses={[...library].sort((a, b) => b.rating - a.rating).slice(0, 4).map((item) => ({ id: item.id, title: item.title, color: colorOf(item), shader: item.shader, mark: markOf(item), author: item.author, rating: item.rating, lessons: item.lessons, hours: item.hours }))} onNext={next} onBack={() => fadeViewTransition(() => setSetupStep((n) => Math.max(n - 1, 0)))} onSkip={() => fadeViewTransition(() => setSetupStep((n) => Math.min(n + 1, setupSteps.length - 1)))}
+          onFinish={(values) => fadeViewTransition(() => { setSetupDone(setupSteps.map((_, index) => index)); setInstalled(values.courses); setOnboarded(true); setView("courses"); })} />
       </AppShell>
     );
   }
@@ -225,11 +229,12 @@ function Journey({ start, slideSource }: { start: LearnerStart; slideSource: str
       {view === "explore" ? <Explore installed={installed} onInstall={(id) => { setInstalled((list) => [...list, id]); showToast(`${byId(id).title} is in your courses`); }} />
         : view === "certificates" ? <Certificates />
         : view === "changelog" ? <Changelog />
-        : <Courses installed={installed} onOpen={setCourseId} onAuthor={(id) => {
+        : view === "settings" ? <SettingsContent workspace="Dojo" onClose={() => fadeViewTransition(() => setView("courses"))} />
+        : <Courses installed={installed} onOpen={id => fadeViewTransition(() => setCourseId(id))} onAuthor={(id) => {
           const url = new URL("/", window.location.href);
           url.search = new URLSearchParams({ path: "/story/pages-dojo--course-authoring", args: `initialCourse:${byId(id).title}` }).toString();
           (window.parent ?? window).location.assign(url);
-        }} onExplore={() => setView("explore")} />}
+        }} onExplore={() => fadeViewTransition(() => setView("explore"))} />}
       {toast}
     </AppShell>
   );
@@ -243,7 +248,44 @@ const kataFiles = (item: Lesson) => ({
   "kata.test.ts": `import { expect, it } from "vitest";\nimport { ${item.fn} } from "./kata";\n\nit("handles the simplest case", () => {\n  expect(${item.fn}([])).toBeUndefined();\n});\n`,
 });
 
-function CourseWorkspace({ shell, item, onClose, initialView, slideSource }: { shell: Partial<AppShellProps>; item: Course; onClose: () => void; initialView: "intro" | "kata" | "slides"; slideSource: string }) {
+/** Landing-only sample, following https://sebastianraschka.com/llms-from-scratch/. */
+export function LearningPreview() {
+  const item = course({
+    id: "llm", title: "Build your own LLM", author: "Sebastian Raschka", repo: "rasbt/LLMs-from-scratch",
+    version: "v1.0.0", updated: "", language: "Python", hours: 12, rating: 4.9, learners: "",
+    art: { hue: 350, glyph: "LLM" }, shader: "topography", blurb: "Build a language model one small step at a time.",
+    chapterList: [
+      { id: "basics", title: "How LLMs work", state: "done", blurb: "Learn how predicting the next token creates text.", lessons: [lesson("next", "Predict the next token", "done", "predict", "Follow a tiny next-token prediction.")] },
+      { id: "tokens", title: "Text & tokens", state: "active", blurb: "Turn text into numbers a model can learn from.", lessons: [
+        lesson("split", "Split some text", "done", "split", "Break a sentence into a small list of words."),
+        lesson("encode", "Give words an ID", "active", "encode", "Turn each word into a number. The same word always gets the same ID.", "Complete encode(text, vocab) with the supplied vocabulary. Try “the cat the” and check that it becomes [0, 1, 0]."),
+        lesson("windows", "Make training pairs", "locked", "pairs", "Slide a small window across tokens to make inputs and targets."),
+        lesson("embed", "Look up embeddings", "locked", "embed", "Give each token a small vector of numbers."),
+      ] },
+      { id: "attention", title: "Paying attention", state: "locked", blurb: "Let tokens gather useful context from one another.", lessons: [lesson("scores", "Score two tokens", "locked", "score", "Use a dot product to measure a connection."), lesson("mask", "Hide future tokens", "locked", "mask", "Keep the next word a surprise with a causal mask.")] },
+      { id: "gpt", title: "Build a tiny GPT", state: "locked", blurb: "Connect attention and feed-forward layers into a model.", lessons: [lesson("block", "A transformer block", "locked", "block", "Trace a small batch through one transformer block.")] },
+      { id: "training", title: "Train & generate", state: "locked", blurb: "Measure a prediction, improve it, and generate a sentence.", lessons: [lesson("loss", "Measure the loss", "locked", "loss", "Compare predicted tokens with the next tokens."), lesson("generate", "One token at a time", "locked", "generate", "Extend a prompt with the model’s next prediction.")] },
+      { id: "classification", title: "Fine-tune a classifier", state: "locked", blurb: "Adapt a pretrained model to recognize a label.", lessons: [lesson("classify", "Spot a spam message", "locked", "classify", "Turn a model’s output into a simple class prediction.")] },
+      { id: "instructions", title: "Follow instructions", state: "locked", blurb: "Prepare examples that teach a model how to respond.", lessons: [lesson("format", "Format a conversation", "locked", "format", "Arrange an instruction and its answer into a training example.")] },
+    ],
+  });
+  return <CourseWorkspace preview item={item} initialView="kata" settings={false} slideSource="/slides/index.html?embedded=true" onClose={() => {}}
+    shell={{ workspace: "Dojo", user: { name: "Sam Altman", avatar: samAltmanPhoto }, sidebarWidth: "18rem", showNews: false, setup: [], showUser: true }} />;
+}
+
+const previewCode = `vocab = {"the": 0, "cat": 1, "sat": 2}
+
+def encode(text, vocab):
+    """Turn words into their vocabulary IDs."""
+    tokens = text.split()
+    # Look up each token in vocab.
+    return []
+
+# Try: encode("the cat the", vocab)
+# Expected: [0, 1, 0]
+`;
+
+function CourseWorkspace({ shell, item, onClose, initialView, slideSource, documentationUrl, settings, preview = false }: { settings: boolean; shell: Partial<AppShellProps>; item: Course; onClose: () => void; initialView: "intro" | "kata" | "slides"; slideSource: string; documentationUrl?: string; preview?: boolean }) {
   useEffect(() => { if (initialView !== "slides") prepareEditor(); }, [initialView]);
   const [chapterId, setChapterId] = useState(currentChapter(item).id);
   const chapter = item.chapterList.find((x) => x.id === chapterId)!;
@@ -251,6 +293,7 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource }: { s
   const [lessonId, setLessonId] = useState<string | null>(initialView === "intro" ? null : currentLesson(chapter).id);
   const open = lessonId ? chapter.lessons.find((x) => x.id === lessonId) ?? null : null;
   const [file, setFile] = useState<"kata.ts" | "kata.test.ts">("kata.ts");
+  const [resultsOpen, setResultsOpen] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const scroller = useRef<HTMLDivElement>(null);
   // A newer version is out: the card's Update brings it in
@@ -264,7 +307,7 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource }: { s
     {
       id: "chapters", heading: "Chapters", layout: "chapters",
       // Inset to the logo's and the rows' text line on the left, the same on the right
-      before: <div className="lj-course"><CourseCard course={item} mark={markOf(item)} enrolled={{ version, latest: item.latest, updating, onUpdate: update, progress: progressOf(item), label: at && `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}`, value: at && currentLesson(at)?.title }} /></div>,
+      before: <div className="lj-course"><CourseCard course={item} mark={markOf(item)} badge={preview ? "Kata" : undefined} enrolled={{ version, latest: item.latest, updating, onUpdate: update, progress: progressOf(item), label: at && `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}`, value: at && currentLesson(at)?.title }} /></div>,
       items: item.chapterList.map((x, index): ShellEntry => ({ id: `chapter:${x.id}`, label: x.title, marker: pad(index + 1), state: x.state, note: lockNote(item.chapterList, index, "chapter") })),
     },
     {
@@ -272,29 +315,42 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource }: { s
       items: chapter.lessons.map((x, index): ShellEntry => ({ id: `lesson:${x.id}`, label: x.title, marker: pad(index + 1), state: x.state, note: lockNote(chapter.lessons, index, "lesson") })),
     },
   ];
-  const path = open ? `src/${chapter.id}/${open.id}/${file}` : "";
-  const code = open ? drafts[path] ?? kataFiles(open)[file] : "";
+  const path = open ? `src/${chapter.id}/${open.id}/${preview ? "kata.py" : file}` : "";
+  const code = open ? drafts[path] ?? (preview ? previewCode : kataFiles(open)[file]) : "";
 
   return (
-    <AgentChatWorkspace {...shell} navigation={navigation} navigationKey={item.id}
+    <AgentChatWorkspace {...shell} defaultSettingsOpen={settings} contentKind={initialView === "slides" ? "slides" : open ? "code" : "video"} navigation={navigation} navigationKey={item.id}
       // The open chapter keeps its box whatever the window shows; its lesson lights while it is the one open
       active={[`chapter:${chapter.id}`, ...(open ? [`lesson:${open.id}`] : [])]}
       onNavigate={(id) => {
         if (id.startsWith("chapter:")) { setChapterId(id.slice(8)); setLessonId(null); }
-        else if (id.startsWith("lesson:")) { setLessonId(id.slice(7)); setFile("kata.ts"); }
+        else if (id.startsWith("lesson:")) { setLessonId(id.slice(7)); setFile("kata.ts"); setResultsOpen(false); }
       }}
       crumbs={[
         { label: "Dashboard", icon: <Icon icon={BackIcon} size={14} />, onClick: onClose },
-        open ? { label: chapter.title, onClick: () => setLessonId(null) } : { label: chapter.title },
+        open ? { label: chapter.title, onClick: () => fadeViewTransition(() => setLessonId(null)) } : { label: chapter.title },
         ...(open ? [{ label: open.title }] : []),
       ]}
       editor={initialView === "slides" ? <SlideDeck src={slideSource} title={`${chapter.title} · Slidev`} /> : open ? (
         <Editor flush
-          tabs={<EditorTabs mode="learning" label="Lesson files" active={file} tabs={(["kata.ts", "kata.test.ts"] as const).map((name) => ({ path: name, label: name, dirty: drafts[`src/${chapter.id}/${open.id}/${name}`] !== undefined }))} onSelect={(name) => setFile(name as typeof file)} />}
-          status={file === "kata.ts" ? <EditorStatus passed={open.state === "done" ? 3 : 1} total={3} /> : undefined}>
-          <CodeEditor code={code} filePath={path} language="typescript" lessonApiBase="" readOnly={file !== "kata.ts"} coverage={false} onChange={(next) => setDrafts((all) => ({ ...all, [path]: next }))} />
+          tabs={<EditorTabs mode="learning" label="Lesson files" active={resultsOpen ? "results" : file}
+            tabs={[...(preview ? ["kata.ts"] as const : ["kata.ts", "kata.test.ts"] as const).map((name) => ({ path: name, label: preview ? "kata.py" : name, dirty: drafts[`src/${chapter.id}/${open.id}/${name}`] !== undefined })), { path: "results", label: "Test results" }]}
+            onSelect={(name) => { setResultsOpen(name === "results"); if (name !== "results") setFile(name as typeof file); }} />}
+          status={!resultsOpen ? <EditorStatus passed={open.state === "done" ? 3 : 1} total={3} /> : undefined}>
+          <div hidden={resultsOpen} className="h-full">
+            <CodeEditor code={code} filePath={path} language={preview ? "python" : "typescript"} lessonApiBase="" documentationUrl={documentationUrl} readOnly={file !== "kata.ts"} coverage={false} onChange={(next) => setDrafts((all) => ({ ...all, [path]: next }))} />
+          </div>
+          {resultsOpen && <EditorTestResults tests={[
+            { suite: open.title, name: "handles the simplest case", status: "passed", durationMs: 1 },
+            { suite: open.title, name: "handles a typical input", status: open.state === "done" ? "passed" : "failed", durationMs: 3,
+              message: "Sample output from the last check." },
+            { suite: open.title, name: "handles edge cases", status: open.state === "done" ? "passed" : "failed", durationMs: 2 },
+          ]} />}
         </Editor>
-      ) : <VideoStage key={chapter.id} src={sampleVideo} title={`${chapter.title} – intro`} />}
+      ) : <VideoStage key={chapter.id} src={sampleVideo} title={`${chapter.title} – intro`} onNext={() => {
+        const next = item.chapterList.slice(item.chapterList.indexOf(chapter) + 1).find(candidate => candidate.state !== "locked");
+        if (next) fadeViewTransition(() => { setChapterId(next.id); setLessonId(null); });
+      }} />}
       details={open ? (
         <LessonBrief title={open.title} lead={open.lead}><h3>Goal</h3><p>{open.goal}</p></LessonBrief>
       ) : (
@@ -304,9 +360,16 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource }: { s
         </LessonBrief>
       )}
       header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
-      composer={<Composer tray={false} placeholder="Ask your Sensei…" busy={chat.busy} onSend={chat.send} />}
+      composer={<Composer tray={false} placeholder="Ask your Sensei…" busy={chat.busy} onSend={chat.send}
+        agent={preview ? { name: "Claude", icon: ClaudeIcon } : undefined}
+        models={preview ? [{ name: "Opus 5.5", effort: "medium", description: "Claude Opus 5.5 · medium effort", icon: ClaudeIcon }] : undefined} />}
       scroller={scroller}>
-      <p className="text-sm leading-relaxed">{open ? `${open.title}: ${open.lead} Tell me what you expect the first test to check.` : `${chapter.title} starts with a short video – watch it, then open the first lesson.`}</p>
+      {preview ? <>
+        <p className="ui-as-msg-user" aria-label="Learner">How do I turn words into numbers?</p>
+        <div className="ui-as-msg" aria-label="Sensei"><p className="ui-as-msg__p">Start with a tiny vocabulary: give each word an ID. “the cat” could become [0, 1].</p></div>
+        <p className="ui-as-msg-user" aria-label="Learner">What if a word appears twice?</p>
+        <div className="ui-as-msg" aria-label="Sensei"><p className="ui-as-msg__p">Reuse its ID. Try “the cat the” → [0, 1, 0], then check your encode function.</p></div>
+      </> : <p className="text-sm leading-relaxed">{open ? `${open.title}: ${open.lead} Tell me what you expect the first test to check.` : `${chapter.title} starts with a short video – watch it, then open the first lesson.`}</p>}
       <ChatMessages messages={chat.messages} name="Sensei" scroller={scroller} onDone={chat.finish} />
     </AgentChatWorkspace>
   );
@@ -395,9 +458,9 @@ function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id
       <h2 className="ui-ob-step__title lj-heading">Featuring</h2>
       <ol className="lj-top" aria-label="Featuring">
         {top.map((item) => (
-          <li key={item.id} className="lj-top__box rounded-2xl">
-            <CourseCard course={item} mark={markOf(item)} />
-            {/* The quote fills the box beside the card – its mark and the numbers share the top line, its speaker sits
+          <li key={item.id} className="lj-top__item">
+            <CourseCard course={item} mark={markOf(item)} showVersion />
+            {/* The quote sits beside the card – its mark and the numbers share the top line, its speaker sits
                 on the card's bottom line, the rating after the quote's own controls */}
             <div className="lj-top__side">
               <div className="lj-top__line">
@@ -406,10 +469,10 @@ function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id
                   <span title="Comments"><Icon icon={CommentsIcon} size={14} />{(item.reviews ?? 0).toLocaleString("en")}<span className="sr-only"> comments</span></span>
                   <span title="Learners"><Icon icon={LearnersIcon} size={14} />{item.learners}<span className="sr-only"> learners</span></span>
                 </span>
-                {action(item)}
+                <span className="lj-top__rating"><Stars value={item.rating} /><b>{item.rating.toFixed(1)}</b></span>
               </div>
               <TestimonialHighlight className="lj-top__voice w-full rounded-none bg-transparent p-0 shadow-none sm:p-0" testimonials={voices[item.id] ?? voices.everyday}
-                controlsEnd={<span className="lj-top__rating"><Stars value={item.rating} /><b>{item.rating.toFixed(1)}</b></span>} />
+                controlsEnd={action(item)} />
             </div>
           </li>
         ))}

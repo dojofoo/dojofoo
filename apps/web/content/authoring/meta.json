@@ -1,5 +1,18 @@
 {
   "title": "Authoring",
   "root": true,
-  "pages": ["index", "manual", "authoring-ui"]
+  "pages": [
+    "index",
+    "---Get started---",
+    "authoring-ui",
+    "publish",
+    "---Katas---",
+    "manual",
+    "katas",
+    "teaching",
+    "---Interactive---",
+    "interactive",
+    "---Reference---",
+    "manifest"
+  ]
 }

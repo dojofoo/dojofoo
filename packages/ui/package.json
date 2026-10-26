@@ -11,6 +11,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./styles.css": "./src/styles.css",
+    "./view-transitions.css": "./src/view-transitions.css",
+    "./api-reference.css": "./src/api-reference.css",
     "./elements/*": "./src/components/elements/*.tsx",
     "./react-bits/*": "./src/components/react-bits/*.tsx",
     "./premium/empty-states/*": "./src/components/premium/empty-states/*.tsx",
@@ -18,6 +20,7 @@
     "./premium/hero-sections/*": "./src/components/premium/hero-sections/*.tsx",
     "./premium/integrations/*": "./src/components/premium/integrations/*.tsx",
     "./premium/logo-cloud/*": "./src/components/premium/logo-cloud/*.tsx",
+    "./lib/view-transition": "./src/lib/view-transition.ts",
     "./lib/*": "./src/lib/*",
     "./hooks/*": "./src/hooks/*",
     "./*": "./src/components/ui/*.tsx"

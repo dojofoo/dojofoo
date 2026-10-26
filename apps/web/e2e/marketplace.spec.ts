@@ -184,14 +184,12 @@ test("browses compact courses from reusable marketplace navigation", async ({ pa
   )).toBeLessThanOrEqual(1);
   await searchTrigger.click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("dialog")).toHaveCSS("border-radius", "0px");
-  const closeSearch = page.getByRole("button", { name: "Close Search" });
-  await expect(closeSearch).toHaveCSS("border-radius", "0px");
-  await expect(closeSearch).toHaveCSS("background-color", "rgb(0, 0, 0)");
-  const search = page.getByPlaceholder("Search");
+  await expect(page.locator("dialog.ui-as-palette[open]")).toBeVisible();
+  const search = page.getByRole("combobox", { name: "Search courses" });
   await search.fill("pydantic");
-  await expect(page.getByRole("button", { name: /Pydantic Agents/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Effect TS/i })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: /Pydantic Agents/i })).toBeVisible();
+  await expect(page.getByRole("option", { name: /Effect TS/i })).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
 
   await page.getByRole("link", { name: /Effect TS/i }).click();

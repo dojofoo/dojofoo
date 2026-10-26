@@ -13,6 +13,7 @@ import { Suspense } from 'react'
 import { SITE_URL } from '@/lib/site'
 import { DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from '@/lib/social-metadata'
 import { useMDXComponents } from '@/components/mdx'
+import { OpenAPIPage, type APIPageProps } from '@dojofoo/ui/api-reference'
 import { baseOptions } from '@/lib/layout.shared'
 import { useFumadocsLoader } from 'fumadocs-core/source/client'
 
@@ -45,6 +46,7 @@ const loader = createServerFn({ method: 'GET' })
     const { source } = await import('@/lib/source')
     const page = source.getPage(slugs)
     if (!page) throw notFound()
+    const api = page.data._openapi ? await (await import('@/lib/openapi.server')).openapi.preloadOpenAPIPage(page) : undefined
 
     return {
       slugs: page.slugs,
@@ -53,6 +55,7 @@ const loader = createServerFn({ method: 'GET' })
       description: page.data.description,
       ogUrl: SITE_URL + page.url,
       pageTree: await source.serializePageTree(source.getPageTree()),
+      apiPreloaded: api?.preloaded,
     }
   })
 
@@ -62,17 +65,19 @@ const clientLoader = browserCollections.docs.createClientLoader({
     {
       markdownUrl,
       path,
+      apiPreloaded,
     }: {
       markdownUrl: string
       path: string
+      apiPreloaded?: APIPageProps['preloaded']
     },
   ) {
     return (
-      <DocsPage toc={toc}>
+      <DocsPage toc={toc} full={frontmatter.full} className={frontmatter._openapi ? 'dojo-api-page' : undefined} tableOfContent={frontmatter._openapi ? { enabled: false } : undefined}>
         <DocsTitle>{frontmatter.title}</DocsTitle>
         <DocsDescription>{frontmatter.description}</DocsDescription>
         <DocsBody>
-          <MDX components={useMDXComponents()} />
+          <MDX components={useMDXComponents({ OpenAPIPage: props => <OpenAPIPage {...props} preloaded={apiPreloaded} /> })} />
         </DocsBody>
       </DocsPage>
     )
@@ -86,7 +91,7 @@ const sidebarTabs = [
 ]
 
 function Page() {
-  const { pageTree, slugs, path } = useFumadocsLoader(Route.useLoaderData())
+  const { pageTree, slugs, path, apiPreloaded } = useFumadocsLoader(Route.useLoaderData())
   const markdownUrl = `/llms.mdx/docs/${[...slugs, 'index.mdx'].join('/')}`
   const { nav, ...base } = baseOptions()
 
@@ -100,7 +105,7 @@ function Page() {
         tree={pageTree}
       >
         <Link to={markdownUrl} hidden />
-        <Suspense>{clientLoader.useContent(path, { markdownUrl, path })}</Suspense>
+        <Suspense>{clientLoader.useContent(path, { markdownUrl, path, apiPreloaded })}</Suspense>
       </DocsLayout>
       <div className="marketplace-lined-frame mx-auto w-full max-w-(--fd-layout-width) px-4 sm:px-5">
         <div className="marketplace-lined-surface">

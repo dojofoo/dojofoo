@@ -28,12 +28,12 @@ test("docs hydrate and search opens", async ({ page }) => {
   await page.locator("[data-site-navigation]").getByRole("button", { name: "Open Search" }).click();
 
   await expect(page.getByRole("dialog")).toBeVisible();
-  const searchInput = page.getByPlaceholder("Search");
+  const searchInput = page.getByRole("combobox", { name: "Search docs" });
   await expect(searchInput).toBeVisible();
   await searchInput.fill("setup");
-  await expect(page.getByRole("button", { name: /npx dojofoo install/i }).first()).toBeVisible();
+  await expect(page.getByRole("option", { name: /npx dojofoo install/i }).first()).toBeVisible();
   await searchInput.fill("dojofoo ui");
-  await expect(page.getByRole("button", { name: /npx dojofoo ui/i }).first()).toBeVisible();
+  await expect(page.getByRole("option", { name: /npx dojofoo ui/i }).first()).toBeVisible();
   expect(pageErrors).toEqual([]);
   expect(consoleErrors).toEqual([]);
 
@@ -41,8 +41,8 @@ test("docs hydrate and search opens", async ({ page }) => {
   await expect(page.getByText("https://dojo.localhost", { exact: true })).toBeVisible();
 
   await page.goto("/docs/api");
-  await expect(page.getByRole("heading", { name: "Courses API", level: 1 })).toBeVisible();
-  await expect(page.getByText("POST /api/v1/events", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "API", level: 1 })).toBeVisible();
+  await expect(page.getByText("https://dojo.foo/api/v1", { exact: true })).toBeVisible();
 
   expect(await page.evaluate(() => {
     const prose = document.createElement("div");

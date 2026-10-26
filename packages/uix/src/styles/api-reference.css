@@ -1,0 +1,62 @@
+/* Native Fumadocs components, using the page's existing typography and surfaces. */
+.ui-api-reference {
+  container-type: inline-size;
+  min-width: 0;
+  font-size: .875rem;
+  line-height: 1.5;
+  --color-fd-background: var(--surface-2);
+  --color-fd-card: var(--surface-3);
+  --color-fd-secondary: var(--surface-3);
+  --color-fd-muted: var(--surface-3);
+  --color-fd-foreground: var(--fluid-foreground, var(--foreground));
+  --color-fd-card-foreground: var(--fluid-foreground, var(--foreground));
+  --color-fd-secondary-foreground: var(--fluid-foreground, var(--foreground));
+  --color-fd-muted-foreground: var(--fluid-muted, var(--muted-foreground));
+  --color-fd-border: var(--fluid-hairline, var(--border));
+}
+.ui-api-operation { display: grid; gap: 2rem; min-width: 0; }
+.ui-api-operation__body, .ui-api-operation__examples { min-width: 0; }
+@container (min-width: 54rem) {
+  .ui-api-operation { grid-template-columns: minmax(0, 1fr) 24rem; align-items: start; }
+  .ui-api-operation__examples { position: sticky; top: 7rem; }
+}
+.ui-api-reference [data-api-request] code { white-space: nowrap; font-size: .8125rem; line-height: 1.5; }
+/* The request line and the examples: boxes, as the landing page's command (fluid.css' --box-*; the site's surface and
+   shadow where it has no box). Their code is CodeBlock's (components/code-block), the box's own here: no box of its own,
+   its copy button where the docs' code blocks have theirs */
+.ui-api-reference :is([data-api-request] > div, .ui-api-operation__examples > div > div) {
+  border: 0;
+  border-radius: var(--box-radius, calc(10px * var(--squircle-factor, 1)));
+  background: var(--box-surface, var(--surface-3));
+  box-shadow: var(--box-shadow, var(--shadow-2));
+}
+.ui-api-reference [data-api-request] > div { min-height: 40px; padding: 0 14px; }
+.ui-api-operation__examples [role="tabpanel"] { padding: 0; border: 0; background: none; }
+.ui-api-operation__examples pre.ui-code { margin: 0; border-radius: 0; background-color: transparent !important; box-shadow: none; }
+/* Its copy button in Fumadocs' text colors: the site's --muted is a surface */
+.ui-api-reference .ui-code__copy { color: var(--color-fd-muted-foreground); }
+@media (hover: hover) { .ui-api-reference .ui-code__copy:hover { color: var(--color-fd-foreground); } }
+.ui-api-reference .ui-code__copy[data-copied] { color: var(--color-fd-foreground); }
+/* Both panels' tabs alike: a row over the code, the open one underlined */
+.ui-api-operation__examples [role="tablist"] { gap: 14px; padding: 0 14px; border-bottom: 1px solid var(--color-fd-border); }
+.ui-api-operation__examples [role="tab"] { padding: 9px 0; }
+/* A parameter's default and its values: small chips in a row, the values inline rather than a list */
+.ui-api-reference .not-prose > .bg-fd-secondary.border.rounded-lg { flex-direction: row; flex-wrap: wrap; align-items: baseline; width: auto; gap: 4px 6px; padding: 3px 8px; border: 0; border-radius: calc(6px * var(--squircle-factor, 1)); background: var(--chip, var(--color-fd-secondary)); box-shadow: none; font-size: .75rem; }
+.ui-api-reference .not-prose > .bg-fd-secondary.border.rounded-lg > p { font-size: .75rem; }
+.ui-api-reference .not-prose > .bg-fd-secondary.border.rounded-lg ul { display: contents; }
+.ui-api-reference .not-prose > .bg-fd-secondary.border.rounded-lg li { padding: 0; list-style: none; color: var(--color-fd-muted-foreground); }
+.ui-api-reference h2 { font-size: 1.125rem; line-height: 1.3; font-weight: 600; }
+.ui-api-reference h3 { font-size: 1rem; line-height: 1.3; font-weight: 600; }
+.ui-api-operation__body > h2, .ui-api-operation__body > h3 { margin-block: 2rem .75rem !important; }
+.ui-api-reference p { text-wrap: pretty; }
+/* A body's fields as a plain list: no filter over a handful of them, no button copying a link to each one */
+.ui-api-reference div:has(> [data-object-search-input]), .ui-api-reference div.flex-1 ~ button { display: none; }
+.ui-api-reference code, .ui-api-reference pre { font-family: var(--font-mono, monospace); }
+.ui-docs-layout[data-api] .ui-docs__title, .dojo-api-page > h1 { line-height: 1.2; text-wrap: balance; }
+.ui-docs-layout[data-api] > .ui-docs { max-width: none; }
+.ui-docs-layout[data-api] .ui-docs__lead { max-width: 65ch; margin: .75rem 0 1.5rem; line-height: 1.6; }
+.dojo-api-page { row-gap: 0; }
+.dojo-api-page > h1 { margin-bottom: .75rem; }
+.dojo-api-page > p { max-width: 65ch; margin-bottom: 1.5rem; line-height: 1.6; text-wrap: pretty; }
+.ui-docs-layout[data-api] .ui-docs__title + .ui-api-reference { margin-top: 1.5rem; }
+@media (max-width: 760px) { .ui-docs-layout[data-api] { grid-template-columns: minmax(0, 1fr); } }

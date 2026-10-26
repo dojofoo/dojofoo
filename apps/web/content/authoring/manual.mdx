@@ -1,41 +1,43 @@
 ---
-title: Create a dojo manually
-description: Start from a working course and edit its files directly.
+title: Create a course
+description: Start from the kata starter and edit its files in your own editor.
 ---
 
-## Start from an example
-
-Clone the kata starter into a new folder:
+## 1. Start from the starter
 
 ```sh
-git clone https://github.com/dojofoo/starter-kata.git my-dojo
-cd my-dojo
+git clone https://github.com/dojofoo/starter-kata.git my-course
+cd my-course
 ```
 
-Keep the starter's structure while replacing its example lessons. Check its setup instructions and `mise.toml` for the tools and dependencies it needs.
+It's a working TypeScript course with three katas. Keep its layout and replace its lessons.
 
-## Define the course and lessons
+## 2. Make it yours
 
-- **`dojo.yaml` or `dojo.json`** describes the course and its lessons. Update the name, description, and curriculum to match your material.
-- **`DOJO.md`** defines course-wide teaching guidance.
-- **Each lesson's `SENSEI.md` or `SENSEI.mdx`** explains how to teach that lesson: prerequisites, useful examples, misconceptions, and when to offer more help.
-- **Exercise files and tests** define the learner's work and check its behavior. Retain the starter's manifest references when renaming or moving files.
-- **`mise.toml`** owns environment preparation. See [portable dojo setup](/docs/commands/add#authoring-a-portable-dojo) for assets, MDX, and non-JavaScript tools.
+- **`dojo.yaml`** – set `name`, `description` and the list of `katas`. Remove
+  `marketplace: false` (the older spelling of `private: true`) when you want it listed. See [the kata manifest](/authoring/katas).
+- **`DOJO.md`** and each kata's **`SENSEI.md`** – what the sensei teaches from. See
+  [teaching notes](/authoring/teaching).
+- **Each kata's `solution.ts`** – the starting point the learner edits; **`solution.test.ts`** –
+  the behavior that counts as done. Test behavior, not one particular implementation.
+- **`mise.toml`** – the tools the course needs and its `setup` task.
 
-Keep teaching guidance separate from the learner's exercise. Explain unfamiliar concepts before testing recall, and use tests to check behavior rather than prescribe one implementation.
+## 3. Try it as a learner
 
-## Try the course
-
-Install your local course from a separate learner folder:
+From a separate folder, install your local copy:
 
 ```sh
-mkdir ../my-dojo-trial
-cd ../my-dojo-trial
+mkdir ../try-my-course && cd ../try-my-course
 npx dojofoo install
-npx dojofoo add ../my-dojo
-npx dojofoo ui
+npx dojofoo add ../my-course
 ```
 
-Work through the lesson as a learner. Check that the introduction gives a useful first step, failures produce helpful feedback, and completion offers a clear next step.
+Then run `npx dojofoo ui`. Check that the briefing gives a clear first
+step, that failing tests point somewhere useful, and that finishing leads somewhere.
 
-When ready, push your course to your own Git repository. Learners can install it with `npx dojofoo add owner/repository`. See [installation and marketplace registration](/docs/commands/add) before publishing; use `marketplace: false` for courses that should not be listed.
+After you change the course, run `npx dojofoo add ../my-course --force` in the trial folder to
+pick up the changes.
+
+## 4. Publish
+
+Push it to a public GitHub repository – see [Publish a course](/authoring/publish).

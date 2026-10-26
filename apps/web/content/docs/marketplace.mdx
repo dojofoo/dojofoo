@@ -1,29 +1,41 @@
 ---
 title: Course marketplace
-description: Find a dojo by topic and see how senpais progress through it.
+description: Find a course, check it before you install it, and see how learners get on.
 ---
 
-The [course marketplace](/) lists the dojos currently published by dojofoo.
-Categories are catalog metadata derived from the subject matter covered by each course's katas.
+The [course marketplace](/dojos) lists public courses. Filter by teaching style, language and
+framework, or search by name.
 
-Installing a public GitHub dojo publishes its validated snapshot by default. Authors can opt a
-repository out—or remove an existing snapshot—by setting `marketplace: false` in its manifest.
+Each course page shows:
 
-Each course shows:
+- its `npx dojofoo add` command, ready to copy;
+- installs, and how many projects started, are in progress and finished;
+- how many projects reach each chapter – which shows authors where learners get stuck.
 
-- installs: distinct project installations;
-- progressing: projects that started but have not finished;
-- finished: projects that completed every kata;
-- starts versus finishes; and
-- active projects at each reached kata, which helps course authors find lessons where senpais get stuck.
+## How a course gets listed
 
-Open a course to copy its `npx dojofoo add` command and inspect its detailed progress.
+There's no registry to submit to. The first time anyone installs a public GitHub course, the CLI
+reports its repository; the marketplace then fetches the course's manifest from GitHub and
+validates it. Authors can opt out – see [Publish a course](/authoring/publish).
 
-## Lifecycle metrics
+A new course starts in trial: anyone can install it by its repository, but it isn't listed yet.
+It's listed once enough learners use it and its security checks pass.
 
-The CLI creates one opaque ID in `.dojo/instance.json` for the local project. It reports only
-that ID, the course ID, lifecycle event, kata name, and timestamp. It does not send the project
-path, source code, agent session ID, or transcript. The API hashes the instance ID before storing it.
+## Security checks
 
-Set `DO_NOT_TRACK=1` or `DOJO_TELEMETRY_DISABLED=1` to disable reporting. Metrics requests are
-best-effort and never change the result of an install, kata, or test command.
+Each new version of a course is checked for what installing and running it could do:
+
+- Dojo's own checks, as soon as the course is reported: scripts that run on install, scripts
+  piped from the internet, encoded code, hidden characters, credentials it reads or contains, and
+  instructions that tell your agent to ignore its rules or keep things from you.
+- [Snyk Agent Scan](https://github.com/snyk/agent-scan), shortly after – the scanner behind
+  [skills.sh](https://skills.sh)'s audits – for prompt injection, malicious code and unsafe
+  dependencies in the course's instructions and code.
+
+`add` reads the results before it installs a course. A failed check stops the install; a warning
+lists what was found and asks first (`--yes` answers for you). A course that hasn't been checked
+yet installs as before. The results are in the API, at
+[`GET /courses/audit/{source}/{slug}`](/docs/api/get-course-audit).
+
+The numbers come from anonymous lifecycle events. See [Privacy](/docs/privacy) for what's sent
+and how to turn it off.

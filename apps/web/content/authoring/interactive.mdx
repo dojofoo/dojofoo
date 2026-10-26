@@ -1,0 +1,29 @@
+---
+title: Interactive lessons
+description: An interactive course steps through a lesson in the lesson UI instead of exercises.
+---
+
+Instead of exercises, an interactive course steps through a lesson in the lesson UI. Set
+`mode: interactive` and point `lessons` at a JSON file:
+
+```json
+{
+  "id": "python-setup",
+  "title": "Set up Python",
+  "steps": [
+    { "id": "why", "type": "present", "title": "Why mise", "content": "lessons/why.mdx" },
+    {
+      "id": "check", "type": "question", "title": "Check",
+      "prompt": "Which tool installs Python here?",
+      "answers": ["mise"],
+      "explanation": "mise installs the tools the course pins in mise.toml."
+    }
+  ]
+}
+```
+
+A `present` step shows `content`; a `question` step accepts any of its `answers`, ignoring case,
+then shows its `explanation`. Each text field takes inline Markdown or the path of an `.mdx`
+file in the course.
+
+Lesson text can use [the lesson content](/authoring/manifest#lesson-content) components.

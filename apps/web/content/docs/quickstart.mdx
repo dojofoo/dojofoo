@@ -1,50 +1,43 @@
 ---
 title: Quickstart
-description: From zero to your first green kata in three commands.
+description: From an empty folder to your first lesson in a few minutes.
 ---
 
-This guide assumes you have OpenCode, Codex, or Pi set up.
+You need Node.js 24 or newer and a supported coding agent – see
+[Installation](/docs/installation).
 
-## 1. Wire up your project
+## 1. Set up the project
 
-Run `npx dojofoo install` once per project. It registers the `/kata` slash command,
-writes the agent rules that tell your sensei how to behave, and sets up the
-expected directory layout.
+In the folder you open in your agent:
 
 ```sh
 npx dojofoo install
 ```
 
-## 2. Add a dojo
+It detects the agent you're running, or asks. To choose yourself, pass a flag such as
+`--claude` or `--codex` – see [install](/docs/commands/install).
 
-Install the dojo you want to train on. Dojos are Git-backed, language-neutral
-course repositories; Mise owns any language or toolchain preparation they need.
+## 2. Add a course
 
 ```sh
 npx dojofoo add dojofoo/effect-ts
 ```
 
-Replace `effect-ts` with any dojo from the [course marketplace](/), e.g.
-`pydantic-agents`.
+The course lands in `courses/effect-ts/`, and any tools it pins are installed with
+[mise](/docs/installation#course-environments). Find more courses in the
+[marketplace](/docs/marketplace).
 
-## 3. Start training
+## 3. Start learning
 
-In your coding harness, run:
-
+```sh
+npx dojofoo ui
 ```
-/kata
-```
 
-Your sensei opens the next kata, reads its `SENSEI.md`, and starts asking
-questions instead of writing code for you. When the kata's test goes green,
-`/kata` advances to the next one.
+It opens the lesson UI at `https://dojo.localhost` (or `http://localhost:4567`): the lesson, an
+editor, the tests and the sensei side by side. The sensei introduces the course, then the first
+lesson, runs the tests and asks about your approach. See [ui](/docs/commands/ui).
 
 <Callout type="info">
-  Stuck? Ask your sensei for a hint. Refuse to be told the answer — the point
-  is to *earn* the green test.
+  Stuck? Ask for a hint. The sensei narrows the problem down with you instead of writing the
+  answer.
 </Callout>
-
-## What's next
-
-- Skim the [commands reference](/commands) to learn `npx dojofoo` end-to-end.
-- Browse the [course marketplace](/) to pick your next discipline.

@@ -1,0 +1,38 @@
+---
+title: Privacy
+description: The anonymous usage data the CLI sends, and how to turn it off.
+---
+
+The marketplace's numbers come from four lifecycle events: a course was installed, started, one
+of its katas completed, or the course finished.
+
+## What's sent
+
+Each event carries:
+
+| Field | Example |
+| --- | --- |
+| `instanceId` | A random ID for the project, kept in `.dojo/instance.json` |
+| `courseId` | `dojofoo/effect-ts` |
+| `event` | `installed`, `started`, `kata_completed` or `finished` |
+| `kata` | The kata's name, for `kata_completed` |
+| `occurredAt` | A timestamp |
+
+The first install of a public GitHub course also sends its repository and content hash, so the
+marketplace can list it. Before installing one, `add` asks for its security checks, which sends
+the repository's name. The server stores a hash of `instanceId`, never the ID itself.
+
+Never sent: file paths, your code, agent session IDs or conversations.
+
+## Turn it off
+
+Set either variable:
+
+```sh
+export DO_NOT_TRACK=1
+export DOJO_TELEMETRY_DISABLED=1
+```
+
+With either set, `add` also skips the security-check lookup and installs without it.
+
+Reporting is best-effort: a failed or disabled request never changes the result of a command.

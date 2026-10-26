@@ -3,7 +3,7 @@ import { CertificateSeal } from "~/components/certificate-seal";
 import { expect, within } from "storybook/test";
 
 const meta = {
-  title: "Components/Certificate Seal",
+  title: "Components/Atoms/Certificate Seal",
   component: CertificateSeal,
   args: { digest: "d1d0ac5f87007c80c7a0d1773773b4ac9361c8aba3c175473f46bff44da78f8d", deformation: "twisted", relief: 1, animated: true, duration: 18 },
   argTypes: {

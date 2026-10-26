@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import catalog from "~/styles/themes/catalog.json";
 import { editorSchemes, type EditorSchemeId } from "./code-editor-theme";
+import { themeViewTransition } from "./view-transition";
 
 /*
  * The interface's look, chosen by the person using it: a theme (its colors – styles/themes), the editor's color
@@ -66,6 +67,12 @@ function apply() {
 apply();
 
 export function setUiPreferences(patch: Partial<UiPreferences>) {
+  if (patch.theme !== undefined && patch.theme !== state.theme) {
+    themeViewTransition(() => updatePreferences(patch));
+  } else updatePreferences(patch);
+}
+
+function updatePreferences(patch: Partial<UiPreferences>) {
   state = { ...state, ...patch };
   apply();
   try {
@@ -103,8 +110,11 @@ export function usePageMode() {
   return useSyncExternalStore(subscribePageMode, pageMode, () => "dark" as PageMode);
 }
 export function setPageMode(mode: PageMode) {
-  const root = document.documentElement;
-  root.classList.toggle("dark", mode === "dark");
-  if (root.dataset.theme) root.dataset.theme = mode;
-  root.style.colorScheme = mode;
+  if (pageMode() === mode) return;
+  themeViewTransition(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", mode === "dark");
+    if (root.dataset.theme) root.dataset.theme = mode;
+    root.style.colorScheme = mode;
+  });
 }

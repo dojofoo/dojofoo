@@ -11,7 +11,7 @@ npx dojofoo install
 npx dojofoo add dojofoo/effect-ts
 \`\`\`
 
-Then tell the user to run \`/kata\` to begin.
+Then run \`npx dojofoo ui\` to open the first lesson in the user's browser.
 
 Available dojos: \`dojofoo/effect-ts\`, \`dojofoo/pydantic\`, and \`dojofoo/build-llm\`.
 Full docs: \`/llms-full.txt\`.

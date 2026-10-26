@@ -1,0 +1,19 @@
+{
+  "title": "API",
+  "pages": [
+    "index",
+    "---Courses---",
+    "list-courses",
+    "get-course-audit",
+    "list-curated-courses",
+    "search-courses",
+    "get-course",
+    "get-course-metrics",
+    "list-course-profiles",
+    "get-marketplace",
+    "---Events---",
+    "record-course-event",
+    "---Health---",
+    "get-health"
+  ]
+}

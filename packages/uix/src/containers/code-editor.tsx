@@ -1,3 +1,4 @@
+import { useContentPreferences } from "~/lib/content-preferences";
 import { useEffect, useRef, useState } from "react";
 import type * as Monaco from "modern-monaco/editor-core";
 import { editorLineHeight, useEditorScheme, useUiPreferences } from "~/lib/ui-preferences";
@@ -32,6 +33,7 @@ function FileEditor(props: CodeEditorProps) {
   const [error, setError] = useState<string>();
   // The person's editor size (Brief → Typography); a change resizes the open editor in place
   const { editorSize } = useUiPreferences();
+  const { code: display } = useContentPreferences();
   const size = useRef(editorSize);
   size.current = editorSize;
   // The color scheme (Settings → Color scheme): Monaco takes its theme by name, and the hover layer follows its mode
@@ -81,7 +83,7 @@ function FileEditor(props: CodeEditorProps) {
         overviewRulerLanes: 0, hideCursorInOverviewRuler: true, overviewRulerBorder: false,
         // The content's scrollbars: a 10px track, a thin pill thumb (styled below), and no shadow under the tabs – the
         // code fades at its edges instead
-        scrollbar: { useShadows: false, verticalScrollbarSize: 10, horizontalScrollbarSize: 10, verticalSliderSize: 6, horizontalSliderSize: 6 },
+        scrollbar: { useShadows: false, verticalScrollbarSize: 10, horizontalScrollbarSize: 10, verticalSliderSize: 4, horizontalSliderSize: 10 },
         // Typographic quotes and apostrophes are right in lesson text, not lookalikes to flag
         unicodeHighlight: { ambiguousCharacters: false },
         renderLineHighlight: "all", renderLineHighlightOnlyWhenFocus: true,
@@ -175,6 +177,10 @@ function FileEditor(props: CodeEditorProps) {
   }, [instance, filePath, language, lessonApiBase, readOnly, documentationUrl]);
 
   useEffect(() => {
+    instance?.editor.updateOptions({ wordWrap: display.wrap ? "on" : "off", lineNumbers: display.lineNumbers ? "on" : "off", guides: { indentation: display.indentationGuides } });
+  }, [instance, display]);
+
+  useEffect(() => {
     instance?.editor.updateOptions({ fontSize: editorSize, lineHeight: editorLineHeight(editorSize) });
   }, [instance, editorSize]);
 
@@ -193,14 +199,14 @@ function FileEditor(props: CodeEditorProps) {
     const model = editor.getModel();
     if (!model) return;
     const decorations = editor.createDecorationsCollection();
-    const update = () => decorations.set(visualizedLines(model.getLineCount(), coverage ? lineHits : undefined, failedLines)
+    const update = () => decorations.set(visualizedLines(model.getLineCount(), coverage && display.coverage ? lineHits : undefined, failedLines)
       .map(({ line, status }) => ({ range: new monaco.Range(line, 1, line, 1), options: {
         isWholeLine: true, className: `ui-ed-line-${status}`, lineNumberClassName: `ui-ed-number-${status}`,
       } })));
     update();
     const subscription = model.onDidChangeContent(update);
     return () => { subscription.dispose(); decorations.clear(); };
-  }, [instance, filePath, coverage, lineHits, failedLines]);
+  }, [instance, filePath, coverage, lineHits, failedLines, display.coverage]);
 
   useEffect(() => {
     if (!instance || !highlight) return;

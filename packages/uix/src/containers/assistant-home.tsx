@@ -160,7 +160,7 @@ export function AssistantHomeScreen(props: AssistantHomeScreenProps) {
 
       <section className="ui-as-start" data-phase={phase}>
         {phase === "chat" && (
-          <div ref={thread} className="ui-as-start__thread">
+          <div ref={thread} className="ui-as-start__thread scroll-fade">
             <div className="ui-as-start__column">
               <ChatMessages messages={chat.messages} name="Assistant" scroller={thread} onDone={chat.finish} />
             </div>
@@ -314,7 +314,7 @@ const chatCss = /* css */ `
 `;
 
 /** Models in the composer's picker – the first one is selected */
-export type ComposerModel = { name: string; description: string; icon: IconGlyph };
+export type ComposerModel = { name: string; effort?: string; description: string; icon: IconGlyph };
 const defaultModels: ComposerModel[] = [
   { name: "Auto", description: "Picks the best model for each task", icon: AiMagicIcon },
   { name: "Claude", description: "Thoughtful writing and code", icon: AiBrain01Icon },
@@ -337,11 +337,14 @@ export function Composer({
   busy,
   tray = true,
   models = defaultModels,
+  agent,
   className,
 }: {
   placeholder?: string;
   /** The picker's models – the first one is selected; the default is a general assistant's */
   models?: ComposerModel[];
+  /** A selected coding agent in place of the general assistant's plugins. */
+  agent?: { name: string; icon: IconGlyph };
   /** Called with the message when it is sent */
   onSend?: (text: string) => void;
   /** While an answer is being written, sending waits */
@@ -354,6 +357,7 @@ export function Composer({
   const field = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [model, setModel] = useState(models[0].name);
+  const selectedModel = models.find((item) => item.name === model);
   const [plugins, setPlugins] = useState<string[]>([]);
   const [folder, setFolder] = useState<string | null>(null);
   const [apps, setApps] = useState<string[]>(["Gmail"]);
@@ -437,8 +441,8 @@ export function Composer({
             }}
           />
           <Dropdown
-            title="Plugins"
-            items={pluginList.map((p) => ({
+            title={agent ? "Agent" : "Plugins"}
+            items={agent ? [{ label: agent.name, icon: agent.icon, checked: true }] : pluginList.map((p) => ({
               label: p.label,
               description: p.description,
               icon: p.icon,
@@ -447,8 +451,8 @@ export function Composer({
             }))}
             trigger={({ open, toggle }) => (
               <button type="button" className="ui-as-ghost" aria-expanded={open} data-active={plugins.length > 0 || undefined} onClick={toggle}>
-                <Icon icon={Plug01Icon} size={14} />
-                {plugins.length ? `Plugins · ${plugins.length}` : "Plugins"}
+                <Icon icon={agent?.icon ?? Plug01Icon} size={14} />
+                {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
               </button>
             )}
           />
@@ -456,11 +460,11 @@ export function Composer({
             <Dropdown
               align="end"
               title="Model"
-              items={models.map((m) => ({ label: m.name, description: m.description, icon: m.icon, checked: m.name === model, onSelect: () => setModel(m.name) }))}
+              items={models.map((m) => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon, checked: m.name === model, onSelect: () => setModel(m.name) }))}
               trigger={({ open, toggle }) => (
                 <button type="button" className="ui-as-ghost ui-as-ghost--model" aria-expanded={open} aria-haspopup="menu" onClick={toggle}>
-                  <Icon icon={models.find((m) => m.name === model)?.icon ?? AiMagicIcon} size={14} />
-                  {model}
+                  {!agent && <Icon icon={selectedModel?.icon ?? AiMagicIcon} size={14} />}
+                  <span className={agent ? "whitespace-nowrap" : undefined}>{model}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}</span>
                   <Icon icon={ArrowDown01Icon} size={12} />
                 </button>
               )}
@@ -822,6 +826,7 @@ const composerCss = /* css */ `
 .ui-as-ghost svg { color: var(--muted); }
 .ui-as-ghost:hover { background: var(--hover); }
 .ui-as-ghost--model { font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); }
+.ui-as-composer__effort { color: var(--muted); font-weight: 400; font-variation-settings: "opsz" 14; }
 .ui-as-send {
   display: grid;
   place-items: center;

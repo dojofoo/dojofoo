@@ -3,7 +3,7 @@ import { fn } from "storybook/test";
 import { ToolCallCard } from "~/components/tool-call-card";
 
 const meta = {
-  title: "Components/Tool Call Card",
+  title: "Components/Organisms/Tool Call Card",
   component: ToolCallCard,
   parameters: { layout: "padded" },
   args: { name: "read_file", summary: "Read SENSEI.md", status: "success", duration: 420,

@@ -1,21 +1,28 @@
 ---
-title: npx dojofoo update
-description: Update an installed dojo from its recorded source.
+title: update
+description: Update an installed course from where it came from.
 ---
 
-## Usage
-
 ```sh
-npx dojofoo update <owner/repository|dojo>
+npx dojofoo update <name|owner/repository>
 ```
 
-For an external GitHub dojo:
+## Examples
 
 ```sh
-npx dojofoo update dojofoo/starter-kata
+npx dojofoo update effect-ts
+npx dojofoo update dojofoo/effect-ts
 ```
 
-The CLI reads `.dojos/<name>/.dojo-source.json`, downloads the current repository
-snapshot, and replaces the installed course material only when its content changed.
-Learner solutions under `katas/` and progress under `.dojo/` and `.dojorc` are not
-part of the installed snapshot and remain unchanged.
+## What it does
+
+Fetches the course again from the source recorded when you added it. When nothing changed, it
+says the course is up to date; otherwise it replaces `courses/<name>/`.
+
+Your solutions in `katas/` and your progress are kept. If you've edited files inside
+`courses/<name>/`, `update` stops rather than overwrite them.
+
+## Related
+
+- [add](/docs/commands/add) – install a course
+- [remove](/docs/commands/remove) – take a course out

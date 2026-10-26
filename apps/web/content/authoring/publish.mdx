@@ -1,0 +1,46 @@
+---
+title: Publish a course
+description: Push it to GitHub – learners add it by its repository, and the marketplace lists it.
+---
+
+## Share it
+
+Push the course to a public GitHub repository. Anyone can then install it:
+
+```sh
+npx dojofoo add owner/repository
+```
+
+## Get listed
+
+There's nothing to submit. The first time anyone installs a public GitHub course, the
+[marketplace](/docs/marketplace) fetches its manifest from GitHub and validates it. The course
+starts in trial – installable by its repository, not listed yet – and is listed once enough
+learners use it and its [security checks](/docs/marketplace#security-checks) pass. Its page then
+shows installs and how far learners get.
+
+The checks run again on every version. Code that runs on install – a `postinstall` script, mise
+hooks – earns a warning, and learners are asked before installing; a script piped from the
+internet fails, and the course can't be installed until it's fixed.
+
+Fill in `author`, `language`, `framework` and `tags` in the [manifest](/authoring/manifest):
+they're the marketplace's filters.
+
+## Stay unlisted
+
+For starters, test fixtures and private work that should stay installable but unlisted:
+
+```yaml
+private: true
+```
+
+As in a `package.json`, `private` keeps it off the registry; anyone can still install it from
+GitHub. Older courses spell it `marketplace: false`, which still works.
+
+Set it on a listed course and the listing goes the next time someone installs the course from
+GitHub.
+
+## Release an update
+
+Push to the repository. Learners get it with
+[`npx dojofoo update <name>`](/docs/commands/update); raise `version` so they can tell.
