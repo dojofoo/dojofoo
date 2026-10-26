@@ -9,8 +9,8 @@ test("docs hydrate and search opens", async ({ page }) => {
   });
 
   await page.goto("/docs", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "Documentation", level: 1 })).toHaveCSS("font-family", /Khand/);
-  await expect(page.getByText("dojofoo is a kata-driven training framework", { exact: false })).toHaveCSS("font-family", /Hind/);
+  await expect(page.getByRole("heading", { name: "Usage", level: 1 })).toHaveCSS("font-family", /Khand/);
+  await expect(page.getByText("Dojo.foo turns your coding agent into a teacher.", { exact: false })).toHaveCSS("font-family", /Hind/);
   await expect(page.locator("pre").first()).toHaveCSS("font-family", /Iosevka/);
   const footerItem = page.locator("[data-docs-footer-item]").first();
   await expect(footerItem).toBeVisible();
@@ -30,8 +30,8 @@ test("docs hydrate and search opens", async ({ page }) => {
   await expect(page.getByRole("dialog")).toBeVisible();
   const searchInput = page.getByRole("combobox", { name: "Search docs" });
   await expect(searchInput).toBeVisible();
-  await searchInput.fill("setup");
-  await expect(page.getByRole("option", { name: /npx dojofoo install/i }).first()).toBeVisible();
+  await searchInput.fill("installation");
+  await expect(page.getByRole("option", { name: /Installation/i }).first()).toBeVisible();
   await searchInput.fill("dojofoo ui");
   await expect(page.getByRole("option", { name: /npx dojofoo ui/i }).first()).toBeVisible();
   expect(pageErrors).toEqual([]);
@@ -54,5 +54,5 @@ test("docs hydrate and search opens", async ({ page }) => {
     const family = getComputedStyle(quote).fontFamily;
     prose.remove();
     return family;
-  })).toMatch(/Iosevka/);
+  })).toMatch(/Hind/);
 });

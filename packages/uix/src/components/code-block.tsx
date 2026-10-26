@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { highlightCode } from "~/lib/markdown";
-import { useEditorScheme, usePageMode } from "~/lib/ui-preferences";
+import { highlightCode } from "../lib/markdown";
+import { useEditorScheme, usePageMode } from "../lib/ui-preferences";
 
 /*
  * A box of code, as the docs show it: Shiki in the editor scheme's colors, on the box surface (fluid.css' --box-*) when

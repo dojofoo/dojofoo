@@ -1,0 +1,39 @@
+name: Verify
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          install: false
+      - uses: pnpm/action-setup@v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dojofoo/api openapi:check
+      - run: pnpm --filter @dojofoo/api test
+      - run: pnpm --filter @dojofoo/uix types:check
+      - run: pnpm --filter @dojofoo/uix test
+      - run: pnpm --filter @dojofoo/web types:check
+      - run: pnpm build
+      - run: pnpm --filter dojofoo test:package
+      - run: pnpm --filter @dojofoo/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @dojofoo/web test:e2e

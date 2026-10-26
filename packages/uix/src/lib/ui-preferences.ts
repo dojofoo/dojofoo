@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import catalog from "~/styles/themes/catalog.json";
+import catalog from "../styles/themes/catalog.json";
 import { editorSchemes, type EditorSchemeId } from "./code-editor-theme";
 import { themeViewTransition } from "./view-transition";
 

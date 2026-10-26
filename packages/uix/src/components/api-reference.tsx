@@ -7,7 +7,7 @@ import { createBundledHighlighter } from "shiki/dist/core.mjs";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import { bundledLanguages } from "shiki/langs";
 import { bundledThemes } from "shiki/themes";
-import { CodeBlock } from "~/components/code-block";
+import { CodeBlock } from "./code-block";
 import prepared from "../../../../apps/web/src/generated/course-api.json";
 
 const createHighlighter = createBundledHighlighter<string, string>({ langs: bundledLanguages, themes: bundledThemes, engine: () => createJavaScriptRegexEngine({ forgiving: true }) });

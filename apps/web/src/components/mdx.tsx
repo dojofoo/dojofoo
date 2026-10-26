@@ -4,15 +4,14 @@ import type { MDXComponents } from 'mdx/types';
 import { InstallCommand } from './install-command';
 import { APIPage, OpenAPIPage } from '@dojofoo/ui/api-reference';
 
-export function getMDXComponents(components?: MDXComponents) {
-  return {
+export function getMDXComponents(components?: MDXComponents): MDXComponents {
+  return Object.assign({
     ...defaultMdxComponents,
     Callout,
     InstallCommand,
     APIPage,
     OpenAPIPage,
-    ...components,
-  } satisfies MDXComponents;
+  } satisfies MDXComponents, components);
 }
 
 export const useMDXComponents = getMDXComponents;
