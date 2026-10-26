@@ -17,6 +17,7 @@ test("the shared palette searches docs and marketplace courses and opens results
   await expect(palette.getByRole("option", { name: /Effect TS/ })).toBeVisible();
   await input.press("Enter");
   await expect(page).toHaveURL(/\/courses\/dojofoo\/effect-ts/);
+  await expect(page.getByRole("heading", { name: "Effect TS", exact: true })).toBeVisible();
   await expect(palette).toHaveCount(0);
   await page.getByRole("button", { name: "Open Search", exact: true }).first().click();
   await expect(palette.getByRole("tab", { name: "Courses", exact: true })).toHaveAttribute("aria-selected", "true");

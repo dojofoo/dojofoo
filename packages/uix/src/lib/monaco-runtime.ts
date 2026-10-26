@@ -1,3 +1,4 @@
+/// <reference path="../monaco.d.ts" />
 import { init } from "modern-monaco/core";
 import javascript from "shiki/langs/javascript.mjs";
 import typescript from "shiki/langs/typescript.mjs";
