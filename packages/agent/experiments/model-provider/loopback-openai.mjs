@@ -20,6 +20,7 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
     if (nextHeldResponse?.matches(input)) {
       const held = nextHeldResponse;
       nextHeldResponse = undefined;
+      response.once("close", () => held.closed.resolve());
       held.started.resolve();
       await Promise.race([held.release.promise, once(response, "close")]);
       if (response.destroyed) return;
@@ -135,9 +136,9 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
   return { requests, requestedModels, paths, requestedTools, baseURL: `http://127.0.0.1:${server.address().port}/v1`,
     holdNextResponse(matches = () => true) {
       if (nextHeldResponse) throw new Error("A fixture response is already held.");
-      const held = { started: Promise.withResolvers(), release: Promise.withResolvers(), matches };
+      const held = { started: Promise.withResolvers(), release: Promise.withResolvers(), closed: Promise.withResolvers(), matches };
       nextHeldResponse = held;
-      return { started: held.started.promise, release: () => held.release.resolve() };
+      return { started: held.started.promise, closed: held.closed.promise, release: () => held.release.resolve() };
     },
     close: () => new Promise((resolve, reject) => { server.close(error => error ? reject(error) : resolve()); server.closeAllConnections(); }),
   };

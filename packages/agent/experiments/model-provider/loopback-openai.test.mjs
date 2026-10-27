@@ -134,3 +134,18 @@ test("held response matches the target turn rather than a background request", a
   held.release();
   assert.equal((await target).status, 200);
 });
+
+test("held response exposes physical client cancellation", async t => {
+  const endpoint = await startLoopbackModel();
+  t.after(() => endpoint.close());
+  const held = endpoint.holdNextResponse();
+  assert.ok(held.closed instanceof Promise);
+  const controller = new AbortController();
+  const request = fetch(`${endpoint.baseURL}/responses`, { method: "POST", signal: controller.signal,
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: "cancel" }) });
+  const rejected = assert.rejects(request, { name: "AbortError" });
+  await held.started;
+  controller.abort();
+  await rejected;
+  await held.closed;
+});

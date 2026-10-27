@@ -1,7 +1,7 @@
 # 0105: Connect the local learning application to UIX
 
 Parent: UIX adoption (0100).
-Status: in progress on `feat/0105-uix-editor` in `.worktree/uix-0105`. Prerequisite/dashboard/results PRs #192–#194 are merged; editor binding is prepared. The shared lesson shell and real chat binding remain required.
+Status: in progress on `feat/0105-uix-composer` in `.worktree/uix-0105`. Prerequisite/dashboard/results/editor PRs #192–#195 are merged. Shared workspace and native chat/composer binding is locally verified; hosted verification and remaining runtime acceptance are required.
 
 Goal: replace the local dashboard, kata workspace, editor, tests and chat presentation with the approved shared UIX components while retaining the real services, files, checks, progress, canonical lesson/session URLs and agent conversations.
 
@@ -64,3 +64,23 @@ The editor branch starts from that merged main. Its clean baseline passed six fo
 The extended native gate passed the actual loaded Iosevka font, JSDoc from the real language endpoint, stable editor DOM across results/source switching, exactly one file PUT for Ctrl/Cmd-S, native undo/redo without implicit writes, failed/passing checks, skipped state, wrapped Shiki output, source reveal, persisted code/report/session and no duplicate introduction on reload. Undo is asserted against actual model values and redo capability, preserving Monaco's own undo stops. Evidence: `/var/folders/1y/bt_xnlvx77l48my801cxx01m0000gn/T/dojo-lesson-runtime-evidence-5JW9la`; editor/JSDoc/result screenshots inspected. Host types and CLI build passed; host suite `359 passed (17.31s)`. This uses local scripted inference and does not establish live teaching quality or server-restart acceptance.
 
 Hosted verification remains required for the editor branch. The surrounding lesson shell/navigation, chat/composer, content settings/materials, interactive Sensei and later slices remain in scope. Neither this editor binding nor the previous check-results checkpoint completes 0105.
+
+
+## Shared workspace and native composer checkpoint
+
+Editor PR #195 merged as `e653da4373417229ad8cc28849cdf5cd31813382`; merged Release 40464358765 passed. Its READY staging passed the deployed docs/native OpenAPI browser and schema/Markdown probes. The production alias was queried again and remains on its previous deployment.
+
+The real lesson now consumes the controlled UIX AgentChatWorkspace from a presentation-only module, avoiding preview agent/model fixtures. The existing rich transcript, native streaming, tool/question handlers, scroll controller and file/check/session services remain owned by the host. The shared composer receives actual history, supported model choices and native cancellation. Existing preview stories use the same controlled surface.
+
+Shell entries support canonical native links for accessible lessons and expandable authored previews for upcoming lessons. The host router owns its navigation transition. Actual briefing Markdown renders through the existing Shiki pipeline inside LessonBrief, with content preferences and resources resolved against the real course-relative material directory. Inline-code styling excludes fenced code. Unsupported account, plugin, file and voice actions are omitted.
+
+The native runtime gate found that an 82-model dropdown extended above the viewport. A 100-model story reproduced it before the fix. Shared menus now bound their height to available space and scroll their inner list; selection remains reachable with the same avatar-style box. Native cancellation is verified by the underlying held inference connection closing before the fixture is released. The subsequent model change preserves the session and the next actual native request uses the selected model.
+
+Fresh checks: UI/UIX types passed; host 361 tests (17.41s), UIX 57 (5.93s), CLI 154 (3.89s), inference helper 9 (96ms); built CLI succeeded; five focused composer/navigation browser checks passed. The full Storybook browser suite passed: 84 tests (2.3m). Real installed CLI/browser gate passed workspace/editor/composer, authored resource HTTP 200/body, Shiki, persisted reading preferences, chat visibility/draft, native JSDoc, single-write save, undo/redo, checks, same-session reload, physical cancellation and next-turn model selection. Evidence: `/var/folders/1y/bt_xnlvx77l48my801cxx01m0000gn/T/dojo-lesson-runtime-evidence-6rIyTt`; screenshots inspected. All 18 concurrent root file hashes remained unchanged.
+
+This uses scripted local inference and does not establish live teaching quality. Hosted verification, server-restart/progression and rich agent-interaction acceptance remain required before completing 0105. Interactive Sensei, authoring/settings, both starter courses, retirement/parity and released-package/production verification remain in scope under 0106–0110.
+
+
+Restart/progression follow-through: the native gate now reaches three real passes (the initially skipped vocabulary assertion becomes active after implementation), advances through the real progression endpoint, introduces the next lesson, follows the completed lesson's canonical link and verifies its editor rejects edits. The completed lesson retains its own original session and solution. A full server restart initially reproduced the selected model reverting to the native default. A failing service regression captured the missing saved choice. Explicit successful choices are now retained with their lesson thread and reapplied through the native setter when a resumed process differs; failed changes leave the last saved choice intact.
+
+Fresh service regression: 25 passed (326ms); full host: 362 passed (15.86s); host types and rebuilt CLI passed. The extended native CLI/browser gate exited 0 with progression, read-only completed lessons and full server-restart restoration of the same session, transcript, file, successful report and selected model, with no repeated introduction. Evidence: `/var/folders/1y/bt_xnlvx77l48my801cxx01m0000gn/T/dojo-lesson-runtime-evidence-i0TDMy`; completed-lesson screenshot inspected. The fixture shutdown is bounded and reaps its own remaining process-group members. Rich agent-interaction acceptance and hosted checks remain required; later migration slices are unchanged.

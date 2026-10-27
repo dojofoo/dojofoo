@@ -29,7 +29,7 @@ import { parseSenseiContent } from "./sensei-content";
 type WebState = {
   version: 4;
   defaultHarness?: HarnessKind;
-  threads: Record<string, { sessionId: string; harness: HarnessKind; contractHash: string; aliases: string[]; resumeFailed?: boolean }>;
+  threads: Record<string, { sessionId: string; harness: HarnessKind; contractHash: string; aliases: string[]; model?: string; resumeFailed?: boolean }>;
   results: Record<string, TestReport>;
   checkpoints: Record<string, { at: string; threadId?: string }>;
   learnerEvidence: Record<string, LearnerEvidenceExcerpt[]>;
@@ -75,6 +75,8 @@ export type LessonSnapshot = {
   kata: string;
   title: string;
   briefing: string;
+  /** Course-relative authored material location, which can differ from the learner's file directory. */
+  briefingBasePath?: string;
   code: string;
   starterCode: string;
   fileId: "solution";
@@ -180,9 +182,13 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
       harness,
       developerInstructions: instructions,
     });
+    if (storedThread?.model && acpClient.modelConfiguration(threadId)?.currentValue !== storedThread.model) {
+      await acpClient.setModel(threadId, storedThread.model);
+    }
     messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
     if (storedThread?.contractHash !== contractHash) {
       webState.threads[key] = {
+        ...storedThread,
         sessionId: threadId,
         harness,
         contractHash,
@@ -227,6 +233,7 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
     kata: selected.name,
     title: humanTitle(selected.name),
     briefing: senpaiBriefing(sensei),
+    briefingBasePath: relative(dojoDir(root, rc.currentDojo), dirname(selected.senseiPath)),
     code: existsSync(selected.workspacePath) ? readFileSync(selected.workspacePath, "utf8") : starterCode,
     starterCode,
     fileId: "solution",
@@ -617,6 +624,11 @@ async function lessonThread(root: string, kataName: string, options: { forceNew?
       lessonFragment: (fragmentId) => lessonFragment(root, kataName, fragmentId),
       learnerObservation: (input) => saveLearnerObservation(root, kataName, input),
     });
+    // Native processes may apply their configured default when loading a session.
+    // Retain a model explicitly chosen for this lesson, using the native setter.
+    if (existing.model && acpClient.modelConfiguration(existing.sessionId)?.currentValue !== existing.model) {
+      await acpClient.setModel(existing.sessionId, existing.model);
+    }
     if (existing.contractHash !== contractHash) {
       state.threads[key] = { ...existing, contractHash };
       writeWebState(root, state);
@@ -666,7 +678,15 @@ export async function setLessonModel(
   value: string,
 ): Promise<SessionModelConfiguration> {
   const { threadId } = await lessonThread(root, kataName);
-  return acpClient.setModel(threadId, value);
+  const configured = await acpClient.setModel(threadId, value);
+  const state = readWebState(root);
+  const key = lessonKey(readDojoRc(root).currentDojo, kataName);
+  const thread = state.threads[key];
+  if (thread?.sessionId === threadId) {
+    state.threads[key] = { ...thread, model: configured.currentValue };
+    writeWebState(root, state);
+  }
+  return configured;
 }
 
 export async function startLessonSession(
@@ -859,7 +879,7 @@ function readWebState(root: string): WebState {
   if (!existsSync(path)) return { version: 4, threads: {}, results: {}, checkpoints: {}, observations: {}, learnerEvidence: {}, learnerObservations: {} };
   const stored = JSON.parse(readFileSync(path, "utf8")) as {
     defaultHarness?: HarnessKind;
-    threads?: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; resumeFailed?: boolean }>;
+    threads?: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; model?: string; resumeFailed?: boolean }>;
     results?: Record<string, string | TestReport>;
     checkpoints?: Record<string, { at: string; threadId?: string }>;
     observations?: WebState["observations"];
@@ -898,7 +918,7 @@ function rememberLearnerEvidence(root: string, key: string, lessonId: string, se
 }
 
 export function normalizeLessonThreads(
-  threads: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; resumeFailed?: boolean }> = {},
+  threads: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; model?: string; resumeFailed?: boolean }> = {},
 ): WebState["threads"] {
   return Object.fromEntries(Object.entries(threads).map(([key, thread]) => [
     key,
@@ -909,6 +929,7 @@ export function normalizeLessonThreads(
           harness: thread.harness ?? "codex",
           contractHash: thread.contractHash ?? "",
           aliases: thread.aliases ?? [],
+          ...(thread.model ? { model: thread.model } : {}),
           ...(thread.resumeFailed ? { resumeFailed: true } : {}),
         },
   ]));

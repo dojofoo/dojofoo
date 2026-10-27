@@ -3,6 +3,7 @@ import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { Tooltip } from "radix-ui";
 import { spring } from "../lib/springs";
 import { fadeViewTransition, paneViewTransition } from "../lib/view-transition";
+import { followLink } from "../lib/link-event";
 import { ResizablePanel, ResizablePanels } from "./arc/resizable-panels/resizable-panels";
 import { Avatar } from "./arc/avatar/avatar";
 import { SegmentedControl } from "./segmented-control";
@@ -67,6 +68,10 @@ export type ShellEntry = {
   /** Says why, in the row's tooltip and to screen readers – e.g. what unlocks it */
   note?: string;
   children?: ShellEntry[];
+  /** A real destination; ordinary clicks delegate to the host, modified clicks remain native. */
+  href?: string;
+  /** Expandable context without granting navigation, including an upcoming lesson's goal. */
+  preview?: ReactNode;
 };
 /** A block of rows, with an optional heading. Rows in one `layout` share a highlight that glides between them, so two
     sections with layouts of their own each keep one lit – a chapter and its lesson, say */
@@ -121,6 +126,8 @@ export type AppShellProps = {
   active?: string | string[];
   /** Called with the label of a menu item or project when it is clicked */
   onNavigate?: (label: string) => void;
+  /** Disable when the application's router owns the page transition. */
+  navigationTransition?: boolean;
   workspace?: string;
   user?: { name: string; avatar?: string; /** Under the name in the account menu */ email?: string };
   nav?: ShellNavItem[];
@@ -205,11 +212,14 @@ type ShellRowProps = {
 const stateText = { done: "done", active: "in progress", locked: "locked" } as const;
 
 function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expanded, turned, controls, onClick }: ShellRowProps) {
-  const locked = entry.state === "locked";
+  const locked = entry.state === "locked" && !entry.preview;
+  const link = Boolean(entry.href && !locked && !entry.preview && !entry.children);
+  const Control = link ? "a" : "button";
   return (
     <RailTip enabled={rail || !!entry.note} label={rail ? entry.label : entry.note ?? entry.label} note={rail ? (entry.note ?? (entry.count ? String(entry.count) : undefined)) : undefined}>
-      <button
-        type="button"
+      <Control
+        type={link ? undefined : "button"}
+        href={link ? entry.href : undefined}
         className="ui-as-side__item rounded-lg"
         data-nested={nested || undefined}
         data-lit={lit || undefined}
@@ -218,7 +228,7 @@ function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expande
         aria-expanded={expanded}
         aria-controls={controls}
         aria-disabled={locked || undefined}
-        onClick={locked ? undefined : onClick}
+        onClick={locked ? undefined : event => { if (link) followLink(event, onClick); else onClick(); }}
       >
         {lit && <motion.span layoutId={layoutId} className="ui-as-side__lit rounded-[inherit]" transition={reduce ? { duration: 0 } : spring.moderate} />}
         {entry.marker ? <span className="ui-as-side__marker" aria-hidden="true">{entry.marker}</span> : entry.icon ? <Icon icon={entry.icon} size={16} /> : null}
@@ -240,7 +250,7 @@ function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expande
             <span className="sr-only">({stateText[entry.state]}{entry.note ? ` – ${entry.note}` : ""})</span>
           </span>
         )}
-      </button>
+      </Control>
     </RailTip>
   );
 }
@@ -253,6 +263,7 @@ export function AppShell({
   children,
   active,
   onNavigate,
+  navigationTransition = true,
   workspace = "Acme",
   user = { name: "Alex Morgan" },
   nav = defaultNav,
@@ -337,18 +348,26 @@ export function AppShell({
   ];
   // Groups holding the current row start open
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(
-    sections.flatMap((section) => section.items).filter((entry) => entry.children?.some((child) => actives.includes(child.id))).map((entry) => [entry.id, true]),
+    sections.flatMap((section) => section.items).filter((entry) => entry.children?.some((child) => actives.includes(child.id)) || entry.preview && actives.includes(entry.id)).map((entry) => [entry.id, true]),
   ));
+  const previewIds = sections.flatMap(section => section.items).filter(entry => entry.preview).map(entry => entry.id);
+  const previewKey = JSON.stringify(previewIds);
+  const selectedPreview = previewIds.find(id => actives.includes(id));
+  useEffect(() => {
+    setOpenGroups(current => previewIds.some(id => !!current[id] !== (id === selectedPreview))
+      ? { ...current, ...Object.fromEntries(previewIds.map(id => [id, id === selectedPreview])) } : current);
+  }, [previewKey, selectedPreview]);
+  const previewSiblings = (id: string) => previewIds.includes(id) ? Object.fromEntries(previewIds.map(key => [key, false])) : {};
   const toggleGroup = (id: string) => {
     // The rail has no room to open a group, so the sidebar widens to show it
     if (rail) {
       paneViewTransition(() => {
         setCollapsed(false);
-        setOpenGroups((current) => ({ ...current, [id]: true }));
+        setOpenGroups((current) => ({ ...current, ...previewSiblings(id), [id]: true }));
       });
       return;
     }
-    setOpenGroups((current) => ({ ...current, [id]: !current[id] }));
+    setOpenGroups((current) => ({ ...current, ...previewSiblings(id), [id]: !current[id] }));
   };
   // [ folds the sidebar to the rail and back – outside text fields, like the rail's own button
   useEffect(() => {
@@ -367,11 +386,12 @@ export function AppShell({
   }, [narrow]);
   const go = (label: string) => {
     settingsRequest.current += 1;
-    fadeViewTransition(() => {
+    const navigate = () => {
       setDrawer(false);
       setAccountPage(undefined);
       onNavigate?.(label);
-    });
+    };
+    if (navigationTransition) fadeViewTransition(navigate); else navigate();
   };
   // closed → open → closing → closed: while closing the guide stays, fades and the card shrinks, then the summary returns
   const [guide, setGuide] = useState<"closed" | "open" | "closing">("closed");
@@ -495,19 +515,21 @@ export function AppShell({
                 )}
                 {section.items.length === 0 && section.empty && <span className="ui-as-side__empty">{section.empty}</span>}
                 {section.items.map((entry) => {
-                  if (!entry.children) {
+                  if (!entry.children && !entry.preview) {
                     const on = actives.includes(entry.id);
                     return <ShellRow key={entry.id} entry={entry} current={on} lit={on} onClick={() => go(entry.id)} {...shared} />;
                   }
                   const listId = `${baseId}-${entry.id}-list`;
                   const shown = !!openGroups[entry.id] && !rail;
-                  const holdsActive = entry.children.some((child) => actives.includes(child.id));
+                  const on = actives.includes(entry.id);
+                  const holdsActive = entry.children?.some((child) => actives.includes(child.id)) ?? on;
                   return (
                     <div key={entry.id} className="ui-as-side__branch">
-                      <ShellRow entry={entry} current={false} lit={holdsActive && !shown} expanded={shown} turned={!!openGroups[entry.id]} controls={listId} onClick={() => toggleGroup(entry.id)} {...shared} />
+                      <ShellRow entry={entry} current={!!entry.preview && on} lit={entry.preview ? on : holdsActive && !shown} expanded={shown} turned={!!openGroups[entry.id]} controls={listId} onClick={() => toggleGroup(entry.id)} {...shared} />
                       <div id={listId} className="ui-as-side__children" data-open={shown || undefined} inert={!shown}>
                         <div>
-                          {entry.children.map((child) => {
+                          {entry.preview && <div className="px-3 py-2 text-xs leading-relaxed text-[var(--muted)]">{entry.preview}</div>}
+                          {entry.children?.map((child) => {
                             const on = actives.includes(child.id);
                             return <ShellRow key={child.id} entry={child} nested current={on} lit={shown && on} onClick={() => go(child.id)} {...shared} />;
                           })}
@@ -835,26 +857,40 @@ export function Popover({
   useLayoutEffect(() => {
     const el = ref.current;
     if (!open || !el) return;
-    let next = { side, align };
-    el.dataset.side = side;
-    el.dataset.align = align;
-    const box = clipBox(el);
-    const r = el.getBoundingClientRect();
-    if (side === "bottom" && r.bottom > box.bottom - 6) next = { ...next, side: "top" };
-    if (side === "top" && r.top < box.top + 6) next = { ...next, side: "bottom" };
-    if (align === "start" && r.right > box.right - 6) next = { ...next, align: "end" };
-    if (align === "end" && r.left < box.left + 6) next = { ...next, align: "start" };
-    // Still sticking out on a narrow screen (neither edge fits): slide it sideways until it is inside
-    el.dataset.side = next.side;
-    el.dataset.align = next.align;
-    el.style.translate = "";
-    const r2 = el.getBoundingClientRect();
-    const scale = r2.width / el.offsetWidth || 1;
-    let dx = 0;
-    if (r2.right > box.right - 6) dx = box.right - 6 - r2.right;
-    if (r2.left + dx < box.left + 6) dx = box.left + 6 - r2.left;
-    if (dx) el.style.translate = `${dx / scale}px 0`;
-    setPlace(next);
+    const position = () => {
+      let next = { side, align };
+      el.style.removeProperty("--ui-as-menu-max-height");
+      el.dataset.side = side;
+      el.dataset.align = align;
+      const box = clipBox(el);
+      const r = el.getBoundingClientRect();
+      const anchor = el.parentElement;
+      const anchorBox = anchor?.getBoundingClientRect() ?? r;
+      const above = Math.max(0, anchorBox.top - box.top - 6);
+      const below = Math.max(0, box.bottom - anchorBox.bottom - 6);
+      if (side === "bottom" && r.height > below && above > below) next = { ...next, side: "top" };
+      if (side === "top" && r.height > above && below > above) next = { ...next, side: "bottom" };
+      const room = next.side === "top" ? above : next.side === "bottom" ? below : Math.max(0, anchorBox.bottom - box.top - 6);
+      // Anchor scale excludes the popover's entrance animation, so its final size still fits.
+      const verticalScale = (anchor?.offsetHeight ? anchorBox.height / anchor.offsetHeight : 1) * (parseFloat(getComputedStyle(el).zoom) || 1);
+      el.style.setProperty("--ui-as-menu-max-height", `${room / (verticalScale || 1)}px`);
+      if (align === "start" && r.right > box.right - 6) next = { ...next, align: "end" };
+      if (align === "end" && r.left < box.left + 6) next = { ...next, align: "start" };
+      // Still sticking out on a narrow screen (neither edge fits): slide it sideways until it is inside
+      el.dataset.side = next.side;
+      el.dataset.align = next.align;
+      el.style.translate = "";
+      const r2 = el.getBoundingClientRect();
+      const scale = r2.width / el.offsetWidth || 1;
+      let dx = 0;
+      if (r2.right > box.right - 6) dx = box.right - 6 - r2.right;
+      if (r2.left + dx < box.left + 6) dx = box.left + 6 - r2.left;
+      if (dx) el.style.translate = `${dx / scale}px 0`;
+      setPlace(current => current.side === next.side && current.align === next.align ? current : next);
+    };
+    position();
+    window.addEventListener("resize", position);
+    return () => window.removeEventListener("resize", position);
   }, [open, side, align]);
 
   useEffect(() => {
@@ -1907,6 +1943,9 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-popover--filter .ui-fm { zoom: 0.9; width: 340px; }
 
 .ui-as-menu {
+  display: flex;
+  flex-direction: column;
+  max-height: min(var(--ui-as-menu-max-height, calc(100dvh - 12px)), calc(100dvh - 12px));
   min-width: 168px;
   padding: 4px;
   border-radius: calc(12px * var(--squircle-factor, 1));
@@ -1914,7 +1953,7 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   box-shadow: var(--shadow-4);
 }
 .ui-as-menu__title { display: block; padding: 6px 10px 4px; font-size: var(--fs-caption); font-weight: 550; font-variation-settings: "opsz" 18; color: var(--faint); }
-.ui-as-menu__list { display: grid; gap: 1px; }
+.ui-as-menu__list { display: grid; gap: 1px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .ui-as-menu__item {
   display: flex;
   align-items: center;
