@@ -9,8 +9,12 @@ import SearchDialog from "@/components/search"
 import { DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from "@/lib/social-metadata"
 import { SITE_URL } from "@/lib/site"
 import { ShapeProvider } from "@dojofoo/ui"
+import { documentTransitionScript } from "@dojofoo/uix/lib/view-transition"
 import { UIXProvider } from "@dojofoo/uix/provider"
 import appCss from "../styles.css?url"
+import uixCss from "@dojofoo/uix/styles.css?url"
+import uixFonts from "@dojofoo/uix/fonts.css?url"
+import { UIXSiteProvider } from "@/components/uix-site"
 
 export const Route = createRootRoute({
   head: () => ({
@@ -26,6 +30,8 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: uixCss },
+      { rel: "stylesheet", href: uixFonts },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
     ],
   }),
@@ -34,21 +40,23 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className="dark" data-ui-font="common" suppressHydrationWarning>
       <head>
+        {/* Cross-document lifecycle events can fire before hydration and the first render. */}
+        <script dangerouslySetInnerHTML={{ __html: documentTransitionScript }} />
         <HeadContent />
       </head>
       <body className="min-h-screen antialiased flex flex-col font-sans" suppressHydrationWarning>
-        <RootProvider
-          theme={{ defaultTheme: "dark" }}
-          search={{ SearchDialog }}
-        >
-          <UIXProvider>
+        <UIXProvider>
+          <RootProvider
+            theme={{ defaultTheme: "dark" }}
+            search={{ SearchDialog }}
+          >
             <ShapeProvider defaultShape="square">
-              <Outlet />
+              <UIXSiteProvider><Outlet /></UIXSiteProvider>
             </ShapeProvider>
-          </UIXProvider>
-        </RootProvider>
+          </RootProvider>
+        </UIXProvider>
         <Scripts />
       </body>
     </html>

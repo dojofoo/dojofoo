@@ -58,7 +58,7 @@ test("website and docs navigation use named pane transitions without duplicate c
     }) as typeof document.startViewTransition;
   });
   await page.goto("/iframe.html?id=web-site--course&viewMode=story");
-  await page.getByRole("button", { name: "All courses", exact: true }).click();
+  await page.getByRole("link", { name: "All courses", exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as any).__transitions.length)).toBe(1);
   await page.getByRole("navigation", { name: "Site", exact: true }).getByRole("link", { name: "Help", exact: true }).click();
   await expect(page.locator(".ui-docs-tree")).toBeVisible();

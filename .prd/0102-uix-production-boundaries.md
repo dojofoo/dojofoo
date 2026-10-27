@@ -1,7 +1,7 @@
 # 0102: Make UIX a production library with explicit application inputs
 
 Parent: [UIX adoption](0100-uix-adoption.md).
-Status: library merged in PR 186; OpenAPI stability follow-through in progress on `fix/openapi-schema-stability` in `.worktree/uix-0103`.
+Status: done; library PR 186 and OpenAPI follow-through PR 187 merged and verified on staging.
 
 ## Goal
 
@@ -100,3 +100,6 @@ Initial follow-through local gates: API 42 passed; UIX 42 passed; website types 
 Hosted verification caught a flaw in the first attempted fix: eager compilation passed local gates but caused a Bun startup `ReadableStream is locked` error in Elysia's OpenAPI explorer response cloning. That configuration change was removed before merge. The final implementation keeps the existing lazy runtime and declares only the response-root defaults that Elysia already applies during validation. Its generated document is identical to the fully normalized snapshot, and the same cold-versus-used regression test passes.
 
 Final explicit-default gates: API 42 passed; OpenAPI/Fumadocs check passed; forced build six tasks successful, zero cached (31.678s); website browser 11 passed (19.2s). The final diff preserves the original Elysia runtime configuration. Warm deployed verification must be rerun on the corrected commit.
+
+
+Final hosted acceptance: [PR 187](https://github.com/dojofoo/dojofoo/pull/187) merged as `3d40648`. [Verify 40428513155](https://github.com/dojofoo/dojofoo/actions/runs/40428513155) passed in 4m30s. [Main Release 40429199488](https://github.com/dojofoo/dojofoo/actions/runs/40429199488) passed. The [merged staging deployment](https://dojofoo-au9jw886z-tomsiwiks-projects.vercel.app) is ready with STAGED status. OpenAPI, marketplace, profiles, OpenAPI again and the native Fumadocs reference all returned HTTP 200. The spec equaled the committed generated snapshot both before and after ordinary API traffic. The `dojo.foo` alias remained on `dpl_DrTmJCAgt3oLbgrm8xJt3CJa29yB`; no production promotion occurred.

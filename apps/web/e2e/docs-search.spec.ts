@@ -9,13 +9,13 @@ test("docs hydrate and search opens", async ({ page }) => {
   });
 
   await page.goto("/docs", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "Usage", level: 1 })).toHaveCSS("font-family", /Khand/);
-  await expect(page.getByText("Dojo.foo turns your coding agent into a teacher.", { exact: false })).toHaveCSS("font-family", /Hind/);
+  await expect(page.getByRole("heading", { name: "Usage", level: 1 })).toHaveCSS("font-family", /Inter/);
+  await expect(page.getByText("Dojo.foo turns your coding agent into a teacher.", { exact: false })).toHaveCSS("font-family", /Inter/);
   await expect(page.locator("pre").first()).toHaveCSS("font-family", /Iosevka/);
   const footerItem = page.locator("[data-docs-footer-item]").first();
   await expect(footerItem).toBeVisible();
-  await expect(footerItem.locator("[data-docs-footer-title]")).toHaveCSS("font-family", /Khand/);
-  await expect(footerItem.locator("[data-docs-footer-description]")).toHaveCSS("font-family", /Hind/);
+  await expect(footerItem.locator("[data-docs-footer-title]")).toHaveCSS("font-family", /Inter/);
+  await expect(footerItem.locator("[data-docs-footer-description]")).toHaveCSS("font-family", /Inter/);
   expect(await page.evaluate(() => {
     const navigation = document.querySelector<HTMLElement>("#nd-subnav");
     const sidebar = document.querySelector<HTMLElement>("[data-sidebar-placeholder]");
@@ -25,7 +25,7 @@ test("docs hydrate and search opens", async ({ page }) => {
     getComputedStyle(element, "::marker").fontFamily,
   )).toMatch(/Iosevka/);
   await expect(page.locator("[data-header-tabs]").getByText("Dojos", { exact: true })).toHaveCount(0);
-  await page.locator("[data-site-navigation]").getByRole("button", { name: "Open Search" }).click();
+  await page.locator("[data-site-navigation]").getByRole("button", { name: "Search docs" }).click();
 
   await expect(page.getByRole("dialog")).toBeVisible();
   const searchInput = page.getByRole("combobox", { name: "Search docs" });
@@ -54,5 +54,5 @@ test("docs hydrate and search opens", async ({ page }) => {
     const family = getComputedStyle(quote).fontFamily;
     prose.remove();
     return family;
-  })).toMatch(/Hind/);
+  })).toMatch(/Inter/);
 });

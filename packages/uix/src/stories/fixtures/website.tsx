@@ -8,11 +8,12 @@ import { catalog, courseById } from "./catalog";
 import type { WebCourse } from "../../web/catalog";
 import { docsContent } from "./docs";
 import { SearchDialog } from "./search";
-import { LearningPreview } from "../../pages/learner";
+import type { SearchScope } from "../../components/site-search-palette";
+import { LearningPreview } from "../../web/learning-preview";
 import { CoursePage } from "../../web/course";
 import { CoursesPage } from "../../web/courses";
 import { LandingPage } from "../../web/landing";
-import { SiteContext, useSite, type SiteLinks } from "../../web/site";
+import { SiteContext, type SiteLinks } from "../../web/site";
 import { APIPageFixture } from "./api-reference";
 
 /*
@@ -32,6 +33,17 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
   const [page, setPage] = useState<WebsiteStart>(start);
   const [course, setCourse] = useState<WebCourse>(() => courseById(courseId));
   const [doc, setDoc] = useState(docPath);
+  const [search, setSearch] = useState<{ open: boolean; scope: SearchScope }>({ open: false, scope: "courses" });
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearch({ open: true, scope: page === "docs" ? "docs" : "courses" });
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [page]);
   const theme = useEditorScheme().theme.name;
   const request = useRef(0);
   useEffect(() => () => { request.current++; }, []);
@@ -46,6 +58,7 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
     });
   };
   const links = useMemo<SiteLinks>(() => ({
+    sectionHref: section => ({ home: "/", courses: "/dojos", docs: "/docs", help: "/docs" })[section],
     navigate: (section) => {
       if (section === "help" || section === "docs") { void openDoc("/docs"); return; }
       request.current++;
@@ -55,7 +68,8 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
       });
     },
     openDoc,
-    renderSearch: props => <PreviewSearch {...props} />,
+    courseHref: item => `/courses/${item.source}/${item.slug}`,
+    openSearch: scope => setSearch({ open: true, scope }),
     openCourse: (next) => { request.current++; fadeViewTransition(() => {
       setCourse(next);
       setPage("course");
@@ -68,11 +82,7 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
         : page === "courses" ? <CoursesPage courses={catalog} />
         : page === "docs" ? <DocsSite path={doc} content={docsContent} renderApiPage={page => <APIPageFixture page={page} />} />
         : <LandingPage learning={8} courses={catalog} featureCourse={courseById("everyday-typescript")} preview={<LearningPreview />} />}
+      <SearchDialog {...search} onClose={() => setSearch(state => ({ ...state, open: false }))} onOpenDoc={links.openDoc} onOpenCourse={links.openCourse} />
     </SiteContext.Provider>
   );
-}
-
-function PreviewSearch(props: Parameters<SiteLinks["renderSearch"]>[0]) {
-  const links = useSite();
-  return <SearchDialog {...props} onOpenDoc={links.openDoc} onOpenCourse={links.openCourse} />;
 }

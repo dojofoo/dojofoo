@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, MouseEventHandler, ReactNode } from "react";
 import { Icon } from "./app-shell";
 import { FlipCard } from "./flip-card";
 import { Network } from "./network";
@@ -56,13 +56,14 @@ export type ColorCardProps = {
   /** Turns over to its children (the back) */
   flip?: boolean;
   children?: ReactNode;
-  onClick?: () => void;
+  href?: string;
+  onClick?: MouseEventHandler<HTMLElement>;
   /** The card's name – for a button or a card that turns, what it is and, say, how far you are */
   "aria-label"?: string;
   className?: string;
 } & Pick<HTMLAttributes<HTMLElement>, "onPointerEnter" | "onFocus">;
 
-export function ColorCard({ color, shader = false, seed, size = "small", header, main, footer, progress, centered = false, flip = false, children, onClick, onPointerEnter, onFocus, "aria-label": ariaLabel, className }: ColorCardProps) {
+export function ColorCard({ color, shader = false, seed, size = "small", header, main, footer, progress, centered = false, flip = false, children, href, onClick, onPointerEnter, onFocus, "aria-label": ariaLabel, className }: ColorCardProps) {
   const seedNumber = typeof seed === "string" ? seedOf(seed) : seed ?? seedOf(color);
   const classes = cn("ui-card", size === "big" && "ui-card--big", centered && "ui-card--centered", progress !== undefined && "ui-card--progress", flip && "ui-card--flip", className);
   const style = { "--card-color": color } as CSSProperties;
@@ -88,6 +89,7 @@ export function ColorCard({ color, shader = false, seed, size = "small", header,
       </div>
     );
   }
+  if (href) return <a href={href} className={classes} style={style} aria-label={ariaLabel} onClick={onClick} onPointerEnter={onPointerEnter} onFocus={onFocus}>{face}</a>;
   return onClick
     ? <button type="button" className={classes} style={style} aria-label={ariaLabel} onClick={onClick} onPointerEnter={onPointerEnter} onFocus={onFocus}>{face}</button>
     : <article className={classes} style={style} aria-label={ariaLabel}>{face}</article>;
@@ -203,8 +205,8 @@ const css = /* css */ `
   --action-h: max(22px, 9cqi); --action-t: max(11.5px, 5cqi); --action-pad: max(8px, 3.6cqi);
   aspect-ratio: 1;
 }
-button.ui-card:hover { box-shadow: var(--shadow-4); }
-button.ui-card:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+:is(button, a).ui-card:hover { box-shadow: var(--shadow-4); }
+:is(button, a).ui-card:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 /* The gradient from the one color: lighter at the top left, deeper and turned a little at the bottom right */
 .ui-card__face {
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr auto 1fr; gap: var(--gap); min-width: 0; height: 100%; padding: var(--pad); overflow: clip; border-radius: inherit;

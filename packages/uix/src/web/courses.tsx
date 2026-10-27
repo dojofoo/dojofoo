@@ -44,7 +44,7 @@ export function CoursesPage({ courses, initialQuery = "" }: { courses: WebCourse
       })
       .sort((a, b) => sort === "newest" ? b.publishedAt.localeCompare(a.publishedAt)
         : sort === "trending" ? a.trendingRank - b.trendingRank
-        : sort === "rating" ? b.rating - a.rating
+        : sort === "rating" ? (b.rating ?? -1) - (a.rating ?? -1)
         : b.metrics.installs - a.metrics.installs);
   }, [courses, query, mode, language, framework, sort]);
   const filtered = query !== "" || mode !== "all" || language !== "all" || framework !== "all";
@@ -71,14 +71,14 @@ export function CoursesPage({ courses, initialQuery = "" }: { courses: WebCourse
                   placeholder="Search by name, language, framework or topic" aria-label="Search courses" />
                 {query && <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><Icon icon={Cancel01Icon} size={13} /></button>}
               </label>
-              <MenuButton value={sort} options={sorts} onChange={setSort} icon={ArrowUpDownIcon} />
+              <MenuButton label="Sort courses" value={sort} options={sorts.filter(item => item.value !== "rating" || courses.some(course => course.rating !== undefined))} onChange={setSort} icon={ArrowUpDownIcon} />
             </div>
             <div className="ui-crs-count">
               <p aria-live="polite">{results.length === 1 ? "1 course" : `${results.length} courses`}{query && <> for <b>“{query.trim()}”</b></>}</p>
               {filtered && <Button variant="ghost" size="sm" onClick={clear}>Clear filters</Button>}
             </div>
             {results.length > 0 ? (
-              <div className="ui-crs-grid">{results.map((course) => <CourseTile key={course.id} course={course} onOpen={links.openCourse} />)}</div>
+              <div className="ui-crs-grid">{results.map((course) => <CourseTile key={course.id} course={course} href={links.courseHref(course)} onOpen={links.openCourse} />)}</div>
             ) : (
               <EmptyState title="No courses found" text="Don’t panic – we’re creating new ones. Try another word, or clear the filters." action={<Button variant="secondary" size="sm" onClick={clear}>Clear filters</Button>} tall />
             )}

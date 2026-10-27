@@ -4,7 +4,7 @@ test("the shared palette searches docs and marketplace courses and opens results
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/docs", { waitUntil: "networkidle" });
-  const opener = page.getByRole("button", { name: "Open Search", exact: true }).first();
+  const opener = page.getByRole("button", { name: "Search docs", exact: true }).first();
   await opener.click();
   const palette = page.locator("dialog.ui-as-palette[open]");
   const input = palette.getByRole("combobox");
@@ -19,7 +19,7 @@ test("the shared palette searches docs and marketplace courses and opens results
   await expect(page).toHaveURL(/\/courses\/dojofoo\/effect-ts/);
   await expect(page.getByRole("heading", { name: "Effect TS", exact: true })).toBeVisible();
   await expect(palette).toHaveCount(0);
-  await page.getByRole("button", { name: "Open Search", exact: true }).first().click();
+  await page.getByRole("button", { name: "Search courses", exact: true }).first().click();
   await expect(palette.getByRole("tab", { name: "Courses", exact: true })).toHaveAttribute("aria-selected", "true");
   await input.fill("zzzz-no-match");
   await expect(palette.getByRole("status")).toHaveText("No courses found.");

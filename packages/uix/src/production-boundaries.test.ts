@@ -7,7 +7,7 @@ import { expect, it } from "vitest";
 const source = dirname(fileURLToPath(import.meta.url));
 
 it("keeps production entry graphs independent of host aliases and application sources", () => {
-  const entries = globSync(["components/**/*.tsx", "containers/**/*.tsx", "lib/**/*.ts", "provider.tsx", "docs/**/*.tsx", "web/{site,courses,course,course-tile,landing}.tsx"], { cwd: source })
+  const entries = globSync(["components/**/*.tsx", "containers/**/*.tsx", "lib/**/*.ts", "provider.tsx", "docs/**/*.tsx", "web/{site,courses,course,course-tile,landing,learning-preview}.tsx"], { cwd: source })
     .filter(file => !/\.(stories|test)\./.test(file));
   const visited = new Set<string>();
   const violations: string[] = [];
@@ -37,7 +37,7 @@ it("keeps production entry graphs independent of host aliases and application so
       }
       if (!name.startsWith(".")) continue;
       const target = resolve(dirname(file), name.split("?")[0]);
-      if (!target.startsWith(source + "/") || target.includes("/stories/")) {
+      if (!target.startsWith(source + "/") || (target.includes("/stories/") || target.includes("/pages/"))) {
         violations.push(label);
         continue;
       }

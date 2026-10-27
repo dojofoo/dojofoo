@@ -4,11 +4,14 @@ The successor UI library and page-design preview. The live learning/authoring ap
 has not been switched to these page fixtures.
 
 Production entry points are `@dojofoo/uix/provider`, `fonts.css`, `styles.css`,
-`web/site`, `web/landing`, `web/courses`, `web/course`, `web/catalog`,
+`web/site`, `web/landing`, `web/learning-preview`, `web/courses`, `web/course`, `web/catalog`,
 `docs/layout`, and `docs/content`, alongside the shared components/containers.
 The website and local runtime share `UIXProvider` with Storybook. Leave its
 `mode` unset when an application theme provider already owns light/dark mode.
 Import `fonts.css` with the UIX stylesheet when adopting the UIX page design.
+The website registers `documentTransitionScript` from `lib/view-transition` in a
+synchronous head script: document lifecycle events may fire before React hydration.
+This handles expected animation aborts while reporting other transition failures.
 
 Applications supply course data, navigation/search adapters, compiled MDX and
 prepared OpenAPI props. The API renderer requires its document explicitly;
@@ -115,3 +118,12 @@ stay synchronized with keyboard and thumbnail navigation. External
 decks need the same bridge for those controls. Frame fitting
 works independently of the bridge. Vimeo retains its embedded player’s own
 playback preferences.
+
+
+`web/learning-preview` is the immutable, inert landing illustration. It composes
+shared workspace/editor/chat presentation and owns its explicitly illustrative
+identity, course and model names. It imports no learner page controller or
+simulated conversation hook. Production navigation supplies section/course hrefs
+and a single search owner through `SiteContext`; story adapters own their search
+state. Unsupported marketplace ratings, hours, provenance and audits may be
+omitted. A missing installation source renders no runnable command.

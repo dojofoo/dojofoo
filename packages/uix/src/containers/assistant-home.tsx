@@ -208,6 +208,10 @@ export function useChatThread(replyFor: (prompt: string) => ChatReply) {
   return { messages, busy, send, finish: () => setBusy(false) };
 }
 
+export function ChatStyles() {
+  return <style href="ui-screen-chat" precedence="default">{chatCss}</style>;
+}
+
 /** The thread: user bubbles on the right, answers with the library's Thinking State and streamed text */
 export function ChatMessages({
   messages,
@@ -230,9 +234,7 @@ export function ChatMessages({
 
   return (
     <>
-      <style href="ui-screen-chat" precedence="default">
-        {chatCss}
-      </style>
+      <ChatStyles />
       {messages.map((m) =>
         m.role === "user" ? (
           <p key={m.id} className="ui-as-msg-user">

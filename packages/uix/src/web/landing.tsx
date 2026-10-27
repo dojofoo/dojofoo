@@ -1,3 +1,4 @@
+import { followLink } from "../lib/link-event";
 import claudeDarkLogo from "../assets/agents/claude-wordmark-dark.svg?url";
 import claudeLightLogo from "../assets/agents/claude-wordmark-light.svg?url";
 import codexLogo from "../assets/agents/codex.svg?url";
@@ -7,7 +8,7 @@ import opencodeLogo from "../assets/agents/opencode-wordmark.svg?url";
 import piLogo from "../assets/agents/pi.svg?url";
 import { useState } from "react";
 import { Icon } from "../components/app-shell";
-import { Button } from "../components/button";
+import { ButtonLink } from "../components/button";
 import { courseColor } from "../components/course-card";
 import { TabOverload } from "../components/tab-overload";
 import { Carousel } from "../components/arc/carousel/carousel";
@@ -46,11 +47,11 @@ const modes = [
   { title: "Authoring Mode", short: "Authoring", beta: "Open beta", headline: "Create your own tutor-guided learning or interview", text: "Build a course with Kyoshi, your authoring agent. Shape lessons, exercises, and learning material, then try it as a learner before you share it." },
 ] as const;
 
-export function LandingPage({ learning, courses, featureCourse: everyday, preview }: {
-  /** People learning right now (the site shows an hourly estimate) */
-  learning: number;
+export function LandingPage({ learning, courses, featureCourse, preview }: {
+  /** Optional live count supplied by a host with real presence data. */
+  learning?: number;
   courses: WebCourse[];
-  featureCourse: WebCourse;
+  featureCourse?: WebCourse;
   preview: ReactNode;
 }) {
   const links = useSite();
@@ -60,17 +61,17 @@ export function LandingPage({ learning, courses, featureCourse: everyday, previe
     <SitePage current="home" window={false} full backdrop={<TopographyBackdrop />}>
       <style href="ui-web-landing" precedence="default">{css}</style>
       <section className="ui-land-hero">
-        <p className="ui-land-hero__live"><span className="ui-land-live" aria-hidden="true" />{learning === 1 ? "1 person" : `${learning} people`} learning right now</p>
-        <h1 className="ui-land-hero__title">Agentic teaching,<br />built around your <ShaderText color={courseColor(everyday.art)}>learning</ShaderText></h1>
+        {learning !== undefined && <p className="ui-land-hero__live"><span className="ui-land-live" aria-hidden="true" />{learning === 1 ? "1 person" : `${learning} people`} learning right now</p>}
+        <h1 className="ui-land-hero__title">Agentic teaching,<br />built around your <ShaderText color={featureCourse ? courseColor(featureCourse.art) : "var(--brand)"}>learning</ShaderText></h1>
         <p className="ui-land-hero__lead">Your coding agent follows the course, watches your work and mentors you by adapting to how you learn best. Install a dojo in any folder and start learning right away.</p>
         <div className="ui-land-hero__actions">
           {/* Getting started is the one command: down to it */}
-          <Button onClick={() => {
+          <ButtonLink href="#ui-land-start" onClick={event => followLink(event, () => {
             const heading = document.getElementById("ui-land-start");
             heading?.closest("section")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
             heading?.focus({ preventScroll: true });
-          }}>Start learning</Button>
-          <Button variant="secondary" onClick={() => links.navigate("courses")}>Browse courses</Button>
+          })}>Start learning</ButtonLink>
+          <ButtonLink variant="secondary" href={links.sectionHref("courses")} onClick={event => followLink(event, () => links.navigate("courses"))}>Browse courses</ButtonLink>
         </div>
       </section>
 
@@ -111,7 +112,7 @@ export function LandingPage({ learning, courses, featureCourse: everyday, previe
           <h2 id="ui-land-start" tabIndex={-1} className="ui-land-h2">One command to start</h2>
           <p className="ui-land-lead">It opens the dojo in your browser.<br />Pick your agent and install your first course from there.</p>
           <CommandCopy command={START} className="ui-land-start__cmd" />
-          <Button variant="ghost" iconRight={<Icon icon={ArrowRight01Icon} size={14} />} onClick={() => links.openDoc("/docs/quickstart")}>Read the quickstart</Button>
+          <ButtonLink variant="ghost" href="/docs/quickstart" iconRight={<Icon icon={ArrowRight01Icon} size={14} />} onClick={event => followLink(event, () => links.openDoc("/docs/quickstart"))}>Read the quickstart</ButtonLink>
         </section>
 
         <section className="ui-land-section">
@@ -120,11 +121,11 @@ export function LandingPage({ learning, courses, featureCourse: everyday, previe
               <p className="ui-land-eyebrow">Most installed right now</p>
               <h2 className="ui-land-h2">Top courses</h2>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => links.navigate("courses")}>All courses</Button>
+            <ButtonLink variant="secondary" size="sm" href={links.sectionHref("courses")} onClick={event => followLink(event, () => links.navigate("courses"))}>All courses</ButtonLink>
           </div>
-          <div className="ui-land-courses">
-            {top.map((course) => <CourseTile key={course.id} course={course} onOpen={links.openCourse} shader />)}
-          </div>
+          {top.length > 0 ? <div className="ui-land-courses">
+            {top.map((course) => <CourseTile key={course.id} course={course} href={links.courseHref(course)} onOpen={links.openCourse} shader />)}
+          </div> : <p className="ui-land-lead">No courses are available yet.</p>}
         </section>
       </div>
     </SitePage>

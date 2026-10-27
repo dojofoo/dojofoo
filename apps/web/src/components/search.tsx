@@ -6,7 +6,7 @@ import { useI18n } from "fumadocs-ui/contexts/i18n";
 import { usePathname } from "fumadocs-core/framework";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { SiteSearchPalette, type SearchScope } from "@dojofoo/ui/site-search-palette";
+import { SiteSearchPalette, type SearchScope } from "@dojofoo/uix/components/site-search-palette";
 import { searchMarketplaceCourses, type CourseListing } from "@/lib/courses";
 
 const plainText = (text: string) => text.replace(/<\/?mark>/g, "");

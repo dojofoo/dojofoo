@@ -26,6 +26,7 @@
     "./assets/*": "./src/assets/*",
     "./web/site": "./src/web/site.tsx",
     "./web/landing": "./src/web/landing.tsx",
+    "./web/learning-preview": "./src/web/learning-preview.tsx",
     "./web/courses": "./src/web/courses.tsx",
     "./web/course": "./src/web/course.tsx",
     "./web/catalog": "./src/web/catalog.ts",

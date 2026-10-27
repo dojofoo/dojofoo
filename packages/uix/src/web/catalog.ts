@@ -27,20 +27,20 @@ export type WebCourse = {
   tags: string[];
   mode: TeachingMode;
   kataCount: number;
-  installUrl: string;
+  installUrl: string | null;
   trendingRank: number;
-  rating: number;
-  hours: number;
+  rating?: number;
+  hours?: number;
   art: CourseArtwork;
   /** What drifts over its card (the learner pages' choice where it has one) */
   shader: CardShaderKind;
   /** Its repository's GitHub stars */
-  stars: number;
+  stars?: number;
   /** When the marketplace first saw it */
-  firstSeen: string;
-  audits: CourseAudit[];
+  firstSeen?: string;
+  audits?: CourseAudit[];
   /** The chapters, in order: the metrics count how many reached each */
-  chapters: string[];
+  chapters?: string[];
   metrics: {
     installs: number;
     started: number;
@@ -59,7 +59,7 @@ export const teachingModes: Array<{ value: TeachingMode; label: string; descript
   { value: "mentor", label: "Mentor", description: "Reviews and conversation" },
 ];
 
-const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const shortDate = (iso: string) => new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 /** The course as the UIX cards draw it */
 export const cardInfo = (course: WebCourse): CourseInfo => ({
@@ -70,13 +70,13 @@ export const cardInfo = (course: WebCourse): CourseInfo => ({
   version: `v${course.version}`,
   updated: shortDate(course.publishedAt),
   language: course.language,
-  chapters: course.chapters.length,
+  chapters: course.chapters?.length,
   lessons: course.kataCount,
   hours: course.hours,
   art: course.art,
 });
 
-export const installCommand = (course: WebCourse) => `npx dojofoo add ${course.installUrl}`;
+export const installCommand = (course: WebCourse) => course.installUrl ? `npx dojofoo add ${course.installUrl}` : null;
 /** The same, as an instruction for a coding agent: it installs the course and starts it */
-export const installPrompt = (course: WebCourse) => `Install the ${course.name} dojo: run \`${installCommand(course)}\` in this project and follow its output, then run \`npx dojofoo ui\` to open its first lesson in the browser.`;
+export const installPrompt = (course: WebCourse) => course.installUrl ? `Install the ${course.name} dojo: run \`${installCommand(course)}\` in this project and follow its output, then run \`npx dojofoo ui\` to open its first lesson in the browser.` : null;
 export const compactNumber = (n: number) => (n >= 1000 ? `${+(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : `${n}`);

@@ -5,11 +5,15 @@ import { courseColor } from "../components/course-card";
 import { compactNumber, teachingModes, type WebCourse } from "./catalog";
 
 /** A course in a grid, as Explore's results draw them: the course's color card, opening its page */
-export function CourseTile({ course, onOpen, shader = false }: { course: WebCourse; onOpen?: (course: WebCourse) => void; /** Its contour map, waves, network or rings drifting over it */ shader?: boolean }) {
+export function CourseTile({ course, href, onOpen, shader = false }: { course: WebCourse; href?: string; onOpen?: (course: WebCourse) => void; /** Its contour map, waves, network or rings drifting over it */ shader?: boolean }) {
   const mode = teachingModes.find((item) => item.value === course.mode)?.label;
   return (
-    <ColorCard color={courseColor(course.art)} shader={shader ? course.shader : false} seed={course.repository} aria-label={`${course.name} – ${course.description}. Rated ${course.rating.toFixed(1)}, ${compactNumber(course.metrics.installs)} installs, ${course.language}${mode ? `, ${mode}` : ""}`} onClick={() => onOpen?.(course)}
-      header={<><CardMark>{course.author === "Dojo.foo" ? <BrandLogo /> : course.author}</CardMark><CardFigure aria-label={`Rated ${course.rating} out of 5`}>★ {course.rating.toFixed(1)}</CardFigure></>}
+    <ColorCard color={courseColor(course.art)} shader={shader ? course.shader : false} seed={course.repository} aria-label={`${course.name} – ${course.description}. ${course.rating === undefined ? "" : `Rated ${course.rating.toFixed(1)}, `}${compactNumber(course.metrics.installs)} installs, ${course.language}${mode ? `, ${mode}` : ""}`} href={href} onClick={onOpen ? event => {
+      if (href && (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey)) return;
+      if (href) event.preventDefault();
+      onOpen(course);
+    } : undefined}
+      header={<><CardMark>{course.author === "Dojo.foo" ? <BrandLogo /> : course.author}</CardMark>{course.rating !== undefined && <CardFigure aria-label={`Rated ${course.rating} out of 5`}>★ {course.rating.toFixed(1)}</CardFigure>}</>}
       main={<><CardKicker code>{course.repository}</CardKicker><CardTitle>{course.name}</CardTitle></>}
       footer={<><CardText label={course.language} value={`${compactNumber(course.metrics.installs)} installs`} />{mode && <ColorCardTag>{mode}</ColorCardTag>}</>} />
   );

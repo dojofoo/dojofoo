@@ -125,6 +125,22 @@ export function Button({
   );
 }
 
+/** A navigation link with the same presentation as Button and native anchor behavior. */
+export type ButtonLinkProps = ComponentPropsWithRef<"a"> &
+  Pick<ButtonProps, "variant" | "size" | "icon" | "iconRight"> & { href: string };
+
+export function ButtonLink({ variant = "primary", size = "md", icon, iconRight, children, className, ...rest }: ButtonLinkProps) {
+  return <>
+    <style href="ui-button" precedence="default">{css}</style>
+    <a className={["ui-button", className].filter(Boolean).join(" ")}
+      data-variant={variant} data-size={size} data-icon-only={!children && Boolean(icon || iconRight) || undefined} {...rest}>
+      {icon && <span className="ui-button__icon" aria-hidden="true">{icon}</span>}
+      {children != null && <span className="ui-button__label">{children}</span>}
+      {iconRight && <span className="ui-button__icon" aria-hidden="true">{iconRight}</span>}
+    </a>
+  </>;
+}
+
 /** Shown in place of the left icon while loading */
 const Spinner = () => (
   <svg
