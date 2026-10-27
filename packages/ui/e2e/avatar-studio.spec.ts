@@ -1,0 +1,45 @@
+import { expect, test } from "@playwright/test";
+
+test("the avatar studio uses UIX controls while preserving generated traits and variations", async ({ page }) => {
+  const writes: string[] = [];
+  await page.route("**/api/**", route => {
+    if (route.request().method() !== "GET") writes.push(route.request().url());
+    return route.fulfill({ json: [] });
+  });
+  await page.goto("/avatar");
+  await expect(page.locator(".ui-as-app")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Character workshop", exact: true })).toBeVisible();
+  const preview = page.getByRole("img", { name: "Ukiyo-e avatar", exact: true }).first();
+  const original = await preview.innerHTML();
+  const hair = page.getByRole("button", { name: /^Hair:/ });
+  await hair.click();
+  const option = page.locator('[role="menuitemradio"][aria-checked="false"]').first();
+  const next = await option.innerText();
+  await option.click();
+  await expect(hair).toContainText(next.trim());
+  await expect.poll(() => preview.innerHTML()).not.toBe(original);
+  const variation = page.getByRole("button", { name: /^Use variation / }).first();
+  const variationImage = await variation.getByRole("img").innerHTML();
+  await variation.click();
+  await expect.poll(() => preview.innerHTML()).toBe(variationImage);
+  await page.getByRole("button", { name: "Randomize", exact: true }).click();
+  await expect.poll(() => preview.innerHTML()).not.toBe(variationImage);
+  await page.getByRole("button", { name: "Use light theme", exact: true }).click();
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await page.screenshot({ path: test.info().outputPath("avatar-studio-desktop.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const traits = page.getByRole("complementary", { name: "Character traits", exact: true });
+  await traits.getByRole("button", { name: /^Hair:/ }).scrollIntoViewIfNeeded();
+  await traits.getByRole("button", { name: /^Hair:/ }).click();
+  await expect(page.getByRole("menu")).toBeInViewport({ ratio: 1 });
+  await page.keyboard.press("Escape");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath("avatar-studio-phone.png"), animations: "disabled" });
+  await page.getByRole("button", { name: "Open sidebar", exact: true }).click();
+  await page.getByRole("button", { name: "You", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
+  await expect(page).toHaveURL(/\/settings/);
+  expect(writes).toEqual([]);
+});

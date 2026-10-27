@@ -11,11 +11,12 @@ import {
   type AvatarDefinition,
   type AvatarTrait,
 } from "@dojofoo/avatar";
-import { BrandLogo } from "@dojofoo/ui/brand-logo";
-import { Button } from "@dojofoo/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@dojofoo/ui/select";
-import { SiteNavigation } from "@dojofoo/ui/site-navigation";
-import { ThemeToggle } from "@dojofoo/ui/theme-toggle";
+import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
+import { Button } from "@dojofoo/uix/components/button";
+import { AppShell, Icon, MenuButton } from "@dojofoo/uix/components/app-shell";
+import { CoursesIcon, ExploreIcon, MoonIcon, SunIcon } from "@dojofoo/uix/icons";
+import { setPageMode, usePageMode } from "@dojofoo/uix/lib/ui-preferences";
+import { useAccountMenu } from "@/hooks/use-account-menu";
 
 export const Route = createFileRoute("/avatar")({ component: AvatarStudio });
 
@@ -31,6 +32,9 @@ const traitNames: Record<AvatarTrait, string> = {
 };
 
 function AvatarStudio() {
+  const navigate = Route.useNavigate();
+  const { account, toast } = useAccountMenu();
+  const mode = usePageMode();
   const [seed, setSeed] = useState("ukiyo-dojofoo");
   const [avatar, setAvatar] = useState(() => createAvatar(seed));
   const variations = useMemo(() => Array.from({ length: 6 }, (_, index) => {
@@ -49,33 +53,39 @@ function AvatarStudio() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <SiteNavigation
-        brand={<Link aria-label="Dojofoo courses" className="flex items-center" to="/"><BrandLogo /></Link>}
-        actions={<><Link className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground" to="/"><ArrowLeft size={15} /> Courses</Link><ThemeToggle /></>}
-      />
-      <section className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl lg:grid-cols-[minmax(0,1fr)_23rem]">
-        <div className="flex min-w-0 flex-col border-b border-border bg-surface-1 lg:border-r lg:border-b-0">
-          <header className="flex flex-wrap items-end justify-between gap-5 border-b border-border px-6 py-6 md:px-10">
+    <div className="h-dvh overflow-hidden"><AppShell {...account} workspace="Dojo" sidebarWidth="18rem" showNews={false} showOnboarding={false}
+      brand={<Link aria-label="Dojo dashboard" className="flex items-center" to="/"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>}
+      navigation={[{ id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" },
+        { id: "explore", label: "Explore", icon: ExploreIcon, href: "/explore" }] }]}
+      onNavigate={id => { void navigate({ to: id === "explore" ? "/explore" : "/" }); }}>
+      <div className="px-6 pt-5 md:px-10 flex items-center justify-between gap-4">
+        <Link className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground" to="/"><ArrowLeft size={15} /> Courses</Link>
+        <Button size="sm" variant="ghost" aria-label={`Use ${mode === "dark" ? "light" : "dark"} theme`}
+          icon={<Icon icon={mode === "dark" ? SunIcon : MoonIcon} size={16} />}
+          onClick={() => { const next = mode === "dark" ? "light" : "dark"; setPageMode(next); window.localStorage.setItem("dojofoo.theme", next); }} />
+      </div>
+      <section className="mx-auto grid w-full max-w-7xl lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex min-w-0 flex-col">
+          <header className="flex flex-wrap items-end justify-between gap-5 px-6 py-6 md:px-10">
             <div>
-              <p className="font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Ukiyo-e avatar studio</p>
-              <h1 className="mt-2 font-display text-3xl font-semibold">Character workshop</h1>
+              <p className="text-xs font-medium text-muted-foreground">Ukiyo-e avatar studio</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight">Character workshop</h1>
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">{countAvatarCombinations().toLocaleString()} vector combinations from the current sprite catalog.</p>
             </div>
-            <Button leadingIcon={Dices} onClick={randomize} variant="secondary">Randomize</Button>
+            <Button icon={<Dices size={16} />} onClick={randomize} variant="secondary">Randomize</Button>
           </header>
-          <div className="grid flex-1 place-items-center overflow-hidden p-6 md:p-10">
-            <div className="aspect-square w-full max-w-xl border border-border bg-[#f3eee7] dark:bg-[#d8d0c5]">
+          <div className="grid flex-1 place-items-center overflow-hidden px-6 pb-6 md:px-10">
+            <div className="aspect-square w-full max-w-xl overflow-hidden rounded-[var(--box-radius)] bg-[var(--surface-1)] shadow-[var(--shadow-2)]">
               <UkiyoAvatar avatar={avatar} className="h-full w-full" />
             </div>
           </div>
-          <div className="border-t border-border px-6 py-5 md:px-10">
-            <p className="font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Seeded variations</p>
+          <div className="px-6 pb-6 md:px-10">
+            <p className="text-xs font-medium text-muted-foreground">Seeded variations</p>
             <div className="mt-3 grid grid-cols-6 gap-2">
               {variations.map((variation) => (
                 <button
                   aria-label={`Use variation ${variation.seed}`}
-                  className="aspect-square min-w-0 border border-border bg-[#f3eee7] transition-colors hover:border-primary"
+                  className="aspect-square min-w-0 overflow-hidden rounded-[var(--box-radius)] bg-[var(--surface-3)] shadow-[var(--shadow-1)] transition-colors hover:bg-[var(--fluid-hover)] focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
                   key={variation.seed}
                   onClick={() => { setSeed(variation.seed); setAvatar(variation.avatar); }}
                   type="button"
@@ -86,26 +96,22 @@ function AvatarStudio() {
             </div>
           </div>
         </div>
-        <aside className="bg-background p-6 md:p-8">
-          <p className="font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Build character</p>
+        <aside aria-label="Character traits" className="min-w-0 p-6 md:p-8">
+          <p className="text-xs font-medium text-muted-foreground">Build character</p>
           <p className="mt-2 break-all font-mono text-xs text-muted-foreground">{seed}</p>
           <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
             {(Object.keys(avatarCatalog) as AvatarTrait[]).map((trait) => (
-              <label className="grid gap-2" key={trait}>
-                <span className="font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{traitNames[trait]}</span>
-                <Select onValueChange={(value) => selectTrait(trait, value as AvatarDefinition[typeof trait])} value={avatar[trait]}>
-                  <SelectTrigger className="w-full" />
-                  <SelectContent>
-                    {avatarCatalog[trait].map((option, index) => (
-                      <SelectItem index={index} key={option} value={option}>{avatarTraitLabel(trait, option)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
+              <div className="grid min-w-0 gap-2" key={trait}>
+                <span className="text-xs font-medium text-muted-foreground">{traitNames[trait]}</span>
+                <MenuButton label={traitNames[trait]} value={avatar[trait]} align="start" className="w-full justify-between"
+                  onChange={value => selectTrait(trait, value as AvatarDefinition[typeof trait])}
+                  options={avatarCatalog[trait].map(value => ({ value, label: avatarTraitLabel(trait, value) }))} />
+              </div>
             ))}
           </div>
         </aside>
       </section>
-    </main>
+      {toast}
+    </AppShell></div>
   );
 }
