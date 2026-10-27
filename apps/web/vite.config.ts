@@ -32,6 +32,11 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: { 'shiki/core': 'shiki/dist/core.mjs' },
   },
+  optimizeDeps: {
+    // Fumadocs loads unified through generated MDX; discover its CommonJS
+    // dependency before the first browser request can receive an outdated hash.
+    include: ['fumadocs-core > unified > extend'],
+  },
   plugins: [
     monacoAssets(),
     wgslVitePlugin(),

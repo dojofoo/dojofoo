@@ -30,6 +30,7 @@ export type SiteLinks = {
   openCourse: (course: WebCourse) => void;
   courseHref: (course: WebCourse) => string;
   openSearch: (scope: SearchScope) => void;
+  footerControls?: ReactNode;
   footerLinks?: ReadonlyArray<{ title: string; links: ReadonlyArray<readonly [label: string, destination: string]> }>;
 };
 
@@ -137,7 +138,7 @@ export function SiteFooter({ current }: { current?: SiteSection }) {
         </nav>
       ))}
       <div className="ui-web-foot__base">
-        <span className="ui-web-foot__copy"><Icon icon={CopyrightIcon} size={15} /><span className="sr-only">Copyright</span>Dojo.foo</span>
+        <span className="ui-web-foot__copy"><Icon icon={CopyrightIcon} size={15} /><span className="sr-only">Copyright</span>Dojo.foo{links.footerControls && <span className="ml-2">{links.footerControls}</span>}</span>
         {/* The maker's line as a small quote (the testimonials' mark), his avatar after it, online */}
         <a className="ui-web-foot__maker" href="https://x.com/tomhaxxx" target="_blank" rel="noreferrer" aria-label={`${line} – Tom Siwik on X`}>
           <svg aria-hidden="true" viewBox="0 0 32 24" className="ui-web-foot__mark">

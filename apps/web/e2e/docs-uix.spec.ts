@@ -105,3 +105,56 @@ test("Installation uses shared command controls and preserves the agent setup pr
   await page.getByRole("button", { name: "Copy Prompt", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-copied-command", AGENT_PROMPT);
 });
+
+test("public theme preference keeps light, dark and system modes with native fades", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
+  await page.addInitScript(() => {
+    const native = document.startViewTransition.bind(document);
+    (window as any).__themeTransitions = [];
+    document.startViewTransition = ((options: any) => {
+      const transition = native(options);
+      transition.ready.then(() => (window as any).__themeTransitions.push({ types: Array.from(transition.types), mode: document.documentElement.classList.contains("dark") ? "dark" : "light" })).catch(() => {});
+      return transition;
+    }) as typeof document.startViewTransition;
+  });
+  await page.goto("/docs", { waitUntil: "networkidle" });
+  const toggle = page.locator("footer").getByRole("button", { name: /^Theme:/ });
+  await expect(toggle).toHaveAccessibleName(/^Theme: dark/);
+  await toggle.click();
+  await expect(toggle).toHaveAccessibleName(/^Theme: system/);
+  await expect(page.locator("html")).toHaveClass(/light/);
+  await expect.poll(() => page.evaluate(() => (window as any).__themeTransitions.length)).toBe(1);
+  await toggle.click();
+  await expect(toggle).toHaveAccessibleName(/^Theme: light/);
+  await toggle.click();
+  await expect(toggle).toHaveAccessibleName(/^Theme: dark/);
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect.poll(() => page.evaluate(() => (window as any).__themeTransitions)).toEqual([{ types: ["ui-theme"], mode: "light" }, { types: ["ui-theme"], mode: "dark" }]);
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(toggle).toHaveAccessibleName(/^Theme: dark/);
+});
+
+test("mobile documentation keeps its page navigation and outline within reach", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/docs", { waitUntil: "networkidle" });
+  const pages = page.getByRole("button", { name: "Pages", exact: true });
+  await expect(pages).toBeInViewport();
+  await pages.click();
+  const navigation = page.getByRole("dialog", { name: "Documentation pages", exact: true });
+  await expect(navigation).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(navigation).toHaveCount(0);
+  await pages.click();
+  await navigation.getByRole("link", { name: "Quickstart", exact: true }).click();
+  await expect(page).toHaveURL(/\/docs\/quickstart$/);
+  await expect(navigation).toHaveCount(0);
+  const outline = page.getByRole("button", { name: "On this page", exact: true });
+  await expect(outline).toBeInViewport();
+  await outline.click();
+  const popup = page.getByRole("dialog", { name: "Page outline", exact: true });
+  const first = popup.getByRole("link").first();
+  const href = await first.getAttribute("href");
+  await first.click();
+  await expect.poll(() => new URL(page.url()).hash).toBe(href);
+  await expect(popup).toHaveCount(0);
+});

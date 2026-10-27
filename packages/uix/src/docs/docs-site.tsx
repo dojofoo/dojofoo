@@ -61,26 +61,7 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
   const previous = order[at - 1]?.page;
   const next = order[at + 1]?.page;
   const toc = useMemo(() => suppliedToc ?? headingsOf(page.body), [suppliedToc, page.body]);
-  // The sections as tabs, with the page's tools – under the site's header, in one bar with it
-  const tabs = (
-    <nav className="ui-docs-tabs" aria-label="Documentation">
-      <div className="ui-docs-tabs__row scroll-fade-x">
-        {docsSections.map((item) => (
-          <a key={item.id} href={item.groups[0].entries[0].path} aria-current={item.id === section.id ? "page" : undefined}
-            onClick={follow(item.groups[0].entries[0].path)}>{item.title}</a>
-        ))}
-      </div>
-      {/* The page's tools at the bar's right end, outside the row that scrolls (its menu would be clipped in it) */}
-      {/* Not on an API page: it's generated from the API's routes, and its examples are on it */}
-      {!page.apiPage && <PageTools page={page} />}
-    </nav>
-  );
-
-  return (
-    <SitePage current="help" window={false} subnav={tabs}>
-      <style href="ui-docs" precedence="default">{css}</style>
-      <div className="ui-docs-layout" data-api={page.apiPage ? "" : undefined}>
-        <Tree key={section.id} active={page.path}>
+  const treeEntries = <>
           {section.groups.map((group, index) => (
             <div key={index} className="ui-docs-tree__group">
               {group.title && <span className="ui-docs-tree__heading">{group.title}</span>}
@@ -100,11 +81,40 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
               </ul>
             </div>
           ))}
-        </Tree>
+
+  </>;
+  // The sections as tabs, with the page's tools – under the site's header, in one bar with it
+  const tabs = (
+    <nav className="ui-docs-tabs" aria-label="Documentation">
+      <div className="ui-docs-tabs__row scroll-fade-x">
+        {docsSections.map((item) => (
+          <a key={item.id} href={item.groups[0].entries[0].path} aria-current={item.id === section.id ? "page" : undefined}
+            onClick={follow(item.groups[0].entries[0].path)}>{item.title}</a>
+        ))}
+      </div>
+      {/* The page's tools at the bar's right end, outside the row that scrolls (its menu would be clipped in it) */}
+      {/* Not on an API page: it's generated from the API's routes, and its examples are on it */}
+      {!page.apiPage && <PageTools page={page} />}
+    </nav>
+  );
+
+  return (
+    <SitePage current="help" window={false} subnav={tabs}>
+      <style href="ui-docs" precedence="default">{css}</style>
+      <div className="ui-docs-layout" data-api={page.apiPage ? "" : undefined}>
+        <Tree key={section.id} active={page.path}>{treeEntries}</Tree>
 
         <article className="ui-docs">
           <h1 ref={title} tabIndex={-1} className="ui-docs__title">{page.title}</h1>
           {page.description && <p className="ui-docs__lead">{page.description}</p>}
+          <div className="ui-docs-mobile-tools">
+            <DocsMenu key={`pages:${page.path}`} label="Pages" dialogLabel="Documentation pages" className="ui-docs-pages-control" icon={<Icon icon={File01Icon} size={13} />}>
+              <Tree active={page.path}>{treeEntries}</Tree>
+            </DocsMenu>
+            {!page.apiPage && toc.length > 1 && <DocsMenu key={`outline:${page.path}`} label="On this page" dialogLabel="Page outline" icon={<Icon icon={LeftToRightListBulletIcon} size={13} />}>
+              <OnThisPage toc={toc} onOpen={open} />
+            </DocsMenu>}
+          </div>
           {renderPage ? <Fragment key={page.path}>{renderPage(page)}</Fragment>
             : page.apiPage ? <Fragment key={page.path}>{renderApiPage?.(page.apiPage)}</Fragment> : <Prose body={page.body} boxed={boxed} onLink={open} />}
           <nav className="ui-docs__pager" aria-label="More pages">
@@ -121,6 +131,19 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
       </div>
     </SitePage>
   );
+}
+
+/** Compact access to the same page tree and outline when their desktop rails move away. */
+function DocsMenu({ label, dialogLabel, icon, children, className = "" }: { label: string; dialogLabel: string; icon: ReactNode; children: ReactNode; className?: string }) {
+  const [open, setOpen] = useState(false);
+  return <span className={`ui-as-anchor ${className}`}>
+    <button type="button" className="ui-docs-tools__btn" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)}>{icon}{label}<Icon icon={ArrowDown01Icon} size={13} /></button>
+    <Popover open={open} onClose={() => setOpen(false)} align="start">
+      <div role="dialog" aria-label={dialogLabel} className="ui-as-menu ui-docs-mobile-menu scroll-fade" onClick={event => {
+        if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.button === 0 && event.target instanceof Element && event.target.closest("a")) setOpen(false);
+      }}>{children}</div>
+    </Popover>
+  </span>;
 }
 
 /** The page's source on GitHub, to edit: under what's on the page, or at the page's end when that column is hidden */
@@ -283,6 +306,11 @@ function OnThisPage({ toc, onOpen }: { toc: Array<{ depth: number; text: ReactNo
 const css = /* css */ `
 /* The header and the tabs are one bar at the top (SitePage's subnav): what stays in view starts under it */
 .ui-web:has(.ui-docs-tabs) { --ui-docs-bar: 108px; }
+.ui-docs-mobile-tools { display: none; gap: 8px; }
+.ui-docs-mobile-menu { width: 18rem; max-width: calc(100vw - 40px); max-height: min(60dvh, 24rem); overflow-y: auto; padding: 12px; }
+.ui-docs-mobile-menu .ui-docs-tree { position: relative; top: auto; max-height: none; padding: 4px 0; background: none; }
+@media (max-width: 1100px) { .ui-docs-mobile-tools { display: flex; } .ui-docs-mobile-tools > .ui-as-anchor { margin-top: 16px; } }
+@media (min-width: 761px) { .ui-docs-pages-control { display: none; } }
 /* The tabs: the sections, under the header, the open one underlined in the brand's color, over a solid rule (the page
    scrolls under it, so a dotted one would flicker) */
 .ui-docs-tabs { position: relative; display: flex; max-width: 1180px; margin: 0 auto; align-items: center; gap: 22px; padding: 0 8px; }
@@ -384,7 +412,7 @@ const css = /* css */ `
 .ui-docs-side { position: sticky; top: var(--ui-docs-bar); align-self: start; display: grid; gap: 28px; padding: 40px 0 24px; }
 /* Narrower: "On this page" goes; on a phone the tree follows the article, unstuck (relative: its marker's frame) */
 @media (max-width: 1100px) { .ui-docs-side { display: none; } }
-@media (max-width: 760px) { .ui-docs-layout { grid-template-columns: minmax(0, 1fr); } .ui-docs-tree { position: relative; order: 1; max-height: none; padding: 32px 0 0; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; } }
+@media (max-width: 760px) { .ui-docs-layout, .ui-docs-layout[data-api] { grid-template-columns: minmax(0, 1fr); } .ui-docs-tree { position: relative; order: 1; max-height: none; padding: 32px 0 0; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; } }
 .ui-docs-toc { position: relative; }
 .ui-docs-toc__title { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--muted); font-size: var(--fs-caption); font-weight: 550; }
 .ui-docs-toc a { display: block; padding: 5px 0 5px 12px; color: var(--muted); font-size: var(--fs-body); text-decoration: none; transition: color var(--motion-fast) var(--ease-standard); }
