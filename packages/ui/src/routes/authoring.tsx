@@ -472,30 +472,23 @@ function AuthoringPage() {
       ]}
       askAssistant={backend === "acp" && !busy}
       onCommand={(id, query) => { if (id === "ask" && query && backend === "acp" && !busy) void sendMessage(query); }}
-      editor={<Editor flush className="h-full" tabs={<div
-              className="flex shrink-0 items-stretch border-b border-[var(--line-soft)]"
-            >
-              <EditorTabs mode="authoring" label="Authoring workspace" active={activeFilePath}
-                tabs={editorFiles.tabs.paths.flatMap((path) => { const file = files?.find((entry) => entry.path === path); return file ? [{ path, label: file.label, dirty: editorFiles.dirty(file) }] : []; })}
-                onSelect={setActiveFilePath} onClose={editorFiles.close} onMove={editorFiles.move} />
-              {busy ? <span className="ml-auto self-center px-3 text-xs text-[#878787]">{busy}</span> : null}
-              {previewable ? (
-                <div className={`${busy ? "" : "ml-auto"} flex items-center px-2`}>
-                  <ViewToggle
-                    label={view === "preview" ? "Switch to code" : "Switch to preview"}
-                    onClick={() => setView(view === "preview" ? "editor" : "preview")}
-                  >
-                    {view === "preview" ? <EditorFileIcon /> : <PreviewFileIcon />}
-                  </ViewToggle>
-                </div>
-              ) : null}
-            </div>}><div className="flex h-full min-h-0 flex-col" data-testid="authoring-lesson-pane">
+      editor={<Editor flush className="h-full" tabs={
+        <EditorTabs mode="authoring" label="Authoring workspace" active={activeFilePath}
+          tabs={editorFiles.tabs.paths.flatMap((path) => { const file = files?.find((entry) => entry.path === path); return file ? [{ path, label: file.label, dirty: editorFiles.dirty(file) }] : []; })}
+          onSelect={setActiveFilePath} onClose={editorFiles.close} onMove={editorFiles.move} />
+      } actions={busy || previewable ? <div role="toolbar" aria-label="Authoring file actions" className="ml-auto flex min-w-0 items-center gap-2">
+        {busy ? <span role="status" className="min-w-0 break-words px-2 text-xs text-[var(--fluid-muted)]">{busy}</span> : null}
+        {previewable ? <ViewToggle label={view === "preview" ? "Switch to code" : "Switch to preview"}
+          onClick={() => setView(view === "preview" ? "editor" : "preview")}>
+          {view === "preview" ? <EditorFileIcon /> : <PreviewFileIcon />}
+        </ViewToggle> : null}
+      </div> : undefined}><div className="flex h-full min-h-0 flex-col" data-testid="authoring-lesson-pane">
             <section className="flex min-h-0 flex-1 flex-col" data-testid="authoring-workspace">
               <div className="min-h-0 flex-1 overflow-auto">
                 {view === "preview" && previewable
                   ? activeFile && <AuthoringFilePreview key={activeFile.path} path={activeFile.path} source={draft} workspace={workspace} />
                   : activeFile
-                    ? <Suspense fallback={<div className="p-6 text-sm text-[#878787]">Loading editor…</div>}>
+                    ? <Suspense fallback={<div className="p-6 text-sm text-[var(--fluid-muted)]">Loading editor…</div>}>
                         <CodeEditor
                           key={workspace.root}
                           code={draft}
@@ -529,13 +522,13 @@ function AuthoringPage() {
               <AuthoringEvaluationSettings open={evaluationSettingsOpen} onOpenChange={setEvaluationSettingsOpen} api={authoringApi} onSaved={() => setEvaluationError(null)} />
               <div className="flex flex-wrap items-center justify-end gap-1 p-1">
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => setEvaluationSettingsOpen(true)}>Evaluation settings</WorkspaceAction>
-                <WorkspaceAction disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}><RefreshCw className="size-3.5" /> Refresh</WorkspaceAction>
+                <WorkspaceAction icon={<RefreshCw className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}>Refresh</WorkspaceAction>
                 {visibleReport ? <WorkspaceAction disabled={false} onClick={() => setReportOpen(!reportOpen)}>{reportOpen ? "Hide evaluation" : "Evaluation results"}</WorkspaceAction> : null}
                 {scope === "lesson" && selectedLesson ? <>
                   <MenuButton label="Trial agent" value={trialHarness} onChange={setTrialHarness} disabled={Boolean(busy)} align="start"
                     icon={codingAgents.find(agent => agent.value === trialHarness)?.icon}
                     options={[{ value: "", label: "Configured trial agent" }, ...["codex", "opencode", "cursor", "grok", "fx"].map(value => ({ value, label: codingAgents.find(agent => agent.value === value)!.name }))]} />
-                  <WorkspaceAction disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}><ExternalLink className="size-3.5" /> Trial</WorkspaceAction>
+                  <WorkspaceAction icon={<ExternalLink className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}>Trial</WorkspaceAction>
                 </> : null}
                 {evaluationAction}
               </div>
@@ -681,21 +674,14 @@ function authoringEditorLanguage(path: string): "json" | "markdown" | "typescrip
   return "typescript";
 }
 
-function WorkspaceAction({ children, disabled, onClick }: { children: ReactNode; disabled: boolean; onClick: () => void }) {
-  return <UIXButton size="sm" variant="ghost" disabled={disabled} onClick={onClick} type="button">{children}</UIXButton>;
+function WorkspaceAction({ children, icon, disabled, onClick }: { children: ReactNode; icon?: ReactNode; disabled: boolean; onClick: () => void }) {
+  return <UIXButton size="sm" variant="ghost" icon={icon} disabled={disabled} onClick={onClick} type="button">{children}</UIXButton>;
 }
 
 function ViewToggle({ children, label, onClick }: { children: ReactNode; label: string; onClick: () => void }) {
   return (
     <Tooltip content={label} side="bottom">
-    <button
-      aria-label={label}
-      className="inline-flex size-8 items-center justify-center text-foreground transition-colors hover:text-primary"
-      onClick={onClick}
-      type="button"
-    >
-      {children}
-    </button>
+      <UIXButton size="sm" variant="ghost" aria-label={label} icon={children} onClick={onClick} />
     </Tooltip>
   );
 }

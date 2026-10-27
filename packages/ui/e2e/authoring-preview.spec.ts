@@ -56,7 +56,21 @@ test("authoring previews share the learner typography and keep unsupported diagr
   await navigation.getByRole("button", { name: "DOJO.md", exact: true }).click();
   await expect(preview.locator(".teaching-markdown p")).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: "Switch to code", exact: true })).toBeInViewport();
+  const tabs = await page.getByRole("tablist", { name: "Authoring workspace", exact: true }).boundingBox();
+  const actions = await page.getByRole("toolbar", { name: "Authoring file actions", exact: true }).boundingBox();
+  expect(actions!.y).toBeGreaterThanOrEqual(tabs!.y + tabs!.height);
+  const alignment = await page.getByRole("button", { name: "Refresh", exact: true }).evaluate(node => {
+    const icon = node.querySelector("svg")!.getBoundingClientRect();
+    const label = node.querySelector(".ui-button__label")!.getBoundingClientRect();
+    return Math.abs(icon.y + icon.height / 2 - label.y - label.height / 2);
+  });
+  expect(alignment).toBeLessThan(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: test.info().outputPath("authoring-markdown-preview-phone.png"), animations: "disabled" });
+  await page.getByRole("button", { name: "Switch to code", exact: true }).click();
+  await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Teaching notes");
+  await page.getByRole("button", { name: "Switch to preview", exact: true }).click();
+  await expect(preview.locator(".teaching-markdown p")).toBeVisible();
   expect(writes).toEqual([]);
 });
