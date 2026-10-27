@@ -33,9 +33,9 @@ export default defineConfig({
     alias: { 'shiki/core': 'shiki/dist/core.mjs' },
   },
   optimizeDeps: {
-    // Fumadocs loads unified through generated MDX; discover its CommonJS
-    // dependency before the first browser request can receive an outdated hash.
-    include: ['fumadocs-core > unified > extend'],
+    // Generated MDX discovers this Fumadocs dependency after the initial crawl.
+    // Include it up front so opening docs cannot invalidate in-flight modules.
+    include: ['fumadocs-ui > @fuma-translate/react'],
   },
   plugins: [
     monacoAssets(),
