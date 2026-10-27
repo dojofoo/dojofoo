@@ -44,3 +44,19 @@ test("controlled composer sends, cancels and changes only the supplied model cho
   await page.screenshot({ path: info.outputPath("controlled-composer.png") });
   expect(errors).toEqual([]);
 });
+
+test("a long model catalog scrolls inside the shared popover", async ({ page }) => {
+  await page.goto("/iframe.html?id=components-molecules-composer--long-model-list&viewMode=story");
+  await page.getByRole("button", { name: "Harness model", exact: true }).click();
+  const popover = page.locator(".ui-as-popover");
+  const geometry = await popover.evaluate(node => {
+    const box = node.getBoundingClientRect();
+    const list = node.querySelector(".ui-as-menu__list")!;
+    return { top: box.top, bottom: box.bottom, viewport: innerHeight, height: list.clientHeight, scroll: list.scrollHeight };
+  });
+  expect(geometry.top).toBeGreaterThanOrEqual(0);
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewport);
+  expect(geometry.scroll).toBeGreaterThan(geometry.height);
+  await page.getByRole("menuitemradio", { name: "Available model 100", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Harness model", exact: true })).toHaveText("Available model 100");
+});

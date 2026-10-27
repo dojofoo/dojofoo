@@ -123,7 +123,7 @@ const css = /* css */ `
 /* Step numbers centred on the first line, figures of one width */
 .ui-lb__body ol > li::before { content: counter(ui-lb-step); position: absolute; left: 0; top: calc((var(--ui-lb-line) - 18px) / 2); width: 18px; height: 18px; border-radius: 50%; corner-shape: round; background: var(--fluid-hover); color: var(--fluid-muted); font-family: var(--font-mono); font-size: 11px; line-height: 18px; font-variant-numeric: tabular-nums; text-align: center; }
 .ui-lb__body ul > li::before { content: ""; position: absolute; left: 7px; top: calc(var(--ui-lb-line) / 2 - 2px); width: 4px; height: 4px; border-radius: 50%; corner-shape: round; background: var(--fluid-muted); }
-.ui-lb__body code { padding: 0.1em 0.35em; border-radius: calc(5px * var(--squircle-factor, 1)); background: var(--fluid-hover); color: var(--fluid-foreground); font-family: var(--font-mono); font-size: 0.875em; }
+.ui-lb__body code:not(pre code) { padding: 0.1em 0.35em; border-radius: calc(5px * var(--squircle-factor, 1)); background: var(--fluid-hover); color: var(--fluid-foreground); font-family: var(--font-mono); font-size: 0.875em; }
 .ui-lb__body a { color: var(--fluid-foreground); text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--brand) 70%, transparent); text-decoration-thickness: 0.09em; text-underline-offset: 0.2em; transition: text-decoration-color var(--motion-fast) var(--ease-fast); }
 .ui-lb__body a:hover { text-decoration-color: var(--brand); }
 .ui-lb__body strong { color: var(--fluid-foreground); font-weight: 600; }

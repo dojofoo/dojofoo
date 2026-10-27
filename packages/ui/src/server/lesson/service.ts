@@ -75,6 +75,8 @@ export type LessonSnapshot = {
   kata: string;
   title: string;
   briefing: string;
+  /** Course-relative authored material location, which can differ from the learner's file directory. */
+  briefingBasePath?: string;
   code: string;
   starterCode: string;
   fileId: "solution";
@@ -227,6 +229,7 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
     kata: selected.name,
     title: humanTitle(selected.name),
     briefing: senpaiBriefing(sensei),
+    briefingBasePath: relative(dojoDir(root, rc.currentDojo), dirname(selected.senseiPath)),
     code: existsSync(selected.workspacePath) ? readFileSync(selected.workspacePath, "utf8") : starterCode,
     starterCode,
     fileId: "solution",

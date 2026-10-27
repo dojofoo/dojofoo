@@ -35,7 +35,7 @@ try {
   await mkdir(join(source, "lessons/first"), { recursive: true });
   await mkdir(workspace, { recursive: true });
   const vitest = join(repo, "node_modules/vitest/vitest.mjs");
-  await writeFile(join(source, "dojo.yaml"), `mode: katas\nname: lesson-runtime-fixture\nversion: 0.0.1\ndescription: Practice a token counter.\nlanguage: JavaScript\ntest: node "${vitest}" run --globals {template}\nkatas:\n  - name: first\n    template: lessons/first/kata.mjs\n`);
+  await writeFile(join(source, "dojo.yaml"), `mode: katas\nname: lesson-runtime-fixture\nversion: 0.0.1\ndescription: Practice a token counter.\nlanguage: JavaScript\ntest: node "${vitest}" run --globals {template}\nkatas:\n  - name: first\n    template: lessons/first/kata.mjs\n  - name: next\n    template: lessons/next/kata.mjs\n`);
   await writeFile(join(source, "lessons/first/kata.mjs"), '/**\n * Count the tokens in the fixture.\n * @returns The token count.\n * @example answer();\n */\nexport function answer() {\n  throw new Error("Count the tokens before checking again. This is actual fixture runner output, with enough detail to test wrapping in the results table.");\n}\n');
   await writeFile(join(source, "lessons/first/kata.test.mjs"), 'import { answer } from "./kata.mjs";\ndescribe("tokens", () => {\n  test("counts tokens", () => expect(answer()).toBe(42));\n  test("returns a number", () => expect(typeof answer()).toBe("number"));\n  test.skip("optional vocabulary", () => {});\n});\n');
   const preflightReport = join(scratch, "preflight.json");
@@ -45,7 +45,11 @@ try {
   await writeFile(artifact("fixture-runner-stdout.log"), runner.stdout ?? "");
   await writeFile(artifact("fixture-runner-stderr.log"), runner.stderr ?? "");
   assert.equal(JSON.parse(await readFile(preflightReport, "utf8")).numFailedTests, 2, "the standalone fixture runner must report two real failed tests before the browser starts");
-  await writeFile(join(source, "lessons/first/SENSEI.md"), "# Token counter\n\n<dojo:senpai>Count the tokens in a short sentence.</dojo:senpai>\n\n<dojo:sensei>Teach this one token-counter lesson. Ask the learner to try first.</dojo:sensei>\n");
+  await writeFile(join(source, "lessons/first/SENSEI.md"), "# Token counter\n\n## Briefing\nCount the tokens in a short sentence.\n\n### Goal\nImplement `answer()`.\n\n```js\nanswer();\n```\n\n[Fixture reference](./reference.md)\n\n## Teacher guidance\nAsk the learner to try first.\n");
+  await writeFile(join(source, "lessons/first/reference.md"), "Actual installed lesson reference.\n");
+  await mkdir(join(source, "lessons/next"), { recursive: true });
+  await writeFile(join(source, "lessons/next/kata.mjs"), "export const next = () => 0;\n");
+  await writeFile(join(source, "lessons/next/SENSEI.md"), "# Next\n\n## Briefing\nRead the next goal without starting another lesson.\n");
   execFileSync(process.execPath, [cli, "add", source], { cwd: workspace, env: environment, stdio: "pipe", timeout: 30_000 });
   observeLocalContext(workspace, { stateHome });
   const reservation = createServer();
@@ -74,6 +78,7 @@ try {
   const base = `${origin}/api/workspaces/${encodeURIComponent(courses[0].workspaceId)}/courses/lesson-runtime-fixture/lessons/first`;
   const before = await fetch(base).then(response => response.json());
   assert.equal(before.introduced, false);
+  assert.equal(before.briefingBasePath, "lessons/first");
   const began = performance.now();
   const response = await fetch(`${base}/messages`, { method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ threadId: "lesson-probe", runId: crypto.randomUUID(), messages: [], tools: [], context: [], forwardedProps: { kind: "introduction" } }),
@@ -106,7 +111,7 @@ try {
     await expect(page.locator(".monaco-editor textarea")).toBeVisible();
     await expect(page.locator(".ui-ed .ui-ed__monaco")).toBeVisible();
     await expect(page.locator(".dojo-code-editor")).toHaveCount(0);
-    const mountedEditor = await page.locator(".monaco-editor textarea").elementHandle();
+    let mountedEditor = await page.locator(".monaco-editor textarea").elementHandle();
     assert.equal(await page.evaluate(async () => {
       const faces = await document.fonts.load('16px "Iosevka"');
       return faces.length > 0 && faces.every(face => face.status === "loaded");
@@ -117,6 +122,44 @@ try {
     await expect(hover).toContainText("answer();");
     await page.screenshot({ path: artifact("real-editor-documentation.png") });
     await page.getByRole("tab", { name: "kata.mjs", exact: true }).click();
+    await expect(page.locator(".ui-as-app")).toHaveCSS("height", "1000px");
+    const currentUrl = page.url();
+    await page.getByRole("button", { name: /^Next/ }).click();
+    await expect(page.getByText("Read the next goal without starting another lesson.", { exact: true })).toBeVisible();
+    assert.equal(page.url(), currentUrl);
+    await expect(page.locator(".ui-lb .shiki")).toHaveCount(1);
+    await expect(page.locator(".ui-lb pre code")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    const resources = page.locator(".ui-lb__section");
+    if (!await resources.evaluate(node => node.open)) await resources.locator("summary").click();
+    const reference = resources.getByRole("link", { name: /Fixture reference/ });
+    await expect(reference).toBeVisible();
+    const resourceResponse = await page.request.get(new URL(await reference.getAttribute("href"), origin).href);
+    assert.equal(resourceResponse.status(), 200);
+    assert.match(await resourceResponse.text(), /Actual installed lesson reference/);
+    const draft = page.getByRole("textbox", { name: "Message the sensei", exact: true });
+    await draft.fill("Keep this unsent question");
+    await page.getByRole("button", { name: "Hide chat", exact: true }).click();
+    await expect(page.locator(".ui-as-app")).toHaveAttribute("data-aside-hidden", "");
+    await page.getByRole("button", { name: "Show chat", exact: true }).click();
+    await expect(draft).toHaveValue("Keep this unsent question");
+    await draft.fill("");
+    await page.getByRole("button", { name: "Show settings", exact: true }).click();
+    await page.getByRole("tab", { name: "Material", exact: true }).click();
+    await page.getByRole("button", { name: /^Text size:/ }).click();
+    await page.getByRole("menuitemradio", { name: "Large", exact: true }).click();
+    await expect(page.locator(".ui-lb")).toHaveCSS("font-size", "17px");
+    await page.getByRole("button", { name: /^Resources:/ }).click();
+    await page.getByRole("menuitemradio", { name: "Side panel", exact: true }).click();
+    await expect(page.locator(".ui-lb")).toHaveAttribute("data-resources", "panel");
+    await page.getByRole("button", { name: "Close settings", exact: true }).click();
+    assert.equal(await page.locator(".monaco-editor textarea").evaluate((node, original) => node === original, mountedEditor), true,
+      "Opening chat and settings must retain the real editor");
+    frames.length = 0;
+    await page.reload();
+    await expect(page.locator(".monaco-editor textarea")).toBeVisible();
+    await expect(page.locator(".ui-lb")).toHaveCSS("font-size", "17px");
+    await expect(page.locator(".ui-lb")).toHaveAttribute("data-resources", "panel");
+    mountedEditor = await page.locator(".monaco-editor textarea").elementHandle();
     await expect.poll(() => frames.some(frame => frame.method === "session.snapshot"), { timeout: 10_000 }).toBe(true);
     await page.getByRole("button", { name: "Check", exact: true }).click();
     await expect.poll(() => {
@@ -145,9 +188,11 @@ try {
     await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
     const solution = "export function answer() { return 42; }\n";
     await page.keyboard.insertText(solution);
-    const saved = page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith("/files/solution"));
-    await page.getByRole("button", { name: "Save", exact: true }).click();
-    assert.equal((await saved).status(), 200);
+    const [saved] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith("/files/solution")),
+      page.getByRole("button", { name: "Save", exact: true }).click(),
+    ]);
+    assert.equal(saved.status(), 200);
     assert.equal(await readFile(join(workspace, after.filePath), "utf8"), solution);
     await editor.focus();
     await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
@@ -155,9 +200,11 @@ try {
     await page.keyboard.insertText(shortcutSolution);
     const saves = [];
     page.on("request", request => { if (request.method() === "PUT" && request.url().endsWith("/files/solution")) saves.push(request); });
-    const shortcutSaved = page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith("/files/solution"));
-    await page.keyboard.press(process.platform === "darwin" ? "Meta+S" : "Control+S");
-    assert.equal((await shortcutSaved).status(), 200);
+    const [shortcutSaved] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith("/files/solution")),
+      page.keyboard.press(process.platform === "darwin" ? "Meta+S" : "Control+S"),
+    ]);
+    assert.equal(shortcutSaved.status(), 200);
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
     assert.equal(saves.length, 1, "One editor shortcut must write the file once");
     assert.equal(await readFile(join(workspace, after.filePath), "utf8"), shortcutSolution);
@@ -194,9 +241,50 @@ try {
     assert.equal(restored.result.skipped, 1);
     assert.equal(restored.code, shortcutSolution);
     assert.ok(JSON.stringify(restored.messages).includes("Ready to teach."));
+    const pane = page.getByTestId("chat-pane");
+    await expect(pane).toHaveAttribute("data-chat-status", "ready");
+    const cancelQuestion = "Pause this fixture response until I cancel it";
+    const held = endpoint.holdNextResponse(input => JSON.stringify(input.input ?? input.messages ?? []).includes(cancelQuestion));
+    let modelConnectionClosed = false;
+    held.closed.then(() => { modelConnectionClosed = true; });
+    try {
+      await page.getByRole("textbox", { name: "Message the sensei", exact: true }).fill(cancelQuestion);
+      await page.getByRole("textbox", { name: "Message the sensei", exact: true }).press("Enter");
+      await expect.poll(() => endpoint.requests.some(input => JSON.stringify(input.input ?? input.messages ?? []).includes(cancelQuestion)), { timeout: 10_000 }).toBe(true);
+      await held.started;
+      await page.getByRole("button", { name: "Stop", exact: true }).click();
+      await expect.poll(() => modelConnectionClosed, { timeout: 10_000 }).toBe(true);
+      await expect(pane).toHaveAttribute("data-chat-status", "ready");
+      await expect(pane).not.toHaveAttribute("data-chat-error", /.+/);
+    } finally { held.release(); }
+    const modelOption = restored.model?.options.find(option => option.value === "openai/gpt-4o-mini")
+      ?? restored.model?.options.find(option => option.value.startsWith("openai/") && option.value !== restored.model.currentValue);
+    assert.ok(modelOption, "The configured native provider must advertise a second real model for this gate");
+    const [configured] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith("/configuration/model")),
+      (async () => {
+        await page.getByRole("button", { name: "Harness model", exact: true }).click();
+        await page.getByRole("menuitemradio", { name: modelOption.group ? `${modelOption.group} · ${modelOption.name}` : modelOption.name, exact: true }).click();
+      })(),
+    ]);
+    assert.equal(configured.status(), 200);
+    const selected = await fetch(base).then(response => response.json());
+    assert.equal(selected.sessionId, after.sessionId);
+    assert.equal(selected.model.currentValue, modelOption.value);
+    const replyCount = snapshot => snapshot.messages.filter(message => message.role === "assistant" && message.parts.some(part => part.type === "text" && part.content.includes("Ready to teach."))).length;
+    const followUp = "What should I try next in this lesson?";
+    const requestCount = endpoint.requestedModels.length;
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).fill(followUp);
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).press("Enter");
+    await expect.poll(async () => replyCount(await fetch(base).then(response => response.json())), { timeout: 15_000 }).toBe(replyCount(selected) + 1);
+    await expect(pane).toHaveAttribute("data-chat-status", "ready");
+    const answered = await fetch(base).then(response => response.json());
+    assert.ok(JSON.stringify(answered.messages).includes(followUp));
+    assert.equal(answered.sessionId, after.sessionId);
+    assert.ok(endpoint.requestedModels.slice(requestCount).includes(modelOption.value.slice("openai/".length)), "The next native inference request must use the selected model");
     assert.deepEqual(errors, []);
     assert.deepEqual(introductions, [], "Restoring an introduced lesson must not send another introduction");
-    console.log("Real CLI/browser: UIX editor, loaded font, native JSDoc, mounted tab switching, single-write shortcut, undo/redo, failing/passing checks, Shiki, source reveal and same-session reload passed.");
+    console.log("Real CLI/browser: UIX workspace/editor/composer, real resources, reading preferences, chat visibility, native JSDoc, single-write save, undo/redo, checks, same-session reload, physical cancellation and next-turn model selection passed.");
   } catch (error) {
     if (page) {
       await page.screenshot({ path: artifact("results-failure.png") });

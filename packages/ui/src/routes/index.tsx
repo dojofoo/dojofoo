@@ -1,14 +1,19 @@
-import { AppShell, Icon as UIXIcon, MenuButton, type ShellSection } from "@dojofoo/uix/components/app-shell";
+import { AppShell, Dropdown, Icon as UIXIcon, MenuButton, type ShellSection } from "@dojofoo/uix/components/app-shell";
+import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
+import { ComposerSurface } from "@dojofoo/uix/components/composer";
+import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
+import { followLink } from "@dojofoo/uix/lib/link-event";
+import { lessonResources } from "@/lib/lesson-resources";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
 import { CommandPalette } from "@dojofoo/uix/components/command-palette";
-import { BookOpen01Icon, Cancel01Icon, CoursesIcon, DoneIcon, ExploreIcon } from "@dojofoo/uix/icons";
+import { ArrowDown01Icon, BookOpen01Icon, Cancel01Icon, CoursesIcon, DoneIcon, ExploreIcon } from "@dojofoo/uix/icons";
 import { ClientOnly, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
 import type { ThinkingPart, ToolCallPart } from "@tanstack/ai-client";
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { BundledLanguage } from "shiki";
 import {
   ArrowRight,
@@ -20,7 +25,6 @@ import {
   Save as SaveIcon,
   Undo as Undo2,
 } from "@mynaui/icons-react";
-import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { CodeBlock, CodeBlockCopyButton } from "@/components/ai-elements/code-block";
 import { CourseContent } from "@/components/course-content";
 import { LessonTestResults } from "@/components/lesson-test-results";
@@ -32,8 +36,6 @@ import { ChatTranscript } from "@/components/chat/assistant-response";
 import { toolActivity } from "@/lib/chat-activity-labels";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { Button } from "@dojofoo/ui/button";
-import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojofoo/ui/chat-container";
-import { CourseLessonLayout, CourseLessonNavigation } from "@dojofoo/ui/course-lesson-layout";
 import {
   Dialog,
   DialogClose,
@@ -43,15 +45,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@dojofoo/ui/dialog";
-import { InputMessage } from "@dojofoo/ui/input-message";
-import { ScrollArea } from "@dojofoo/ui/scroll-area";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@dojofoo/ui/select";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 import type { JsonRpcRequest } from "@/server/session/protocol";
 import { applyLessonMetadata, hydrateLesson } from "@/lib/lesson-snapshot";
@@ -344,6 +338,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
     error: chatError,
     messages,
     sendMessage,
+    stop,
     setMessages: setStreamedMessages,
     status: chatStatus,
   } = useChat({
@@ -730,10 +725,10 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   if (!lesson) {
     return (
-      <main className="mx-auto max-w-2xl p-8">
-        <h1 className="text-2xl font-semibold">Dojo</h1>
-        <p className="mt-4 font-prose text-muted-foreground">{error ?? busy}</p>
-      </main>
+      <div style={{ height: "100dvh" }}><AppShell workspace="Dojo" brand={<a href="/" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo /></a>}
+        navigation={[]} showUser={false} showFooter={false} showNews={false} showOnboarding={false}>
+        <p role={error ? "alert" : "status"} className="p-8 text-sm text-muted-foreground">{error ?? busy}</p>
+      </AppShell></div>
     );
   }
 
@@ -741,22 +736,34 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const thinking = chatStatus === "submitted" || chatStatus === "streaming";
   const nextLesson = lesson.lessons[lesson.lessons.findIndex((item) => item.name === lesson.kata) + 1];
   const nextLessonPending = busy === "Preparing the next lesson…";
-  return (
-    <CourseLessonLayout
-      navigation={<LessonNavigation lesson={lesson} workspaceId={workspaceId} />}
-      lesson={(
-        <ScrollArea className="min-h-0 bg-surface-1" data-testid="lesson-pane">
-          <div className="flex flex-col pb-12">
-            <div className="order-2 px-8 pt-8">
-              <p className={`font-display text-xs font-medium uppercase tracking-[0.14em] ${lesson.isCurrent ? "text-muted-foreground" : "text-emerald-400"}`}>
-                {lesson.isCurrent ? "Current lesson" : "Completed lesson"}
-              </p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight">{lesson.title}</h2>
-              <LessonBriefing markdown={lesson.briefing} />
-            </div>
-
-            <div className="order-1 w-full" data-testid="lesson-workspace">
-              <Editor flush tabs={<div className="flex w-full min-w-0 items-stretch" data-testid="workspace-bar">
+  const navigation: ShellSection[] = [
+    { id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] },
+    { id: "lessons", heading: humanTitle(lesson.dojo), layout: "lessons", items: lesson.lessons.map((item, index) => ({
+      id: `lesson:${item.name}`, label: item.title, marker: String(index + 1).padStart(2, "0"),
+      state: item.state === "completed" ? "done" : item.isCurrent ? "active" : "locked",
+      note: item.state !== "completed" && !item.isCurrent ? "Upcoming lesson; expand to preview its goal" : undefined,
+      ...(item.name === lesson.kata || item.state !== "completed" && !item.isCurrent
+        ? { preview: <p>{item.summary}</p> }
+        : { href: `/course/${encodeURIComponent(workspaceId)}/${encodeURIComponent(lesson.dojo)}/lesson/${encodeURIComponent(item.name)}` }),
+    })) },
+  ];
+  return <div style={{ height: "100dvh" }}><AgentChatWorkspace brand={<a href="/" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
+    workspace="Dojo" showUser={false} showFooter={false} showNews={false} showOnboarding={false} sidebarWidth="18rem"
+    navigation={navigation} navigationKey={`${workspaceId}:${lesson.dojo}`} active={`lesson:${lesson.kata}`} navigationTransition={false}
+    onNavigate={id => { if (id === "courses") void navigate({ to: "/" }); else if (id.startsWith("lesson:")) void viewLesson(id.slice(7)); }}
+    crumbs={[{ label: "Courses", onClick: () => { void navigate({ to: "/" }); } }, { label: humanTitle(lesson.dojo) }, { label: lesson.title }]}
+    commands={[
+      { id: "lessons", label: "Lessons", commands: lesson.lessons.filter(item => item.state === "completed" || item.isCurrent).map(item => ({ id: `lesson:${item.name}`, label: item.title })) },
+      { id: "files", label: "Lesson workspace", commands: [{ id: "view:code", label: lesson.filePath }, { id: "view:tests", label: "Test results" }] },
+    ]}
+    askAssistant={chatCanAcceptInput} onCommand={(id, query) => {
+      if (id === "view:code") setActiveWorkspaceTab("code");
+      else if (id === "view:tests") setActiveWorkspaceTab("tests");
+      else if (id.startsWith("lesson:")) void viewLesson(id.slice(7));
+      else if (id === "ask" && chatCanAcceptInput && query?.trim()) void sendQuestion(query.trim());
+    }}
+    editor={<div className="h-full w-full" data-testid="lesson-workspace">
+              <Editor className="h-full" flush tabs={<div className="flex w-full min-w-0 items-stretch" data-testid="workspace-bar">
                 <EditorTabs mode="learning" label="Lesson workspace" active={activeWorkspaceTab}
                   onSelect={(path) => { if (path === "code" || path === "tests") setActiveWorkspaceTab(path); }}
                   tabs={[
@@ -831,7 +838,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                   </div>
                 </DialogContent>
               </Dialog>
-              <div className="aspect-video min-h-0 overflow-hidden" data-testid="lesson-canvas">
+              <div className="h-full min-h-0 overflow-hidden" data-testid="lesson-canvas">
                 <div className="h-full" hidden={activeWorkspaceTab !== "code"} id="code-panel" role="tabpanel">
                   <ClientOnly fallback={<div className="h-full animate-pulse bg-[var(--ui-ed-surface)]" />}>
                     <Suspense fallback={<div className="h-full animate-pulse bg-[var(--ui-ed-surface)]" />}>
@@ -859,32 +866,33 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                 </div>
               </div>
               </Editor>
-            </div>
-            <div className="order-3 mx-8 mt-3 flex items-center gap-3">
-              {completed && lesson.isCurrent && (
-                <Button
-                  disabled={Boolean(busy)}
-                  onClick={() => void continueLesson()}
-                  type="button"
-                  variant="tertiary"
-                >
-                  Continue to next lesson
-                </Button>
-              )}
-            </div>
-            {error && <p className="order-3 mx-8 mt-4 border border-red-900/60 bg-red-950/40 p-3 text-sm text-red-300">{error}</p>}
-          </div>
-        </ScrollArea>
-      )}
-      chat={(
-        <ChatContainer
-          data-chat-error={chatError?.message}
-          data-chat-status={chatStatus}
-          data-host-event-count={hostChatEvents.length}
-          data-testid="chat-pane"
-        >
-          <ChatContainerContent viewportRef={chatViewportRef}>
-              <ChatTranscript messages={timelineMessages} streaming={chatIsWorking} renderMessage={(message, streaming) => (
+            </div>}
+    details={<div data-testid="lesson-pane">
+      <LessonMaterial lesson={lesson} workspaceId={workspaceId} />
+      {completed && lesson.isCurrent && <div className="mt-5"><UIXButton variant="secondary" disabled={Boolean(busy)} onClick={() => void continueLesson()}>Continue to next lesson</UIXButton></div>}
+      {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
+    </div>}
+    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
+    scroller={chatViewportRef}
+    composer={<div data-testid="chat-composer">
+      <ComposerSurface id="sensei-composer" label="Message the sensei" value={question} onValueChange={setQuestion}
+        placeholder="Ask about the lesson…" disabled={!chatCanAcceptInput} busy={chatIsWorking} onStop={stop}
+        history={messages.filter(item => item.role === "user").map(item => item.parts.flatMap(part => part.type === "text" && !isInternalLessonMessage(part.content) ? [part.content] : []).join("")).filter(Boolean)}
+        onSend={message => { void sendQuestion(message); }} leading={<span className="text-xs text-[var(--muted)]">Sensei</span>}
+        controls={lesson.model && <fieldset className="min-w-0" disabled={modelChanging || !chatCanAcceptInput}>
+          <Dropdown title="Harness model" align="end" items={lesson.model.options.map(option => ({
+            label: option.group ? `${option.group} · ${option.name}` : option.name, checked: option.value === lesson.model!.currentValue,
+            onSelect: () => { if (!modelChanging && chatCanAcceptInput) void changeModel(option.value); },
+          }))} trigger={({ open, toggle }) => <button type="button" className="ui-as-ghost ui-as-ghost--model max-w-56" aria-label="Harness model"
+            data-testid="harness-model-selector" aria-haspopup="menu" aria-expanded={open} disabled={modelChanging || !chatCanAcceptInput} onClick={toggle}>
+            <span className="min-w-0 truncate">{lesson.model?.options.find(option => option.value === lesson.model?.currentValue)?.name ?? lesson.model?.currentValue}</span>
+            <UIXIcon icon={ArrowDown01Icon} size={12} />
+          </button>} />
+        </fieldset>} />
+      {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}
+    </div>}>
+    <div data-chat-error={chatError?.message} data-chat-status={chatStatus} data-host-event-count={hostChatEvents.length} data-testid="chat-pane">
+      <ChatTranscript messages={timelineMessages} streaming={chatIsWorking} renderMessage={(message, streaming) => (
                   <StreamedChatMessage
                     fragments={lesson.fragments}
                     key={message.id}
@@ -902,87 +910,9 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                   {chatError.message}
                 </div>
               )}
-          </ChatContainerContent>
-          <ChatContainerFooter data-testid="chat-composer">
-              <label className="sr-only" htmlFor="sensei-composer">Message the sensei</label>
-              <InputMessage
-                disabled={!chatCanAcceptInput}
-                history={messages
-                  .filter((item) => item.role === "user")
-                  .map((item) => item.parts.flatMap((part) =>
-                    part.type === "text" && !isInternalLessonMessage(part.content) ? [part.content] : []
-                  ).join(""))
-                  .filter(Boolean)}
-                onSend={(message) => void sendQuestion(message)}
-                onValueChange={setQuestion}
-                leftSlot={lesson.model && (
-                  <div>
-                  <Select
-                    disabled={modelChanging || !chatCanAcceptInput}
-                    onValueChange={(value) => void changeModel(value)}
-                    size="compact"
-                    value={lesson.model.currentValue}
-                  >
-                    <SelectTrigger
-                      aria-label="Harness model"
-                      className="max-w-56 px-2 font-mono text-[11px]"
-                      data-testid="harness-model-selector"
-                      variant="borderless"
-                    />
-                    <SelectContent>
-                      {lesson.model.options.map((option, index) => (
-                        <SelectItem index={index} key={option.value} value={option.value}>
-                          {option.group ? `${option.group} · ${option.name}` : option.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {modelNotice && <p role="status" className="px-2 text-xs text-muted-foreground">{modelNotice}</p>}
-                  </div>
-                )}
-                placeholder="Ask about the lesson…"
-                sendLabel="Send"
-                status={chatStatus === "submitted" || chatStatus === "streaming" ? "streaming" : "idle"}
-                textareaProps={{ id: "sensei-composer", "aria-label": "Message the sensei" }}
-                value={question}
-              />
-          </ChatContainerFooter>
-        </ChatContainer>
-      )}
-    />
-  );
-}
+    </div>
+  </AgentChatWorkspace></div>;
 
-function LessonNavigation({
-  lesson,
-  workspaceId,
-}: {
-  lesson: LessonSnapshot;
-  workspaceId: string;
-}) {
-  const [expandedLesson, setExpandedLesson] = useState(lesson.kata);
-
-  useEffect(() => {
-    setExpandedLesson(lesson.kata);
-  }, [lesson.kata]);
-
-  return (
-    <CourseLessonNavigation courseTitle={humanTitle(lesson.dojo)}>
-          {lesson.lessons.map((item, index) => {
-            return (
-              <LessonNavigationItem
-                currentKata={lesson.kata}
-                expanded={expandedLesson === item.name}
-                item={item}
-                key={item.name}
-                last={index === lesson.lessons.length - 1}
-                lessonHref={`/course/${encodeURIComponent(workspaceId)}/${encodeURIComponent(lesson.dojo)}/lesson/${encodeURIComponent(item.name)}`}
-                onExpandedChange={setExpandedLesson}
-              />
-            );
-          })}
-    </CourseLessonNavigation>
-  );
 }
 
 function middleEllipsis(value: string, visibleCharacters = 22): string {
@@ -990,103 +920,6 @@ function middleEllipsis(value: string, visibleCharacters = 22): string {
   const startLength = Math.ceil(visibleCharacters / 2);
   const endLength = Math.floor(visibleCharacters / 2);
   return `${value.slice(0, startLength)}…${value.slice(-endLength)}`;
-}
-
-const LessonNavigationItem = memo(function LessonNavigationItem({
-  currentKata,
-  expanded,
-  item,
-  last,
-  lessonHref,
-  onExpandedChange,
-}: {
-  currentKata: string;
-  expanded: boolean;
-  item: LessonSnapshot["lessons"][number];
-  last: boolean;
-  lessonHref: string;
-  onExpandedChange: (name: string) => void;
-}) {
-  const accessible = item.state === "completed" || item.isCurrent;
-  return (
-    <AccordionPrimitive.Root
-      collapsible
-      onValueChange={onExpandedChange}
-      type="single"
-      value={expanded ? item.name : ""}
-    >
-      <AccordionPrimitive.Item
-        className={`w-full rounded-none border-dashed ${last ? "border-b-0" : "border-b"}`}
-        data-lesson-state={item.isCurrent ? "current" : item.state === "completed" ? "completed" : "upcoming"}
-        value={item.name}
-      >
-        <AccordionPrimitive.Header>
-          {accessible && item.name !== currentKata ? (
-            <a
-              className="flex w-full items-center gap-2.5 px-4 py-4 text-left text-[14px] font-medium text-muted-foreground outline-none transition-colors hover:bg-hover hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring,#6B97FF)]"
-              href={lessonHref}
-            >
-              <span className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="truncate">{item.title}</span>
-              </span>
-              <LessonStateIcon completed={item.state === "completed"} current={item.isCurrent} />
-            </a>
-          ) : (
-            <AccordionPrimitive.Trigger
-              aria-description={!accessible ? "Upcoming lesson; expand to preview its goal" : undefined}
-              className={`flex w-full items-center gap-2.5 px-4 py-4 text-left text-[14px] font-medium outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring,#6B97FF)] ${!accessible ? "cursor-default text-muted-foreground/40" : "text-muted-foreground data-[state=open]:text-foreground"}`}
-              data-navigation-disabled={!accessible || undefined}
-            >
-              <>
-                <span className="flex min-w-0 flex-1 items-center gap-2">
-                  <span className="truncate">{item.title}</span>
-                </span>
-                <LessonStateIcon completed={item.state === "completed"} current={item.isCurrent} />
-              </>
-            </AccordionPrimitive.Trigger>
-          )}
-        </AccordionPrimitive.Header>
-        <LessonAccordionContent>
-          <div>
-            <p className="font-prose leading-5">{item.summary}</p>
-            {accessible && item.name !== currentKata && (
-              <a className="mt-2 inline-block text-xs font-medium text-foreground underline underline-offset-4" href={lessonHref}>
-                Open lesson
-              </a>
-            )}
-          </div>
-        </LessonAccordionContent>
-      </AccordionPrimitive.Item>
-    </AccordionPrimitive.Root>
-  );
-});
-
-function LessonAccordionContent({ children }: { children: React.ReactNode }) {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const content = contentRef.current;
-    const inner = innerRef.current;
-    if (!content || !inner) return;
-    const measure = () => {
-      content.style.setProperty("--lesson-accordion-height", `${inner.offsetHeight}px`);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(inner);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <AccordionPrimitive.Content
-      className="lesson-accordion-content overflow-hidden text-[13px] text-muted-foreground"
-      forceMount
-      ref={contentRef}
-    >
-      <div className="p-4" ref={innerRef}>{children}</div>
-    </AccordionPrimitive.Content>
-  );
 }
 
 export function StreamedChatMessage({
@@ -1300,19 +1133,6 @@ function isTestReport(value: unknown): value is TestReport {
     && Array.isArray(report.tests);
 }
 
-function LessonStateIcon({ completed, current }: { completed: boolean; current: boolean }) {
-  const Icon = completed ? Check : current ? ArrowRight : LockKeyhole;
-  const label = completed ? "Completed lesson" : current ? "Current lesson" : "Upcoming lesson";
-  return (
-    <Icon
-      aria-label={label}
-      className={completed ? "size-4 text-emerald-400" : current ? "size-4 text-foreground" : "size-3.5 text-muted-foreground/45"}
-      role="img"
-      strokeWidth={1.75}
-    />
-  );
-}
-
 function TestStateIcon({ report }: { report: TestReport | null }) {
   const glyph = report?.failed ? Cancel01Icon : report?.passed ? DoneIcon : undefined;
   return <span role="img" aria-label={report ? `${report.passed} of ${report.total} tests passed` : "Tests not run"}
@@ -1326,29 +1146,12 @@ function testPercentage(report: TestReport | null): string {
   return `${Math.round((report.passed / report.total) * 100)}%`;
 }
 
-function LessonBriefing({ markdown }: { markdown: string }) {
-  return (
-    <div className="mt-5 max-w-3xl space-y-2 font-prose text-[15px] leading-7 text-foreground/90">
-      {markdown.split("\n").map((line, index) => {
-        const value = line.trim();
-        if (!value) return null;
-        if (value.startsWith("### ")) {
-          return <h3 className="pt-2 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground" key={index}>{value.slice(4)}</h3>;
-        }
-        const numbered = value.match(/^(\d+)\.\s+(.*)$/);
-        if (numbered) {
-          return <p className="pl-4" key={index}><span className="mr-2 font-mono text-xs text-muted-foreground">{numbered[1]}.</span>{inlineCode(numbered[2])}</p>;
-        }
-        return <p key={index}>{inlineCode(value)}</p>;
-      })}
-    </div>
-  );
-}
-
-function inlineCode(value: string) {
-  return value.split(/(`[^`]+`)/g).map((part, index) => part.startsWith("`")
-    ? <code className="bg-surface-3 px-1 py-0.5 font-mono text-[14px]" key={index}>{part.slice(1, -1)}</code>
-    : part);
+function LessonMaterial({ lesson, workspaceId }: { lesson: LessonSnapshot; workspaceId: string }) {
+  const basePath = lesson.briefingBasePath ?? null;
+  const resources = useMemo(() => lessonResources(lesson.briefing, basePath, workspaceId), [lesson.briefing, basePath, workspaceId]);
+  return <LessonBrief title={lesson.title} resources={resources}>
+    <CourseContent basePath={basePath} workspaceId={workspaceId}>{lesson.briefing}</CourseContent>
+  </LessonBrief>;
 }
 
 function MessageContent({
