@@ -816,13 +816,13 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
       else if (id === "ask" && chatCanAcceptInput && query?.trim()) void sendQuestion(query.trim());
     }}
     editor={<div className="h-full w-full" data-testid="lesson-workspace">
-              <Editor className="h-full" flush tabs={<div className="flex w-full min-w-0 items-stretch" data-testid="workspace-bar">
+              <Editor className="h-full" flush tabs={
                 <EditorTabs mode="learning" label="Lesson workspace" active={activeWorkspaceTab}
                   onSelect={(path) => { if (path === "code" || path === "tests") setActiveWorkspaceTab(path); }}
                   tabs={[
                     { path: "code", label: <span className="font-mono">{fileName(lesson.filePath)}</span>, dirty, panelId: "code-panel" },
                     { path: "tests", panelId: "tests-panel", label: <><TestStateIcon report={lesson.result} /><span>Tests</span><span className="text-xs text-muted-foreground">{testPercentage(lesson.result)}</span></> },
-                  ]} />
+                  ]} />} actions={lesson.isCurrent || busy && !thinking ? <>
                 {busy && !thinking && <span className="ml-auto self-center px-3 text-xs text-muted-foreground">{busy}</span>}
                 {lesson.isCurrent && (
                   <div aria-label="Lesson actions" className={`${busy && !thinking ? "" : "ml-auto"} flex shrink-0 items-center gap-1 px-1`} role="toolbar">
@@ -861,7 +861,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                     </UIXButton>
                   </div>
                 )}
-              </div>}>
+              </> : undefined}>
               <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
                 <DialogContent>
                   <DialogHeader>

@@ -66,4 +66,16 @@ test("native agent changes use the session boundary and preserve drafts on failu
   expect(starts).toEqual([{ harness: "codex" }, { harness: "codex" }]);
   expect(turns).toEqual([]);
   await page.screenshot({ path: test.info().outputPath("native-agent-picker.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const tabs = page.getByRole("tablist", { name: "Lesson workspace", exact: true });
+  await expect(tabs.getByRole("tab", { name: /^first\.ts/ })).toBeInViewport({ ratio: 1 });
+  await expect(tabs.getByRole("tab", { name: /Tests/ })).toBeInViewport({ ratio: 1 });
+  for (const name of ["Reset", "Undo", "Save", "Check"]) await expect(page.getByRole("button", { name, exact: true })).toBeInViewport({ ratio: 1 });
+  await tabs.getByRole("tab", { name: /Tests/ }).click();
+  await expect(page.getByRole("tabpanel").filter({ visible: true })).toContainText(/No tests|Run|check/i);
+  await tabs.getByRole("tab", { name: /^first\.ts/ }).click();
+  expect(await page.locator(".monaco-editor[data-uri]").evaluate((node, first) => node === first, editorNode)).toBe(true);
+  await expect(page.locator(".view-lines")).toContainText("// Keep my code");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath("native-learner-phone.png"), animations: "disabled" });
 });

@@ -4,9 +4,11 @@ import type { EditorAppearance } from "../lib/editor-appearance";
 
 /* ---------- Frame ---------- */
 
-export function EditorFrame({ tabs, status, flush, children, className, appearance }: {
+export function EditorFrame({ tabs, actions, status, flush, children, className, appearance }: {
   /** The file tabs row, usually EditorTabs */
   tabs?: ReactNode;
+  /** Lesson/file actions; moves below the tabs when the editor is narrow. */
+  actions?: ReactNode;
   /** A quiet status line along the foot, e.g. EditorStatus for a lesson's tests */
   status?: ReactNode;
   /** Part of the surrounding UI instead of a card: no corners, edge or shadow */
@@ -22,7 +24,7 @@ export function EditorFrame({ tabs, status, flush, children, className, appearan
   const scheme = appearance;
   return (
     <section className={["ui-ed", className].filter(Boolean).join(" ")} data-flush={flush || undefined} data-line={scheme.line ? "" : undefined} data-line-border={scheme.lineBorder ? "" : undefined} style={scheme.style}>
-      {tabs && <div className="ui-ed__tabs">{tabs}</div>}
+      {(tabs || actions) && <div className="ui-ed__tabs" data-actions={actions ? "" : undefined}>{tabs}{actions && <div className="ui-ed__actions">{actions}</div>}</div>}
       <div className={`ui-ed__body ui-ed__scheme ${scheme.type}`}>{children}</div>
       {status && <footer className={`ui-ed__status ui-ed__scheme ${scheme.type}`}>{status}</footer>}
     </section>
