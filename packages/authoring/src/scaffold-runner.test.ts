@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,14 +21,17 @@ it("runs the authored stub locally but the edited learner file in a trial", () =
     const learner = resolve(workspace, "katas/001-example/solution.ts");
     writeFileSync(learner, "export const answer = 42;");
     const run = (projectRoot: string) => {
+      const report = resolve(root, "runner-report.json");
+      rmSync(report, { force: true });
       try {
-        return execFileSync(process.execPath, [resolve(dependencies, "vitest/vitest.mjs"), "run", "--reporter=json"], {
+        execFileSync(process.execPath, [resolve(dependencies, "vitest/vitest.mjs"), "run", "--reporter=json", `--outputFile=${report}`], {
           cwd: course, encoding: "utf8", timeout: 30_000,
           env: { ...process.env, DOJO_PROJECT_ROOT: projectRoot }, stdio: "pipe",
         });
       } catch (error) {
-        return (error as { stdout: Buffer }).stdout.toString();
+        if (!existsSync(report)) throw error;
       }
+      return readFileSync(report, "utf8");
     };
     expect(JSON.parse(run("")).numFailedTests).toBe(1);
     // Authoring inherits DOJO_PROJECT_ROOT too, but has src/ rather than katas/.
