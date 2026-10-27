@@ -271,9 +271,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
     }));
   };
 
-  // Normalize validators before OpenAPI observes their schemas; lazy compilation
-  // otherwise changes the exported response shapes after the first API request.
-  return new Elysia({ precompile: true })
+  return new Elysia()
     .use(openapi({
       path: "/api/v1/openapi",
       documentation: {

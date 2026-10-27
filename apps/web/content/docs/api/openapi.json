@@ -40,6 +40,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "status"
@@ -48,8 +49,7 @@
                     "status": {
                       "type": "string"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -71,6 +71,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data"
@@ -147,8 +148,7 @@
                         }
                       }
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -170,6 +170,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data"
@@ -309,6 +310,7 @@
                             ]
                           },
                           "metrics": {
+                            "additionalProperties": false,
                             "type": "object",
                             "required": [
                               "installs",
@@ -497,8 +499,7 @@
                                   }
                                 }
                               }
-                            },
-                            "additionalProperties": false
+                            }
                           },
                           "trendingRank": {
                             "anyOf": [
@@ -515,8 +516,7 @@
                         }
                       }
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -578,6 +578,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data",
@@ -733,8 +734,7 @@
                         }
                       }
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -744,6 +744,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -756,8 +757,7 @@
                     "message": {
                       "type": "string"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -814,6 +814,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data",
@@ -926,8 +927,7 @@
                     "durationMs": {
                       "type": "number"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -937,6 +937,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -949,8 +950,7 @@
                     "message": {
                       "type": "string"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -972,6 +972,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data",
@@ -1129,8 +1130,7 @@
                     "generatedAt": {
                       "type": "string"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -1176,6 +1176,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "installs",
@@ -1364,8 +1365,7 @@
                         }
                       }
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -1375,6 +1375,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -1387,8 +1388,7 @@
                     "message": {
                       "type": "string"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -1434,6 +1434,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "id",
@@ -1588,8 +1589,7 @@
                         }
                       }
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -1599,6 +1599,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -1611,8 +1612,7 @@
                     "message": {
                       "type": "string"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -1658,6 +1658,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "id",
@@ -1718,8 +1719,7 @@
                         }
                       }
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -1729,6 +1729,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -1741,8 +1742,7 @@
                     "message": {
                       "type": "string"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -1835,6 +1835,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "accepted",
@@ -1847,8 +1848,7 @@
                     "duplicate": {
                       "type": "boolean"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }
@@ -1858,6 +1858,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -1870,8 +1871,7 @@
                     "message": {
                       "type": "string"
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               }
             }

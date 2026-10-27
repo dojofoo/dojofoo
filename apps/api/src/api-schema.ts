@@ -2,7 +2,9 @@ import { t } from "elysia";
 
 const count = () => t.Integer({ minimum: 0 });
 const nullableString = (options?: { description: string }) => t.Union([t.String(), t.Null()], options);
-const error = t.Object({ error: t.String(), message: t.String() });
+// Match Elysia's response-validator default up front so OpenAPI does not
+// change when lazy validation compiles a route after its first request.
+const error = t.Object({ error: t.String(), message: t.String() }, { additionalProperties: false });
 const listing = t.Object({
   id: t.String({ examples: ["dojofoo/effect-ts"] }), slug: t.String({ examples: ["effect-ts"] }),
   name: t.String({ examples: ["Effect TS"] }), source: t.String({ examples: ["dojofoo"] }),
@@ -18,11 +20,11 @@ const metrics = t.Object({
   installs: count(), started: count(), progressing: count(), finished: count(), completionRate: t.Number(),
   kataProgress: t.Array(t.Object({ kata: t.String(), started: count(), finished: count(), active: count() })),
   weeklyActivity: t.Array(t.Object({ week: t.String(), installs: count(), started: count(), finished: count() })),
-});
+}, { additionalProperties: false });
 const course = t.Object({
   id: t.String(), source: t.String(), slug: t.String(), installs: count(), hash: nullableString(),
   files: t.Union([t.Array(t.Object({ path: t.String(), contents: t.String() })), t.Null()]),
-});
+}, { additionalProperties: false });
 const risk = () => t.String({ enum: ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"] });
 const audit = t.Object({
   id: t.String({ examples: ["acme/typescript-basics"] }), source: t.String({ examples: ["acme"] }), slug: t.String({ examples: ["typescript-basics"] }),
@@ -34,7 +36,7 @@ const audit = t.Object({
     summary: t.String({ examples: ["No risks detected"] }), auditedAt: t.String(), hash: nullableString({ description: "The snapshot the provider audited." }),
     findings: t.Array(t.Object({ rule: t.String({ examples: ["install_script"] }), riskLevel: risk(), message: t.String(), path: t.Optional(t.String()), line: t.Optional(t.Integer()) })),
   })),
-});
+}, { additionalProperties: false });
 const event = t.Object({
   instanceId: t.String({ description: "Random identifier for the local project; do not send names, email addresses or file contents.", examples: ["a-random-project-id"] }),
   courseId: t.String({ examples: ["dojofoo/effect-ts"] }),
@@ -51,14 +53,14 @@ const details = (operationId: string, summary: string, description: string, tag 
 const params = t.Object({ source: t.String({ examples: ["dojofoo"] }), slug: t.String({ examples: ["effect-ts"] }) });
 
 export const apiRoutes = {
-  health: { detail: details("getHealth", "Check health", "Check whether the Course API is available.", "Health"), response: t.Object({ status: t.String() }) },
+  health: { detail: details("getHealth", "Check health", "Check whether the Course API is available.", "Health"), response: t.Object({ status: t.String() }, { additionalProperties: false }) },
   profiles: {
     detail: details("listCourseProfiles", "List course profiles", "Read course descriptions, authors, languages and repository links without the full metrics payload."),
-    response: t.Object({ data: t.Array(profile) }),
+    response: t.Object({ data: t.Array(profile) }, { additionalProperties: false }),
   },
   marketplace: {
     detail: details("getMarketplace", "Get the marketplace", "Read the complete marketplace catalog, including profiles, lifecycle metrics and trending rank."),
-    response: t.Object({ data: t.Array(t.Object({ ...listing.properties, ...profile.properties, metrics, trendingRank: t.Integer() })) }),
+    response: t.Object({ data: t.Array(t.Object({ ...listing.properties, ...profile.properties, metrics, trendingRank: t.Integer() })) }, { additionalProperties: false }),
   },
   list: {
     detail: { ...details("listCourses", "List courses", "Browse courses by lifetime installs, installs over the last seven days, or the change in installs since yesterday. Page numbers start at zero."), parameters: [
@@ -66,7 +68,7 @@ export const apiRoutes = {
       query("page", { type: "integer", minimum: 0, default: 0 }, "Zero-based page number."),
       query("per_page", { type: "integer", minimum: 1, maximum: 500, default: 100 }, "Number of courses per page."),
     ] },
-    response: { 200: t.Object({ data: t.Array(t.Object({ ...listing.properties, installsYesterday: t.Optional(t.Integer()), change: t.Optional(t.Number()) })), pagination: t.Object({ page: count(), perPage: t.Integer(), total: count(), hasMore: t.Boolean() }) }), 400: error },
+    response: { 200: t.Object({ data: t.Array(t.Object({ ...listing.properties, installsYesterday: t.Optional(t.Integer()), change: t.Optional(t.Number()) })), pagination: t.Object({ page: count(), perPage: t.Integer(), total: count(), hasMore: t.Boolean() }) }, { additionalProperties: false }), 400: error },
   },
   search: {
     detail: { ...details("searchCourses", "Search courses", "Find courses by name, source, description, author, language, framework or tags."), parameters: [
@@ -74,11 +76,11 @@ export const apiRoutes = {
       query("limit", { type: "integer", minimum: 1, maximum: 200, default: 50 }, "Maximum number of results."),
       query("owner", { type: "string", example: "dojofoo" }, "Restrict results to this course owner."),
     ] },
-    response: { 200: t.Object({ data: t.Array(listing), query: t.String(), searchType: t.String(), count: count(), durationMs: t.Number() }), 400: error },
+    response: { 200: t.Object({ data: t.Array(listing), query: t.String(), searchType: t.String(), count: count(), durationMs: t.Number() }, { additionalProperties: false }), 400: error },
   },
   curated: {
     detail: details("listCuratedCourses", "List courses by owner", "Browse owners and their most installed course, along with each owner's course catalog."),
-    response: t.Object({ data: t.Array(t.Object({ owner: t.String(), totalInstalls: count(), featuredRepo: t.String(), featuredCourse: t.String(), courses: t.Array(listing) })), totalOwners: count(), totalCourses: count(), generatedAt: t.String() }),
+    response: t.Object({ data: t.Array(t.Object({ owner: t.String(), totalInstalls: count(), featuredRepo: t.String(), featuredCourse: t.String(), courses: t.Array(listing) })), totalOwners: count(), totalCourses: count(), generatedAt: t.String() }, { additionalProperties: false }),
   },
   metrics: { detail: details("getCourseMetrics", "Get course metrics", "Read installs, starts, completions, progress by kata and weekly activity for one course."), params, response: { 200: metrics, 404: error } },
   audit: {
@@ -88,6 +90,6 @@ export const apiRoutes = {
   course: { detail: details("getCourse", "Download a course", "Read the course's content hash and files. Unknown courses return 404."), params, response: { 200: course, 404: error } },
   events: {
     detail: { ...details("recordCourseEvent", "Record a lifecycle event", "Record an install, start, kata completion or finish. Duplicate events are accepted without being counted twice. An installed event can register a public GitHub source when source.repository matches courseId.", "Events"), requestBody: { required: true, content: { "application/json": { schema: event } } } },
-    response: { 202: t.Object({ accepted: t.Boolean(), duplicate: t.Boolean() }), 400: error },
+    response: { 202: t.Object({ accepted: t.Boolean(), duplicate: t.Boolean() }, { additionalProperties: false }), 400: error },
   },
 };
