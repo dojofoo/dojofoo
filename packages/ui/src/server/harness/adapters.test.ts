@@ -81,6 +81,16 @@ describe("ACP harness adapters", () => {
     });
   });
 
+  it("retains explicitly configured permissions for the teaching agent", () => {
+    const adapter = createOpenCodeHarnessAdapter({ OPENCODE_CONFIG_CONTENT: JSON.stringify({ agent: { dojofoo: {
+      permission: { dojofoo_dojo_context: "ask", read: "deny" }, temperature: 0.2,
+    } } }) });
+    const environment = adapter.process({ root: "/tmp/lesson", developerInstructions: "Teach" }).environment;
+    expect(JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? "{}").agent.dojofoo).toMatchObject({
+      prompt: "Teach", temperature: 0.2, permission: { dojofoo_dojo_context: "ask", read: "deny" },
+    });
+  });
+
   it("preserves an explicit OpenCode MCP timeout", () => {
     const adapter = createOpenCodeHarnessAdapter({
       OPENCODE_CONFIG_CONTENT: JSON.stringify({ experimental: { mcp_timeout: 42_000 } }),

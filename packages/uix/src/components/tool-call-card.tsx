@@ -34,6 +34,8 @@ export type ToolCallCardProps = {
   args?: unknown;
   /** What the tool returned – objects are pretty-printed, JSON strings parsed, other text shown as is */
   result?: unknown;
+  /** Structured result supplied by the host, replacing the raw result section. */
+  children?: ReactNode;
   /** Error message, shown when status is "error" */
   error?: string;
   /** When the call started (ms since epoch, e.g. Date.now()) – the live timer counts from here */
@@ -78,6 +80,7 @@ export function ToolCallCard({
   status,
   args,
   result,
+  children,
   error,
   startedAt,
   duration,
@@ -90,6 +93,7 @@ export function ToolCallCard({
   className,
 }: ToolCallCardProps) {
   const id = useId();
+  const hasContent = Children.toArray(children).length > 0;
   const [openState, setOpenState] = useState(defaultOpen);
   const open = openProp ?? openState;
   const setOpen = (next: boolean) => {
@@ -188,7 +192,7 @@ export function ToolCallCard({
               </div>
             )}
             {args !== undefined && <CodeSection label="Arguments" value={args} cap={maxCodeHeight} />}
-            {result !== undefined ? (
+            {hasContent ? <div className="ui-tc__section">{children}</div> : result !== undefined ? (
               <CodeSection label="Result" value={result} cap={maxCodeHeight} />
             ) : status === "running" ? (
               <div className="ui-tc__section">
@@ -198,7 +202,7 @@ export function ToolCallCard({
                 <p className="ui-tc__pending">Waiting for result…</p>
               </div>
             ) : null}
-            {args === undefined && result === undefined && status === "success" && (
+            {!hasContent && args === undefined && result === undefined && status === "success" && (
               <p className="ui-tc__pending">No arguments or result.</p>
             )}
           </div>

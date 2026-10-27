@@ -1,4 +1,5 @@
 export type RunQuestion = {
+  requestId?: string;
   title: string;
   options: Array<{ id: string; title: string; description?: string }>;
 };

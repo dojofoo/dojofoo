@@ -8,7 +8,7 @@ import {
 } from "@dojofoo/ui/ask-user-questions";
 
 export function isAgentQuestion(part: ToolCallPart): boolean {
-  return Boolean(eveQuestion(part)) || (isQuestionTool(part) && parseAgentQuestions(part.input).length > 0);
+  return Boolean(eveQuestion(part)) || Boolean(nativeQuestion(part)) || (isQuestionTool(part) && parseAgentQuestions(part.input).length > 0);
 }
 
 export function agentQuestionState(part: ToolCallPart): {
@@ -18,7 +18,20 @@ export function agentQuestionState(part: ToolCallPart): {
   failure?: string;
 } {
   const question = eveQuestion(part);
-  if (!question) return { questions: parseAgentQuestions(part.input) };
+  if (!question) {
+    const native = nativeQuestion(part);
+    const questions = parseAgentQuestions(native ? { id: "decision", title: native.title, options: native.options } : part.input);
+    const output = native ? { answers: native.answers } : part.output && typeof part.output === "object" ? part.output as Record<string, unknown> : undefined;
+    const values = output?.answers && typeof output.answers === "object" ? output.answers as Record<string, unknown> : undefined;
+    const answers = values ? Object.fromEntries(questions.map(item => {
+      const id = item.id!;
+      const answer = Array.isArray(values[id]) ? values[id].filter((value): value is string => typeof value === "string") : [];
+      const options = new Set(item.options?.map(option => option.id));
+      return [id, { questionId: id, selectedIds: answer.filter(value => options.has(value)),
+        ...(answer.some(value => !options.has(value)) ? { otherText: answer.filter(value => !options.has(value)).join("\n") } : {}) }];
+    })) : undefined;
+    return { questions, ...(answers ? { answers } : {}), ...(part.state === "complete" ? { disabled: true } : {}) };
+  }
   const { request, response, settled, error: failure } = question;
   return {
     questions: [{
@@ -78,8 +91,30 @@ export function AgentQuestion({
   );
 }
 
+/** Native result metadata keeps the same identity as its live question event. */
+export function agentQuestionId(part: ToolCallPart): string { return nativeQuestion(part)?.requestId ?? part.id; }
+
+function nativeQuestion(part: ToolCallPart) {
+  const candidates: unknown[] = [part.output];
+  if (part.output && typeof part.output === "object") {
+    const content = (part.output as Record<string, unknown>).content;
+    if (Array.isArray(content)) for (const block of content) {
+      if (block?.type === "content" && block.content?.type === "text") candidates.push(block.content.text);
+    }
+  }
+  for (let output of candidates) {
+    if (typeof output === "string") { try { output = JSON.parse(output); } catch { continue; } }
+    if (!output || typeof output !== "object") continue;
+    const value = (output as Record<string, unknown>).dojoQuestion;
+    if (!value || typeof value !== "object") continue;
+    const question = value as Record<string, unknown>;
+    if (typeof question.requestId !== "string" || typeof question.title !== "string" || !Array.isArray(question.options)) continue;
+    return { requestId: question.requestId, title: question.title, options: question.options, answers: question.answers };
+  }
+}
+
 function isQuestionTool(part: ToolCallPart): boolean {
-  return /^(elicitation|request_user_input|ask_user(?:_question)?)$/iu.test(part.name);
+  return /^(elicitation|request_permission|request_user_input|ask_user(?:_question)?)$/iu.test(part.name);
 }
 
 export function parseAgentQuestions(input: unknown): AskUserQuestion[] {

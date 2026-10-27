@@ -18,6 +18,29 @@ describe("agent questions", () => {
     expect(parseAgentQuestions(choice.input)).toEqual([expect.objectContaining({ title: "What next?" })]);
   });
 
+  it("recognizes native permission requests as actionable choices", () => {
+    expect(isAgentQuestion({ ...choice, name: "request_permission" })).toBe(true);
+  });
+
+  it("restores native answers without reopening a completed question", () => {
+    const part: ToolCallPart = { ...choice, state: "complete", output: { answers: { decision: ["review"] } },
+      input: { questions: [{ id: "decision", title: "What next?", options: [{ id: "review", title: "Review" }] }] } };
+    expect(agentQuestionState(part)).toMatchObject({ disabled: true, answers: {
+      decision: { questionId: "decision", selectedIds: ["review"] },
+    } });
+  });
+
+  it.each([false, true])("restores an authored question carried by a native tool result (ACP=%s)", wrapped => {
+    const part: ToolCallPart = { ...choice, name: "execute", state: "complete", input: { code: "Native code-mode call" }, output: JSON.stringify({ dojoQuestion: {
+      requestId: "question-42", title: "Which hint?", options: [{ id: "example", title: "An example" }, { id: "review", title: "Review" }], answers: { decision: ["example"] },
+    } }) };
+    if (wrapped) part.output = { toolCallId: "call_native", status: "completed", content: [{ type: "content", content: { type: "text", text: part.output } }] };
+    expect(isAgentQuestion(part)).toBe(true);
+    expect(agentQuestionState(part)).toMatchObject({ disabled: true,
+      questions: [{ id: "decision", title: "Which hint?" }], answers: { decision: { selectedIds: ["example"] } },
+    });
+  });
+
   it("does not mistake an ordinary tool for a question", () => {
     expect(isAgentQuestion({ ...choice, name: "dojo_lesson_verify" })).toBe(false);
   });

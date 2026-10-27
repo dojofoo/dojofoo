@@ -1,3 +1,5 @@
+import { ChatMessage as Message, ChatStyles } from "../components/chat-message";
+export { ChatStyles } from "../components/chat-message";
 /*
  * Assistant Home – the start screen of an AI workspace, in a single file.
  * Greeting, a chat input in a gray tray (folder and app shortcuts below it) and quick prompts.
@@ -208,10 +210,6 @@ export function useChatThread(replyFor: (prompt: string) => ChatReply) {
   return { messages, busy, send, finish: () => setBusy(false) };
 }
 
-export function ChatStyles() {
-  return <style href="ui-screen-chat" precedence="default">{chatCss}</style>;
-}
-
 /** The thread: user bubbles on the right, answers with the library's Thinking State and streamed text */
 export function ChatMessages({
   messages,
@@ -237,9 +235,7 @@ export function ChatMessages({
       <ChatStyles />
       {messages.map((m) =>
         m.role === "user" ? (
-          <p key={m.id} className="ui-as-msg-user">
-            {m.text}
-          </p>
+          <Message key={m.id} role="user">{m.text}</Message>
         ) : (
           <Answer key={m.id} name={name} reply={m.reply} onGrow={follow} onDone={onDone} />
         ),
@@ -269,7 +265,7 @@ function Answer({ name, reply, onGrow, onDone }: { name: string; reply: ChatRepl
 
   let left = count;
   return (
-    <div className="ui-as-msg">
+    <Message role="assistant">
       <ThinkingState className="ui-as-msg__thinking" who={name} steps={reply.steps} stepMs={700} doneLabel="Ready" onDone={() => (setWriting(true), onGrow())} />
       {writing &&
         words.map((w, i) => {
@@ -281,39 +277,10 @@ function Answer({ name, reply, onGrow, onDone }: { name: string; reply: ChatRepl
             </p>
           ) : null;
         })}
-    </div>
+    </Message>
   );
 }
 
-const chatCss = /* css */ `
-/* Chat thread shared by Assistant Home and Agent Chat */
-.ui-as-msg-user {
-  align-self: flex-end;
-  max-width: 80%;
-  margin: 0;
-  padding: 9px 14px;
-  border-radius: calc(16px * var(--squircle-factor, 1));
-  background: var(--chip);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ink);
-  animation: ui-as-msg-in var(--motion-slow) var(--ease-slow) both;
-}
-.ui-as-msg {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--ink);
-  animation: ui-as-msg-in var(--motion-slow) var(--ease-slow) 160ms both;
-}
-.ui-as-msg__thinking.ui-think { zoom: 0.92; width: 100%; max-width: 440px; }
-.ui-as-msg__p { margin: 0; animation: ui-as-msg-fade var(--motion-slow) var(--ease-slow) both; }
-@keyframes ui-as-msg-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-@keyframes ui-as-msg-fade { from { opacity: 0; } to { opacity: 1; } }
-`;
 
 /** Models in the composer's picker – the first one is selected */
 export type ComposerModel = { name: string; effort?: string; description: string; icon: IconGlyph };

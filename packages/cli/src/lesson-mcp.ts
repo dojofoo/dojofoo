@@ -71,10 +71,8 @@ server.registerTool(uiCapabilities.ask.tool, {
 }, async ({ title, options }) => {
   const result = await runCommand(uiCapabilities.ask.method, { title, options });
   if (!result.answers) throw new Error("The learner could not answer the prompt");
-  return {
-    content: [{ type: "text", text: JSON.stringify(result.answers) }],
-    structuredContent: { answers: result.answers },
-  };
+  const output = { answers: result.answers, ...(result.question ? { dojoQuestion: { ...result.question, answers: result.answers } } : {}) };
+  return { content: [{ type: "text", text: JSON.stringify(output) }], structuredContent: output };
 });
 
 if (profile === "lesson") server.registerTool(uiCapabilities.show.tool, {
@@ -99,14 +97,13 @@ if (profile === "lesson") server.registerTool(lessonCapabilities.complete.tool, 
   });
   if (!result.answers) throw new Error("The learner could not answer the prompt");
   const decision = Object.values(result.answers).flat()[0];
-  return {
-    content: [{ type: "text", text: decision ?? "No choice was made." }],
-    structuredContent: { decision },
-  };
+  const output = { decision, ...(result.question ? { dojoQuestion: { ...result.question, answers: result.answers } } : {}) };
+  return { content: [{ type: "text", text: JSON.stringify(output) }], structuredContent: output };
 });
 
 async function runCommand(method: string, params: unknown): Promise<{
   answers?: Record<string, string[]>;
+  question?: { requestId: string; title: string; options: Array<{ id: string; title: string; description?: string }> };
   context?: DojoLessonContext;
   fragmentId?: string;
   observation?: LearnerObservation;
@@ -121,6 +118,7 @@ async function runCommand(method: string, params: unknown): Promise<{
   });
   const result = await response.json() as {
     answers?: Record<string, string[]>;
+    question?: { requestId: string; title: string; options: Array<{ id: string; title: string; description?: string }> };
     context?: DojoLessonContext;
     error?: unknown;
     message?: string;

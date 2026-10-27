@@ -1,0 +1,30 @@
+import { expect, test } from "@playwright/test";
+
+for (const theme of ["dark", "light"]) test(`controlled conversation preserves result content and disclosure in ${theme}`, async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto(`/iframe.html?id=components-organisms-conversation--controlled&viewMode=story&globals=theme:${theme}`);
+  const panel = page.locator(".ui-think__head");
+  const body = page.locator(".ui-think__body");
+  await expect(panel).toHaveAttribute("aria-expanded", "false");
+  await expect(body).toHaveCSS("height", "0px");
+  await panel.click();
+  await expect(panel).toHaveAttribute("aria-expanded", "true");
+  const call = page.locator(".ui-tc__head");
+  await expect(page.locator(".ui-tc__chevron")).toHaveCSS("width", "14px");
+  await call.click();
+  await expect(page.locator(".ui-tc")).toHaveAttribute("data-status", "running");
+  await page.getByRole("button", { name: "Finish check", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Structured result" })).toContainText("2 tests passed");
+  await expect(page.locator(".ui-tc")).not.toContainText("Raw fallback");
+  await expect(call).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "Fail check", exact: true }).click();
+  await expect(page.locator(".ui-tc")).toHaveAttribute("data-status", "error");
+  await expect(page.locator(".ui-tc__error")).toContainText("The runner could not start.");
+  await expect(page.locator(".ui-as-msg-user")).toHaveCSS("align-self", "flex-end");
+  await panel.click();
+  await expect(body).toHaveCSS("height", "0px");
+  await expect(body).toHaveAttribute("inert");
+  await page.screenshot({ path: info.outputPath(`conversation-${theme}.png`) });
+  expect(errors).toEqual([]);
+});

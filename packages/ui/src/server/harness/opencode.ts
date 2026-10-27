@@ -20,6 +20,10 @@ export function opencodeRuntimeEnvironment(
   const agents = configured.agent && typeof configured.agent === "object" && !Array.isArray(configured.agent)
     ? configured.agent as Record<string, unknown>
     : {};
+  const teachingAgent = agents.dojofoo && typeof agents.dojofoo === "object" && !Array.isArray(agents.dojofoo)
+    ? agents.dojofoo as Record<string, unknown> : {};
+  const teachingPermissions = teachingAgent.permission && typeof teachingAgent.permission === "object" && !Array.isArray(teachingAgent.permission)
+    ? teachingAgent.permission as Record<string, unknown> : {};
   const experimental = configured.experimental && typeof configured.experimental === "object" && !Array.isArray(configured.experimental)
     ? configured.experimental as Record<string, unknown>
     : {};
@@ -37,6 +41,7 @@ export function opencodeRuntimeEnvironment(
       agent: {
         ...agents,
         dojofoo: {
+          ...teachingAgent,
           mode: "primary",
           description: "Teach the active Dojofoo lesson.",
           prompt: developerInstructions,
@@ -51,6 +56,7 @@ export function opencodeRuntimeEnvironment(
             skill: "allow",
             question: "allow",
             external_directory: "allow",
+            ...teachingPermissions,
           },
         },
       },

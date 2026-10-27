@@ -1,3 +1,4 @@
+import { ChatMessage } from "@dojofoo/uix/components/chat-message";
 import { AppShell, Dropdown, Icon as UIXIcon, MenuButton, type ShellSection } from "@dojofoo/uix/components/app-shell";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
 import { ComposerSurface } from "@dojofoo/uix/components/composer";
@@ -30,10 +31,10 @@ import { CourseContent } from "@/components/course-content";
 import { LessonTestResults } from "@/components/lesson-test-results";
 import { failureLines } from "@/lib/lesson-test-results";
 import { TerminalBlock } from "@dojofoo/ui/elements/terminal-block";
-import { ToolCallCard } from "@/components/ui/ToolCallCard";
-import { ReasoningTrace } from "@/components/ui/ReasoningTrace";
+import { ToolCallCard } from "@dojofoo/uix/components/tool-call-card";
+import { ThinkingPanel } from "@dojofoo/uix/components/thinking-panel";
 import { ChatTranscript } from "@/components/chat/assistant-response";
-import { toolActivity } from "@/lib/chat-activity-labels";
+import { activityLabels, toolActivity } from "@/lib/chat-activity-labels";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { Button } from "@dojofoo/ui/button";
 import {
@@ -52,7 +53,7 @@ import { applyLessonMetadata, hydrateLesson } from "@/lib/lesson-snapshot";
 import { projectChatTimeline, type AnchoredChatEvent } from "@/lib/chat-timeline";
 import { chatAcceptsInput, isInternalLessonMessage, lessonIntroductionCanStart } from "@/lib/chat-internal";
 import { cn } from "@/lib/utils";
-import { AgentQuestion, isAgentQuestion, agentQuestionState } from "@/components/chat/agent-question";
+import { AgentQuestion, isAgentQuestion, agentQuestionState, agentQuestionId } from "@/components/chat/agent-question";
 import { useChatWorkTiming, type ChatWorkTiming } from "@/lib/chat-work-timing";
 import { codeHighlight, codeHighlights, type CodeHighlight } from "@/lib/code-highlight";
 
@@ -942,17 +943,9 @@ export function StreamedChatMessage({
   const assistant = message.role === "assistant";
   const groups = groupMessageParts(message.parts);
   return (
-    <div
-      className={cn(
-        "dojo-chat-message flex min-w-0 max-w-full font-prose",
-        assistant ? "w-full flex-col items-start" : "justify-end self-end",
-      )}
-      data-testid={assistant ? "sensei-streaming-message" : "senpai-streaming-message"}
-    >
-      <div className={cn(
-        "min-w-0 max-w-full space-y-2",
-        assistant ? "w-full" : "overflow-hidden bg-muted px-3 py-2 text-sm",
-      )}>
+    <ChatMessage role={assistant ? "assistant" : "user"} className="dojo-chat-message min-w-0 max-w-full font-prose"
+      data-testid={assistant ? "sensei-streaming-message" : "senpai-streaming-message"}>
+      <div className={cn("min-w-0 max-w-full space-y-2", assistant && "w-full")}>
         {groups.map((group, index) => {
           if (group.kind === "activity") {
             return <ActivityTimeline activities={group.parts} key={`activity-${index}`} streaming={streaming && index === groups.length - 1} />;
@@ -991,7 +984,7 @@ export function StreamedChatMessage({
           return null;
         })}
       </div>
-    </div>
+    </ChatMessage>
   );
 }
 
@@ -1001,7 +994,13 @@ type MessagePartGroup = { kind: "activity"; parts: ActivityPart[] } | { kind: "p
 
 function groupMessageParts(parts: UIMessage["parts"]): MessagePartGroup[] {
   const groups: MessagePartGroup[] = [];
+  const questionIds = new Set<string>();
   for (const part of parts) {
+    if (part.type === "tool-call" && isAgentQuestion(part)) {
+      const id = agentQuestionId(part);
+      if (questionIds.has(id)) continue;
+      questionIds.add(id);
+    }
     if (part.type === "tool-result") continue;
     if (isTimelineActivity(part)) {
       const previous = groups.at(-1);
@@ -1043,11 +1042,14 @@ function ActivityTimeline({ activities, streaming }: { activities: ActivityPart[
   const currentActivity = currentTool?.type === "tool-call" ? toolActivity(currentTool.name, currentTool.input ?? currentTool.arguments)
     : tail?.type === "thinking" ? "thinking" : "waiting";
   const visible = activities.filter(part => part.type !== "thinking" || part.content.trim());
-  return <ReasoningTrace autoPlay={false} steps={[]} streaming={streaming} activity={currentActivity} usedTools={usedTools}
-    durationMs={typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs >= 0 ? durationMs : undefined}>
+  const duration = typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs >= 0 ? durationMs : undefined;
+  const completedLabel = usedTools ? "Worked" : "Thought";
+  return <ThinkingPanel label="Activity details" done={!streaming} defaultOpen={false} collapsible={visible.length > 0}
+    title={streaming ? <span className="ui-think__shimmer" data-text={activityLabels[currentActivity].label}>{activityLabels[currentActivity].label}</span>
+      : duration === undefined ? completedLabel : `${completedLabel} for ${duration < 1000 ? "<1s" : `${Math.round(duration / 1000)}s`}`}>
     {visible.length > 0 ? <div className="w-full min-w-0">
     {visible.map((activity, index) => {
-      if (activity.type === "thinking") return <ToolCallCard key={`thinking-${index}`} name="Reasoning" autoPlay={false} status="done" showStatus={false}
+      if (activity.type === "thinking") return <ToolCallCard key={`thinking-${index}`} name="Reasoning" status="success"
         icon={<span className="size-1.5 rounded-full bg-muted-foreground/50" />}>
         <div role="region" aria-label="Reasoning step details" tabIndex={0}
           className="scrollbar-compact max-h-[min(12rem,40vh)] overflow-y-auto overflow-x-hidden overscroll-contain focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring focus-visible:-outline-offset-1">
@@ -1056,25 +1058,33 @@ function ActivityTimeline({ activities, streaming }: { activities: ActivityPart[
       </ToolCallCard>;
       const failed = toolFailed(activity);
       const active = isActiveThinkingActivity(activity);
-      const output = activity.output === undefined ? undefined : serializeToolValue(activity.output);
+      const output = activity.output === undefined ? undefined : toolOutputText(activity.output) ?? serializeToolValue(activity.output);
       const evaluation = activity.name.includes("dojo_authoring_evaluate") ? evaluationSummary(activity.output, active) : undefined;
       return <ToolCallCard
         key={activity.id}
         name={activity.name}
-        label={evaluation?.label}
+        summary={evaluation?.label}
         args={typeof activity.input === "string" ? activity.input : activity.input && typeof activity.input === "object" ? activity.input as Record<string, unknown> : undefined}
         result={activity.name === "dojo_lesson_verify" && isTestReport(activity.output) ? undefined : evaluation?.detail ?? output}
         error={failed ? output || "Tool call failed." : undefined}
-        status={failed ? "error" : active ? activity.state === "input-streaming" ? "pending" : "running" : "done"}
-        autoPlay={false}
-        durationMs={(activity as ToolCallPart & { durationMs?: number }).durationMs}
+        status={failed ? "error" : active ? "running" : "success"}
+        duration={(activity as ToolCallPart & { durationMs?: number }).durationMs}
       >
         {activity.name === "dojo_lesson_verify" && (isTestReport(activity.output)
           ? <ChatTestTerminal report={activity.output} /> : active ? <ChatTestTerminal /> : null)}
       </ToolCallCard>;
     })}
   </div> : null}
-  </ReasoningTrace>;
+  </ThinkingPanel>;
+}
+
+/** ACP tool updates wrap the actual result in content blocks. */
+function toolOutputText(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return;
+  const content = (value as Record<string, unknown>).content;
+  if (!Array.isArray(content)) return;
+  const text = content.flatMap(block => block?.type === "content" && block.content?.type === "text" && typeof block.content.text === "string" ? [block.content.text] : []);
+  return text.length ? text.join("\n") : undefined;
 }
 
 function serializeToolValue(value: unknown): string {
@@ -1120,6 +1130,10 @@ export function evaluationSummary(output: unknown, active: boolean): { label: st
 
 function toolFailed(part: ToolCallPart): boolean {
   if (part.state === "error") return true;
+  if (part.output && typeof part.output === "object") {
+    const native = part.output as { rawOutput?: { metadata?: { error?: unknown } } };
+    if (native.rawOutput?.metadata?.error === true) return true;
+  }
   return /(?:"status"\s*:\s*"failed"|request timed out|mcp error)/iu.test(serializeToolValue(part.output));
 }
 
