@@ -15,13 +15,21 @@ async function forwardToCoursesApi({ request }: { request: Request }) {
   const headers = new Headers(request.headers);
   headers.delete("host");
 
-  return fetch(target, {
+  const response = await fetch(target, {
     method: request.method,
     headers,
     body: request.method === "GET" || request.method === "HEAD"
       ? undefined
       : await request.arrayBuffer(),
   });
+
+  // fetch decodes compressed bodies but retains the upstream encoding and length.
+  const responseHeaders = new Headers(response.headers);
+  if (responseHeaders.has("content-encoding")) {
+    responseHeaders.delete("content-encoding");
+    responseHeaders.delete("content-length");
+  }
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers: responseHeaders });
 }
 
 export const Route = createFileRoute("/api/v1/$")({
