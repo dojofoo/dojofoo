@@ -149,3 +149,20 @@ test("the learner sidebar uses the Pages course card and Dashboard breadcrumb", 
   expect(writes).toEqual([]);
   await page.screenshot({ path: test.info().outputPath("learner-course-card.png"), animations: "disabled" });
 });
+
+test("the route error keeps its full trace and uses UIX recovery controls on a phone", async ({ page }) => {
+  let broken = true;
+  await page.route("**/api/control/courses", route => route.fulfill({ json: broken ? {} : [] }));
+  await page.route("**/api/control/authoring", route => route.fulfill({ json: [] }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Something went wrong", exact: true })).toBeVisible();
+  await expect(page.locator("pre")).toContainText("TypeError:");
+  expect((await page.locator("pre").innerText()).split("\n").length).toBeGreaterThan(1);
+  await expect(page.getByRole("button", { name: "Try again", exact: true })).toHaveClass(/ui-button/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath("local-error-phone.png"), animations: "disabled" });
+  broken = false;
+  await page.getByRole("link", { name: "Back to courses", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Your courses", exact: true })).toBeVisible();
+});

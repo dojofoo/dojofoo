@@ -30,7 +30,6 @@ import { useAuthoringFiles } from "@/hooks/use-authoring-files";
 import { useAuthoringWatch } from "@/hooks/use-authoring-watch";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { rememberAuthoringSession } from "@/lib/authoring-session-link";
-import { Button } from "@dojofoo/ui/button";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
 import { AppShell, Dropdown, Icon, MenuButton } from "@dojofoo/uix/components/app-shell";
@@ -410,7 +409,7 @@ function AuthoringPage() {
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold">Kyoshi</h1>
       <p role={error ? "alert" : "status"} className="mt-4 font-prose text-muted-foreground">{error ?? busy}</p>
-      {error ? <Button className="mt-4" disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</Button> : null}
+      {error ? <UIXButton className="mt-4" disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</UIXButton> : null}
     </main>
   </AppShell></div>;
 

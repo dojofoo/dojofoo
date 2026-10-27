@@ -33,7 +33,6 @@ import { failureLines } from "@/lib/lesson-test-results";
 import { TerminalBlock } from "@dojofoo/ui/elements/terminal-block";
 import { ChatTranscript } from "@/components/chat/assistant-response";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
-import { Button } from "@dojofoo/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -863,28 +862,28 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                 )}
               </> : undefined}>
               <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
-                <DialogContent>
+                <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
                   <DialogHeader>
                     <DialogTitle>Reset this lesson?</DialogTitle>
-                    <DialogDescription className="font-prose">
+                    <DialogDescription>
                       Restore the original scaffold. Your current solution will be discarded.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <DialogClose render={<Button variant="secondary">Cancel</Button>} />
-                    <Button disabled={Boolean(busy)} onClick={() => void reset()}>
+                    <DialogClose render={<UIXButton variant="ghost">Cancel</UIXButton>} />
+                    <UIXButton disabled={Boolean(busy)} onClick={() => void reset()}>
                       Reset lesson
-                    </Button>
+                    </UIXButton>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
               <Dialog open={nextLessonPending} onOpenChange={() => undefined}>
-                <DialogContent>
+                <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
                   <div className="flex items-start gap-4 py-2">
-                    <Loader2 className="mt-0.5 size-5 shrink-0 animate-spin text-blue-500 motion-reduce:animate-none" />
+                    <Loader2 className="mt-0.5 size-5 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none" />
                     <DialogHeader>
                       <DialogTitle>Opening {nextLesson?.title ?? "the next lesson"}</DialogTitle>
-                      <DialogDescription className="font-prose">
+                      <DialogDescription>
                         Preparing its scaffold and lesson context…
                       </DialogDescription>
                     </DialogHeader>
