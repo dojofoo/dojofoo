@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://dojo.foo/schema/v1/dojo.json
+mode: interactive
+name: create-your-own-dojo
+version: 0.0.1
+description: "Draft starter course: turn one learning goal into an independent tutor-guided kata with Kyoshi."
+lessons: lessons/intro.json
+marketplace: false
+tags:
+  - draft
+  - starter

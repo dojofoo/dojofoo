@@ -1,7 +1,9 @@
 # 0106: Give interactive courses a persistent Sensei
 
 Parent: UIX adoption (0100).
-Status: in progress on `feat/0106-interactive-sensei` in `.worktree/uix-0105`, based on pending PR #197. Local native, package and Storybook gates passed; Linux CI and deployed verification remain required.
+Status: unmerged local review. PR #197 is merged as `510502c`; its Release run 40489738052 succeeded. The implementation is included in `chore/local-review` in `.worktree/uix-0105`. Prior native gates are historical evidence; current UI acceptance remains incomplete.
+
+Latest review constraint (2026-10-27): the current Pages templates are the visual reference, excluding archived and composer-template stories. The user explicitly removed the course Continue control and Mermaid for now. The local review uses the Pages `Composer` directly, restores the course card, and matches the dashboard/course logo and sidebar dimensions. Existing answer/advance services remain unchanged, but the prior native browser gate expects the removed control and cannot establish current learner progression. Resolve supported learner navigation before declaring this slice or either starter-course journey complete. Do not restore the rejected control solely to satisfy an old test.
 
 Goal: learners can follow the existing authored present/question course and ask a real Sensei about the current material in the shared UIX workspace. Step progress, answers, native conversation and explicit model choice survive reload and a server restart. Reading and answering remain available without a configured agent.
 

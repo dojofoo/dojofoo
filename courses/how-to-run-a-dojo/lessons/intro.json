@@ -1,0 +1,54 @@
+{
+  "id": "how-to-run-a-dojo",
+  "title": "How to run a dojo",
+  "steps": [
+    {
+      "id": "workspace-and-files",
+      "type": "present",
+      "title": "Find your place",
+      "content": "lessons/workspace-and-files.mdx"
+    },
+    {
+      "id": "material-and-resources",
+      "type": "present",
+      "title": "Find the material for this lesson",
+      "content": "lessons/material-and-resources.mdx"
+    },
+    {
+      "id": "ask-for-a-hint",
+      "type": "present",
+      "title": "Ask for the help you need",
+      "content": "lessons/ask-for-a-hint.mdx"
+    },
+    {
+      "id": "agent-and-model",
+      "type": "present",
+      "title": "Understand your agent connection",
+      "content": "lessons/agent-and-model.mdx"
+    },
+    {
+      "id": "checks-and-recovery",
+      "type": "present",
+      "title": "Read a check before changing your code",
+      "content": "lessons/checks-and-recovery.mdx"
+    },
+    {
+      "id": "preferences-and-resume",
+      "type": "present",
+      "title": "Make room and come back later",
+      "content": "lessons/preferences-and-resume.mdx"
+    },
+    {
+      "id": "hint-check",
+      "type": "question",
+      "title": "Ask for a useful next step",
+      "prompt": "You want help without seeing the solution. What could you ask the Sensei for? Answer with \u201ca hint\u201d.",
+      "answers": [
+        "a hint",
+        "hint",
+        "one hint"
+      ],
+      "explanation": "Ask for a hint and describe what you tried. You can ask the Sensei to keep the solution hidden and make the example smaller if the first explanation is too much."
+    }
+  ]
+}

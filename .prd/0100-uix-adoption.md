@@ -1,6 +1,6 @@
 # UIX production adoption and first-party starter courses
 
-Status: active; 0101–0104 merged and verified; 0105 in progress in `.worktree/uix-0105` on `feat/0105-uix-chat`.
+Status: active; 0101–0105 merged (0105 through PR #197, `510502c`). Local review continues in `.worktree/uix-0105` on `chore/local-review`; 0106 is unmerged, 0107 remains open, and 0108 has source-content preparation only. Do not promote a release before 0110.
 Date: 2026-10-26.
 Baseline: `main` after PR #181, merge commit `4f31a76116d23c8d9613f77d80698b5dc766096b`.
 
