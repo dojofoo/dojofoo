@@ -6,7 +6,7 @@ import { stream, useChat, type UIMessage } from "@tanstack/ai-react";
 import type { StreamChunk } from "@tanstack/ai";
 import { useEffect, useMemo, useRef } from "react";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
-import { StreamedChatMessage } from "@/routes/index";
+import { StreamedChatMessage } from "@/components/chat/streamed-message";
 
 export type ChatCassetteFrame = {
   delayMs: number;

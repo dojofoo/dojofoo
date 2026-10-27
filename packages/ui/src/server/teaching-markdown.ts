@@ -9,7 +9,7 @@ import { vercelCursorTheme } from "../lib/code-editor-theme.ts";
 import type { TeachingBlock } from "../lib/teaching-document";
 import { courseAssetUrl } from "../lib/course-asset-url.ts";
 
-type AssetContext = { basePath: string | null; workspaceId: string };
+type AssetContext = { basePath: string | null; workspaceId: string; courseId?: string };
 // Parsed HTML fragments contain these children; root-only MDX declarations
 // added to HAST's type registry are not valid inside Twoslash hover elements.
 const htmlNodes = (html: string) => fromHtml(html, { fragment: true }).children.filter((node) =>
@@ -53,7 +53,7 @@ async function createTeachingParser(assets?: AssetContext) {
       const original = markdown.renderer.rules[rule];
       markdown.renderer.rules[rule] = (tokens, index, options, env, self) => {
         const url = tokens[index].attrGet(attribute);
-        if (url) tokens[index].attrSet(attribute, courseAssetUrl(url, assets.basePath, assets.workspaceId));
+        if (url) tokens[index].attrSet(attribute, courseAssetUrl(url, assets.basePath, assets.workspaceId, assets.courseId));
         return original ? original(tokens, index, options, env, self) : self.renderToken(tokens, index, options);
       };
     }

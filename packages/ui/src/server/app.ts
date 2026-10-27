@@ -82,6 +82,7 @@ function buildApp() {
   app.route("/api/run-command", runRoutes);
   app.route("/api/control", controlRoutes);
   app.route("/api/interactive", interactiveRoutes);
+  app.route("/api/workspaces/:workspaceId/courses/:courseId/interactive", interactiveRoutes);
   app.route("/api/authoring", authoringRoutes);
   app.route("/api/teaching", teachingRoutes);
   // A2A endpoints.

@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { dojoDir, readCourseManifest, readDojoRc } from "@dojofoo/config";
+import type { HarnessKind } from "../harness/adapter";
+
+export type InteractiveConversationBinding = { sessionId: string; harness: HarnessKind; model?: string };
 
 export type InteractiveStep =
   | { id: string; type: "present"; title: string; content: string; contentBase: string | null }
@@ -19,6 +22,7 @@ type InteractiveLesson = {
 type InteractiveState = {
   version: 1;
   courses: Record<string, { step: number; answers: Record<string, { answer: string; correct: boolean }> }>;
+  conversations?: Record<string, InteractiveConversationBinding>;
 };
 
 export type InteractiveSnapshot = {
@@ -32,8 +36,18 @@ export type InteractiveSnapshot = {
   complete: boolean;
 };
 
-export function getInteractiveLesson(root: string): InteractiveSnapshot {
-  const { dojo, lesson } = readLesson(root);
+export function readInteractiveConversation(root: string, dojo: string): InteractiveConversationBinding | undefined {
+  return readState(root).conversations?.[dojo];
+}
+
+export function writeInteractiveConversation(root: string, dojo: string, binding: InteractiveConversationBinding): void {
+  const state = readState(root);
+  state.conversations = { ...state.conversations, [dojo]: binding };
+  writeState(root, state);
+}
+
+export function getInteractiveLesson(root: string, requestedDojo?: string): InteractiveSnapshot {
+  const { dojo, lesson } = readLesson(root, requestedDojo);
   const state = readState(root);
   const progress = state.courses[dojo] ?? { step: 0, answers: {} };
   const authoredStep = lesson.steps[progress.step] ?? null;
@@ -50,8 +64,8 @@ export function getInteractiveLesson(root: string): InteractiveSnapshot {
   };
 }
 
-export function answerInteractiveQuestion(root: string, answer: string): InteractiveSnapshot {
-  const { dojo, lesson } = readLesson(root);
+export function answerInteractiveQuestion(root: string, answer: string, requestedDojo?: string): InteractiveSnapshot {
+  const { dojo, lesson } = readLesson(root, requestedDojo);
   const state = readState(root);
   const progress = state.courses[dojo] ?? { step: 0, answers: {} };
   const current = lesson.steps[progress.step];
@@ -63,34 +77,35 @@ export function answerInteractiveQuestion(root: string, answer: string): Interac
   };
   state.courses[dojo] = progress;
   writeState(root, state);
-  return getInteractiveLesson(root);
+  return getInteractiveLesson(root, dojo);
 }
 
-export function advanceInteractiveLesson(root: string): InteractiveSnapshot {
-  const { dojo, lesson } = readLesson(root);
+export function advanceInteractiveLesson(root: string, requestedDojo?: string): InteractiveSnapshot {
+  const { dojo, lesson } = readLesson(root, requestedDojo);
   const state = readState(root);
   const progress = state.courses[dojo] ?? { step: 0, answers: {} };
   const current = lesson.steps[progress.step];
-  if (!current) return getInteractiveLesson(root);
+  if (!current) return getInteractiveLesson(root, dojo);
   if (current.type === "question" && !progress.answers[current.id]) {
     throw new Error("Answer the question before continuing.");
   }
   progress.step += 1;
   state.courses[dojo] = progress;
   writeState(root, state);
-  return getInteractiveLesson(root);
+  return getInteractiveLesson(root, dojo);
 }
 
-function readLesson(root: string): { dojo: string; lesson: InteractiveLesson } {
+function readLesson(root: string, requestedDojo?: string): { dojo: string; lesson: InteractiveLesson } {
   const rc = readDojoRc(root);
-  if (!rc.currentDojo) throw new Error("No dojo is active.");
-  const manifest = readCourseManifest(root, rc.currentDojo);
+  const dojo = requestedDojo ?? rc.currentDojo;
+  if (!dojo) throw new Error("No dojo is active.");
+  const manifest = readCourseManifest(root, dojo);
   if (manifest.mode !== "interactive") throw new Error("The active dojo is not interactive.");
-  const path = resolve(dojoDir(root, rc.currentDojo), manifest.lessons);
+  const path = resolve(dojoDir(root, dojo), manifest.lessons);
   if (!existsSync(path)) throw new Error(`Interactive lesson not found: ${manifest.lessons}`);
   const lesson = JSON.parse(readFileSync(path, "utf8")) as InteractiveLesson;
   validateLesson(lesson);
-  return { dojo: rc.currentDojo, lesson };
+  return { dojo, lesson };
 }
 
 function validateLesson(lesson: InteractiveLesson): void {

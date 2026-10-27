@@ -10,8 +10,8 @@ import "@shikijs/twoslash/style-rich.css";
 import "katex/dist/katex.min.css";
 import "./teaching-markdown.css";
 
-export function TeachingMarkdown({ source, basePath = null, workspaceId = "" }: { source: string; basePath?: string | null; workspaceId?: string }) {
-  const request = JSON.stringify({ source, basePath, workspaceId });
+export function TeachingMarkdown({ source, basePath = null, workspaceId = "", courseId }: { source: string; basePath?: string | null; workspaceId?: string; courseId?: string }) {
+  const request = JSON.stringify({ source, basePath, workspaceId, courseId });
   const [result, setResult] = useState<{ request: string; blocks?: TeachingBlock[]; error?: string }>();
   useEffect(() => {
     const controller = new AbortController();

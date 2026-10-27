@@ -1,27 +1,57 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
+import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSentEventsResponse } from "@tanstack/ai";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, extname, relative, resolve } from "node:path";
 import { dojoDir, readDojoRc } from "@dojofoo/config";
 import { resolveRequestWorkspace, resolveWorkspaceId } from "../control/workspace";
 import { advanceInteractiveLesson, answerInteractiveQuestion, getInteractiveLesson } from "./service";
+import { answerInteractiveSensei, getInteractiveConversation, setInteractiveModel, streamInteractiveSensei } from "./conversation";
+import { streamAcpAsAgUi } from "../lesson/agui-stream";
 
-const root = (request: Request) => resolveRequestWorkspace(request);
+const root = (c: Context) => c.req.param("workspaceId")
+  ? resolveWorkspaceId(c.req.param("workspaceId")!) : resolveRequestWorkspace(c.req.raw);
+const course = (c: Context) => c.req.param("courseId") ?? c.req.query("course");
+const target = (c: Context) => getInteractiveLesson(root(c), course(c)).dojo;
 
 export const interactiveRoutes = new Hono()
-  .get("/", (c) => c.json(getInteractiveLesson(root(c.req.raw))))
+  .get("/", (c) => c.json(getInteractiveLesson(root(c), course(c))))
   .post("/answer", async (c) => {
     const body = await c.req.json<{ answer?: string }>();
     if (typeof body.answer !== "string" || !body.answer.trim()) return c.json({ error: "An answer is required." }, 400);
-    return c.json(answerInteractiveQuestion(root(c.req.raw), body.answer));
+    return c.json(answerInteractiveQuestion(root(c), body.answer, course(c)));
   })
-  .post("/advance", (c) => c.json(advanceInteractiveLesson(root(c.req.raw))))
+  .post("/advance", (c) => c.json(advanceInteractiveLesson(root(c), course(c))))
+  .get("/conversation", async c => c.json(await getInteractiveConversation(root(c), target(c))))
+  .put("/configuration/model", async c => {
+    const body = await c.req.json<{ value?: string }>();
+    if (!body.value?.trim()) return c.json({ error: "Model value is required" }, 422);
+    return c.json(await setInteractiveModel(root(c), target(c), body.value));
+  })
+  .post("/messages", async c => {
+    const projectRoot = root(c);
+    const dojo = target(c);
+    const raw = await c.req.json();
+    if (raw?.answers) {
+      answerInteractiveSensei(projectRoot, dojo, raw.answers);
+      return c.json({ ok: true }, 201);
+    }
+    const params = await chatParamsFromRequestBody(raw);
+    const last = convertMessagesToModelMessages(params.messages).findLast(message => message.role === "user")?.content;
+    const message = typeof last === "string" ? last : last?.flatMap(part => part.type === "text" ? [part.content] : []).join("") ?? "";
+    if (!message.trim()) return c.json({ error: "Message content is required" }, 422);
+    return toServerSentEventsResponse(streamAcpAsAgUi({
+      threadId: params.threadId, runId: params.runId,
+      execute: onPart => streamInteractiveSensei(projectRoot, dojo, message, onPart, c.req.raw.signal),
+    }));
+  })
   .get("/asset", (c) => {
     const workspaceId = c.req.query("workspace");
-    const projectRoot = workspaceId ? resolveWorkspaceId(workspaceId) : root(c.req.raw);
+    const projectRoot = c.req.param("workspaceId") ? root(c) : workspaceId ? resolveWorkspaceId(workspaceId) : root(c);
     const requested = c.req.query("path");
     if (!requested) return c.json({ error: "An asset path is required." }, 400);
     const rc = readDojoRc(projectRoot);
-    const courseRoot = realpathSync(dojoDir(projectRoot, rc.currentDojo));
+    const courseRoot = realpathSync(dojoDir(projectRoot, course(c) ?? rc.currentDojo));
     const unresolved = resolve(courseRoot, requested);
     if (!existsSync(unresolved)) return c.json({ error: "Asset not found." }, 404);
     const path = realpathSync(unresolved);

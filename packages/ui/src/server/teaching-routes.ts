@@ -10,9 +10,9 @@ export const teachingRoutes = new Hono()
     if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
     const body = await c.req.json().catch(() => null);
     if (typeof body?.source !== "string") return c.json({ error: "Markdown source is required." }, 400);
-    if ((body.basePath != null && typeof body.basePath !== "string") || (body.workspaceId != null && typeof body.workspaceId !== "string")) return c.json({ error: "Invalid asset context." }, 400);
+    if ((body.basePath != null && typeof body.basePath !== "string") || (body.workspaceId != null && typeof body.workspaceId !== "string") || (body.courseId != null && typeof body.courseId !== "string")) return c.json({ error: "Invalid asset context." }, 400);
     try {
-      return c.json({ blocks: await compileTeachingDocument(body.source, { basePath: body.basePath ?? null, workspaceId: body.workspaceId ?? "" }) });
+      return c.json({ blocks: await compileTeachingDocument(body.source, { basePath: body.basePath ?? null, workspaceId: body.workspaceId ?? "", courseId: body.courseId }) });
     } catch (cause) {
       return c.json({ error: cause instanceof Error ? cause.message : "Unable to render lesson content." }, 422);
     }

@@ -6,6 +6,7 @@ type Props = {
   basePath: string | null;
   children: string;
   workspaceId: string;
+  courseId?: string;
 };
 
 type ComponentToken = {
@@ -16,7 +17,7 @@ type ComponentToken = {
 const componentPattern = /<(Artifact|Interactive|RegexWorkbench|Video)\s+([^>]*?)\s*\/>/gu;
 const attributePattern = /([A-Za-z][\w-]*)=["']([^"']*)["']/gu;
 
-export function CourseContent({ basePath, children, workspaceId }: Props) {
+export function CourseContent({ basePath, children, workspaceId, courseId }: Props) {
   const blocks: Array<string | ComponentToken> = [];
   let offset = 0;
   for (const match of children.matchAll(componentPattern)) {
@@ -29,17 +30,17 @@ export function CourseContent({ basePath, children, workspaceId }: Props) {
   return (
     <div className="course-content space-y-5 font-prose leading-7 text-muted-foreground">
       {blocks.map((block, index) => typeof block === "string"
-        ? <TeachingMarkdown key={index} basePath={basePath} workspaceId={workspaceId} source={block} />
-        : <CourseComponent basePath={basePath} key={index} token={block} workspaceId={workspaceId} />)}
+        ? <TeachingMarkdown key={index} basePath={basePath} workspaceId={workspaceId} courseId={courseId} source={block} />
+        : <CourseComponent basePath={basePath} key={index} token={block} workspaceId={workspaceId} courseId={courseId} />)}
     </div>
   );
 }
 
-function CourseComponent({ basePath, token, workspaceId }: { basePath: string | null; token: ComponentToken; workspaceId: string }) {
+function CourseComponent({ basePath, token, workspaceId, courseId }: { basePath: string | null; token: ComponentToken; workspaceId: string; courseId?: string }) {
   if (token.type === "RegexWorkbench") return <RegexWorkbench attributes={token.attributes} />;
   const source = token.attributes.src;
   if (!source) return <p className="border border-red-900/60 p-3 text-sm text-red-300">{token.type} requires a src attribute.</p>;
-  const url = assetUrl(source, basePath, workspaceId);
+  const url = assetUrl(source, basePath, workspaceId, courseId);
   const title = token.attributes.title || source.split("/").at(-1) || token.type;
   if (token.type === "Artifact") {
     return (

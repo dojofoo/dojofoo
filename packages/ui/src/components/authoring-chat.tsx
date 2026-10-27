@@ -4,7 +4,7 @@ import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojof
 import { InputMessage } from "@dojofoo/ui/input-message";
 import { Button } from "@dojofoo/ui/button";
 import { MessageQueue, type QueuedMessage } from "./assistant-ui/elements/message-queue";
-import { StreamedChatMessage } from "@/routes/index";
+import { StreamedChatMessage } from "@/components/chat/streamed-message";
 import { ChatTranscript } from "./chat/assistant-response";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 
