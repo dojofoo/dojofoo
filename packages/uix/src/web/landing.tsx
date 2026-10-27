@@ -95,7 +95,7 @@ export function LandingPage({ learning, courses, featureCourse, preview }: {
         <section className="ui-land-section ui-land-modes">
           <div className="ui-land-modes__copy">
             <Carousel label="Learning modes" index={mode - 1} onIndexChange={index => setMode((index + 1) as 1 | 2 | 3)}
-              slideSize="100cqw" slideLabel={index => modes[index].title} autoplay interval={8000} controls="indicators" pauseOnHover={false} className="ui-land-modes__carousel">
+              slideSize="calc(100cqw - 32px)" slideLabel={index => modes[index].title} autoplay interval={8000} controls="indicators" pauseOnHover={false} edgeFade className="ui-land-modes__carousel">
               {modes.map(item => <article className="ui-land-modes__slide" key={item.title}>
                 <p className="ui-land-modes__name">{item.title}{item.beta && <span className="ui-land-modes__beta">{item.beta}</span>}</p>
                 <h2 className="ui-land-modes__headline">{item.headline}</h2>
