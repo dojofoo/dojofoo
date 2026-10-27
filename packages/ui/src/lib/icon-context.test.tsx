@@ -22,13 +22,12 @@ describe("MynaUI icon set", () => {
     expect(markup).toContain('aria-hidden="true"');
   });
 
-  it("does not mix Lucide imports into our UI surfaces", () => {
-    for (const relative of ["../", "../../../uix/src/", "../../../../apps/web/src/"]) {
-      const root = fileURLToPath(new URL(relative, import.meta.url));
-      for (const file of readdirSync(root, { recursive: true }).filter((path) => /\.tsx?$/.test(String(path)))) {
-        const source = readFileSync(`${root}/${file}`, "utf8");
-        expect(source, String(file)).not.toMatch(/from\s+["']lucide-react["']/);
-      }
+  it("keeps the legacy package's own icons on MynaUI", () => {
+    // UIX owns its independent icon sets; this provider governs legacy UI only.
+    const root = fileURLToPath(new URL("../", import.meta.url));
+    for (const file of readdirSync(root, { recursive: true }).filter((path) => /\.tsx?$/.test(String(path)))) {
+      const source = readFileSync(`${root}/${file}`, "utf8");
+      expect(source, String(file)).not.toMatch(/from\s+["']lucide-react["']/);
     }
   });
 });

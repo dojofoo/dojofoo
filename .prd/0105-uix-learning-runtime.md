@@ -1,7 +1,7 @@
 # 0105: Connect the local learning application to UIX
 
 Parent: UIX adoption (0100).
-Status: in progress on `feat/0105-uix-learning-runtime` in `.worktree/uix-0105`. Initial baseline is verified main `c0173fd`; integrate verified 0104 before shipping this slice.
+Status: in progress on `feat/0105-uix-learning-runtime` in `.worktree/uix-0105`. Initial baseline was verified main `c0173fd`; rebased onto verified 0104 main `bf44267` after PR #191 merged.
 
 Goal: replace the local dashboard, kata workspace, editor, tests and chat presentation with the approved shared UIX components while retaining the real services, files, checks, progress, canonical lesson/session URLs and agent conversations.
 
@@ -22,3 +22,7 @@ Observe results directly through test output, browser probes, file contents and 
 Aligned the UI/UIX Shiki 4.5 integrations and deduplicated compatible Zod 4 peer contexts to 4.6.7 in the lockfile. Existing Zod manifest ranges are retained; no new library was added. Parsed HTML fragments now admit only actual element/text/comment children instead of root-only MDX declarations. UI/UIX types pass, all 11 teaching Markdown tests pass, and UIX units pass (50 at the pre-0104 base).
 
 A broader host unit probe found prerequisites that were not satisfied by config/agent builds alone: authoring-handoff requires built CLI output, and Nitro close requires built authoring output. It also found the old MynaUI policy test banning every Lucide import across UIX, which already intentionally includes the approved copied avatar/control components. Verify that failure against the unchanged baseline and resolve the obsolete ownership policy during presentation adoption/retirement rather than changing the approved icon design to satisfy it. Do not claim the whole host suite passes yet. Full builds and isolated runtime gates remain required before 0105 is complete.
+
+The cross-package MynaUI ban reproduced unchanged in the old worktree before this repair. It is now scoped to its own legacy package; UIX retains its independent configurable icon-set contract and approved components. Full host checks are rerunning after the complete dependency builds. This removes an obsolete ownership assertion instead of changing the approved design or permanently exempting a test.
+
+Prepared gate on rebased main: UI/UIX types passed; host units `353 passed` (explicit live-model files excluded); UIX units `51 passed`; authoring learner fixtures `17 passed`; teaching Markdown `11 passed`; forced build `6 successful, 0 cached, 36.541s`; packed authoring readiness passed without a model call and installed UI returned HTTP 200; website browsers `19 passed (32.6s)`. CI now runs the host type/unit gate after build prerequisites. This is the first 0105 prerequisite, not completion of the runtime migration.
