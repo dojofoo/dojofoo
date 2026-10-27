@@ -55,35 +55,43 @@ for (const theme of ["dark", "light"]) {
   test(`active stories have no accidentally round surfaces in ${theme}`, async ({ page, request }) => {
     const { entries } = await (await request.get("/index.json")).json();
     const ids = Object.keys(entries).filter(id => /^(pages|components|templates)-/.test(id) && entries[id].type === "story");
+    // The full catalog takes about one second per story, plus initial loading.
+    test.setTimeout(ids.length * 2_000 + 30_000);
     const failures: string[] = [];
     for (const id of ids) {
-      await page.goto(`/iframe.html?id=${id}&viewMode=story&globals=theme:${theme}`);
-      await expect(page.locator("#storybook-root > *").first()).toBeVisible();
-      await expect(page.locator(".sb-errordisplay")).not.toBeVisible();
-      if (!await page.evaluate(() => CSS.supports("corner-shape", "squircle"))) continue;
-      const round = await page.locator("#storybook-root").evaluate(root => {
-        const failures: string[] = [];
-        for (const element of root.querySelectorAll<HTMLElement>("*")) {
-          if (!(element instanceof HTMLElement) || element.closest(".monaco-editor")) continue;
-          for (const pseudo of [null, "::before", "::after"]) {
-            const style = getComputedStyle(element, pseudo);
-            if (pseudo && ["none", "normal"].includes(style.content)) continue;
-            const bounds = element.getBoundingClientRect();
-            if (!bounds.width || !bounds.height || style.visibility === "hidden" || style.display === "none") continue;
-            const isRound = /^(round|superellipse\(1\))$/.test(style.getPropertyValue("corner-shape"));
-            if (element.classList.contains("rounded-full") && !isRound) {
-              failures.push(`expected circle: ${element.className}${pseudo ?? ""}`);
+      await test.step(id, async () => {
+        await page.goto(`/iframe.html?id=${id}&viewMode=story&globals=theme:${theme}`);
+        const surface = page.locator("#storybook-root > *").first();
+        if (id === "components-molecules-message-queue--empty") {
+          await expect(surface).toHaveCSS("max-width", "400px");
+          await expect(surface).toBeEmpty();
+        } else await expect(surface).toBeVisible();
+        await expect(page.locator(".sb-errordisplay")).not.toBeVisible();
+        if (!await page.evaluate(() => CSS.supports("corner-shape", "squircle"))) return;
+        const round = await page.locator("#storybook-root").evaluate(root => {
+          const failures: string[] = [];
+          for (const element of root.querySelectorAll<HTMLElement>("*")) {
+            if (!(element instanceof HTMLElement) || element.closest(".monaco-editor")) continue;
+            for (const pseudo of [null, "::before", "::after"]) {
+              const style = getComputedStyle(element, pseudo);
+              if (pseudo && ["none", "normal"].includes(style.content)) continue;
+              const bounds = element.getBoundingClientRect();
+              if (!bounds.width || !bounds.height || style.visibility === "hidden" || style.display === "none") continue;
+              const isRound = /^(round|superellipse\(1\))$/.test(style.getPropertyValue("corner-shape"));
+              if (element.classList.contains("rounded-full") && !isRound) {
+                failures.push(`expected circle: ${element.className}${pseudo ?? ""}`);
+              }
+              const radius = Math.max(...[style.borderTopLeftRadius, style.borderTopRightRadius,
+                style.borderBottomLeftRadius, style.borderBottomRightRadius].map(parseFloat));
+              // Genuine circular dots, avatars and fully rounded pills remain round.
+              if (radius <= 0 || radius >= Math.min(bounds.width, bounds.height) / 2) continue;
+              if (isRound) failures.push(`${element.className}${pseudo ?? ""}`);
             }
-            const radius = Math.max(...[style.borderTopLeftRadius, style.borderTopRightRadius,
-              style.borderBottomLeftRadius, style.borderBottomRightRadius].map(parseFloat));
-            // Genuine circular dots, avatars and fully rounded pills remain round.
-            if (radius <= 0 || radius >= Math.min(bounds.width, bounds.height) / 2) continue;
-            if (isRound) failures.push(`${element.className}${pseudo ?? ""}`);
           }
-        }
-        return [...new Set(failures)];
+          return [...new Set(failures)];
+        });
+        failures.push(...round.map(selector => `${id}: ${selector}`));
       });
-      failures.push(...round.map(selector => `${id}: ${selector}`));
     }
     expect(failures).toEqual([]);
   });
