@@ -18,8 +18,22 @@ it("shows actionable teaching findings rather than hiding them in a score", () =
   expect(html).toContain("Teaching needs revision");
   expect(html).toContain("Repeated an unexplained term.");
   expect(html).toContain("Explain the missing concept before asking again.");
-  expect(html).toContain('open=""');
+  expect(html).toContain("<table");
+  expect(html).not.toContain("<details");
   expect(html).toContain("not a guarantee of learning outcomes");
+});
+
+it("keeps single-judge disputes and prior-lesson coverage separate from passing evidence", () => {
+  const html = renderToStaticMarkup(<AuthoringEvaluationReport report={{ ...report,
+    lessonIds: ["000-introduction", "001-first"],
+    decisions: { teaching: { outcome: "pass", blocking: [], disputed: [{ id: "adaptive-instruction", judges: ["Independent judge"] }] } },
+  }} />);
+  expect(html).toContain("disputed (one judge)");
+  expect(html).toContain("Completed before this trial: 000-introduction. These lessons were not re-evaluated.");
+  expect(html).toContain("Only simulated learners were tested.");
+  expect(html).not.toContain("Tested scenarios passed");
+  expect(html).not.toContain("TC-10");
+  expect(html).not.toContain("Cost per 1k runs");
 });
 
 it("distinguishes a provider failure from poor teaching", () => {

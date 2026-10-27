@@ -8,7 +8,7 @@ import { ChatMessages, useChatThread } from "../containers/assistant-home";
 import { Icon } from "../components/app-shell";
 import { Button } from "../components/button";
 import { ToolCallCard, ToolCallGroup } from "../components/tool-call-card";
-import { EvalsPanel } from "../components/evals";
+import { EvalsPanel, EvalsReportPanel, type EvalsReportPanelProps } from "../components/evals";
 import { VideoStage, type VideoCue, type VideoCueEvent } from "../containers/video-stage";
 import { CourseComposer } from "./course-composer";
 import { BookOpen01Icon, File01Icon, Globe02Icon, PencilEdit02Icon, CheckListIcon, PlayIcon, PlusSignIcon } from "../lib/icons";
@@ -158,7 +158,7 @@ const videoCues = (src: string): VideoCue[] => src === sampleYoutube
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 /** How a cue reads where the agent hears about it */
 const cueSummary = ({ cue, time }: VideoCueEvent) => cue.kind === "skip" ? `Skipped ${cue.label} · ${clock(cue.from)}–${clock(cue.to)}` : `${cue.kind === "done" ? cue.label ?? "Watched" : cue.label} · ${clock(time)}`;
-export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Everyday TypeScript", question = false, settings = false, evals = false, video = sampleVideo, documentationUrl }: { mode?: "Authoring" | "Evaluation" | "Trial"; initialCourse?: string; question?: boolean; settings?: boolean; evals?: boolean; video?: string; documentationUrl?: string }) {
+export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Everyday TypeScript", question = false, settings = false, evals = false, evaluationReport, video = sampleVideo, documentationUrl }: { mode?: "Authoring" | "Evaluation" | "Trial"; initialCourse?: string; question?: boolean; settings?: boolean; evals?: boolean; evaluationReport?: EvalsReportPanelProps; video?: string; documentationUrl?: string }) {
   const [courses, setCourses] = useState(() => {
     const selected = initialCourses.find(course => course.name === initialCourse) ?? initialCourses[0];
     return [selected, ...initialCourses.filter(course => course !== selected)];
@@ -212,7 +212,7 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
   const chapter = lesson?.title;
   const language: EditorLanguage = file.endsWith(".md") ? "markdown" : file.endsWith(".yaml") ? "yaml" : "typescript";
   return <div className="h-dvh w-full overflow-hidden">
-    <AgentChatWorkspace contentKind={page ? course === courses[0] ? "video" : "material" : "code"} key={`${settings}:${evals}`} defaultSettingsOpen={settings} defaultEvalsOpen={evals} evals={view === "Trial" ? undefined : <EvalsPanel />} workspace={course.name} user={{ name: "You" }} active={[view, `course:${course.name}`, ...(page ? [] : [`file:${file}`])]} showOnboarding showNews={false} sidebarWidth="18rem"
+    <AgentChatWorkspace contentKind={page ? course === courses[0] ? "video" : "material" : "code"} key={`${settings}:${evals}`} defaultSettingsOpen={settings} defaultEvalsOpen={evals} evals={view === "Trial" ? undefined : evaluationReport ? <EvalsReportPanel {...evaluationReport} /> : <EvalsPanel />} workspace={course.name} user={{ name: "You" }} active={[view, `course:${course.name}`, ...(page ? [] : [`file:${file}`])]} showOnboarding showNews={false} sidebarWidth="18rem"
       brand={<a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={event => event.preventDefault()}><BrandLogo className="w-11" /></a>}
       navigation={[
         { id: "views", layout: "views", items: [

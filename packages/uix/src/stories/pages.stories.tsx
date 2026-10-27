@@ -3,6 +3,7 @@ import type { ComponentProps } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { LearnerPage } from "../pages/learner";
 import { CourseAuthoringPage } from "../pages/course-authoring";
+import { teachingReport } from "./fixtures/evaluation-report";
 
 type PageArgs = ComponentProps<typeof LearnerPage> & { initialCourse: string };
 
@@ -49,6 +50,17 @@ export const CourseAuthoring: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Hide evals" }));
   },
 };
+export const CourseAuthoringEvaluation: Story = {
+  name: "Course Authoring · Evaluation report",
+  render: args => <CourseAuthoringPage initialCourse={args.initialCourse} documentationUrl={args.documentationUrl} evals evaluationReport={teachingReport} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("region", { name: "Teaching evaluation report" })).toBeVisible();
+    await expect(canvas.getByText("Explain the missing concept before asking again.", { exact: true })).toBeVisible();
+    await expect(canvas.queryByText("Cost per 1k runs", { exact: true })).not.toBeInTheDocument();
+  },
+};
+
 export const Certificates: Story = { args: { start: "Certificates" }, play: async ({ canvasElement }) => {
   await expect(within(canvasElement).getAllByRole("img", { name: "Dojo certificate seal" })).toHaveLength(2);
 } };

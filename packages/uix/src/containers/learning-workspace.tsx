@@ -10,7 +10,7 @@ import { Cancel01Icon, ChatAiIcon, EvalsIcon, Settings04Icon } from "../lib/icon
 import { learningWorkspaceCss as css } from "../lib/learning-workspace-styles";
 
 /** Controlled editor/material/conversation layout; applications own all content and requests. */
-export function AgentChatWorkspace({ crumbs, editor, details, evals, header, composer, children, scroller, conversation, defaultSettingsOpen = false, defaultEvalsOpen = false, contentKind = "code", commands = [], onCommand, askAssistant = true, ...shell }: Omit<AppShellProps, "children" | "aside" | "asideColumns" | "asideCovered"> & {
+export function AgentChatWorkspace({ crumbs, editor, details, evals, header, composer, children, scroller, conversation, defaultSettingsOpen = false, defaultEvalsOpen = false, evalsOpen: controlledEvalsOpen, onEvalsOpenChange, contentKind = "code", commands = [], onCommand, askAssistant = true, ...shell }: Omit<AppShellProps, "children" | "aside" | "asideColumns" | "asideCovered"> & {
   /** The trail in the window's toolbar – e.g. the mode, then the chapter; "Evals" follows while they are open */
   crumbs: Crumb[];
   editor: ReactNode;
@@ -33,6 +33,9 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
   contentKind?: ContentKind;
   /** Start with the evaluations in place of the IDE */
   defaultEvalsOpen?: boolean;
+  /** Hosts may control the view using their existing results button. */
+  evalsOpen?: boolean;
+  onEvalsOpenChange?: (open: boolean) => void;
   /** More groups for the command menu (⌥K or the sidebar's search), after the workspace's own */
   commands?: CommandGroup[];
   /** Runs a command from those groups, or "ask" with the typed text */
@@ -43,7 +46,12 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
   const [chatHidden, setChatHidden] = useState(false);
   // Narrow screens keep their separate conversation drawer.
   const [chatOpen, setChatOpen] = useState(false);
-  const [evalsOpen, setEvalsOpen] = useState(defaultEvalsOpen);
+  const [internalEvalsOpen, setInternalEvalsOpen] = useState(defaultEvalsOpen);
+  const evalsOpen = controlledEvalsOpen ?? internalEvalsOpen;
+  const setEvalsOpen = (open: boolean) => {
+    if (controlledEvalsOpen === undefined) setInternalEvalsOpen(open);
+    onEvalsOpenChange?.(open);
+  };
   const showEvals = Boolean(evals) && evalsOpen;
   const [paletteOpen, setPaletteOpen] = useState(false);
   const workspaceCommands: CommandGroup = { id: "workspace", label: "Workspace", commands: [
@@ -51,7 +59,7 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
     { id: "workspace:settings", label: settingsOpen ? "Hide settings" : "Show settings", icon: <Icon icon={Settings04Icon} size={16} />, keywords: "brief" },
   ] };
   const runCommand = (id: string, query?: string) => {
-    if (id === "workspace:evals") setEvalsOpen(open => !open);
+    if (id === "workspace:evals") setEvalsOpen(!evalsOpen);
     else if (id === "workspace:settings") toggleSettings();
     else onCommand?.(id, query);
   };
@@ -82,7 +90,7 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
             <Breadcrumbs items={showEvals ? [...crumbs.slice(0, -1), { ...crumbs[crumbs.length - 1], onClick: () => setEvalsOpen(false) }, { label: "Evals" }] : crumbs} />
           </span>
           <span className="ui-as-chat__tools">
-            {evals && <button type="button" className="ui-as-icon-btn" aria-label={evalsOpen ? "Hide evals" : "Show evals"} aria-pressed={evalsOpen} onClick={() => setEvalsOpen(open => !open)}>
+            {evals && <button type="button" className="ui-as-icon-btn" aria-label={evalsOpen ? "Hide evals" : "Show evals"} aria-pressed={evalsOpen} onClick={() => setEvalsOpen(!evalsOpen)}>
               <Icon icon={EvalsIcon} size={16} />
             </button>}
             <button type="button" className="ui-as-icon-btn" aria-label={settingsOpen ? "Hide settings" : "Show settings"} aria-pressed={settingsOpen} onClick={toggleSettings}>
@@ -97,10 +105,10 @@ export function AgentChatWorkspace({ crumbs, editor, details, evals, header, com
             </button>
           </span>
         </header>
-        {showEvals ? <div className="ui-as-chat__evals scroll-fade" aria-label="Evals" role="region">{evals}</div>
-          : <div className="ui-as-chat__editor" data-details={details ? "" : undefined}>
+        {showEvals ? <div className="ui-as-chat__evals scroll-fade" aria-label="Evals" role="region">{evals}</div> : null}
+        <div className="ui-as-chat__editor" hidden={showEvals} data-details={details ? "" : undefined}>
             {details ? <>{editor && <div className="ui-as-chat__code">{editor}</div>}<div className="ui-as-chat__details scroll-fade">{details}</div></> : editor}
-          </div>}
+          </div>
       </section>
     </div>
   </AppShell>;

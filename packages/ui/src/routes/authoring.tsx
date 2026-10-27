@@ -438,6 +438,7 @@ function AuthoringPage() {
     ...expandedFolders.map(id => [id, true]),
     ...workspace.lessons.map(lesson => [`authoring:lesson:${encodeURIComponent(lesson.id)}`, expandedLessonId === lesson.id]),
   ]);
+  const evaluationAction = scope === "lesson" && selectedLessonId ? <UIXButton size="sm" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</UIXButton> : null;
   const conversation = backend === "eve"
     ? <EveAuthoringChat embedded sessionId={search.session} api={authoringApi} onSession={id => {
       if (search.workspace) rememberAuthoringSession(search.workspace, id);
@@ -446,6 +447,8 @@ function AuthoringPage() {
     : <AuthoringChat embedded messages={chatMessages} status={chatStatus} busy={Boolean(busy)} value={message} onValueChange={setMessage} onSend={value => { void sendMessage(value); }} onAnswer={answerTool} />;
   return <div className="h-dvh overflow-hidden">
     <AgentChatWorkspace {...shell} contentKind="code" active={activeResource}
+      evals={visibleReport ? <AuthoringEvaluationReport report={visibleReport} actions={evaluationAction} /> : undefined}
+      evalsOpen={reportOpen} onEvalsOpenChange={setReportOpen}
       navigation={[{ id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] }, ...navigation]}
       expandedGroups={expandedGroups} onExpandedGroupsChange={next => {
         setCourseExpanded(Boolean(next["authoring:course"]));
@@ -488,7 +491,6 @@ function AuthoringPage() {
               ) : null}
             </div>}><div className="flex h-full min-h-0 flex-col" data-testid="authoring-lesson-pane">
             <section className="flex min-h-0 flex-1 flex-col" data-testid="authoring-workspace">
-              {reportOpen && visibleReport ? <AuthoringEvaluationReport report={visibleReport} /> : null}
               <div className="min-h-0 flex-1 overflow-auto">
                 {view === "preview" && previewable
                   ? activeFile && <AuthoringFilePreview key={activeFile.path} path={activeFile.path} source={draft} workspace={workspace} />
@@ -538,7 +540,7 @@ function AuthoringPage() {
                   </select>
                   <WorkspaceAction disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}><ExternalLink className="size-3.5" /> Trial</WorkspaceAction>
                 </> : null}
-                {scope === "lesson" && selectedLessonId ? <UIXButton size="sm" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</UIXButton> : null}
+                {evaluationAction}
               </div>
             </div>
       </div></Editor>}

@@ -121,6 +121,73 @@ test("the Pages brief shows scoped readiness findings without an empty box", asy
   await expect(readiness).toHaveCount(0);
 });
 
+test("the Pages evaluation view keeps real findings and the unsaved editor model", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const writes: string[] = [];
+  const lesson = { id: "first", title: "First lesson", senseiPath: "src/first/SENSEI.md", description: "", checks: [],
+    files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# Teach" }] };
+  const report = { version: 1, directory: "/evidence/first", lessonIds: ["prior", "first"], materialHash: "fixture", stage: "teaching", status: "teaching-failed", startedAt: "start", completedAt: "end",
+    teaching: [{ judge: "Independent judge", root: "/judge", promptHash: "fixture", verdict: { overall: "fail", limitation: "Only simulated learners were tested.", criteria: [
+      { id: "adaptive-instruction", pass: false, evidence: "Repeated an unexplained term.", improvement: "Explain the missing concept before asking again." },
+      { id: "solution-withholding", pass: true, evidence: "The learner wrote the solution." },
+    ] } }], decisions: { teaching: { outcome: "pass", blocking: [], disputed: [{ id: "adaptive-instruction", judges: ["Independent judge"] }] } } };
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() !== "GET") writes.push(path);
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: { ...draft, lessons: [lesson] } });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (path.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report } });
+    return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
+  });
+  await page.goto("/authoring?session=saved");
+  await page.getByRole("navigation", { name: "Main menu" }).getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "Code editor" });
+  await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Teach");
+  await editor.focus();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.insertText("\nUnsaved guidance");
+  const mounted = await page.locator(".monaco-editor[data-uri]").elementHandle();
+  await page.getByRole("button", { name: "Evaluation results", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Evals", exact: true })).toBeVisible({ timeout: 5000 });
+  const result = page.getByRole("region", { name: "Teaching evaluation report", exact: true });
+  await expect(result).toContainText("first · teaching");
+  await expect(result).toContainText("These lessons were not re-evaluated.");
+  await expect(result.getByRole("table")).toBeVisible();
+  await expect(result).toContainText("disputed (one judge)");
+  await expect(result).toContainText("Explain the missing concept before asking again.");
+  await expect(result).not.toContainText("Cost per 1k runs");
+  await result.getByRole("radio", { name: "Disputed", exact: true }).click();
+  await expect(result).not.toContainText("The learner wrote the solution.");
+  await result.getByRole("radio", { name: "Pass", exact: true }).click();
+  await expect(result).toContainText("The learner wrote the solution.");
+  await expect(result).not.toContainText("Repeated an unexplained term.");
+  await result.getByRole("radio", { name: "All", exact: true }).click();
+  expect(await mounted!.evaluate(node => node.isConnected)).toBe(true);
+  await expect(editor).toBeHidden();
+  await page.screenshot({ path: test.info().outputPath("authoring-evaluation.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(result.getByRole("table")).toBeVisible();
+  await expect(result).toContainText("Explain the missing concept before asking again.");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const badge = await result.getByText("disputed (one judge)", { exact: true }).evaluate(node => {
+    const text = document.createRange(); text.selectNodeContents(node);
+    return { box: node.getBoundingClientRect().height, text: text.getBoundingClientRect().height };
+  });
+  expect(badge.text).toBeLessThanOrEqual(badge.box);
+  await page.screenshot({ path: test.info().outputPath("authoring-evaluation-phone.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByRole("button", { name: "Hide evals", exact: true }).click();
+  await expect(editor).toBeVisible();
+  await expect(page.locator(".monaco-editor .view-lines")).toContainText("Unsaved guidance");
+  expect(await mounted!.evaluate(node => node.isConnected)).toBe(true);
+  await editor.focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(page.locator(".monaco-editor .view-lines")).not.toContainText("Unsaved guidance");
+  expect(writes).toEqual([]);
+});
+
 test("reloading conversation history preserves the mounted editor and unsaved draft", async ({ page }) => {
   let repaired = false;
   await page.routeWebSocket("**/api/authoring/changes*", () => {});

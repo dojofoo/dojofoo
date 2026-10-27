@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["installation-setup", "learner-intro", "learner-kata", "learner-slides", "course-authoring", "certificates", "explore", "settings", "content-window-settings"];
+const pages = ["installation-setup", "learner-intro", "learner-kata", "learner-slides", "course-authoring", "course-authoring-evaluation", "certificates", "explore", "settings", "content-window-settings"];
 
 test("the page catalog is small; originals and animated controls are archived", async ({ request }) => {
   const { entries } = await (await request.get("/index.json")).json();
@@ -88,7 +88,8 @@ test("authoring opens, edits, saves and closes files while the conversation stay
   await page.keyboard.press("ControlOrMeta+s");
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
   await expect(page.locator(".view-lines")).toContainText("# saved preview edit");
-  await page.getByRole("button", { name: "Everyday TypeScript", exact: true }).click();
+  const course = page.getByRole("button", { name: "Everyday TypeScript", exact: true });
+  if (await course.getAttribute("aria-expanded") !== "true") await course.click();
   await page.getByRole("button", { name: "DOJO.md", exact: true }).first().click();
   const guidance = page.getByRole("tab", { name: "DOJO.md", exact: true });
   await expect(guidance).toBeVisible();

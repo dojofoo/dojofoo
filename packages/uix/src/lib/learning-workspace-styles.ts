@@ -91,6 +91,7 @@ export const learningWorkspaceCss = /* css */ `
 .ui-as-chat__evals { position: relative; flex: 1; min-height: 0; overflow-y: auto; }
 /* Its own stacking context, so a stage's ambient glow (z-index -1) sits behind the stage and the details, on the window */
 .ui-as-chat__editor { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; isolation: isolate; }
+.ui-as-chat__editor[hidden] { display: none; }
 /* The stage (editor, slides, video) runs the column's full width right under the toolbar, as part of the UI */
 .ui-as-chat__editor[data-details] { padding: 0; }
 .ui-as-chat__code {
