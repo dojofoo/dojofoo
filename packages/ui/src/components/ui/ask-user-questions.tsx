@@ -20,12 +20,12 @@ import { Field } from "@base-ui/react/field";
 import { cn } from "../../lib/utils";
 import { spring } from "../../lib/springs";
 import { fontWeights } from "../../lib/font-weight";
-import { useShape } from "../../lib/shape-context";
+import { shapeMap, useShape, type ShapeVariant } from "../../lib/shape-context";
 import { SizeProvider, useSize, type SizeVariant } from "../../lib/size-context";
 import { useIcon } from "../../lib/icon-context";
 import { useProximityHover } from "../../hooks/use-proximity-hover";
 import { useMergeSplitBlocks, SelectionBackgrounds } from "../../hooks/use-merge-split";
-import { Button } from "./button";
+import { Button } from "@dojofoo/uix/components/button";
 
 export interface AskUserOption {
   id?: string;
@@ -90,6 +90,8 @@ export interface AskUserAnswer {
 export interface AskUserQuestionsProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   questions: AskUserQuestion[];
+  /** Local presentation override; leaves the surrounding shape preference unchanged. */
+  shape?: ShapeVariant;
   /** Preserve the question exactly as rendered while making its controls inert. */
   disabled?: boolean;
   currentIndex?: number;
@@ -145,6 +147,7 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
       skipLabel = "Skip",
       size,
       className,
+      shape: shapeVariant,
       ...rest
     },
     ref
@@ -195,7 +198,8 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
       [isAnswersControlled, onAnswersChange]
     );
 
-    const shape = useShape();
+    const inheritedShape = useShape();
+    const shape = shapeVariant ? shapeMap[shapeVariant] : inheritedShape;
     const ArrowLeft = useIcon("arrow-left");
     const ArrowRight = useIcon("arrow-right");
 
@@ -1412,7 +1416,7 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
                         className={cn(
                           "block w-full bg-transparent border-0 p-0 m-0 outline-none resize-none overflow-hidden leading-snug text-foreground placeholder:text-muted-foreground",
                           sizeClasses.text,
-                          disabled && "text-blue-600 opacity-100 dark:text-blue-400"
+                          disabled && "text-[var(--brand)] opacity-100"
                         )}
                         style={{ fontVariationSettings: fontWeights.medium }}
                       />
@@ -1492,7 +1496,7 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
                         <Button
                           variant="ghost"
                           size="sm"
-                          leadingIcon={ArrowLeftKey}
+                          icon={<ArrowLeftKey />}
                           onClick={handleBack}
                           // Arrow is desktop-only; restore symmetric padding on
                           // mobile where it's hidden, tighten for the icon on ≥sm.
@@ -1551,7 +1555,7 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
                         <Button
                           variant="ghost"
                           size="sm"
-                          trailingIcon={ArrowRightKey}
+                          iconRight={<ArrowRightKey />}
                           onClick={handleSkip}
                           // Arrow is desktop-only; restore symmetric padding on
                           // mobile where it's hidden, tighten for the icon on ≥sm.
@@ -1807,7 +1811,7 @@ function Row({
             : chipFilled
             ? "text-foreground"
             : "text-muted-foreground",
-          disabled && isSelected && !isMulti && "text-blue-600 dark:text-blue-400",
+          disabled && isSelected && !isMulti && "text-[var(--brand)]",
           // Only fade the chip when it shares a slot with the arrow — for
           // chip-on-left the arrow has its own slot on the right, so the
           // chip stays in place.

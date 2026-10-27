@@ -34,7 +34,7 @@ describe("TanStack AI UIMessage renderer", () => {
     const html = renderToStaticMarkup(<StreamedChatMessage fragments={{}} message={message} onToolAnswer={async () => undefined} workspaceId="fixture" />);
     expect(html).toContain("Where should we focus?");
     expect(html).toContain('data-disabled="true"');
-    expect(html).toContain("text-blue-600");
+    expect(html).toContain("text-[var(--brand)]");
     if (freeText) expect(html).toContain("Explain the prerequisites");
     else {
       expect(html).toContain("Review");
