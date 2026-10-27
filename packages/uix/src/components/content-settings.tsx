@@ -4,9 +4,9 @@ import { MenuButton } from "./app-shell";
 import { Icon } from "./app-shell";
 import { SegmentedControl } from "./segmented-control";
 import { Switch } from "./switch";
-import { Cancel01Icon } from "~/lib/icons";
-import { resetContentPreferences, setContentPreferences, useContentPreferences, type ContentKind } from "~/lib/content-preferences";
-import { editorSizes, setUiPreferences, useUiPreferences } from "~/lib/ui-preferences";
+import { Cancel01Icon } from "../lib/icons";
+import { resetContentPreferences, setContentPreferences, useContentPreferences, type ContentKind } from "../lib/content-preferences";
+import { editorSizes, setUiPreferences, useUiPreferences } from "../lib/ui-preferences";
 
 const labels: Record<ContentKind, string> = { material: "Material", video: "Video", slides: "Slides", code: "Code" };
 const descriptions: Record<ContentKind, string> = {

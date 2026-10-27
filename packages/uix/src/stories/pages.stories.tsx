@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ComponentProps } from "react";
 import { expect, userEvent, within } from "storybook/test";
-import { LearnerPage } from "~/pages/learner";
-import { CourseAuthoringPage } from "~/pages/course-authoring";
+import { LearnerPage } from "../pages/learner";
+import { CourseAuthoringPage } from "../pages/course-authoring";
 
 type PageArgs = ComponentProps<typeof LearnerPage> & { initialCourse: string };
 

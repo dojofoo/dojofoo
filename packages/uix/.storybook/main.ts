@@ -22,6 +22,10 @@ const config: StorybookConfig = {
     ...(web && { cacheDir: "node_modules/.cache/storybook-web" }),
     server: {
       ...viteConfig.server,
+      warmup: {
+        ...viteConfig.server?.warmup,
+        clientFiles: [...(viteConfig.server?.warmup?.clientFiles ?? []), "./src/stories/docs.stories.tsx", "./src/stories/web.stories.tsx"],
+      },
       ...(proxy && { hmr: {
         protocol: proxy.protocol === "https:" ? "wss" : "ws",
         host: proxy.hostname,

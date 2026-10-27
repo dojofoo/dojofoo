@@ -1,4 +1,4 @@
-import type { SoundAsset } from "~/lib/sound-types";
+import type { SoundAsset } from "./sound-types";
 
 export const drop003Sound: SoundAsset = {
   name: "drop-003",

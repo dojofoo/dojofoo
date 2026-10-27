@@ -3,7 +3,7 @@
 // Topography from Planes (@useplanes/topography), as pulled into packages/ui – copied unchanged but for the import and a seed.
 
 import { useEffect, useRef } from "react";
-import { cn } from "~/lib/utils";
+import { cn } from "../lib/utils";
 
 const VERT = /* glsl */ `
   attribute vec2 a_pos;

@@ -1,7 +1,7 @@
-import { paneViewTransition } from "~/lib/view-transition";
-import { ContentSettings } from "~/components/content-settings";
-import type { ContentKind } from "~/lib/content-preferences";
-import { Switch } from "~/components/switch";
+import { paneViewTransition } from "../lib/view-transition";
+import { ContentSettings } from "../components/content-settings";
+import type { ContentKind } from "../lib/content-preferences";
+import { Switch } from "../components/switch";
 /*
  * Agent Chat – a chat with an orchestrating agent and a brief beside it, in a single file.
  * The thread shows the agent's answer and which agents are working; the composer sits at the bottom.
@@ -45,15 +45,15 @@ import {
   File01Icon,
   UploadIcon,
   PlayIcon,
-} from "~/lib/icons";
-import { Button } from "~/components/button";
-import { ChatMessages, Composer, useChatThread, type ChatReply } from "~/containers/assistant-home";
-import { AppShell, Dropdown, Icon, type AppShellProps, type ShellGroup, type ShellNavItem } from "~/components/app-shell";
-import { CommandPalette } from "~/components/command-palette";
-import { SegmentedControl } from "~/components/segmented-control";
-import { Breadcrumbs, type Crumb } from "~/components/breadcrumbs";
-import { editorSchemes, editorSizes, setPageMode, setUiPreferences, uiThemes, useEditorScheme, usePageMode, useUiPreferences } from "~/lib/ui-preferences";
-import type { CommandGroup } from "~/components/command-menu";
+} from "../lib/icons";
+import { Button } from "../components/button";
+import { ChatMessages, Composer, useChatThread, type ChatReply } from "./assistant-home";
+import { AppShell, Dropdown, Icon, type AppShellProps, type ShellGroup, type ShellNavItem } from "../components/app-shell";
+import { CommandPalette } from "../components/command-palette";
+import { SegmentedControl } from "../components/segmented-control";
+import { Breadcrumbs, type Crumb } from "../components/breadcrumbs";
+import { editorSchemes, editorSizes, setPageMode, setUiPreferences, uiThemes, useEditorScheme, usePageMode, useUiPreferences } from "../lib/ui-preferences";
+import type { CommandGroup } from "../components/command-menu";
 
 /** Sample content – replace with your own data */
 const nav: ShellNavItem[] = [

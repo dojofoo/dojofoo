@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode, type CSSProperties } from "react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { Tooltip } from "radix-ui";
-import { spring } from "~/lib/springs";
-import { fadeViewTransition, paneViewTransition } from "~/lib/view-transition";
+import { spring } from "../lib/springs";
+import { fadeViewTransition, paneViewTransition } from "../lib/view-transition";
 import { ResizablePanel, ResizablePanels } from "./arc/resizable-panels/resizable-panels";
 import { Avatar } from "./arc/avatar/avatar";
 import { SegmentedControl } from "./segmented-control";
-import { setPageMode, usePageMode } from "~/lib/ui-preferences";
-import type { IconGlyph } from "~/lib/icons";
+import { setPageMode, usePageMode } from "../lib/ui-preferences";
+import type { IconGlyph } from "../lib/icons";
 import {
   ArrowDown01Icon,
   ArrowRight01Icon,
@@ -32,9 +32,9 @@ import {
   Megaphone01Icon,
   DoneIcon,
   LockedIcon,
-} from "~/lib/icons";
-import { FilterMenu, type FilterGroup, type FilterValue } from "~/components/filter-menu";
-import { SetupGuide, type SetupGroup } from "~/components/setup-guide";
+} from "../lib/icons";
+import { FilterMenu, type FilterGroup, type FilterValue } from "./filter-menu";
+import { SetupGuide, type SetupGroup } from "./setup-guide";
 
 /*
  * App Shell – the frame every affectUI screen sits in, in a single file.

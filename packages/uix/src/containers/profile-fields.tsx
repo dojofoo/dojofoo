@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Icon } from "~/components/app-shell";
-import { Tick02Icon } from "~/lib/icons";
+import { Icon } from "../components/app-shell";
+import { Tick02Icon } from "../lib/icons";
 
 /** Prototype handles already taken on dojo.foo */
 const takenHandles = ["sam", "admin", "dojo", "sensei", "kyoshi", "root"];

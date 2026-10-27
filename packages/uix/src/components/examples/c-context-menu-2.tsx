@@ -5,7 +5,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "~/components/context-menu"
+} from "../context-menu"
 import {
   Copy as CopyIcon,
   Scissors as ScissorsIcon,

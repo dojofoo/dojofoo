@@ -8,7 +8,6 @@ import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import { bundledLanguages } from "shiki/langs";
 import { bundledThemes } from "shiki/themes";
 import { CodeBlock } from "./code-block";
-import prepared from "../../../../apps/web/src/generated/course-api.json";
 
 const createHighlighter = createBundledHighlighter<string, string>({ langs: bundledLanguages, themes: bundledThemes, engine: () => createJavaScriptRegexEngine({ forgiving: true }) });
 const shiki = createShikiFactory({ init: options => createHighlighter({ themes: [], langs: [], langAlias: options?.langAlias }) });
@@ -43,16 +42,11 @@ const NativeAPIPage = createOpenAPIPageBase({
   },
 });
 
-type Prepared = OpenAPIPageProps_Preloaded["preloaded"];
-type PageProps = Omit<OpenAPIPageProps_Preloaded, "preloaded">;
-const snapshot = prepared as unknown as { preloaded: Prepared; pages: Record<string, PageProps> };
-export type APIPageProps = PageProps & { preloaded?: Prepared };
+export type APIPageProps = OpenAPIPageProps_Preloaded;
 
-export function APIPage(props: APIPageProps | { page: string }) {
-  const options = "page" in props ? snapshot.pages[props.page] : props;
-  const preloaded = "page" in props ? snapshot.preloaded : props.preloaded ?? snapshot.preloaded;
-  if (!options) throw new Error("Missing prepared Fumadocs OpenAPI page.");
+export function APIPage(props: APIPageProps) {
+  if (!props.preloaded?.docs[props.document]) throw new Error(`Missing prepared Fumadocs OpenAPI document: ${props.document}.`);
   return <div className="ui-api-reference not-prose">
-    <NativeAPIPage {...options} preloaded={preloaded} />
+    <NativeAPIPage {...props} />
   </div>;
 }

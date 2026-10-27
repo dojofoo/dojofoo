@@ -1,12 +1,12 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { AppShell } from "~/components/app-shell";
-import { Button } from "~/components/button";
-import { ContentSettings } from "~/components/content-settings";
-import { LessonBrief } from "~/components/lesson-brief";
-import { SlideDeck } from "~/components/slide-deck";
-import { CodeEditor, Editor } from "~/containers/editor";
-import { VideoStage } from "~/containers/video-stage";
+import { AppShell } from "../components/app-shell";
+import { Button } from "../components/button";
+import { ContentSettings } from "../components/content-settings";
+import { LessonBrief } from "../components/lesson-brief";
+import { SlideDeck } from "../components/slide-deck";
+import { CodeEditor, Editor } from "../containers/editor";
+import { VideoStage } from "../containers/video-stage";
 
 const meta = {
   title: "Components/Organisms/Content Settings",

@@ -1,4 +1,4 @@
-import type { IconGlyph } from "~/lib/icons";
+import type { IconGlyph } from "../../lib/icons";
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
@@ -13,7 +13,7 @@ import {
   Tick02Icon,
   VolumeHighIcon,
   VolumeMute02Icon,
-} from "~/lib/icons";
+} from "../../lib/icons";
 
 /*
  * The player's icons under the lucide names videocn imports, drawn from uix's icon sets (~/lib/icons), so they follow

@@ -1,5 +1,5 @@
-import { Icon } from "~/components/app-shell";
-import { Tick02Icon, type IconGlyph } from "~/lib/icons";
+import { Icon } from "./app-shell";
+import { Tick02Icon, type IconGlyph } from "../lib/icons";
 
 /*
  * SetupChecklist – the checklist from the affectUI onboarding: a head with the count, a bar, then each step with its

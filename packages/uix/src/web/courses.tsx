@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { EmptyState, Icon, MenuButton } from "~/components/app-shell";
-import { Button } from "~/components/button";
-import { ArrowUpDownIcon, Cancel01Icon, Search01Icon } from "~/lib/icons";
-import { cn } from "~/lib/utils";
-import { catalog, teachingModes, type TeachingMode, type WebCourse } from "./catalog";
+import { EmptyState, Icon, MenuButton } from "../components/app-shell";
+import { Button } from "../components/button";
+import { ArrowUpDownIcon, Cancel01Icon, Search01Icon } from "../lib/icons";
+import { cn } from "../lib/utils";
+import { teachingModes, type TeachingMode, type WebCourse } from "./catalog";
 import { CourseTile } from "./course-tile";
 import { PageHead, SitePage, useSite } from "./site";
 
@@ -23,18 +23,18 @@ const sorts: Array<{ value: Sort; label: string }> = [
   { value: "rating", label: "Top rated" },
 ];
 
-export function CoursesPage({ initialQuery = "" }: { initialQuery?: string }) {
+export function CoursesPage({ courses, initialQuery = "" }: { courses: WebCourse[]; initialQuery?: string }) {
   const links = useSite();
   const [query, setQuery] = useState(initialQuery);
   const [mode, setMode] = useState<TeachingMode | "all">("all");
   const [language, setLanguage] = useState("all");
   const [framework, setFramework] = useState("all");
   const [sort, setSort] = useState<Sort>("popularity");
-  const languages = useMemo(() => [...new Set(catalog.map((course) => course.language))].sort(), []);
-  const frameworks = useMemo(() => [...new Set(catalog.flatMap((course) => (course.framework ? [course.framework] : [])))].sort(), []);
+  const languages = useMemo(() => [...new Set(courses.map((course) => course.language))].sort(), [courses]);
+  const frameworks = useMemo(() => [...new Set(courses.flatMap((course) => (course.framework ? [course.framework] : [])))].sort(), [courses]);
   const results = useMemo(() => {
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return catalog
+    return courses
       .filter((course) => mode === "all" || course.mode === mode)
       .filter((course) => language === "all" || course.language === language)
       .filter((course) => framework === "all" || course.framework === framework)
@@ -46,7 +46,7 @@ export function CoursesPage({ initialQuery = "" }: { initialQuery?: string }) {
         : sort === "trending" ? a.trendingRank - b.trendingRank
         : sort === "rating" ? b.rating - a.rating
         : b.metrics.installs - a.metrics.installs);
-  }, [query, mode, language, framework, sort]);
+  }, [courses, query, mode, language, framework, sort]);
   const filtered = query !== "" || mode !== "all" || language !== "all" || framework !== "all";
   const clear = () => { setQuery(""); setMode("all"); setLanguage("all"); setFramework("all"); };
 

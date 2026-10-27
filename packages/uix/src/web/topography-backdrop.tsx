@@ -1,4 +1,4 @@
-import { Topography } from "~/components/topography";
+import { Topography } from "../components/topography";
 
 /*
  * The landing's ground: the contour map (ColorCard's topography) under the footer, fading up into the page's color and

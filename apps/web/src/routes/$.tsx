@@ -77,7 +77,10 @@ const clientLoader = browserCollections.docs.createClientLoader({
         <DocsTitle>{frontmatter.title}</DocsTitle>
         <DocsDescription>{frontmatter.description}</DocsDescription>
         <DocsBody>
-          <MDX components={useMDXComponents({ OpenAPIPage: props => <OpenAPIPage {...props} preloaded={apiPreloaded} /> })} />
+          <MDX components={useMDXComponents({ OpenAPIPage: (props: Omit<APIPageProps, 'preloaded'>) => {
+            if (!apiPreloaded) throw new Error('Missing server-preloaded OpenAPI document.');
+            return <OpenAPIPage {...props} preloaded={apiPreloaded} />;
+          } })} />
         </DocsBody>
       </DocsPage>
     )

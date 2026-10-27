@@ -9,6 +9,7 @@ import SearchDialog from "@/components/search"
 import { DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from "@/lib/social-metadata"
 import { SITE_URL } from "@/lib/site"
 import { ShapeProvider } from "@dojofoo/ui"
+import { UIXProvider } from "@dojofoo/uix/provider"
 import appCss from "../styles.css?url"
 
 export const Route = createRootRoute({
@@ -42,9 +43,11 @@ function RootLayout() {
           theme={{ defaultTheme: "dark" }}
           search={{ SearchDialog }}
         >
-          <ShapeProvider defaultShape="square">
-            <Outlet />
-          </ShapeProvider>
+          <UIXProvider>
+            <ShapeProvider defaultShape="square">
+              <Outlet />
+            </ShapeProvider>
+          </UIXProvider>
         </RootProvider>
         <Scripts />
       </body>

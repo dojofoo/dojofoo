@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getRenderedMarkdown, renderMarkdown } from "~/lib/markdown";
-import { useEditorScheme } from "~/lib/ui-preferences";
+import { getRenderedMarkdown, renderMarkdown } from "../lib/markdown";
+import { useEditorScheme } from "../lib/ui-preferences";
 
 export function Markdown({ source }: { source: string }) {
   const theme = useEditorScheme().theme.name;

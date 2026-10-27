@@ -1,0 +1,3 @@
+/* Inter includes optical size; Iosevka is shared by editors, code blocks and test output. */
+@import "@fontsource-variable/inter/opsz.css";
+@import "@fontsource/iosevka/400.css";

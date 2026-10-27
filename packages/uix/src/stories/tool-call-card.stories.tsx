@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { ToolCallCard } from "~/components/tool-call-card";
+import { ToolCallCard } from "../components/tool-call-card";
 
 const meta = {
   title: "Components/Organisms/Tool Call Card",

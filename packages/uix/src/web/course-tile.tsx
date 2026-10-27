@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BrandLogo } from "~/components/brand-logo";
-import { CardFigure, CardKicker, CardMark, CardText, CardTitle, ColorCard, ColorCardTag } from "~/components/color-card";
-import { courseColor } from "~/components/course-card";
+import { BrandLogo } from "../components/brand-logo";
+import { CardFigure, CardKicker, CardMark, CardText, CardTitle, ColorCard, ColorCardTag } from "../components/color-card";
+import { courseColor } from "../components/course-card";
 import { compactNumber, teachingModes, type WebCourse } from "./catalog";
 
 /** A course in a grid, as Explore's results draw them: the course's color card, opening its page */

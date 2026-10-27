@@ -1,8 +1,8 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ambient } from "~/components/ambient";
-import { VideoCn } from "~/components/video-player/video-cn";
-import { useContentPreferences } from "~/lib/content-preferences";
+import { Ambient } from "../components/ambient";
+import { VideoCn } from "../components/video-player/video-cn";
+import { useContentPreferences } from "../lib/content-preferences";
 
 /*
  * Video Stage – a lesson video in the 16:9 stage, where the editor otherwise sits, flush to its corners. Files and

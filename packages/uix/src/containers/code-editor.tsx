@@ -1,12 +1,12 @@
-import { useContentPreferences } from "~/lib/content-preferences";
+import { useContentPreferences } from "../lib/content-preferences";
 import { useEffect, useRef, useState } from "react";
 import type * as Monaco from "modern-monaco/editor-core";
-import { editorLineHeight, useEditorScheme, useUiPreferences } from "~/lib/ui-preferences";
-import type { CodeHighlight } from "~/lib/code-highlight";
-import { attachLanguageTools } from "~/lib/monaco-language-tools";
-import { attachDocumentation } from "~/lib/monaco-documentation";
-import { visualizedLines } from "~/lib/editor-lines";
-import { preloadEditor } from "~/lib/preload-editor";
+import { editorLineHeight, useEditorScheme, useUiPreferences } from "../lib/ui-preferences";
+import type { CodeHighlight } from "../lib/code-highlight";
+import { attachLanguageTools } from "../lib/monaco-language-tools";
+import { attachDocumentation } from "../lib/monaco-documentation";
+import { visualizedLines } from "../lib/editor-lines";
+import { preloadEditor } from "../lib/preload-editor";
 export type EditorLanguage = "javascript" | "json" | "markdown" | "python" | "typescript" | "yaml";
 
 export type CodeEditorProps = {

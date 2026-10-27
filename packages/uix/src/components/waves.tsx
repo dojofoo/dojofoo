@@ -1,6 +1,6 @@
 "use client";
 
-import { ShaderCanvas } from "~/components/shader-canvas";
+import { ShaderCanvas } from "./shader-canvas";
 
 /*
  * Waves – lines drawn across a rolling sea, seen from above at an angle: a Shadertoy shader (a choppy sea height map,

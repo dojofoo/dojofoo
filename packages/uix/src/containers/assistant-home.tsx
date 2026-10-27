@@ -5,8 +5,8 @@
  */
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { ThinkingState, type ThinkingStep } from "~/components/thinking-state";
-import type { IconGlyph } from "~/lib/icons";
+import { ThinkingState, type ThinkingStep } from "../components/thinking-state";
+import type { IconGlyph } from "../lib/icons";
 import {
   AiBrain01Icon,
   AiMagicIcon,
@@ -28,9 +28,9 @@ import {
   Table01Icon,
   Telescope01Icon,
   UserAdd01Icon,
-} from "~/lib/icons";
-import { GlassFolder } from "~/components/glass-folder";
-import { AppShell, Dropdown, Icon, defaultProjects, type AppShellProps } from "~/components/app-shell";
+} from "../lib/icons";
+import { GlassFolder } from "../components/glass-folder";
+import { AppShell, Dropdown, Icon, defaultProjects, type AppShellProps } from "../components/app-shell";
 
 type NavItem = { label: string; icon: IconGlyph };
 

@@ -1,16 +1,16 @@
-import { ProfileFields, useHandleCheck } from "~/containers/profile-fields";
-import { Switch } from "~/components/switch";
+import { ProfileFields, useHandleCheck } from "./profile-fields";
+import { Switch } from "../components/switch";
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { AppearanceSettings } from "~/containers/appearance-settings";
-import { Icon } from "~/components/app-shell";
-import { Button } from "~/components/button";
-import { ChatGPTButton, ChatGPTLogo } from "~/components/chatgpt-button";
-import { OpenRouterButton, OpenRouterLogo } from "~/components/openrouter-button";
-import { CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardCheck, type CardShaderKind } from "~/components/color-card";
-import { CodexIcon, CursorIcon, GrokIcon, OpenCodeIcon, PiIcon } from "~/components/harness-icons";
-import { SegmentedControl } from "~/components/segmented-control";
-import { ArrowLeft01Icon, ArrowRight01Icon, ClaudeIcon, DoneIcon, GitHubCopilotIcon, Tick02Icon, type IconGlyph } from "~/lib/icons";
-import { editorSchemes, setPageMode, uiThemes, usePageMode, useUiPreferences } from "~/lib/ui-preferences";
+import { AppearanceSettings } from "./appearance-settings";
+import { Icon } from "../components/app-shell";
+import { Button } from "../components/button";
+import { ChatGPTButton, ChatGPTLogo } from "../components/chatgpt-button";
+import { OpenRouterButton, OpenRouterLogo } from "../components/openrouter-button";
+import { CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardCheck, type CardShaderKind } from "../components/color-card";
+import { CodexIcon, CursorIcon, GrokIcon, OpenCodeIcon, PiIcon } from "../components/harness-icons";
+import { SegmentedControl } from "../components/segmented-control";
+import { ArrowLeft01Icon, ArrowRight01Icon, ClaudeIcon, DoneIcon, GitHubCopilotIcon, Tick02Icon, type IconGlyph } from "../lib/icons";
+import { editorSchemes, setPageMode, uiThemes, usePageMode, useUiPreferences } from "../lib/ui-preferences";
 
 /*
  * AgentSetup – a learner's first run, built from the affectUI onboarding's own parts (its stylesheet, its markup): the

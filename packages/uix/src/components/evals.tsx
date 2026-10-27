@@ -22,13 +22,13 @@ import {
   TestTube01Icon,
   Ticket01Icon,
   UserAdd01Icon,
-} from "~/lib/icons";
-import { Button } from "~/components/button";
-import { KpiChart } from "~/components/kpi-chart";
-import { InlineDiff } from "~/components/inline-diff";
-import { SegmentedControl } from "~/components/segmented-control";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/table";
-import { AppShell, Dropdown, Icon, useToast, type AppShellProps, type ShellGroup, type ShellNavItem } from "~/components/app-shell";
+} from "../lib/icons";
+import { Button } from "./button";
+import { KpiChart } from "./kpi-chart";
+import { InlineDiff } from "./inline-diff";
+import { SegmentedControl } from "./segmented-control";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
+import { AppShell, Dropdown, Icon, useToast, type AppShellProps, type ShellGroup, type ShellNavItem } from "./app-shell";
 
 /** Sample content – replace with your own data */
 const nav: ShellNavItem[] = [

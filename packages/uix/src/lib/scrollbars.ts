@@ -6,6 +6,7 @@ const LINGER_MS = 600;
 const TRACK = 10;
 const timers = new WeakMap<Element, number>();
 let pointed: Element | undefined;
+let consumers = 0;
 
 function onScroll(event: Event) {
   const target = event.target === document ? document.documentElement : event.target;
@@ -48,12 +49,25 @@ function point(el: Element | undefined) {
   pointed = el;
 }
 
-/** Once per page; calling it again changes nothing. Scroll events don't bubble, so it listens while they're captured */
+/** Shared by mounted providers. Scroll events don't bubble, so listen while they're captured. */
 export function revealScrollbars() {
-  if (typeof document === "undefined") return;
-  document.addEventListener("scroll", onScroll, { capture: true, passive: true });
-  document.addEventListener("pointermove", onPointerMove, { passive: true });
-  document.addEventListener("pointerout", onPointerOut, { passive: true });
+  if (typeof document === "undefined") return () => {};
+  const owner = document;
+  if (consumers++ === 0) {
+    owner.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    owner.addEventListener("pointermove", onPointerMove, { passive: true });
+    owner.addEventListener("pointerout", onPointerOut, { passive: true });
+  }
+  let active = true;
+  return () => {
+    if (!active) return;
+    active = false;
+    if (--consumers !== 0) return;
+    owner.removeEventListener("scroll", onScroll, true);
+    owner.removeEventListener("pointermove", onPointerMove);
+    owner.removeEventListener("pointerout", onPointerOut);
+    point(undefined);
+  };
 }
 
 function onPointerMove(event: PointerEvent) {

@@ -1,8 +1,8 @@
 import { DataTable, type DataColumn } from "./data-table-clean";
 import { Icon } from "./app-shell";
 import { Markdown } from "./markdown";
-import { Cancel01Icon, DoneIcon } from "~/lib/icons";
-import { usePageMode } from "~/lib/ui-preferences";
+import { Cancel01Icon, DoneIcon } from "../lib/icons";
+import { usePageMode } from "../lib/ui-preferences";
 
 export type EditorTestResult = {
   name: string;

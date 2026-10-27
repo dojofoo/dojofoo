@@ -9,8 +9,8 @@ import {
   useState,
 } from "react";
 import { AnimatePresence, motion, useInView } from "motion/react";
-import { useReducedMotion } from "~/hooks/use-reduced-motion";
-import { cn } from "~/lib/utils";
+import { useReducedMotion } from "../hooks/use-reduced-motion";
+import { cn } from "../lib/utils";
 
 export type Testimonial = {
   quote: string;

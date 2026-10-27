@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, type ReactNode } from "react";
 import { expect, userEvent, within } from "storybook/test";
-import { SegmentedControl } from "~/components/segmented-control";
+import { SegmentedControl } from "../components/segmented-control";
 
 /*
  * Segmented control – every variant the app uses, on the surfaces it sits on, and squeezed: the sizes (default 36px,

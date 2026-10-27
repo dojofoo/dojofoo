@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useRef, useState } from "react";
-import { Button } from "~/components/button";
-import { EditorTestResults, type EditorTestResult } from "~/components/editor-test-results";
-import { CodeEditor, Editor, EditorStatus, EditorTabs, type EditorLanguage } from "~/containers/editor";
+import { Button } from "../components/button";
+import { EditorTestResults, type EditorTestResult } from "../components/editor-test-results";
+import { CodeEditor, Editor, EditorStatus, EditorTabs, type EditorLanguage } from "../containers/editor";
 
 const source = `/**
  * Keep positive readings without changing the input.

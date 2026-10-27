@@ -16,7 +16,7 @@ import {
 import { CheckIcon } from "./player-icons";
 
 import { Button } from "./player-button";
-import { cn } from "~/lib/utils";
+import { cn } from "../../lib/utils";
 
 import { useHoldControlsVisible } from "./controls-context";
 

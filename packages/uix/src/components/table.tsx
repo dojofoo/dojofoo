@@ -9,11 +9,11 @@ import {
   type TdHTMLAttributes,
   type ThHTMLAttributes,
 } from "react";
-import { cn } from "~/lib/utils";
-import { fontWeights } from "~/lib/font-weight";
-import { SizeProvider, useSize, type SizeVariant } from "~/lib/size-context";
-import { useFluidHover, useRegisterFluidHoverItem } from "~/hooks/use-fluid-hover";
-import { FluidHoverHighlight } from "~/components/fluid-hover-highlight";
+import { cn } from "../lib/utils";
+import { fontWeights } from "../lib/font-weight";
+import { SizeProvider, useSize, type SizeVariant } from "../lib/size-context";
+import { useFluidHover, useRegisterFluidHoverItem } from "../hooks/use-fluid-hover";
+import { FluidHoverHighlight } from "./fluid-hover-highlight";
 
 // ---------------------------------------------------------------------------
 // Table is a plain HTML table with one fluid hover highlight drawn behind all

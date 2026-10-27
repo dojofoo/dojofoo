@@ -1,6 +1,6 @@
 "use client";
 
-import { ShaderCanvas } from "~/components/shader-canvas";
+import { ShaderCanvas } from "./shader-canvas";
 
 /*
  * Network – points drifting in a grid, each joined by lines to its neighbors: a Shadertoy shader (points and lines in

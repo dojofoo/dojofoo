@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import stylesUrl from "../app.css?url";
 import { ShapeProvider } from "@dojofoo/ui";
+import { UIXProvider } from "@dojofoo/uix/provider";
 import type { ReactNode } from "react";
 
 const themeScript = `document.documentElement.classList.add("dark")`;
@@ -43,9 +44,11 @@ function RootDocument({ children }: { children: ReactNode }) {
         suppressHydrationWarning
         className="m-0 min-h-screen bg-background font-sans text-foreground antialiased"
       >
-        <ShapeProvider defaultShape="square">
-          {children}
-        </ShapeProvider>
+        <UIXProvider>
+          <ShapeProvider defaultShape="square">
+            {children}
+          </ShapeProvider>
+        </UIXProvider>
         <Scripts />
       </body>
     </html>

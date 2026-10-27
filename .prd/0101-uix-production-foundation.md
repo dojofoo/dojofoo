@@ -1,7 +1,7 @@
 # 0101: Restore release health and establish the migration baseline
 
 Parent: [UIX production adoption](0100-uix-adoption.md).
-Status: local gates passed; hosted CI and main-release verification pending. Branch `feat/0101-uix-production-foundation`, worktree `.worktree/uix-0101`.
+Status: done; merged in PRs 182, 183 and 185; hosted Verify and main Release passed. Completed worktrees removed.
 
 ## Outcome
 
@@ -89,3 +89,8 @@ Packed dojo UI responded with HTTP 200.
 ```
 
 These are local results from the isolated checkout. Attach the PR/check URLs and main release/staging evidence before marking this slice done.
+
+
+Hosted follow-through: [PR 182](https://github.com/dojofoo/dojofoo/pull/182) restored the baseline. [PR 183](https://github.com/dojofoo/dojofoo/pull/183) retained bundled private packages in Changesets' version graph and fetched the comparison history. [PR 185](https://github.com/dojofoo/dojofoo/pull/185) limited registry verification to actual publication. The final [main Release run](https://github.com/dojofoo/dojofoo/actions/runs/40420797349) succeeded. Release PR 184 remains separate; no version release was merged for this prerequisite.
+
+The PR deployment's native API reference and exported ten-operation document were verified through authenticated Vercel requests. Deployment review also exposed automatic production-domain promotion on main. Slice 0102 records its reversible correction and the remaining version-tag promotion work; a successful main build alone is not production release acceptance.

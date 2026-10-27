@@ -1,14 +1,13 @@
-import { fadeViewTransition } from "~/lib/view-transition";
-import { renderMarkdown } from "~/lib/markdown";
-import { useEditorScheme, usePageMode } from "~/lib/ui-preferences";
+import { fadeViewTransition } from "../lib/view-transition";
+import { renderMarkdown } from "../lib/markdown";
+import { useEditorScheme, usePageMode } from "../lib/ui-preferences";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import { Icon, MenuList, Popover, type MenuItem } from "~/components/app-shell";
-import { Markdown } from "~/components/markdown";
-import { APIPage } from "~/components/api-reference";
-import { codeCss } from "~/components/code-block";
-import { ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ChatAiIcon, Copy01Icon, File01Icon, LeftToRightListBulletIcon, PencilEdit02Icon, SparklesIcon, Tick02Icon } from "~/lib/icons";
-import { SitePage, useSite } from "~/web/site";
-import { allPages, docsSections, findPage, headingsOf, slug, type DocPage } from "./content";
+import { Icon, MenuList, Popover, type MenuItem } from "../components/app-shell";
+import { Markdown } from "../components/markdown";
+import { codeCss } from "../components/code-block";
+import { ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ChatAiIcon, Copy01Icon, File01Icon, LeftToRightListBulletIcon, PencilEdit02Icon, SparklesIcon, Tick02Icon } from "../lib/icons";
+import { SitePage, useSite } from "../web/site";
+import { headingsOf, slug, type DocPage, type DocsContent } from "./content";
 
 /*
  * The docs as the site lays them out (Fumadocs' notebook layout, apps/web/src/components/layout/notebook), in UIX's
@@ -21,10 +20,15 @@ import { allPages, docsSections, findPage, headingsOf, slug, type DocPage } from
 const SITE = "https://dojo.foo";
 const REPO = "https://github.com/dojofoo/dojofoo";
 
-export function DocsSite({ path = "/docs" }: {
+export function DocsSite({ path = "/docs", content, renderApiPage, renderPage }: {
   /** The page open at first, by its site path, e.g. "/docs/quickstart" or "/docs/quickstart#usage" */
   path?: string;
+  content: DocsContent;
+  renderApiPage: (page: string) => ReactNode;
+  /** Production supplies compiled MDX; stories can use the Markdown projection. */
+  renderPage?: (page: DocPage) => ReactNode;
 }) {
+  const { allPages, sections: docsSections, findPage } = content;
   const links = useSite();
   const [current, setCurrent] = useState(path);
   const request = useRef(0);
@@ -109,7 +113,8 @@ export function DocsSite({ path = "/docs" }: {
         <article className="ui-docs">
           <h1 ref={title} tabIndex={-1} className="ui-docs__title">{page.title}</h1>
           {page.description && <p className="ui-docs__lead">{page.description}</p>}
-          {page.apiPage ? <APIPage key={page.path} page={page.apiPage} /> : <Prose body={page.body} boxed={boxed} onLink={open} />}
+          {renderPage ? <Fragment key={page.path}>{renderPage(page)}</Fragment>
+            : page.apiPage ? <Fragment key={page.path}>{renderApiPage(page.apiPage)}</Fragment> : <Prose body={page.body} boxed={boxed} onLink={open} />}
           <nav className="ui-docs__pager" aria-label="More pages">
             {previous ? <a href={previous.path} onClick={(event) => { event.preventDefault(); open(previous.path); }}><span><Icon icon={ArrowLeft01Icon} size={13} />Previous</span>{previous.title}</a> : <span />}
             {next && <a href={next.path} className="ui-docs__next" onClick={(event) => { event.preventDefault(); open(next.path); }}><span>Next<Icon icon={ArrowRight01Icon} size={13} /></span>{next.title}</a>}

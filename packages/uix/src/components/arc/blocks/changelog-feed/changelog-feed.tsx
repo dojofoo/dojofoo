@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FocusEvent, type FormEvent, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useAnimate, useReducedMotion, type Transition, type Variants } from "motion/react";
 import { ArrowRight, Bell, ChevronDown } from "@mynaui/icons-react";
-import { Button } from "~/components/button";
-import { SegmentedControl } from "~/components/segmented-control";
+import { Button } from "../../../button";
+import { SegmentedControl } from "../../../segmented-control";
 import { CopyButton } from "../../copy-button/copy-button";
 import { motionTokens } from "../../lib/motion-tokens";
 import { photo } from "../../lib/media";

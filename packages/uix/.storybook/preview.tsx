@@ -1,18 +1,9 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
-import { themeViewTransition } from "../src/lib/view-transition";
 import type { Preview } from "@storybook/react-vite";
-// Inter with its optical-size axis as well as weight, so a label keeps its width when it turns semibold
-import "@fontsource-variable/inter/opsz.css";
-// The shared editor font, loaded once for page and component previews.
-import "@fontsource/iosevka/400.css";
+import "../src/fonts.css";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/noto-sans";
 import "../src/styles.css";
-import { IconSetContext, type IconSet } from "../src/lib/icons";
-import { MotionConfig } from "motion/react";
-import { revealScrollbars } from "../src/lib/scrollbars";
-
-revealScrollbars();
+import { UIXProvider, type UIXProviderProps } from "../src/provider";
 
 const preview: Preview = {
   globalTypes: {
@@ -51,8 +42,6 @@ const preview: Preview = {
   },
   decorators: [
     (Story, context) => {
-      document.documentElement.dataset.uiFont = context.globals.font ?? "common";
-
       document.documentElement.lang = "en";
       document.documentElement.classList.add("h-full");
       document.documentElement.style.fontSize = "16px";
@@ -68,22 +57,9 @@ const preview: Preview = {
       document.body.classList.toggle("overflow-hidden", context.parameters.layout === "fullscreen");
       document.body.classList.toggle("overflow-auto", context.parameters.layout !== "fullscreen");
       // Reduced motion is fewer and gentler, not none: transforms drop, opacity and colour fades stay
-      return <MotionConfig reducedMotion="user"><IconSetContext.Provider value={(context.globals.icons as IconSet) ?? "mingcute"}><PreviewTheme theme={context.globals.theme} storyId={context.id}><Story /></PreviewTheme></IconSetContext.Provider></MotionConfig>;
+      return <UIXProvider key={context.id} mode={context.globals.theme as UIXProviderProps["mode"]} icons={context.globals.icons as UIXProviderProps["icons"]} font={context.globals.font as UIXProviderProps["font"]}><Story /></UIXProvider>;
     },
   ],
 };
 
 export default preview;
-
-function PreviewTheme({ theme, storyId, children }: { theme: string; storyId: string; children: ReactNode }) {
-  const initialized = useRef(false);
-  useLayoutEffect(() => {
-    const apply = () => {
-      document.documentElement.classList.toggle("dark", theme === "dark");
-      document.documentElement.style.colorScheme = theme === "dark" ? "dark" : "light";
-    };
-    if (!initialized.current) { initialized.current = true; apply(); }
-    else if (document.documentElement.classList.contains("dark") !== (theme === "dark")) themeViewTransition(apply);
-  }, [theme, storyId]);
-  return children;
-}

@@ -29,14 +29,14 @@ import {
   Settings01Icon,
   Tick02Icon,
   UserAdd01Icon,
-} from "~/lib/icons";
-import { Button } from "~/components/button";
-import { SegmentedControl } from "~/components/segmented-control";
-import { UsageMeter, type UsageDay } from "~/components/usage-meter";
-import { AvatarUpload } from "~/components/arc/avatar-upload/avatar-upload";
-import { ProfileFields, useHandleCheck } from "~/containers/profile-fields";
-import { AppearanceSettings } from "~/containers/appearance-settings";
-import { fadeViewTransition } from "~/lib/view-transition";
+} from "../lib/icons";
+import { Button } from "./button";
+import { SegmentedControl } from "./segmented-control";
+import { UsageMeter, type UsageDay } from "./usage-meter";
+import { AvatarUpload } from "./arc/avatar-upload/avatar-upload";
+import { ProfileFields, useHandleCheck } from "../containers/profile-fields";
+import { AppearanceSettings } from "../containers/appearance-settings";
+import { fadeViewTransition } from "../lib/view-transition";
 import {
   AppShell,
   Dropdown,
@@ -49,7 +49,7 @@ import {
   useToast,
   type AppShellProps,
   type ShellNavItem,
-} from "~/components/app-shell";
+} from "./app-shell";
 
 /* ---------- Sample content – replace with your own data ---------- */
 

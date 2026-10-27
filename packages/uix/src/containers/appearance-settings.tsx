@@ -1,8 +1,8 @@
-import { Switch } from "~/components/switch";
+import { Switch } from "../components/switch";
 import { useState } from "react";
-import { ColorSchemeChoices } from "~/containers/agent-chat";
-import { CodeEditor, Editor, EditorTabs } from "~/containers/editor";
-import { setPageMode, setUiPreferences, uiThemes, usePageMode, useUiPreferences } from "~/lib/ui-preferences";
+import { ColorSchemeChoices } from "./agent-chat";
+import { CodeEditor, Editor, EditorTabs } from "./editor";
+import { setPageMode, setUiPreferences, uiThemes, usePageMode, useUiPreferences } from "../lib/ui-preferences";
 
 const files = {
   "merge.ts": `type Settings = { theme: string; fontSize?: number };

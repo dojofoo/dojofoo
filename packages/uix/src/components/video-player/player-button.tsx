@@ -1,5 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes } from "react";
-import { cn } from "~/lib/utils";
+import { cn } from "../../lib/utils";
 
 /*
  * The player's buttons: shadcn's current Button, the one videocn depends on (`@shadcn/button`), classes as rendered on

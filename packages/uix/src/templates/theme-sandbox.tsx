@@ -1,13 +1,13 @@
 import { createContext, useContext, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
-import { AppShell, type ShellSection } from "~/components/app-shell";
-import { Breadcrumbs } from "~/components/breadcrumbs";
-import { Switch } from "~/components/switch";
-import { Button } from "~/components/button";
-import { CodeEditor, Editor, EditorStatus, EditorTabs } from "~/containers/editor";
-import { SegmentedControl } from "~/components/segmented-control";
-import { editorSchemes, setUiPreferences, uiThemes, useEditorScheme, useUiPreferences } from "~/lib/ui-preferences";
-import { CheckListIcon, File01Icon, PencilEdit02Icon, PlayIcon, PlusSignIcon } from "~/lib/icons";
-import { BrandLogo } from "~/components/brand-logo";
+import { AppShell, type ShellSection } from "../components/app-shell";
+import { Breadcrumbs } from "../components/breadcrumbs";
+import { Switch } from "../components/switch";
+import { Button } from "../components/button";
+import { CodeEditor, Editor, EditorStatus, EditorTabs } from "../containers/editor";
+import { SegmentedControl } from "../components/segmented-control";
+import { editorSchemes, setUiPreferences, uiThemes, useEditorScheme, useUiPreferences } from "../lib/ui-preferences";
+import { CheckListIcon, File01Icon, PencilEdit02Icon, PlayIcon, PlusSignIcon } from "../lib/icons";
+import { BrandLogo } from "../components/brand-logo";
 
 /*
  * Theme sandbox – a theme's foundations at a glance, light and dark side by side (a .light and a .dark island, so the

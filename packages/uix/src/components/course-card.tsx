@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
-import { CardDetails, CardFigure, CardKicker, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardTag, type CardShaderKind } from "~/components/color-card";
-import { CertificateSeal } from "~/components/certificate-seal";
-import { cn } from "~/lib/utils";
+import { CardDetails, CardFigure, CardKicker, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardTag, type CardShaderKind } from "./color-card";
+import { CertificateSeal } from "./certificate-seal";
+import { cn } from "../lib/utils";
 
 /*
  * Courses and certificates, as compositions of ColorCard. CourseArt draws a course's artwork – a gradient in its hue
