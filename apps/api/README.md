@@ -9,5 +9,13 @@ pages; the API test suite also checks that its live spec matches the generated f
 
 The website uses `fumadocs-openapi` to generate operation MDX and prepare the Elysia
 document. UIX Storybook consumes that same prepared document and native Fumadocs
-renderer, including its playground, schema controls, and generated examples.
+renderer and generated examples. The current design disables the playground,
+TypeScript definitions, and response-schema panel.
 Examples sit beside the endpoint on wide screens and below it on smaller screens.
+
+Response object schemas declare `additionalProperties: false` explicitly, matching
+Elysia's runtime validator default. Lazy compilation otherwise adds this metadata
+after endpoints are first used, causing the live document to drift from the
+build-time snapshot. The cold-versus-used regression check covers all documented
+GET routes and the event route. Generation still calls the in-process handler
+without a listening server or a database request.

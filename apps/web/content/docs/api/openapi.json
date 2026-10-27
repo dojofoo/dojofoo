@@ -40,6 +40,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "status"
@@ -70,6 +71,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data"
@@ -168,6 +170,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data"
@@ -307,6 +310,7 @@
                             ]
                           },
                           "metrics": {
+                            "additionalProperties": false,
                             "type": "object",
                             "required": [
                               "installs",
@@ -574,6 +578,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data",
@@ -739,6 +744,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -808,6 +814,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data",
@@ -930,6 +937,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -964,6 +972,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "data",
@@ -1167,6 +1176,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "installs",
@@ -1365,6 +1375,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -1423,6 +1434,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "id",
@@ -1587,6 +1599,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -1645,6 +1658,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "id",
@@ -1715,6 +1729,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
@@ -1820,6 +1835,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "accepted",
@@ -1842,6 +1858,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": false,
                   "type": "object",
                   "required": [
                     "error",
