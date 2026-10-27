@@ -16,6 +16,7 @@ import { controlRoutes } from "./control/routes";
 import { interactiveRoutes } from "./interactive/routes";
 import { authoringRoutes } from "./authoring";
 import { teachingRoutes } from "./teaching-routes";
+import { requestOrigin } from "./request-origin";
 
 /**
  * Construct the Hono app that owns all A2A routes.
@@ -52,7 +53,7 @@ function buildApp() {
   // cassettes, so never reflect arbitrary web origins.
   app.use("*", async (c, next) => {
     const origin = c.req.header("Origin");
-    const selfOrigin = new URL(c.req.url).origin;
+    const selfOrigin = requestOrigin(c.req.raw);
     const allowOrigin = origin === selfOrigin ? origin : null;
 
     if (c.req.method === "OPTIONS") {
