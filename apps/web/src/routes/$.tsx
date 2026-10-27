@@ -110,11 +110,7 @@ function Page() {
         <Link to={markdownUrl} hidden />
         <Suspense>{clientLoader.useContent(path, { markdownUrl, path, apiPreloaded })}</Suspense>
       </DocsLayout>
-      <div className="marketplace-lined-frame mx-auto w-full max-w-(--fd-layout-width) px-4 sm:px-5">
-        <div className="marketplace-lined-surface">
-          <SiteFooter />
-        </div>
-      </div>
+      <SiteFooter />
     </>
   )
 }

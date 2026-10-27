@@ -1,7 +1,7 @@
 import type { CourseAudit, WebCourse } from "../../web/catalog";
 
 /** Deterministic preview data; never a production marketplace source. */
-type Seed = Omit<WebCourse, "slug" | "source" | "repositoryUrl" | "installUrl" | "metrics" | "kataCount" | "stars" | "firstSeen" | "audits"> & { installs: number; finishRate: number; stars: number; firstSeen: string; risk?: "low" | "medium" };
+type Seed = Omit<WebCourse, "slug" | "source" | "repositoryUrl" | "installUrl" | "metrics" | "kataCount" | "stars" | "firstSeen" | "audits"> & { chapters: string[]; installs: number; finishRate: number; stars: number; firstSeen: string; risk?: "low" | "medium" };
 
 const seeds: Seed[] = [
   { id: "effect-ts", stars: 1840, firstSeen: "2026-03-02", shader: "opal", name: "Effect-TS", description: "Master Effect-TS through hands-on katas, from Effect.succeed to managed runtimes.", version: "1.3.0", publishedAt: "2026-09-18", repository: "dojofoo/effect-ts", author: "Dojo.foo", language: "TypeScript", framework: "Effect", tags: ["effect", "functional", "concurrency"], mode: "katas", trendingRank: 1, rating: 4.9, hours: 14, art: { hue: 270, glyph: "FX" }, installs: 4820, finishRate: 0.31,

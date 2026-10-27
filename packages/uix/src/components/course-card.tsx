@@ -35,10 +35,10 @@ export type CourseInfo = {
   version: string;
   updated: string;
   language: string;
-  chapters: number;
+  chapters?: number;
   lessons: number;
   /** Time to complete, in hours */
-  hours: number;
+  hours?: number;
   art: CourseArtwork;
 };
 
@@ -88,7 +88,7 @@ export function CourseCard({ course, mark, enrolled, badge, className, showVersi
       main={<>{enrolled ? <CardKicker>{course.author}</CardKicker> : <CardKicker code>{course.repo}</CardKicker>}<CardTitle>{course.title}</CardTitle></>}
       footer={enrolled ? <><CardText label={enrolled.label} value={enrolled.value} /><CardFigure>{enrolled.progress}%</CardFigure></> : <CardText label="Updated" value={course.updated} />}
       progress={enrolled?.progress}>
-      <CardDetails items={[["Version", enrolled?.version ?? course.version], ["Language", course.language], ["Chapters", course.chapters], ["Lessons", course.lessons], ["Time to complete", `~${course.hours}\u00a0h`]]} />
+      <CardDetails items={[["Version", enrolled?.version ?? course.version], ["Language", course.language], ...(course.chapters === undefined ? [] : [["Chapters", course.chapters] as [string, number]]), ["Lessons", course.lessons], ...(course.hours === undefined ? [] : [["Time to complete", `~${course.hours}\u00a0h`] as [string, string]])]} />
     </ColorCard>
   </>);
 }

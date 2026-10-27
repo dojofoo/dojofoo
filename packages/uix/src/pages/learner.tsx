@@ -18,9 +18,8 @@ import { LessonBrief } from "../components/lesson-brief";
 import type { SetupGroup } from "../components/setup-guide";
 import { TestimonialHighlight, type Testimonial } from "../components/testimonial-highlight";
 import { VideoStage } from "../containers/video-stage";
-import { BackIcon, BookOpen01Icon, CertificateIcon, ClaudeIcon, CommentsIcon, CoursesIcon, DoneIcon, ExploreIcon, LearnersIcon, LikesIcon, PlusSignIcon } from "../lib/icons";
+import { BackIcon, BookOpen01Icon, CertificateIcon, CommentsIcon, CoursesIcon, DoneIcon, ExploreIcon, LearnersIcon, LikesIcon, PlusSignIcon } from "../lib/icons";
 import { BrandLogo } from "../components/brand-logo";
-import samAltmanPhoto from "../assets/sam-altman.jpg?url";
 
 /*
  * The learner's journey, to explore how the sidebar changes along it:
@@ -248,44 +247,9 @@ const kataFiles = (item: Lesson) => ({
   "kata.test.ts": `import { expect, it } from "vitest";\nimport { ${item.fn} } from "./kata";\n\nit("handles the simplest case", () => {\n  expect(${item.fn}([])).toBeUndefined();\n});\n`,
 });
 
-/** Landing-only sample, following https://sebastianraschka.com/llms-from-scratch/. */
-export function LearningPreview() {
-  const item = course({
-    id: "llm", title: "Build your own LLM", author: "Sebastian Raschka", repo: "rasbt/LLMs-from-scratch",
-    version: "v1.0.0", updated: "", language: "Python", hours: 12, rating: 4.9, learners: "",
-    art: { hue: 350, glyph: "LLM" }, shader: "topography", blurb: "Build a language model one small step at a time.",
-    chapterList: [
-      { id: "basics", title: "How LLMs work", state: "done", blurb: "Learn how predicting the next token creates text.", lessons: [lesson("next", "Predict the next token", "done", "predict", "Follow a tiny next-token prediction.")] },
-      { id: "tokens", title: "Text & tokens", state: "active", blurb: "Turn text into numbers a model can learn from.", lessons: [
-        lesson("split", "Split some text", "done", "split", "Break a sentence into a small list of words."),
-        lesson("encode", "Give words an ID", "active", "encode", "Turn each word into a number. The same word always gets the same ID.", "Complete encode(text, vocab) with the supplied vocabulary. Try “the cat the” and check that it becomes [0, 1, 0]."),
-        lesson("windows", "Make training pairs", "locked", "pairs", "Slide a small window across tokens to make inputs and targets."),
-        lesson("embed", "Look up embeddings", "locked", "embed", "Give each token a small vector of numbers."),
-      ] },
-      { id: "attention", title: "Paying attention", state: "locked", blurb: "Let tokens gather useful context from one another.", lessons: [lesson("scores", "Score two tokens", "locked", "score", "Use a dot product to measure a connection."), lesson("mask", "Hide future tokens", "locked", "mask", "Keep the next word a surprise with a causal mask.")] },
-      { id: "gpt", title: "Build a tiny GPT", state: "locked", blurb: "Connect attention and feed-forward layers into a model.", lessons: [lesson("block", "A transformer block", "locked", "block", "Trace a small batch through one transformer block.")] },
-      { id: "training", title: "Train & generate", state: "locked", blurb: "Measure a prediction, improve it, and generate a sentence.", lessons: [lesson("loss", "Measure the loss", "locked", "loss", "Compare predicted tokens with the next tokens."), lesson("generate", "One token at a time", "locked", "generate", "Extend a prompt with the model’s next prediction.")] },
-      { id: "classification", title: "Fine-tune a classifier", state: "locked", blurb: "Adapt a pretrained model to recognize a label.", lessons: [lesson("classify", "Spot a spam message", "locked", "classify", "Turn a model’s output into a simple class prediction.")] },
-      { id: "instructions", title: "Follow instructions", state: "locked", blurb: "Prepare examples that teach a model how to respond.", lessons: [lesson("format", "Format a conversation", "locked", "format", "Arrange an instruction and its answer into a training example.")] },
-    ],
-  });
-  return <CourseWorkspace preview item={item} initialView="kata" settings={false} slideSource="/slides/index.html?embedded=true" onClose={() => {}}
-    shell={{ workspace: "Dojo", user: { name: "Sam Altman", avatar: samAltmanPhoto }, sidebarWidth: "18rem", showNews: false, setup: [], showUser: true }} />;
-}
+export { LearningPreview } from "../web/learning-preview";
 
-const previewCode = `vocab = {"the": 0, "cat": 1, "sat": 2}
-
-def encode(text, vocab):
-    """Turn words into their vocabulary IDs."""
-    tokens = text.split()
-    # Look up each token in vocab.
-    return []
-
-# Try: encode("the cat the", vocab)
-# Expected: [0, 1, 0]
-`;
-
-function CourseWorkspace({ shell, item, onClose, initialView, slideSource, documentationUrl, settings, preview = false }: { settings: boolean; shell: Partial<AppShellProps>; item: Course; onClose: () => void; initialView: "intro" | "kata" | "slides"; slideSource: string; documentationUrl?: string; preview?: boolean }) {
+function CourseWorkspace({ shell, item, onClose, initialView, slideSource, documentationUrl, settings }: { settings: boolean; shell: Partial<AppShellProps>; item: Course; onClose: () => void; initialView: "intro" | "kata" | "slides"; slideSource: string; documentationUrl?: string }) {
   useEffect(() => { if (initialView !== "slides") prepareEditor(); }, [initialView]);
   const [chapterId, setChapterId] = useState(currentChapter(item).id);
   const chapter = item.chapterList.find((x) => x.id === chapterId)!;
@@ -307,7 +271,7 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource, docum
     {
       id: "chapters", heading: "Chapters", layout: "chapters",
       // Inset to the logo's and the rows' text line on the left, the same on the right
-      before: <div className="lj-course"><CourseCard course={item} mark={markOf(item)} badge={preview ? "Kata" : undefined} enrolled={{ version, latest: item.latest, updating, onUpdate: update, progress: progressOf(item), label: at && `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}`, value: at && currentLesson(at)?.title }} /></div>,
+      before: <div className="lj-course"><CourseCard course={item} mark={markOf(item)} enrolled={{ version, latest: item.latest, updating, onUpdate: update, progress: progressOf(item), label: at && `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}`, value: at && currentLesson(at)?.title }} /></div>,
       items: item.chapterList.map((x, index): ShellEntry => ({ id: `chapter:${x.id}`, label: x.title, marker: pad(index + 1), state: x.state, note: lockNote(item.chapterList, index, "chapter") })),
     },
     {
@@ -315,8 +279,8 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource, docum
       items: chapter.lessons.map((x, index): ShellEntry => ({ id: `lesson:${x.id}`, label: x.title, marker: pad(index + 1), state: x.state, note: lockNote(chapter.lessons, index, "lesson") })),
     },
   ];
-  const path = open ? `src/${chapter.id}/${open.id}/${preview ? "kata.py" : file}` : "";
-  const code = open ? drafts[path] ?? (preview ? previewCode : kataFiles(open)[file]) : "";
+  const path = open ? `src/${chapter.id}/${open.id}/${file}` : "";
+  const code = open ? drafts[path] ?? kataFiles(open)[file] : "";
 
   return (
     <AgentChatWorkspace {...shell} defaultSettingsOpen={settings} contentKind={initialView === "slides" ? "slides" : open ? "code" : "video"} navigation={navigation} navigationKey={item.id}
@@ -334,11 +298,11 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource, docum
       editor={initialView === "slides" ? <SlideDeck src={slideSource} title={`${chapter.title} · Slidev`} /> : open ? (
         <Editor flush
           tabs={<EditorTabs mode="learning" label="Lesson files" active={resultsOpen ? "results" : file}
-            tabs={[...(preview ? ["kata.ts"] as const : ["kata.ts", "kata.test.ts"] as const).map((name) => ({ path: name, label: preview ? "kata.py" : name, dirty: drafts[`src/${chapter.id}/${open.id}/${name}`] !== undefined })), { path: "results", label: "Test results" }]}
+            tabs={[...(["kata.ts", "kata.test.ts"] as const).map((name) => ({ path: name, label: name, dirty: drafts[`src/${chapter.id}/${open.id}/${name}`] !== undefined })), { path: "results", label: "Test results" }]}
             onSelect={(name) => { setResultsOpen(name === "results"); if (name !== "results") setFile(name as typeof file); }} />}
           status={!resultsOpen ? <EditorStatus passed={open.state === "done" ? 3 : 1} total={3} /> : undefined}>
           <div hidden={resultsOpen} className="h-full">
-            <CodeEditor code={code} filePath={path} language={preview ? "python" : "typescript"} lessonApiBase="" documentationUrl={documentationUrl} readOnly={file !== "kata.ts"} coverage={false} onChange={(next) => setDrafts((all) => ({ ...all, [path]: next }))} />
+            <CodeEditor code={code} filePath={path} language="typescript" lessonApiBase="" documentationUrl={documentationUrl} readOnly={file !== "kata.ts"} coverage={false} onChange={(next) => setDrafts((all) => ({ ...all, [path]: next }))} />
           </div>
           {resultsOpen && <EditorTestResults tests={[
             { suite: open.title, name: "handles the simplest case", status: "passed", durationMs: 1 },
@@ -360,16 +324,9 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource, docum
         </LessonBrief>
       )}
       header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
-      composer={<Composer tray={false} placeholder="Ask your Sensei…" busy={chat.busy} onSend={chat.send}
-        agent={preview ? { name: "Claude", icon: ClaudeIcon } : undefined}
-        models={preview ? [{ name: "Opus 5.5", effort: "medium", description: "Claude Opus 5.5 · medium effort", icon: ClaudeIcon }] : undefined} />}
+      composer={<Composer tray={false} placeholder="Ask your Sensei…" busy={chat.busy} onSend={chat.send} />}
       scroller={scroller}>
-      {preview ? <>
-        <p className="ui-as-msg-user" aria-label="Learner">How do I turn words into numbers?</p>
-        <div className="ui-as-msg" aria-label="Sensei"><p className="ui-as-msg__p">Start with a tiny vocabulary: give each word an ID. “the cat” could become [0, 1].</p></div>
-        <p className="ui-as-msg-user" aria-label="Learner">What if a word appears twice?</p>
-        <div className="ui-as-msg" aria-label="Sensei"><p className="ui-as-msg__p">Reuse its ID. Try “the cat the” → [0, 1, 0], then check your encode function.</p></div>
-      </> : <p className="text-sm leading-relaxed">{open ? `${open.title}: ${open.lead} Tell me what you expect the first test to check.` : `${chapter.title} starts with a short video – watch it, then open the first lesson.`}</p>}
+      <p className="text-sm leading-relaxed">{open ? `${open.title}: ${open.lead} Tell me what you expect the first test to check.` : `${chapter.title} starts with a short video – watch it, then open the first lesson.`}</p>
       <ChatMessages messages={chat.messages} name="Sensei" scroller={scroller} onDone={chat.finish} />
     </AgentChatWorkspace>
   );

@@ -1,7 +1,7 @@
 # 0103: Use UIX for the public website
 
 Parent: [UIX adoption](0100-uix-adoption.md).
-Status: ready after 0102; implementation has not started.
+Status: in progress on `feat/0103-uix-website` in `.worktree/uix-0103`, based on main `3d40648`. OpenAPI follow-through PR 187 is merged and verified on staging.
 
 ## Goal
 
@@ -34,3 +34,16 @@ pnpm --filter dojofoo test:package
 ```
 
 Run the affected Storybook browser cases against an isolated server, including website search and landing modes. Inspect desktop/mobile renders. Verify the actual PR/staged deployment, including native API pages and machine-readable docs affected by shared styles. Main builds stay staged; leave the live production alias unchanged until a verified version release.
+
+
+## Current execution
+
+Fresh frozen installation on Node 24.22.1: UIX types and website types passed; UIX baseline 42 tests passed; website baseline 11 browser tests passed (23.9s).
+
+New SSR regression checks reproduced placeholder header/footer hrefs, failures on absent rating/chapter metadata, invalid full-ISO date formatting and unavailable provenance assumptions. The website now supplies real catalog data, destinations and its existing Fumadocs search owner to the shared UIX header, landing, catalog and course pages. Unavailable ratings, hours, provenance and audits are omitted; the empty catalog remains empty. The approved learning illustration has a focused presentation export rather than importing the simulated learner controller.
+
+All 50 UIX unit tests and UIX types passed after the native button-link changes. Targeted website checks passed (2 tests, 21.8s), covering desktop/mobile frames, modified-click/new-tab navigation, browser history, one search owner, real course facts, native 404 links and retained HTTP 404 status. Focused Storybook mode/search checks passed (3 tests, 13.1s). Inter is the shared default; the marketing preview retains 16:9 on desktop and mobile. Browser-created document transitions now consume expected lifecycle aborts through a synchronous shared bootstrap in the document head, while unexpected failures remain observable. A proposed router dependency patch was removed after browser instrumentation identified the document lifecycle as the error source.
+
+Pending: final clean types/unit/browser/build/package gates, review and actual PR/staging verification. Documentation adopts the shared navigation and footer here; its full native content layout remains slice 0104.
+
+Final local checks: frozen installation succeeded on Node 24.22.1/pnpm 10.28.0. Website and UIX types passed; UIX 50 unit tests passed; API 42 tests passed; all 10 prepared native Fumadocs pages matched generated OpenAPI. Website browser suite: `13 passed (20.1s)`. Storybook browser suite: `77 passed (1.8m)`. Forced workspace build: `6 successful, 6 total`, `0 cached`, `36.528s`. A direct script probe also confirmed that expected document animation aborts are handled while unexpected errors are reported. Packed CLI passed: authoring agent readiness without a model call and installed UI HTTP 200. Production Storybook build completed successfully in the configured cache directory. Hosted CI and deployment verification remain pending.

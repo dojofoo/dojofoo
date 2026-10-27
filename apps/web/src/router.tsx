@@ -1,4 +1,4 @@
-import { routerViewTransition } from "@dojofoo/ui/lib/view-transition"
+import { routerViewTransition } from "@dojofoo/uix/lib/view-transition"
 import { createRouter } from "@tanstack/react-router"
 import { routeTree } from "./routeTree.gen"
 import { NotFound } from "@/components/not-found"

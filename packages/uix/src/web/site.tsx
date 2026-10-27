@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { createContext, useContext, useState, type MouseEvent, type ReactNode } from "react";
 import { Icon, ShellStyles } from "../components/app-shell";
 import { Avatar } from "../components/arc/avatar/avatar";
 import { BrandLogo } from "../components/brand-logo";
-import { Button } from "../components/button";
+import { ButtonLink } from "../components/button";
 import { Copy01Icon, CopyrightIcon, Search01Icon, Tick02Icon } from "../lib/icons";
 import { cn } from "../lib/utils";
 import makerPhoto from "../assets/tomhaxxx.jpg?url";
@@ -23,10 +23,14 @@ export type SiteSection = "home" | "courses" | "docs" | "help";
 
 export type SiteLinks = {
   navigate: (section: SiteSection) => void;
+  /** Real destinations for server rendering, new tabs and modified clicks. */
+  sectionHref: (section: SiteSection) => string;
   /** A docs page by its site path, e.g. "/docs/quickstart#usage" */
   openDoc: (href: string) => void;
   openCourse: (course: WebCourse) => void;
-  renderSearch: (props: { open: boolean; scope: SearchScope; onClose: () => void }) => ReactNode;
+  courseHref: (course: WebCourse) => string;
+  openSearch: (scope: SearchScope) => void;
+  footerLinks?: ReadonlyArray<{ title: string; links: ReadonlyArray<readonly [label: string, destination: string]> }>;
 };
 
 export const SiteContext = createContext<SiteLinks | null>(null);
@@ -58,8 +62,7 @@ export function SitePage({ current, children, window = true, full = false, backd
 }) {
   return (
     <div className={cn("ui-as ui-web", backdrop && "ui-web--ground")}>
-      <ShellStyles />
-      <style href="ui-web" precedence="default">{css}</style>
+      <SiteStyles />
       {subnav ? <div className="ui-web-bar"><SiteHeader current={current} />{subnav}</div> : <SiteHeader current={current} />}
       <main className={cn("ui-web__main", window && "ui-web__window", full && "ui-web__main--full")}>{children}</main>
       {backdrop}
@@ -68,27 +71,24 @@ export function SitePage({ current, children, window = true, full = false, backd
   );
 }
 
-export function SiteHeader({ current }: { current?: SiteSection }) {
+export function SiteStyles() {
+  return <><ShellStyles /><style href="ui-web" precedence="default">{css}</style></>;
+}
+
+export function SiteHeader({ current, as: Component = "header", mobileAction }: { current?: SiteSection; as?: "header" | "div"; mobileAction?: ReactNode }) {
   const links = useSite();
   // In the docs the search looks in the docs; anywhere else in the courses (the dialog switches either way)
-  const scope: SearchScope = current === "help" ? "docs" : "courses";
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const key = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setOpen(true); }
-    };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, []);
+  const scope: SearchScope = current === "help" || current === "docs" ? "docs" : "courses";
   const go = (section: SiteSection) => (event: MouseEvent) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
     event.preventDefault();
     links.navigate(section);
   };
   return (
-    <header className="ui-web-head">
-      <a href="#" className="ui-web-head__brand" aria-label="Dojo.foo home" onClick={go("home")}><BrandLogo className="w-12" /></a>
+    <Component className="ui-web-head" data-site-navigation="">
+      <a href={links.sectionHref("home")} className="ui-web-head__brand" aria-label="Dojo.foo home" onClick={go("home")}><BrandLogo className="w-12" /></a>
       {/* The search in the middle, the sections beside the way in */}
-      <button type="button" className="ui-web-head__search" aria-haspopup="dialog" aria-label={scope === "docs" ? "Search docs" : "Search courses"} onClick={() => setOpen(true)}>
+      <button type="button" className="ui-web-head__search" aria-haspopup="dialog" aria-label={scope === "docs" ? "Search docs" : "Search courses"} onClick={() => links.openSearch(scope)}>
         <Icon icon={Search01Icon} size={15} />
         <span>{scope === "docs" ? "Search docs" : "Search courses"}</span>
         <kbd>⌘K</kbd>
@@ -96,13 +96,17 @@ export function SiteHeader({ current }: { current?: SiteSection }) {
       <div className="ui-web-head__end">
         <nav className="ui-web-head__nav" aria-label="Site">
           {sections.map((section) => (
-            <a key={section.id} href="#" className="ui-web-head__link" aria-current={current === section.id ? "page" : undefined} onClick={go(section.id)}>{section.label}</a>
+            <a key={section.id} href={links.sectionHref(section.id)} className="ui-web-head__link" aria-current={current === section.id ? "page" : undefined} onClick={go(section.id)}>{section.label}</a>
           ))}
         </nav>
-        <Button size="sm" onClick={() => links.openDoc("/docs/quickstart")}>Get started</Button>
+        {mobileAction}
+        <ButtonLink size="sm" href="/docs/quickstart" onClick={event => {
+          if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+          event.preventDefault();
+          links.openDoc("/docs/quickstart");
+        }}>Get started</ButtonLink>
       </div>
-      {links.renderSearch({ open, scope, onClose: () => setOpen(false) })}
-    </header>
+    </Component>
   );
 }
 
@@ -124,12 +128,12 @@ export function SiteFooter({ current }: { current?: SiteSection }) {
         <BrandLogo className="w-12" />
         <p>Deliberate practice, guided by the coding agent you already use.</p>
       </div>
-      {footer.map((column) => (
+      {(links.footerLinks ?? footer).map((column) => (
         <nav key={column.title} className="ui-web-foot__col" aria-label={column.title}>
           <span className="ui-web-foot__title">{column.title}</span>
           {column.links.map(([label, to]) => to.startsWith("http")
             ? <a key={label} href={to} target="_blank" rel="noreferrer">{label}</a>
-            : <a key={label} href={to.startsWith("/") ? to : "#"} onClick={(event) => { event.preventDefault(); if (to.startsWith("/")) links.openDoc(to); else links.navigate(to as SiteSection); }}>{label}</a>)}
+            : <a key={label} href={to.startsWith("/") ? to : links.sectionHref(to as SiteSection)} onClick={(event) => { if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return; event.preventDefault(); if (to.startsWith("/")) links.openDoc(to); else links.navigate(to as SiteSection); }}>{label}</a>)}
         </nav>
       ))}
       <div className="ui-web-foot__base">

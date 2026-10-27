@@ -1,7 +1,8 @@
+import { followLink } from "../lib/link-event";
 import { useState } from "react";
 import { Icon } from "../components/app-shell";
 import { BrandLogo } from "../components/brand-logo";
-import { Button } from "../components/button";
+import { ButtonLink } from "../components/button";
 import { CourseCard } from "../components/course-card";
 import { KpiChart } from "../components/kpi-chart";
 import { SegmentedControl } from "../components/segmented-control";
@@ -27,6 +28,8 @@ export function CoursePage({ course }: { course: WebCourse }) {
   const links = useSite();
   const [way, setWay] = useState<(typeof installWays)[number]>("Command");
   const { metrics } = course;
+  const command = installCommand(course);
+  const prompt = installPrompt(course);
   const mode = teachingModes.find((item) => item.value === course.mode);
   const reach = metrics.kataProgress;
   const most = Math.max(...reach.map((chapter) => chapter.started), 1);
@@ -35,7 +38,7 @@ export function CoursePage({ course }: { course: WebCourse }) {
     <SitePage current="courses" window={false}>
       <style href="ui-web-course" precedence="default">{css}</style>
       <article className="ui-crp">
-        <Button variant="ghost" size="sm" className="ui-crp__back" icon={<Icon icon={ArrowLeft01Icon} size={14} />} onClick={() => links.navigate("courses")}>All courses</Button>
+        <ButtonLink variant="ghost" size="sm" className="ui-crp__back" href={links.sectionHref("courses")} icon={<Icon icon={ArrowLeft01Icon} size={14} />} onClick={event => followLink(event, () => links.navigate("courses"))}>All courses</ButtonLink>
 
         <div className="ui-crp-layout">
           <div className="ui-crp-main">
@@ -60,17 +63,18 @@ export function CoursePage({ course }: { course: WebCourse }) {
             <section className="ui-crp-install" aria-labelledby="ui-crp-install">
               <div className="ui-crp-install__head">
                 <h2 id="ui-crp-install">Installation</h2>
-                <SegmentedControl size="compact" kind="tabs" label="Install with" options={installWays} value={way} onChange={(next) => setWay(next as typeof way)} />
+                {command && <SegmentedControl size="compact" kind="tabs" label="Install with" options={installWays} value={way} onChange={(next) => setWay(next as typeof way)} />}
               </div>
-              {way === "Command"
-                ? <CommandCopy command={installCommand(course)} />
-                : <CommandCopy prompt command={installPrompt(course)} />}
-              <p className="ui-crp-install__note">
+              {command ? (way === "Command" || !prompt
+                ? <CommandCopy command={command} />
+                : <CommandCopy prompt command={prompt} />)
+                : <p>No installation source is available for this course.</p>}
+              {command && <p className="ui-crp-install__note">
                 {way === "Command"
                   ? "Run it in your project, then npx dojofoo ui to open its first lesson in your browser."
                   : "Paste it into your agent. It installs the course and opens its first lesson in your browser."}
-                <button type="button" onClick={() => links.openDoc("/docs/quickstart")}><Icon icon={BookOpen01Icon} size={13} />Quickstart</button>
-              </p>
+                <a href="/docs/quickstart" onClick={event => followLink(event, () => links.openDoc("/docs/quickstart"))}><Icon icon={BookOpen01Icon} size={13} />Quickstart</a>
+              </p>}
             </section>
 
             <div className="ui-crp-numbers">
@@ -81,7 +85,7 @@ export function CoursePage({ course }: { course: WebCourse }) {
               </section>
 
               <div className="ui-crp-grid">
-                <KpiChart className="ui-crp-chart" title="Weekly activity" value={compactNumber(weeks.reduce((n, week) => n + week.installs, 0))}
+                {weeks.length > 0 ? <KpiChart className="ui-crp-chart" title="Weekly activity" value={compactNumber(weeks.reduce((n, week) => n + week.installs, 0))}
                   delta={weeks.length > 1 ? weeks.at(-1)!.installs - weeks.at(-2)!.installs : undefined}
                   labels={weeks.map((week) => weekLabel(week.week))} tooltipLabels={weeks.map((week) => `Week of ${weekLabel(week.week)}`)}
                   series={[
@@ -90,10 +94,11 @@ export function CoursePage({ course }: { course: WebCourse }) {
                     { label: "Finished", color: "var(--fluid-foreground)", values: weeks.map((week) => week.finished) },
                   ]}
                   footer="Installs over the last twelve weeks" defaultIndex={weeks.length - 1} />
+                  : <section className="ui-crp-panel"><h2>Weekly activity</h2><p>No activity recorded yet.</p></section>}
 
                 <section className="ui-crp-panel" aria-labelledby="ui-crp-reach">
-                  <h2 id="ui-crp-reach">Reaching each chapter</h2>
-                  <p>Projects that started a chapter, and how many of them finished it.</p>
+                  <h2 id="ui-crp-reach">Reaching each {course.chapters ? "chapter" : "lesson"}</h2>
+                  <p>Projects that started a {course.chapters ? "chapter" : "lesson"}, and how many of them finished it.</p>
                   <ol className="ui-crp-reach">
                     {reach.map((chapter, index) => (
                       <li key={chapter.kata}>
@@ -122,19 +127,19 @@ export function CoursePage({ course }: { course: WebCourse }) {
               <h3>Repository</h3>
               <a className="ui-crp-side__repo" href={course.repositoryUrl} target="_blank" rel="noreferrer">{course.repository}</a>
             </div>
-            <div className="ui-crp-side__item">
+            {course.stars !== undefined && <div className="ui-crp-side__item">
               <h3>GitHub stars</h3>
               <p className="ui-crp-side__value">{compactNumber(course.stars)}</p>
-            </div>
-            <div className="ui-crp-side__item">
+            </div>}
+            {course.firstSeen && <div className="ui-crp-side__item">
               <h3>First seen</h3>
               <p className="ui-crp-side__value">{longDate(course.firstSeen)}</p>
-            </div>
-            <div className="ui-crp-side__item">
+            </div>}
+            {!!course.audits?.length && <div className="ui-crp-side__item">
               <h3>Security audits</h3>
               <ul className="ui-crp-audits">{course.audits.map((audit) => <Audit key={audit.slug} audit={audit} />)}</ul>
               <p className="ui-crp-side__note">Scanned {longDate(course.audits[0]?.auditedAt ?? course.publishedAt)}: the manifest, the teaching files and every lesson.</p>
-            </div>
+            </div>}
           </aside>
         </div>
       </article>
@@ -205,8 +210,8 @@ const css = /* css */ `
 .ui-crp-install__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .ui-crp-install h2, .ui-crp-panel h2 { margin: 0; font-size: var(--fs-subtitle); font-weight: 600; }
 .ui-crp-install__note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0; color: var(--muted); font-size: var(--fs-body); }
-.ui-crp-install__note button { display: inline-flex; align-items: center; gap: 5px; color: var(--ink); font-weight: 550; }
-@media (hover: hover) { .ui-crp-install__note button:hover { color: var(--accent); } }
+.ui-crp-install__note a { display: inline-flex; align-items: center; gap: 5px; color: var(--ink); font-weight: 550; }
+@media (hover: hover) { .ui-crp-install__note a:hover { color: var(--accent); } }
 
 /* The numbers: tiles on the card surface, then the chart and the chapters */
 .ui-crp-numbers { display: grid; gap: 16px; }

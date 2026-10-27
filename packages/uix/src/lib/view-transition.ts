@@ -30,3 +30,22 @@ export function runViewTransition(update: () => void, type: UiTransition = "ui-n
 export const fadeViewTransition = (update: () => void) => runViewTransition(update, "ui-navigation");
 export const themeViewTransition = (update: () => void) => runViewTransition(update, "ui-theme");
 export const paneViewTransition = (update: () => void) => runViewTransition(update, "ui-pane");
+
+/** Register in a synchronous head script, before document transitions can fire.
+ * A literal keeps the bootstrap identical in independently minified server/client builds. */
+export const documentTransitionScript = `(() => {
+  const observe = event => {
+    const transition = event.viewTransition;
+    if (!transition) return;
+    const report = error => {
+      if (error instanceof DOMException && (error.name === "AbortError" ||
+        error.name === "InvalidStateError" && error.message === "Transition was aborted because of invalid state. ViewTransition opt-in disabled")) return;
+      if (typeof globalThis.reportError === "function") globalThis.reportError(error);
+      else console.error(error);
+    };
+    void transition.ready.catch(report);
+    void transition.finished.catch(report);
+  };
+  window.addEventListener("pageswap", observe);
+  window.addEventListener("pagereveal", observe);
+})();`;
