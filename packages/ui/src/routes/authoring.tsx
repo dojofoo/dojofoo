@@ -6,11 +6,7 @@ import { authoringMessageText, isAuthoringBootstrapMessage } from "@dojofoo/auth
 import { createFileRoute } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
 import {
-  ArrowRight,
   ExternalLink,
-  Pencil,
-  Play,
-  Plus,
   Refresh as RefreshCw,
 } from "@mynaui/icons-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -23,8 +19,6 @@ import { authoringNavigation } from "@/lib/authoring-navigation";
 import { AuthoringChat } from "@/components/authoring-chat";
 import { EveAuthoringChat } from "@/components/eve-authoring-chat";
 import { CourseContent } from "@/components/course-content";
-import { vercelCursorColors } from "@/lib/code-editor-theme";
-import { WorkspaceFileTabs } from "@/components/workspace-file-tabs";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthoringFiles } from "@/hooks/use-authoring-files";
 import { useAuthoringWatch } from "@/hooks/use-authoring-watch";
@@ -38,9 +32,7 @@ import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LessonBrief, LessonChecklist } from "@dojofoo/uix/components/lesson-brief";
 import { CoursesIcon, DoneIcon, Cancel01Icon, FilterIcon } from "@dojofoo/uix/icons";
-import { ScrollArea } from "@dojofoo/ui/scroll-area";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
-import { FileTree, FileTreeFile, FileTreeFolder } from "@dojofoo/uix/components/motion/file-tree";
 
 const CodeEditor = lazy(() => import("@dojofoo/uix/containers/code-editor").then(({ CodeEditor }) => ({ default: CodeEditor })));
 
@@ -552,117 +544,6 @@ function AuthoringPage() {
 
 }
 
-function LegacySidebar({ children }: { children: ReactNode }) {
-  return children;
-}
-
-function EditableChapter({
-  active,
-  autoFocus,
-  expanded,
-  lesson,
-  onRename,
-  onSelect,
-  onToggle,
-}: {
-  active: boolean;
-  autoFocus: boolean;
-  expanded: boolean;
-  lesson: AuthoringWorkspace["lessons"][number];
-  onRename: (title: string) => void;
-  onSelect: () => void;
-  onToggle: () => void;
-}) {
-  const [title, setTitle] = useState(lesson.title);
-  const input = useRef<HTMLInputElement>(null);
-  useEffect(() => setTitle(lesson.title), [lesson.title]);
-  useEffect(() => {
-    if (!autoFocus) return;
-    input.current?.focus();
-    input.current?.select();
-  }, [autoFocus]);
-  const commit = () => {
-    const next = title.trim();
-    if (!next) {
-      setTitle(lesson.title);
-      return;
-    }
-    if (next !== lesson.title) onRename(next);
-  };
-  return (
-    <div className={`group flex items-center gap-2 px-4 py-2.5 transition-colors ${active ? "bg-hover text-foreground" : "text-muted-foreground hover:bg-hover hover:text-foreground"}`}>
-      <button aria-label={`${expanded ? "Collapse" : "Expand"} ${lesson.title}`} onClick={onToggle} type="button">
-        <ArrowRight className={`size-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} strokeWidth={1.75} />
-      </button>
-      <input
-        aria-label={`Lesson title: ${lesson.title}`}
-        className="min-w-0 flex-1 bg-transparent text-[14px] font-medium outline-none"
-        onBlur={commit}
-        onChange={(event) => setTitle(event.target.value)}
-        onFocus={onSelect}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-          if (event.key === "Escape") {
-            setTitle(lesson.title);
-            event.currentTarget.blur();
-          }
-        }}
-        ref={input}
-        value={title}
-      />
-      <Pencil className="size-3.5 opacity-0 transition-opacity group-hover:opacity-60 group-focus-within:opacity-60" strokeWidth={1.75} />
-    </div>
-  );
-}
-
-function EditableCourse({
-  expanded,
-  onRename,
-  onSelect,
-  onToggle,
-  title: courseTitle,
-}: {
-  expanded: boolean;
-  onRename: (title: string) => void;
-  onSelect: () => void;
-  onToggle: () => void;
-  title: string;
-}) {
-  const [title, setTitle] = useState(courseTitle);
-  useEffect(() => setTitle(courseTitle), [courseTitle]);
-  const commit = () => {
-    const next = title.trim();
-    if (!next) {
-      setTitle(courseTitle);
-      return;
-    }
-    if (next !== courseTitle) onRename(next);
-  };
-  return (
-    <div className="group flex items-center gap-2 px-4 py-2.5 text-muted-foreground transition-colors hover:bg-hover hover:text-foreground">
-      <button aria-label={`${expanded ? "Collapse" : "Expand"} ${courseTitle}`} onClick={onToggle} type="button">
-        <ArrowRight className={`size-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} strokeWidth={1.75} />
-      </button>
-      <input
-        aria-label={`Course title: ${courseTitle}`}
-        className="min-w-0 flex-1 bg-transparent text-[14px] font-medium outline-none"
-        onBlur={commit}
-        onChange={(event) => setTitle(event.target.value)}
-        onFocus={onSelect}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-          if (event.key === "Escape") {
-            setTitle(courseTitle);
-            event.currentTarget.blur();
-          }
-        }}
-        value={title}
-      />
-      <Pencil className="size-3.5 opacity-0 transition-opacity group-hover:opacity-60 group-focus-within:opacity-60" strokeWidth={1.75} />
-    </div>
-  );
-}
-
 function isAuthoringPreviewable(path: string): boolean {
   return path === "dojo.yaml" || /\.(?:md|mdx|json)$/u.test(path);
 }
@@ -737,33 +618,6 @@ export function authoringFiles(
 ): AuthoringFile[] {
   if (!lesson) return workspace.rootFiles;
   return lesson.files;
-}
-
-type AuthoringTreeNode = { children: AuthoringTreeNode[]; name: string; path: string; type: "file" | "folder" };
-
-function authoringTree(files: AuthoringFile[]): AuthoringTreeNode[] {
-  const root: AuthoringTreeNode[] = [];
-  for (const file of files) {
-    const parts = file.path.split("/");
-    let nodes = root;
-    parts.forEach((name, index) => {
-      const path = parts.slice(0, index + 1).join("/");
-      const type = index === parts.length - 1 ? "file" : "folder";
-      let node = nodes.find((entry) => entry.path === path);
-      if (!node) {
-        node = { children: [], name, path, type };
-        nodes.push(node);
-      }
-      nodes = node.children;
-    });
-  }
-  return root;
-}
-
-function renderAuthoringTree(nodes: AuthoringTreeNode[]): ReactNode {
-  return nodes.map((node) => node.type === "folder"
-    ? <FileTreeFolder key={node.path} name={node.name} value={node.path}>{renderAuthoringTree(node.children)}</FileTreeFolder>
-    : <FileTreeFile key={node.path} name={node.name} value={node.path} />);
 }
 
 export function authoringFileUrl(path: string): string {
