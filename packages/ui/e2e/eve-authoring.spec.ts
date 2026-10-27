@@ -80,6 +80,47 @@ test("Pages navigation filters nested authoring files and preserves selection ac
   await page.screenshot({ path: test.info().outputPath("authoring-pages-navigation.png"), animations: "disabled" });
 });
 
+test("the Pages brief shows scoped readiness findings without an empty box", async ({ page }) => {
+  const workspace = { ...draft, courseChecks: [
+    { id: "intent", label: "Course intent and teaching rules", ready: true },
+  ], lessons: [{ id: "first", title: "First lesson", senseiPath: "src/first/SENSEI.md", description: "A focused learner outcome", checks: [
+    { id: "sensei", label: "Lesson briefing and Sensei guidance", ready: true },
+    { id: "scaffold", label: "Learner scaffold and checks", ready: false, findings: ["Add a revealing edge case."] },
+  ], files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# Teach" }] },
+  { id: "empty", title: "Unchecked lesson", senseiPath: "src/empty/SENSEI.md", description: "No preflight result yet", checks: [],
+    files: [{ path: "src/empty/SENSEI.md", label: "SENSEI.md", content: "# Draft" }] }] };
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: workspace });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (path.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report: null } });
+    return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
+  });
+  await page.goto("/authoring?session=saved");
+  const readiness = page.getByRole("region", { name: "Readiness", exact: true });
+  await expect(readiness).toContainText("Course intent and teaching rules");
+  const nav = page.getByRole("navigation", { name: "Main menu" });
+  const firstLesson = nav.getByRole("button", { name: "First lesson", exact: true });
+  await expect(firstLesson).toHaveAttribute("aria-expanded", "true");
+  await nav.locator('[id$="authoring:lesson:first-list"]').getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  await expect(readiness).toContainText("Add a revealing edge case.");
+  await expect(readiness).not.toContainText("Course intent and teaching rules");
+  await expect(readiness.getByRole("img", { name: "Ready", exact: true })).toHaveCount(1);
+  await expect(readiness.getByRole("img", { name: "Needs attention", exact: true })).toHaveCount(1);
+  expect(await readiness.evaluate(node => {
+    const style = getComputedStyle(node);
+    return { border: style.borderTopWidth, background: style.backgroundColor, overflows: node.scrollWidth > node.clientWidth };
+  })).toEqual({ border: "0px", background: "rgba(0, 0, 0, 0)", overflows: false });
+  await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Teach");
+  await page.screenshot({ path: test.info().outputPath("authoring-readiness.png"), animations: "disabled" });
+  await nav.getByRole("button", { name: "Unchecked lesson", exact: true }).click();
+  await nav.locator('[id$="authoring:lesson:empty-list"]').getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Unchecked lesson", exact: true })).toBeVisible();
+  await expect(readiness).toHaveCount(0);
+});
+
 test("reloading conversation history preserves the mounted editor and unsaved draft", async ({ page }) => {
   let repaired = false;
   await page.routeWebSocket("**/api/authoring/changes*", () => {});

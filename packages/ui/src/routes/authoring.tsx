@@ -7,8 +7,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
 import {
   ArrowRight,
-  Check,
-  Circle,
   ExternalLink,
   Pencil,
   Play,
@@ -36,7 +34,7 @@ import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
 import { AppShell, Dropdown, Icon } from "@dojofoo/uix/components/app-shell";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
-import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
+import { LessonBrief, LessonChecklist } from "@dojofoo/uix/components/lesson-brief";
 import { CoursesIcon, DoneIcon, Cancel01Icon, FilterIcon } from "@dojofoo/uix/icons";
 import { ScrollArea } from "@dojofoo/ui/scroll-area";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
@@ -543,7 +541,7 @@ function AuthoringPage() {
           {(scope === "course" ? workspace.description : selectedLesson?.description)
             || "Describe the observable learner outcome in the corresponding manifest field."}
         </CourseContent>
-        <ReadinessPanel lesson={selectedLesson} scope={scope} workspace={workspace} />
+        <LessonChecklist checks={scope === "course" ? workspace.courseChecks : selectedLesson?.checks ?? []} />
         {workspace.issues.length > 0 && <div className="mt-5 text-sm text-[var(--muted)]"><h3>Draft issues</h3>
           <ul>{workspace.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>
         </div>}
@@ -668,34 +666,6 @@ function EditableCourse({
 
 function isAuthoringPreviewable(path: string): boolean {
   return path === "dojo.yaml" || /\.(?:md|mdx|json)$/u.test(path);
-}
-
-function ReadinessPanel({ lesson, scope, workspace }: {
-  lesson: AuthoringWorkspace["lessons"][number] | null;
-  scope: "course" | "lesson";
-  workspace: AuthoringDraft;
-}) {
-  const checks = scope === "course" ? workspace.courseChecks : lesson?.checks ?? [];
-  return (
-    <section className="mt-7 border border-dashed">
-      <div className="border-b border-dashed px-4 py-2 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Readiness</div>
-      <div className="grid gap-px bg-border/50 sm:grid-cols-2">
-        {checks.map((check) => (
-          <div className="bg-background px-4 py-3 font-prose text-sm" key={check.id}>
-            <div className="flex items-center gap-2">
-              {check.ready ? <Check className="size-4 text-emerald-400" /> : <Circle className="size-4 text-muted-foreground" />}
-              <span className={check.ready ? "text-foreground" : "text-muted-foreground"}>{check.label}</span>
-            </div>
-            {!check.ready && check.findings?.length ? (
-              <ul className="mt-2 list-disc space-y-1 pl-10 text-xs text-muted-foreground">
-                {check.findings.map(finding => <li key={finding}>{finding}</li>)}
-              </ul>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
 }
 
 function authoringEditorLanguage(path: string): "json" | "markdown" | "typescript" | "yaml" {

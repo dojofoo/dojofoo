@@ -12,11 +12,11 @@ import { EvalsPanel } from "../components/evals";
 import { VideoStage, type VideoCue, type VideoCueEvent } from "../containers/video-stage";
 import { CodexIcon, PiIcon } from "../components/harness-icons";
 import { BookOpen01Icon, File01Icon, Globe02Icon, PencilEdit02Icon, CheckListIcon, PlayIcon, PlusSignIcon } from "../lib/icons";
-import { LessonBrief, type LessonResource } from "../components/lesson-brief";
+import { LessonBrief, LessonChecklist, type LessonCheck, type LessonResource } from "../components/lesson-brief";
 
 type DraftFile = { path: string; label: string; content: string };
-type DraftLesson = { id: string; title: string; description: string; senseiPath: string; templatePath: string; hasSensei: boolean; sensei: string; evalPaths: string[]; checks: unknown[]; files: DraftFile[] };
-type AuthoringDraft = { root: string; style: string; name: string; description: string; language: string; manifestSource: string; courseGuidance: string; rootFiles: DraftFile[]; lessons: DraftLesson[]; issues: unknown[]; courseChecks: unknown[] };
+type DraftLesson = { id: string; title: string; description: string; senseiPath: string; templatePath: string; hasSensei: boolean; sensei: string; evalPaths: string[]; checks: LessonCheck[]; files: DraftFile[] };
+type AuthoringDraft = { root: string; style: string; name: string; description: string; language: string; manifestSource: string; courseGuidance: string; rootFiles: DraftFile[]; lessons: DraftLesson[]; issues: unknown[]; courseChecks: LessonCheck[] };
 
 const rootFiles = [
   { path: "dojo.yaml", label: "dojo.yaml", content: "name: Everyday TypeScript\nmode: katas\nlanguage: typescript\nkatas:\n  - name: 001-largest-number\n    template: src/001-largest-number/kata.ts\n" },
@@ -24,7 +24,10 @@ const rootFiles = [
 ];
 const lessons = ["001-largest-number", "002-filter-positive"].map((id, index) => ({
   id, title: index === 0 ? "Largest number" : "Positive numbers", description: "Explore one array operation at a time.",
-  senseiPath: `src/${id}/SENSEI.md`, templatePath: `src/${id}/kata.ts`, hasSensei: true, sensei: "", evalPaths: [], checks: [],
+  senseiPath: `src/${id}/SENSEI.md`, templatePath: `src/${id}/kata.ts`, hasSensei: true, sensei: "", evalPaths: [], checks: [
+    { id: "sensei", label: "Lesson briefing and Sensei guidance", ready: true },
+    { id: "scaffold", label: "Learner scaffold and checks", ready: true },
+  ],
   files: [
     { path: `src/${id}/SENSEI.md`, label: "SENSEI.md", content: index === 0
       ? "# Find the best day\n\n## Start\n\nYour fitness tracker has a week of step counts. Which day was your best?\n\nAsk the learner to predict what they would remember after each value.\n\n## Teach\n\nUse a different problem to explore a running value. Let the learner choose the edit.\n\n## Orientation\n\n### How the learner gets there\n\n1. **Predict:** read `4, 9, 2` aloud and say what you’d remember after each number.\n2. Turn that memory into a **running value** and update it in a [`for...of`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of) loop.\n3. Handle the edge cases the checks name: an empty list, all negative numbers, equal values.\n\n### Watch for\n\n- Starting the running value at `0` – it fails on `[-3, -7, -1]`.\n- Sorting the list to take the last item: correct, but it changes the input and hides the idea.\n"
@@ -37,7 +40,11 @@ const lessons = ["001-largest-number", "002-filter-positive"].map((id, index) =>
       : "import { expect, it } from 'vitest';\nimport { positive } from './kata';\n\nit('keeps an empty list empty', () => {\n  expect(positive([])).toEqual([]);\n});\n" },
   ],
 }));
-const everyday: AuthoringDraft = { root: "/preview", style: "katas", name: "Everyday TypeScript", description: "Practice with arrays.", language: "TypeScript", manifestSource: rootFiles[0].content, courseGuidance: rootFiles[1].content, rootFiles, lessons, issues: [], courseChecks: [] };
+const everyday: AuthoringDraft = { root: "/preview", style: "katas", name: "Everyday TypeScript", description: "Practice with arrays.", language: "TypeScript", manifestSource: rootFiles[0].content, courseGuidance: rootFiles[1].content, rootFiles, lessons, issues: [], courseChecks: [
+  { id: "manifest", label: "Course metadata", ready: true },
+  { id: "intent", label: "Course intent and teaching rules", ready: true },
+  { id: "curriculum", label: "At least one lesson", ready: true },
+] };
 /** A second course, one lesson so far – its files live under advanced/ */
 const advancedFiles = [
   { path: "advanced/dojo.yaml", label: "dojo.yaml", content: "name: Advanced TypeScript\nmode: katas\nlanguage: typescript\nkatas:\n  - name: 001-narrow-shapes\n    template: src/001-narrow-shapes/kata.ts\n" },
@@ -45,7 +52,7 @@ const advancedFiles = [
 ];
 const advanced: AuthoringDraft = { ...everyday, root: "/preview/advanced", name: "Advanced TypeScript", description: "Let the types carry the logic.", manifestSource: advancedFiles[0].content, courseGuidance: advancedFiles[1].content, rootFiles: advancedFiles, lessons: [{
   id: "001-narrow-shapes", title: "Narrowing shapes", description: "Narrow a union by its tag.",
-  senseiPath: "advanced/src/001-narrow-shapes/SENSEI.md", templatePath: "advanced/src/001-narrow-shapes/kata.ts", hasSensei: true, sensei: "", evalPaths: [], checks: [],
+  senseiPath: "advanced/src/001-narrow-shapes/SENSEI.md", templatePath: "advanced/src/001-narrow-shapes/kata.ts", hasSensei: true, sensei: "", evalPaths: [], checks: lessons[0].checks,
   files: [
     { path: "advanced/src/001-narrow-shapes/SENSEI.md", label: "SENSEI.md", content: "# Narrowing shapes\n\n## Start\n\nA drawing app stores circles, squares and rectangles. How big is each one?\n\nAsk the learner which properties they can read before they know the shape.\n\n## Orientation\n\n### How the learner gets there\n\n1. **Predict:** before you know the kind, can you read `shape.radius`? Why not?\n2. Switch on `shape.kind` and watch TypeScript [narrow the union](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions) in each `case`.\n3. End with a `default` that assigns the shape to `never`, so a new kind of shape stops the build: [exhaustiveness checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#exhaustiveness-checking).\n\n### Watch for\n\n- Testing `\"radius\" in shape` instead of the tag – it narrows too, but it hides the idea of a shared tag.\n- Casting with `as` to silence an error – that turns the checker off exactly where it should help.\n" },
     { path: "advanced/src/001-narrow-shapes/kata.ts", label: "kata.ts", content: "export type Shape =\n  | { kind: \"circle\"; radius: number }\n  | { kind: \"square\"; size: number }\n  | { kind: \"rect\"; width: number; height: number };\n\n/** The area of any shape – TypeScript should flag a shape you forgot. */\nexport function area(shape: Shape): number {\n  // Your first step goes here.\n  return 0;\n}\n" },
@@ -134,6 +141,7 @@ function LessonDetails({ course, lesson }: { course: AuthoringDraft; /** The ope
   return <LessonBrief title={lesson?.title ?? course.name} lead={brief?.lead ?? lesson?.description ?? course.description}
     resources={brief?.resources}>
     {brief?.body}
+    <LessonChecklist checks={lesson?.checks ?? course.courseChecks} />
   </LessonBrief>;
 }
 

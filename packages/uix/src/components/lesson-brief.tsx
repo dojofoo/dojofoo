@@ -4,7 +4,7 @@ import { ArrowRightUpRegular } from "@mingcute/react/core-regular";
 import { Icon } from "./app-shell";
 import { FluidHoverHighlight } from "./fluid-hover-highlight";
 import { useFluidHover, useRegisterFluidHoverItem } from "../hooks/use-fluid-hover";
-import type { IconGlyph } from "../lib/icons";
+import { DoneIcon, type IconGlyph } from "../lib/icons";
 
 /*
  * LessonBrief – what's open, explained the way Dojofoo's lesson page does it (routes/index.tsx, LessonPage): the title
@@ -18,6 +18,44 @@ import type { IconGlyph } from "../lib/icons";
  * The briefing is plain markup – h3, p, ol/ul, code, a – styled here, so authored content reads the same as the app's.
  */
 export type LessonResource = { title: string; href: string; /** What it is or where it's from, e.g. "MDN · Reference" */ note?: string; icon?: IconGlyph };
+
+export type LessonCheck = { id: string; label: string; ready: boolean; findings?: readonly string[] };
+
+/** Host-owned preflight results, alongside the lesson briefing. No checks means no section. */
+export function LessonChecklist({ checks }: { checks: readonly LessonCheck[] }) {
+  if (!checks.length) return null;
+  return <section aria-label="Readiness" className="ui-lb__readiness">
+    <style href="ui-lesson-checklist" precedence="default">{checklistCss}</style>
+    <h3>Readiness</h3>
+    <ul className="ui-lb__checks">
+      {checks.map(check => <li key={check.id}>
+        <div className="ui-lb__check">
+          <span role="img" aria-label={check.ready ? "Ready" : "Needs attention"} className="ui-lb__check-status" data-ready={check.ready || undefined}>
+            {check.ready ? <Icon icon={DoneIcon} size={14} /> : <i />}
+          </span>
+          <span>{check.label}</span>
+        </div>
+        {!check.ready && !!check.findings?.length && <ul className="ui-lb__findings">
+          {check.findings.map(finding => <li key={finding}>{finding}</li>)}
+        </ul>}
+      </li>)}
+    </ul>
+  </section>;
+}
+
+const checklistCss = /* css */ `
+.ui-lb__readiness { margin-top: 1.75rem; }
+.ui-lb__readiness > h3 { margin-top: 0; }
+.ui-lb .ui-lb__checks { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.ui-lb .ui-lb__checks > li { margin: 0; padding: 0; }
+.ui-lb .ui-lb__checks > li::before { content: none; }
+.ui-lb__check { display: flex; align-items: baseline; gap: .5rem; }
+.ui-lb__check-status { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 16px; height: 16px; align-self: start; margin-top: calc((var(--ui-lb-line) - 16px) / 2); color: var(--fluid-muted); }
+.ui-lb__check-status[data-ready] { color: var(--brand); }
+.ui-lb__check-status > i { width: 5px; height: 5px; border-radius: 50%; corner-shape: round; background: currentColor; }
+.ui-lb .ui-lb__findings { margin: .25rem 0 0 1.5rem; color: var(--fluid-muted); font-size: .875em; }
+.ui-lb .ui-lb__findings > li::before { top: .7em; }
+`;
 
 export function LessonBrief({ title, lead, children, resources = [], facts = [] }: {
   title: string;
