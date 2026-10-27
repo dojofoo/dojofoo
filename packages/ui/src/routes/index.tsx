@@ -1,3 +1,9 @@
+import { AppShell, MenuButton, type ShellSection } from "@dojofoo/uix/components/app-shell";
+import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
+import { Button as UIXButton } from "@dojofoo/uix/components/button";
+import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
+import { CommandPalette } from "@dojofoo/uix/components/command-palette";
+import { BookOpen01Icon, CoursesIcon, ExploreIcon } from "@dojofoo/uix/icons";
 import { ClientOnly, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
 import type { ThinkingPart, ToolCallPart } from "@tanstack/ai-client";
@@ -5,17 +11,14 @@ import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState
 import type { BundledLanguage } from "shiki";
 import {
   ArrowRight,
-  ArrowUpDown,
   Check,
   CheckCircle as CheckCircle2,
   Circle,
   CircleDashed as CircleDot,
   Spinner as Loader2,
   LockKeyhole,
-  Plus,
   RefreshAlt as RotateCcw,
   Save as SaveIcon,
-  Star,
   Undo as Undo2,
   XCircle,
 } from "@mynaui/icons-react";
@@ -39,13 +42,10 @@ import { ToolCallCard } from "@/components/ui/ToolCallCard";
 import { ReasoningTrace } from "@/components/ui/ReasoningTrace";
 import { ChatTranscript } from "@/components/chat/assistant-response";
 import { toolActivity } from "@/lib/chat-activity-labels";
-import { EmptyStateBoard } from "@dojofoo/ui/premium/empty-states/empty-state-board";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { Button } from "@dojofoo/ui/button";
-import { BrandLogo } from "@dojofoo/ui/brand-logo";
 import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojofoo/ui/chat-container";
 import { CourseLessonLayout, CourseLessonNavigation } from "@dojofoo/ui/course-lesson-layout";
-import { CourseCard } from "@dojofoo/ui/course-card";
 import {
   Dialog,
   DialogClose,
@@ -58,7 +58,6 @@ import {
 import { InputMessage } from "@dojofoo/ui/input-message";
 import { ScrollArea } from "@dojofoo/ui/scroll-area";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
-import { SiteNavigation } from "@dojofoo/ui/site-navigation";
 import {
   Select,
   SelectContent,
@@ -124,11 +123,13 @@ function CourseIndex() {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [drafts, setDrafts] = useState<AuthoringDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [courseChoice, setCourseChoice] = useState<CourseGroup | null>(null);
+  const [courseChoiceOpen, setCourseChoiceOpen] = useState(false);
   const [choiceWorkspaceId, setChoiceWorkspaceId] = useState("");
   const [choiceSessionId, setChoiceSessionId] = useState("current");
 
@@ -198,177 +199,101 @@ function CourseIndex() {
     }
     const workspace = preferredWorkspace(group);
     setCourseChoice(group);
+    setCourseChoiceOpen(true);
     setChoiceWorkspaceId(workspace.workspaceId);
     setChoiceSessionId(workspace.sessionId ?? "current");
   }
 
   const choiceWorkspace = courseChoice?.workspaces.find((course) => course.workspaceId === choiceWorkspaceId) ?? null;
 
+  const explore = () => window.open("https://dojo.foo/dojos", "_blank", "noopener,noreferrer");
+  const documentation = () => window.open("https://dojo.foo/docs", "_blank", "noopener,noreferrer");
+  const navigation: ShellSection[] = [{ id: "library", items: [
+    { id: "courses", label: "Courses", icon: CoursesIcon, count: groups.length || undefined },
+    { id: "explore", label: "Explore", icon: ExploreIcon },
+    { id: "docs", label: "Documentation", icon: BookOpen01Icon },
+  ] }];
+
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <SiteNavigation
-        brand={<a aria-label="Dojofoo courses" className="mr-1 flex items-center" href="/"><BrandLogo /></a>}
-        actions={(
-          <>
-            <a className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" href="https://dojo.foo/docs" rel="noreferrer" target="_blank">Docs</a>
-          </>
-        )}
-      />
-      <section className="marketplace-lined-frame mx-auto max-w-(--fd-layout-width) px-4 sm:px-5">
-        <div className="marketplace-lined-surface grid min-h-[calc(100vh-4rem)] md:grid-cols-[19rem_minmax(0,1fr)]">
-          <aside aria-label="Local dojo filters" className="border-b border-dashed border-border bg-surface-1 py-6 md:border-b-0 md:border-r md:py-12">
-            <LocalFilter label="Language" allLabel="All languages" items={languages} selected={language} onSelect={setLanguage} />
-          </aside>
-          <div className="min-w-0 px-5 py-12 lg:px-8">
-            <div className="flex flex-wrap items-start justify-between gap-5">
-              <div>
-                <h1 className="text-4xl font-medium tracking-tight">Your dojos</h1>
-                <p className="mt-3 max-w-2xl font-prose text-base leading-7 text-muted-foreground">
-                  Continue a course or add another dojo to a local workspace.
-                </p>
-              </div>
-              <Select onValueChange={setSortBy} size="compact" value={sortBy}>
-                <SelectTrigger aria-label="Sort local dojos" className="min-w-40" icon={ArrowUpDown} />
-                <SelectContent>
-                  <SelectItem index={0} value="recent">Most recent</SelectItem>
-                  <SelectItem index={1} value="oldest">Oldest activity</SelectItem>
-                  <SelectItem index={2} value="name">Course name</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {error && <p className="mt-8 border border-red-900/60 bg-red-950/40 p-4 text-sm text-red-300">{error}</p>}
-            {drafts.length > 0 ? (
-              <section className="mt-10">
-                <p className="font-display text-xs font-medium uppercase tracking-[0.14em] text-orange-400">In authoring</p>
-                <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
-                  {drafts.map((draft) => (
-                    <a className="group relative flex min-h-[10.5rem] flex-col overflow-hidden border border-orange-500/60 bg-surface-1 p-5 transition-colors hover:border-orange-400" href={`/authoring?workspace=${encodeURIComponent(draft.workspaceId)}`} key={draft.workspaceId}>
-                      <span className="absolute right-0 top-0 h-0 w-0 border-l-[42px] border-t-[42px] border-l-transparent border-t-orange-500" />
-                      <Star className="absolute right-1.5 top-1.5 size-3.5 fill-background text-background" />
-                      <p className="font-display text-xs font-medium uppercase tracking-[0.14em] text-orange-400">{draft.mode}</p>
-                      <h2 className="mt-3 font-display text-xl font-medium">{humanTitle(draft.name)}</h2>
-                      <p className="mt-2 font-prose text-sm text-muted-foreground">{draft.description || "Course draft"}</p>
-                      <span className="mt-auto flex items-center justify-between pt-5 text-xs text-muted-foreground">Resume authoring <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" /></span>
-                    </a>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-            {!coursesLoading && !error && visibleCourses.length === 0 && drafts.length === 0 ? (
-              <EmptyStateBoard
-                actionLabel="Browse dojos"
-                className="mt-10"
-                columns={["Added", "Learning", "Completed"]}
-                cursorLabel="start here"
-                description="Browse the marketplace, then add a dojo to the workspace where you want to learn."
-                eyebrow="Dojos / empty"
-                onAction={() => window.open("https://dojo.foo/#dojos", "_blank", "noopener,noreferrer")}
-                title="Add your first dojo."
-              />
-            ) : (
-            <div className="mt-10 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
-          {visibleCourses.map((group) => {
-              const course = preferredWorkspace(group);
-              return (
-              <CourseCard
-                description={course.description}
-                eyebrow={course.language}
-                footer={(
-                  <>
-                  <div className="min-w-0">
-                    <p className="truncate text-xs text-muted-foreground">{group.workspaces.length > 1 ? `${group.workspaces.length} workspaces` : course.mode === "interactive" ? "Interactive lesson" : humanTitle(course.kata ?? "Not started")}</p>
-                    <p className="mt-1 truncate font-mono text-[11px]">{group.workspaces.length > 1 ? "Choose where to continue" : course.sessionId ? middleEllipsis(course.sessionId) : "Not started"}</p>
-                  </div>
-                  <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} />
-                  </>
-                )}
-                footerClassName="items-end justify-between gap-4"
-                key={group.dojo}
-                label={`Open ${humanTitle(course.dojo)}`}
-                onClick={() => chooseCourse(group)}
-                title={humanTitle(course.dojo)}
-              />
-              );
+    <div style={{ height: "100dvh" }}>
+      <AppShell workspace="Dojo" brand={<a href="/" aria-label="Dojofoo courses"><BrandLogo /></a>}
+        navigation={navigation} navigationKey="local-courses" active="courses"
+        showUser={false} showNews={false} showOnboarding={false} showFooter={false}
+        onSearch={() => setPaletteOpen(true)} onNavigate={id => { if (id === "explore") explore(); else if (id === "docs") documentation(); }}>
+        <LearningLibrary loading={coursesLoading} error={error ?? undefined} onExplore={explore}
+          controls={<>
+            <MenuButton label="Language" value={language} onChange={setLanguage}
+              options={[{ value: "all", label: "All languages" }, ...languages.map(value => ({ value, label: value }))]} />
+            <MenuButton label="Sort local dojos" value={sortBy} onChange={setSortBy}
+              options={[{ value: "recent", label: "Most recent" }, { value: "oldest", label: "Oldest activity" }, { value: "name", label: "Course name" }]} />
+          </>}
+          courses={visibleCourses.map(group => {
+            const course = preferredWorkspace(group);
+            const single = group.workspaces.length === 1;
+            const href = !single || course.mode === "interactive" ? undefined
+              : course.sessionId ? `/session/${encodeURIComponent(course.sessionId)}`
+              : course.kata ? `/course/${encodeURIComponent(course.workspaceId)}/${encodeURIComponent(course.dojo)}/lesson/${encodeURIComponent(course.kata)}`
+              : `/course/${encodeURIComponent(course.workspaceId)}`;
+            return { id: group.dojo, title: humanTitle(course.dojo), mark: course.language, href,
+              caption: single ? course.mode === "interactive" ? "Interactive lesson" : humanTitle(course.kata ?? "Not started") : `${group.workspaces.length} workspaces`,
+              detail: single ? course.workspaceName : "Choose where to continue", onOpen: () => chooseCourse(group) };
           })}
-              <a className="group flex min-h-[10.5rem] flex-col items-center justify-center border border-dashed border-border/80 bg-surface-1 p-5 text-center transition-colors duration-80 hover:border-primary" href="https://dojo.foo" rel="noreferrer" target="_blank">
-                <Plus className="mb-3 text-muted-foreground transition-colors group-hover:text-primary" size={22} />
-                <h2 className="text-[15px] font-semibold">Add a dojo</h2>
-                <p className="mt-2 max-w-52 font-prose text-sm text-muted-foreground">Browse the marketplace and add another course to your local dojo.</p>
-              </a>
-            </div>
-            )}
-          </div>
-        </div>
-      </section>
-      <Dialog open={Boolean(courseChoice)} onOpenChange={(open) => { if (!open) setCourseChoice(null); }}>
-        <DialogContent>
+          drafts={drafts.map(draft => ({ id: draft.workspaceId, title: humanTitle(draft.name), mark: draft.mode,
+            caption: "Draft", detail: draft.description || "Resume authoring", href: `/authoring?workspace=${encodeURIComponent(draft.workspaceId)}` }))} />
+      </AppShell>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} assistant={false} searchLabel="Search your courses"
+        placeholder="Search courses, drafts and documentation…" groups={[
+          { id: "courses", label: "Courses", commands: groups.map(group => ({ id: `course:${group.dojo}`, label: humanTitle(group.dojo), keywords: preferredWorkspace(group).language })) },
+          { id: "drafts", label: "Authoring", commands: drafts.map(draft => ({ id: `draft:${draft.workspaceId}`, label: humanTitle(draft.name) })) },
+          { id: "help", label: "Help", commands: [{ id: "explore", label: "Explore courses" }, { id: "docs", label: "Documentation" }] },
+        ]} onRun={id => {
+          if (id === "explore") explore();
+          else if (id === "docs") documentation();
+          else if (id.startsWith("course:")) { const group = groups.find(item => item.dojo === id.slice(7)); if (group) chooseCourse(group); }
+          else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: { workspace: id.slice(6) } });
+        }} />
+      <Dialog open={courseChoiceOpen} onOpenChange={setCourseChoiceOpen}>
+        <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
           <DialogHeader>
             <DialogTitle>Continue {humanTitle(courseChoice?.dojo ?? "course")}</DialogTitle>
             <DialogDescription>Choose the workspace first. Sessions stay attached to its files and harness transcript.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-5 py-2">
             <label className="grid gap-2">
-              <span className="font-display text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Workspace</span>
-              <Select
-                onValueChange={(workspaceId) => {
-                  const workspace = courseChoice?.workspaces.find((candidate) => candidate.workspaceId === workspaceId);
+              <span className="text-xs font-medium text-muted-foreground">Workspace</span>
+              <MenuButton label="Course workspace" align="start" className="w-full justify-between"
+                value={choiceWorkspaceId} onChange={workspaceId => {
+                  const workspace = courseChoice?.workspaces.find(candidate => candidate.workspaceId === workspaceId);
                   setChoiceWorkspaceId(workspaceId);
                   setChoiceSessionId(workspace?.sessionId ?? "current");
-                }}
-                value={choiceWorkspaceId}
-              >
-                <SelectTrigger
-                  aria-label="Course workspace"
-                  displayValue={choiceWorkspace
-                    ? `${choiceWorkspace.workspaceName} · ${humanTitle(choiceWorkspace.kata ?? "Not started")}`
-                    : "Choose workspace"}
-                />
-                <SelectContent>
-                  {courseChoice?.workspaces.map((workspace, index) => (
-                    <SelectItem index={index} key={workspace.workspaceId} value={workspace.workspaceId}>
-                      {workspace.workspaceName} · {humanTitle(workspace.kata ?? "Not started")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                }} options={courseChoice?.workspaces.map(workspace => ({ value: workspace.workspaceId,
+                  label: `${workspace.workspaceName} · ${humanTitle(workspace.kata ?? "Not started")}` })) ?? []} />
               {choiceWorkspace && <span className="truncate font-mono text-xs text-muted-foreground">{choiceWorkspace.path}</span>}
             </label>
             <label className="grid gap-2">
-              <span className="font-display text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Session</span>
-              <Select onValueChange={setChoiceSessionId} value={choiceSessionId}>
-                <SelectTrigger
-                  aria-label="Course session"
-                  displayValue={choiceSessionId === "current"
-                    ? choiceWorkspace?.sessionId ? "Start a new session" : "Start current lesson"
-                    : humanTitle(choiceWorkspace?.sessions.find((session) => session.sessionId === choiceSessionId)?.lessonId ?? "Session") + ` · ${middleEllipsis(choiceSessionId)}`}
-                />
-                <SelectContent>
-                  <SelectItem index={0} value="current">{choiceWorkspace?.sessionId ? "Start a new session" : "Start current lesson"}</SelectItem>
-                  {choiceWorkspace?.sessions.map((session, index) => (
-                    <SelectItem index={index + 1} key={session.sessionId} value={session.sessionId}>
-                      {humanTitle(session.lessonId)} · {middleEllipsis(session.sessionId)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <span className="text-xs font-medium text-muted-foreground">Session</span>
+              <MenuButton label="Course session" align="start" className="w-full justify-between" value={choiceSessionId} onChange={setChoiceSessionId}
+                options={[{ value: "current", label: choiceWorkspace?.sessionId ? "Start a new session" : "Start current lesson" },
+                  ...(choiceWorkspace?.sessions.map(session => ({ value: session.sessionId,
+                    label: `${humanTitle(session.lessonId)} · ${middleEllipsis(session.sessionId)}` })) ?? [])]} />
             </label>
           </div>
           <DialogFooter>
-            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
-            <Button
+            <DialogClose render={<UIXButton variant="ghost">Cancel</UIXButton>} />
+            <UIXButton
               disabled={!choiceWorkspace}
               onClick={() => {
                 if (!choiceWorkspace) return;
-                setCourseChoice(null);
+                setCourseChoiceOpen(false);
                 void openCourse(choiceWorkspace, choiceSessionId === "current" ? null : choiceSessionId);
               }}
             >
               Continue
-            </Button>
+            </UIXButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
+    </div>
   );
 }
 
@@ -385,39 +310,6 @@ function courseGroupLastSeen(group: CourseGroup): number {
 function preferredWorkspace(group: CourseGroup): ActiveCourse {
   return group.workspaces.find((workspace) => workspace.selected)
     ?? [...group.workspaces].sort((left, right) => right.lastSeenAt - left.lastSeenAt)[0];
-}
-
-function LocalFilter({ label, allLabel, items, selected, onSelect, className = "" }: {
-  label: string;
-  allLabel: string;
-  items: string[];
-  selected: string;
-  onSelect: (value: string) => void;
-  className?: string;
-}) {
-  const options = [{ label: allLabel, value: "all" }, ...items.map((item) => ({ label: item, value: item }))];
-  return (
-    <section aria-label={label} className={className}>
-      <h2 className="px-4 pb-4 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</h2>
-      <nav>
-        {options.map((option, index) => {
-          const active = selected === option.value;
-          return (
-            <button
-              aria-pressed={active}
-              className={`marketplace-category flex w-full cursor-pointer items-center gap-2.5 border-dashed border-border px-4 py-4 text-left text-[13px] outline-none transition-colors ${index === options.length - 1 ? "" : "border-b"} ${active ? "font-medium text-foreground" : "text-muted-foreground"}`}
-              key={option.value}
-              onClick={() => onSelect(option.value)}
-              type="button"
-            >
-              <span className="min-w-0 flex-1 truncate">{option.label}</span>
-              {active && <ArrowRight aria-label="Selected filter" className="size-4 shrink-0" role="img" strokeWidth={1.75} />}
-            </button>
-          );
-        })}
-      </nav>
-    </section>
-  );
 }
 
 export function LessonPage({ requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {

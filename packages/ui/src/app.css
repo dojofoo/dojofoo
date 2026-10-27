@@ -1,6 +1,7 @@
-@import "tailwindcss";
 @import "tw-shimmer";
 @import "./styles.css";
+@import "@dojofoo/uix/styles.css";
+@import "@dojofoo/uix/fonts.css";
 
 @source "../../uix/src/**/*.{ts,tsx}";
 
@@ -79,10 +80,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-display: "Khand", ui-sans-serif, sans-serif;
-  --font-sans: "Hind", ui-sans-serif, sans-serif;
+  --font-display: var(--ui-font, "Inter Variable", Inter, ui-sans-serif, sans-serif);
+  --font-sans: var(--ui-font, "Inter Variable", Inter, ui-sans-serif, sans-serif);
   --font-mono: "Iosevka", monospace;
-  --font-prose: "Hind", ui-sans-serif, sans-serif;
+  --font-prose: var(--ui-font, "Inter Variable", Inter, ui-sans-serif, sans-serif);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -201,6 +202,8 @@
     animation: shimmer 1.5s ease-in-out infinite;
 }
 
+/* Retained legacy surfaces use these fallbacks; UIX owns the active tokens. */
+@layer legacy {
 :root {
   --fd-layout-width: 90rem;
   --radius-base: 0.25rem;
@@ -291,6 +294,8 @@
   --shadow-6: inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgba(0,0,0,0.18), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop);
   --shadow-7: inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgba(0,0,0,0.20), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop), 0 48px 48px -24px var(--dm-drop);
   --shadow-8: inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgba(0,0,0,0.22), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop), 0 48px 48px -24px var(--dm-drop), 0 96px 96px -48px var(--dm-drop);
+}
+
 }
 
 .marketplace-lined-frame {
