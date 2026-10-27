@@ -284,6 +284,7 @@ function Answer({ name, reply, onGrow, onDone }: { name: string; reply: ChatRepl
 
 /** Models in the composer's picker – the first one is selected */
 export type ComposerModel = { value?: string; name: string; effort?: string; description: string; icon: IconGlyph };
+export type ComposerAgent = { value: string; name: string; icon: IconGlyph; description?: string };
 const defaultModels: ComposerModel[] = [
   { name: "Auto", description: "Picks the best model for each task", icon: AiMagicIcon },
   { name: "Claude", description: "Thoughtful writing and code", icon: AiBrain01Icon },
@@ -306,7 +307,7 @@ export function Composer({
   busy,
   tray = true,
   models = defaultModels,
-  agent,
+  agent, agents, onAgentChange, agentChanging,
   className, value, onValueChange, history, disabled, onStop, id, label, queueing,
   model: controlledModel, onModelChange, modelChanging,
   attachments = true, dictation = true, plugins: pluginsEnabled = true,
@@ -329,7 +330,11 @@ export function Composer({
   /** The picker's models – the first one is selected; the default is a general assistant's */
   models?: ComposerModel[];
   /** A selected coding agent in place of the general assistant's plugins. */
-  agent?: { name: string; icon: IconGlyph };
+  agent?: { value?: string; name: string; icon: IconGlyph };
+  /** Available coding agents; the host owns selection and session transitions. */
+  agents?: ComposerAgent[];
+  onAgentChange?: (value: string) => void;
+  agentChanging?: boolean;
   /** Called with the message when it is sent */
   onSend?: (text: string) => void;
   /** While an answer is being written, sending waits */
@@ -405,13 +410,15 @@ export function Composer({
             }}
           /></>}
           {(agent || pluginsEnabled) && <ComposerPicker title={agent ? "Agent" : "Plugins"} icon={agent?.icon ?? Plug01Icon} active={plugins.length > 0}
-            items={agent ? [{ label: agent.name, icon: agent.icon, checked: true }] : pluginList.map(p => ({
+            disabled={Boolean(agent && (!onAgentChange || !agents?.length || agentChanging || disabled || busy))}
+            items={agent ? (agents ?? []).map(choice => ({ label: choice.name, description: choice.description, icon: choice.icon,
+              checked: choice.value === agent.value, onSelect: () => onAgentChange?.(choice.value) })) : pluginList.map(p => ({
               label: p.label, description: p.description, icon: p.icon, checked: plugins.includes(p.label),
               onSelect: () => setPlugins(list => toggleIn(list, p.label)),
             }))}>
             {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
           </ComposerPicker>}</>}
-    controls={<><ComposerPicker title="Model" model disabled={!models.length || modelChanging || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
+    controls={<><ComposerPicker title="Model" model disabled={!models.length || modelChanging || agentChanging || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
               items={models.map(m => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon,
                 checked: (m.value ?? m.name) === model, onSelect: () => { const next = m.value ?? m.name; if (onModelChange) onModelChange(next); else setSelected(next); } }))}>
               {selectedModel?.name ?? model ?? "Model"}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}

@@ -4,13 +4,13 @@ import { CodeEditor, Editor, EditorStatus, EditorTabs, type EditorLanguage } fro
 import { BrandLogo } from "../components/brand-logo";
 import { useAuthoringFiles } from "../hooks/use-authoring-files";
 import { AgentChatWorkspace } from "../containers/agent-chat";
-import { ChatMessages, Composer as OriginalComposer, useChatThread } from "../containers/assistant-home";
+import { ChatMessages, useChatThread } from "../containers/assistant-home";
 import { Icon } from "../components/app-shell";
 import { Button } from "../components/button";
 import { ToolCallCard, ToolCallGroup } from "../components/tool-call-card";
 import { EvalsPanel } from "../components/evals";
 import { VideoStage, type VideoCue, type VideoCueEvent } from "../containers/video-stage";
-import { CodexIcon, PiIcon } from "../components/harness-icons";
+import { CourseComposer } from "./course-composer";
 import { BookOpen01Icon, File01Icon, Globe02Icon, PencilEdit02Icon, CheckListIcon, PlayIcon, PlusSignIcon } from "../lib/icons";
 import { LessonBrief, LessonChecklist, type LessonCheck, type LessonResource } from "../components/lesson-brief";
 
@@ -145,13 +145,6 @@ function LessonDetails({ course, lesson }: { course: AuthoringDraft; /** The ope
   </LessonBrief>;
 }
 
-/** The models the harnesses offer, each with its harness's mark from the website */
-const harnessModels = [
-  { id: "pi/deepseek", name: "DeepSeek V4 Pro", description: "Pi · your local login", harness: PiIcon },
-  { id: "codex/sol", name: "GPT-6.1-Sol", description: "Codex · your local login", harness: CodexIcon },
-];
-const composerModels = harnessModels.map(({ name, description, harness }) => ({ name, description, icon: harness }));
-
 /** The course's intro video: Blender's open movie Big Buck Bunny as a plain file served without CORS (a 10-second 720p
     clip from test-videos.co.uk) – the light still glows, since the SVG filter never reads the frames */
 const sampleVideo = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_5MB.mp4";
@@ -272,7 +265,7 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
       </span>}
       composer={<>
         {queue.length > 0 && <div className="mb-2 text-sm" aria-label="Queued messages">{waiting ? "Waiting for your choice" : "Queued"}{queue.map(item => <div key={item.id} className="flex items-center justify-between gap-2"><span>{item.text}</span><Button variant="ghost" size="sm" onClick={() => setQueue(items => items.filter(entry => entry.id !== item.id))}>Remove</Button></div>)}</div>}
-        <OriginalComposer tray={false} models={composerModels} placeholder={waiting ? "Add a note while the question waits…" : "Shape this lesson with Kyoshi…"} onSend={text => setQueue(items => [...items, { id: crypto.randomUUID(), text }])} />
+        <CourseComposer authoring tray={false} placeholder={waiting ? "Add a note while the question waits…" : "Shape this lesson with Kyoshi…"} onSend={text => setQueue(items => [...items, { id: crypto.randomUUID(), text }])} />
       </>}>
       <p className="text-sm leading-relaxed">{view === "Trial" ? "Your tracker holds a week of step counts. Before editing, what would you remember after reading 4, then 9, then 2?" : "Let's build a lesson that makes the first step inviting and gives the learner room to work things out. Open a file on the left, or tell me what you'd change."}</p>
       <ToolCalls view={view} />

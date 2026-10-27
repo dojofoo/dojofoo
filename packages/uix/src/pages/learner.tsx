@@ -9,7 +9,8 @@ import { CourseExplore } from "../containers/course-explore";
 import { AgentSetup, setupSteps } from "../containers/agent-setup";
 import { categoryIcons, type AppCategory } from "../components/app-directory";
 import { AppShell, EmptyState, Icon, useToast, type AppShellProps, type ShellEntry, type ShellSection } from "../components/app-shell";
-import { ChatMessages, Composer, useChatThread } from "../containers/assistant-home";
+import { ChatMessages, useChatThread } from "../containers/assistant-home";
+import { CourseComposer } from "./course-composer";
 import { Button } from "../components/button";
 import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard } from "../components/color-card";
 import { CertificateCard, CourseArt, CourseCard, type CourseArtwork, type CourseInfo } from "../components/course-card";
@@ -326,7 +327,7 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource, docum
         </LessonBrief>
       )}
       header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
-      composer={<Composer tray={false} placeholder="Ask your Sensei…" busy={chat.busy} onSend={chat.send} />}
+      composer={<CourseComposer tray={false} placeholder="Ask your Sensei…" busy={chat.busy} onSend={chat.send} />}
       scroller={scroller}>
       <p className="text-sm leading-relaxed">{open ? `${open.title}: ${open.lead} Tell me what you expect the first test to check.` : `${chapter.title} starts with a short video – watch it, then open the first lesson.`}</p>
       <ChatMessages messages={chat.messages} name="Sensei" scroller={scroller} onDone={chat.finish} />

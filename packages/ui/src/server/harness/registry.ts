@@ -11,6 +11,8 @@ const adapters: Record<HarnessKind, HarnessAdapter> = {
   opencode: opencodeHarnessAdapter,
 };
 
+export const lessonHarnesses = Object.keys(adapters) as HarnessKind[];
+
 export function dojofooHarness(environment: NodeJS.ProcessEnv = process.env): HarnessKind {
   const override = environment.DOJOFOO_HARNESS;
   if (!override) return "opencode";

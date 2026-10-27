@@ -23,7 +23,7 @@ import { retainLearnerEvidence, lessonEvidence } from "./learner-evidence";
 import { recordLearnerObservation } from "./learner-observations";
 import { senseiInstructions, senseiTurn } from "./instructions";
 import type { HarnessKind } from "../harness/adapter";
-import { dojofooHarness } from "../harness/registry";
+import { dojofooHarness, lessonHarnesses } from "../harness/registry";
 import { acpClient, type AcpStreamPart, type SessionModelConfiguration, type TranscriptMessage } from "./codex-client";
 import { parseSenseiContent } from "./sensei-content";
 
@@ -88,6 +88,8 @@ export type LessonSnapshot = {
   checkpointed: boolean;
   sessionId: string | null;
   model: SessionModelConfiguration | null;
+  harness?: string;
+  harnesses?: HarnessKind[];
   state: "completed" | "ongoing" | "not-started";
   isCurrent: boolean;
   result: TestReport | null;
@@ -247,6 +249,8 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
     checkpointed: Boolean(webState.checkpoints[key]),
     sessionId: threadId ?? null,
     model: threadId ? acpClient.modelConfiguration(threadId) : null,
+    harness: harness ?? webState.defaultHarness ?? resolveRuntimeHarness("lesson", root),
+    harnesses: lessonHarnesses,
     state: selectedState,
     isCurrent: selected.name === current?.name,
     result,

@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ComposerSurface } from "./composer";
+import { AiMagicIcon } from "../lib/icons";
 import { Composer } from "../containers/assistant-home";
 
 it("uses the Pages composer with a host-owned draft and available capabilities", () => {
@@ -42,4 +43,18 @@ describe("the controlled composer", () => {
     }
     expect(render({ value: "draft" })).not.toMatch(/aria-label="Send"[^>]*disabled/);
   });
+});
+
+it("keeps coding-agent selection host-owned and unavailable while the host is changing it", () => {
+  const agent = { value: "opencode", name: "OpenCode", icon: AiMagicIcon };
+  const render = (props: Partial<Parameters<typeof Composer>[0]> = {}) => renderToStaticMarkup(
+    <Composer tray={false} plugins={false} agent={agent} agents={[agent]} onAgentChange={() => {}}
+      models={[]} value="Keep this draft" {...props} />,
+  );
+  expect(render()).toContain(">OpenCode</span>");
+  expect(render()).not.toMatch(/aria-label="Agent"[^>]*disabled/);
+  for (const props of [{ busy: true }, { disabled: true }, { agentChanging: true }, { onAgentChange: undefined }]) {
+    expect(render(props)).toMatch(/aria-label="Agent"[^>]*disabled/);
+  }
+  expect(render({ agentChanging: true })).toContain("Keep this draft");
 });

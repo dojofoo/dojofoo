@@ -51,10 +51,14 @@ function freshCourse(): string {
 
 describe("fresh lesson state", () => {
   it("exposes installed course details for the learner card without starting a session", async () => {
+    vi.stubEnv("DOJOFOO_LESSON_HARNESS", "opencode");
     const root = freshCourse();
     const start = vi.spyOn(acpClient, "startThread");
     const lesson = await getLesson(root, "001-first");
     expect(lesson?.course).toMatchObject({ name: "@test/starter", version: "1.0.0", description: "A fresh course.", lessons: 2 });
+    expect(lesson?.harnesses).toEqual(expect.arrayContaining(["codex", "opencode"]));
+    expect(lesson?.harnesses).not.toContain("pi");
+    expect(lesson?.harness).toBe("opencode");
     expect(start).not.toHaveBeenCalled();
   });
 
@@ -154,7 +158,7 @@ describe("fresh lesson state", () => {
     await startLessonSession(root, "001-first");
 
     vi.stubEnv("DOJOFOO_HARNESS", "pi");
-    expect((await getLesson(root, "001-first"))?.sessionId).toBe("owned-session");
+    expect(await getLesson(root, "001-first")).toMatchObject({ sessionId: "owned-session", harness: "codex" });
     await streamSensei(root, "001-first", "Please explain this", () => {});
     expect(start).toHaveBeenCalledTimes(1);
     expect(resume).toHaveBeenLastCalledWith("owned-session", expect.objectContaining({ harness: "codex" }));

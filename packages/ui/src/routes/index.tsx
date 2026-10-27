@@ -1,4 +1,4 @@
-import { AiBrain01Icon, AiMagicIcon } from "@dojofoo/uix/icons";
+import { AiMagicIcon } from "@dojofoo/uix/icons";
 import { StreamedChatMessage } from "@/components/chat/streamed-message";
 export { StreamedChatMessage, evaluationSummary } from "@/components/chat/streamed-message";
 import { AppShell, Dropdown, Icon as UIXIcon, MenuButton, type ShellSection } from "@dojofoo/uix/components/app-shell";
@@ -45,6 +45,7 @@ import {
 } from "@dojofoo/ui/dialog";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useAccountMenu } from "@/hooks/use-account-menu";
+import { codingAgents } from "@/lib/coding-agents";
 import { starterCourses } from "@/lib/starter-courses";
 import { authoringSessionLink, authoringSessionSearch } from "@/lib/authoring-session-link";
 import { httpError } from "@/lib/http-error";
@@ -339,6 +340,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [modelChanging, setModelChanging] = useState(false);
+  const [agentChanging, setAgentChanging] = useState(false);
   const [modelNotice, setModelNotice] = useState("");
   const [busy, setBusy] = useState("Loading your dojo…");
   const [error, setError] = useState<string | null>(null);
@@ -596,6 +598,28 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
       setError(cause instanceof Error ? cause.message : String(cause));
       setBusy("");
     }
+  }
+
+  async function changeAgent(value: string) {
+    if (!apiBase || !lesson || value === lesson.harness || agentChanging || modelChanging || !lesson.harnesses?.some(harness => harness === value)) return;
+    setAgentChanging(true);
+    setModelNotice("Starting a conversation with the selected coding agent…");
+    setError(null);
+    try {
+      const response = await fetch(`${apiBase}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ harness: value }) });
+      if (!response.ok) throw await httpError(response);
+      const next = await response.json() as LessonSnapshot;
+      // Agent selection creates no paid turn and must not navigate away from dirty code.
+      introductions.current.add(apiBase);
+      // A new agent owns a new conversation. The mounted editor and unsaved code stay local.
+      setLesson(next);
+      setStreamedMessages(next.messages);
+      setHostChatEvents([]);
+      setModelNotice(`Started a conversation with ${codingAgents.find(agent => agent.value === next.harness)?.name ?? next.harness}.`);
+    } catch (cause) {
+      setModelNotice("Agent change failed. Your conversation stays open.");
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally { setAgentChanging(false); }
   }
 
   async function changeModel(value: string) {
@@ -903,8 +927,10 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     scroller={chatViewportRef}
     composer={<div data-testid="chat-composer">
-      <Composer tray={false} attachments={false} dictation={false} plugins={false} agent={{ name: "Sensei", icon: AiBrain01Icon }} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
-        placeholder="Ask your Sensei…" disabled={!chatCanAcceptInput} busy={chatIsWorking} onStop={stop}
+      <Composer tray={false} attachments={false} dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === lesson.harness) ?? { value: lesson.harness, name: lesson.harness ?? "Coding agent", icon: AiMagicIcon }}
+        agents={codingAgents.filter(agent => lesson.harnesses?.some(value => value === agent.value)).map(agent => ({ ...agent, description: "Start a new conversation" }))}
+        onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging || modelChanging} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
+        placeholder="Ask your Sensei…" disabled={!chatCanAcceptInput || agentChanging} busy={chatIsWorking} onStop={stop}
         history={messages.filter(item => item.role === "user").map(item => item.parts.flatMap(part => part.type === "text" && !isInternalLessonMessage(part.content) ? [part.content] : []).join("")).filter(Boolean)}
         onSend={message => { void sendQuestion(message); }} model={lesson.model?.currentValue} models={lesson.model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging}
         onModelChange={value => { void changeModel(value); }} />
