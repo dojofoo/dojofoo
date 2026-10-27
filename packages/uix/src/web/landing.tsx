@@ -148,11 +148,11 @@ const css = /* css */ `
 /* The lesson in a window slightly wider than the page's content; no Getting started card in it (the
    composer shows). Pared down to the lesson: no logo, search or sidebar toggle above the course card, no settings or
    close on the chat, and its sidebar cut off by the window's edge rather than scrolling */
-.ui-land-app, .ui-land-body { max-width: 1180px; margin: 0 auto; padding: 0 8px; }
-.ui-land-app { max-width: 1280px; }
+.ui-land-app, .ui-land-body { max-width: 1280px; margin: 0 auto; padding: 0 8px; }
+.ui-land-app { max-width: 1380px; }
 /* Match the main-to-composer gap: its 12px inset plus the 1px pane divider. */
 .ui-land-app .ui-as-app { --frame-gap: 13px; }
-@media (max-width: 1203px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
+@media (max-width: 1303px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
 .ui-land-app :is(.ui-as-guide-slot, .ui-as-side__head, .ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
 .ui-land-app .ui-as-side__before { margin-top: 0; }

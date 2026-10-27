@@ -253,3 +253,9 @@ Prefer route-sized replacements whose previous commit can be reverted. Keep comp
 Start with slice 0101. Read repository rules and the linked architecture records, inspect the latest `main` and current failures, and use an isolated branch/check-out so concurrent audit work stays intact. Repair the release prerequisites with minimal changes, run its gates, and attach evidence. Then proceed through the slices in order, keeping this document updated with PRs, actual verification, and newly discovered gaps. Do not restyle preview fixtures again as a substitute for connecting production.
 
 No application behavior, course installation, deployment, or runtime migration is performed by creating this plan.
+
+## Local layout review, 2026-10-27
+
+User-requested landing/docs grid adjustment on `chore/local-review`: shared header, footer, page window, landing content and docs tabs use a 1280px maximum. The landing preview uses 1380px, extending 50px on each side at roomy desktop widths while retaining 16:9. Responsive gutter breakpoints move with the wider container. This is shared UIX CSS only; routing, content and application services are unchanged.
+
+Fresh browser measurements at https://dojo.td and /docs passed at 1600, 1440, 1304, 1303, 1024 and 390px: desktop header/content/tabs 1280px, preview 1380px, ratio 1.7777777777777777, no horizontal page overflow and no page errors. The screenshot probe waits for the real preview editor before capture. Desktop landing/docs and mobile landing screenshots were inspected. Evidence: `/tmp/dojo-1280-layout-probe.{mjs,log}` and `/tmp/dojo-1280-{landing,docs}-{1600,390}.png`. UIX tests passed 63 tests (6.46s), diff check passed. Local review only; not merged or deployed.

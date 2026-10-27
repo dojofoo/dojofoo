@@ -196,11 +196,11 @@ const css = /* css */ `
 :root:has(.ui-web) { background: var(--surface-1); }
 /* Over a backdrop: the footer above it, with room below for the map to show */
 .ui-web--ground .ui-web-foot { position: relative; z-index: 1; padding-bottom: 120px; }
-.ui-web__main { display: block; max-width: 1180px; margin: 0 auto; }
+.ui-web__main { display: block; max-width: 1280px; margin: 0 auto; }
 .ui-web__main--full { max-width: none; }
 .ui-web__window { margin: 0 auto; border-radius: var(--radius-panel); background: var(--panel); box-shadow: var(--shadow-3); container: ui-web / inline-size; }
-@media (min-width: 1204px) { .ui-web__window { max-width: 1180px; } }
-@media (max-width: 1203px) { .ui-web__window { margin: 0 12px; } }
+@media (min-width: 1304px) { .ui-web__window { max-width: 1280px; } }
+@media (max-width: 1303px) { .ui-web__window { margin: 0 12px; } }
 
 /* With a subnav, the header and it are one bar at the top: the page's color, see-through and blurred, across the whole
    window, the page sliding under it (as on the site, Fumadocs' notebook header) */
@@ -210,8 +210,8 @@ const css = /* css */ `
 
 /* Header: the brand, the sections, search and the way in – on the page, above the window */
 /* Header: the brand, the search centered, the sections beside the way in */
-.ui-web-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; max-width: 1180px; height: 60px; margin: 0 auto; padding: 0 8px; }
-@media (max-width: 1203px) { .ui-web-head { padding: 0 20px; } }
+.ui-web-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; max-width: 1280px; height: 60px; margin: 0 auto; padding: 0 8px; }
+@media (max-width: 1303px) { .ui-web-head { padding: 0 20px; } }
 .ui-web-head__brand { display: flex; justify-self: start; align-items: center; color: var(--ink-strong); }
 .ui-web-head__nav { display: flex; gap: 2px; }
 .ui-web-head__link { padding: 6px 10px; border-radius: calc(8px * var(--squircle-factor, 1)); color: var(--muted); font-size: var(--fs-subtitle); font-weight: 500; text-decoration: none; transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
@@ -231,8 +231,8 @@ const css = /* css */ `
 }
 
 /* Footer: back on the page, under the window */
-.ui-web-foot { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 32px; max-width: 1180px; margin: 0 auto; padding: 56px 8px 28px; }
-@media (max-width: 1203px) { .ui-web-foot { padding: 48px 20px 28px; } }
+.ui-web-foot { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 32px; max-width: 1280px; margin: 0 auto; padding: 56px 8px 28px; }
+@media (max-width: 1303px) { .ui-web-foot { padding: 48px 20px 28px; } }
 @media (max-width: 760px) { .ui-web-foot { grid-template-columns: 1fr 1fr; } }
 .ui-web-foot__about { display: grid; align-content: start; gap: 14px; color: var(--ink-strong); }
 .ui-web-foot__about p { max-width: 16rem; margin: 0; color: var(--muted); font-size: var(--fs-body); line-height: 1.55; }
