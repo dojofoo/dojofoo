@@ -7,7 +7,7 @@ import { AppShell, Icon } from "@dojofoo/uix/components/app-shell";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Button } from "@dojofoo/uix/components/button";
 import { Composer } from "@dojofoo/uix/containers/assistant-home";
-import { ComposerSpinner } from "@dojofoo/uix/components/composer";
+import { Spinner } from "@mynaui/icons-react";
 import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
 import { CourseCard } from "@dojofoo/uix/components/course-card";
 import { BackIcon } from "@dojofoo/uix/icons";
@@ -175,14 +175,14 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     composer={<Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === conversation?.harness) ?? { value: conversation?.harness, name: conversation?.harness ?? "Coding agent", icon: AiMagicIcon }}
       agents={codingAgents.filter(agent => conversation?.harnesses?.some(value => value === agent.value)).map(agent => ({ ...agent, description: "Open this agent’s conversation" }))}
-      onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging} loading={sessionLoading} id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={question} onValueChange={setQuestion}
+      onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging || sessionLoading} id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={question} onValueChange={setQuestion}
       disabled={!acceptsInput} busy={working} onStop={stop} onSend={value => { void send(value); }}
       history={messages.filter(message => message.role === "user").map(message => message.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
       model={model?.currentValue} models={model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging} onModelChange={value => { void changeModel(value); }}
     />}>
     <div data-testid="chat-pane" data-chat-status={status} data-chat-error={chatError?.message} aria-busy={sessionLoading || agentChanging || undefined}>
       {(sessionLoading || agentChanging) && <p role="status" className="flex items-center gap-2 text-sm text-[var(--muted)]">
-        <ComposerSpinner />Loading the {codingAgents.find(agent => agent.value === conversation?.harness)?.name ?? "coding agent"} session…
+        <Spinner className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden />Loading the {codingAgents.find(agent => agent.value === conversation?.harness)?.name ?? "coding agent"} session…
       </p>}
       {!messages.length && conversationReady && <p className="text-sm text-[var(--muted)]">Ask Sensei about this step whenever you need a hand.</p>}
       <ChatTranscript messages={messages} streaming={working} renderMessage={(message, streaming) => <StreamedChatMessage key={message.id} fragments={{}} workspaceId={workspace} message={message} streaming={streaming} onToolAnswer={answerTool} />} />

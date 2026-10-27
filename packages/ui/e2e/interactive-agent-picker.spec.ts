@@ -145,3 +145,47 @@ test("a late refresh cannot replace the selected agent's conversation", async ({
   await expect(agent).toContainText("Codex");
   await expect(page.getByTestId("chat-pane")).toContainText("codex history");
 });
+
+test("initial conversation loading keeps the composer waiting until its supported choices arrive", async ({ page }) => {
+  const ready = Promise.withResolvers<void>();
+  const writes: string[] = [];
+  await page.route("**/api/**", async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (request.method() !== "GET" && path !== "/api/teaching/preview") writes.push(path);
+    if (path.endsWith("/conversation")) {
+      await ready.promise;
+      return route.fulfill({ json: { sessionId: "prepared", harness: "opencode", harnesses: ["opencode"],
+        model: { id: "model", name: "Model", currentValue: "supported", options: [{ value: "supported", name: "Supported model" }] }, messages: [] } });
+    }
+    if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [] } });
+    if (path.endsWith("/interactive")) return route.fulfill({ json: { dojo: "loading", title: "Loading course", lessonTitle: "First lesson", step: 0, totalSteps: 1,
+      complete: false, response: null, current: { id: "first", type: "present", title: "First step", content: "Read.", contentBase: null } } });
+    return route.fulfill({ status: 404 });
+  });
+  try {
+    await page.goto("/interactive?workspace=agent-workspace&course=loading");
+    await expect(page.getByRole("heading", { name: "First step", exact: true })).toBeVisible();
+    const chat = page.getByTestId("chat-pane");
+    const agent = page.getByRole("button", { name: "Agent", exact: true });
+    const model = page.getByRole("button", { name: "Model", exact: true });
+    const input = page.getByRole("textbox", { name: "Message the sensei", exact: true });
+    await expect(chat).toHaveAttribute("aria-busy", "true");
+    await expect(chat.getByRole("status")).toContainText("Loading the coding agent session");
+    await expect(agent).toBeDisabled();
+    await expect(model).toBeDisabled();
+    await expect(input).toBeDisabled();
+    const spinner = chat.getByRole("status").locator("svg");
+    await expect(spinner).toHaveCSS("width", "14px");
+    await expect(spinner).toHaveCSS("height", "14px");
+    await page.screenshot({ path: test.info().outputPath("interactive-session-loading.png"), animations: "disabled" });
+    ready.resolve();
+    await expect(chat).not.toHaveAttribute("aria-busy", "true");
+    await expect(agent).toContainText("OpenCode");
+    await expect(model).toContainText("Supported model");
+    await expect(agent).toBeEnabled();
+    await expect(model).toBeEnabled();
+    await expect(input).toBeEnabled();
+    expect(writes).toEqual([]);
+  } finally { ready.resolve(); }
+});
