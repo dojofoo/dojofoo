@@ -54,6 +54,7 @@ const cli = process.env.DOJO_CLI ?? fileURLToPath(new URL("../../../cli/dist/ind
 await access(cli);
 const config = join(home, "config/opencode");
 await mkdir(config, { recursive: true });
+await mkdir(join(home, ".codex"), { recursive: true });
 await writeFile(join(config, "opencode.json"), JSON.stringify({
   model: "openai/gpt-4o", small_model: "openai/gpt-4o", enabled_providers: ["openai"],
   provider: { openai: { options: { baseURL: endpoint.baseURL, apiKey: "fixture-only" } } },
@@ -105,7 +106,13 @@ child = spawn(process.execPath, [cli, "ui", "--authoring", "--no-open"], {
     MISE_DATA_DIR: process.env.MISE_DATA_DIR ?? join(homedir(), ".local/share/mise"),
     OPENCODE_BIN: opencode,
     HOME: home, XDG_CONFIG_HOME: join(home, "config"), XDG_DATA_HOME: join(home, "data"), XDG_CACHE_HOME: join(home, "cache"),
-    OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "",
+    CODEX_HOME: join(home, ".codex"),
+    DEFAULT_AUTH_REQUEST: JSON.stringify({ methodId: "api-key" }),
+    MODEL_PROVIDER: "dojo-loopback",
+    CODEX_CONFIG: JSON.stringify({ model_provider: "dojo-loopback", model_providers: { "dojo-loopback": {
+      name: "Dojo loopback", base_url: endpoint.baseURL, env_key: "CODEX_API_KEY", wire_api: "responses", requires_openai_auth: false,
+    } } }),
+    OPENAI_API_KEY: "fixture-only", CODEX_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "",
     PATH: `${resolve(import.meta.dirname, "../../node_modules/.bin")}:${process.env.PATH}`, CI: "", TEST: "",
   },
 });

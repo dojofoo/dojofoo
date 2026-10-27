@@ -3,7 +3,7 @@ import { dirname, relative, resolve } from "node:path";
 import { dojoDir, readCourseManifest, readDojoRc, type DojoManifest } from "@dojofoo/config";
 import type { HarnessKind } from "../harness/adapter";
 
-export type InteractiveConversationBinding = { sessionId: string; harness: HarnessKind; model?: string };
+export type InteractiveConversationBinding = { sessionId: string; harness: HarnessKind; model?: string; pendingRuntime?: string };
 
 export type InteractiveStep =
   | { id: string; type: "present"; title: string; content: string; contentBase: string | null }
@@ -23,6 +23,7 @@ type InteractiveState = {
   version: 1;
   courses: Record<string, { step: number; answers: Record<string, { answer: string; correct: boolean }> }>;
   conversations?: Record<string, InteractiveConversationBinding>;
+  conversationAgents?: Record<string, Partial<Record<HarnessKind, InteractiveConversationBinding>>>;
 };
 
 export type InteractiveSnapshot = {
@@ -37,12 +38,18 @@ export type InteractiveSnapshot = {
   complete: boolean;
 };
 
-export function readInteractiveConversation(root: string, dojo: string): InteractiveConversationBinding | undefined {
-  return readState(root).conversations?.[dojo];
+export function readInteractiveConversation(root: string, dojo: string, harness?: HarnessKind): InteractiveConversationBinding | undefined {
+  const state = readState(root);
+  const active = state.conversations?.[dojo];
+  return !harness || active?.harness === harness ? active : state.conversationAgents?.[dojo]?.[harness];
 }
 
 export function writeInteractiveConversation(root: string, dojo: string, binding: InteractiveConversationBinding): void {
   const state = readState(root);
+  const previous = state.conversations?.[dojo];
+  state.conversationAgents = { ...state.conversationAgents, [dojo]: {
+    ...state.conversationAgents?.[dojo], ...(previous ? { [previous.harness]: previous } : {}), [binding.harness]: binding,
+  } };
   state.conversations = { ...state.conversations, [dojo]: binding };
   writeState(root, state);
 }

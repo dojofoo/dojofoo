@@ -6,7 +6,8 @@ import { basename, extname, relative, resolve } from "node:path";
 import { dojoDir, readDojoRc } from "@dojofoo/config";
 import { resolveRequestWorkspace, resolveWorkspaceId } from "../control/workspace";
 import { advanceInteractiveLesson, answerInteractiveQuestion, getInteractiveLesson } from "./service";
-import { answerInteractiveSensei, getInteractiveConversation, setInteractiveModel, streamInteractiveSensei } from "./conversation";
+import { answerInteractiveSensei, getInteractiveConversation, selectInteractiveHarness, setInteractiveModel, streamInteractiveSensei } from "./conversation";
+import { dojofooHarness, lessonHarnesses } from "../harness/registry";
 import { streamAcpAsAgUi } from "../lesson/agui-stream";
 
 const root = (c: Context) => c.req.param("workspaceId")
@@ -23,6 +24,18 @@ export const interactiveRoutes = new Hono()
   })
   .post("/advance", (c) => c.json(advanceInteractiveLesson(root(c), course(c))))
   .get("/conversation", async c => c.json(await getInteractiveConversation(root(c), target(c))))
+  .put("/configuration/harness", async c => {
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.json({ error: "Select a supported coding agent." }, 422); }
+    if (!body || typeof body !== "object" || !("harness" in body) || typeof body.harness !== "string" || !body.harness.trim() || Object.keys(body).some(key => key !== "harness")) return c.json({ error: "Select a supported coding agent." }, 422);
+    try {
+      const harness = dojofooHarness({ DOJOFOO_HARNESS: body.harness });
+      if (!lessonHarnesses.includes(harness)) throw new Error("Select a supported coding agent.");
+    }
+    catch (cause) { return c.json({ error: cause instanceof Error ? cause.message : String(cause) }, 422); }
+    try { return c.json(await selectInteractiveHarness(root(c), target(c), body.harness)); }
+    catch (cause) { return c.json({ error: cause instanceof Error ? cause.message : String(cause) }, 502); }
+  })
   .put("/configuration/model", async c => {
     const body = await c.req.json<{ value?: string }>();
     if (!body.value?.trim()) return c.json({ error: "Model value is required" }, 422);

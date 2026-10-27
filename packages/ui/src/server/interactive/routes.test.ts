@@ -49,7 +49,7 @@ describe("interactive course API", () => {
       onPart?.({ type: "text-end", id: "reply" });
       return "Read the current material.";
     });
-    expect(await (await app.request(`${base}/conversation`)).json()).toEqual({ sessionId: null, messages: [], model: null });
+    expect(await (await app.request(`${base}/conversation`)).json()).toMatchObject({ sessionId: null, messages: [], model: null });
     const response = await app.request(`${base}/messages`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
       threadId: "interactive-api", runId: "test-turn", messages: [{ id: "question", role: "user", content: "Where am I?" }], tools: [], context: [],
     }) });
@@ -62,4 +62,19 @@ describe("interactive course API", () => {
     expect(await (await app.request(`${base}/conversation`)).json()).toEqual({ error: "Provider offline" });
     expect((await app.request(base)).status).toBe(200);
   });
+});
+
+it("validates explicit agent selection before starting a session", async () => {
+  const { app, base } = fixture();
+  const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("selected-api");
+  vi.spyOn(acpClient, "history").mockResolvedValue([]);
+  vi.spyOn(acpClient, "modelConfiguration").mockReturnValue(null);
+  for (const body of [{}, { harness: "" }, { harness: "  " }, { harness: 42 }, { harness: "pi" }, { harness: "unknown" }, { harness: "toString" }]) {
+    const response = await app.request(`${base}/configuration/harness`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    expect(response.status).toBe(422);
+  }
+  expect(start).not.toHaveBeenCalled();
+  const selected = await app.request(`${base}/configuration/harness`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ harness: "codex" }) });
+  expect(selected.status).toBe(200);
+  expect(await selected.json()).toMatchObject({ sessionId: "selected-api", harness: "codex" });
 });
