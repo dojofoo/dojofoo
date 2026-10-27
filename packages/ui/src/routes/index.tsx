@@ -1,12 +1,14 @@
+import { AiBrain01Icon, AiMagicIcon } from "@dojofoo/uix/icons";
 import { StreamedChatMessage } from "@/components/chat/streamed-message";
 export { StreamedChatMessage, evaluationSummary } from "@/components/chat/streamed-message";
 import { AppShell, Dropdown, Icon as UIXIcon, MenuButton, type ShellSection } from "@dojofoo/uix/components/app-shell";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
-import { ComposerSurface } from "@dojofoo/uix/components/composer";
+import { Composer } from "@dojofoo/uix/containers/assistant-home";
 import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
 import { followLink } from "@dojofoo/uix/lib/link-event";
 import { lessonResources } from "@/lib/lesson-resources";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
+import { CourseCard } from "@dojofoo/uix/components/course-card";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
@@ -192,7 +194,7 @@ function CourseIndex() {
 
   return (
     <div style={{ height: "100dvh" }}>
-      <AppShell workspace="Dojo" brand={<a href="/" aria-label="Dojofoo courses"><BrandLogo /></a>}
+      <AppShell workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojofoo courses"><BrandLogo className="w-11" /></a>}
         navigation={navigation} navigationKey="local-courses" active="courses"
         showUser={false} showNews={false} showOnboarding={false} showFooter={false}
         onSearch={() => setPaletteOpen(true)} onNavigate={id => { if (id === "explore") explore(); else if (id === "docs") documentation(); }}>
@@ -719,7 +721,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   if (!lesson) {
     return (
-      <div style={{ height: "100dvh" }}><AppShell workspace="Dojo" brand={<a href="/" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo /></a>}
+      <div style={{ height: "100dvh" }}><AppShell workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
         navigation={[]} showUser={false} showFooter={false} showNews={false} showOnboarding={false}>
         <p role={error ? "alert" : "status"} className="p-8 text-sm text-muted-foreground">{error ?? busy}</p>
       </AppShell></div>
@@ -732,7 +734,10 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const nextLessonPending = busy === "Preparing the next lesson…";
   const navigation: ShellSection[] = [
     { id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] },
-    { id: "lessons", heading: humanTitle(lesson.dojo), layout: "lessons", items: lesson.lessons.map((item, index) => ({
+    { id: "lessons", heading: "Lessons", layout: "lessons", before: <div className="lj-course"><CourseCard
+      course={{ title: humanTitle(lesson.dojo), art: { hue: 350, glyph: "" } }} badge="Kata" flip={false}
+      enrolled={{ progress: Math.round(lesson.lessons.filter(item => item.state === "completed").length / lesson.lessons.length * 100), value: lesson.title }} />
+    </div>, items: lesson.lessons.map((item, index) => ({
       id: `lesson:${item.name}`, label: item.title, marker: String(index + 1).padStart(2, "0"),
       state: item.state === "completed" ? "done" : item.isCurrent ? "active" : "locked",
       note: item.state !== "completed" && !item.isCurrent ? "Upcoming lesson; expand to preview its goal" : undefined,
@@ -741,7 +746,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         : { href: `/course/${encodeURIComponent(workspaceId)}/${encodeURIComponent(lesson.dojo)}/lesson/${encodeURIComponent(item.name)}` }),
     })) },
   ];
-  return <div style={{ height: "100dvh" }}><AgentChatWorkspace brand={<a href="/" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
+  return <div style={{ height: "100dvh" }}><AgentChatWorkspace brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
     workspace="Dojo" showUser={false} showFooter={false} showNews={false} showOnboarding={false} sidebarWidth="18rem"
     navigation={navigation} navigationKey={`${workspaceId}:${lesson.dojo}`} active={`lesson:${lesson.kata}`} navigationTransition={false}
     onNavigate={id => { if (id === "courses") void navigate({ to: "/" }); else if (id.startsWith("lesson:")) void viewLesson(id.slice(7)); }}
@@ -863,26 +868,16 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
             </div>}
     details={<div data-testid="lesson-pane">
       <LessonMaterial lesson={lesson} workspaceId={workspaceId} />
-      {completed && lesson.isCurrent && <div className="mt-5"><UIXButton variant="secondary" disabled={Boolean(busy)} onClick={() => void continueLesson()}>Continue to next lesson</UIXButton></div>}
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     scroller={chatViewportRef}
     composer={<div data-testid="chat-composer">
-      <ComposerSurface id="sensei-composer" label="Message the sensei" value={question} onValueChange={setQuestion}
-        placeholder="Ask about the lesson…" disabled={!chatCanAcceptInput} busy={chatIsWorking} onStop={stop}
+      <Composer tray={false} attachments={false} dictation={false} plugins={false} agent={{ name: "Sensei", icon: AiBrain01Icon }} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
+        placeholder="Ask your Sensei…" disabled={!chatCanAcceptInput} busy={chatIsWorking} onStop={stop}
         history={messages.filter(item => item.role === "user").map(item => item.parts.flatMap(part => part.type === "text" && !isInternalLessonMessage(part.content) ? [part.content] : []).join("")).filter(Boolean)}
-        onSend={message => { void sendQuestion(message); }} leading={<span className="text-xs text-[var(--muted)]">Sensei</span>}
-        controls={lesson.model && <fieldset className="min-w-0" disabled={modelChanging || !chatCanAcceptInput}>
-          <Dropdown title="Harness model" align="end" items={lesson.model.options.map(option => ({
-            label: option.group ? `${option.group} · ${option.name}` : option.name, checked: option.value === lesson.model!.currentValue,
-            onSelect: () => { if (!modelChanging && chatCanAcceptInput) void changeModel(option.value); },
-          }))} trigger={({ open, toggle }) => <button type="button" className="ui-as-ghost ui-as-ghost--model max-w-56" aria-label="Harness model"
-            data-testid="harness-model-selector" aria-haspopup="menu" aria-expanded={open} disabled={modelChanging || !chatCanAcceptInput} onClick={toggle}>
-            <span className="min-w-0 truncate">{lesson.model?.options.find(option => option.value === lesson.model?.currentValue)?.name ?? lesson.model?.currentValue}</span>
-            <UIXIcon icon={ArrowDown01Icon} size={12} />
-          </button>} />
-        </fieldset>} />
+        onSend={message => { void sendQuestion(message); }} model={lesson.model?.currentValue} models={lesson.model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging}
+        onModelChange={value => { void changeModel(value); }} />
       {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}
     </div>}>
     <div data-chat-error={chatError?.message} data-chat-status={chatStatus} data-host-event-count={hostChatEvents.length} data-testid="chat-pane">
@@ -933,7 +928,7 @@ function LessonMaterial({ lesson, workspaceId }: { lesson: LessonSnapshot; works
   const basePath = lesson.briefingBasePath ?? null;
   const resources = useMemo(() => lessonResources(lesson.briefing, basePath, workspaceId), [lesson.briefing, basePath, workspaceId]);
   return <LessonBrief title={lesson.title} resources={resources}>
-    <CourseContent basePath={basePath} workspaceId={workspaceId}>{lesson.briefing}</CourseContent>
+    <CourseContent basePath={basePath} workspaceId={workspaceId} diagrams={false}>{lesson.briefing}</CourseContent>
   </LessonBrief>;
 }
 

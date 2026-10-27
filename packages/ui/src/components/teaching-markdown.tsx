@@ -10,7 +10,7 @@ import "@shikijs/twoslash/style-rich.css";
 import "katex/dist/katex.min.css";
 import "./teaching-markdown.css";
 
-export function TeachingMarkdown({ source, basePath = null, workspaceId = "", courseId }: { source: string; basePath?: string | null; workspaceId?: string; courseId?: string }) {
+export function TeachingMarkdown({ source, basePath = null, workspaceId = "", courseId, diagrams = true }: { source: string; basePath?: string | null; workspaceId?: string; courseId?: string; diagrams?: boolean }) {
   const request = JSON.stringify({ source, basePath, workspaceId, courseId });
   const [result, setResult] = useState<{ request: string; blocks?: TeachingBlock[]; error?: string }>();
   useEffect(() => {
@@ -29,7 +29,7 @@ export function TeachingMarkdown({ source, basePath = null, workspaceId = "", co
   }, [request]);
   if (result?.request !== request) return <p role="status">Preparing preview…</p>;
   if (result.error) return <p role="alert">{result.error}</p>;
-  return <TeachingDocument key={request} blocks={result.blocks ?? []} />;
+  return <TeachingDocument key={request} blocks={diagrams ? result.blocks ?? [] : (result.blocks ?? []).filter(block => block.type !== "diagram")} />;
 }
 
 export function TeachingDocument({ blocks }: { blocks: TeachingBlock[] }) {

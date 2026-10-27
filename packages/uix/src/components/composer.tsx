@@ -1,7 +1,21 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { Icon } from "./app-shell";
-import { ArrowUp02Icon, Cancel01Icon } from "../lib/icons";
+import { Dropdown, Icon, type MenuItem } from "./app-shell";
+import { ArrowDown01Icon, ArrowUp02Icon, Cancel01Icon, type IconGlyph } from "../lib/icons";
 import { composerCss } from "../lib/composer-styles";
+
+/** The same picker frame used by the Storybook composer and runtime controls. */
+export function ComposerPicker({ title, children, items, icon, model, active, disabled, className }: {
+  title: string; children: ReactNode; items: MenuItem[]; icon?: IconGlyph; model?: boolean; active?: boolean; disabled?: boolean; className?: string;
+}) {
+  return <Dropdown title={title} align={model ? "end" : "start"} items={items} trigger={({ open, toggle }) => (
+    <button type="button" className={["ui-as-ghost", model && "ui-as-ghost--model", className].filter(Boolean).join(" ")}
+      aria-label={title} aria-haspopup="menu" aria-expanded={open} data-active={active || undefined} disabled={disabled} onClick={toggle}>
+      {icon && <Icon icon={icon} size={14} />}
+      <span className="min-w-0 truncate">{children}</span>
+      {model && <Icon icon={ArrowDown01Icon} size={12} />}
+    </button>
+  )} />;
+}
 
 /** Shared presentation; the caller owns the draft, requests and supported controls. */
 export function ComposerSurface({ value, onValueChange, onSend, busy = false, disabled = false, onStop,

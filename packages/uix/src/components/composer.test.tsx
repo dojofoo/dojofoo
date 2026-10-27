@@ -1,6 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ComposerSurface } from "./composer";
+import { Composer } from "../containers/assistant-home";
+
+it("uses the Pages composer with a host-owned draft and available capabilities", () => {
+  const html = renderToStaticMarkup(<Composer tray={false} value="Saved course question" onValueChange={() => {}}
+    models={[]} attachments={false} dictation={false} plugins={false} busy onStop={() => {}} />);
+  expect(html).toContain("Saved course question");
+  expect(html).toContain('aria-label="Stop"');
+  expect(html).not.toMatch(/aria-label="(Add file|Dictate)"|>Plugins<|>Auto</);
+});
 
 describe("the controlled composer", () => {
   const render = (props: Partial<Parameters<typeof ComposerSurface>[0]> = {}) => renderToStaticMarkup(

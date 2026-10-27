@@ -1,13 +1,15 @@
+import { AiBrain01Icon, AiMagicIcon } from "@dojofoo/uix/icons";
 import { useNavigate } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat } from "@tanstack/ai-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
-import { AppShell, Dropdown, Icon } from "@dojofoo/uix/components/app-shell";
+import { AppShell, Icon } from "@dojofoo/uix/components/app-shell";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Button } from "@dojofoo/uix/components/button";
-import { ComposerSurface } from "@dojofoo/uix/components/composer";
-import { InteractiveLesson } from "@dojofoo/uix/components/interactive-lesson";
-import { CoursesIcon, ArrowDown01Icon } from "@dojofoo/uix/icons";
+import { Composer } from "@dojofoo/uix/containers/assistant-home";
+import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
+import { CourseCard } from "@dojofoo/uix/components/course-card";
+import { CoursesIcon, BackIcon } from "@dojofoo/uix/icons";
 import { followLink } from "@dojofoo/uix/lib/link-event";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { CourseContent } from "./course-content";
@@ -38,9 +40,7 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
   const navigate = useNavigate();
   const [lesson, setLesson] = useState<InteractiveSnapshot | null>(null);
   const [workspace, setWorkspace] = useState("");
-  const [answer, setAnswer] = useState("");
   const [question, setQuestion] = useState("");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [conversation, setConversation] = useState<InteractiveConversation>();
   const [conversationError, setConversationError] = useState<string>();
@@ -63,7 +63,6 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     setLesson(null);
     setConversation(undefined);
     setConversationReady(false);
-    setAnswer("");
     setQuestion("");
     setError(undefined);
     const url = requestedCourse ? api(selected, requestedCourse) : `/api/interactive${selected ? `?workspace=${encodeURIComponent(selected)}` : ""}`;
@@ -93,13 +92,6 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     return () => { conversationRequest.current += 1; };
   }, [lesson?.dojo, loadConversation]);
 
-  async function update(path: string, init: RequestInit) {
-    setBusy(true);
-    setError(undefined);
-    try { setLesson(await read<InteractiveSnapshot>(api(workspace, lesson?.dojo, path), init)); setAnswer(""); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
-    finally { setBusy(false); }
-  }
   async function send(value: string) {
     if (!acceptsInput || !value.trim()) return;
     setQuestion("");
@@ -125,8 +117,8 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     finally { setModelChanging(false); }
   }
 
-  const brand = <a href="/" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>;
-  const shell = { workspace: "Dojo", brand, showUser: false, showFooter: false, showNews: false, showOnboarding: false };
+  const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>;
+  const shell = { workspace: "Dojo", brand, sidebarWidth: "18rem", showUser: false, showFooter: false, showNews: false, showOnboarding: false };
   if (!lesson) return <div style={{ height: "100dvh" }}><AppShell {...shell} navigation={[]}>
     <p role={error ? "alert" : "status"} className="p-8 text-sm text-muted-foreground">{error ?? "Loading your lesson…"}</p>
   </AppShell></div>;
@@ -138,32 +130,27 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
   const model = conversation?.model;
   return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...shell}
     navigation={[{ id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] },
-      { id: "course", heading: lesson.lessonTitle, items: [{ id: "current", label: current?.title ?? "Course complete", marker: String(Math.min(lesson.step + 1, lesson.totalSteps)), state: lesson.complete ? "done" : "active" }] }]}
+      { id: "course", heading: "Lessons", before: <div className="lj-course"><CourseCard
+        course={{ title: lesson.lessonTitle, art: { hue: 350, glyph: "" } }} badge="Interactive" flip={false}
+        enrolled={{ progress: Math.round(lesson.step / lesson.totalSteps * 100),
+          label: `${String(Math.min(lesson.step + 1, lesson.totalSteps)).padStart(2, "0")} · ${lesson.lessonTitle}`, value: current?.title }} />
+      </div>, items: [{ id: "current", label: current?.title ?? "Course complete", marker: String(Math.min(lesson.step + 1, lesson.totalSteps)), state: lesson.complete ? "done" : "active" }] }]}
     active="current" navigationKey={`${workspace}:${lesson.dojo}`} navigationTransition={false}
     onNavigate={id => { if (id === "courses") void navigate({ to: "/" }); }}
-    crumbs={[{ label: "Courses", onClick: () => { void navigate({ to: "/" }); } }, { label: lesson.lessonTitle }]}
+    crumbs={[{ label: "Dashboard", icon: <Icon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }, { label: lesson.lessonTitle }]}
     contentKind="material" editor={null} scroller={viewportRef} askAssistant={acceptsInput}
     onCommand={(id, query) => { if (id === "ask" && query) void send(query); }}
     details={<div data-testid="interactive-material">
-      <InteractiveLesson title={current?.title ?? "Course complete"} resources={resources} step={lesson.step} totalSteps={lesson.totalSteps}
-        complete={lesson.complete} question={current?.type === "question"} response={lesson.response} busy={busy}
-        answer={answer} onAnswerChange={setAnswer} onAnswer={() => void update("/answer", json({ answer }))}
-        onContinue={() => void update("/advance", { method: "POST" })}
-        explanation={current?.type === "question" && <CourseContent basePath={current.explanationBase} workspaceId={workspace} courseId={lesson.dojo}>{current.explanation}</CourseContent>}>
-        <CourseContent basePath={basePath} workspaceId={workspace} courseId={lesson.dojo}>{material}</CourseContent>
-      </InteractiveLesson>
+      <LessonBrief title={current?.title ?? lesson.lessonTitle} resources={resources}>
+        <CourseContent basePath={basePath} workspaceId={workspace} courseId={lesson.dojo} diagrams={false}>{material}</CourseContent>
+      </LessonBrief>
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
     </div>}
-    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this course</span></span>}
-    composer={<ComposerSurface id="interactive-sensei" label="Message the sensei" placeholder="Ask about this step…" value={question} onValueChange={setQuestion}
+    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
+    composer={<Composer tray={false} attachments={false} dictation={false} plugins={false} agent={{ name: "Sensei", icon: AiBrain01Icon }} id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={question} onValueChange={setQuestion}
       disabled={!acceptsInput} busy={working} onStop={stop} onSend={value => { void send(value); }}
       history={messages.filter(message => message.role === "user").map(message => message.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
-      leading={<span className="text-xs text-[var(--muted)]">Sensei</span>}
-      controls={model && <Dropdown title="Harness model" align="end" items={model.options.map(option => ({ label: option.group ? `${option.group} · ${option.name}` : option.name,
-        checked: option.value === model.currentValue, onSelect: () => { if (!modelChanging && acceptsInput) void changeModel(option.value); },
-      }))} trigger={({ open, toggle }) => <button type="button" className="ui-as-ghost ui-as-ghost--model max-w-56" aria-label="Harness model" aria-expanded={open} aria-haspopup="menu" disabled={modelChanging || !acceptsInput} onClick={toggle}>
-        <span className="min-w-0 truncate">{model.options.find(option => option.value === model.currentValue)?.name ?? model.currentValue}</span><Icon icon={ArrowDown01Icon} size={12} />
-      </button>} />}
+      model={model?.currentValue} models={model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging} onModelChange={value => { void changeModel(value); }}
     />}>
     <div data-testid="chat-pane" data-chat-status={status} data-chat-error={chatError?.message}>
       {!messages.length && conversationReady && <p className="text-sm text-[var(--muted)]">Ask Sensei about this step whenever you need a hand.</p>}

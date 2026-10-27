@@ -7,6 +7,7 @@ type Props = {
   children: string;
   workspaceId: string;
   courseId?: string;
+  diagrams?: boolean;
 };
 
 type ComponentToken = {
@@ -17,7 +18,7 @@ type ComponentToken = {
 const componentPattern = /<(Artifact|Interactive|RegexWorkbench|Video)\s+([^>]*?)\s*\/>/gu;
 const attributePattern = /([A-Za-z][\w-]*)=["']([^"']*)["']/gu;
 
-export function CourseContent({ basePath, children, workspaceId, courseId }: Props) {
+export function CourseContent({ basePath, children, workspaceId, courseId, diagrams = true }: Props) {
   const blocks: Array<string | ComponentToken> = [];
   let offset = 0;
   for (const match of children.matchAll(componentPattern)) {
@@ -30,7 +31,7 @@ export function CourseContent({ basePath, children, workspaceId, courseId }: Pro
   return (
     <div className="course-content space-y-5 font-prose leading-7 text-muted-foreground">
       {blocks.map((block, index) => typeof block === "string"
-        ? <TeachingMarkdown key={index} basePath={basePath} workspaceId={workspaceId} courseId={courseId} source={block} />
+        ? <TeachingMarkdown key={index} basePath={basePath} workspaceId={workspaceId} courseId={courseId} source={block} diagrams={diagrams} />
         : <CourseComponent basePath={basePath} key={index} token={block} workspaceId={workspaceId} courseId={courseId} />)}
     </div>
   );
