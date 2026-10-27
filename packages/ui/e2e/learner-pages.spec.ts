@@ -1,5 +1,44 @@
 import { expect, test } from "@playwright/test";
 
+test("Explore stays local and both starter shells remain available without an installation or agent session", async ({ page }) => {
+  const writes: string[] = [];
+  const popups: string[] = [];
+  page.on("popup", popup => { popups.push(popup.url()); void popup.close(); });
+  await page.context().route("https://dojo.foo/**", route => route.abort());
+  await page.route("**/api/**", route => {
+    if (route.request().method() !== "GET") writes.push(route.request().url());
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/control/courses" || path === "/api/control/authoring") return route.fulfill({ json: [] });
+    return route.fulfill({ status: 404 });
+  });
+  await page.goto("/");
+  const studying = page.getByRole("region", { name: "Studying", exact: true });
+  for (const title of ["Create your own dojo", "How to run a dojo"]) await expect(studying.getByRole("link", { name: title, exact: true })).toBeVisible();
+  await page.getByRole("navigation", { name: "Main menu", exact: true }).getByText("Explore", { exact: true }).click();
+  await expect(page).toHaveURL(/\/explore$/);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Find your next course", exact: true })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Featuring", exact: true }).getByText("How to run a dojo", { exact: true })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Featuring", exact: true }).getByText("Updated", { exact: true })).toHaveCount(0);
+  const directory = page.locator(".lj-directory");
+  await directory.getByPlaceholder("Search courses").fill("Create your own");
+  await expect(directory.getByRole("button", { name: "Open Create your own dojo", exact: true })).toBeVisible();
+  await expect(directory.getByRole("button", { name: "Open How to run a dojo", exact: true })).toHaveCount(0);
+  await directory.getByRole("button", { name: "Open Create your own dojo", exact: true }).click();
+  await expect(page).toHaveURL(/\/starter\/create-your-own-dojo$/);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Create your own dojo", exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox")).toBeDisabled();
+  await expect(page.getByRole("navigation", { name: "Main menu", exact: true }).getByText("Courses", { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath("starter-course-shell.png"), animations: "disabled" });
+  await page.getByRole("navigation", { name: "Breadcrumb", exact: true }).getByText("Dashboard", { exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await studying.getByRole("link", { name: "How to run a dojo", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "How to run a dojo", exact: true })).toBeVisible();
+  expect(writes).toEqual([]);
+  expect(popups).toEqual([]);
+});
+
 test("the account menu opens local Settings and Profile through the Pages layout", async ({ page }) => {
   await page.route("**/api/control/courses", route => route.fulfill({ json: [] }));
   await page.route("**/api/control/authoring", route => route.fulfill({ json: [] }));

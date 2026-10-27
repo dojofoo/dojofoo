@@ -47,7 +47,7 @@ test("the UIX library discovers real installations and preserves workspace choic
     await page.goto(origin);
     await expect(page.getByRole("heading", { name: "Your courses", exact: true })).toBeVisible();
     await expect(page.locator(".ui-as-app")).toBeVisible();
-    await expect(page.locator(".ui-card:not(.ui-card--add)")).toHaveCount(2);
+    await expect(page.locator(".ui-card:not(.ui-card--add)")).toHaveCount(4);
     await expect(page.locator(".ui-card__figure")).toHaveCount(0);
     await expect(page.getByText("Alex Morgan", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Your courses" })).toHaveCSS("font-family", /Inter/);
@@ -84,8 +84,10 @@ test("the UIX library discovers real installations and preserves workspace choic
       execFileSync(process.execPath, [cli, "remove", course.dojo], { cwd: workspace, env: environment, stdio: "pipe" });
     }
     await page.reload();
-    await expect(page.getByText("No courses yet", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Explore courses", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Create your own dojo", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "How to run a dojo", exact: true })).toBeVisible();
+    await expect(page.locator(".ui-card:not(.ui-card--add)")).toHaveCount(2);
+    await expect(page.getByRole("button", { name: /Add a course/ })).toBeVisible();
     const sessions = await page.request.get(`${origin}/api/control/sessions`).then(response => response.json()) as Array<{ ownership: string }>;
     // CLI commands may observe the calling agent's external session. Browsing
     // must never start or adopt a managed/owned teaching conversation.

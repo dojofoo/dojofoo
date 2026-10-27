@@ -1,7 +1,7 @@
 # 0108: Draft starter courses and deliberate installation
 
 Parent: UIX adoption (0100).
-Status: content preparation only; depends on completed interactive and authoring integration (0106–0107).
+Status: draft content and local empty-shell/discovery presentation prepared; full installation/teaching integration still depends on 0106–0107. Local review remains unmerged.
 
 Goal: ship the editable “Create your own dojo” and “How to run a dojo” starters through the packaged local application, with deliberate offline installation, actual Sensei context, saved progress, and an independent authoring-to-trial journey. Source content alone does not complete this goal.
 
@@ -24,3 +24,15 @@ Remaining acceptance:
 - Verify source/content/schema boundaries, actual help links and editable assets in the packed application. Public catalog registration remains deferred until reviewed content has a real distribution source.
 
 Do not merge the local review or promote production ahead of the requested review and the remaining migration gates.
+
+## Local Explore and empty-shell checkpoint, 2026-10-27
+
+The user explicitly requested two always-available empty starter shells and allowed temporary local discovery content. The dashboard now includes Create your own dojo and How to run a dojo even when installation discovery returns no courses. Their metadata reads the existing draft manifests at build time. A real installation with the same course ID takes precedence over its placeholder. The existing backend installation list is unchanged and continues to report only filesystem installations; no installation, progress or provider session is fabricated by browsing. Language filtering and workspace/session choices remain under the native controller.
+
+/explore is a local route. Its CourseExplore presentation is shared with current Pages/Explore: featuring, the turning course card, catalog search/category/status controls and the course-card grid. The Storybook controller retains its preview installation timer; the native host supplies Open actions for the starter shells. Missing reviews, dates and ratings remain absent; a regression caught the shared CourseCard emitting a bare Updated label without a date, which is now omitted. /starter/$courseId provides the empty learner workspace with the shared course card, Dashboard crumb, account menu and disabled conversation. It does not execute the prepared lesson content, start an agent or claim an installed course. The seven-step source drafts remain intact for the real packaged installation/teaching work above.
+
+Red-first evidence: the controlled Explore contract test failed before its component existed; the native browser test reproduced the absent dashboard starter link; the missing-date assertion failed before the CourseCard guard. Final gates: host 396 passed/4 skipped (37.00s); UIX 65 passed (32.38s); both type checks, full real CLI build and diff check passed. Four native browser checks passed (9.9s), including the isolated built-CLI local library gate: actual installation discovery, language filter, workspace choices, removal of real installations leaving both starter shells, and no owned teaching sessions. The new browser case checks local navigation/reload/search, both shell routes, Dashboard return, absent empty date and dashboard-only menu inside a course, disabled conversation, and zero writes/popups. Five Explore/corner/controller checks passed against current Storybook (7.8s), including actual preview installation state. Real canonical /explore probes passed desktop 1440px and phone 390px, working search, both cards, a fully visible mobile Open action and no horizontal overflow/page errors. Desktop/mobile/shell screenshots were inspected.
+
+Evidence: `/tmp/dojo-explore{,-date}-red.log`, `/tmp/dojo-local-explore-red.log`, `/tmp/dojo-local-explore-final-{host-tests,uix-tests,build}.log`, `/tmp/dojo-local-explore-verified-{host-types,uix-types,stories,layout}.log`, `/tmp/dojo-local-explore-verified.log`, `/tmp/dojo-local-explore-verified-results/`, `/tmp/dojo-local-explore-{1440,390,mobile-grid}.png`. Review now runs as owned pueue task 2083 at https://dojo.localhost, backend 4321. Owned previous launchers/servers were stopped explicitly before rebuilds. The website docs still returned HTTP 200; both user Storybooks and all 18 concurrent root audit files were preserved. No merge or production promotion occurred.
+
+The source installation/offline/context/progression/independent-draft gates above remain open. Next latest-user work is the coding-agent/model composer, real image/file attachment handling and a main-view authoring entry that creates an independent draft. The account/profile persistence and evaluation-report work in 0107 also remain incomplete.

@@ -68,6 +68,15 @@ for (const theme of ["dark", "light"]) {
   });
 }
 
+test("Explore keeps installation in the Pages controller after sharing its presentation", async ({ page }) => {
+  await page.goto("/iframe.html?id=pages-dojo--explore&viewMode=story");
+  const card = page.locator('.lj-directory .ui-card[aria-label="Async JavaScript"]');
+  await card.getByRole("button", { name: "Install Async JavaScript", exact: true }).click();
+  await expect(card.getByText("Installing…", { exact: true })).toBeVisible();
+  await expect(card.getByText("Installed", { exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Install Async JavaScript", exact: true })).toHaveCount(0);
+});
+
 test("authoring opens, edits, saves and closes files while the conversation stays", async ({ page }) => {
   await page.goto("/iframe.html?id=pages-dojo--course-authoring&viewMode=story");
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();

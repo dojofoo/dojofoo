@@ -13,11 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AuthoringRouteImport } from './routes/authoring'
 import { Route as AvatarRouteImport } from './routes/avatar'
+import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as InteractiveRouteImport } from './routes/interactive'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as CourseWorkspaceIdRouteImport } from './routes/course.$workspaceId'
 import { Route as KataNameRouteImport } from './routes/kata.$name'
 import { Route as SessionSessionIdRouteImport } from './routes/session.$sessionId'
+import { Route as StarterCourseIdRouteImport } from './routes/starter.$courseId'
 import { Route as CourseWorkspaceIdIndexRouteImport } from './routes/course.$workspaceId.index'
 import { Route as CourseWorkspaceIdCourseIdLessonLessonIdRouteImport } from './routes/course.$workspaceId.$courseId.lesson.$lessonId'
 
@@ -39,6 +41,11 @@ const AuthoringRoute = AuthoringRouteImport.update({
 const AvatarRoute = AvatarRouteImport.update({
   id: '/avatar',
   path: '/avatar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExploreRoute = ExploreRouteImport.update({
+  id: '/explore',
+  path: '/explore',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InteractiveRoute = InteractiveRouteImport.update({
@@ -66,6 +73,11 @@ const SessionSessionIdRoute = SessionSessionIdRouteImport.update({
   path: '/session/$sessionId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StarterCourseIdRoute = StarterCourseIdRouteImport.update({
+  id: '/starter/$courseId',
+  path: '/starter/$courseId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CourseWorkspaceIdIndexRoute = CourseWorkspaceIdIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -83,11 +95,13 @@ export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/authoring': typeof AuthoringRoute
   '/avatar': typeof AvatarRoute
+  '/explore': typeof ExploreRoute
   '/interactive': typeof InteractiveRoute
   '/settings': typeof SettingsRoute
   '/course/$workspaceId': typeof CourseWorkspaceIdRouteWithChildren
   '/kata/$name': typeof KataNameRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
+  '/starter/$courseId': typeof StarterCourseIdRoute
   '/course/$workspaceId/': typeof CourseWorkspaceIdIndexRoute
   '/course/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
@@ -96,10 +110,12 @@ export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/authoring': typeof AuthoringRoute
   '/avatar': typeof AvatarRoute
+  '/explore': typeof ExploreRoute
   '/interactive': typeof InteractiveRoute
   '/settings': typeof SettingsRoute
   '/kata/$name': typeof KataNameRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
+  '/starter/$courseId': typeof StarterCourseIdRoute
   '/course/$workspaceId': typeof CourseWorkspaceIdIndexRoute
   '/course/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
@@ -109,11 +125,13 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/authoring': typeof AuthoringRoute
   '/avatar': typeof AvatarRoute
+  '/explore': typeof ExploreRoute
   '/interactive': typeof InteractiveRoute
   '/settings': typeof SettingsRoute
   '/course/$workspaceId': typeof CourseWorkspaceIdRouteWithChildren
   '/kata/$name': typeof KataNameRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
+  '/starter/$courseId': typeof StarterCourseIdRoute
   '/course/$workspaceId/': typeof CourseWorkspaceIdIndexRoute
   '/course/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
@@ -124,11 +142,13 @@ export interface FileRouteTypes {
     | '/$'
     | '/authoring'
     | '/avatar'
+    | '/explore'
     | '/interactive'
     | '/settings'
     | '/course/$workspaceId'
     | '/kata/$name'
     | '/session/$sessionId'
+    | '/starter/$courseId'
     | '/course/$workspaceId/'
     | '/course/$workspaceId/$courseId/lesson/$lessonId'
   fileRoutesByTo: FileRoutesByTo
@@ -137,10 +157,12 @@ export interface FileRouteTypes {
     | '/$'
     | '/authoring'
     | '/avatar'
+    | '/explore'
     | '/interactive'
     | '/settings'
     | '/kata/$name'
     | '/session/$sessionId'
+    | '/starter/$courseId'
     | '/course/$workspaceId'
     | '/course/$workspaceId/$courseId/lesson/$lessonId'
   id:
@@ -149,11 +171,13 @@ export interface FileRouteTypes {
     | '/$'
     | '/authoring'
     | '/avatar'
+    | '/explore'
     | '/interactive'
     | '/settings'
     | '/course/$workspaceId'
     | '/kata/$name'
     | '/session/$sessionId'
+    | '/starter/$courseId'
     | '/course/$workspaceId/'
     | '/course/$workspaceId/$courseId/lesson/$lessonId'
   fileRoutesById: FileRoutesById
@@ -163,11 +187,13 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AuthoringRoute: typeof AuthoringRoute
   AvatarRoute: typeof AvatarRoute
+  ExploreRoute: typeof ExploreRoute
   InteractiveRoute: typeof InteractiveRoute
   SettingsRoute: typeof SettingsRoute
   CourseWorkspaceIdRoute: typeof CourseWorkspaceIdRouteWithChildren
   KataNameRoute: typeof KataNameRoute
   SessionSessionIdRoute: typeof SessionSessionIdRoute
+  StarterCourseIdRoute: typeof StarterCourseIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -198,6 +224,13 @@ declare module '@tanstack/react-router' {
       path: '/avatar'
       fullPath: '/avatar'
       preLoaderRoute: typeof AvatarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explore': {
+      id: '/explore'
+      path: '/explore'
+      fullPath: '/explore'
+      preLoaderRoute: typeof ExploreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/interactive': {
@@ -233,6 +266,13 @@ declare module '@tanstack/react-router' {
       path: '/session/$sessionId'
       fullPath: '/session/$sessionId'
       preLoaderRoute: typeof SessionSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/starter/$courseId': {
+      id: '/starter/$courseId'
+      path: '/starter/$courseId'
+      fullPath: '/starter/$courseId'
+      preLoaderRoute: typeof StarterCourseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/course/$workspaceId/': {
@@ -271,11 +311,13 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   AuthoringRoute: AuthoringRoute,
   AvatarRoute: AvatarRoute,
+  ExploreRoute: ExploreRoute,
   InteractiveRoute: InteractiveRoute,
   SettingsRoute: SettingsRoute,
   CourseWorkspaceIdRoute: CourseWorkspaceIdRouteWithChildren,
   KataNameRoute: KataNameRoute,
   SessionSessionIdRoute: SessionSessionIdRoute,
+  StarterCourseIdRoute: StarterCourseIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

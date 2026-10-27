@@ -86,7 +86,7 @@ export function CourseCard({ course, mark, enrolled, badge, className, showVersi
       </>}
       // Its version has the top left, so a course you study names its author over the title (others, their repository)
       main={<>{enrolled ? course.author && <CardKicker>{course.author}</CardKicker> : course.repo && <CardKicker code>{course.repo}</CardKicker>}<CardTitle>{course.title}</CardTitle></>}
-      footer={enrolled ? <><CardText label={enrolled.label} value={enrolled.value} /><CardFigure>{enrolled.progress}%</CardFigure></> : <CardText label="Updated" value={course.updated} />}
+      footer={enrolled ? <><CardText label={enrolled.label} value={enrolled.value} /><CardFigure>{enrolled.progress}%</CardFigure></> : course.updated ? <CardText label="Updated" value={course.updated} /> : undefined}
       progress={enrolled?.progress}>
       <CardDetails items={[...((enrolled?.version ?? course.version) ? [["Version", (enrolled?.version ?? course.version)!] as [string, string]] : []), ...(course.language ? [["Language", course.language] as [string, string]] : []), ...(course.chapters === undefined ? [] : [["Chapters", course.chapters] as [string, number]]), ...(course.lessons === undefined ? [] : [["Lessons", course.lessons] as [string, number]]), ...(course.hours === undefined ? [] : [["Time to complete", `~${course.hours}\u00a0h`] as [string, string]])]} />
     </ColorCard>

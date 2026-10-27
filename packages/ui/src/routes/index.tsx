@@ -45,6 +45,7 @@ import {
 } from "@dojofoo/ui/dialog";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useAccountMenu } from "@/hooks/use-account-menu";
+import { starterCourses } from "@/lib/starter-courses";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 import type { JsonRpcRequest } from "@/server/session/protocol";
 import { applyLessonMetadata, hydrateLesson } from "@/lib/lesson-snapshot";
@@ -131,6 +132,7 @@ function CourseIndex() {
   }, []);
 
   const groups = groupCourses(courses);
+  const starters = starterCourses.filter(item => !groups.some(group => group.dojo === item.id));
   const languages = [...new Set(groups.flatMap((group) => group.workspaces.map((course) => course.language)))].sort();
   const visibleCourses = groups
     .filter((group) => language === "all" || group.workspaces.some((course) => course.language === language))
@@ -186,10 +188,10 @@ function CourseIndex() {
 
   const choiceWorkspace = courseChoice?.workspaces.find((course) => course.workspaceId === choiceWorkspaceId) ?? null;
 
-  const explore = () => window.open("https://dojo.foo/dojos", "_blank", "noopener,noreferrer");
+  const explore = () => { void navigate({ to: "/explore" }); };
   const documentation = () => window.open("https://dojo.foo/docs", "_blank", "noopener,noreferrer");
   const navigation: ShellSection[] = [{ id: "library", items: [
-    { id: "courses", label: "Courses", icon: CoursesIcon, count: groups.length || undefined },
+    { id: "courses", label: "Courses", icon: CoursesIcon, count: groups.length + starters.length || undefined },
     { id: "explore", label: "Explore", icon: ExploreIcon },
     { id: "docs", label: "Documentation", icon: BookOpen01Icon },
   ] }];
@@ -207,7 +209,7 @@ function CourseIndex() {
             <MenuButton label="Sort local dojos" value={sortBy} onChange={setSortBy}
               options={[{ value: "recent", label: "Most recent" }, { value: "oldest", label: "Oldest activity" }, { value: "name", label: "Course name" }]} />
           </>}
-          courses={visibleCourses.map(group => {
+          courses={[...visibleCourses.map(group => {
             const course = preferredWorkspace(group);
             const single = group.workspaces.length === 1;
             const href = !single || course.mode === "interactive" ? undefined
@@ -217,7 +219,10 @@ function CourseIndex() {
             return { id: group.dojo, title: humanTitle(course.dojo), mark: course.language, href,
               caption: single ? course.mode === "interactive" ? "Interactive lesson" : humanTitle(course.kata ?? "Not started") : `${group.workspaces.length} workspaces`,
               detail: single ? course.workspaceName : "Choose where to continue", onOpen: () => chooseCourse(group) };
-          })}
+          }), ...(language === "all" ? starters.map(course => ({ id: `starter:${course.id}`, title: course.title, mark: "Dojo",
+            caption: "Draft starter", detail: "Lessons coming soon", href: `/starter/${encodeURIComponent(course.id)}`,
+            onOpen: () => { void navigate({ to: "/starter/$courseId", params: { courseId: course.id } }); },
+          })) : [])]}
           drafts={drafts.map(draft => ({ id: draft.workspaceId, title: humanTitle(draft.name), mark: draft.mode,
             caption: "Draft", detail: draft.description || "Resume authoring", href: `/authoring?workspace=${encodeURIComponent(draft.workspaceId)}` }))} />
         {toast}
@@ -225,6 +230,7 @@ function CourseIndex() {
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} assistant={false} searchLabel="Search your courses"
         placeholder="Search courses, drafts and documentation…" groups={[
           { id: "courses", label: "Courses", commands: groups.map(group => ({ id: `course:${group.dojo}`, label: humanTitle(group.dojo), keywords: preferredWorkspace(group).language })) },
+          { id: "starters", label: "Starter courses", commands: starters.map(course => ({ id: `starter:${course.id}`, label: course.title, keywords: course.blurb })) },
           { id: "drafts", label: "Authoring", commands: drafts.map(draft => ({ id: `draft:${draft.workspaceId}`, label: humanTitle(draft.name) })) },
           { id: "help", label: "Help", commands: [{ id: "explore", label: "Explore courses" }, { id: "docs", label: "Documentation" }] },
         ]} onRun={id => {
@@ -232,6 +238,7 @@ function CourseIndex() {
           else if (id === "docs") documentation();
           else if (id.startsWith("course:")) { const group = groups.find(item => item.dojo === id.slice(7)); if (group) chooseCourse(group); }
           else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: { workspace: id.slice(6) } });
+          else if (id.startsWith("starter:")) void navigate({ to: "/starter/$courseId", params: { courseId: id.slice(8) } });
         }} />
       <Dialog open={courseChoiceOpen} onOpenChange={setCourseChoiceOpen}>
         <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
