@@ -51,7 +51,9 @@ const cli = join(repo, "packages/cli/dist/index.js");
 const environment = { ...process.env, DOJOFOO_HOME: stateHome, DO_NOT_TRACK: "1",
   DOJOFOO_HARNESS: "opencode", OPENCODE_BIN: opencodeExecutable(),
   XDG_CONFIG_HOME: join(scratch, "config"), XDG_DATA_HOME: join(scratch, "data"), XDG_CACHE_HOME: join(scratch, "cache"),
-  OPENCODE_CONFIG_CONTENT: JSON.stringify({ agents: { dojofoo: { permissions: [{ action: "dojofoo_dojo_context", resource: "*", effect: "ask" }] } }, model: "openai/gpt-4o", small_model: "openai/gpt-4o", enabled_providers: ["openai"],
+  // This scripted responder does not implement OpenCode's summary protocol.
+  // Keep automatic compaction out of the lesson-restoration acceptance case.
+  OPENCODE_CONFIG_CONTENT: JSON.stringify({ compaction: { auto: false }, agents: { dojofoo: { permissions: [{ action: "dojofoo_dojo_context", resource: "*", effect: "ask" }] } }, model: "openai/gpt-4o", small_model: "openai/gpt-4o", enabled_providers: ["openai"],
     provider: { openai: { options: { baseURL: endpoint.baseURL, apiKey: "fixture-only" } } } }),
   DOJOFOO_MODEL: "", DOJOFOO_AUTHORING_MODEL: "", DOJOFOO_LESSON_MODEL: "", EVE_BASE_URL: "", DOJO_EVE_ROOT: "",
   OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "",
@@ -411,6 +413,8 @@ try {
     await expect(page.locator(".view-lines")).toContainText("return 42");
     await expect(page.getByTestId("chat-pane")).toHaveAttribute("data-chat-status", "ready");
     const restarted = await fetch(base).then(response => response.json());
+    await writeFile(artifact("before-restart.json"), JSON.stringify(completedSnapshot, null, 2));
+    await writeFile(artifact("after-restart.json"), JSON.stringify(restarted, null, 2));
     assert.equal(restarted.sessionId, after.sessionId);
     assert.equal(restarted.code, shortcutSolution);
     assert.equal(restarted.result.complete, true);
