@@ -42,7 +42,7 @@ import { ScrollArea } from "@dojofoo/ui/scroll-area";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { FileTree, FileTreeFile, FileTreeFolder } from "@dojofoo/uix/components/motion/file-tree";
 
-const CodeEditor = lazy(() => import("@/components/code-editor"));
+const CodeEditor = lazy(() => import("@dojofoo/uix/containers/code-editor").then(({ CodeEditor }) => ({ default: CodeEditor })));
 
 type ReportResponse = { report: AuthoringEvalReport | null; root: string };
 type AuthoringFile = { content: string; label: string; path: string };
@@ -497,6 +497,7 @@ function AuthoringPage() {
                   : activeFile
                     ? <Suspense fallback={<div className="p-6 text-sm text-[#878787]">Loading editor…</div>}>
                         <CodeEditor
+                          key={workspace.root}
                           code={draft}
                           coverage={false}
                           filePath={activeFile.path}
@@ -504,6 +505,7 @@ function AuthoringPage() {
                           lessonApiBase=""
                           documentationUrl={authoringApi("/api/authoring/language/hover")}
                           onChange={setDraft}
+                          onSave={content => { if (activeFile && dirty && !busy) void saveActiveFile(activeFile.path, content); }}
                           readOnly={false}
                         />
                       </Suspense>
