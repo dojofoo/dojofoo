@@ -31,7 +31,7 @@ import { codingAgents } from "@/lib/coding-agents";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LessonBrief, LessonChecklist } from "@dojofoo/uix/components/lesson-brief";
-import { CoursesIcon, DoneIcon, Cancel01Icon, FilterIcon } from "@dojofoo/uix/icons";
+import { CoursesIcon, DoneIcon, Cancel01Icon, File01Icon, FilterIcon } from "@dojofoo/uix/icons";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 
 const CodeEditor = lazy(() => import("@dojofoo/uix/containers/code-editor").then(({ CodeEditor }) => ({ default: CodeEditor })));
@@ -405,6 +405,7 @@ function AuthoringPage() {
     </main>
   </AppShell></div>;
 
+  const fileLessons = new Map(workspace.lessons.flatMap(lesson => lesson.files.map(file => [file.path, lesson] as const)));
   const navigation = authoringNavigation(workspace, onlyCourseFiles);
   const courseRow = navigation[0]!.items[0]!;
   courseRow.actions = <TreeTitleMenu title={courseRow.label} disabled={Boolean(busy)} onRename={title => { void renameCourse(title); }} />;
@@ -463,7 +464,18 @@ function AuthoringPage() {
         ...(scope === "lesson" && selectedLesson ? [{ label: selectedLesson.title }] : []),
       ]}
       askAssistant={backend === "acp" && !busy}
-      onCommand={(id, query) => { if (id === "ask" && query && backend === "acp" && !busy) void sendMessage(query); }}
+      commands={[{ id: "files", label: "Files", commands: (files ?? []).map(file => ({
+        id: `open:${file.path}`, label: file.label, hint: fileLessons.get(file.path)?.title ?? workspace.name,
+        icon: <Icon icon={File01Icon} size={16} />, keywords: file.path,
+      })) }]}
+      onCommand={(id, query) => {
+        if (id.startsWith("open:")) {
+          const path = id.slice(5);
+          const lesson = fileLessons.get(path);
+          if (lesson) selectLessonFile(lesson, path);
+          else selectRootFile(path);
+        } else if (id === "ask" && query && backend === "acp" && !busy) void sendMessage(query);
+      }}
       editor={<Editor flush className="h-full" tabs={
         <EditorTabs mode="authoring" label="Authoring workspace" active={activeFilePath}
           tabs={editorFiles.tabs.paths.flatMap((path) => { const file = files?.find((entry) => entry.path === path); return file ? [{ path, label: file.label, dirty: editorFiles.dirty(file) }] : []; })}

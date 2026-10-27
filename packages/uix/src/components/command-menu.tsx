@@ -668,9 +668,11 @@ const css = /* css */ `
 .ui-cm__done svg { width: 14px; height: 14px; fill: none; stroke: var(--ui-cm-ok); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 @keyframes ui-cm-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 
-/* Narrow (phones): no shortcut keys or hints – there's no keyboard to use them with */
+/* Narrow screens keep result context below the name and hide keyboard-only chrome. */
 @container (max-width: 480px) {
-  .ui-cm__item .ui-cm__keys, .ui-cm__foot > .ui-cm__foot-right, .ui-cm__foot > .ui-cm__tip, .ui-cm__enter, .ui-cm__hint { display: none; }
+  .ui-cm__item .ui-cm__keys, .ui-cm__foot > .ui-cm__foot-right, .ui-cm__foot > .ui-cm__tip, .ui-cm__enter { display: none; }
+  .ui-cm__text { flex-direction: column; align-items: stretch; gap: 0; }
+  .ui-cm__hint { font-size: 12px; line-height: 16px; }
   .ui-cm__item { height: 44px; }
   .ui-cm__list { max-height: 360px; }
 }

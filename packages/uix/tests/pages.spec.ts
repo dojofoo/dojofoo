@@ -78,7 +78,8 @@ test("Explore keeps installation in the Pages controller after sharing its prese
 });
 
 test("authoring opens, edits, saves and closes files while the conversation stays", async ({ page }) => {
-  await page.goto("/iframe.html?id=pages-dojo--course-authoring&viewMode=story");
+  await page.goto("/iframe.html?id=pages-dojo--course-authoring&viewMode=story&embed=true");
+  await page.locator("#storybook-root .ui-as").waitFor();
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
   const code = page.getByRole("textbox", { name: "Code editor", exact: true });
   await code.focus();
@@ -98,6 +99,26 @@ test("authoring opens, edits, saves and closes files while the conversation stay
   await page.getByRole("button", { name: "Close dojo.yaml", exact: true }).click();
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Course conversation", exact: true })).toBeVisible();
+});
+
+test("authoring file search keeps lesson context visible on a phone", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/iframe.html?id=pages-dojo--course-authoring&viewMode=story&embed=true");
+  await page.locator("#storybook-root .ui-as").waitFor();
+  await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
+  await page.keyboard.press("Alt+k");
+  const palette = page.getByRole("dialog", { name: "Command menu", exact: true });
+  await palette.getByRole("combobox").fill("SENSEI.md");
+  await expect(palette.getByRole("group", { name: "Files", exact: true }).getByRole("option")).toHaveCount(3);
+  await expect(palette.getByText("Largest number", { exact: true })).toBeVisible();
+  await expect(palette.getByText("Positive numbers", { exact: true })).toBeVisible();
+  await expect(palette.getByText("Narrowing shapes", { exact: true })).toBeVisible();
+  await expect(palette).toBeInViewport({ ratio: 1 });
+  await page.screenshot({ path: info.outputPath("authoring-file-context-phone.png"), animations: "disabled" });
+  await palette.getByRole("option").filter({ hasText: "Positive numbers" }).click();
+  await page.getByRole("textbox", { name: "Code editor", exact: true }).waitFor();
+  await expect(page.locator(".view-lines")).toContainText("Keep the positive ones");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("editor supports undo, coverage, line references, read-only files and keyboard save", async ({ page }) => {
