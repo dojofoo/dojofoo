@@ -326,7 +326,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   requestedWorkspaceId?: string;
 }) {
   const navigate = useNavigate();
-  const { account, toast } = useAccountMenu();
+  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   const [lesson, setLesson] = useState<LessonSnapshot | null>(null);
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
   const [coursesReady, setCoursesReady] = useState(false);

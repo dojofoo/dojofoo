@@ -48,7 +48,7 @@ export const Route = createFileRoute("/authoring")({
 });
 
 function AuthoringPage() {
-  const { account, toast } = useAccountMenu();
+  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const [backend, setBackend] = useState<"acp" | "eve">();

@@ -41,7 +41,7 @@ const json = (value: unknown, method = "POST"): RequestInit => ({ method, header
 
 export function InteractiveCourse({ workspace: requestedWorkspace, course: requestedCourse }: { workspace?: string; course?: string }) {
   const navigate = useNavigate();
-  const { account, toast } = useAccountMenu();
+  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   const [lesson, setLesson] = useState<InteractiveSnapshot | null>(null);
   const [workspace, setWorkspace] = useState("");
   const [question, setQuestion] = useState("");

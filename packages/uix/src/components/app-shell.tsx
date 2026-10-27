@@ -148,6 +148,8 @@ export type AppShellProps = {
   /** Native account routes; omitted callbacks retain the Pages preview behavior. */
   onProfile?: () => void;
   onSettings?: () => void;
+  /** Host account sections, opened inside the workspace so its content stays mounted. */
+  loadAccountPage?: () => Promise<typeof import("./settings-billing").SettingsContent>;
   onLogin?: () => void;
   onLogout?: () => void;
   /** Names the menu that's showing (e.g. "dashboard", a course's id); when it changes, the old rows swipe out to the right
@@ -292,7 +294,7 @@ export function AppShell({
   showFooter = true,
   showOnboarding = true,
   showUser = true,
-  onProfile, onSettings, onLogin, onLogout,
+  onProfile, onSettings, onLogin, onLogout, loadAccountPage,
   navigationKey = "menu",
   brand,
   sidebarWidth = "220px",
@@ -319,19 +321,21 @@ export function AppShell({
   const [initialLayout, setInitialLayout] = useState<number[]>();
   const [drawer, setDrawer] = useState(false);
   const [AccountPage, setAccountPage] = useState<typeof import("./settings-billing").SettingsContent>();
+  const [accountTab, setAccountTab] = useState<import("./settings-billing").SettingsTab>("Appearance");
   const accountOpen = Boolean(AccountPage);
   const settingsRequest = useRef(0);
   const rightSettings = asideCovered && !accountOpen;
   const endOpen = Boolean(endDrawer) && endDrawerOpen && !accountOpen;
   const closeAccount = () => fadeViewTransition(() => setAccountPage(undefined));
-  const openAccount = async () => {
+  const openAccount = async (tab: import("./settings-billing").SettingsTab = "Appearance") => {
     const request = ++settingsRequest.current;
-    const { SettingsContent } = await import("./settings-billing");
+    const AccountContent = loadAccountPage ? await loadAccountPage() : (await import("./settings-billing")).SettingsContent;
     if (request !== settingsRequest.current) return;
     fadeViewTransition(() => {
       setDrawer(false);
       onAsideOpenChange?.(false);
-      setAccountPage(() => SettingsContent);
+      setAccountTab(tab);
+      setAccountPage(() => AccountContent);
       requestAnimationFrame(() => root.current?.querySelector<HTMLElement>(".ui-as-account-page h1")?.focus({ preventScroll: true }));
     });
   };
@@ -639,7 +643,7 @@ export function AppShell({
               <span className="ui-as-menu__who"><b>{user.name}</b><small>{user.email ?? workspace}</small></span>
             </div>}
             items={[
-              { label: "Profile", icon: UserIcon, onSelect: onProfile },
+              { label: "Profile", icon: UserIcon, onSelect: onProfile ?? (() => { void openAccount("General"); }) },
               { label: "Settings", icon: SettingsFillIcon, onSelect: onSettings ?? (() => { void openAccount(); }) },
               // What changed lately – reported to onNavigate as "changelog"
               { label: "Changelog", icon: Megaphone01Icon, onSelect: () => go("changelog") },
@@ -667,7 +671,7 @@ export function AppShell({
     <div className="ui-as-main__scroll scroll-fade" inert={accountOpen} aria-hidden={accountOpen || undefined}>
       <ShellNarrow.Provider value={narrow}>{children}</ShellNarrow.Provider>
     </div>
-    {AccountPage && <div className="ui-as-main__scroll ui-as-account-page scroll-fade"><AccountPage workspace={workspace} userName={user.name} onClose={closeAccount} /></div>}
+    {AccountPage && <div className="ui-as-main__scroll ui-as-account-page scroll-fade"><AccountPage key={accountTab} defaultTab={accountTab} workspace={workspace} userName={user.name} onClose={closeAccount} /></div>}
   </main>;
 
   return (

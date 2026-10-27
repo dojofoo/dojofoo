@@ -18,7 +18,7 @@ function StarterCoursePage() {
   const { courseId } = Route.useParams();
   const course = starterCourses.find(item => item.id === courseId)!;
   const navigate = Route.useNavigate();
-  const { account, toast } = useAccountMenu();
+  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   return <div className="h-dvh overflow-hidden"><AgentChatWorkspace {...account} workspace="Dojo" sidebarWidth="18rem" showNews={false} showOnboarding={false}
     brand={<a href="/" aria-label="Dojo dashboard" className="flex items-center"><BrandLogo className="w-11" /></a>}
     navigationKey={course.id} active={[]} navigation={[{ id: "lessons", heading: "Lessons", items: [], empty: "Lessons are being prepared.",
