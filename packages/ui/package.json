@@ -33,6 +33,7 @@
     "storybook:build": "storybook build -o node_modules/.cache/storybook-static",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:library": "playwright test --config playwright.library.config.ts",
     "test:editor": "playwright test --config playwright.editor.config.ts",
     "types:check": "tsc --noEmit"
   },

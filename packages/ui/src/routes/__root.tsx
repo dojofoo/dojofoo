@@ -8,6 +8,7 @@ import {
 import stylesUrl from "../app.css?url";
 import { ShapeProvider } from "@dojofoo/ui";
 import { UIXProvider } from "@dojofoo/uix/provider";
+import { documentTransitionScript } from "@dojofoo/uix/lib/view-transition";
 import type { ReactNode } from "react";
 
 const themeScript = `document.documentElement.classList.add("dark")`;
@@ -38,6 +39,7 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html className="dark" lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: documentTransitionScript }} />
         <HeadContent />
       </head>
       <body

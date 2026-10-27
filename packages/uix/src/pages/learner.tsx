@@ -4,6 +4,7 @@ import { SlideDeck } from "../components/slide-deck";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { prepareEditor } from "../lib/preload-editor";
 import { AgentChatWorkspace } from "../containers/agent-chat";
+import { LearningLibrary } from "../containers/learning-library";
 import { AgentSetup, setupSteps } from "../containers/agent-setup";
 import { AppDirectory, categoryIcons, type App, type AppCategory } from "../components/app-directory";
 import { AppShell, EmptyState, Icon, useToast, type AppShellProps, type ShellEntry, type ShellSection } from "../components/app-shell";
@@ -231,7 +232,7 @@ function Journey({ start, slideSource, documentationUrl, settings }: { start: Le
         : view === "settings" ? <SettingsContent workspace="Dojo" onClose={() => fadeViewTransition(() => setView("courses"))} />
         : <Courses installed={installed} onOpen={id => fadeViewTransition(() => setCourseId(id))} onAuthor={(id) => {
           const url = new URL("/", window.location.href);
-          url.search = new URLSearchParams({ path: "/story/pages-dojo--course-authoring", args: `initialCourse:${byId(id).title}` }).toString();
+          url.search = new URLSearchParams({ path: "/story/pages-dojo--course-authoring", args: `initialCourse:${byId(id)?.title ?? "New course"}` }).toString();
           (window.parent ?? window).location.assign(url);
         }} onExplore={() => fadeViewTransition(() => setView("explore"))} />}
       {toast}
@@ -359,40 +360,20 @@ function Tile({ title, art, meta, inside, onClick }: { title: string; art: Cours
 /** Courses: the ones you study – where you are in each – and below them the ones you write */
 function Courses({ installed, onOpen, onAuthor, onExplore }: { installed: string[]; onOpen: (id: string) => void; onAuthor: (id: string) => void; onExplore: () => void }) {
   const mine = library.filter((item) => installed.includes(item.id));
-  return (
-    <Page kicker="Courses" title="Your courses" sub="The ones you're learning, with how far you are – and the ones you're writing with Kyoshi.">
-      <section>
-        <h2 className="lj-section">Studying</h2>
-        {mine.length === 0 ? <EmptyState title="No courses yet" text="Install one from Explore to start learning." action={<Button onClick={onExplore}>Explore courses</Button>} /> : (
-          <div className="lj-grid lj-grid--cards">
-            {mine.map((item) => {
-              const pct = progressOf(item);
-              const at = currentChapter(item);
-              const next = at ? currentLesson(at) : undefined;
-              return <ColorCard key={item.id} color={colorOf(item)}
-                header={<CardMark>{markOf(item) ?? item.author}</CardMark>} main={<CardTitle>{item.title}</CardTitle>}
-                footer={<><CardText label={at ? `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}` : `${item.chapters} chapters`} value={pct && next ? next.title : "Not started"} /><CardFigure>{pct}%</CardFigure></>}
-                progress={pct} onPointerEnter={prepareEditor} onFocus={prepareEditor} onClick={() => onOpen(item.id)} aria-label={`${item.title}, ${pct}% done`} />;
-            })}
-            {/* One more, dashed – it finds a course to add */}
-            <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="Add a course" label="Find one in Explore" onClick={onExplore} />
-          </div>
-        )}
-      </section>
-      <section className="lj-courses__next">
-        <h2 className="lj-section">Authoring</h2>
-        <div className="lj-grid lj-grid--cards">
-          {authored.map((entry) => {
-            const item = byId(entry.id);
-            return <ColorCard key={entry.id} color={colorOf(item)}
-              header={<><CardMark>{markOf(item) ?? item.author}</CardMark><CardFigure>{entry.status}</CardFigure></>} main={<CardTitle>{item.title}</CardTitle>}
-              footer={<CardText label={entry.learners} value={entry.edited} />} aria-label={`Open ${item.title}`} onPointerEnter={prepareEditor} onFocus={prepareEditor} onClick={() => onAuthor(item.id)} />;
-          })}
-          <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="New course" label="Start from a template" />
-        </div>
-      </section>
-    </Page>
-  );
+  return <LearningLibrary onExplore={onExplore} onNewCourse={() => onAuthor("new")}
+    courses={mine.map(item => {
+      const pct = progressOf(item);
+      const at = currentChapter(item);
+      const next = at ? currentLesson(at) : undefined;
+      return { id: item.id, title: item.title, color: colorOf(item), mark: markOf(item) ?? item.author, progress: pct,
+        caption: at ? `${pad(item.chapterList.indexOf(at) + 1)} · ${at.title}` : `${item.chapters} chapters`,
+        detail: pct && next ? next.title : "Not started", onPrepare: prepareEditor, onOpen: () => onOpen(item.id) };
+    })}
+    drafts={authored.map(entry => {
+      const item = byId(entry.id);
+      return { id: entry.id, title: item.title, color: colorOf(item), mark: markOf(item) ?? item.author,
+        status: entry.status, caption: entry.learners, detail: entry.edited, onPrepare: prepareEditor, onOpen: () => onAuthor(item.id) };
+    })} />;
 }
 
 function Stars({ value }: { value: number }) {

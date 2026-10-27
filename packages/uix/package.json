@@ -22,6 +22,7 @@
     "./archive/affectui/*": "./src/archive/affectui/*.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./provider": "./src/provider.tsx",
+    "./icons": "./src/lib/icons.tsx",
     "./fonts.css": "./src/fonts.css",
     "./assets/*": "./src/assets/*",
     "./web/site": "./src/web/site.tsx",
