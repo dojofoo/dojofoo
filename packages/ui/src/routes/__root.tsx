@@ -12,7 +12,18 @@ import { UIXProvider } from "@dojofoo/uix/provider";
 import { documentTransitionScript } from "@dojofoo/uix/lib/view-transition";
 import type { ReactNode } from "react";
 
-const themeScript = `document.documentElement.classList.add("dark")`;
+// Apply the native preference before styles/hydration; UIX continues to own the actual theme transition.
+const themeScript = `(() => {
+  const root = document.documentElement;
+  const key = "dojofoo.theme";
+  let mode = "dark";
+  try { if (localStorage.getItem(key) === "light") mode = "light"; } catch {}
+  root.classList.toggle("dark", mode === "dark");
+  root.style.colorScheme = mode;
+  new MutationObserver(() => {
+    try { localStorage.setItem(key, root.matches('.dark, [data-theme="dark"]') ? "dark" : "light"); } catch {}
+  }).observe(root, { attributes: true, attributeFilter: ["class", "data-theme"] });
+})();`;
 
 export const Route = createRootRoute({
   head: () => ({
