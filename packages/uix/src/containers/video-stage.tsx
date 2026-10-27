@@ -114,7 +114,7 @@ function glowLayers(node: HTMLElement) {
   return layers;
 }
 
-export function VideoStage({ src, title, cues = NO_CUES, onCue, onNext }: { src: string; title: string; cues?: readonly VideoCue[]; onCue?: (event: VideoCueEvent) => void; onNext?: () => void }) {
+export function VideoStage({ src, title, ambient = true, cues = NO_CUES, onCue, onNext }: { src: string; title: string; /** Project light into the window around a full-size stage; disable for inline material. */ ambient?: boolean; cues?: readonly VideoCue[]; onCue?: (event: VideoCueEvent) => void; onNext?: () => void }) {
   const { video: preferences } = useContentPreferences();
   const resume = useRef(preferences.resume);
   resume.current = preferences.resume;
@@ -122,7 +122,7 @@ export function VideoStage({ src, title, cues = NO_CUES, onCue, onNext }: { src:
   const video = useRef<HTMLVideoElement>(null);
   const [placements, setPlacements] = useState<Placement[]>([]);
   const embed = embedUrl(src);
-  const glows = !embed && !isYoutube(src);
+  const glows = ambient && !embed && !isYoutube(src);
   // The media element as state too: YouTube's arrives a moment after mount, once its element is defined, and the cues
   // must follow it there
   const [media, setMedia] = useState<HTMLVideoElement | null>(null);

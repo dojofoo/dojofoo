@@ -53,6 +53,7 @@ test("material settings change reading and resource presentation", async ({ page
 
 test("video defaults update the media element and resume a saved position", async ({ page }) => {
   await page.goto("/iframe.html?id=pages-dojo--learner-intro&viewMode=story");
+  await expect.poll(() => page.locator(".ui-vs__light").count()).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Show settings", exact: true }).click();
   const settings = page.getByRole("complementary", { name: "Settings", exact: true });
   await expect(settings.getByRole("tab", { name: "Video", exact: true })).toHaveAttribute("aria-selected", "true");
@@ -98,4 +99,21 @@ test("slide settings control the built deck and show its real thumbnails", async
   await expect(page.locator(".ui-slide-deck")).toHaveAttribute("data-fit", "width");
   await settings.getByRole("switch", { name: "Reduced slide motion", exact: true }).click();
   await expect(deck.locator("html")).toHaveAttribute("data-dojo-reduced-motion");
+});
+
+test("inline lesson video uses shared controls without projecting light onto scrolled material", async ({ page }) => {
+  await page.goto("/iframe.html?id=components-organisms-video-stage--inline&viewMode=story");
+  const stage = page.locator(".ui-vs");
+  const video = stage.locator("video");
+  await expect(stage).toBeVisible();
+  await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.readyState)).toBeGreaterThanOrEqual(1);
+  await stage.hover();
+  const controls = stage.getByRole("group", { name: "Player controls", exact: true });
+  await controls.getByRole("button", { name: "Play", exact: true }).click();
+  await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(0);
+  await controls.getByRole("button", { name: "Pause", exact: true }).click();
+  expect(await page.locator(".ui-vs__light").count()).toBe(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const bounds = await stage.boundingBox();
+  expect(bounds!.width / bounds!.height).toBeCloseTo(16 / 9, 1);
 });
