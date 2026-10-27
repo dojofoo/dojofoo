@@ -1,7 +1,7 @@
 # 0103: Use UIX for the public website
 
 Parent: [UIX adoption](0100-uix-adoption.md).
-Status: in progress on `feat/0103-uix-website` in `.worktree/uix-0103`, based on main `3d40648`. OpenAPI follow-through PR 187 is merged and verified on staging.
+Status: done; PR 189 merged as `c0173fd` and verified on staging. Completed worktree and recovery stashes removed.
 
 ## Goal
 
@@ -47,3 +47,7 @@ All 50 UIX unit tests and UIX types passed after the native button-link changes.
 Pending: final clean types/unit/browser/build/package gates, review and actual PR/staging verification. Documentation adopts the shared navigation and footer here; its full native content layout remains slice 0104.
 
 Final local checks: frozen installation succeeded on Node 24.22.1/pnpm 10.28.0. Website and UIX types passed; UIX 50 unit tests passed; API 42 tests passed; all 10 prepared native Fumadocs pages matched generated OpenAPI. Website browser suite: `13 passed (20.1s)`. Storybook browser suite: `77 passed (1.8m)`. Forced workspace build: `6 successful, 6 total`, `0 cached`, `36.528s`. A direct script probe also confirmed that expected document animation aborts are handled while unexpected errors are reported. Packed CLI passed: authoring agent readiness without a model call and installed UI HTTP 200. Production Storybook build completed successfully in the configured cache directory. Hosted CI and deployment verification remain pending.
+
+Hosted Verify 40437034919 passed on `91174f0` (5m10s). Main Release 40437675673 passed on merged `c0173fd5af0895056fe2c3d1bae3cd507918a9de`. Actual merged staging deployment `dpl_ET7KgNtWWgsAmtB8k2LdyhWyPwrR` at https://dojofoo-li48h3nae-tomsiwiks-projects.vercel.app passed a hydrated browser probe: homepage, catalog, docs and native API pages HTTP 200, missing course HTTP 404, one search dialog, Inter, desktop/mobile 16:9, no horizontal overflow and zero browser errors. Deployed schema matched the committed snapshot before/after marketplace/profile traffic; those API routes and the supported Usage Markdown route returned 200. Live `dojo.foo` still targets `dpl_DrTmJCAgt3oLbgrm8xJt3CJa29yB`. All 18 pre-existing dirty/untracked root files stayed byte-identical across integration.
+
+The actual staging catalog is empty; no fixture records were inserted. An invalid Markdown path returned 500 and successful API requests logged exact-mirror TypeCompiler warnings; follow up deliberately in 0104/API work rather than concealing them in website presentation.

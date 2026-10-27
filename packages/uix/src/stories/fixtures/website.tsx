@@ -49,6 +49,7 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
   useEffect(() => () => { request.current++; }, []);
   const openDoc = async (href: string) => {
     const pending = ++request.current;
+    if (page === "docs" && href.split("#")[0] === doc.split("#")[0]) { setDoc(href); return; }
     await renderMarkdown(findPage(href.split("#")[0]).page.body, theme).catch(() => {});
     if (pending !== request.current) return;
     fadeViewTransition(() => {
@@ -75,7 +76,7 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
       setPage("course");
       window.scrollTo({ top: 0 });
     }); },
-  }), [theme]);
+  }), [theme, doc, page]);
   return (
     <SiteContext.Provider value={links}>
       {page === "course" ? <CoursePage course={course} />

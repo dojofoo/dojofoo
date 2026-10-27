@@ -1,5 +1,4 @@
-import { fadeViewTransition } from "../lib/view-transition";
-import { renderMarkdown } from "../lib/markdown";
+import { followLink } from "../lib/link-event";
 import { useEditorScheme, usePageMode } from "../lib/ui-preferences";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
 import { Icon, MenuList, Popover, type MenuItem } from "../components/app-shell";
@@ -20,62 +19,55 @@ import { headingsOf, slug, type DocPage, type DocsContent } from "./content";
 const SITE = "https://dojo.foo";
 const REPO = "https://github.com/dojofoo/dojofoo";
 
-export function DocsSite({ path = "/docs", content, renderApiPage, renderPage }: {
+export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, toc: suppliedToc }: {
   /** The page open at first, by its site path, e.g. "/docs/quickstart" or "/docs/quickstart#usage" */
   path?: string;
   content: DocsContent;
-  renderApiPage: (page: string) => ReactNode;
+  renderApiPage?: (page: string) => ReactNode;
+  /** Compiled heading IDs/titles, supplied by the host MDX pipeline. */
+  toc?: Array<{ depth: number; text: ReactNode; id: string }>;
   /** Production supplies compiled MDX; stories can use the Markdown projection. */
   renderPage?: (page: DocPage) => ReactNode;
 }) {
-  const { allPages, sections: docsSections, findPage } = content;
+  const { allPages, sections, findPage } = content;
+  const docsSections = sections.filter(section => section.showInTabs !== false);
   const links = useSite();
-  const [current, setCurrent] = useState(path);
-  const request = useRef(0);
   const editor = useEditorScheme();
-  const theme = editor.theme.name;
-  // Code sits in the page's boxes when its scheme is for the page's mode (a dark scheme on a light page keeps its own)
   const boxed = editor.type === usePageMode();
-  useEffect(() => () => { request.current++; }, []);
   const title = useRef<HTMLHeadingElement>(null);
-  useEffect(() => setCurrent(path), [path]);
-  const [route, hash] = current.split("#");
+  const [route, hash] = path.split("#");
   const { page, section } = findPage(route);
+  if (page.apiPage && !renderPage && !renderApiPage) throw new Error("API documentation requires a page renderer.");
+  const previousRoute = useRef(route);
+  useEffect(() => {
+    if (previousRoute.current === route) return;
+    previousRoute.current = route;
+    if (hash) return;
+    const frame = requestAnimationFrame(() => title.current?.focus({ preventScroll: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [route, hash]);
   // A heading in the address: scroll to it once the page is drawn
   useEffect(() => {
     if (!hash) return;
     const timer = window.setTimeout(() => document.getElementById(hash)?.scrollIntoView({ block: "start" }), 120);
     return () => window.clearTimeout(timer);
   }, [route, hash]);
-  const open = async (next: string) => {
-    const pending = ++request.current;
-    if (allPages.some((entry) => entry.page.path === next.split("#")[0])) {
-      if (next.split("#")[0] === route) setCurrent(next);
-      else {
-        await renderMarkdown(findPage(next.split("#")[0]).page.body, theme).catch(() => {});
-        if (pending !== request.current) return;
-        fadeViewTransition(() => setCurrent(next));
-      }
-      if (!next.includes("#")) {
-        window.scrollTo({ top: 0 });
-        // Focus follows the reader to the new page, not left on the link at the bottom of the old one
-        requestAnimationFrame(() => title.current?.focus({ preventScroll: true }));
-      }
-    } else if (next === "/dojos") links.navigate("courses");
-    else links.navigate("home");
+  const open = (next: string) => links.openDoc(next.startsWith("#") ? `${route}${next}` : next);
+  const follow = (next: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+    if (next.startsWith("/") || next.startsWith("#")) followLink(event, () => open(next));
   };
   const order = allPages.filter((entry) => entry.section.id === section.id);
   const at = order.findIndex((entry) => entry.page.path === page.path);
   const previous = order[at - 1]?.page;
   const next = order[at + 1]?.page;
-  const toc = useMemo(() => headingsOf(page.body), [page.body]);
+  const toc = useMemo(() => suppliedToc ?? headingsOf(page.body), [suppliedToc, page.body]);
   // The sections as tabs, with the page's tools – under the site's header, in one bar with it
   const tabs = (
     <nav className="ui-docs-tabs" aria-label="Documentation">
       <div className="ui-docs-tabs__row scroll-fade-x">
         {docsSections.map((item) => (
           <a key={item.id} href={item.groups[0].entries[0].path} aria-current={item.id === section.id ? "page" : undefined}
-            onClick={(event) => { event.preventDefault(); open(item.groups[0].entries[0].path); }}>{item.title}</a>
+            onClick={follow(item.groups[0].entries[0].path)}>{item.title}</a>
         ))}
       </div>
       {/* The page's tools at the bar's right end, outside the row that scrolls (its menu would be clipped in it) */}
@@ -96,7 +88,7 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage }:
                 {group.entries.map((entry) => (
                   <li key={entry.path}>
                     <a href={entry.path} aria-current={entry.path === page.path ? "page" : undefined}
-                      onClick={(event) => { event.preventDefault(); open(entry.path); }}>
+                      onClick={follow(entry.path)}>
                       {entry.page?.route ? <span className="ui-docs-route" aria-label={`${entry.page.route.method} ${entry.page.route.path}, ${entry.title}`}>
                         <span className="ui-docs-route__method" data-method={entry.page.route.method}>{entry.page.route.method}</span>
                         {/* A long path wraps at its slashes */}
@@ -114,16 +106,16 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage }:
           <h1 ref={title} tabIndex={-1} className="ui-docs__title">{page.title}</h1>
           {page.description && <p className="ui-docs__lead">{page.description}</p>}
           {renderPage ? <Fragment key={page.path}>{renderPage(page)}</Fragment>
-            : page.apiPage ? <Fragment key={page.path}>{renderApiPage(page.apiPage)}</Fragment> : <Prose body={page.body} boxed={boxed} onLink={open} />}
+            : page.apiPage ? <Fragment key={page.path}>{renderApiPage?.(page.apiPage)}</Fragment> : <Prose body={page.body} boxed={boxed} onLink={open} />}
           <nav className="ui-docs__pager" aria-label="More pages">
-            {previous ? <a href={previous.path} onClick={(event) => { event.preventDefault(); open(previous.path); }}><span><Icon icon={ArrowLeft01Icon} size={13} />Previous</span>{previous.title}</a> : <span />}
-            {next && <a href={next.path} className="ui-docs__next" onClick={(event) => { event.preventDefault(); open(next.path); }}><span>Next<Icon icon={ArrowRight01Icon} size={13} /></span>{next.title}</a>}
+            {previous ? <a href={previous.path} onClick={follow(previous.path)}><span><Icon icon={ArrowLeft01Icon} size={13} />Previous</span>{previous.title}</a> : <span />}
+            {next && <a href={next.path} className="ui-docs__next" onClick={follow(next.path)}><span>Next<Icon icon={ArrowRight01Icon} size={13} /></span>{next.title}</a>}
           </nav>
           {!page.apiPage && <EditLink page={page} />}
         </article>
 
         {!page.apiPage && <aside key={page.path} className="ui-docs-side" aria-label="This page">
-          <OnThisPage key={page.path} toc={toc} />
+          <OnThisPage key={page.path} toc={toc} onOpen={open} />
           <EditLink page={page} />
         </aside>}
       </div>
@@ -238,9 +230,9 @@ function Prose({ body, boxed, onLink }: { body: string; /** Its code on the box'
     }
     const href = target.closest("a")?.getAttribute("href");
     if (!href || /^[a-z]+:/i.test(href)) return;
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
     event.preventDefault();
-    if (href.startsWith("#")) box.current?.querySelector(href)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-    else onLink(href);
+    onLink(href);
   };
   // Its code blocks are CodeBlock's (components/code-block), out of Fumadocs' own code block styles (not-fumadocs-codeblock)
   return <div ref={box} className="ui-docs__prose not-fumadocs-codeblock" data-boxed={boxed || undefined} onClick={click}>
@@ -250,7 +242,7 @@ function Prose({ body, boxed, onLink }: { body: string; /** Its code on the box'
 }
 
 /** What's on the page, the part being read marked on its rail */
-function OnThisPage({ toc }: { toc: Array<{ depth: number; text: string; id: string }> }) {
+function OnThisPage({ toc, onOpen }: { toc: Array<{ depth: number; text: ReactNode; id: string }>; onOpen: (href: string) => void }) {
   const [active, setActive] = useState(toc[0]?.id);
   const box = useRef<HTMLElement>(null);
   const glide = useGlide(box, active);
@@ -276,11 +268,10 @@ function OnThisPage({ toc }: { toc: Array<{ depth: number; text: string; id: str
       <ul className="ui-docs-rail">
         {toc.map((item) => (
           <li key={item.id}>
-            <a href={`#${item.id}`} data-depth={item.depth} aria-current={item.id === active ? "location" : undefined} onClick={(event) => {
-              event.preventDefault();
+            <a href={`#${item.id}`} data-depth={item.depth} aria-current={item.id === active ? "location" : undefined} onClick={event => followLink(event, () => {
               setActive(item.id);
-              document.getElementById(item.id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-            }}>{item.text}</a>
+              onOpen(`#${item.id}`);
+            })}>{item.text}</a>
           </li>
         ))}
       </ul>
@@ -365,6 +356,8 @@ const css = /* css */ `
 .ui-docs__prose li::marker { color: var(--muted); }
 .ui-docs__prose a { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--accent) 35%, transparent); text-underline-offset: 3px; }
 .ui-docs__prose a:hover { text-decoration-color: currentColor; }
+/* Compiled MDX headings are anchors; keep the same heading ink as the Markdown presentation. */
+.ui-docs__prose :is(h2, h3) a { color: inherit; text-decoration: none; }
 .ui-docs__prose strong { font-weight: 620; }
 .ui-docs__prose :not(pre) > code { padding: 1px 5px; border-radius: calc(5px * var(--squircle-factor, 1)); background: var(--chip); font-family: var(--font-mono); font-size: 0.88em; white-space: nowrap; }
 .ui-docs__prose blockquote { margin: 16px 0; padding: 12px 16px; border-radius: calc(12px * var(--squircle-factor, 1)); background: var(--accent-soft); color: var(--ink); }

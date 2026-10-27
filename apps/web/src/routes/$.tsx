@@ -1,21 +1,13 @@
-import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import { createFileRoute, Link, notFound, useLocation } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { DocsLayout } from '@/components/layout/notebook'
-import { SiteFooter } from '@/components/layout/site-footer'
-import {
-  DocsBody,
-  DocsDescription,
-  DocsPage,
-  DocsTitle,
-} from '@/components/layout/notebook/page'
+import { DocsSite } from '@dojofoo/uix/docs/layout'
+import { createDocsContent } from '@dojofoo/uix/docs/content'
 import browserCollections from 'collections/browser'
-import { Suspense } from 'react'
+import { Suspense, useMemo } from 'react'
 import { SITE_URL } from '@/lib/site'
 import { DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from '@/lib/social-metadata'
 import { useMDXComponents } from '@/components/mdx'
-import { OpenAPIPage, type APIPageProps } from '@dojofoo/ui/api-reference'
-import { baseOptions } from '@/lib/layout.shared'
-import { useFumadocsLoader } from 'fumadocs-core/source/client'
+import { APIPage as OpenAPIPage, type APIPageProps } from '@dojofoo/uix/components/api-reference'
 
 export const Route = createFileRoute('/$')({
   component: Page,
@@ -46,71 +38,46 @@ const loader = createServerFn({ method: 'GET' })
     const { source } = await import('@/lib/source')
     const page = source.getPage(slugs)
     if (!page) throw notFound()
+    const { renderToStaticMarkup } = await import('react-dom/server')
     const api = page.data._openapi ? await (await import('@/lib/openapi.server')).openapi.preloadOpenAPIPage(page) : undefined
 
     return {
       slugs: page.slugs,
       path: page.path,
+      pageUrl: page.url,
+      headings: page.data.toc.map(heading => ({ id: heading.url.slice(1), depth: heading.depth, html: renderToStaticMarkup(heading.title) })),
       title: page.data.title,
       description: page.data.description,
       ogUrl: SITE_URL + page.url,
-      pageTree: await source.serializePageTree(source.getPageTree()),
+      sections: (await import('@/lib/uix-docs.server')).getUIXDocsSections(page.path, await page.data.getText('processed')),
       apiPreloaded: api?.preloaded,
     }
   })
 
 const clientLoader = browserCollections.docs.createClientLoader({
   component(
-    { toc, frontmatter, default: MDX },
-    {
-      markdownUrl,
-      path,
-      apiPreloaded,
-    }: {
-      markdownUrl: string
-      path: string
-      apiPreloaded?: APIPageProps['preloaded']
-    },
+    { frontmatter, default: MDX },
+    { apiPreloaded }: { apiPreloaded?: APIPageProps['preloaded'] },
   ) {
-    return (
-      <DocsPage toc={toc} full={frontmatter.full} className={frontmatter._openapi ? 'dojo-api-page' : undefined} tableOfContent={frontmatter._openapi ? { enabled: false } : undefined}>
-        <DocsTitle>{frontmatter.title}</DocsTitle>
-        <DocsDescription>{frontmatter.description}</DocsDescription>
-        <DocsBody>
-          <MDX components={useMDXComponents({ OpenAPIPage: (props: Omit<APIPageProps, 'preloaded'>) => {
-            if (!apiPreloaded) throw new Error('Missing server-preloaded OpenAPI document.');
-            return <OpenAPIPage {...props} preloaded={apiPreloaded} />;
-          } })} />
-        </DocsBody>
-      </DocsPage>
-    )
+    const components = useMDXComponents({ OpenAPIPage: (props: Omit<APIPageProps, 'preloaded'>) => {
+      if (!apiPreloaded) throw new Error('Missing server-preloaded OpenAPI document.');
+      return <OpenAPIPage {...props} preloaded={apiPreloaded} />;
+    } })
+    return frontmatter._openapi ? <MDX components={components} />
+      : <div className="ui-docs__prose prose max-w-none"><div className="ui-result-markdown"><MDX components={components} /></div></div>
   },
 })
 
-const sidebarTabs = [
-  { title: 'Usage', url: '/docs' },
-  { title: 'Authoring', url: '/authoring' },
-  { title: 'Developers', url: '/developers' },
-]
-
 function Page() {
-  const { pageTree, slugs, path, apiPreloaded } = useFumadocsLoader(Route.useLoaderData())
+  const { slugs, path, pageUrl, sections, headings, apiPreloaded } = Route.useLoaderData()
+  const location = useLocation()
+  const docPath = pageUrl + (location.pathname.replace(/\/$/, '') === pageUrl && location.hash ? `#${location.hash}` : '')
+  const content = useMemo(() => createDocsContent(sections), [sections])
+  const toc = useMemo(() => headings.map(heading => ({ id: heading.id, depth: heading.depth, text: <span dangerouslySetInnerHTML={{ __html: heading.html }} /> })), [headings])
   const markdownUrl = `/llms.mdx/docs/${[...slugs, 'index.mdx'].join('/')}`
-  const { nav, ...base } = baseOptions()
-
-  return (
-    <>
-      <DocsLayout
-        {...base}
-        tabMode="navbar"
-        nav={{ ...nav, mode: 'top' }}
-        sidebar={{ tabs: sidebarTabs }}
-        tree={pageTree}
-      >
-        <Link to={markdownUrl} hidden />
-        <Suspense>{clientLoader.useContent(path, { markdownUrl, path, apiPreloaded })}</Suspense>
-      </DocsLayout>
-      <SiteFooter />
-    </>
-  )
+  return <>
+    <Link to={markdownUrl} hidden />
+    <DocsSite path={docPath} content={content} toc={toc}
+      renderPage={() => <Suspense>{clientLoader.useContent(path, { apiPreloaded })}</Suspense>} />
+  </>
 }

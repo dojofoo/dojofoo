@@ -1,5 +1,5 @@
 /** Application-supplied documentation metadata; raw MDX loading belongs to story/application adapters. */
-export type DocsSectionId = "usage" | "authoring" | "developers" | "api" | "help";
+export type DocsSectionId = "usage" | "authoring" | "developers" | "api" | "help" | "courses";
 
 export type DocPage = {
   /** Its path on the site, e.g. "/docs/quickstart" */
@@ -19,7 +19,7 @@ export type DocPage = {
 /** A page of the section, or a link to one elsewhere ("[API](/docs/api)" in a meta.json) */
 export type DocEntry = { title: string; path: string; page?: DocPage };
 export type DocGroup = { title?: string; pages: DocPage[]; entries: DocEntry[] };
-export type DocsSection = { id: DocsSectionId; title: string; groups: DocGroup[] };
+export type DocsSection = { id: DocsSectionId; title: string; groups: DocGroup[]; /** False for a retained section reached only by existing deep links. */ showInTabs?: boolean };
 
 export function createDocsContent(sections: DocsSection[]) {
   const allPages = sections.flatMap(section => section.groups.flatMap(group => group.pages.map(page => ({ page, section }))));
