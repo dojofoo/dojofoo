@@ -12,19 +12,20 @@ test("docs hydrate and search opens", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Usage", level: 1 })).toHaveCSS("font-family", /Inter/);
   await expect(page.getByText("Dojo.foo turns your coding agent into a teacher.", { exact: false })).toHaveCSS("font-family", /Inter/);
   await expect(page.locator("pre").first()).toHaveCSS("font-family", /Iosevka/);
-  const footerItem = page.locator("[data-docs-footer-item]").first();
+  const footerItem = page.locator(".ui-docs__pager a").first();
   await expect(footerItem).toBeVisible();
-  await expect(footerItem.locator("[data-docs-footer-title]")).toHaveCSS("font-family", /Inter/);
-  await expect(footerItem.locator("[data-docs-footer-description]")).toHaveCSS("font-family", /Inter/);
+  await expect(footerItem).toHaveCSS("font-family", /Inter/);
+  await expect(footerItem.locator("span")).toHaveCSS("font-family", /Inter/);
   expect(await page.evaluate(() => {
-    const navigation = document.querySelector<HTMLElement>("#nd-subnav");
-    const sidebar = document.querySelector<HTMLElement>("[data-sidebar-placeholder]");
-    return Number(getComputedStyle(navigation!).zIndex) > Number(getComputedStyle(sidebar!).zIndex);
+    window.scrollTo(0, 200);
+    const navigation = document.querySelector<HTMLElement>(".ui-web-bar")!.getBoundingClientRect();
+    const sidebar = document.querySelector<HTMLElement>(".ui-docs-tree")!.getBoundingClientRect();
+    return sidebar.top >= navigation.bottom - 1;
   })).toBe(true);
   expect(await page.locator(".prose li").first().evaluate((element) =>
     getComputedStyle(element, "::marker").fontFamily,
-  )).toMatch(/Iosevka/);
-  await expect(page.locator("[data-header-tabs]").getByText("Dojos", { exact: true })).toHaveCount(0);
+  )).toMatch(/Inter/);
+  await expect(page.getByRole("navigation", { name: "Documentation", exact: true }).getByRole("link", { name: "Dojos", exact: true })).toHaveCount(0);
   await page.locator("[data-site-navigation]").getByRole("button", { name: "Search docs" }).click();
 
   await expect(page.getByRole("dialog")).toBeVisible();

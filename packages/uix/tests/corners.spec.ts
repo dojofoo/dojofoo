@@ -58,7 +58,7 @@ for (const theme of ["dark", "light"]) {
     const failures: string[] = [];
     for (const id of ids) {
       await page.goto(`/iframe.html?id=${id}&viewMode=story&globals=theme:${theme}`);
-      await expect(page.locator("#storybook-root")).not.toBeEmpty();
+      await expect(page.locator("#storybook-root > *").first()).toBeVisible();
       await expect(page.locator(".sb-errordisplay")).not.toBeVisible();
       if (!await page.evaluate(() => CSS.supports("corner-shape", "squircle"))) continue;
       const round = await page.locator("#storybook-root").evaluate(root => {

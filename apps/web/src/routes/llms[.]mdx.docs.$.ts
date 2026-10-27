@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { getLLMText, source } from '@/lib/source';
 
 export const Route = createFileRoute('/llms.mdx/docs/$')({
@@ -9,7 +9,7 @@ export const Route = createFileRoute('/llms.mdx/docs/$')({
         // remove the appended "index.mdx" to avoid build issues
         slugs.pop();
         const page = source.getPage(slugs);
-        if (!page) throw notFound();
+        if (!page) return new Response("Page not found", { status: 404 });
 
         return new Response(await getLLMText(page), {
           headers: {

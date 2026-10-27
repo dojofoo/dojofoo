@@ -13,6 +13,10 @@ The website registers `documentTransitionScript` from `lib/view-transition` in a
 synchronous head script: document lifecycle events may fire before React hydration.
 This handles expected animation aborts while reporting other transition failures.
 
+The documentation frame takes its controlled path and compiled TOC from the host;
+keep it mounted while the application swaps its compiled MDX content. Stories use
+the same frame with their own explicit navigation and Markdown projection.
+
 Applications supply course data, navigation/search adapters, compiled MDX and
 prepared OpenAPI props. The API renderer requires its document explicitly;
 generated schema lookup belongs to `src/stories/fixtures/api-reference.tsx`.

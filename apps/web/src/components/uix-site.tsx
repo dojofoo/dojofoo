@@ -1,3 +1,4 @@
+import { ThemeToggle } from "./layout/theme-toggle";
 import { useNavigate } from "@tanstack/react-router";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { useMemo, type ReactNode } from "react";
@@ -23,7 +24,7 @@ export function UIXSiteProvider({ children }: { children: ReactNode }) {
     return {
       navigate: section => open(destinations[section]), sectionHref: section => destinations[section],
       openDoc: open, courseHref, openCourse: course => open(courseHref(course)),
-      openSearch: () => setOpenSearch(true), footerLinks,
+      openSearch: () => setOpenSearch(true), footerLinks, footerControls: <ThemeToggle />,
     };
   }, [navigate, setOpenSearch]);
   return <SiteContext.Provider value={links}>{children}</SiteContext.Provider>;

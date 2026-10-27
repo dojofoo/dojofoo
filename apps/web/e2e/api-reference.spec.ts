@@ -9,8 +9,8 @@ test("API docs hydrate from the generated Elysia spec, list endpoints by collect
   await page.goto("/docs/api/list-courses", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "List courses", exact: true })).toBeVisible();
   // The sidebar: each endpoint as its method and path
-  await expect(page.getByRole("link", { name: /^GET\s*\/health$/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /^POST\s*\/events$/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "GET /health, Check health", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "POST /events, Record a lifecycle event", exact: true })).toBeVisible();
   const api = page.locator(".ui-api-reference");
   // No playground and no response schema: the method and path, the parameters, and the examples on the right
   await expect(api.getByRole("button", { name: "Send", exact: true })).toHaveCount(0);
@@ -31,6 +31,10 @@ test("API docs hydrate from the generated Elysia spec, list endpoints by collect
   }).toBeGreaterThanOrEqual(20);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(api.locator("pre.ui-code").first()).toBeVisible();
+  const article = await page.locator(".ui-docs").boundingBox();
+  const tree = await page.locator(".ui-docs-layout > .ui-docs-tree").boundingBox();
+  expect(article!.width).toBeGreaterThanOrEqual(340);
+  expect(tree!.y).toBeGreaterThanOrEqual(article!.y + article!.height);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });

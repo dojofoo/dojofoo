@@ -32,6 +32,11 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: { 'shiki/core': 'shiki/dist/core.mjs' },
   },
+  optimizeDeps: {
+    // Generated MDX discovers this Fumadocs dependency after the initial crawl.
+    // Include it up front so opening docs cannot invalidate in-flight modules.
+    include: ['fumadocs-ui > @fuma-translate/react'],
+  },
   plugins: [
     monacoAssets(),
     wgslVitePlugin(),

@@ -1,8 +1,8 @@
-import { fadeViewTransition } from "../../lib/view-transition";
+import { fadeViewTransition, themeViewTransition } from "../../lib/view-transition";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { findPage } from "./docs";
 import { renderMarkdown } from "../../lib/markdown";
-import { useEditorScheme } from "../../lib/ui-preferences";
+import { setPageMode, usePageMode, useEditorScheme } from "../../lib/ui-preferences";
 import { DocsSite } from "../../docs/docs-site";
 import { catalog, courseById } from "./catalog";
 import type { WebCourse } from "../../web/catalog";
@@ -14,6 +14,7 @@ import { CoursePage } from "../../web/course";
 import { CoursesPage } from "../../web/courses";
 import { LandingPage } from "../../web/landing";
 import { SiteContext, type SiteLinks } from "../../web/site";
+import { ThemeToggle, type ThemeMode } from "../../components/theme-toggle";
 import { APIPageFixture } from "./api-reference";
 
 /*
@@ -45,10 +46,19 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
     return () => window.removeEventListener("keydown", key);
   }, [page]);
   const theme = useEditorScheme().theme.name;
+  const resolvedMode = usePageMode();
+  const [themeMode, setThemeMode] = useState<ThemeMode>(resolvedMode);
+  useEffect(() => { setThemeMode(current => current === "system" ? current : resolvedMode); }, [resolvedMode]);
+  const changeThemeMode = (mode: ThemeMode) => {
+    const next = mode === "system" ? matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light" : mode;
+    if (next === resolvedMode) setThemeMode(mode);
+    else themeViewTransition(() => { setThemeMode(mode); setPageMode(next); });
+  };
   const request = useRef(0);
   useEffect(() => () => { request.current++; }, []);
   const openDoc = async (href: string) => {
     const pending = ++request.current;
+    if (page === "docs" && href.split("#")[0] === doc.split("#")[0]) { setDoc(href); return; }
     await renderMarkdown(findPage(href.split("#")[0]).page.body, theme).catch(() => {});
     if (pending !== request.current) return;
     fadeViewTransition(() => {
@@ -58,6 +68,7 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
     });
   };
   const links = useMemo<SiteLinks>(() => ({
+    footerControls: <ThemeToggle mode={themeMode} resolvedMode={resolvedMode} onModeChange={changeThemeMode} />,
     sectionHref: section => ({ home: "/", courses: "/dojos", docs: "/docs", help: "/docs" })[section],
     navigate: (section) => {
       if (section === "help" || section === "docs") { void openDoc("/docs"); return; }
@@ -75,7 +86,7 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
       setPage("course");
       window.scrollTo({ top: 0 });
     }); },
-  }), [theme]);
+  }), [theme, doc, page, themeMode, resolvedMode]);
   return (
     <SiteContext.Provider value={links}>
       {page === "course" ? <CoursePage course={course} />
