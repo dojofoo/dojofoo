@@ -4,6 +4,8 @@ Status: active; 0101–0105 merged (0105 through PR #197, `510502c`). Local revi
 Date: 2026-10-26.
 Baseline: `main` after PR #181, merge commit `4f31a76116d23c8d9613f77d80698b5dc766096b`.
 
+Current user constraint (2026-10-27): finish UI presentation against the current Storybook Pages before further agent integration. Do not modify Eve, agent execution, session ownership, or core services. Use the existing agent-package interfaces. Runtime gaps are deferred work, not reasons to change core during the UI migration. Uncommitted authoring runtime/model experiments were removed from the review tree into the stash named `Deferred authoring core experiments; UI-only work requested`.
+
 ## Goal statement
 
 Make `@dojofoo/uix` the shared production design system for the public website, documentation, API reference, local learning application, and local authoring application. Replace their existing presentation with the approved Storybook compositions, connected to real routing, content, course state, files, and agent sessions. Keep Storybook and production on the same presentation components and transition primitives so that future design work ships through UIX rather than creating another interface implementation.

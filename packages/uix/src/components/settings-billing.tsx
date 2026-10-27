@@ -9,7 +9,7 @@
  * icons from the Hugeicons free set.
  */
 
-import { useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { useRef, useState, type ComponentProps, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import {
   Analytics01Icon,
   BubbleChatIcon,
@@ -454,6 +454,11 @@ function BillingTab({ toast }: { toast: Toast }) {
 
 type AccountProfile = { name: string; handle: string; photo?: string };
 
+/** Shared General/onboarding fields; the host owns account data and actions. */
+export function ProfileSettingsFields({ avatar, ...fields }: ComponentProps<typeof ProfileFields> & { avatar: ReactNode }) {
+  return <div className="ui-sb-card ui-sb-profile__fields">{avatar}<ProfileFields {...fields} /></div>;
+}
+
 function GeneralTab({ profile, onSave, toast }: { profile: AccountProfile; onSave: (profile: AccountProfile) => void; toast: Toast }) {
   const [name, setName] = useState(profile.name);
   const [handle, setHandle] = useState(profile.handle);
@@ -467,8 +472,8 @@ function GeneralTab({ profile, onSave, toast }: { profile: AccountProfile; onSav
     setName(name.trim());
     toast("Profile settings saved");
   }}>
-    <div className="ui-sb-card ui-sb-profile__fields">
-      <AvatarUpload name={name || profile.name} src={profile.photo}
+    <ProfileSettingsFields name={name} handle={handle} handleState={handleState} onNameChange={setName} onHandleChange={setHandle}
+      avatar={<AvatarUpload name={name || profile.name} src={profile.photo}
         onUpload={(image, { report, signal }) => new Promise<string>((resolve, reject) => {
           // The Storybook workspace keeps the chosen crop locally; no simulated network upload.
           const reader = new FileReader();
@@ -488,9 +493,7 @@ function GeneralTab({ profile, onSave, toast }: { profile: AccountProfile; onSav
           if (signal.aborted) { reject(new DOMException("Upload canceled", "AbortError")); return; }
           reader.readAsDataURL(image);
         })}
-        onRemove={() => onSave({ ...profile, photo: undefined })} />
-      <ProfileFields name={name} handle={handle} handleState={handleState} onNameChange={setName} onHandleChange={setHandle} />
-    </div>
+        onRemove={() => onSave({ ...profile, photo: undefined })} />} />
     <div className="ui-sb-form__foot">
       <Button type="button" size="sm" variant="ghost" disabled={!dirty} onClick={() => { setName(profile.name); setHandle(profile.handle); }}>Discard</Button>
       <Button type="submit" size="sm" disabled={!dirty || !valid}>Save changes</Button>

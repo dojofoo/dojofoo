@@ -105,7 +105,11 @@ test("the account menu opens local Settings and Profile through the Pages layout
   await page.getByRole("button", { name: "You", exact: true }).click();
   await page.getByRole("menuitem", { name: "Profile", exact: true }).click();
   await expect(page).toHaveURL(/\/settings\?tab=General/);
-  await expect(page.getByText("Profile settings are coming soon.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("You", { timeout: 5000 });
+  await expect(page.getByRole("textbox", { name: "Name", exact: true })).toBeDisabled();
+  await expect(page.getByRole("textbox", { name: "Handle", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Upload photo", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save changes", exact: true })).toBeDisabled();
   await expect(page.getByRole("complementary", { name: "About General", exact: true })).toBeVisible();
   await expect(page.getByRole("tab", { name: "API keys", exact: true })).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath("local-profile-settings.png"), animations: "disabled" });

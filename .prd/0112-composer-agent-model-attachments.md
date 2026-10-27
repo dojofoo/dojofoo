@@ -2,6 +2,8 @@
 
 Parent: 0100/0105/0106/0107. Status: partial local checkpoint; shared controls/Pages, native kata and interactive controls connected; unmerged.
 
+User steering, 2026-10-27: presentation first. Further Eve, agent-runtime and core-service work is deferred. Finish the UI against the current Pages stories and use existing agent-package interfaces. The uncommitted authoring model/session experiments are stashed and excluded from the review application.
+
 Goal: use the current Pages Composer everywhere, with a coding-agent picker first, that agent's actual models second, and a working plus control for supported image/file attachments. Sensei and Kyoshi remain conversation roles. No forked composer or archived template.
 
 Evidence from current source: Composer accepts one static agent and turns its picker into a single checked item. Its file input retains only filenames and onSend accepts text only. Pages learner supplies neither agent nor native-looking model choices; Pages authoring also retains the general assistant controls. Native kata and AuthoringChat explicitly disable attachments and label the selected agent Sensei/Kyoshi. Kata model options already come from the session's advertised configuration, including provider groups. The lesson session-start route already accepts a validated harness. Interactive conversation bindings retain a harness and model, but no first-class agent selection route exists. Authoring native catalogs are available through /api/authoring/models?harness=...; runtime-turn tests already prove next-turn model selection and retained history. ACP learner registry supports Codex, OpenCode, Cursor, Grok and FX and explicitly rejects Pi; Pi is supported for authoring.
