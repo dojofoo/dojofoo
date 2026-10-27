@@ -39,6 +39,7 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter @dojofoo/ui types:check
       - run: pnpm --filter @dojofoo/ui test --exclude '**/*.live.test.ts'
+      - run: pnpm --filter dojofoo test
       - run: pnpm --filter dojofoo test:package
       - run: pnpm --filter @dojofoo/web exec playwright install --with-deps chromium
       - run: pnpm --filter @dojofoo/web test:e2e

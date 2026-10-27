@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
-import { existsSync, realpathSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative, resolve } from "node:path";
 import type { DojoManifest, ResolvedKata } from "./config";
 
 export interface TestResult {
@@ -132,10 +133,11 @@ function canonicalPath(path: string): string {
 
 const vitestAdapter: RunnerAdapter = {
   prepareCommand(cmd: string, options) {
-    return `${cmd} --reporter=json${options.coverage ? " --coverage.enabled --coverage.reportOnFailure --coverage.reporter=json --coverage.allowExternal" : ""}`;
+    const output = process.platform === "win32" ? '"%DOJOFOO_TEST_REPORT%"' : '"$DOJOFOO_TEST_REPORT"';
+    return `${cmd} --reporter=json --outputFile=${output}${options.coverage ? " --coverage.enabled --coverage.reportOnFailure --coverage.reporter=json --coverage.allowExternal" : ""}`;
   },
   parseOutput(stdout: string, _stderr: string, exitCode: number, workspacePath: string): TestRun {
-    // vitest exits non-zero when tests fail — stdout still has JSON
+    // Failed assertions exit non-zero but still produce a valid JSON report.
     try {
       return parseVitestJson(stdout, workspacePath);
     } catch {
@@ -187,26 +189,34 @@ export function runTests(
   const testRelPath = relative(dojoDir, kata.testPath);
   const testTemplate = kata.test ?? catalog.test;
   const testCmd = testTemplate.replace("{template}", testRelPath);
+  // Explicit file output works across Vitest versions, including 5's new
+  // default. A fresh path prevents a failed invocation from reusing old results.
+  const reportDir = adapter === vitestAdapter ? mkdtempSync(join(tmpdir(), "dojo-check-")) : undefined;
+  const reportFile = reportDir ? join(reportDir, "results.json") : undefined;
+  const reportOutput = (stdout: string) => reportFile && existsSync(reportFile) ? readFileSync(reportFile, "utf8") : stdout;
   const cmd = adapter.prepareCommand(testCmd, { coverage: catalog.runner?.coverage === true });
 
   try {
     const output = execSync(cmd, {
       cwd: dojoDir,
-      env: projectRoot ? { ...process.env, DOJO_PROJECT_ROOT: projectRoot } : process.env,
+      env: { ...process.env, ...(projectRoot ? { DOJO_PROJECT_ROOT: projectRoot } : {}),
+        ...(reportFile ? { DOJOFOO_TEST_REPORT: reportFile } : {}) },
       stdio: ["pipe", "pipe", "pipe"],
       timeout: 60_000,
     });
-    return adapter.parseOutput(output.toString(), "", 0, kata.workspacePath);
+    return adapter.parseOutput(reportOutput(output.toString()), "", 0, kata.workspacePath);
   } catch (err: unknown) {
     const e = err as { stdout?: Buffer; stderr?: Buffer; status?: number };
     const stdout = e.stdout?.toString() ?? "";
     const stderr = e.stderr?.toString() ?? "";
     const exitCode = e.status ?? 1;
 
-    const result = adapter.parseOutput(stdout, stderr, exitCode, kata.workspacePath);
+    const result = adapter.parseOutput(reportOutput(stdout), stderr, exitCode, kata.workspacePath);
     if (result.error === null && result.total === 0 && stdout === "" && stderr !== "") {
       return { total: 0, passed: 0, failed: 0, skipped: 0, tests: [], error: stderr || "Test execution failed" };
     }
     return result;
+  } finally {
+    if (reportDir) rmSync(reportDir, { recursive: true, force: true });
   }
 }
