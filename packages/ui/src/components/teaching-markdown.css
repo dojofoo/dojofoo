@@ -32,3 +32,7 @@
 @media (prefers-reduced-motion: reduce) {
   .teaching-markdown .twoslash-hover, .teaching-markdown .twoslash-popup-container { transition: none; }
 }
+
+/* The Pages brief owns authored material typography, including compiled Markdown. */
+.ui-lb .course-content { line-height: inherit; }
+.ui-lb .teaching-markdown :is(h1, h2, h3, h4) { font-family: inherit; }

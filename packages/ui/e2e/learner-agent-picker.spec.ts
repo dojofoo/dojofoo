@@ -18,7 +18,7 @@ test("native agent changes use the session boundary and preserve drafts on failu
   await page.route("**/api/**", async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
-    if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [{ type: "html", html: "<p>Try a small example.</p>" }] } });
+    if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [{ type: "html", html: "<h3>Goal</h3><p>Try a small example.</p><ol><li>Predict the result.</li><li>Try one change.</li></ol>" }] } });
     if (path === "/api/control/courses") return route.fulfill({ json: [{ workspaceId: "agent-workspace", dojo: "agent-course", kata: "first", mode: "katas", workspaceName: "Agents", selected: true, sessionId: "owned", sessions: [{ lessonId: "first", sessionId: "owned" }] }] });
     if (path.endsWith("/sessions") && request.method() === "POST") {
       starts.push(request.postDataJSON());
@@ -39,6 +39,17 @@ test("native agent changes use the session boundary and preserve drafts on failu
   const composer = page.getByTestId("chat-composer");
   const agent = composer.getByRole("button", { name: "Agent", exact: true });
   await expect(agent).toContainText("OpenCode");
+  const brief = page.locator(".ui-lb");
+  await expect(brief.getByRole("heading", { name: "Goal", exact: true })).toBeVisible();
+  const typography = await brief.evaluate(node => {
+    const base = getComputedStyle(node);
+    const paragraph = getComputedStyle(node.querySelector(".teaching-markdown p")!);
+    const heading = getComputedStyle(node.querySelector(".teaching-markdown h3")!);
+    return { family: base.fontFamily, lineHeight: base.lineHeight, paragraphFamily: paragraph.fontFamily, paragraphLineHeight: paragraph.lineHeight, headingFamily: heading.fontFamily };
+  });
+  expect(typography.paragraphFamily).toBe(typography.family);
+  expect(typography.paragraphLineHeight).toBe(typography.lineHeight);
+  expect(typography.headingFamily).toBe(typography.family);
   const draft = composer.getByRole("textbox");
   await draft.fill("Keep my question");
   const editor = page.getByRole("textbox", { name: "Code editor", exact: true });
