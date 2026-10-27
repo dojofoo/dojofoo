@@ -1,5 +1,50 @@
 import { expect, test } from "@playwright/test";
 
+test("New course retries failed creation and reopens the accepted native session from the dashboard", async ({ page }) => {
+  const pending = Promise.withResolvers<void>();
+  const names: string[] = [];
+  let created = false;
+  let starts = 0;
+  const draft = { workspaceId: "created-draft", name: "New course", description: "", mode: "katas", lastSeenAt: 1, sessionId: null };
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/**", async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/api/control/courses") return route.fulfill({ json: [] });
+    if (url.pathname === "/api/control/authoring" && route.request().method() === "POST") {
+      names.push(route.request().postDataJSON().name);
+      if (names.length === 1) { await pending.promise; return route.fulfill({ status: 500, json: { error: "Draft disk is full" } }); }
+      created = true;
+      return route.fulfill({ status: 201, json: draft });
+    }
+    if (url.pathname === "/api/control/authoring") return route.fulfill({ json: created ? [draft] : [] });
+    if (url.pathname.startsWith("/api/authoring/")) expect(url.searchParams.get("workspace")).toBe("created-draft");
+    if (url.pathname.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { root: "/draft", style: "katas", name: "New course", description: "", language: "", manifestSource: "name: New course\n", courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: New course\n" }], lessons: [], issues: [], courseChecks: [] } });
+    if (url.pathname.endsWith("/sessions/start")) { starts += 1; return route.fulfill({ status: 201, json: { sessionId: "wrun_created" } }); }
+    if (url.pathname.endsWith("/sessions/wrun_created")) return route.fulfill({ json: { session: { sessionId: "wrun_created" }, messages: [] } });
+    return route.fulfill({ status: 404 });
+  });
+  await page.goto("/");
+  const button = page.getByRole("button", { name: /^New course/ });
+  await expect(button).toBeVisible();
+  await button.click();
+  await expect(page.getByRole("button", { name: /^Creating course/ })).toBeDisabled();
+  pending.resolve();
+  await expect(page.getByRole("alert")).toContainText("Draft disk is full");
+  await expect(button).toBeEnabled();
+  await button.click();
+  await expect(page).toHaveURL(/\/authoring\?workspace=created-draft&session=wrun_created/);
+  await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
+  expect(starts).toBe(1);
+  await page.getByRole("link", { name: "Dojo dashboard", exact: true }).click();
+  const entry = page.getByRole("region", { name: "Authoring", exact: true }).getByRole("link", { name: /New course/i });
+  await expect(entry).toHaveAttribute("href", /session=wrun_created/);
+  await entry.click();
+  await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
+  expect(starts).toBe(1);
+  expect(names).toEqual(["New course", "New course"]);
+});
+
 test("Explore stays local and both starter shells remain available without an installation or agent session", async ({ page }) => {
   const writes: string[] = [];
   const popups: string[] = [];

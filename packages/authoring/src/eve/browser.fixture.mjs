@@ -44,7 +44,7 @@ const endpoint = await startLoopbackModel({ latencyMs: 1500,
       return { name: "execute", input: { code: `return await ${call}({});` } };
     }
   },
-  toolRequest: {
+  toolRequest: process.env.DOJO_AUTHORING_ENTRY_FIXTURE === "1" ? undefined : {
   name: "harness-tools_course_question", input: { question: "Who should this course teach?", options: [
     { label: "Beginners", description: "New to the topic" },
     { label: "Experienced developers", description: "Already knows the basics" },

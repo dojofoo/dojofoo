@@ -8,7 +8,7 @@ import {
 } from "@dojofoo/config/local-state";
 import { courseMode, readCourseManifest, readDojoRc, type KataProgress } from "@dojofoo/config";
 import { Hono } from "hono";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import {
@@ -16,6 +16,8 @@ import {
   SessionAdoptionError,
   type SessionAdoptionResult,
 } from "./session-adoption";
+import { createDraft, isManagedDraft } from "./drafts";
+import { requestOrigin } from "../request-origin";
 
 const DEFAULT_ACTIVE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -106,9 +108,26 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       return c.json(courses);
     })
     .get("/workspaces", (c) => c.json(listWorkspaces(stateOptions())))
+    .post("/authoring", async (c) => {
+      const origin = c.req.header("Origin");
+      if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
+      let body: unknown;
+      try { body = await c.req.json(); }
+      catch { return c.json({ error: "Invalid draft request." }, 400); }
+      if (!body || typeof body !== "object" || Array.isArray(body)
+        || Object.keys(body).some(key => key !== "name" && key !== "style")
+        || !("name" in body) || typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 120
+        || /[\u0000-\u001f\u007f]/u.test(body.name) || ("style" in body && body.style !== "katas")) {
+        return c.json({ error: "Choose a course name of 1–120 characters. Only kata drafts are supported." }, 422);
+      }
+      try { return c.json(createDraft(body.name.trim(), stateOptions()), 201); }
+      catch (error) { return c.json({ error: error instanceof Error ? error.message : "Could not create the draft." }, 500); }
+    })
     .get("/authoring", (c) => c.json(listWorkspaces(stateOptions()).flatMap((workspace) => {
       try {
-        const thread = JSON.parse(readFileSync(resolve(workspace.path, ".dojo", "kyoshi.json"), "utf8")) as { sessionId?: string };
+        const threadPath = resolve(workspace.path, ".dojo", "kyoshi.json");
+        if (!existsSync(threadPath) && !isManagedDraft(workspace.path, stateOptions())) return [];
+        const thread = existsSync(threadPath) ? JSON.parse(readFileSync(threadPath, "utf8")) as { sessionId?: string } : null;
         const manifest = readCourseManifestSource(workspace.path);
         return [{
           workspaceId: workspace.id,
@@ -116,7 +135,7 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
           name: String(manifest.name ?? basename(workspace.path)),
           description: String(manifest.description ?? "Course draft"),
           mode: String(manifest.mode ?? "katas"),
-          sessionId: thread.sessionId ?? null,
+          sessionId: thread?.sessionId ?? null,
           lastSeenAt: workspace.lastSeenAt,
         }];
       } catch {

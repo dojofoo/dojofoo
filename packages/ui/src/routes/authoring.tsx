@@ -29,6 +29,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthoringFiles } from "@/hooks/use-authoring-files";
 import { useAuthoringWatch } from "@/hooks/use-authoring-watch";
 import { useAccountMenu } from "@/hooks/use-account-menu";
+import { rememberAuthoringSession } from "@/lib/authoring-session-link";
 import { Button } from "@dojofoo/ui/button";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
@@ -438,7 +439,10 @@ function AuthoringPage() {
     ...workspace.lessons.map(lesson => [`authoring:lesson:${encodeURIComponent(lesson.id)}`, expandedLessonId === lesson.id]),
   ]);
   const conversation = backend === "eve"
-    ? <EveAuthoringChat embedded sessionId={search.session} api={authoringApi} onSession={id => { void navigate({ search: previous => ({ ...previous, session: id }), replace: true }); }} />
+    ? <EveAuthoringChat embedded sessionId={search.session} api={authoringApi} onSession={id => {
+      if (search.workspace) rememberAuthoringSession(search.workspace, id);
+      void navigate({ search: previous => ({ ...previous, session: id }), replace: true });
+    }} />
     : <AuthoringChat embedded messages={chatMessages} status={chatStatus} busy={Boolean(busy)} value={message} onValueChange={setMessage} onSend={value => { void sendMessage(value); }} onAnswer={answerTool} />;
   return <div className="h-dvh overflow-hidden">
     <AgentChatWorkspace {...shell} contentKind="code" active={activeResource}

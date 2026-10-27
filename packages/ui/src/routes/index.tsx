@@ -46,6 +46,8 @@ import {
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { starterCourses } from "@/lib/starter-courses";
+import { authoringSessionLink, authoringSessionSearch } from "@/lib/authoring-session-link";
+import { httpError } from "@/lib/http-error";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 import type { JsonRpcRequest } from "@/server/session/protocol";
 import { applyLessonMetadata, hydrateLesson } from "@/lib/lesson-snapshot";
@@ -106,6 +108,8 @@ function CourseIndex() {
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [drafts, setDrafts] = useState<AuthoringDraft[]>([]);
+  const [creatingCourse, setCreatingCourse] = useState(false);
+  const [authoringError, setAuthoringError] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
@@ -188,6 +192,20 @@ function CourseIndex() {
 
   const choiceWorkspace = courseChoice?.workspaces.find((course) => course.workspaceId === choiceWorkspaceId) ?? null;
 
+  async function createCourse() {
+    if (creatingCourse) return;
+    setCreatingCourse(true);
+    setAuthoringError(undefined);
+    try {
+      const response = await fetch("/api/control/authoring", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "New course" }) });
+      if (!response.ok) throw await httpError(response);
+      const draft = await response.json() as AuthoringDraft;
+      setDrafts(previous => [draft, ...previous.filter(item => item.workspaceId !== draft.workspaceId)]);
+      await navigate({ to: "/authoring", search: { workspace: draft.workspaceId } });
+    } catch (error) { setAuthoringError(error instanceof Error ? error.message : "Could not create the draft."); }
+    finally { setCreatingCourse(false); }
+  }
+
   const explore = () => { void navigate({ to: "/explore" }); };
   const documentation = () => window.open("https://dojo.foo/docs", "_blank", "noopener,noreferrer");
   const navigation: ShellSection[] = [{ id: "library", items: [
@@ -203,6 +221,7 @@ function CourseIndex() {
         showNews={false} showOnboarding={false}
         onSearch={() => setPaletteOpen(true)} onNavigate={id => { if (id === "explore") explore(); else if (id === "docs") documentation(); }}>
         <LearningLibrary loading={coursesLoading} error={error ?? undefined} onExplore={explore}
+          onNewCourse={() => { void createCourse(); }} newCoursePending={creatingCourse} authoringError={authoringError}
           controls={<>
             <MenuButton label="Language" value={language} onChange={setLanguage}
               options={[{ value: "all", label: "All languages" }, ...languages.map(value => ({ value, label: value }))]} />
@@ -224,7 +243,7 @@ function CourseIndex() {
             onOpen: () => { void navigate({ to: "/starter/$courseId", params: { courseId: course.id } }); },
           })) : [])]}
           drafts={drafts.map(draft => ({ id: draft.workspaceId, title: humanTitle(draft.name), mark: draft.mode,
-            caption: "Draft", detail: draft.description || "Resume authoring", href: `/authoring?workspace=${encodeURIComponent(draft.workspaceId)}` }))} />
+            caption: "Draft", detail: draft.description || "Open authoring", href: authoringSessionLink(draft.workspaceId) }))} />
         {toast}
       </AppShell>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} assistant={false} searchLabel="Search your courses"
@@ -237,7 +256,7 @@ function CourseIndex() {
           if (id === "explore") explore();
           else if (id === "docs") documentation();
           else if (id.startsWith("course:")) { const group = groups.find(item => item.dojo === id.slice(7)); if (group) chooseCourse(group); }
-          else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: { workspace: id.slice(6) } });
+          else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: authoringSessionSearch(id.slice(6)) });
           else if (id.startsWith("starter:")) void navigate({ to: "/starter/$courseId", params: { courseId: id.slice(8) } });
         }} />
       <Dialog open={courseChoiceOpen} onOpenChange={setCourseChoiceOpen}>

@@ -9,6 +9,7 @@ import { streamAcpAsAgUi } from "./lesson/agui-stream";
 import { acpClient } from "./lesson/codex-client";
 import { resolveRequestWorkspace } from "./control/workspace";
 import { mountEveAuthoring } from "./authoring-eve";
+import { mountLocalEveAuthoring } from "./authoring-workspaces";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { getTypeScriptHover } from "./lesson/typescript-language-service";
@@ -55,7 +56,7 @@ authoringRoutes.post("/language/hover", async (c) => {
   if (typeof body?.code !== "string" || typeof body?.filePath !== "string" || !Number.isInteger(body?.position)) return c.json({ error: "Invalid hover request." }, 400);
   return c.json(getTypeScriptHover({ ...body, projectRoot: resolveRequestWorkspace(c.req.raw) }));
 });
-export const closeAuthoringRuntime = mountEveAuthoring(authoringRoutes, {
+export const closeAuthoringRuntime = eveRoot || process.env.EVE_BASE_URL ? mountEveAuthoring(authoringRoutes, {
   host: process.env.EVE_BASE_URL,
   historyRoot: eveRoot,
   runtime: eveRoot ? async () => {
@@ -64,11 +65,14 @@ export const closeAuthoringRuntime = mountEveAuthoring(authoringRoutes, {
     const load = createRequire(resolve(eveRoot, "package.json"));
     const { createDevelopmentServer } = load("@dojofoo/agent/server") as typeof import("@dojofoo/agent/server");
     return createDevelopmentServer(eveRoot, { host: "127.0.0.1", port: 0, resume: true });
-  } : () => {
-    const load = createRequire(import.meta.url);
-    const { acquireKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
-    return acquireKyoshiRuntime(resolveRequestWorkspace(new Request("http://localhost/")));
-  },
+  } : undefined,
   root: () => resolveRequestWorkspace(new Request("http://localhost/")),
   resolveWorkspace: resolveRequestWorkspace,
+}) : mountLocalEveAuthoring(authoringRoutes, {
+  resolveWorkspace: resolveRequestWorkspace,
+  runtime: root => {
+    const load = createRequire(import.meta.url);
+    const { acquireKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
+    return acquireKyoshiRuntime(root);
+  },
 });

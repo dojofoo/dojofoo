@@ -162,9 +162,9 @@ export function ColorCardCheck({ checked }: { checked: boolean }) {
 }
 
 /** The dashed card that adds another, the cards' shape and size */
-export function AddCard({ icon, title, label, onClick, size = "small" }: { icon?: ReactNode; title: string; label?: string; onClick?: () => void; size?: CardShape }) {
+export function AddCard({ icon, title, label, onClick, size = "small", disabled }: { icon?: ReactNode; title: string; label?: string; onClick?: () => void; size?: CardShape; disabled?: boolean }) {
   return (
-    <button type="button" className={cn("ui-card ui-card--add", size === "big" && "ui-card--big")} onClick={onClick}>
+    <button type="button" className={cn("ui-card ui-card--add", size === "big" && "ui-card--big")} onClick={onClick} disabled={disabled}>
       <style href="ui-color-card" precedence="default">{css}</style>
       {icon}
       <b>{title}</b>
