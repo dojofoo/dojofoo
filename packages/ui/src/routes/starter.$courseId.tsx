@@ -5,7 +5,7 @@ import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { CourseCard } from "@dojofoo/uix/components/course-card";
 import { Icon } from "@dojofoo/uix/components/app-shell";
 import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
-import { BackIcon } from "@dojofoo/uix/icons";
+import { AiMagicIcon, BackIcon } from "@dojofoo/uix/icons";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { starterCourses } from "@/lib/starter-courses";
 
@@ -25,10 +25,10 @@ function StarterCoursePage() {
       before: <div className="lj-course"><CourseCard course={course} enrolled={{ version: course.version, progress: 0 }} /></div>,
     }]}
     crumbs={[{ label: "Dashboard", icon: <Icon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }, { label: course.title }]}
-    contentKind="material" editor={null}
+    contentKind="material" editor={null} askAssistant={false}
     details={<LessonBrief title={course.title} lead={course.blurb}><p>This starter course is being prepared.</p></LessonBrief>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this course</span></span>}
-    composer={<Composer tray={false} models={[]} plugins={false} dictation={false} disabled placeholder="Your Sensei will be here when the first lesson is ready." />}>
+    composer={<Composer tray={false} models={[]} plugins={false} dictation={false} attachments="unavailable" agent={{ name: "Coding agent", icon: AiMagicIcon }} disabled placeholder="Your Sensei will be here when the first lesson is ready." />}>
     <p className="text-sm text-[var(--muted)]">Your Sensei conversation will begin with the first lesson.</p>
   </AgentChatWorkspace>{toast}</div>;
 }
