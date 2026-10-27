@@ -38,10 +38,20 @@ Source audit: `/tmp/dojo-uix-review-scope.json` verifies eleven actual bindings.
 | Isolated production web build | Passed (33.58s), with 22 prerendered docs pages and all 502 inspected local HTML/CSS asset references present. |
 | Isolated Storybook build | Passed (64.96s); its 80-story catalog matches the tested development catalog. |
 | Isolated types and UIX units | Web/UIX types passed; 69 UIX tests passed (10.63s). Frozen offline dependency installation; all 1,304 copied source hashes and manifests retained. |
+| Packed native UI assets | Local pack passed (9.41s). All 300 public UI files matched the archive; 17 canonical asset responses matched its bytes, including Inter/Iosevka and Monaco core/workers with correct MIME types. This does not verify a new installed CLI boot or runtime readiness. |
 
 Detailed logs and snapshot paths are recorded in [0100](0100-uix-adoption.md) and `/tmp/dojo-ui-clean-build-evidence.json`. These gates include the pending UI/branding/auth/pricing source in the working tree. They are not committed-only Linux CI, a packed CLI, deployed staging or a production release.
 
 The built production preview is not running at `127.0.0.1:4600`. Automatic approval review rejected launching it because command analysis failed unexpectedly. A manual launch was requested; production-browser hydration and runtime asset requests remain unverified. Static artifact validation does not replace that browser gate.
+
+To start the already-built preview manually:
+
+```sh
+cd /tmp/dojo-web-ui-build-lsmk_cuw/apps/web
+DOJO_API_ORIGIN=https://dojo.foo pnpm preview --host 127.0.0.1 --port 4600
+```
+
+The local archive and asset evidence are recorded in `/tmp/dojo-ui-cli-package-assets.json`. Existing compiled outputs were packed without rebuilding, modifying or starting Eve/core. The archive includes preexisting runtime bundles from the unmerged branch; asset validation does not approve those changes or constitute full CLI/package/release acceptance. The full package test starts an Eve runtime and was not run under the current constraint.
 
 ## Requirements that remain open
 

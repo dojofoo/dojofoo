@@ -1,6 +1,6 @@
 # UIX production adoption and first-party starter courses
 
-Status: active; 0101–0105 merged (0105 through PR #197, `510502c`). Local review continues in `.worktree/uix-0105` on `chore/local-review`; 0106 is unmerged, 0107 remains open, and 0108 has source-content preparation only. Do not promote a release before 0110.
+Status: local execution blocked pending the manual production preview and UI review; 0101–0105 merged (0105 through PR #197, `510502c`). Local review is in `.worktree/uix-0105` on `chore/local-review`; 0106 is unmerged, 0107 remains open, and 0108 has source-content preparation only. Do not promote a release before 0110.
 Date: 2026-10-26.
 Baseline: `main` after PR #181, merge commit `4f31a76116d23c8d9613f77d80698b5dc766096b`.
 
@@ -313,3 +313,12 @@ Fresh isolated final gates: production web build exited 0 (33.58s), prerendering
 The temporary production-preview launch was rejected by automatic approval review because command analysis failed unexpectedly. It was not retried through another execution path. The user was asked to launch the built preview manually; production browser hydration/assets remain unverified until that occurs. Read-only artifact checks do not replace a production-browser gate. The canonical existing native review still returned HTTP 200.
 
 Evidence: /tmp/dojo-ui-clean-build-evidence.json, /tmp/dojo-web-ui-build-{source-hashes.json,install.log,install-final.log,spec-preflight.log,production.log,production-final.log,types.log}, /tmp/dojo-web-built-assets.json, /tmp/dojo-uix-clean-current-{build,types,tests}.log. This is isolated local acceptance of the current combined UI source, including uncommitted user work, not committed-only CI or a released artifact. No agent/Eve/authoring/native-server source changed; the older core-containing branch history stays unmerged and excluded from a UI-only merge. Starter-course integration, production-browser verification, user review, CI/package/staging/release acceptance and the full original objective remain open.
+
+
+## Packed UI asset audit, 2026-10-28 (local review)
+
+The actual local CLI pack completed in 9.41s using existing compiled outputs: /tmp/dojo-ui-cli-package-asua9_r2/dojofoo-0.2.1.tgz (27,992,998 bytes), SHA-256 a22409f81978e69eac130283398ef6649f231e9308415139b337752ceb25bd27. The private runtime packages have no prepack build hooks; no engine rebuild, agent readiness or model invocation was performed. The shipped manifest exposes the expected binary, contains no lifecycle scripts or workspace dependency references, and includes the UI server entry.
+
+All 300 public UI files were extracted outside the workspace and matched the current compiled files byte for byte. Seventeen read-only responses at https://dojo.localhost matched those archive bytes. Critical probes included Inter and Iosevka WOFF2, Monaco editor-core.mjs/editor-worker.mjs/editor-worker-main.mjs, the Monaco runtime loader and current CSS/JavaScript; their MIME types were correct. Evidence: /tmp/dojo-ui-cli-package-pack.log, /tmp/dojo-ui-cli-package-assets.json and /tmp/dojo-installed-ui-assets-jx4a5a67/. This validates the UI asset portion of the existing packed output, not a fresh isolated CLI build/install/boot, runtime readiness, hosted CI or release. The full package test starts an Eve runtime and remains outside the current UI-first scope. No publication occurred.
+
+The required production preview is still absent at 127.0.0.1:4600 (connection refused / HTTP 000). The same manual-launch dependency has persisted through three consecutive goal turns while independent source/build/assets/handoff work was completed. The automatic approval review rejection was not bypassed. Remaining production-browser verification requires the requested manual launch; integration/publication also requires the user's UI review and must exclude the older core changes. Unsupported service capabilities remain deferred under the user's core freeze. Local execution is blocked on those inputs, not complete; the original full objective and acceptance criteria remain unchanged.
