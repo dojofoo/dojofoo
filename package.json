@@ -8,6 +8,8 @@
   "scripts": {
     "assets:logo": "node scripts/assets/apply-svg-perspective.mjs --fills-only assets/brand/dojofoo-flat.svg assets/brand/dojofoo-perspective.af packages/ui/public/brand/dojofoo.svg apps/web/public/dojofoo.svg packages/uix/src/assets/brand/dojofoo.svg",
     "build": "turbo build",
+    "ui": "pnpm --filter dojofoo exec node dist/index.js ui",
+    "ui:build": "pnpm --filter dojofoo build",
     "containers:prune": "node scripts/vercel/prune-container-images.mjs",
     "e2e:up": "docker compose up -d --wait --build",
     "e2e:down": "docker compose down -v --remove-orphans",

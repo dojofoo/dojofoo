@@ -21,7 +21,7 @@ dojofoo.
 | `--port <port>` | The localhost port (default `4567`) |
 | `--no-portless` | Skip Portless and use localhost |
 | `--name <name>` | The Portless subdomain (default `dojo`) |
-| `--tld <tld>` | The Portless top-level domain, e.g. `test` |
+| `--tld <tld>` | The UI hostname suffix (default `localhost`), e.g. `test` |
 
 | Variable | Same as |
 | --- | --- |
@@ -39,8 +39,9 @@ npx dojofoo ui --no-portless --port 4570  # localhost, on another port
 
 ## The address
 
-With [Portless](https://github.com/vercel-labs/portless) installed, the UI gets a stable HTTPS
-address:
+With [Portless](https://github.com/vercel-labs/portless) installed, the UI uses `dojo.localhost`,
+even when your shared proxy uses another domain for other applications. The address follows
+the proxy's HTTP or HTTPS configuration; with its default HTTPS configuration:
 
 ```text
 https://dojo.localhost
@@ -51,17 +52,22 @@ courses, progress and sessions. To set Portless up:
 
 ```sh
 npm install -g portless
-portless trust
 ```
 
-Its first run may ask for administrator access to serve HTTPS. If the address stops working:
+Portless handles proxy startup. Dojofoo does not run a certificate-trust step during package
+installation. To use plain HTTP, start Portless with `portless proxy start --no-tls` before
+launching the UI. Changing an already running shared proxy affects its other applications.
+
+If the address stops working:
 
 ```sh
 portless doctor      # check its health
-portless trust       # repair certificate trust
 portless hosts sync  # repair .localhost resolution, e.g. in Safari
 portless prune       # clear routes left by crashed processes
 ```
+
+From this repository, build once with `pnpm ui:build`, then use `pnpm ui`.
+The script launches the same CLI and hostname as `dojofoo ui`.
 
 ## The sensei's agent
 
