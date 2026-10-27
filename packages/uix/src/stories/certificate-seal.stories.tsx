@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CertificateSeal } from "~/components/certificate-seal";
+import { CertificateSeal } from "../components/certificate-seal";
 import { expect, within } from "storybook/test";
 
 const meta = {

@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useState, type MouseEvent, type ReactNode } from "react";
-import { Icon, ShellStyles } from "~/components/app-shell";
-import { Avatar } from "~/components/arc/avatar/avatar";
-import { BrandLogo } from "~/components/brand-logo";
-import { Button } from "~/components/button";
-import { Copy01Icon, CopyrightIcon, Search01Icon, Tick02Icon } from "~/lib/icons";
-import { cn } from "~/lib/utils";
-import makerPhoto from "../../../../apps/web/public/tomhaxxx.jpg?url";
+import { Icon, ShellStyles } from "../components/app-shell";
+import { Avatar } from "../components/arc/avatar/avatar";
+import { BrandLogo } from "../components/brand-logo";
+import { Button } from "../components/button";
+import { Copy01Icon, CopyrightIcon, Search01Icon, Tick02Icon } from "../lib/icons";
+import { cn } from "../lib/utils";
+import makerPhoto from "../assets/tomhaxxx.jpg?url";
 import type { WebCourse } from "./catalog";
-import { SearchDialog, type SearchScope } from "./search";
+import type { SearchScope } from "../components/site-search-palette";
 
 /*
  * The website's frame, in the app's look (the learner pages' AppShell): the page on surface 1, the content in a rounded
@@ -26,11 +26,15 @@ export type SiteLinks = {
   /** A docs page by its site path, e.g. "/docs/quickstart#usage" */
   openDoc: (href: string) => void;
   openCourse: (course: WebCourse) => void;
+  renderSearch: (props: { open: boolean; scope: SearchScope; onClose: () => void }) => ReactNode;
 };
 
-const noLinks: SiteLinks = { navigate: () => {}, openDoc: () => {}, openCourse: () => {} };
-export const SiteContext = createContext<SiteLinks>(noLinks);
-export const useSite = () => useContext(SiteContext);
+export const SiteContext = createContext<SiteLinks | null>(null);
+export function useSite() {
+  const links = useContext(SiteContext);
+  if (!links) throw new Error("Website layouts require a SiteContext adapter.");
+  return links;
+}
 
 // Help is the docs: usage, authoring, developers and support
 const sections: Array<{ id: SiteSection; label: string }> = [
@@ -97,7 +101,7 @@ export function SiteHeader({ current }: { current?: SiteSection }) {
         </nav>
         <Button size="sm" onClick={() => links.openDoc("/docs/quickstart")}>Get started</Button>
       </div>
-      <SearchDialog open={open} scope={scope} onClose={() => setOpen(false)} onOpenDoc={links.openDoc} onOpenCourse={links.openCourse} />
+      {links.renderSearch({ open, scope, onClose: () => setOpen(false) })}
     </header>
   );
 }

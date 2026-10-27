@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Icon } from "~/components/app-shell";
-import { CourseArt } from "~/components/course-card";
-import { SiteSearchPalette, type SearchScope } from "~/components/site-search-palette";
-import { BookOpen01Icon } from "~/lib/icons";
-import { allPages, headingsOf } from "~/docs/content";
-import { catalog, type WebCourse } from "./catalog";
+import { Icon } from "../../components/app-shell";
+import { CourseArt } from "../../components/course-card";
+import { SiteSearchPalette, type SearchScope } from "../../components/site-search-palette";
+import { BookOpen01Icon } from "../../lib/icons";
+import { allPages } from "./docs";
+import { headingsOf } from "../../docs/content";
+import { catalog } from "./catalog";
+import type { WebCourse } from "../../web/catalog";
 
-export type { SearchScope } from "~/components/site-search-palette";
+export type { SearchScope } from "../../components/site-search-palette";
 
 type Hit = { key: string; title: string; context: string; href?: string; course?: WebCourse };
 

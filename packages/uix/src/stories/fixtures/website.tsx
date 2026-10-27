@@ -1,14 +1,19 @@
-import { fadeViewTransition } from "~/lib/view-transition";
+import { fadeViewTransition } from "../../lib/view-transition";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { findPage } from "~/docs/content";
-import { renderMarkdown } from "~/lib/markdown";
-import { useEditorScheme } from "~/lib/ui-preferences";
-import { DocsSite } from "~/docs/docs-site";
-import { courseById, type WebCourse } from "./catalog";
-import { CoursePage } from "./course";
-import { CoursesPage } from "./courses";
-import { LandingPage } from "./landing";
-import { SiteContext, type SiteLinks } from "./site";
+import { findPage } from "./docs";
+import { renderMarkdown } from "../../lib/markdown";
+import { useEditorScheme } from "../../lib/ui-preferences";
+import { DocsSite } from "../../docs/docs-site";
+import { catalog, courseById } from "./catalog";
+import type { WebCourse } from "../../web/catalog";
+import { docsContent } from "./docs";
+import { SearchDialog } from "./search";
+import { LearningPreview } from "../../pages/learner";
+import { CoursePage } from "../../web/course";
+import { CoursesPage } from "../../web/courses";
+import { LandingPage } from "../../web/landing";
+import { SiteContext, useSite, type SiteLinks } from "../../web/site";
+import { APIPageFixture } from "./api-reference";
 
 /*
  * The website's pages, linked: the header, the search, the course cards, the footer and the docs' own links move between
@@ -50,6 +55,7 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
       });
     },
     openDoc,
+    renderSearch: props => <PreviewSearch {...props} />,
     openCourse: (next) => { request.current++; fadeViewTransition(() => {
       setCourse(next);
       setPage("course");
@@ -59,9 +65,14 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
   return (
     <SiteContext.Provider value={links}>
       {page === "course" ? <CoursePage course={course} />
-        : page === "courses" ? <CoursesPage />
-        : page === "docs" ? <DocsSite path={doc} />
-        : <LandingPage />}
+        : page === "courses" ? <CoursesPage courses={catalog} />
+        : page === "docs" ? <DocsSite path={doc} content={docsContent} renderApiPage={page => <APIPageFixture page={page} />} />
+        : <LandingPage learning={8} courses={catalog} featureCourse={courseById("everyday-typescript")} preview={<LearningPreview />} />}
     </SiteContext.Provider>
   );
+}
+
+function PreviewSearch(props: Parameters<SiteLinks["renderSearch"]>[0]) {
+  const links = useSite();
+  return <SearchDialog {...props} onOpenDoc={links.openDoc} onOpenCourse={links.openCourse} />;
 }

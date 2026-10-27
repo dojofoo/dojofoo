@@ -1,12 +1,12 @@
 import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { Icon } from "~/components/app-shell";
-import { FlipCard } from "~/components/flip-card";
-import { Network } from "~/components/network";
-import { Opal } from "~/components/opal";
-import { Topography } from "~/components/topography";
-import { Waves } from "~/components/waves";
-import { Tick02Icon } from "~/lib/icons";
-import { cn } from "~/lib/utils";
+import { Icon } from "./app-shell";
+import { FlipCard } from "./flip-card";
+import { Network } from "./network";
+import { Opal } from "./opal";
+import { Topography } from "./topography";
+import { Waves } from "./waves";
+import { Tick02Icon } from "../lib/icons";
+import { cn } from "../lib/utils";
 
 /*
  * ColorCard – every card's look: one color, its gradient drawn from that color alone (lighter at the top left, deeper

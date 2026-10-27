@@ -9,8 +9,8 @@ import {
   useSpring,
   useTransform,
 } from "motion/react";
-import { useReducedMotion } from "~/hooks/use-reduced-motion";
-import { cn } from "~/lib/utils";
+import { useReducedMotion } from "../hooks/use-reduced-motion";
+import { cn } from "../lib/utils";
 
 // Half a turn is a lot of travel for a physical object; under ~300ms it reads
 // as a snap rather than a card turning over, so this runs longer than most

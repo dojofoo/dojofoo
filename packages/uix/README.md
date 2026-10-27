@@ -3,6 +3,24 @@
 The successor UI library and page-design preview. The live learning/authoring app
 has not been switched to these page fixtures.
 
+Production entry points are `@dojofoo/uix/provider`, `fonts.css`, `styles.css`,
+`web/site`, `web/landing`, `web/courses`, `web/course`, `web/catalog`,
+`docs/layout`, and `docs/content`, alongside the shared components/containers.
+The website and local runtime share `UIXProvider` with Storybook. Leave its
+`mode` unset when an application theme provider already owns light/dark mode.
+Import `fonts.css` with the UIX stylesheet when adopting the UIX page design.
+
+Applications supply course data, navigation/search adapters, compiled MDX and
+prepared OpenAPI props. The API renderer requires its document explicitly;
+generated schema lookup belongs to `src/stories/fixtures/api-reference.tsx`.
+Raw docs projection, simulated catalog data, search and the demo website router
+also live in `src/stories/fixtures/`. The page demos remain previews, not local
+runtime controllers. Do not mount their simulated conversations in production.
+
+Brand/agent graphics used by UIX are library assets, available through
+`@dojofoo/uix/assets/*`. The root `assets:logo` script updates its generated
+brand SVG together with the existing website/local copies during migration.
+
 - `components/`: installed UI primitives and presentational compositions. Internal
   interaction state is fine; no course persistence, network orchestration or page controllers.
 - `containers/`: Monaco lifecycle/language services, video cues, setup and chat orchestration.

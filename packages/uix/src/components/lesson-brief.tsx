@@ -1,10 +1,10 @@
-import { useContentPreferences, setContentPreferences } from "~/lib/content-preferences";
+import { useContentPreferences, setContentPreferences } from "../lib/content-preferences";
 import { useRef, type ReactNode } from "react";
 import { ArrowRightUpRegular } from "@mingcute/react/core-regular";
-import { Icon } from "~/components/app-shell";
-import { FluidHoverHighlight } from "~/components/fluid-hover-highlight";
-import { useFluidHover, useRegisterFluidHoverItem } from "~/hooks/use-fluid-hover";
-import type { IconGlyph } from "~/lib/icons";
+import { Icon } from "./app-shell";
+import { FluidHoverHighlight } from "./fluid-hover-highlight";
+import { useFluidHover, useRegisterFluidHoverItem } from "../hooks/use-fluid-hover";
+import type { IconGlyph } from "../lib/icons";
 
 /*
  * LessonBrief – what's open, explained the way Dojofoo's lesson page does it (routes/index.tsx, LessonPage): the title

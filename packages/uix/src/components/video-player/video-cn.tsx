@@ -16,7 +16,7 @@ import {
  * depuis `"cn"`, et rien ne garantit que le fichier existe chez le consommateur
  * — vérifié en le retirant d'un projet de test, l'installation n'en dit rien.
  */
-import { cn } from "~/lib/utils";
+import { cn } from "../../lib/utils";
 
 import type { Chapter } from "./chapters";
 import { ChaptersProvider } from "./chapters-context";

@@ -6,7 +6,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "assets:logo": "node scripts/assets/apply-svg-perspective.mjs --fills-only assets/brand/dojofoo-flat.svg assets/brand/dojofoo-perspective.af packages/ui/public/brand/dojofoo.svg apps/web/public/dojofoo.svg",
+    "assets:logo": "node scripts/assets/apply-svg-perspective.mjs --fills-only assets/brand/dojofoo-flat.svg assets/brand/dojofoo-perspective.af packages/ui/public/brand/dojofoo.svg apps/web/public/dojofoo.svg packages/uix/src/assets/brand/dojofoo.svg",
     "build": "turbo build",
     "containers:prune": "node scripts/vercel/prune-container-images.mjs",
     "e2e:up": "docker compose up -d --wait --build",

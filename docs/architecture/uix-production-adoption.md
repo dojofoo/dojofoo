@@ -45,3 +45,12 @@ Protect file buffers/dirty state, real check results, local material URLs, strea
 The proposed starter directories `courses/create-your-own-dojo/` and `courses/how-to-run-a-dojo/` do not exist at this baseline. Their required real interactive conversation and independent authoring handoff are tracked by slices 0106–0108, not implied by the existing preview stories.
 
 Slice 0101 adds a PR verification workflow with declared Node/Bun setup, generated-contract checks, types, API/UIX unit tests, a full build, installed-package verification, and website browser journeys. Main's Release workflow must use the same declared Bun version. A green local check is not proof that the hosted workflow or deployed website passed; attach those results separately.
+
+
+## 0102 library boundary and deployment update
+
+The website demo router, raw-MDX projection, preview catalog and simulated search now live in `packages/uix/src/stories/fixtures/`. Public website/docs entry points take explicit content and navigation inputs. Native API rendering requires application-preloaded Fumadocs data; only the story adapter looks up the generated website snapshot. Library assets resolve within UIX. Storybook and both runtime hosts use `UIXProvider`, with host-owned theme persistence retained during the route migration.
+
+The route tables above still identify work to do. A provider import or prepared-document adapter does not mean those routes have adopted UIX page presentation. The next website brief is [0103](../../.prd/0103-uix-website.md).
+
+Vercel's `dojofoo` project builds main with automatic custom-domain assignment disabled (`autoAssignCustomDomains: false`). This uses staged production builds while keeping the current live alias unchanged. A version-tag promotion step still needs implementation and hosted verification before release: resolve the ready artifact by exact commit, promote that artifact only for the released version, and retain the tag/deployment mapping for rollback. Release PR 184 must remain unmerged until the migration's release gates are met. The project setting is remote configuration, not implied by this source file.

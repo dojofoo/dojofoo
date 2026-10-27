@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { cn } from "~/lib/utils";
+import { cn } from "../lib/utils";
 
 /*
  * ShaderCanvas – a full-size canvas running one fragment shader (WebGL 1), for the cards' drifting backgrounds. It hands

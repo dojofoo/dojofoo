@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import logoSvg from "../../../../assets/brand/dojofoo.svg?raw";
+import logoSvg from "../assets/brand/dojofoo.svg?raw";
 import { cn } from "../lib/utils";
 
 type BrandLogoProps = Omit<ComponentProps<"span">, "children"> & {

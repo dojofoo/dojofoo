@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { allPages } from "~/docs/content";
-import { Website } from "~/web/website";
+import { allPages } from "./fixtures/docs";
+import { Website } from "./fixtures/website";
 
 /**
  * The docs (dojo.foo/docs) as the site lays them out – the Fumadocs notebook layout – in UIX's look: Usage, Authoring,

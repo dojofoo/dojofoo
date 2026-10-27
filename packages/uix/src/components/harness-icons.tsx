@@ -1,10 +1,10 @@
-import type { IconGlyph } from "~/lib/icons";
-import codex from "../../../../apps/web/public/agents/codex.svg?raw";
-import cursor from "../../../../apps/web/public/agents/cursor.svg?raw";
-import fx from "../../../../apps/web/public/agents/fx.svg?raw";
-import grok from "../../../../apps/web/public/agents/grok.svg?raw";
-import opencode from "../../../../apps/web/public/agents/opencode.svg?raw";
-import pi from "../../../../apps/web/public/agents/pi.svg?raw";
+import type { IconGlyph } from "../lib/icons";
+import codex from "../assets/agents/codex.svg?raw";
+import cursor from "../assets/agents/cursor.svg?raw";
+import fx from "../assets/agents/fx.svg?raw";
+import grok from "../assets/agents/grok.svg?raw";
+import opencode from "../assets/agents/opencode.svg?raw";
+import pi from "../assets/agents/pi.svg?raw";
 
 /*
  * The coding harnesses' marks, from the website's "Works with" row (apps/web/public/agents) – one source for both. The

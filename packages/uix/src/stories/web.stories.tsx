@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { catalog } from "~/web/catalog";
-import { Website } from "~/web/website";
+import { catalog } from "./fixtures/catalog";
+import { Website } from "./fixtures/website";
 
 /**
  * The website (dojo.foo) in UIX's styling: the landing, the course catalog as a search, and a course's page with its

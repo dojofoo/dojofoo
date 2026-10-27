@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useContentPreferences } from "~/lib/content-preferences";
-import { useReducedMotion } from "~/hooks/use-reduced-motion";
+import { useContentPreferences } from "../lib/content-preferences";
+import { useReducedMotion } from "../hooks/use-reduced-motion";
 import { Button } from "./button";
 import { Icon } from "./app-shell";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "~/lib/icons";
+import { ArrowLeft01Icon, ArrowRight01Icon } from "../lib/icons";
 
 /** Embed the built deck without remounting it when its display preferences change. */
 export function SlideDeck({ src, title }: { src: string; title: string }) {

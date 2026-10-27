@@ -1,26 +1,26 @@
-import { fadeViewTransition } from "~/lib/view-transition";
-import { SettingsContent } from "~/components/settings-billing";
-import { SlideDeck } from "~/components/slide-deck";
+import { fadeViewTransition } from "../lib/view-transition";
+import { SettingsContent } from "../components/settings-billing";
+import { SlideDeck } from "../components/slide-deck";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { prepareEditor } from "~/lib/preload-editor";
-import { AgentChatWorkspace } from "~/containers/agent-chat";
-import { AgentSetup, setupSteps } from "~/containers/agent-setup";
-import { AppDirectory, categoryIcons, type App, type AppCategory } from "~/components/app-directory";
-import { AppShell, EmptyState, Icon, useToast, type AppShellProps, type ShellEntry, type ShellSection } from "~/components/app-shell";
-import { ChatMessages, Composer, useChatThread } from "~/containers/assistant-home";
-import { Button } from "~/components/button";
-import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardTag } from "~/components/color-card";
-import { CertificateCard, CourseArt, CourseCard, type CourseArtwork, type CourseInfo } from "~/components/course-card";
-import { ChangelogFeed, type ChangelogEntry, type ChangelogMonth } from "~/components/arc/blocks/changelog-feed/changelog-feed";
-import { EditorTestResults } from "~/components/editor-test-results";
-import { CodeEditor, Editor, EditorStatus, EditorTabs } from "~/containers/editor";
-import { LessonBrief } from "~/components/lesson-brief";
-import type { SetupGroup } from "~/components/setup-guide";
-import { TestimonialHighlight, type Testimonial } from "~/components/testimonial-highlight";
-import { VideoStage } from "~/containers/video-stage";
-import { BackIcon, BookOpen01Icon, CertificateIcon, ClaudeIcon, CommentsIcon, CoursesIcon, DoneIcon, ExploreIcon, LearnersIcon, LikesIcon, PlusSignIcon } from "~/lib/icons";
-import { BrandLogo } from "~/components/brand-logo";
-import samAltmanPhoto from "../../../../apps/web/public/sam-altman.jpg?url";
+import { prepareEditor } from "../lib/preload-editor";
+import { AgentChatWorkspace } from "../containers/agent-chat";
+import { AgentSetup, setupSteps } from "../containers/agent-setup";
+import { AppDirectory, categoryIcons, type App, type AppCategory } from "../components/app-directory";
+import { AppShell, EmptyState, Icon, useToast, type AppShellProps, type ShellEntry, type ShellSection } from "../components/app-shell";
+import { ChatMessages, Composer, useChatThread } from "../containers/assistant-home";
+import { Button } from "../components/button";
+import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardTag } from "../components/color-card";
+import { CertificateCard, CourseArt, CourseCard, type CourseArtwork, type CourseInfo } from "../components/course-card";
+import { ChangelogFeed, type ChangelogEntry, type ChangelogMonth } from "../components/arc/blocks/changelog-feed/changelog-feed";
+import { EditorTestResults } from "../components/editor-test-results";
+import { CodeEditor, Editor, EditorStatus, EditorTabs } from "../containers/editor";
+import { LessonBrief } from "../components/lesson-brief";
+import type { SetupGroup } from "../components/setup-guide";
+import { TestimonialHighlight, type Testimonial } from "../components/testimonial-highlight";
+import { VideoStage } from "../containers/video-stage";
+import { BackIcon, BookOpen01Icon, CertificateIcon, ClaudeIcon, CommentsIcon, CoursesIcon, DoneIcon, ExploreIcon, LearnersIcon, LikesIcon, PlusSignIcon } from "../lib/icons";
+import { BrandLogo } from "../components/brand-logo";
+import samAltmanPhoto from "../assets/sam-altman.jpg?url";
 
 /*
  * The learner's journey, to explore how the sidebar changes along it:

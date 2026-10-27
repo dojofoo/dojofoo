@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { CloseRegular } from "@mingcute/react/core-regular";
-import type { EditorAppearance } from "~/lib/editor-appearance";
+import type { EditorAppearance } from "../lib/editor-appearance";
 
 /* ---------- Frame ---------- */
 

@@ -1,19 +1,19 @@
-import claudeDarkLogo from "../../../../apps/web/public/agents/claude-wordmark-dark.svg?url";
-import claudeLightLogo from "../../../../apps/web/public/agents/claude-wordmark-light.svg?url";
-import codexLogo from "../../../../apps/web/public/agents/codex.svg?url";
-import cursorLogo from "../../../../apps/web/public/agents/cursor.svg?url";
-import fxLogo from "../../../../apps/web/public/agents/fx.svg?url";
-import opencodeLogo from "../../../../apps/web/public/agents/opencode-wordmark.svg?url";
-import piLogo from "../../../../apps/web/public/agents/pi.svg?url";
+import claudeDarkLogo from "../assets/agents/claude-wordmark-dark.svg?url";
+import claudeLightLogo from "../assets/agents/claude-wordmark-light.svg?url";
+import codexLogo from "../assets/agents/codex.svg?url";
+import cursorLogo from "../assets/agents/cursor.svg?url";
+import fxLogo from "../assets/agents/fx.svg?url";
+import opencodeLogo from "../assets/agents/opencode-wordmark.svg?url";
+import piLogo from "../assets/agents/pi.svg?url";
 import { useState } from "react";
-import { Icon } from "~/components/app-shell";
-import { Button } from "~/components/button";
-import { courseColor } from "~/components/course-card";
-import { TabOverload } from "~/components/tab-overload";
-import { Carousel } from "~/components/arc/carousel/carousel";
-import { LearningPreview } from "~/pages/learner";
-import { ArrowRight01Icon } from "~/lib/icons";
-import { catalog, courseById } from "./catalog";
+import { Icon } from "../components/app-shell";
+import { Button } from "../components/button";
+import { courseColor } from "../components/course-card";
+import { TabOverload } from "../components/tab-overload";
+import { Carousel } from "../components/arc/carousel/carousel";
+import { ArrowRight01Icon } from "../lib/icons";
+import type { WebCourse } from "./catalog";
+import type { ReactNode } from "react";
 import { AppPreview, CourseTile } from "./course-tile";
 import { ShaderText } from "./shader-text";
 import { CommandCopy, SitePage, useSite } from "./site";
@@ -46,14 +46,15 @@ const modes = [
   { title: "Authoring Mode", short: "Authoring", beta: "Open beta", headline: "Create your own tutor-guided learning or interview", text: "Build a course with Kyoshi, your authoring agent. Shape lessons, exercises, and learning material, then try it as a learner before you share it." },
 ] as const;
 
-export function LandingPage({ learning = 8 }: {
+export function LandingPage({ learning, courses, featureCourse: everyday, preview }: {
   /** People learning right now (the site shows an hourly estimate) */
-  learning?: number;
+  learning: number;
+  courses: WebCourse[];
+  featureCourse: WebCourse;
+  preview: ReactNode;
 }) {
   const links = useSite();
-  const top = [...catalog].sort((a, b) => a.trendingRank - b.trendingRank).slice(0, 4);
-  // "learning" in the Everyday TypeScript card's colors, under the cards' waves
-  const everyday = courseById("everyday-typescript");
+  const top = [...courses].sort((a, b) => a.trendingRank - b.trendingRank).slice(0, 4);
   const [mode, setMode] = useState<1 | 2 | 3>(1);
   return (
     <SitePage current="home" window={false} full backdrop={<TopographyBackdrop />}>
@@ -76,7 +77,7 @@ export function LandingPage({ learning = 8 }: {
       {/* A course from inside, as learners see it: a lesson in the learner app itself, in a window as wide as the page, cut
           short – its sidebar runs on past the bottom (there's more to it), the composer sits in view – and without its
           Getting started card */}
-      <div className="ui-land-app"><AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it"><LearningPreview /></AppPreview></div>
+      <div className="ui-land-app"><AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview></div>
 
       <section className="ui-land-agents" aria-labelledby="ui-land-agents">
         <h2 id="ui-land-agents" className="ui-land-eyebrow">Works with</h2>

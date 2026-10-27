@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Icon } from "~/components/app-shell";
-import { BrandLogo } from "~/components/brand-logo";
-import { Button } from "~/components/button";
-import { CourseCard } from "~/components/course-card";
-import { KpiChart } from "~/components/kpi-chart";
-import { SegmentedControl } from "~/components/segmented-control";
-import { ArrowLeft01Icon, BookOpen01Icon } from "~/lib/icons";
+import { Icon } from "../components/app-shell";
+import { BrandLogo } from "../components/brand-logo";
+import { Button } from "../components/button";
+import { CourseCard } from "../components/course-card";
+import { KpiChart } from "../components/kpi-chart";
+import { SegmentedControl } from "../components/segmented-control";
+import { ArrowLeft01Icon, BookOpen01Icon } from "../lib/icons";
 import { cardInfo, compactNumber, installCommand, installPrompt, teachingModes, type CourseAudit, type WebCourse } from "./catalog";
 import { CommandCopy, SitePage, useSite } from "./site";
 

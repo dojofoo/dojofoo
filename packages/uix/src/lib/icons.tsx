@@ -1,4 +1,6 @@
-import { createContext, useContext, type ComponentType } from "react";
+import { useContext, type ComponentType } from "react";
+import { IconSetContext, type IconSet } from "./icon-context";
+export { IconSetContext, type IconSet } from "./icon-context";
 import * as Huge from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import * as Iconoir from "iconoir-react";
@@ -15,8 +17,6 @@ import { fluent, type FluentName } from "./fluent-icons";
  * the same either way; the set comes from IconSetContext (Storybook's "Icons" toolbar). The line sets draw with their
  * own default stroke; MingCute and Fluent are drawn as filled shapes, so they have none.
  */
-export type IconSet = "iconoir" | "mingcute" | "solar" | "fluent" | "hugeicons";
-export const IconSetContext = createContext<IconSet>("mingcute");
 
 export type IconGlyph = ComponentType<{ size: number; stroke?: number; color: string; className?: string }>;
 

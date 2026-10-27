@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactNode } from "react";
-import { Icon } from "~/components/app-shell";
-import { AddCard, CardDetails, CardFigure, CardKicker, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardCheck, ColorCardTag } from "~/components/color-card";
-import { CertificateCard, CourseCard, type CourseInfo } from "~/components/course-card";
-import { DoneIcon, PlusSignIcon } from "~/lib/icons";
-import { BrandLogo } from "~/components/brand-logo";
+import { Icon } from "../components/app-shell";
+import { AddCard, CardDetails, CardFigure, CardKicker, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardCheck, ColorCardTag } from "../components/color-card";
+import { CertificateCard, CourseCard, type CourseInfo } from "../components/course-card";
+import { DoneIcon, PlusSignIcon } from "../lib/icons";
+import { BrandLogo } from "../components/brand-logo";
 
 /*
  * ColorCard – every card's look, in two sizes: small (a rectangle, fixed sizes) and big (a square whose type grows with

@@ -15,7 +15,7 @@ import {
   type TypeScaleRole,
   type TypeScalePair,
   type TypeScaleStep,
-} from "~/lib/type-scale";
+} from "./type-scale";
 
 type SizeVariant = "default" | "compact";
 

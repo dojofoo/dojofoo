@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
-import logo from "../../../../assets/brand/dojofoo.svg?raw";
-import { cn } from "~/lib/utils";
-import { certificateWatermarkPaths, type CertificateGeometry } from "~/lib/certificate-seal";
+import logo from "../assets/brand/dojofoo.svg?raw";
+import { cn } from "../lib/utils";
+import { certificateWatermarkPaths, type CertificateGeometry } from "../lib/certificate-seal";
 
 // Trusted, repository-owned vector artwork. Keep its paths inside the exported
 // SVG so the logo and engraving share currentColor in either theme.

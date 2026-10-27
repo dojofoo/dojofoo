@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes } from "react";
-import { cn } from "~/lib/utils";
+import { cn } from "../lib/utils";
 
 /*
  * ChatGPTButton – "Continue with ChatGPT", one of the four approved Sign in with ChatGPT formats

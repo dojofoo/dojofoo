@@ -1,6 +1,6 @@
 "use client";
 
-import { ShaderCanvas } from "~/components/shader-canvas";
+import { ShaderCanvas } from "./shader-canvas";
 
 /*
  * Opal – fifty rings, each pushed out by drifting noise, fading toward the outermost: a shader after Morgan McGuire's 2D

@@ -30,7 +30,7 @@
     "build": "vite build",
     "start": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "storybook:build": "storybook build -o ../../.storybook-static/ui",
+    "storybook:build": "storybook build -o node_modules/.cache/storybook-static",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:editor": "playwright test --config playwright.editor.config.ts",

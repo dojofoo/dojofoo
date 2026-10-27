@@ -1,7 +1,7 @@
 import { memo, type ReactElement } from "react";
 
 import { Button } from "./player-button";
-import { cn } from "~/lib/utils";
+import { cn } from "../../lib/utils";
 
 import { useControlsOptions } from "./controls-context";
 import { usePlayerActions, usePlayerValue, usePlayheadValue } from "./player-context";

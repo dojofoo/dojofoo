@@ -1,5 +1,5 @@
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { Waves } from "~/components/waves";
+import { Waves } from "../components/waves";
 
 /*
  * A word drawn as a course card's face: the card's gradient in the course's color, its hues slowly fading round the
