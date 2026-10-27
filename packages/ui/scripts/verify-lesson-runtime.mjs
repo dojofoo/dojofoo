@@ -19,12 +19,39 @@ const scratch = await mkdtemp(join(tmpdir(), "dojo-lesson-introduction-"));
 const source = join(scratch, "source");
 const workspace = join(scratch, "workspace");
 const stateHome = join(scratch, "state");
-const endpoint = await startLoopbackModel();
+const toolQuestion = "Inspect the native lesson context";
+const askQuestion = "Ask the authored native hint question";
+const rejectQuestion = "Decline a second native context read";
+let nativeContextSent = false;
+let nativeQuestionSent = false;
+let nativeRejectSent = false;
+const endpoint = await startLoopbackModel({
+  selectResponsesTool(input) {
+    const text = JSON.stringify(input.input ?? []);
+    const target = text.includes(askQuestion) && !nativeQuestionSent
+      ? { name: "dojo_ui_ask", input: { title: "Which hint would help?", options: [{ id: "example", title: "A small example" }, { id: "review", title: "Review the goal" }] } }
+      : text.includes(rejectQuestion) && !nativeRejectSent ? { name: "dojo_context", input: {}, reject: true }
+      : text.includes(toolQuestion) && !nativeContextSent ? { name: "dojo_context", input: {} } : undefined;
+    if (!target) return;
+    const mark = () => { if (target.reject) nativeRejectSent = true; else if (target.name === "dojo_context") nativeContextSent = true; else nativeQuestionSent = true; };
+    const available = (input.tools ?? []).flatMap(tool => tool.type === "namespace" ? tool.tools.map(child => ({ ...child, namespace: tool.name })) : [tool]);
+    const tool = available.find(tool => tool.name?.endsWith(target.name));
+    if (tool) { mark(); return { name: tool.name, ...(tool.namespace ? { namespace: tool.namespace } : {}), input: target.input }; }
+    // OpenCode sends subsequent catalog changes as developer messages.
+    const catalog = [input.instructions, ...(input.input ?? []).filter(item => item.type === "message" && ["developer", "system"].includes(item.role))
+      .flatMap(item => typeof item.content === "string" ? [item.content] : item.content?.map(part => part.text ?? "") ?? [])].join("\n");
+    const pattern = new RegExp(String.raw`\b(tools\.(?:[\w$]+\.)*${target.name}|tools\.[\w$]+\["${target.name}"\])\s*\(`, "u");
+    const call = catalog.match(pattern)?.[1];
+    if (call && available.some(tool => tool.name === "execute")) {
+      mark(); return { name: "execute", input: { code: `return await ${call}(${JSON.stringify(target.input)});` } };
+    }
+  },
+});
 const cli = join(repo, "packages/cli/dist/index.js");
 const environment = { ...process.env, DOJOFOO_HOME: stateHome, DO_NOT_TRACK: "1",
   DOJOFOO_HARNESS: "opencode", OPENCODE_BIN: opencodeExecutable(),
   XDG_CONFIG_HOME: join(scratch, "config"), XDG_DATA_HOME: join(scratch, "data"), XDG_CACHE_HOME: join(scratch, "cache"),
-  OPENCODE_CONFIG_CONTENT: JSON.stringify({ model: "openai/gpt-4o", small_model: "openai/gpt-4o", enabled_providers: ["openai"],
+  OPENCODE_CONFIG_CONTENT: JSON.stringify({ agents: { dojofoo: { permissions: [{ action: "dojofoo_dojo_context", resource: "*", effect: "ask" }] } }, model: "openai/gpt-4o", small_model: "openai/gpt-4o", enabled_providers: ["openai"],
     provider: { openai: { options: { baseURL: endpoint.baseURL, apiKey: "fixture-only" } } } }),
   DOJOFOO_MODEL: "", DOJOFOO_AUTHORING_MODEL: "", DOJOFOO_LESSON_MODEL: "", EVE_BASE_URL: "", DOJO_EVE_ROOT: "",
   OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "",
@@ -92,6 +119,7 @@ try {
   assert.match(events, /Ready to teach\./);
   assert.match(events, /RUN_FINISHED/);
   assert.doesNotMatch(events, /RUN_ERROR/);
+  await writeFile(artifact("native-advertised-tools.json"), JSON.stringify(endpoint.requests.map(request => request.tools), null, 2));
   const after = await fetch(base).then(response => response.json());
   assert.ok(after.sessionId);
   assert.equal(after.introduced, true);
@@ -102,6 +130,10 @@ try {
   const browser = await chromium.launch({ headless: true });
   let page;
   const frames = [];
+  const settleTool = async card => {
+    await expect.poll(() => card.evaluate(element => [element, element.querySelector(".ui-tc__body"), element.closest(".ui-as-msg"), element.closest(".ui-think")?.querySelector(".ui-think__body")]
+      .some(node => node?.getAnimations().some(animation => animation.playState === "running"))), { timeout: 5_000 }).toBe(false);
+  };
   try {
     page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const errors = [];
@@ -275,7 +307,10 @@ try {
     const selected = await fetch(base).then(response => response.json());
     assert.equal(selected.sessionId, after.sessionId);
     assert.equal(selected.model.currentValue, modelOption.value);
-    const replyCount = snapshot => snapshot.messages.filter(message => message.role === "assistant" && message.parts.some(part => part.type === "text" && part.content.includes("Ready to teach."))).length;
+    const replyText = snapshot => snapshot.messages.filter(message => message.role === "assistant")
+      .flatMap(message => message.parts.flatMap(part => part.type === "text" ? [part.content] : [])).join("");
+    // Native replay can split one text part around restored check events.
+    const replyCount = snapshot => [...replyText(snapshot).matchAll(/Ready to teach\./gu)].length;
     const followUp = "What should I try next in this lesson?";
     const requestCount = endpoint.requestedModels.length;
     await page.getByRole("textbox", { name: "Message the sensei", exact: true }).fill(followUp);
@@ -284,10 +319,66 @@ try {
     await expect(pane).toHaveAttribute("data-chat-status", "ready");
     const answered = await fetch(base).then(response => response.json());
     assert.ok(JSON.stringify(answered.messages).includes(followUp));
+    await expect.poll(() => page.getByTestId("senpai-streaming-message").last().evaluate(node => parseFloat(getComputedStyle(node).borderTopLeftRadius))).toBeGreaterThan(0);
     assert.equal(answered.sessionId, after.sessionId);
     assert.ok(endpoint.requestedModels.slice(requestCount).includes(modelOption.value.slice("openai/".length)), "The next native inference request must use the selected model");
     assert.deepEqual(errors, []);
     assert.deepEqual(introductions, [], "Restoring an introduced lesson must not send another introduction");
+    mountedEditor = await page.locator(".monaco-editor textarea").elementHandle();
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).fill(toolQuestion);
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).press("Enter");
+    await expect.poll(() => nativeContextSent, { timeout: 15_000 }).toBe(true);
+    const [approved] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/messages") && Boolean(response.request().postDataJSON()?.answers)),
+      page.getByRole("radio", { name: "Allow once", exact: true }).click(),
+    ]);
+    assert.equal(approved.status(), 201);
+    await expect(pane).toHaveAttribute("data-chat-status", "ready");
+    const contextCard = page.locator(".ui-tc").filter({ has: page.locator(".ui-tc__name", { hasText: /dojo_context|execute/ }) });
+    await expect(contextCard).toHaveAttribute("data-status", "success");
+    await expect(contextCard.locator(".ui-tc__chevron")).toHaveCSS("width", "14px");
+    const thinking = page.locator(".ui-think").filter({ has: contextCard });
+    await thinking.locator(".ui-think__head").click();
+    await contextCard.locator(".ui-tc__head").click();
+    await expect(contextCard).toContainText("lesson-runtime-fixture");
+    await expect(contextCard).toContainText("return 42");
+    assert.equal(await page.locator(".monaco-editor textarea").evaluate((node, original) => node === original, mountedEditor), true);
+    await settleTool(contextCard);
+    await expect(thinking.locator(".ui-think__head")).toHaveAttribute("aria-expanded", "true");
+    await expect(contextCard.locator(".ui-tc__head")).toHaveAttribute("aria-expanded", "true");
+    await contextCard.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: artifact("real-context-tool.png") });
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).fill(rejectQuestion);
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).press("Enter");
+    const [denied] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/messages") && Boolean(response.request().postDataJSON()?.answers)),
+      page.locator('[role="radiogroup"]:not([aria-disabled="true"])').getByRole("radio", { name: "Reject", exact: true }).click(),
+    ]);
+    assert.equal(denied.status(), 201);
+    await expect(pane).toHaveAttribute("data-chat-status", "ready", { timeout: 15_000 });
+    const rejected = page.locator('.ui-tc[data-status="error"]').filter({ has: page.locator(".ui-tc__name", { hasText: /execute|dojo_context/ }) }).last();
+    await expect(rejected).toHaveAttribute("data-status", "error");
+    await page.locator(".ui-think").filter({ has: rejected }).locator(".ui-think__head").click();
+    await expect(rejected.locator(".ui-tc__error")).toBeVisible();
+    await settleTool(rejected);
+    await rejected.locator(".ui-tc__error").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: artifact("real-rejected-permission.png") });
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).fill(askQuestion);
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).press("Enter");
+    const answer = page.getByRole("radio", { name: /A small example/ });
+    await expect(answer).toBeVisible({ timeout: 15_000 });
+    const [answeredQuestion] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/messages") && Boolean(response.request().postDataJSON()?.answers)),
+      answer.click(),
+    ]);
+    assert.equal(answeredQuestion.status(), 201);
+    await expect(pane).toHaveAttribute("data-chat-status", "ready", { timeout: 15_000 });
+    await expect(answer).toBeDisabled();
+    const nativeQuestion = await fetch(base).then(response => response.json());
+    assert.ok(JSON.stringify(nativeQuestion.messages).includes("example"));
+    await page.reload();
+    await expect(page.getByRole("radio", { name: /A small example/ })).toBeDisabled();
+    await expect(page.getByRole("radio", { name: /A small example/ })).toHaveAttribute("aria-checked", "true");
     assert.equal(answered.result.complete, true);
     const [progressed] = await Promise.all([
       page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/progressions")),
@@ -323,16 +414,26 @@ try {
     await expect(page.locator(".view-lines")).toContainText("return 42");
     await expect(page.getByTestId("chat-pane")).toHaveAttribute("data-chat-status", "ready");
     const restarted = await fetch(base).then(response => response.json());
+    await writeFile(artifact("before-restart.json"), JSON.stringify(completedSnapshot, null, 2));
+    await writeFile(artifact("after-restart.json"), JSON.stringify(restarted, null, 2));
     assert.equal(restarted.sessionId, after.sessionId);
     assert.equal(restarted.code, shortcutSolution);
     assert.equal(restarted.result.complete, true);
     assert.equal(restarted.model.currentValue, modelOption.value);
     assert.equal(replyCount(restarted), oldReplies);
+    assert.equal(replyText(restarted), replyText(completedSnapshot), "Restart must preserve the full assistant text independently of native part grouping");
+    for (const snapshot of [completedSnapshot, restarted]) {
+      const learnerText = snapshot.messages.filter(message => message.role === "user")
+        .flatMap(message => message.parts.flatMap(part => part.type === "text" ? [part.content] : []));
+      assert.ok(learnerText.includes(followUp), "Replay must retain the actual learner message without context prefixes");
+      assert.ok(learnerText.every(text => !/\[(?:dojo|dojofoo):\/\//u.test(text)), "Private resource markers must not appear in learner bubbles");
+    }
     assert.equal(introductions.length, sentIntroductions, "Restart must not reintroduce the restored lesson");
     assert.deepEqual(errors, []);
 
-    console.log("Real CLI/browser: UIX workspace/editor/composer, real resources, reading preferences, chat visibility, native JSDoc, single-write save, undo/redo, checks, same-session reload, physical cancellation, next-turn model selection, progression, read-only completed lesson and server-restart restoration passed.");
+    console.log("Real CLI/browser: UIX workspace/editor/composer, real resources, reading preferences, chat visibility, native JSDoc, single-write save, undo/redo, checks, same-session reload, physical cancellation, next-turn model selection, progression, read-only completed lesson and server-restart restoration native MCP context output and answered-question replay and native approval/rejection passed.");
   } catch (error) {
+    await writeFile(artifact("native-inference-requests.json"), JSON.stringify(endpoint.requests, null, 2));
     if (page) {
       await page.screenshot({ path: artifact("results-failure.png") });
       await writeFile(artifact("results-failure.html"), await page.content());

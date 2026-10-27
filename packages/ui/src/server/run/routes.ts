@@ -23,12 +23,8 @@ export const runRoutes = new Hono().post("/", async (c) => {
     if (body.method !== uiCapabilities.ask.method || !body.params?.title || !body.params.options || body.params.options.length < 2) {
       return c.json({ error: "Invalid run command" }, 422);
     }
-    return c.json({
-      answers: await runCoordinator.ask(capability, {
-        title: body.params.title,
-        options: body.params.options,
-      }),
-    });
+    const question = { requestId: crypto.randomUUID(), title: body.params.title, options: body.params.options };
+    return c.json({ question, answers: await runCoordinator.ask(capability, question) });
   } catch (cause) {
     return c.json({ error: cause instanceof Error ? cause.message : "Run command failed" }, 409);
   }

@@ -44,6 +44,10 @@ jobs:
       - run: pnpm --filter @dojofoo/web exec playwright install --with-deps chromium
       - run: pnpm --filter @dojofoo/web test:e2e
       - run: pnpm --filter @dojofoo/ui test:library
+      - name: Install native lesson harness
+        run: npm install --global @opencode/cli@2.0.28
+      - name: Verify the installed lesson workflow with local inference
+        run: pnpm --filter @dojofoo/ui test:lesson
       - name: Preserve failed browser traces
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -52,5 +56,6 @@ jobs:
           path: |
             apps/web/test-results
             packages/ui/test-results
+            /tmp/dojo-lesson-runtime-evidence-*
           if-no-files-found: ignore
           retention-days: 3

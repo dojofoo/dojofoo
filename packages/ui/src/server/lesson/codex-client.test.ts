@@ -592,6 +592,35 @@ describe("AcpClient projection", () => {
     await expect(promise).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow_once" } });
   });
 
+  it("keeps a permission question distinct from its already-streaming tool call", async () => {
+    const client = new AcpClient();
+    const parts: AcpStreamPart[] = [];
+    (client as unknown as { callbacks: Map<string, (part: AcpStreamPart) => void> }).callbacks.set("session-1", part => parts.push(part));
+    const promise = (client as unknown as {
+      requestPermission(value: Parameters<NonNullable<import("@agentclientprotocol/sdk").Client["requestPermission"]>>[0]): Promise<import("@agentclientprotocol/sdk").RequestPermissionResponse>;
+    }).requestPermission({ sessionId: "session-1", toolCall: { toolCallId: "native-running-tool", title: "Read context" },
+      options: [{ optionId: "once", name: "Allow once", kind: "allow_once" }] });
+    const question = parts.find(part => part.type === "tool-input-start");
+    expect(question?.type === "tool-input-start" && question.toolCallId).not.toBe("native-running-tool");
+    client.answerUserInput("session-1", { decision: ["once"] });
+    await expect(promise).resolves.toEqual({ outcome: { outcome: "selected", optionId: "once" } });
+    expect(parts.at(-1)).toMatchObject({ type: "tool-output-available", toolCallId: question?.type === "tool-input-start" ? question.toolCallId : "missing" });
+  });
+
+  it.each(["once", "always", "reject", "unknown"])("returns the advertised opaque permission choice %s", async selected => {
+    const client = new AcpClient();
+    const promise = (client as unknown as {
+      requestPermission(value: Parameters<NonNullable<import("@agentclientprotocol/sdk").Client["requestPermission"]>>[0]): Promise<import("@agentclientprotocol/sdk").RequestPermissionResponse>;
+    }).requestPermission({ sessionId: "session-1", toolCall: { toolCallId: "tool-1", title: "Read lesson context" }, options: [
+      { optionId: "once", name: "Allow once", kind: "allow_once" },
+      { optionId: "always", name: "Always allow", kind: "allow_always" },
+      { optionId: "reject", name: "Reject", kind: "reject_once" },
+    ] });
+    client.answerUserInput("session-1", { decision: [selected] });
+    await expect(promise).resolves.toEqual({ outcome: selected === "unknown" ? { outcome: "cancelled" }
+      : { outcome: "selected", optionId: selected } });
+  });
+
   it("projects native Codex user input as an ACP elicitation for the question UI", async () => {
     const client = new AcpClient();
     const parts: AcpStreamPart[] = [];
@@ -712,6 +741,20 @@ describe("AcpClient projection", () => {
     expect(await visibleHistory(client, "session-1")).toEqual([
       { role: "user", kind: "message", text: "What transformation remains?" },
       { role: "assistant", kind: "reasoning", text: "Current local test evidence: 2/4 passing." },
+    ]);
+  });
+
+  it.each(["dojo", "dojofoo"])("removes bracketed %s resource markers from replayed learner messages", async scheme => {
+    const client = new AcpClient();
+    const uri = `${scheme}://courses/starter/lessons/first/context`;
+    receive(client, {
+      sessionId: "session-1",
+      update: { sessionUpdate: "user_message_chunk", content: { type: "text",
+        text: `[${uri}]\n<context ref="${uri}">\nPrivate lesson state\n</context>\nWhat should I try next?`,
+      } },
+    });
+    expect(await visibleHistory(client, "session-1")).toEqual([
+      { role: "user", kind: "message", text: "What should I try next?" },
     ]);
   });
 

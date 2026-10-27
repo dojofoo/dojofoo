@@ -25,7 +25,7 @@ it("groups reasoning and tools across message IDs, with replies as boundaries", 
   const original = JSON.stringify(messages);
   const html = renderToStaticMarkup(<AssistantResponse messages={messages} streaming={false}
     renderMessage={(message, streaming) => <StreamedChatMessage message={message} streaming={streaming} fragments={{}} workspaceId="fixture" />} />);
-  expect(html.match(/data-thinking-dot="complete"/g)).toHaveLength(2);
+  expect(html.match(/class="ui-think" data-done="true"/g)).toHaveLength(2);
   expect(html).toContain("Worked");
   expect(html.indexOf("Inspect course")).toBeLessThan(html.indexOf("read_file"));
   expect(html.indexOf("read_file")).toBeLessThan(html.indexOf("Check lesson"));
@@ -46,7 +46,7 @@ it("keeps historical reasoning, tools and replies in order; only the tail thinks
   expect(html.indexOf("Inspect course")).toBeLessThan(html.indexOf("read_file"));
   expect(html.indexOf("read_file")).toBeLessThan(html.indexOf("Ready to begin."));
   expect(html.indexOf("Ready to begin.")).toBeLessThan(html.indexOf("Inspect lesson"));
-  expect(html.match(/data-thinking-dot="active"/g)).toHaveLength(1);
+  expect(html.match(/class="ui-think"(?! data-done="true")/g)).toHaveLength(1);
   expect(html).toContain("Worked");
   expect(html).toContain('aria-expanded="false"');
 });

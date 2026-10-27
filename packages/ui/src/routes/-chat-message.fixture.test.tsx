@@ -140,8 +140,17 @@ describe("TanStack AI UIMessage renderer", () => {
       <StreamedChatMessage fragments={{}} message={message} workspaceId="fixture" />,
     );
     expect(html).toContain("Worked");
-    expect(html).not.toContain("Worked for");
+    expect(html.replace(/<style[^>]*>[\s\S]*?<\/style>/gu, "")).not.toContain("Worked for");
     expect(html.match(/3\.7s/gu)).toHaveLength(2);
+  });
+
+  it.each([true, false])("shows the native tool outcome from its structured error flag (%s)", error => {
+    const message = { id: "native-result", role: "assistant", parts: [{ type: "tool-call", id: "native-call", name: "execute", state: "complete", input: {},
+      output: { toolCallId: "native-call", status: "completed", content: [{ type: "content", content: { type: "text", text: "Permission.DeclinedError" } }], rawOutput: { metadata: { error } } },
+    }] } as UIMessage;
+    const html = renderToStaticMarkup(<StreamedChatMessage fragments={{}} message={message} workspaceId="fixture" />).replace(/<style[^>]*>[\s\S]*?<\/style>/gu, "");
+    expect(html).toContain(`data-status="${error ? "error" : "success"}"`);
+    if (error) expect(html).toContain('<p class="ui-tc__error-text">Permission.DeclinedError</p>');
   });
 
   it("renders dojo_ui_show as its authored fragment instead of tool machinery", () => {

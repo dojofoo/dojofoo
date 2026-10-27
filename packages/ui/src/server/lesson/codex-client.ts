@@ -48,7 +48,7 @@ export type UserQuestion = {
 };
 
 type PendingPermission =
-  | { resolve: (response: acp.RequestPermissionResponse) => void; toolCallId: string; kind: "permission" }
+  | { resolve: (response: acp.RequestPermissionResponse) => void; toolCallId: string; kind: "permission"; options: acp.RequestPermissionRequest["options"] }
   | { resolve: (response: acp.CreateElicitationResponse) => void; toolCallId: string; kind: "elicitation" }
   | { resolve: (answers: Record<string, string[]>) => void; toolCallId: string; kind: "run-question" };
 
@@ -378,7 +378,6 @@ export class AcpClient {
     const pending = this.permissions.get(threadId);
     if (!pending) throw new Error("The agent is not waiting for an answer");
     const values = Object.values(answers).flat();
-    const allowed = values.some((value) => /^(?:accept|allow|yes)(?:_|\b)/iu.test(value));
     if (pending.kind === "run-question") {
       pending.resolve(answers);
     } else if (pending.kind === "elicitation") {
@@ -387,8 +386,9 @@ export class AcpClient {
         content: Object.fromEntries(Object.entries(answers).map(([key, value]) => [key, value.length === 1 ? value[0] : value])),
       });
     } else {
-      pending.resolve({ outcome: allowed
-        ? { outcome: "selected", optionId: values[0] ?? "allow_once" }
+      const selected = pending.options.find(option => option.optionId === values[0]);
+      pending.resolve({ outcome: selected
+        ? { outcome: "selected", optionId: selected.optionId }
         : { outcome: "cancelled" } });
     }
     this.callbacks.get(threadId)?.({
@@ -500,6 +500,7 @@ export class AcpClient {
   private requestPermission(request: acp.RequestPermissionRequest): Promise<acp.RequestPermissionResponse> {
     const sessionId = request.sessionId;
     this.finishOpenParts(sessionId);
+    const toolCallId = crypto.randomUUID();
     const questions: UserQuestion[] = [{
       id: "decision",
       title: request.toolCall.title ?? "Allow this action?",
@@ -509,19 +510,19 @@ export class AcpClient {
     }];
     this.callbacks.get(sessionId)?.({
       type: "tool-input-start",
-      toolCallId: request.toolCall.toolCallId,
+      toolCallId,
       toolName: "request_permission",
       dynamic: true,
     });
     this.callbacks.get(sessionId)?.({
       type: "tool-input-available",
-      toolCallId: request.toolCall.toolCallId,
+      toolCallId,
       toolName: "request_permission",
       input: { questions },
       dynamic: true,
     });
     return new Promise((resolve) => {
-      this.permissions.set(sessionId, { resolve, toolCallId: request.toolCall.toolCallId, kind: "permission" });
+      this.permissions.set(sessionId, { resolve, toolCallId, kind: "permission", options: request.options });
     });
   }
 
@@ -574,7 +575,7 @@ export class AcpClient {
     const sessionId = [...runtime.loadedSessions].find((candidate) => this.activeTurns.has(candidate));
     if (!sessionId) return Promise.reject(new Error("The lesson agent is not in an active turn"));
     this.finishOpenParts(sessionId);
-    const toolCallId = crypto.randomUUID();
+    const toolCallId = question.requestId ?? crypto.randomUUID();
     this.callbacks.get(sessionId)?.({
       type: "tool-input-start",
       toolCallId,
@@ -745,7 +746,7 @@ type UserTextProjection = { role: "user" | "assistant"; kind?: "reasoning" | "to
 
 const leakedResourcePrefix = /^(?:dojo|dojofoo):\/\/lessons\/[^\s]+\/checks\/latest(?=\S)/u;
 
-const dojoContextPattern = /(?:^|\n)(?:(?:dojo|dojofoo):\/\/[^\n]+\n)?<context ref="((?:dojo|dojofoo):\/\/[^"]+)"[^>]*>\n?([\s\S]*?)\n?<\/context>/gu;
+const dojoContextPattern = /(?:^|\n)(?:(?:\[(?:dojo|dojofoo):\/\/[^\]\n]+\]|(?:dojo|dojofoo):\/\/[^\n]+)\n)?<context ref="((?:dojo|dojofoo):\/\/[^"]+)"[^>]*>\n?([\s\S]*?)\n?<\/context>/gu;
 
 function projectUserText(text: string): UserTextProjection[] {
   const normalizedText = text.replace(leakedResourcePrefix, "");
