@@ -8,7 +8,8 @@ import { Button } from "@dojofoo/ui/button";
 
 type Snapshot = { session?: { sessionId: string; readOnly?: boolean }; messages: UIMessage[]; initialResumeSnapshot?: ChatClientOptions["initialResumeSnapshot"] };
 
-export function EveAuthoringChat({ sessionId, api, onSession }: {
+export function EveAuthoringChat({ sessionId, api, onSession, embedded }: {
+  embedded?: boolean;
   sessionId?: string;
   api(path: string): string;
   onSession(id: string): void;
@@ -51,7 +52,7 @@ export function EveAuthoringChat({ sessionId, api, onSession }: {
     });
     return () => controller.abort();
   }, [sessionId, api, loadAttempt]);
-  if (!snapshot) return <AuthoringChat messages={[]} status="ready" busy={!error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}} error={error}
+  if (!snapshot) return <AuthoringChat embedded={embedded} messages={[]} status="ready" busy={!error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}} error={error}
     onRetryLoad={sessionId ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
   if (snapshot.session?.readOnly) return <div className="flex h-full min-h-0 flex-col">
     <div role="status" className="flex items-center justify-between gap-3 border-b border-dashed border-border p-3 text-sm text-muted-foreground">
@@ -62,9 +63,9 @@ export function EveAuthoringChat({ sessionId, api, onSession }: {
         window.location.assign(next.href);
       }}>Start new conversation</Button>
     </div>
-    <div className="min-h-0 flex-1"><AuthoringChat messages={snapshot.messages} status="ready" busy={false} readOnly value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}} /></div>
+    <div className="flex min-h-0 flex-1 flex-col"><AuthoringChat embedded={embedded} messages={snapshot.messages} status="ready" busy={false} readOnly value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}} /></div>
   </div>;
-  return <EveConversation key={snapshot.session?.sessionId ?? "new"} snapshot={snapshot} api={api} onSession={id => {
+  return <EveConversation embedded={embedded} key={snapshot.session?.sessionId ?? "new"} snapshot={snapshot} api={api} onSession={id => {
     current.current = id;
     onSession(id);
   }} onReload={() => {
@@ -74,7 +75,7 @@ export function EveAuthoringChat({ sessionId, api, onSession }: {
   }} />;
 }
 
-function EveConversation({ snapshot, api, onSession, onReload }: { snapshot: Snapshot; api(path: string): string; onSession(id: string): void; onReload(): void }) {
+function EveConversation({ snapshot, api, onSession, onReload, embedded }: { embedded?: boolean; snapshot: Snapshot; api(path: string): string; onSession(id: string): void; onReload(): void }) {
   const session = useRef(snapshot.session?.sessionId);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string>();
@@ -106,7 +107,7 @@ function EveConversation({ snapshot, api, onSession, onReload }: { snapshot: Sna
     });
     for (const { interrupt, payload } of entries) interrupt.resolveInterrupt(payload);
   }
-  return <AuthoringChat messages={chat.messages} status={chat.status} busy={chat.resuming} value={value} onValueChange={setValue}
+  return <AuthoringChat embedded={embedded} messages={chat.messages} status={chat.status} busy={chat.resuming} value={value} onValueChange={setValue}
     queueLabel={chat.interrupts.length > 0 && !chat.resuming ? "Waiting for your answer" : undefined}
     queue={chat.queue.map(item => {
       const content = typeof item.content === "string" ? item.content : item.content.content;

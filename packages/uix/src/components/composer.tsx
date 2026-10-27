@@ -18,7 +18,7 @@ export function ComposerPicker({ title, children, items, icon, model, active, di
 }
 
 /** Shared presentation; the caller owns the draft, requests and supported controls. */
-export function ComposerSurface({ value, onValueChange, onSend, busy = false, disabled = false, onStop,
+export function ComposerSurface({ value, onValueChange, onSend, busy = false, disabled = false, onStop, queueing = false,
   history = [], placeholder = "Message…", label = "Message", id, leading, controls, attachments, tray, className, fieldRef,
 }: {
   value: string;
@@ -27,6 +27,8 @@ export function ComposerSurface({ value, onValueChange, onSend, busy = false, di
   busy?: boolean;
   disabled?: boolean;
   onStop?: () => void;
+  /** The host accepts another request into its existing queue during this turn. */
+  queueing?: boolean;
   history?: string[];
   placeholder?: string;
   label?: string;
@@ -53,7 +55,7 @@ export function ComposerSurface({ value, onValueChange, onSend, busy = false, di
     if (node) node.setSelectionRange(node.value.length, node.value.length);
   });
   const submit = () => {
-    if (disabled || busy || !value.trim()) return;
+    if (disabled || (busy && !queueing) || !value.trim()) return;
     setHistoryIndex(null);
     onSend(value.trim());
   };
@@ -96,9 +98,9 @@ export function ComposerSurface({ value, onValueChange, onSend, busy = false, di
         {leading}
         <span className="ui-as-composer__end">
           {controls}
-          {busy && onStop
+          {busy && onStop && !(queueing && value.trim())
             ? <button type="button" className="ui-as-send" aria-label="Stop" onClick={onStop}><Icon icon={Cancel01Icon} size={15} /></button>
-            : <button type="submit" className="ui-as-send" aria-label="Send" disabled={disabled || busy || !value.trim()}><Icon icon={ArrowUp02Icon} size={15} /></button>}
+            : <button type="submit" className="ui-as-send" aria-label={busy && queueing ? "Queue message" : "Send"} disabled={disabled || (busy && !queueing) || !value.trim()}><Icon icon={ArrowUp02Icon} size={15} /></button>}
         </span>
       </div>
     </div>

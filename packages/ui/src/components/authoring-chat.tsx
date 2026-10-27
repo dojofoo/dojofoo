@@ -1,7 +1,9 @@
 import type { UIMessage } from "@tanstack/ai-react";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojofoo/ui/chat-container";
-import { InputMessage } from "@dojofoo/ui/input-message";
+import { Composer } from "@dojofoo/uix/containers/assistant-home";
+import { AiBrain01Icon } from "@dojofoo/uix/icons";
+import { ConversationContent } from "@dojofoo/uix/containers/learning-workspace";
 import { Button } from "@dojofoo/ui/button";
 import { MessageQueue, type QueuedMessage } from "./assistant-ui/elements/message-queue";
 import { StreamedChatMessage } from "@/components/chat/streamed-message";
@@ -9,7 +11,8 @@ import { ChatTranscript } from "./chat/assistant-response";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 
 /** Shared presentation for ACP and Eve. Neither backend owns a separate layout. */
-export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onAnswer, error, onRetryAnswer, onRetryLoad, queue = [], onCancelQueued, queueLabel = "Kyoshi is responding" }: {
+export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onAnswer, error, onRetryAnswer, onRetryLoad, queue = [], onCancelQueued, queueLabel = "Kyoshi is responding", embedded = false }: {
+  embedded?: boolean;
   messages: UIMessage[];
   status: string;
   busy: boolean;
@@ -28,20 +31,21 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
 }) {
   const { viewportRef, scrollToBottom } = useChatScroll();
   const active = busy || status === "submitted" || status === "streaming";
-  return <ChatContainer data-testid="authoring-chat-pane">
-    <ChatContainerContent viewportRef={viewportRef}>
+  const transcript = <div data-testid="authoring-chat-pane" className="contents">
       <ChatTranscript messages={messages} streaming={busy || status === "submitted" || status === "streaming"}
         renderMessage={(message, streaming) => <StreamedChatMessage fragments={{}} message={message} onToolAnswer={readOnly ? undefined : answers => { scrollToBottom(); return onAnswer(answers); }} streaming={streaming} workspaceId="" />} />
       {!active && error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {!active && onRetryAnswer ? <Button onClick={() => { scrollToBottom(); onRetryAnswer(); }}>Retry answer</Button> : null}
       {!active && error && onRetryLoad ? <Button onClick={onRetryLoad}>Reload conversation</Button> : null}
-    </ChatContainerContent>
-    <ChatContainerFooter data-testid="authoring-chat-composer">
+    </div>;
+  const composer = <div data-testid="authoring-chat-composer">
       {queue.length > 0 ? <MessageQueue className="max-w-none" running={queueLabel} queued={queue} onCancel={onCancelQueued} /> : null}
-      <InputMessage disabled={inputDisabled || readOnly}
+      <Composer tray={false} attachments={false} dictation={false} plugins={false} models={[]} agent={{ name: "Kyoshi", icon: AiBrain01Icon }}
+        disabled={inputDisabled || readOnly} busy={active} queueing={Boolean(onCancelQueued)}
         history={messages.filter(({ role }) => role === "user").map(entry => entry.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
-        onSend={text => { scrollToBottom(); onSend(text); }} onValueChange={onValueChange} placeholder="Shape the course with Kyoshi…" sendLabel="Send"
-        status={busy || status === "streaming" || status === "submitted" ? "streaming" : "idle"} value={value} />
-    </ChatContainerFooter>
-  </ChatContainer>;
+        onSend={text => { scrollToBottom(); onSend(text); }} onValueChange={onValueChange} placeholder="Shape this lesson with Kyoshi…" value={value} />
+    </div>;
+  if (embedded) return <ConversationContent scroller={viewportRef} composer={composer}>{transcript}</ConversationContent>;
+  return <ChatContainer><ChatContainerContent viewportRef={viewportRef}>{transcript}</ChatContainerContent>
+    <ChatContainerFooter>{composer}</ChatContainerFooter></ChatContainer>;
 }

@@ -307,7 +307,7 @@ export function Composer({
   tray = true,
   models = defaultModels,
   agent,
-  className, value, onValueChange, history, disabled, onStop, id, label,
+  className, value, onValueChange, history, disabled, onStop, id, label, queueing,
   model: controlledModel, onModelChange, modelChanging,
   attachments = true, dictation = true, plugins: pluginsEnabled = true,
 }: {
@@ -316,6 +316,7 @@ export function Composer({
   history?: string[];
   disabled?: boolean;
   onStop?: () => void;
+  queueing?: boolean;
   id?: string;
   label?: string;
   model?: string;
@@ -367,7 +368,7 @@ export function Composer({
   }, [recording]);
 
   const submit = () => {
-    if (!text.trim() || busy) return;
+    if (!text.trim() || (busy && !queueing)) return;
     onSend?.(text.trim());
     setText("");
     setFiles([]);
@@ -375,7 +376,7 @@ export function Composer({
 
   return <ComposerSurface value={text} onValueChange={setText} onSend={submit} busy={busy}
     placeholder={placeholder} className={className} fieldRef={field}
-    history={history} disabled={disabled} onStop={onStop} id={id} label={label}
+    history={history} disabled={disabled} onStop={onStop} id={id} label={label} queueing={queueing}
     attachments={files.length > 0 && (
           <div className="ui-as-attachments">
             {files.map((f) => (

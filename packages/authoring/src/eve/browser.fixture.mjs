@@ -27,14 +27,22 @@ const endpoint = await startLoopbackModel({ latencyMs: 1500,
     const content = history[user]?.content;
     const texts = typeof content === "string" ? [content]
       : Array.isArray(content) ? content.filter(part => part.type === "input_text" || part.type === "text").map(part => part.text) : [];
-    // Prior-lesson evidence may quote this command. Only an actual message
-    // part with the exact control text should trigger this loopback tool call.
+    // OpenCode may concatenate embedded context and learner text into one part.
+    // Strip only Dojo's envelopes; quoted commands in evidence must not trigger.
     if (user < 0 || history.slice(user + 1).some(item => item.type === "function_call_output")) return;
     const tools = (input.tools ?? []).flatMap(tool => tool.type === "namespace"
       ? tool.tools.map(child => ({ ...child, namespace: tool.name })) : [tool]);
-    if (!texts.includes("Complete this fixture lesson")) return;
+    const context = /(?:^|\n)(?:(?:\[(?:dojo|dojofoo):\/\/[^\]\n]+\]|(?:dojo|dojofoo):\/\/[^\n]+)\n)?<context ref="(?:dojo|dojofoo):\/\/[^"]+"[^>]*>\n?[\s\S]*?\n?<\/context>/gu;
+    if (!texts.some(text => text.replace(context, "").trim() === "Complete this fixture lesson")) return;
     const complete = tools.find(tool => tool.name?.endsWith("dojo_lesson_complete"));
     if (complete) return { ...complete, input: {} };
+    // Native OpenCode can expose MCP tools through Code Mode's catalog.
+    const catalog = [input.instructions, ...history.filter(item => item.type === "message" && ["developer", "system"].includes(item.role))
+      .flatMap(item => typeof item.content === "string" ? [item.content] : item.content?.map(part => part.text ?? "") ?? [])].join("\n");
+    const call = catalog.match(/\b(tools\.(?:[\w$]+\.)*(?:[\w$]+_)?dojo_lesson_complete|tools\.[\w$]+\["dojo_lesson_complete"\])\s*\(/u)?.[1];
+    if (call && tools.some(tool => tool.name === "execute")) {
+      return { name: "execute", input: { code: `return await ${call}({});` } };
+    }
   },
   toolRequest: {
   name: "harness-tools_course_question", input: { question: "Who should this course teach?", options: [
@@ -130,6 +138,9 @@ finally {
     completionRequests: endpoint.requests.filter(input => JSON.stringify(input.input ?? input.messages ?? []).includes("Complete this fixture lesson"))
       .map(input => ({ history: (input.input ?? input.messages).map(item => ({ role: item.role, type: item.type })),
         tools: input.tools?.map(tool => ({ type: tool.type, name: tool.name ?? tool.function?.name })) })) }));
+  if (process.env.DOJO_AUTHORING_REQUEST_LOG) {
+    await writeFile(process.env.DOJO_AUTHORING_REQUEST_LOG, JSON.stringify(endpoint.requests, null, 2));
+  }
   await endpoint.close();
   await rm(root, { recursive: true, force: true });
   process.disconnect?.();

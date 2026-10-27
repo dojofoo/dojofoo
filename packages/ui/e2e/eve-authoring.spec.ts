@@ -16,6 +16,36 @@ const opening: MessageStreamEvent[] = [
   { type: "input.requested", data: { ...data, requests: [{ action, requestId: "question-review", kind: "question", prompt: "Choose a starting point", display: "select", options: [{ id: "review", label: "Review the outline" }, { id: "write", label: "Write a lesson" }] }] }, meta }, wait,
 ];
 
+test("reloading conversation history preserves the mounted editor and unsaved draft", async ({ page }) => {
+  let repaired = false;
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/sessions/saved")) return repaired
+      ? route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } })
+      : route.fulfill({ status: 503, json: { error: "History temporarily unavailable" } });
+    return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
+  });
+  await page.goto("/authoring?session=saved");
+  await expect(page.getByRole("button", { name: "Reload conversation" })).toBeVisible();
+  const editor = page.getByRole("textbox", { name: "Code editor" });
+  await editor.focus();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.insertText("# unsaved draft");
+  const mounted = await page.locator(".monaco-editor[data-uri]").elementHandle();
+  repaired = true;
+  await page.getByRole("button", { name: "Reload conversation" }).click();
+  await expect(page.getByRole("button", { name: "Reload conversation" })).toHaveCount(0);
+  await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
+  expect(await mounted!.evaluate(node => node.isConnected)).toBe(true);
+  await expect(page.locator(".monaco-editor .view-lines")).toContainText("# unsaved draft");
+  await editor.focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(page.locator(".monaco-editor .view-lines")).not.toContainText("# unsaved draft");
+});
+
 async function latestUserText(body: unknown) {
   const input = await chatParamsFromRequestBody(body);
   const latest = convertMessagesToModelMessages(input.messages).at(-1);
@@ -426,6 +456,12 @@ test("evaluation settings cannot overwrite saved choices after a failed reload",
 for (const outcome of ["success", "failure"] as const) test(`a trial reserves its tab before preparation (${outcome})`, async ({ page, context }) => {
   test.setTimeout(60_000);
   const release = Promise.withResolvers<void>();
+  const sessionStarts: unknown[] = [];
+  await page.route("**/api/workspaces/trial-workspace/courses/trial-course/lessons/first/sessions", route => {
+    expect(route.request().method()).toBe("POST");
+    sessionStarts.push(route.request().postDataJSON());
+    return route.fulfill({ json: {} });
+  });
   await context.route("**/course/trial-workspace/trial-course/lesson/first", route => route.fulfill({ contentType: "text/html", body: "<h1>Prepared lesson</h1>" }));
   const lesson = { id: "first", title: "first", senseiPath: "src/first/SENSEI.md", description: "", checks: [], files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# First" }] };
   await page.routeWebSocket("**/api/authoring/changes*", () => {});
@@ -454,11 +490,13 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
   release.resolve();
   if (outcome === "success") {
     await expect(tab.getByRole("heading", { name: "Prepared lesson" })).toBeVisible();
+    expect(sessionStarts).toEqual([{}]);
     await expect(page).toHaveURL(/authoring\?session=saved/);
     await tab.close();
     return;
   }
   await expect.poll(() => tab.isClosed()).toBe(true);
+  expect(sessionStarts).toEqual([]);
   await expect(page.getByRole("alert").filter({ hasText: "Trial harness unavailable" })).toBeVisible();
   await page.getByRole("tab", { name: "dojo.yaml", exact: true }).click();
   await expect(page.getByText(/Trial harness unavailable/)).toHaveCount(0);

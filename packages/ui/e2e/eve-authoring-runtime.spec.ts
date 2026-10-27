@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync, fork } from "node:child_process";
 import { once } from "node:events";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
@@ -12,6 +12,7 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
   context.setDefaultTimeout(30_000);
   const fixture = fork(fileURLToPath(new URL("../../authoring/src/eve/browser.fixture.mjs", import.meta.url)), [], {
     stdio: ["ignore", "pipe", "pipe", "ipc"], execArgv: [],
+    env: { ...process.env, DOJO_AUTHORING_REQUEST_LOG: test.info().outputPath("inference-requests.json") },
   });
   let logs = "";
   let fixtureRoot: string | undefined;
@@ -42,6 +43,9 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     await page.reload();
     await expect(page.getByRole("radio", { name: /^Beginners/ })).toBeVisible();
     await expect(page.getByText(/Eve stream ended|no saved events/)).toHaveCount(0);
+    await expect(page.locator(".ui-as-chat__composer .ui-as-composer")).toBeVisible();
+    await expect(page.locator(".dojo-brand-logo")).toHaveCSS("width", "44px");
+    await page.screenshot({ path: test.info().outputPath("authoring-pages-layout.png"), animations: "disabled" });
 
     const queued = ["Keep examples short", "Focus on one example"];
 
@@ -189,6 +193,7 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
       fixture.kill("SIGTERM");
       await exited;
     }
+    await writeFile(test.info().outputPath("runtime.log"), logs);
     await test.info().attach("runtime-log", { body: logs, contentType: "text/plain" });
     expect.soft(logs, "The installed Kyoshi instructions must reach the native harness").toContain('"masterInstructionsLoaded":true');
     expect.soft(logs, "The installed course-specific question tool must execute").toContain('"customToolUsed":true');

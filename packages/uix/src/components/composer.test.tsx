@@ -11,6 +11,14 @@ it("uses the Pages composer with a host-owned draft and available capabilities",
   expect(html).not.toMatch(/aria-label="(Add file|Dictate)"|>Plugins<|>Auto</);
 });
 
+it("lets a native queue own submissions during an active turn", () => {
+  const render = (disabled = false) => renderToStaticMarkup(<Composer value="Next request" onValueChange={() => {}}
+    models={[]} busy queueing disabled={disabled} tray={false} attachments={false} dictation={false} plugins={false} />);
+  expect(render()).toMatch(/aria-label="Queue message"/);
+  expect(render()).not.toMatch(/aria-label="Queue message"[^>]*disabled/);
+  expect(render(true)).toMatch(/aria-label="Queue message"[^>]*disabled/);
+});
+
 describe("the controlled composer", () => {
   const render = (props: Partial<Parameters<typeof ComposerSurface>[0]> = {}) => renderToStaticMarkup(
     <ComposerSurface value="" onValueChange={() => {}} onSend={() => {}} {...props} />,

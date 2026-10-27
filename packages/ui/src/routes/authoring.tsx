@@ -30,7 +30,13 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthoringFiles } from "@/hooks/use-authoring-files";
 import { useAuthoringWatch } from "@/hooks/use-authoring-watch";
 import { Button } from "@dojofoo/ui/button";
-import { CourseLessonLayout, CourseLessonNavigation } from "@dojofoo/ui/course-lesson-layout";
+import { Button as UIXButton } from "@dojofoo/uix/components/button";
+import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
+import { AppShell } from "@dojofoo/uix/components/app-shell";
+import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
+import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
+import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
+import { CoursesIcon } from "@dojofoo/uix/icons";
 import { ScrollArea } from "@dojofoo/ui/scroll-area";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { FileTree, FileTreeFile, FileTreeFolder } from "@dojofoo/uix/components/motion/file-tree";
@@ -39,7 +45,6 @@ const CodeEditor = lazy(() => import("@/components/code-editor"));
 
 type ReportResponse = { report: AuthoringEvalReport | null; root: string };
 type AuthoringFile = { content: string; label: string; path: string };
-const USE_AI_AUTHORING_SIDEBAR = true;
 
 export const Route = createFileRoute("/authoring")({
   component: AuthoringPage,
@@ -394,20 +399,24 @@ function AuthoringPage() {
     } finally { setBusy(""); }
   }
 
-  if (!workspace || !backend) return (
+  const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="w-11" /></a>;
+  const shell = { brand, workspace: "Dojo", sidebarWidth: "18rem", showUser: false, showFooter: false, showNews: false, showOnboarding: false };
+  if (!workspace || !backend) return <div className="h-dvh"><AppShell {...shell} navigation={[]}>
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold">Kyoshi</h1>
       <p role={error ? "alert" : "status"} className="mt-4 font-prose text-muted-foreground">{error ?? busy}</p>
       {error ? <Button className="mt-4" disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</Button> : null}
     </main>
-  );
+  </AppShell></div>;
 
-  return (
-    <CourseLessonLayout
-      className="grid-cols-[18rem_minmax(0,1fr)]"
-      navigation={(
-        <CourseLessonNavigation courseTitle={null} sectionTitle={null}>
-          {USE_AI_AUTHORING_SIDEBAR ? (
+  const conversation = backend === "eve"
+    ? <EveAuthoringChat embedded sessionId={search.session} api={authoringApi} onSession={id => { void navigate({ search: previous => ({ ...previous, session: id }), replace: true }); }} />
+    : <AuthoringChat embedded messages={chatMessages} status={chatStatus} busy={Boolean(busy)} value={message} onValueChange={setMessage} onSend={value => { void sendMessage(value); }} onAnswer={answerTool} />;
+  return <div className="h-dvh overflow-hidden">
+    <AgentChatWorkspace {...shell} contentKind="code" active="authoring"
+      navigation={[
+        { id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] },
+        { id: "draft", items: [], before: <>
             <AuthoringSidebar
               activeFilePath={activeFilePath}
               busy={Boolean(busy)}
@@ -425,108 +434,20 @@ function AuthoringPage() {
               statuses={lessonStatuses}
               workspace={workspace}
             />
-          ) : (
-          <LegacySidebar>
-          <h2 className="border-b border-dashed px-5 py-3 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Course</h2>
-          <div className="border-b border-dashed">
-            <EditableCourse
-              expanded={courseExpanded}
-              onRename={(title) => void renameCourse(title)}
-              onSelect={() => selectRootFile(workspace.rootFiles[0]?.path ?? "dojo.yaml")}
-              onToggle={() => setCourseExpanded((expanded) => !expanded)}
-              title={workspace.name || "Untitled dojo"}
-            />
-            {courseExpanded ? (
-              <FileTree
-                ariaLabel="Course files"
-                className="border-t border-dashed px-2 py-1.5"
-                classNames={{ item: "h-8 rounded-none text-xs", label: "font-mono" }}
-                defaultExpandedIds={[]}
-                onValueChange={selectRootFile}
-                value={scope === "course" ? activeFilePath : null}
-              >
-                {renderAuthoringTree(authoringTree(workspace.rootFiles))}
-              </FileTree>
-            ) : null}
-          </div>
-          <h2 className="border-b border-dashed px-5 py-3 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Lessons</h2>
-          {workspace.lessons.map((lesson) => (
-            <div className="border-b border-dashed" key={lesson.id}>
-              <EditableChapter
-                active={scope === "lesson" && selectedLessonId === lesson.id}
-                autoFocus={newLessonId === lesson.id}
-                expanded={expandedLessonId === lesson.id}
-                lesson={lesson}
-                onRename={(title) => void renameLesson(lesson.id, title)}
-                onSelect={() => selectLessonFile(lesson, lesson.senseiPath)}
-                onToggle={() => setExpandedLessonId((current) => current === lesson.id ? null : lesson.id)}
-              />
-              {expandedLessonId === lesson.id ? (
-                <FileTree
-                  ariaLabel={`${lesson.title} files`}
-                  className="border-t border-dashed px-2 py-1.5"
-                  classNames={{ item: "h-8 rounded-none text-xs", label: "font-mono" }}
-                  onValueChange={(path) => selectLessonFile(lesson, path)}
-                  value={selectedLessonId === lesson.id ? activeFilePath : null}
-                >
-                  {lesson.files.map((file) => <FileTreeFile key={file.path} name={file.label} value={file.path} />)}
-                </FileTree>
-              ) : null}
-            </div>
-          ))}
-          {workspace.lessons.length === 0 ? (
-            <div className="border-b border-dashed p-4 font-prose text-[13px] leading-5 text-muted-foreground">
-              Shape the course with Kyoshi. Lessons will appear here as they are authored.
-            </div>
-          ) : null}
-          <button
-            className="flex w-full items-center gap-2 border-b border-dashed px-4 py-3 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:bg-hover hover:text-foreground"
-            disabled={Boolean(busy)}
-            onClick={() => void addLesson()}
-            type="button"
-          >
-            <Plus className="size-4" strokeWidth={1.75} /> Add lesson
-          </button>
-          </LegacySidebar>
-          )}
-        </CourseLessonNavigation>
-      )}
-      lesson={(
-        <div className="flex min-h-0 flex-col bg-surface-1" data-testid="authoring-lesson-pane">
-            <button
-              aria-expanded={descriptionOpen}
-              className="flex shrink-0 items-center gap-2 border-b border-dashed bg-background px-5 py-3 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
-              onClick={() => setDescriptionOpen((open) => !open)}
-              type="button"
+        </> },
+      ]}
+      onNavigate={id => { if (id === "courses") window.location.assign("/"); }}
+      crumbs={[
+        { label: workspace.name || "Untitled dojo", onClick: () => selectRootFile(workspace.rootFiles[0]?.path ?? "dojo.yaml") },
+        ...(scope === "lesson" && selectedLesson ? [{ label: selectedLesson.title }] : []),
+      ]}
+      askAssistant={backend === "acp" && !busy}
+      onCommand={(id, query) => { if (id === "ask" && query && backend === "acp" && !busy) void sendMessage(query); }}
+      editor={<Editor flush className="h-full" tabs={<div
+              className="flex shrink-0 items-stretch border-b border-[var(--line-soft)]"
             >
-              <ArrowRight className={`size-3.5 transition-transform ${descriptionOpen ? "rotate-90" : ""}`} />
-              {scope === "course" ? "Course description" : "Lesson description"}
-            </button>
-            {descriptionOpen ? (
-              <div className="max-h-[42%] shrink-0 overflow-auto border-b border-dashed bg-background px-6 py-5">
-                <h2 className="text-2xl font-semibold tracking-tight">{scope === "course" ? workspace.name : selectedLesson?.title}</h2>
-                <CourseContent basePath={null} workspaceId="">
-                  {(scope === "course" ? workspace.description : selectedLesson?.description)
-                    || "Describe the observable learner outcome in the corresponding manifest field."}
-                </CourseContent>
-                <ReadinessPanel lesson={selectedLesson} scope={scope} workspace={workspace} />
-                {workspace.issues.length > 0 ? (
-                  <div className="mt-5 border border-amber-500/35 bg-amber-500/5 p-4">
-                    <p className="font-display text-xs font-medium uppercase tracking-[0.14em] text-amber-300">Draft issues</p>
-                    <ul className="mt-3 list-disc space-y-1 pl-5 font-prose text-sm text-muted-foreground">
-                      {workspace.issues.map((issue) => <li key={issue}>{issue}</li>)}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            <div
-              className="flex h-10 shrink-0 items-stretch bg-background"
-              style={{ backgroundImage: "linear-gradient(to bottom, transparent calc(100% - 1px), #242424 1px)" }}
-            >
-              <WorkspaceFileTabs mode="authoring" label="Authoring workspace" active={activeFilePath}
+              <EditorTabs mode="authoring" label="Authoring workspace" active={activeFilePath}
                 tabs={editorFiles.tabs.paths.flatMap((path) => { const file = files?.find((entry) => entry.path === path); return file ? [{ path, label: file.label, dirty: editorFiles.dirty(file) }] : []; })}
-                surface={view === "preview" && previewable ? "preview" : "editor"}
                 onSelect={setActiveFilePath} onClose={editorFiles.close} onMove={editorFiles.move} />
               {busy ? <span className="ml-auto self-center px-3 text-xs text-[#878787]">{busy}</span> : null}
               {previewable ? (
@@ -539,8 +460,8 @@ function AuthoringPage() {
                   </ViewToggle>
                 </div>
               ) : null}
-            </div>
-            <section className="flex min-h-0 flex-1 flex-col text-[#ededed] shadow-surface-3" style={{ backgroundColor: vercelCursorColors.background }} data-testid="authoring-workspace">
+            </div>}><div className="flex h-full min-h-0 flex-col" data-testid="authoring-lesson-pane">
+            <section className="flex min-h-0 flex-1 flex-col" data-testid="authoring-workspace">
               {reportOpen && visibleReport ? <AuthoringEvaluationReport report={visibleReport} /> : null}
               <div className="min-h-0 flex-1 overflow-auto">
                 {view === "preview" && previewable
@@ -574,9 +495,9 @@ function AuthoringPage() {
               <p className="flex-1">Trial · {selectedLesson?.title ?? selectedLessonId}: {trialError.message}</p>
               <button type="button" className="shrink-0 underline" onClick={() => setTrialError(null)}>Dismiss</button>
             </div> : null}
-            <div className="flex h-11 shrink-0 justify-end border-t border-dashed bg-background">
+            <div className="flex min-h-11 shrink-0 flex-wrap justify-end border-t border-[var(--line-soft)]">
               <AuthoringEvaluationSettings open={evaluationSettingsOpen} onOpenChange={setEvaluationSettingsOpen} api={authoringApi} onSaved={() => setEvaluationError(null)} />
-              <div className="flex items-stretch">
+              <div className="flex flex-wrap items-center justify-end gap-1 p-1">
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => setEvaluationSettingsOpen(true)}>Evaluation settings</WorkspaceAction>
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}><RefreshCw className="size-3.5" /> Refresh</WorkspaceAction>
                 {visibleReport ? <WorkspaceAction disabled={false} onClick={() => setReportOpen(!reportOpen)}>{reportOpen ? "Hide evaluation" : "Evaluation results"}</WorkspaceAction> : null}
@@ -591,16 +512,25 @@ function AuthoringPage() {
                   </select>
                   <WorkspaceAction disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}><ExternalLink className="size-3.5" /> Trial</WorkspaceAction>
                 </> : null}
-                {scope === "lesson" && selectedLessonId ? <button className="bg-[#0070f3] px-4 text-xs text-white hover:bg-[#0761d1] disabled:bg-[#242424] disabled:text-[#878787]" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</button> : null}
+                {scope === "lesson" && selectedLessonId ? <UIXButton size="sm" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</UIXButton> : null}
               </div>
             </div>
-        </div>
-      )}
-      chat={backend === "eve"
-        ? <EveAuthoringChat sessionId={search.session} api={authoringApi} onSession={id => { void navigate({ search: previous => ({ ...previous, session: id }), replace: true }); }} />
-        : <AuthoringChat messages={chatMessages} status={chatStatus} busy={Boolean(busy)} value={message} onValueChange={setMessage} onSend={value => { void sendMessage(value); }} onAnswer={answerTool} />}
-    />
-  );
+      </div></Editor>}
+      details={<LessonBrief title={scope === "course" ? workspace.name : selectedLesson?.title ?? workspace.name}>
+        <CourseContent basePath={null} workspaceId="" diagrams={false}>
+          {(scope === "course" ? workspace.description : selectedLesson?.description)
+            || "Describe the observable learner outcome in the corresponding manifest field."}
+        </CourseContent>
+        <ReadinessPanel lesson={selectedLesson} scope={scope} workspace={workspace} />
+        {workspace.issues.length > 0 && <div className="mt-5 text-sm text-[var(--muted)]"><h3>Draft issues</h3>
+          <ul>{workspace.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>
+        </div>}
+      </LessonBrief>}
+      header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Kyoshi</b><span className="ui-as-chat__speaker-note">Master of Senseis and course shaper</span></span>}
+      conversation={conversation}>
+    </AgentChatWorkspace>
+  </div>;
+
 }
 
 function LegacySidebar({ children }: { children: ReactNode }) {
@@ -754,7 +684,7 @@ function authoringEditorLanguage(path: string): "json" | "markdown" | "typescrip
 }
 
 function WorkspaceAction({ children, disabled, onClick }: { children: ReactNode; disabled: boolean; onClick: () => void }) {
-  return <button className="flex items-center gap-2 border-r border-[#242424] px-3 text-xs text-[#a1a1a1] hover:bg-[#ffffff1a] hover:text-[#ededed] disabled:text-[#878787]" disabled={disabled} onClick={onClick} type="button">{children}</button>;
+  return <UIXButton size="sm" variant="ghost" disabled={disabled} onClick={onClick} type="button">{children}</UIXButton>;
 }
 
 function ViewToggle({ children, label, onClick }: { children: ReactNode; label: string; onClick: () => void }) {
