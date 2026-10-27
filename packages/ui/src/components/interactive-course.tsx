@@ -173,7 +173,7 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
-    composer={<Composer tray={false} attachments={false} dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === conversation?.harness) ?? { value: conversation?.harness, name: conversation?.harness ?? "Coding agent", icon: AiMagicIcon }}
+    composer={<Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === conversation?.harness) ?? { value: conversation?.harness, name: conversation?.harness ?? "Coding agent", icon: AiMagicIcon }}
       agents={codingAgents.filter(agent => conversation?.harnesses?.some(value => value === agent.value)).map(agent => ({ ...agent, description: "Open this agent’s conversation" }))}
       onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging} loading={sessionLoading} id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={question} onValueChange={setQuestion}
       disabled={!acceptsInput} busy={working} onStop={stop} onSend={value => { void send(value); }}

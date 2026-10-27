@@ -1081,7 +1081,7 @@ export function FilterButton({
 }
 
 /** Plain menu of choices in a popover, e.g. a period picker */
-export function MenuButton<T extends string>({ value, options, onChange, icon, align = "end", className, label }: {
+export function MenuButton<T extends string>({ value, options, onChange, icon, align = "end", className, label, disabled }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
@@ -1089,10 +1089,11 @@ export function MenuButton<T extends string>({ value, options, onChange, icon, a
   align?: "start" | "end";
   className?: string;
   label?: string;
+  disabled?: boolean;
 }) {
   const current = options.find(option => option.value === value);
   return <Dropdown align={align} items={options.map(option => ({ label: option.label, checked: option.value === value, onSelect: () => onChange(option.value) }))}
-    trigger={({ open, toggle }) => <button type="button" className={["ui-as-tool ui-as-tool--label", className].filter(Boolean).join(" ")} aria-label={label ? `${label}: ${current?.label ?? ""}` : undefined} aria-expanded={open} aria-haspopup="menu" onClick={toggle}>
+    trigger={({ open, toggle }) => <button type="button" className={["ui-as-tool ui-as-tool--label", className].filter(Boolean).join(" ")} aria-label={label ? `${label}: ${current?.label ?? ""}` : undefined} aria-expanded={open} aria-haspopup="menu" disabled={disabled} onClick={toggle}>
       {icon && <Icon icon={icon} size={15} />}{current?.label}<Icon icon={ArrowDown01Icon} size={13} />
     </button>} />;
 }

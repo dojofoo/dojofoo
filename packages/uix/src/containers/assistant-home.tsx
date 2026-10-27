@@ -323,7 +323,8 @@ export function Composer({
   model?: string;
   onModelChange?: (value: string) => void;
   modelChanging?: boolean;
-  attachments?: boolean;
+  /** Keep the + control visible but disabled when this connection cannot accept files. */
+  attachments?: boolean | "unavailable";
   dictation?: boolean;
   plugins?: boolean;
   placeholder?: string;
@@ -395,10 +396,11 @@ export function Composer({
             ))}
           </div>
         )}
-    leading={<>{attachments && <><button type="button" className="ui-as-icon-btn" aria-label="Add file" onClick={() => fileInput.current?.click()}>
+    leading={<>{attachments && <><button type="button" className="ui-as-icon-btn" aria-label="Add file" disabled={attachments === "unavailable"}
+            title={attachments === "unavailable" ? "Attachments are not available in this connection yet" : undefined} onClick={() => fileInput.current?.click()}>
             <Icon icon={PlusSignIcon} size={15} />
           </button>
-          <input
+          {attachments === true && <input
             ref={fileInput}
             type="file"
             multiple
@@ -408,7 +410,7 @@ export function Composer({
               setFiles((list) => [...list, ...picked.filter((n) => !list.includes(n))]);
               e.target.value = "";
             }}
-          /></>}
+          />}</>}
           {(agent || pluginsEnabled) && <ComposerPicker title={agent ? "Agent" : "Plugins"} icon={agent?.icon ?? Plug01Icon} active={plugins.length > 0}
             disabled={Boolean(agent && (!onAgentChange || !agents?.length || agentChanging || disabled || busy))}
             items={agent ? (agents ?? []).map(choice => ({ label: choice.name, description: choice.description, icon: choice.icon,

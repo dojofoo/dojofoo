@@ -12,6 +12,12 @@ it("uses the Pages composer with a host-owned draft and available capabilities",
   expect(html).not.toMatch(/aria-label="(Add file|Dictate)"|>Plugins<|>Auto</);
 });
 
+it("keeps the attachment affordance visible without opening a picker on an unsupported connection", () => {
+  const html = renderToStaticMarkup(<Composer tray={false} attachments="unavailable" models={[]} dictation={false} plugins={false} />);
+  expect(html).toMatch(/aria-label="Add file"[^>]*disabled/);
+  expect(html).not.toContain('type="file"');
+});
+
 it("lets a native queue own submissions during an active turn", () => {
   const render = (disabled = false) => renderToStaticMarkup(<Composer value="Next request" onValueChange={() => {}}
     models={[]} busy queueing disabled={disabled} tray={false} attachments={false} dictation={false} plugins={false} />);

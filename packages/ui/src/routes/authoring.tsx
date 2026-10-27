@@ -33,7 +33,8 @@ import { rememberAuthoringSession } from "@/lib/authoring-session-link";
 import { Button } from "@dojofoo/ui/button";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
-import { AppShell, Dropdown, Icon } from "@dojofoo/uix/components/app-shell";
+import { AppShell, Dropdown, Icon, MenuButton } from "@dojofoo/uix/components/app-shell";
+import { codingAgents } from "@/lib/coding-agents";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LessonBrief, LessonChecklist } from "@dojofoo/uix/components/lesson-brief";
@@ -530,14 +531,9 @@ function AuthoringPage() {
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}><RefreshCw className="size-3.5" /> Refresh</WorkspaceAction>
                 {visibleReport ? <WorkspaceAction disabled={false} onClick={() => setReportOpen(!reportOpen)}>{reportOpen ? "Hide evaluation" : "Evaluation results"}</WorkspaceAction> : null}
                 {scope === "lesson" && selectedLesson ? <>
-                  <select aria-label="Trial harness" className="bg-background px-2 text-xs" value={trialHarness} disabled={Boolean(busy)} onChange={event => setTrialHarness(event.target.value)}>
-                    <option value="">Configured trial harness</option>
-                    <option value="codex">Codex</option>
-                    <option value="opencode">OpenCode</option>
-                    <option value="cursor">Cursor</option>
-                    <option value="grok">Grok</option>
-                    <option value="fx">FX</option>
-                  </select>
+                  <MenuButton label="Trial agent" value={trialHarness} onChange={setTrialHarness} disabled={Boolean(busy)} align="start"
+                    icon={codingAgents.find(agent => agent.value === trialHarness)?.icon}
+                    options={[{ value: "", label: "Configured trial agent" }, ...["codex", "opencode", "cursor", "grok", "fx"].map(value => ({ value, label: codingAgents.find(agent => agent.value === value)!.name }))]} />
                   <WorkspaceAction disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}><ExternalLink className="size-3.5" /> Trial</WorkspaceAction>
                 </> : null}
                 {evaluationAction}

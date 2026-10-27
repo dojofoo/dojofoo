@@ -552,6 +552,7 @@ test("a course without lessons has no empty report button", async ({ page }) => 
 });
 
 test("evaluation settings save model choices, not secrets or worker paths, without starting an evaluation", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const writes: unknown[] = [];
   const evaluations: string[] = [];
   const catalogs: Array<{ workspace: string | null; harness: string | null }> = [];
@@ -579,13 +580,49 @@ test("evaluation settings save model choices, not secrets or worker paths, witho
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
   await page.goto("/authoring?session=saved&workspace=isolated-course");
+  const composer = page.getByTestId("authoring-chat-composer");
+  await expect(composer.getByRole("button", { name: "Add file", exact: true })).toBeDisabled();
+  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toContainText("Coding agent");
+  await page.getByRole("button", { name: "You", exact: true }).click();
+  const boxStyle = (node: Element) => {
+    const style = getComputedStyle(node);
+    return { background: style.backgroundColor, radius: style.borderRadius, shadow: style.boxShadow };
+  };
+  const accountMenuStyle = await page.locator(".ui-as-popover").evaluate(boxStyle);
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.locator('datalist option[value="zai/glm-5.3"]')).toHaveCount(1);
-  await expect(dialog.locator('datalist option[value="deepseek/deepseek-v4-pro"]')).toHaveCount(1);
-  await dialog.getByLabel("teacher model").fill("zai/glm-5.3");
-  await dialog.getByLabel("learner model").fill("deepseek/deepseek-v4-pro");
-  await dialog.getByRole("checkbox").check();
+  const dialog = page.getByRole("dialog", { name: "Teaching evaluations", exact: true });
+  expect(await dialog.evaluate(boxStyle)).toEqual(accountMenuStyle);
+  const teacherAgent = dialog.getByRole("button", { name: "teacher agent: OpenCode", exact: true });
+  await expect(teacherAgent).toBeVisible({ timeout: 5000 });
+  await teacherAgent.click();
+  expect(await page.locator(".ui-as-popover").evaluate(boxStyle)).toEqual(accountMenuStyle);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect(teacherAgent).toBeFocused();
+  await teacherAgent.click();
+  await page.getByRole("menuitemradio", { name: "Codex", exact: true }).click();
+  await dialog.getByRole("button", { name: "teacher agent: Codex", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "OpenCode", exact: true }).click();
+  await dialog.getByRole("button", { name: "Choose teacher model", exact: true }).click();
+  expect(await page.locator(".ui-as-popover").evaluate(boxStyle)).toEqual(accountMenuStyle);
+  await page.screenshot({ path: test.info().outputPath("authoring-settings-model-menu.png"), animations: "disabled" });
+  await page.getByRole("menuitemradio", { name: /^GLM 5\.3/ }).click();
+  await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toHaveValue("zai/glm-5.3");
+  await dialog.getByRole("button", { name: "Choose learner model", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: /^DeepSeek V4 Pro/ }).click();
+  await dialog.getByRole("textbox", { name: "learner model", exact: true }).fill("custom/provider-model");
+  await expect(dialog.getByRole("textbox", { name: "learner model", exact: true })).toHaveValue("custom/provider-model");
+  await dialog.getByRole("textbox", { name: "learner model", exact: true }).fill("deepseek/deepseek-v4-pro");
+  await dialog.getByRole("switch", { name: "Allow teaching evaluations", exact: true }).click();
+  const teacher = await dialog.getByRole("textbox", { name: "teacher model", exact: true }).boundingBox();
+  const learner = await dialog.getByRole("textbox", { name: "learner model", exact: true }).boundingBox();
+  expect(Math.abs(teacher!.x - learner!.x)).toBeLessThan(1);
+  await page.screenshot({ path: test.info().outputPath("authoring-settings.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(dialog.getByRole("textbox", { name: "learner model", exact: true })).toHaveValue("deepseek/deepseek-v4-pro");
+  await page.screenshot({ path: test.info().outputPath("authoring-settings-phone.png"), animations: "disabled" });
   await dialog.getByRole("button", { name: "Save evaluation settings" }).click();
   await expect(dialog).toHaveCount(0);
   expect(writes).toEqual([{ enabled: true, teacher: { harness: "opencode", model: "zai/glm-5.3" }, learner: { harness: "pi", model: "deepseek/deepseek-v4-pro" } }]);
@@ -616,14 +653,14 @@ test("evaluation settings cannot overwrite saved choices after a failed reload",
   await page.goto("/authoring?session=saved");
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("teacher model")).toHaveValue("teacher");
+  await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toHaveValue("teacher");
   await expect(dialog.getByText("Model catalog unavailable", { exact: true })).toHaveCount(2);
   await page.keyboard.press("Escape");
   broken = true;
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText("Settings storage unavailable");
   await expect(dialog.getByRole("button", { name: "Save evaluation settings" })).toBeDisabled();
-  await expect(dialog.getByLabel("teacher model")).toBeDisabled();
+  await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toBeDisabled();
   expect(writes).toEqual([]);
 });
 
@@ -658,6 +695,12 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
   if (await lessonButton.getAttribute("aria-expanded") !== "true") await lessonButton.click();
   const lessonItem = page.locator(".ui-as-side__branch").filter({ has: lessonButton });
   await lessonItem.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  if (outcome === "success") {
+    const picker = page.getByRole("button", { name: "Trial agent: Configured trial agent", exact: true });
+    await expect(picker).toBeVisible({ timeout: 5000 });
+    await picker.click();
+    await page.getByRole("menuitemradio", { name: "Codex", exact: true }).click();
+  }
   const popup = page.waitForEvent("popup", { timeout: 5000 });
   await page.getByRole("button", { name: "Trial", exact: true }).click();
   const tab = await popup;
@@ -665,7 +708,7 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
   release.resolve();
   if (outcome === "success") {
     await expect(tab.getByRole("heading", { name: "Prepared lesson" })).toBeVisible();
-    expect(sessionStarts).toEqual([{}]);
+    expect(sessionStarts).toEqual([{ harness: "codex" }]);
     await expect(page).toHaveURL(/authoring\?session=saved/);
     await tab.close();
     return;

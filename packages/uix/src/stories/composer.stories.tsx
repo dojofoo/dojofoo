@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AppShell, Dropdown } from "../components/app-shell";
 import { BrandLogo } from "../components/brand-logo";
 import { ComposerSurface } from "../components/composer";
+import { Composer } from "../containers/assistant-home";
 
 function ControlledComposer({ disabled = false, longModels = false }: { disabled?: boolean; longModels?: boolean }) {
   const [value, setValue] = useState("");
@@ -33,3 +34,6 @@ export default meta;
 export const Controlled: StoryObj<typeof meta> = {};
 export const Unavailable: StoryObj<typeof meta> = { args: { disabled: true } };
 export const LongModelList: StoryObj<typeof meta> = { args: { longModels: true } };
+export const UnavailableAttachments: StoryObj<typeof meta> = {
+  render: () => <div className="mx-auto w-full max-w-xl p-6"><Composer tray={false} attachments="unavailable" dictation={false} plugins={false} models={[]} placeholder="Ask your Sensei…" /></div>,
+};

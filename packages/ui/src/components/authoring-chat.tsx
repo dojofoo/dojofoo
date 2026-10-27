@@ -40,7 +40,7 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
     </div>;
   const composer = <div data-testid="authoring-chat-composer">
       {queue.length > 0 ? <MessageQueue className="max-w-none" running={queueLabel} queued={queue} onCancel={onCancelQueued} /> : null}
-      <Composer tray={false} attachments={false} dictation={false} plugins={false} models={[]} agent={{ name: "Kyoshi", icon: AiBrain01Icon }}
+      <Composer tray={false} attachments="unavailable" dictation={false} plugins={false} models={[]} agent={{ name: "Coding agent", icon: AiBrain01Icon }}
         disabled={inputDisabled || readOnly} busy={active} queueing={Boolean(onCancelQueued)}
         history={messages.filter(({ role }) => role === "user").map(entry => entry.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
         onSend={text => { scrollToBottom(); onSend(text); }} onValueChange={onValueChange} placeholder="Shape this lesson with Kyoshi…" value={value} />
