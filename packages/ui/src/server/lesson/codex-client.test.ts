@@ -744,6 +744,20 @@ describe("AcpClient projection", () => {
     ]);
   });
 
+  it.each(["dojo", "dojofoo"])("removes bracketed %s resource markers from replayed learner messages", async scheme => {
+    const client = new AcpClient();
+    const uri = `${scheme}://courses/starter/lessons/first/context`;
+    receive(client, {
+      sessionId: "session-1",
+      update: { sessionUpdate: "user_message_chunk", content: { type: "text",
+        text: `[${uri}]\n<context ref="${uri}">\nPrivate lesson state\n</context>\nWhat should I try next?`,
+      } },
+    });
+    expect(await visibleHistory(client, "session-1")).toEqual([
+      { role: "user", kind: "message", text: "What should I try next?" },
+    ]);
+  });
+
   it("keeps wrapped ACP resources private after an agent replays them as plain text", async () => {
     const client = new AcpClient();
 

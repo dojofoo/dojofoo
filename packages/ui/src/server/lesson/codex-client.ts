@@ -746,7 +746,7 @@ type UserTextProjection = { role: "user" | "assistant"; kind?: "reasoning" | "to
 
 const leakedResourcePrefix = /^(?:dojo|dojofoo):\/\/lessons\/[^\s]+\/checks\/latest(?=\S)/u;
 
-const dojoContextPattern = /(?:^|\n)(?:(?:dojo|dojofoo):\/\/[^\n]+\n)?<context ref="((?:dojo|dojofoo):\/\/[^"]+)"[^>]*>\n?([\s\S]*?)\n?<\/context>/gu;
+const dojoContextPattern = /(?:^|\n)(?:(?:\[(?:dojo|dojofoo):\/\/[^\]\n]+\]|(?:dojo|dojofoo):\/\/[^\n]+)\n)?<context ref="((?:dojo|dojofoo):\/\/[^"]+)"[^>]*>\n?([\s\S]*?)\n?<\/context>/gu;
 
 function projectUserText(text: string): UserTextProjection[] {
   const normalizedText = text.replace(leakedResourcePrefix, "");

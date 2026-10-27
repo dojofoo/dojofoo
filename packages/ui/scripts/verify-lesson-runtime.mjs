@@ -420,6 +420,12 @@ try {
     assert.equal(restarted.result.complete, true);
     assert.equal(restarted.model.currentValue, modelOption.value);
     assert.equal(replyCount(restarted), oldReplies);
+    for (const snapshot of [completedSnapshot, restarted]) {
+      const learnerText = snapshot.messages.filter(message => message.role === "user")
+        .flatMap(message => message.parts.flatMap(part => part.type === "text" ? [part.content] : []));
+      assert.ok(learnerText.includes(followUp), "Replay must retain the actual learner message without context prefixes");
+      assert.ok(learnerText.every(text => !/\[(?:dojo|dojofoo):\/\//u.test(text)), "Private resource markers must not appear in learner bubbles");
+    }
     assert.equal(introductions.length, sentIntroductions, "Restart must not reintroduce the restored lesson");
     assert.deepEqual(errors, []);
 
