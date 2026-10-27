@@ -180,3 +180,13 @@ describe("TanStack AI UIMessage renderer", () => {
     expect(html).not.toContain("data-slot=\"tool-call\"");
   });
 });
+
+it.each([["complete", "success"], ["error", "error"]] as const)("keeps failed check details visible with tool state %s", (state, status) => {
+  const message = { id: "checked", role: "assistant", parts: [{ type: "tool-call", id: "check", name: "dojo_lesson_verify", arguments: "{}", state, output: {
+    passed: 1, failed: 1, total: 2, tests: [{ name: "keeps values", status: "passed", suite: [], failureMessages: [] }, { name: "handles empty input", status: "failed", suite: [], failureMessages: ["Expected [] but received undefined"] }],
+  } }] } as UIMessage;
+  const html = renderToStaticMarkup(<StreamedChatMessage message={message} fragments={{}} workspaceId="fixture" />);
+  expect(html).toContain(`class="ui-tc" data-status="${status}"`);
+  expect(html).toContain("1/2 lesson checks passed");
+  expect(html).toContain("Expected [] but received undefined");
+});

@@ -4,9 +4,9 @@ import type { BundledLanguage } from "shiki";
 import { ChatMessage } from "@dojofoo/uix/components/chat-message";
 import { ToolCallCard } from "@dojofoo/uix/components/tool-call-card";
 import { ThinkingPanel } from "@dojofoo/uix/components/thinking-panel";
-import { TerminalBlock } from "@dojofoo/ui/elements/terminal-block";
+import { TerminalOutput } from "@dojofoo/uix/components/terminal-output";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
-import { CodeBlock, CodeBlockCopyButton } from "@/components/ai-elements/code-block";
+import { CodeBlock } from "@dojofoo/uix/components/code-block";
 import { CourseContent } from "@/components/course-content";
 import { activityLabels, toolActivity } from "@/lib/chat-activity-labels";
 import { isInternalLessonMessage } from "@/lib/chat-internal";
@@ -149,7 +149,8 @@ function ActivityTimeline({ activities, streaming }: { activities: ActivityPart[
           <p className="whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground [overflow-wrap:anywhere]">{activity.content}</p>
         </div>
       </ToolCallCard>;
-      const failed = toolFailed(activity);
+      const completedChecks = activity.name === "dojo_lesson_verify" && activity.state === "complete" && isTestReport(activity.output);
+      const failed = !completedChecks && toolFailed(activity);
       const active = isActiveThinkingActivity(activity);
       const output = activity.output === undefined ? undefined : toolOutputText(activity.output) ?? serializeToolValue(activity.output);
       const evaluation = activity.name.includes("dojo_authoring_evaluate") ? evaluationSummary(activity.output, active) : undefined;
@@ -269,7 +270,7 @@ function MessageContent({
   if (kind === "lesson-fragment") {
     const fragment = fragments?.[text];
     return fragment
-      ? <div className="w-full border border-border bg-surface-1 p-4"><CourseContent basePath={null} workspaceId={workspaceId ?? ""}>{fragment}</CourseContent></div>
+      ? <div className="w-full rounded-[var(--box-radius)] bg-[var(--surface-3)] p-4 shadow-[var(--shadow-2)]"><CourseContent basePath={null} workspaceId={workspaceId ?? ""} diagrams={false}>{fragment}</CourseContent></div>
       : <p className="w-full text-sm text-muted-foreground">The authored lesson fragment “{text}” is unavailable.</p>;
   }
   if (kind === "commentary") {
@@ -291,9 +292,7 @@ function MessageContent({
         if (index % 3 === 1) return null;
         if (index % 3 === 2) {
           return (
-            <CodeBlock className="my-2 w-full" code={part.trimEnd()} key={index} language={codeLanguage(parts[index - 1])}>
-              <CodeBlockCopyButton aria-label="Copy code" />
-            </CodeBlock>
+            <CodeBlock code={part.trimEnd()} key={index} lang={codeLanguage(parts[index - 1])} />
           );
         }
         return part.trim() ? <MarkdownText key={index} onHighlight={onHighlight} text={part} /> : null;
@@ -349,7 +348,7 @@ function inlineMessage(value: string, onHighlight?: (highlight: CodeHighlight) =
     if (highlight) {
       return (
         <button
-          className="dojo-inline-code cursor-pointer text-blue-500 hover:text-blue-400"
+          className="dojo-inline-code cursor-pointer text-[var(--brand)] hover:opacity-80"
           key={index}
           onClick={() => onHighlight?.(highlight)}
           type="button"
@@ -374,13 +373,11 @@ function ChatTestTerminal({ report }: { report?: TestReport }) {
     ...test.failureMessages.slice(0, 1).map((failure) => `  ${failure.split("\n")[0]}`),
   ]) ?? [];
   return (
-    <TerminalBlock
-      className="max-w-none"
-      command={report ? `${report.passed}/${report.total} lesson checks passed` : "Running lesson checks"}
-      done={Boolean(report)}
-      failed={Boolean(report?.failed)}
+    <TerminalOutput
+      label={report ? `${report.passed}/${report.total} lesson checks passed` : "Running lesson checks"}
+      status={!report ? "running" : report.failed ? "error" : "success"}
+      exitCode={report ? report.failed ? 1 : 0 : undefined}
       lines={lines}
-      visibleCount={lines.length}
     />
   );
 }

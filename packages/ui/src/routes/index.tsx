@@ -30,7 +30,7 @@ import {
 import { CourseContent } from "@/components/course-content";
 import { LessonTestResults } from "@/components/lesson-test-results";
 import { failureLines } from "@/lib/lesson-test-results";
-import { TerminalBlock } from "@dojofoo/ui/elements/terminal-block";
+import { TerminalOutput } from "@dojofoo/uix/components/terminal-output";
 import { ChatTranscript } from "@/components/chat/assistant-response";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import {
@@ -989,7 +989,7 @@ function LessonMaterial({ lesson, workspaceId }: { lesson: LessonSnapshot; works
 
 function LiveCheckSummary({ tests }: { tests: TestReport["tests"] }) {
   const lines = tests.map((test) => `${test.status === "passed" ? "✓" : test.status === "failed" ? "×" : "-"} ${test.name}`);
-  return <TerminalBlock className="max-w-none" command="Running lesson checks" done={false} lines={lines} visibleCount={lines.length} />;
+  return <TerminalOutput label="Running lesson checks" status="running" lines={lines} />;
 }
 
 function humanTitle(value: string): string {

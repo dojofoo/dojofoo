@@ -183,16 +183,17 @@
   font-size: 14px;
 }
 
-.dojo-chat-message :where(code):not(:where(pre *)),
+.dojo-chat-message .course-content :where(code):not(:where(pre *)),
 .dojo-inline-code {
-  border: 1px solid #242424;
-  background: #0a0a0a;
-  color: #ededed;
+  border-radius: calc(5px * var(--squircle-factor, 1));
+  background: var(--fluid-hover);
+  color: var(--fluid-foreground);
   padding: 0.125rem 0.3rem;
-  font-family: "Iosevka", ui-monospace, monospace;
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.875em;
   line-height: 1.35;
 }
+.dojo-chat-message button.dojo-inline-code { color: var(--brand); }
 .shimmer-text {
     color: transparent;
     background: linear-gradient(90deg, #a3a3a3 0%, #a3a3a3 35%, #525252 50%, #a3a3a3 65%, #a3a3a3 100%);
