@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import {
+  type DojoManifest,
   findCurrentKata,
   dojoDir,
   findKataByIdOrName,
@@ -72,6 +73,7 @@ export type CheckObservation = {
 
 export type LessonSnapshot = {
   dojo: string;
+  course?: Pick<DojoManifest, "name" | "version" | "description" | "author" | "repository" | "language"> & { lessons: number };
   kata: string;
   title: string;
   briefing: string;
@@ -230,6 +232,8 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
   }
   return {
     dojo: rc.currentDojo,
+    course: { name: catalog.name, version: catalog.version, description: catalog.description, author: catalog.author,
+      repository: catalog.repository, language: catalog.language, lessons: katas.length },
     kata: selected.name,
     title: humanTitle(selected.name),
     briefing: senpaiBriefing(sensei),

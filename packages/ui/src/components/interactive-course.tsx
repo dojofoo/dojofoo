@@ -9,13 +9,14 @@ import { Button } from "@dojofoo/uix/components/button";
 import { Composer } from "@dojofoo/uix/containers/assistant-home";
 import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
 import { CourseCard } from "@dojofoo/uix/components/course-card";
-import { CoursesIcon, BackIcon } from "@dojofoo/uix/icons";
+import { BackIcon } from "@dojofoo/uix/icons";
 import { followLink } from "@dojofoo/uix/lib/link-event";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { CourseContent } from "./course-content";
 import { ChatTranscript } from "./chat/assistant-response";
 import { StreamedChatMessage } from "./chat/streamed-message";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
+import { useAccountMenu } from "@/hooks/use-account-menu";
 import { chatAcceptsInput } from "@/lib/chat-internal";
 import { lessonResources } from "@/lib/lesson-resources";
 import type { InteractiveSnapshot } from "@/server/interactive/service";
@@ -38,6 +39,7 @@ const json = (value: unknown, method = "POST"): RequestInit => ({ method, header
 
 export function InteractiveCourse({ workspace: requestedWorkspace, course: requestedCourse }: { workspace?: string; course?: string }) {
   const navigate = useNavigate();
+  const { account, toast } = useAccountMenu();
   const [lesson, setLesson] = useState<InteractiveSnapshot | null>(null);
   const [workspace, setWorkspace] = useState("");
   const [question, setQuestion] = useState("");
@@ -118,7 +120,7 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
   }
 
   const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>;
-  const shell = { workspace: "Dojo", brand, sidebarWidth: "18rem", showUser: false, showFooter: false, showNews: false, showOnboarding: false };
+  const shell = { ...account, workspace: "Dojo", brand, sidebarWidth: "18rem", showNews: false, showOnboarding: false };
   if (!lesson) return <div style={{ height: "100dvh" }}><AppShell {...shell} navigation={[]}>
     <p role={error ? "alert" : "status"} className="p-8 text-sm text-muted-foreground">{error ?? "Loading your lesson…"}</p>
   </AppShell></div>;
@@ -129,14 +131,13 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
   const resources = lessonResources(material, basePath, workspace, lesson.dojo);
   const model = conversation?.model;
   return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...shell}
-    navigation={[{ id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] },
-      { id: "course", heading: "Lessons", before: <div className="lj-course"><CourseCard
-        course={{ title: lesson.lessonTitle, art: { hue: 350, glyph: "" } }} badge="Interactive" flip={false}
-        enrolled={{ progress: Math.round(lesson.step / lesson.totalSteps * 100),
+    navigation={[{ id: "course", heading: "Lessons", before: <div className="lj-course"><CourseCard
+        course={{ title: lesson.course?.name ?? lesson.title, version: lesson.course?.version, author: lesson.course?.author,
+          repo: lesson.course?.repository, language: lesson.course?.language, lessons: lesson.course?.lessons, art: { hue: 350, glyph: "" } }}
+        enrolled={{ version: lesson.course?.version, progress: Math.round(lesson.step / lesson.totalSteps * 100),
           label: `${String(Math.min(lesson.step + 1, lesson.totalSteps)).padStart(2, "0")} · ${lesson.lessonTitle}`, value: current?.title }} />
       </div>, items: [{ id: "current", label: current?.title ?? "Course complete", marker: String(Math.min(lesson.step + 1, lesson.totalSteps)), state: lesson.complete ? "done" : "active" }] }]}
     active="current" navigationKey={`${workspace}:${lesson.dojo}`} navigationTransition={false}
-    onNavigate={id => { if (id === "courses") void navigate({ to: "/" }); }}
     crumbs={[{ label: "Dashboard", icon: <Icon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }, { label: lesson.lessonTitle }]}
     contentKind="material" editor={null} scroller={viewportRef} askAssistant={acceptsInput}
     onCommand={(id, query) => { if (id === "ask" && query) void send(query); }}
@@ -158,5 +159,5 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
       {(conversationError || chatError) && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{conversationError ?? chatError?.message}</p>}
       {conversationError && !working && <Button variant="secondary" onClick={() => void loadConversation()}>Reload conversation</Button>}
     </div>
-  </AgentChatWorkspace></div>;
+  </AgentChatWorkspace>{toast}</div>;
 }

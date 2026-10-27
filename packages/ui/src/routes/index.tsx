@@ -13,7 +13,7 @@ import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
 import { CommandPalette } from "@dojofoo/uix/components/command-palette";
-import { ArrowDown01Icon, BookOpen01Icon, Cancel01Icon, CoursesIcon, DoneIcon, ExploreIcon } from "@dojofoo/uix/icons";
+import { ArrowDown01Icon, BackIcon, BookOpen01Icon, Cancel01Icon, CoursesIcon, DoneIcon, ExploreIcon } from "@dojofoo/uix/icons";
 import { ClientOnly, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -44,6 +44,7 @@ import {
   DialogTitle,
 } from "@dojofoo/ui/dialog";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
+import { useAccountMenu } from "@/hooks/use-account-menu";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 import type { JsonRpcRequest } from "@/server/session/protocol";
 import { applyLessonMetadata, hydrateLesson } from "@/lib/lesson-snapshot";
@@ -99,6 +100,7 @@ async function assertResponse(response: Response): Promise<Response> {
 
 function CourseIndex() {
   const navigate = useNavigate();
+  const { account, toast } = useAccountMenu();
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -194,9 +196,9 @@ function CourseIndex() {
 
   return (
     <div style={{ height: "100dvh" }}>
-      <AppShell workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojofoo courses"><BrandLogo className="w-11" /></a>}
+      <AppShell {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojofoo courses"><BrandLogo className="w-11" /></a>}
         navigation={navigation} navigationKey="local-courses" active="courses"
-        showUser={false} showNews={false} showOnboarding={false} showFooter={false}
+        showNews={false} showOnboarding={false}
         onSearch={() => setPaletteOpen(true)} onNavigate={id => { if (id === "explore") explore(); else if (id === "docs") documentation(); }}>
         <LearningLibrary loading={coursesLoading} error={error ?? undefined} onExplore={explore}
           controls={<>
@@ -218,6 +220,7 @@ function CourseIndex() {
           })}
           drafts={drafts.map(draft => ({ id: draft.workspaceId, title: humanTitle(draft.name), mark: draft.mode,
             caption: "Draft", detail: draft.description || "Resume authoring", href: `/authoring?workspace=${encodeURIComponent(draft.workspaceId)}` }))} />
+        {toast}
       </AppShell>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} assistant={false} searchLabel="Search your courses"
         placeholder="Search courses, drafts and documentation…" groups={[
@@ -297,6 +300,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   requestedWorkspaceId?: string;
 }) {
   const navigate = useNavigate();
+  const { account, toast } = useAccountMenu();
   const [lesson, setLesson] = useState<LessonSnapshot | null>(null);
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
   const [coursesReady, setCoursesReady] = useState(false);
@@ -721,8 +725,8 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   if (!lesson) {
     return (
-      <div style={{ height: "100dvh" }}><AppShell workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
-        navigation={[]} showUser={false} showFooter={false} showNews={false} showOnboarding={false}>
+      <div style={{ height: "100dvh" }}><AppShell {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
+        navigation={[]} showNews={false} showOnboarding={false}>
         <p role={error ? "alert" : "status"} className="p-8 text-sm text-muted-foreground">{error ?? busy}</p>
       </AppShell></div>
     );
@@ -733,10 +737,10 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const nextLesson = lesson.lessons[lesson.lessons.findIndex((item) => item.name === lesson.kata) + 1];
   const nextLessonPending = busy === "Preparing the next lesson…";
   const navigation: ShellSection[] = [
-    { id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] },
     { id: "lessons", heading: "Lessons", layout: "lessons", before: <div className="lj-course"><CourseCard
-      course={{ title: humanTitle(lesson.dojo), art: { hue: 350, glyph: "" } }} badge="Kata" flip={false}
-      enrolled={{ progress: Math.round(lesson.lessons.filter(item => item.state === "completed").length / lesson.lessons.length * 100), value: lesson.title }} />
+      course={{ title: lesson.course?.name ?? humanTitle(lesson.dojo), version: lesson.course?.version, author: lesson.course?.author,
+        repo: lesson.course?.repository, language: lesson.course?.language, lessons: lesson.course?.lessons ?? lesson.lessons.length, art: { hue: 350, glyph: "" } }}
+      enrolled={{ version: lesson.course?.version, progress: Math.round(lesson.lessons.filter(item => item.state === "completed").length / lesson.lessons.length * 100), value: lesson.title }} />
     </div>, items: lesson.lessons.map((item, index) => ({
       id: `lesson:${item.name}`, label: item.title, marker: String(index + 1).padStart(2, "0"),
       state: item.state === "completed" ? "done" : item.isCurrent ? "active" : "locked",
@@ -746,11 +750,11 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         : { href: `/course/${encodeURIComponent(workspaceId)}/${encodeURIComponent(lesson.dojo)}/lesson/${encodeURIComponent(item.name)}` }),
     })) },
   ];
-  return <div style={{ height: "100dvh" }}><AgentChatWorkspace brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
-    workspace="Dojo" showUser={false} showFooter={false} showNews={false} showOnboarding={false} sidebarWidth="18rem"
+  return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
+    workspace="Dojo" showNews={false} showOnboarding={false} sidebarWidth="18rem"
     navigation={navigation} navigationKey={`${workspaceId}:${lesson.dojo}`} active={`lesson:${lesson.kata}`} navigationTransition={false}
-    onNavigate={id => { if (id === "courses") void navigate({ to: "/" }); else if (id.startsWith("lesson:")) void viewLesson(id.slice(7)); }}
-    crumbs={[{ label: "Courses", onClick: () => { void navigate({ to: "/" }); } }, { label: humanTitle(lesson.dojo) }, { label: lesson.title }]}
+    onNavigate={id => { if (id.startsWith("lesson:")) void viewLesson(id.slice(7)); }}
+    crumbs={[{ label: "Dashboard", icon: <UIXIcon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }, { label: lesson.course?.name ?? humanTitle(lesson.dojo) }, { label: lesson.title }]}
     commands={[
       { id: "lessons", label: "Lessons", commands: lesson.lessons.filter(item => item.state === "completed" || item.isCurrent).map(item => ({ id: `lesson:${item.name}`, label: item.title })) },
       { id: "files", label: "Lesson workspace", commands: [{ id: "view:code", label: lesson.filePath }, { id: "view:tests", label: "Test results" }] },
@@ -900,7 +904,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                 </div>
               )}
     </div>
-  </AgentChatWorkspace></div>;
+  </AgentChatWorkspace>{toast}</div>;
 
 }
 

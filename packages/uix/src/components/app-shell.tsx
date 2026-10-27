@@ -145,6 +145,11 @@ export type AppShellProps = {
   setupPinned?: boolean;
   /** The account menu at the sidebar's foot – none yet before onboarding */
   showUser?: boolean;
+  /** Native account routes; omitted callbacks retain the Pages preview behavior. */
+  onProfile?: () => void;
+  onSettings?: () => void;
+  onLogin?: () => void;
+  onLogout?: () => void;
   /** Names the menu that's showing (e.g. "dashboard", a course's id); when it changes, the old rows swipe out to the right
       and the new ones in from the left */
   navigationKey?: string;
@@ -287,6 +292,7 @@ export function AppShell({
   showFooter = true,
   showOnboarding = true,
   showUser = true,
+  onProfile, onSettings, onLogin, onLogout,
   navigationKey = "menu",
   brand,
   sidebarWidth = "220px",
@@ -633,8 +639,8 @@ export function AppShell({
               <span className="ui-as-menu__who"><b>{user.name}</b><small>{user.email ?? workspace}</small></span>
             </div>}
             items={[
-              { label: "Profile", icon: UserIcon },
-              { label: "Settings", icon: SettingsFillIcon, onSelect: () => { void openAccount(); } },
+              { label: "Profile", icon: UserIcon, onSelect: onProfile },
+              { label: "Settings", icon: SettingsFillIcon, onSelect: onSettings ?? (() => { void openAccount(); }) },
               // What changed lately – reported to onNavigate as "changelog"
               { label: "Changelog", icon: Megaphone01Icon, onSelect: () => go("changelog") },
               { label: "Help & feedback", icon: HelpCircleIcon },
@@ -642,7 +648,8 @@ export function AppShell({
             // Light or dark, right above logging out; choosing keeps the menu open
             footer={(close) => <>
               <ThemeRow />
-              <MenuList items={[{ label: "Log out", icon: Logout01Icon, danger: true }]} onPick={close} />
+              <MenuList items={[...(onLogin ? [{ label: "Log in", icon: UserIcon, onSelect: onLogin }] : []),
+                { label: "Log out", icon: Logout01Icon, danger: true, onSelect: onLogout }]} onPick={close} />
             </>}
             trigger={({ open, toggle }) => (
               <RailTip enabled={rail} label={user.name}>

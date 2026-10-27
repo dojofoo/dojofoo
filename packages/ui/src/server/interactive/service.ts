@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
-import { dojoDir, readCourseManifest, readDojoRc } from "@dojofoo/config";
+import { dojoDir, readCourseManifest, readDojoRc, type DojoManifest } from "@dojofoo/config";
 import type { HarnessKind } from "../harness/adapter";
 
 export type InteractiveConversationBinding = { sessionId: string; harness: HarnessKind; model?: string };
@@ -27,6 +27,7 @@ type InteractiveState = {
 
 export type InteractiveSnapshot = {
   dojo: string;
+  course?: Pick<DojoManifest, "name" | "version" | "description" | "author" | "repository" | "language"> & { lessons: number };
   title: string;
   lessonTitle: string;
   step: number;
@@ -52,9 +53,12 @@ export function getInteractiveLesson(root: string, requestedDojo?: string): Inte
   const progress = state.courses[dojo] ?? { step: 0, answers: {} };
   const authoredStep = lesson.steps[progress.step] ?? null;
   const current = authoredStep ? hydrateStep(root, dojo, authoredStep) : null;
+  const manifest = readCourseManifest(root, dojo);
   return {
     dojo,
-    title: readCourseManifest(root, dojo).name,
+    course: { name: manifest.name, version: manifest.version, description: manifest.description, author: manifest.author,
+      repository: manifest.repository, language: manifest.language, lessons: 1 },
+    title: manifest.name,
     lessonTitle: lesson.title,
     step: Math.min(progress.step, lesson.steps.length),
     totalSteps: lesson.steps.length,

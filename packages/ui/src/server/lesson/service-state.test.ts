@@ -50,6 +50,14 @@ function freshCourse(): string {
 }
 
 describe("fresh lesson state", () => {
+  it("exposes installed course details for the learner card without starting a session", async () => {
+    const root = freshCourse();
+    const start = vi.spyOn(acpClient, "startThread");
+    const lesson = await getLesson(root, "001-first");
+    expect(lesson?.course).toMatchObject({ name: "@test/starter", version: "1.0.0", description: "A fresh course.", lessons: 2 });
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it("restores the explicitly selected model with its existing lesson session", async () => {
     const root = freshCourse();
     vi.spyOn(acpClient, "startThread").mockResolvedValue("model-session");

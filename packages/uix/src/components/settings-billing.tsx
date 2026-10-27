@@ -9,7 +9,7 @@
  * icons from the Hugeicons free set.
  */
 
-import { useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import {
   Analytics01Icon,
   BubbleChatIcon,
@@ -147,27 +147,45 @@ export function SettingsContent({ defaultTab = "Appearance", workspace = "Dojo",
   const [tab, setTab] = useState<SettingsTab>(defaultTab);
   const [profile, setProfile] = useState<AccountProfile>({ name: userName, handle: userName.toLowerCase().replace(/[^a-z0-9]/g, "") });
   const [toast, showToast] = useToast();
+  return <SettingsLayout tab={tab} onTabChange={setTab} onClose={onClose} footer={toast}>
+    {tab === "General" && <GeneralTab profile={profile} onSave={setProfile} toast={showToast} />}
+    {tab === "Members" && <MembersTab toast={showToast} />}
+    {tab === "Appearance" && <div className="ui-account-appearance"><AppearanceSettings /></div>}
+    {tab === "API keys" && <KeysTab toast={showToast} />}
+  </SettingsLayout>;
+}
+
+/** The Pages settings geometry with host-owned sections and account behavior. */
+export function SettingsLayout({ tab, onTabChange, availableTabs = tabs, onClose, children, footer,
+  description = "Your profile, appearance, members and API access.", helpText = help[tab],
+}: {
+  tab: SettingsTab;
+  onTabChange: (tab: SettingsTab) => void;
+  availableTabs?: readonly SettingsTab[];
+  onClose?: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  description?: string;
+  helpText?: { about: string; tip: string };
+}) {
   return <section className="ui-sb" role="region" aria-label="Account settings">
     <style href="ui-settings-billing" precedence="default">{css}</style>
     {onClose && <button type="button" className="ui-sb-back" onClick={onClose}>Back to workspace</button>}
     <h1 className="ui-as-page-title" tabIndex={-1}>Settings</h1>
-    <p className="ui-as-page-sub">Your profile, appearance, members and API access.</p>
+    <p className="ui-as-page-sub">{description}</p>
     <div className="ui-as-toolbar ui-sb__bar">
-      <Tabs items={tabs} value={tab} onChange={next => setTab(next as SettingsTab)} />
+      <Tabs items={[...availableTabs]} value={tab} onChange={next => onTabChange(next as SettingsTab)} />
     </div>
     <div key={tab} className="ui-sb__body">
       <div className="ui-sb__content">
-        {tab === "General" && <GeneralTab profile={profile} onSave={setProfile} toast={showToast} />}
-        {tab === "Members" && <MembersTab toast={showToast} />}
-        {tab === "Appearance" && <div className="ui-account-appearance"><AppearanceSettings /></div>}
-        {tab === "API keys" && <KeysTab toast={showToast} />}
+        {children}
       </div>
       <aside className="ui-sb-help" aria-label={`About ${tab}`}>
-        <p>{help[tab].about}</p>
-        <small>{help[tab].tip}</small>
+        <p>{helpText.about}</p>
+        <small>{helpText.tip}</small>
       </aside>
     </div>
-    {toast}
+    {footer}
   </section>;
 }
 

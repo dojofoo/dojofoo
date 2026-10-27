@@ -35,6 +35,14 @@ function interactiveRoot(): string {
 }
 
 describe("interactive lesson", () => {
+  it("exposes installed course details independently of lesson and step titles", () => {
+    const root = interactiveRoot();
+    expect(getInteractiveLesson(root)).toMatchObject({
+      title: "@test/recall", lessonTitle: "Recall",
+      course: { name: "@test/recall", version: "1.0.0", description: "Recall lesson", lessons: 1 },
+    });
+  });
+
   it("addresses two installed courses independently without changing the active course", () => {
     const root = interactiveRoot();
     cpSync(resolve(root, ".dojos/recall"), resolve(root, ".dojos/second"), { recursive: true });

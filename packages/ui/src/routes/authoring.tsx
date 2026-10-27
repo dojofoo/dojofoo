@@ -28,6 +28,7 @@ import { WorkspaceFileTabs } from "@/components/workspace-file-tabs";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthoringFiles } from "@/hooks/use-authoring-files";
 import { useAuthoringWatch } from "@/hooks/use-authoring-watch";
+import { useAccountMenu } from "@/hooks/use-account-menu";
 import { Button } from "@dojofoo/ui/button";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
@@ -54,6 +55,7 @@ export const Route = createFileRoute("/authoring")({
 });
 
 function AuthoringPage() {
+  const { account, toast } = useAccountMenu();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const [backend, setBackend] = useState<"acp" | "eve">();
@@ -401,7 +403,7 @@ function AuthoringPage() {
   }
 
   const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="w-11" /></a>;
-  const shell = { brand, workspace: "Dojo", sidebarWidth: "18rem", showUser: false, showFooter: false, showNews: false, showOnboarding: false };
+  const shell = { ...account, brand, workspace: "Dojo", sidebarWidth: "18rem", showNews: false, showOnboarding: false };
   if (!workspace || !backend) return <div className="h-dvh"><AppShell {...shell} navigation={[]}>
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold">Kyoshi</h1>
@@ -549,6 +551,7 @@ function AuthoringPage() {
       header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Kyoshi</b><span className="ui-as-chat__speaker-note">Master of Senseis and course shaper</span></span>}
       conversation={conversation}>
     </AgentChatWorkspace>
+    {toast}
   </div>;
 
 }
