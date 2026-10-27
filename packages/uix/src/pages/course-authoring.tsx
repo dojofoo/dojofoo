@@ -7,6 +7,7 @@ import { AgentChatWorkspace } from "../containers/agent-chat";
 import { ChatMessages, useChatThread } from "../containers/assistant-home";
 import { Icon } from "../components/app-shell";
 import { Button } from "../components/button";
+import { MessageQueue } from "../components/message-queue";
 import { ToolCallCard, ToolCallGroup } from "../components/tool-call-card";
 import { EvalsPanel, EvalsReportPanel, type EvalsReportPanelProps } from "../components/evals";
 import { VideoStage, type VideoCue, type VideoCueEvent } from "../containers/video-stage";
@@ -264,7 +265,7 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
         <span className="ui-as-chat__speaker-note">{view === "Trial" ? "Teaches this lesson" : "Master of Senseis and course shaper"}</span>
       </span>}
       composer={<>
-        {queue.length > 0 && <div className="mb-2 text-sm" aria-label="Queued messages">{waiting ? "Waiting for your choice" : "Queued"}{queue.map(item => <div key={item.id} className="flex items-center justify-between gap-2"><span>{item.text}</span><Button variant="ghost" size="sm" onClick={() => setQueue(items => items.filter(entry => entry.id !== item.id))}>Remove</Button></div>)}</div>}
+        <MessageQueue queued={queue} running={waiting ? "Waiting for your choice" : "Queued"} onCancel={id => setQueue(items => items.filter(entry => entry.id !== id))} />
         <CourseComposer authoring tray={false} placeholder={waiting ? "Add a note while the question waits…" : "Shape this lesson with Kyoshi…"} onSend={text => setQueue(items => [...items, { id: crypto.randomUUID(), text }])} />
       </>}>
       <p className="text-sm leading-relaxed">{view === "Trial" ? "Your tracker holds a week of step counts. Before editing, what would you remember after reading 4, then 9, then 2?" : "Let's build a lesson that makes the first step inviting and gives the learner room to work things out. Open a file on the left, or tell me what you'd change."}</p>

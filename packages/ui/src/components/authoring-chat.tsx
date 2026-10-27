@@ -4,8 +4,8 @@ import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojof
 import { Composer } from "@dojofoo/uix/containers/assistant-home";
 import { AiBrain01Icon } from "@dojofoo/uix/icons";
 import { ConversationContent } from "@dojofoo/uix/containers/learning-workspace";
-import { Button } from "@dojofoo/ui/button";
-import { MessageQueue, type QueuedMessage } from "./assistant-ui/elements/message-queue";
+import { Button } from "@dojofoo/uix/components/button";
+import { MessageQueue, type QueuedMessage } from "@dojofoo/uix/components/message-queue";
 import { StreamedChatMessage } from "@/components/chat/streamed-message";
 import { ChatTranscript } from "./chat/assistant-response";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
@@ -39,7 +39,7 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
       {!active && error && onRetryLoad ? <Button onClick={onRetryLoad}>Reload conversation</Button> : null}
     </div>;
   const composer = <div data-testid="authoring-chat-composer">
-      {queue.length > 0 ? <MessageQueue className="max-w-none" running={queueLabel} queued={queue} onCancel={onCancelQueued} /> : null}
+      {queue.length > 0 ? <MessageQueue running={queueLabel} queued={queue} onCancel={onCancelQueued} /> : null}
       <Composer tray={false} attachments="unavailable" dictation={false} plugins={false} models={[]} agent={{ name: "Coding agent", icon: AiBrain01Icon }}
         disabled={inputDisabled || readOnly} busy={active} queueing={Boolean(onCancelQueued)}
         history={messages.filter(({ role }) => role === "user").map(entry => entry.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
