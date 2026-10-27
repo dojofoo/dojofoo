@@ -36,7 +36,7 @@ try {
   await mkdir(workspace, { recursive: true });
   const vitest = join(repo, "node_modules/vitest/vitest.mjs");
   await writeFile(join(source, "dojo.yaml"), `mode: katas\nname: lesson-runtime-fixture\nversion: 0.0.1\ndescription: Practice a token counter.\nlanguage: JavaScript\ntest: node "${vitest}" run --globals {template}\nkatas:\n  - name: first\n    template: lessons/first/kata.mjs\n`);
-  await writeFile(join(source, "lessons/first/kata.mjs"), 'export function answer() {\n  throw new Error("Count the tokens before checking again. This is actual fixture runner output, with enough detail to test wrapping in the results table.");\n}\n');
+  await writeFile(join(source, "lessons/first/kata.mjs"), '/**\n * Count the tokens in the fixture.\n * @returns The token count.\n * @example answer();\n */\nexport function answer() {\n  throw new Error("Count the tokens before checking again. This is actual fixture runner output, with enough detail to test wrapping in the results table.");\n}\n');
   await writeFile(join(source, "lessons/first/kata.test.mjs"), 'import { answer } from "./kata.mjs";\ndescribe("tokens", () => {\n  test("counts tokens", () => expect(answer()).toBe(42));\n  test("returns a number", () => expect(typeof answer()).toBe("number"));\n  test.skip("optional vocabulary", () => {});\n});\n');
   const preflightReport = join(scratch, "preflight.json");
   const runner = spawnSync(process.execPath, [vitest, "run", "--globals", "--reporter=json", `--outputFile=${preflightReport}`, "lessons/first/kata.test.mjs"], {
@@ -104,6 +104,19 @@ try {
     page.on("websocket", socket => socket.on("framereceived", frame => { try { frames.push(JSON.parse(String(frame.payload))); } catch {} }));
     await page.goto(`${origin}/session/${after.sessionId}`);
     await expect(page.locator(".monaco-editor textarea")).toBeVisible();
+    await expect(page.locator(".ui-ed .ui-ed__monaco")).toBeVisible();
+    await expect(page.locator(".dojo-code-editor")).toHaveCount(0);
+    const mountedEditor = await page.locator(".monaco-editor textarea").elementHandle();
+    assert.equal(await page.evaluate(async () => {
+      const faces = await document.fonts.load('16px "Iosevka"');
+      return faces.length > 0 && faces.every(face => face.status === "loaded");
+    }), true, "The real editor font must load from the built app");
+    await page.locator(".view-lines").getByText("answer", { exact: true }).first().hover();
+    const hover = page.locator(".monaco-hover:visible");
+    await expect(hover).toContainText("Count the tokens in the fixture.");
+    await expect(hover).toContainText("answer();");
+    await page.screenshot({ path: artifact("real-editor-documentation.png") });
+    await page.getByRole("tab", { name: "kata.mjs", exact: true }).click();
     await expect.poll(() => frames.some(frame => frame.method === "session.snapshot"), { timeout: 10_000 }).toBe(true);
     await page.getByRole("button", { name: "Check", exact: true }).click();
     await expect.poll(() => {
@@ -124,6 +137,8 @@ try {
     await page.screenshot({ path: artifact("real-failed-results.png") });
     await results.locator(".ui-test-location").first().click();
     await expect(page.locator(".monaco-editor textarea")).toBeVisible();
+    assert.equal(await page.locator(".monaco-editor textarea").evaluate((node, original) => node === original, mountedEditor), true,
+      "Switching to results and revealing source must preserve the mounted editor");
     await expect(page.locator(".dojo-line-flash, .ui-ed-line-flash")).not.toHaveCount(0);
     const editor = page.locator(".monaco-editor textarea");
     await editor.focus();
@@ -134,6 +149,36 @@ try {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     assert.equal((await saved).status(), 200);
     assert.equal(await readFile(join(workspace, after.filePath), "utf8"), solution);
+    await editor.focus();
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+    const shortcutSolution = "export function answer() { return 42; } // Saved with the editor shortcut\n";
+    await page.keyboard.insertText(shortcutSolution);
+    const saves = [];
+    page.on("request", request => { if (request.method() === "PUT" && request.url().endsWith("/files/solution")) saves.push(request); });
+    const shortcutSaved = page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith("/files/solution"));
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+S" : "Control+S");
+    assert.equal((await shortcutSaved).status(), 200);
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+    assert.equal(saves.length, 1, "One editor shortcut must write the file once");
+    assert.equal(await readFile(join(workspace, after.filePath), "utf8"), shortcutSolution);
+    const inspectModels = () => page.evaluate(async () => {
+      const { editor } = await import("modern-monaco/editor-core");
+      return editor.getModels().map(model => ({ code: model.getValue(), version: model.getVersionId(), undo: model.canUndo(), redo: model.canRedo() }));
+    });
+    const beforeUndo = await inspectModels();
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    const afterUndo = await inspectModels();
+    await writeFile(artifact("undo-models.json"), JSON.stringify({ before: beforeUndo, after: afterUndo }, null, 2));
+    assert.equal(beforeUndo.length, 1);
+    assert.equal(afterUndo.length, 1);
+    assert.notEqual(afterUndo[0].code, beforeUndo[0].code, "Undo must change the existing model");
+    assert.equal(afterUndo[0].redo, true);
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+    await editor.focus();
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+Shift+Z" : "Control+Y");
+    await expect.poll(async () => (await inspectModels())[0]?.code).toBe(shortcutSolution);
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+    assert.equal(saves.length, 1, "Undo and redo must not save without a save action");
     await page.getByRole("button", { name: "Check", exact: true }).click();
     await page.getByRole("tab", { name: /Tests/ }).click();
     await expect(results.getByRole("img", { name: "Passed", exact: true })).toHaveCount(2, { timeout: 30_000 });
@@ -147,11 +192,11 @@ try {
     assert.equal(restored.sessionId, after.sessionId);
     assert.equal(restored.result.passed, 2);
     assert.equal(restored.result.skipped, 1);
-    assert.equal(restored.code, solution);
+    assert.equal(restored.code, shortcutSolution);
     assert.ok(JSON.stringify(restored.messages).includes("Ready to teach."));
     assert.deepEqual(errors, []);
     assert.deepEqual(introductions, [], "Restoring an introduced lesson must not send another introduction");
-    console.log("Real CLI/browser: failing and passing checks, skipped state, Shiki, wrapped output, source reveal, file save and same-session reload passed.");
+    console.log("Real CLI/browser: UIX editor, loaded font, native JSDoc, mounted tab switching, single-write shortcut, undo/redo, failing/passing checks, Shiki, source reveal and same-session reload passed.");
   } catch (error) {
     if (page) {
       await page.screenshot({ path: artifact("results-failure.png") });

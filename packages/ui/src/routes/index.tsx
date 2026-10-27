@@ -1,9 +1,10 @@
-import { AppShell, MenuButton, type ShellSection } from "@dojofoo/uix/components/app-shell";
+import { AppShell, Icon as UIXIcon, MenuButton, type ShellSection } from "@dojofoo/uix/components/app-shell";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
+import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
 import { CommandPalette } from "@dojofoo/uix/components/command-palette";
-import { BookOpen01Icon, CoursesIcon, ExploreIcon } from "@dojofoo/uix/icons";
+import { BookOpen01Icon, Cancel01Icon, CoursesIcon, DoneIcon, ExploreIcon } from "@dojofoo/uix/icons";
 import { ClientOnly, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
 import type { ThinkingPart, ToolCallPart } from "@tanstack/ai-client";
@@ -12,20 +13,16 @@ import type { BundledLanguage } from "shiki";
 import {
   ArrowRight,
   Check,
-  CheckCircle as CheckCircle2,
   Circle,
-  CircleDashed as CircleDot,
   Spinner as Loader2,
   LockKeyhole,
   RefreshAlt as RotateCcw,
   Save as SaveIcon,
   Undo as Undo2,
-  XCircle,
 } from "@mynaui/icons-react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { CodeBlock, CodeBlockCopyButton } from "@/components/ai-elements/code-block";
 import { CourseContent } from "@/components/course-content";
-import { WorkspaceFileTabs } from "@/components/workspace-file-tabs";
 import { LessonTestResults } from "@/components/lesson-test-results";
 import { failureLines } from "@/lib/lesson-test-results";
 import { TerminalBlock } from "@dojofoo/ui/elements/terminal-block";
@@ -65,7 +62,7 @@ import { AgentQuestion, isAgentQuestion, agentQuestionState } from "@/components
 import { useChatWorkTiming, type ChatWorkTiming } from "@/lib/chat-work-timing";
 import { codeHighlight, codeHighlights, type CodeHighlight } from "@/lib/code-highlight";
 
-const CodeEditor = lazy(() => import("@/components/code-editor"));
+const CodeEditor = lazy(() => import("@dojofoo/uix/containers/code-editor").then(({ CodeEditor }) => ({ default: CodeEditor })));
 const INTRODUCTION_MESSAGE = "[dojo:begin-lesson]";
 const CHECK_OBSERVATION_MESSAGE = "[dojo:check-observation]";
 
@@ -705,16 +702,16 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
     });
   }
 
-  const save = useCallback(async () => {
-    if (!lesson?.isCurrent || code === lesson.code) return;
+  const save = useCallback(async (nextCode = code) => {
+    if (!lesson?.isCurrent || nextCode === lesson.code) return;
     try {
       if (!apiBase) throw new Error("No lesson is available");
       await fetch(`${apiBase}/files/${encodeURIComponent(lesson.fileId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: code }),
+        body: JSON.stringify({ content: nextCode }),
       }).then(assertResponse);
-      updateMetadata({ ...lesson, code });
+      updateMetadata({ ...lesson, code: nextCode });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
       setBusy("");
@@ -723,7 +720,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   useEffect(() => {
     const onSave = (event: KeyboardEvent) => {
-      if (!lesson?.isCurrent || event.key.toLowerCase() !== "s" || (!event.metaKey && !event.ctrlKey)) return;
+      if (event.defaultPrevented || !lesson?.isCurrent || event.key.toLowerCase() !== "s" || (!event.metaKey && !event.ctrlKey)) return;
       event.preventDefault();
       void save();
     };
@@ -758,57 +755,53 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
               <LessonBriefing markdown={lesson.briefing} />
             </div>
 
-            <section className="order-1 w-full border-b border-[#242424] bg-[#0a0a0a] text-[#ededed] shadow-surface-3" data-testid="lesson-workspace">
-              <div className="flex h-10 items-stretch border-b border-[#242424] bg-black" data-testid="workspace-bar">
-                <WorkspaceFileTabs mode="learning" label="Lesson workspace" active={activeWorkspaceTab}
+            <div className="order-1 w-full" data-testid="lesson-workspace">
+              <Editor flush tabs={<div className="flex w-full min-w-0 items-stretch" data-testid="workspace-bar">
+                <EditorTabs mode="learning" label="Lesson workspace" active={activeWorkspaceTab}
                   onSelect={(path) => { if (path === "code" || path === "tests") setActiveWorkspaceTab(path); }}
                   tabs={[
                     { path: "code", label: <span className="font-mono">{fileName(lesson.filePath)}</span>, dirty, panelId: "code-panel" },
-                    { path: "tests", panelId: "tests-panel", label: <><TestStateIcon report={lesson.result} /><span>Tests</span><span className="text-[10px] text-[#878787]">{testPercentage(lesson.result)}</span></> },
+                    { path: "tests", panelId: "tests-panel", label: <><TestStateIcon report={lesson.result} /><span>Tests</span><span className="text-xs text-muted-foreground">{testPercentage(lesson.result)}</span></> },
                   ]} />
-                {busy && !thinking && <span className="ml-auto self-center px-3 text-xs text-[#878787]">{busy}</span>}
+                {busy && !thinking && <span className="ml-auto self-center px-3 text-xs text-muted-foreground">{busy}</span>}
                 {lesson.isCurrent && (
-                  <div aria-label="Lesson actions" className={`${busy && !thinking ? "" : "ml-auto"} flex items-stretch border-l border-[#242424]`} role="toolbar">
-                    <button
-                      className="flex items-center gap-2 border-r border-[#242424] px-3 text-xs text-[#a1a1a1] hover:bg-[#ffffff1a] hover:text-[#ededed] disabled:cursor-default disabled:text-[#878787]"
+                  <div aria-label="Lesson actions" className={`${busy && !thinking ? "" : "ml-auto"} flex shrink-0 items-center gap-1 px-1`} role="toolbar">
+                    <UIXButton size="sm" variant="ghost"
+                      icon={<RotateCcw className="size-3.5" />}
                       disabled={Boolean(busy)}
                       onClick={() => setResetDialogOpen(true)}
                       type="button"
                     >
-                      <RotateCcw className="size-3.5" />
                       Reset
-                    </button>
-                    <button
+                    </UIXButton>
+                    <UIXButton size="sm" variant="ghost"
+                      icon={<Undo2 className="size-3.5" />}
                       aria-keyshortcuts="Control+Z Meta+Z"
-                      className="flex items-center gap-2 border-r border-[#242424] px-3 text-xs text-[#a1a1a1] hover:bg-[#ffffff1a] hover:text-[#ededed] disabled:cursor-default disabled:text-[#878787]"
                       disabled={Boolean(busy)}
                       onClick={() => undoEditor.current?.()}
                       type="button"
                     >
-                      <Undo2 className="size-3.5" />
                       Undo
-                    </button>
-                    <button
+                    </UIXButton>
+                    <UIXButton size="sm" variant="ghost"
+                      icon={<SaveIcon className="size-3.5" />}
                       aria-keyshortcuts="Control+S Meta+S"
-                      className="flex items-center gap-2 border-r border-[#242424] px-3 text-xs text-[#a1a1a1] hover:bg-[#ffffff1a] hover:text-[#ededed] disabled:cursor-default disabled:text-[#878787]"
                       disabled={!dirty || Boolean(busy)}
                       onClick={() => void save()}
                       type="button"
                     >
-                      <SaveIcon className="size-3.5" />
                       Save
-                    </button>
-                    <button
-                      className="bg-[#0070f3] px-4 text-xs text-white hover:bg-[#0761d1] disabled:cursor-default disabled:bg-[#242424] disabled:text-[#878787]"
+                    </UIXButton>
+                    <UIXButton size="sm"
                       disabled={Boolean(busy)}
                       onClick={() => void check()}
                       type="button"
                     >
                       Check
-                    </button>
+                    </UIXButton>
                   </div>
                 )}
-              </div>
+              </div>}>
               <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
                 <DialogContent>
                   <DialogHeader>
@@ -840,8 +833,8 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
               </Dialog>
               <div className="aspect-video min-h-0 overflow-hidden" data-testid="lesson-canvas">
                 <div className="h-full" hidden={activeWorkspaceTab !== "code"} id="code-panel" role="tabpanel">
-                  <ClientOnly fallback={<div className="h-full animate-pulse bg-[#0a0a0a]" />}>
-                    <Suspense fallback={<div className="h-full animate-pulse bg-[#0a0a0a]" />}>
+                  <ClientOnly fallback={<div className="h-full animate-pulse bg-[var(--ui-ed-surface)]" />}>
+                    <Suspense fallback={<div className="h-full animate-pulse bg-[var(--ui-ed-surface)]" />}>
                       <CodeEditor
                         code={code}
                         coverage={true}
@@ -852,6 +845,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                         lineHits={lesson.result?.coverage?.lineHits}
                         key={lesson.kata}
                         onChange={setCode}
+                        onSave={(value) => void save(value)}
                         onUndoReady={(undo) => { undoEditor.current = undo; }}
                         readOnly={!lesson.isCurrent}
                         lessonApiBase={apiBase}
@@ -864,7 +858,8 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                     filePath={lesson.filePath} onReveal={({ line }) => highlightCode({ from: line, to: line })} />
                 </div>
               </div>
-            </section>
+              </Editor>
+            </div>
             <div className="order-3 mx-8 mt-3 flex items-center gap-3">
               {completed && lesson.isCurrent && (
                 <Button
@@ -1319,15 +1314,11 @@ function LessonStateIcon({ completed, current }: { completed: boolean; current: 
 }
 
 function TestStateIcon({ report }: { report: TestReport | null }) {
-  const Icon = !report ? CircleDot : report.complete ? CheckCircle2 : XCircle;
-  return (
-    <Icon
-      aria-label={report ? `${report.passed} of ${report.total} tests passed` : "Tests not run"}
-      className={`size-3.5 ${report?.complete ? "text-[#58c760]" : report ? "text-[#f05b8d]" : "text-[#878787]"}`}
-      role="img"
-      strokeWidth={1.75}
-    />
-  );
+  const glyph = report?.failed ? Cancel01Icon : report?.passed ? DoneIcon : undefined;
+  return <span role="img" aria-label={report ? `${report.passed} of ${report.total} tests passed` : "Tests not run"}
+    className="inline-flex size-3.5 items-center justify-center text-[var(--brand)]">
+    {glyph ? <UIXIcon icon={glyph} size={14} /> : <span className="size-1 rounded-full bg-current" />}
+  </span>;
 }
 
 function testPercentage(report: TestReport | null): string {

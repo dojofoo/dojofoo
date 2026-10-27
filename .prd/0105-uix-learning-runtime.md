@@ -1,7 +1,7 @@
 # 0105: Connect the local learning application to UIX
 
 Parent: UIX adoption (0100).
-Status: in progress on `feat/0105-uix-lesson-workspace` in `.worktree/uix-0105`. Type prerequisite PR #192 is merged and verified on main `9394f74`; dashboard PR #193 is merged as `b6e09a7`; lesson workspace binding is the next bounded change. Lesson/editor/check/chat binding remains required.
+Status: in progress on `feat/0105-uix-editor` in `.worktree/uix-0105`. Prerequisite/dashboard/results PRs #192–#194 are merged; editor binding is prepared. The shared lesson shell and real chat binding remain required.
 
 Goal: replace the local dashboard, kata workspace, editor, tests and chat presentation with the approved shared UIX components while retaining the real services, files, checks, progress, canonical lesson/session URLs and agent conversations.
 
@@ -54,3 +54,13 @@ The first real check then exposed Vitest 5's JSON reporter moving stdout to `.vi
 `pnpm --filter @dojofoo/ui test:lesson` is a repeatable built-CLI/native-OpenCode/browser gate. It creates an isolated installed course and local inference endpoint, verifies one actual introduction, streamed checks with two failures/one skip, Shiki and wrapped errors, source reveal, a real Monaco edit/save, two passes/one skip, and reload of the same session/file/report without another introduction. It cleans up its processes and workspace and prints its evidence directory. This gate uses scripted inference; it does not prove live teaching quality or server-restart acceptance. The legacy editor/shell/chat remain visible and require the next binding.
 
 Current checkpoint: UI/UIX types passed; UIX `54 passed (4.48s)`; host `359 passed (16.79s)` with explicit live-model files excluded; CLI `154 passed (4.10s)`; built CLI succeeded; repeatable real lesson/browser gate passed (introduction 880ms, two inference requests). Failure/pass screenshots were inspected. Hosted CI is still required before merging this checkpoint. The whole 0105 migration and slices 0106–0110 remain incomplete.
+
+## Results shipped; shared editor binding prepared
+
+PR [#194](https://github.com/dojofoo/dojofoo/pull/194) merged as `d5c1c90d4f1b07580a1974694db71a3286d6fb67`. Verify 40460347097 passed: API42, UIX54, host359, CLI154, 6 successful/0 cached builds, 19 website browsers (1.9m), and the installed-library browser (8.6s). Merged Release 40461248659 passed. READY staging https://dojofoo-hd997fvbg-tomsiwiks-projects.vercel.app passed the docs/native API/mobile/theme/copy/browser probe with zero page errors; runtime OpenAPI before/after profile requests equals source and Markdown returned 200/404. All 18 concurrent root file hashes remained unchanged after fast-forward.
+
+The editor branch starts from that merged main. Its clean baseline passed six focused tests and the real installed lesson browser gate. A new UIX-frame assertion failed against the old artifact before replacement. The lesson now consumes UIX Editor, EditorTabs, CodeEditor and Button directly, with the real file API, buffer, diagnostics/documentation, coverage, highlight and undo callbacks. The window save fallback respects an already-handled key; the editor save callback supplies the actual model value. Test-tab marks use the shared plain check/cross/dot and theme colors.
+
+The extended native gate passed the actual loaded Iosevka font, JSDoc from the real language endpoint, stable editor DOM across results/source switching, exactly one file PUT for Ctrl/Cmd-S, native undo/redo without implicit writes, failed/passing checks, skipped state, wrapped Shiki output, source reveal, persisted code/report/session and no duplicate introduction on reload. Undo is asserted against actual model values and redo capability, preserving Monaco's own undo stops. Evidence: `/var/folders/1y/bt_xnlvx77l48my801cxx01m0000gn/T/dojo-lesson-runtime-evidence-5JW9la`; editor/JSDoc/result screenshots inspected. Host types and CLI build passed; host suite `359 passed (17.31s)`. This uses local scripted inference and does not establish live teaching quality or server-restart acceptance.
+
+Hosted verification remains required for the editor branch. The surrounding lesson shell/navigation, chat/composer, content settings/materials, interactive Sensei and later slices remain in scope. Neither this editor binding nor the previous check-results checkpoint completes 0105.
