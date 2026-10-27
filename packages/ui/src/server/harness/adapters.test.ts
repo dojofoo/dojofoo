@@ -65,7 +65,7 @@ describe("ACP harness adapters", () => {
 
     expect(adapter.process({ root: "/tmp/lesson", developerInstructions: "Teach" })).toEqual(expect.objectContaining({
       command: "/opt/opencode",
-      args: ["acp", "--cwd", "/tmp/lesson"],
+      args: ["acp"],
     }));
     const environment = adapter.process({ root: "/tmp/lesson", developerInstructions: "Teach" }).environment;
     expect(JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? "{}")).toMatchObject({

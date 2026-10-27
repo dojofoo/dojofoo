@@ -26,17 +26,8 @@ import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { CodeBlock, CodeBlockCopyButton } from "@/components/ai-elements/code-block";
 import { CourseContent } from "@/components/course-content";
 import { WorkspaceFileTabs } from "@/components/workspace-file-tabs";
-import {
-  Test,
-  TestResults as AiTestResults,
-  TestResultsContent,
-  TestResultsHeader,
-  TestResultsProgress,
-  TestSuite,
-  TestSuiteContent,
-  TestSuiteName,
-  TestSuiteStats,
-} from "@/components/ai-elements/test-results";
+import { LessonTestResults } from "@/components/lesson-test-results";
+import { failureLines } from "@/lib/lesson-test-results";
 import { TerminalBlock } from "@dojofoo/ui/elements/terminal-block";
 import { ToolCallCard } from "@/components/ui/ToolCallCard";
 import { ReasoningTrace } from "@/components/ui/ReasoningTrace";
@@ -869,11 +860,8 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                   </ClientOnly>
                 </div>
                 <div className="h-full overflow-auto" hidden={activeWorkspaceTab !== "tests"} id="tests-panel" role="tabpanel">
-                  {checking
-                    ? <RunningTestResults tests={liveTests} />
-                    : lesson.result
-                    ? <LessonTestResults report={lesson.result} title={lesson.title} />
-                    : <div className="flex h-full items-center justify-center text-sm text-[#878787]">Run the lesson checks to see test coverage.</div>}
+                  <LessonTestResults report={lesson.result} running={checking} tests={liveTests}
+                    filePath={lesson.filePath} onReveal={({ line }) => highlightCode({ from: line, to: line })} />
                 </div>
               </div>
             </section>
@@ -1347,22 +1335,6 @@ function testPercentage(report: TestReport | null): string {
   return `${Math.round((report.passed / report.total) * 100)}%`;
 }
 
-function failureLines(report: TestReport | null, filePath: string): number[] {
-  if (!report) return [];
-  const suffix = `/${filePath.replaceAll("\\", "/")}:`;
-  const lines = new Set<number>();
-  for (const test of report.tests) {
-    for (const message of test.failureMessages) {
-      for (const frame of message.split("\n")) {
-        if (!frame.replaceAll("\\", "/").includes(suffix)) continue;
-        const match = frame.match(/:(\d+):\d+\)?$/);
-        if (match) lines.add(Number(match[1]));
-      }
-    }
-  }
-  return [...lines];
-}
-
 function LessonBriefing({ markdown }: { markdown: string }) {
   return (
     <div className="mt-5 max-w-3xl space-y-2 font-prose text-[15px] leading-7 text-foreground/90">
@@ -1534,93 +1506,8 @@ function ChatTestTerminal({ report }: { report?: TestReport }) {
 }
 
 function LiveCheckSummary({ tests }: { tests: TestReport["tests"] }) {
-  const lines = tests.map((test) => `${test.status === "passed" ? "✓" : "×"} ${test.name}`);
+  const lines = tests.map((test) => `${test.status === "passed" ? "✓" : test.status === "failed" ? "×" : "-"} ${test.name}`);
   return <TerminalBlock className="max-w-none" command="Running lesson checks" done={false} lines={lines} visibleCount={lines.length} />;
-}
-
-function RunningTestResults({ tests }: { tests: TestReport["tests"] }) {
-  return (
-    <section aria-busy="true" aria-live="polite">
-      <AiTestResults className="rounded-none border-0 bg-black text-[#ededed]" summary={{ passed: 0, failed: 0, skipped: 0, total: 0 }}>
-        <TestResultsHeader>
-          <div>
-            <h3 className="font-semibold">Test results</h3>
-            <p className="mt-1 text-sm text-[#878787]">{tests.length > 0 ? `${tests.length} tests finished…` : "Running kata tests…"}</p>
-          </div>
-        </TestResultsHeader>
-        <TestResultsContent>
-          {tests.length === 0
-            ? <p className="px-1 font-mono text-xs text-[#878787]">Executing the configured test command</p>
-            : tests.map((test, index) => (
-              <div className="flex items-center gap-2 px-1 py-1 font-mono text-xs" key={`${test.name}-${index}`}>
-                {test.status === "passed" ? <Check className="size-3.5 text-emerald-500" /> : <XCircle className="size-3.5 text-red-500" />}
-                <span>{test.name}</span>
-              </div>
-            ))}
-        </TestResultsContent>
-      </AiTestResults>
-    </section>
-  );
-}
-
-function LessonTestResults({ report, title }: { report: TestReport; title: string }) {
-  const suites = groupTestsBySuite(report.tests, title);
-  const ungrouped = suites.get("") ?? [];
-  const passedGroups = [...suites.values()].filter((tests) =>
-    tests.some((test) => test.status === "passed") && tests.every((test) => test.status !== "failed")
-  ).length;
-  return (
-    <section aria-labelledby="test-results-title">
-      <AiTestResults className="rounded-none border-0 bg-black text-[#ededed]" summary={{ passed: report.passed, failed: report.failed, skipped: report.skipped, total: report.total, duration: report.durationMs }}>
-        <TestResultsHeader>
-          <div>
-            <h3 className="font-semibold" id="test-results-title">Test results</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{passedGroups} of {suites.size} test groups passed</p>
-          </div>
-        </TestResultsHeader>
-        <TestResultsContent>
-          <TestResultsProgress
-            aria-label="Test progress"
-            aria-valuemax={report.total}
-            aria-valuemin={0}
-            aria-valuenow={report.passed}
-            role="progressbar"
-          />
-          {ungrouped.map((test) => <TestResult key={`${test.filePath ?? ""}:${test.name}`} test={test} />)}
-          {[...suites.entries()].filter(([name]) => name).map(([name, tests]) => {
-            const passed = tests.filter((test) => test.status === "passed").length;
-            const failed = tests.filter((test) => test.status === "failed").length;
-            const skipped = tests.filter((test) => test.status === "skipped").length;
-            const status = failed > 0 ? "failed" : passed > 0 ? "passed" : "skipped";
-            return (
-              <TestSuite className="rounded-none border-[#242424] bg-black" defaultOpen key={name} name={name} status={status}>
-                <TestSuiteName>
-                  <span className="font-medium text-sm">{name}</span>
-                  <TestSuiteStats data-testid={`suite-stats-${name}`} failed={failed} passed={passed} skipped={skipped} />
-                </TestSuiteName>
-                <TestSuiteContent>
-                  {tests.map((test) => <TestResult key={`${test.filePath ?? ""}:${test.name}`} test={test} />)}
-                </TestSuiteContent>
-              </TestSuite>
-            );
-          })}
-        </TestResultsContent>
-      </AiTestResults>
-    </section>
-  );
-}
-
-function TestResult({ test }: { test: TestReport["tests"][number] }) {
-  return <Test duration={test.durationMs} name={test.name} status={test.status} />;
-}
-
-function groupTestsBySuite(tests: TestReport["tests"], fallback: string): Map<string, TestReport["tests"]> {
-  const groups = new Map<string, TestReport["tests"]>();
-  for (const test of tests) {
-    const name = test.suite.join(" › ") || fallback;
-    groups.set(name, [...(groups.get(name) ?? []), test]);
-  }
-  return groups;
 }
 
 function humanTitle(value: string): string {

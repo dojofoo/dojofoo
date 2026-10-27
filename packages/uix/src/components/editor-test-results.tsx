@@ -31,7 +31,7 @@ export function EditorTestResults({ tests, onReveal }: {
   onReveal?: (location: NonNullable<EditorTestResult["location"]>) => void;
 }) {
   const mode = usePageMode();
-  const rows = tests.map((test, index) => ({ id: String(index), name: test.name, duration: test.durationMs === undefined ? "" : `${test.durationMs} ms` }));
+  const rows = tests.map((test, index) => ({ id: String(index), name: test.name, duration: test.durationMs === undefined ? "" : `${Number(test.durationMs.toFixed(2))} ms` }));
   return <div className={`ui-ed-results-window scroll-fade ${mode}`}>
     <style href="ui-editor-test-results" precedence="default">{css}</style>
     <DataTable title="Test results" className="ui-ed-results" columns={columns} rows={rows}
@@ -53,7 +53,7 @@ export function EditorTestResults({ tests, onReveal }: {
           test.received === undefined ? "" : `**Received**\n\n${codeBlock(test.received)}`,
         ].filter(Boolean).join("\n\n");
         return <div className="ui-test-content">
-          <span className="ui-test-name"><span className="ui-test-suite">{test.suite} / </span>{test.name}</span>
+          <span className="ui-test-name">{test.suite && <span className="ui-test-suite">{test.suite} / </span>}{test.name}</span>
           {details && <Markdown source={details} />}
           {test.location && onReveal && <button type="button" className="ui-test-location" onClick={() => onReveal(test.location!)}>
             {test.location.filePath}:{test.location.line}

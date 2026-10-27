@@ -34,6 +34,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:library": "playwright test --config playwright.library.config.ts",
+    "test:lesson": "node scripts/verify-lesson-runtime.mjs",
     "test:editor": "playwright test --config playwright.editor.config.ts",
     "types:check": "tsc --noEmit"
   },

@@ -1,6 +1,6 @@
 # UIX production adoption and first-party starter courses
 
-Status: active; 0101–0104 merged and verified; 0105 in progress in `.worktree/uix-0105` on `feat/0105-uix-learner-dashboard`.
+Status: active; 0101–0104 merged and verified; 0105 in progress in `.worktree/uix-0105` on `feat/0105-uix-lesson-workspace`.
 Date: 2026-10-26.
 Baseline: `main` after PR #181, merge commit `4f31a76116d23c8d9613f77d80698b5dc766096b`.
 

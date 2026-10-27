@@ -155,7 +155,9 @@ export function createOpenCodeHarnessAdapter(
     encodeResource: encodePromptResource,
     process: (runtime) => ({
       command: opencodeExecutable(environment, userHome),
-      args: ["acp", "--cwd", runtime.root],
+      // The child cwd and ACP session/new/load already carry runtime.root.
+      // OpenCode 2 exposes `acp` without the old CLI --cwd flag.
+      args: ["acp"],
       environment: opencodeRuntimeEnvironment(runtime.developerInstructions, environment),
     }),
   };
