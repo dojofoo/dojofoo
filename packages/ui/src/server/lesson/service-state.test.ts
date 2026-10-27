@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readDojoRc } from "@dojofoo/config";
 import * as preparation from "@dojofoo/config/project-preparation";
-import { answerSenseiQuestion, checkLesson, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, saveLearnerObservation, shouldIntroduceLesson, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
+import { answerSenseiQuestion, checkLesson, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, saveLearnerObservation, shouldIntroduceLesson, setLessonModel, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
 import { dojofooHarness } from "../harness/registry";
 import { acpClient } from "./codex-client";
 import kataTeaching from "./contracts/KATAS.md?raw";
@@ -50,6 +50,32 @@ function freshCourse(): string {
 }
 
 describe("fresh lesson state", () => {
+  it("restores the explicitly selected model with its existing lesson session", async () => {
+    const root = freshCourse();
+    vi.spyOn(acpClient, "startThread").mockResolvedValue("model-session");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    const configuration = { id: "model", name: "Model", currentValue: "provider/default", options: [
+      { value: "provider/default", name: "Default" }, { value: "provider/chosen", name: "Chosen" },
+    ] };
+    vi.spyOn(acpClient, "modelConfiguration").mockImplementation(() => configuration);
+    const setModel = vi.spyOn(acpClient, "setModel").mockImplementation(async (_session, value) => {
+      configuration.currentValue = value;
+      return configuration;
+    });
+    await startLessonSession(root, "001-first");
+    await setLessonModel(root, "001-first", "provider/chosen");
+    expect(JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).threads["starter/001-first"].model).toBe("provider/chosen");
+    configuration.currentValue = "provider/default"; // A fresh native process loads its default.
+    const resumed = await getLesson(root, "001-first");
+    expect(resumed?.sessionId).toBe("model-session");
+    expect(resumed?.model?.currentValue).toBe("provider/chosen");
+    expect(setModel).toHaveBeenLastCalledWith("model-session", "provider/chosen");
+    setModel.mockRejectedValueOnce(new Error("Model unavailable"));
+    await expect(setLessonModel(root, "001-first", "provider/unavailable")).rejects.toThrow("Model unavailable");
+    expect(JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).threads["starter/001-first"].model).toBe("provider/chosen");
+  });
+
   it("awaits the normal workspace setup before checking a fresh trial", async () => {
     const root = freshCourse();
     const setup = vi.spyOn(preparation, "prepareWorkspace").mockRejectedValue(new Error("Course setup failed"));

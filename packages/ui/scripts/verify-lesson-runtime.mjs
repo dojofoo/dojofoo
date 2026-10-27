@@ -37,7 +37,7 @@ try {
   const vitest = join(repo, "node_modules/vitest/vitest.mjs");
   await writeFile(join(source, "dojo.yaml"), `mode: katas\nname: lesson-runtime-fixture\nversion: 0.0.1\ndescription: Practice a token counter.\nlanguage: JavaScript\ntest: node "${vitest}" run --globals {template}\nkatas:\n  - name: first\n    template: lessons/first/kata.mjs\n  - name: next\n    template: lessons/next/kata.mjs\n`);
   await writeFile(join(source, "lessons/first/kata.mjs"), '/**\n * Count the tokens in the fixture.\n * @returns The token count.\n * @example answer();\n */\nexport function answer() {\n  throw new Error("Count the tokens before checking again. This is actual fixture runner output, with enough detail to test wrapping in the results table.");\n}\n');
-  await writeFile(join(source, "lessons/first/kata.test.mjs"), 'import { answer } from "./kata.mjs";\ndescribe("tokens", () => {\n  test("counts tokens", () => expect(answer()).toBe(42));\n  test("returns a number", () => expect(typeof answer()).toBe("number"));\n  test.skip("optional vocabulary", () => {});\n});\n');
+  await writeFile(join(source, "lessons/first/kata.test.mjs"), 'import { answer } from "./kata.mjs";\ndescribe("tokens", () => {\n  test("counts tokens", () => expect(answer()).toBe(42));\n  test("returns a number", () => expect(typeof answer()).toBe("number"));\n  test.skipIf((() => { try { return answer() !== 42; } catch { return true; } })())("optional vocabulary", () => expect(answer()).toBe(42));\n});\n');
   const preflightReport = join(scratch, "preflight.json");
   const runner = spawnSync(process.execPath, [vitest, "run", "--globals", "--reporter=json", `--outputFile=${preflightReport}`, "lessons/first/kata.test.mjs"], {
     cwd: source, env: environment, encoding: "utf8", timeout: 15_000,
@@ -58,12 +58,16 @@ try {
   const port = reservation.address().port;
   await new Promise((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()));
   const origin = `http://127.0.0.1:${port}`;
-  server = spawn(process.execPath, [cli, "ui", "--no-open", "--no-portless", "--port", String(port)], {
-    cwd: workspace, detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"],
-    env: { ...environment, DOJO_PROJECT_ROOT: workspace, HOST: "127.0.0.1" },
-  });
-  server.stdout.on("data", chunk => { output += chunk; });
-  server.stderr.on("data", chunk => { output += chunk; });
+  const launchServer = () => {
+    const child = spawn(process.execPath, [cli, "ui", "--no-open", "--no-portless", "--port", String(port)], {
+      cwd: workspace, detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"],
+      env: { ...environment, DOJO_PROJECT_ROOT: workspace, HOST: "127.0.0.1" },
+    });
+    child.stdout.on("data", chunk => { output += chunk; });
+    child.stderr.on("data", chunk => { output += chunk; });
+    return child;
+  };
+  server = launchServer();
   const deadline = Date.now() + 30_000;
   let courses;
   while (Date.now() < deadline) {
@@ -228,8 +232,8 @@ try {
     assert.equal(saves.length, 1, "Undo and redo must not save without a save action");
     await page.getByRole("button", { name: "Check", exact: true }).click();
     await page.getByRole("tab", { name: /Tests/ }).click();
-    await expect(results.getByRole("img", { name: "Passed", exact: true })).toHaveCount(2, { timeout: 30_000 });
-    await expect(results.getByRole("img", { name: "Skipped", exact: true })).toHaveCount(1);
+    await expect(results.getByRole("img", { name: "Passed", exact: true })).toHaveCount(3, { timeout: 30_000 });
+    await expect(results.getByRole("img", { name: "Skipped", exact: true })).toHaveCount(0);
     await expect(results.getByRole("img", { name: "Failed", exact: true })).toHaveCount(0);
     await page.screenshot({ path: artifact("real-passed-results.png") });
     await page.reload();
@@ -237,8 +241,8 @@ try {
     await expect(page.locator(".view-lines")).toContainText("return 42");
     const restored = await fetch(base).then(response => response.json());
     assert.equal(restored.sessionId, after.sessionId);
-    assert.equal(restored.result.passed, 2);
-    assert.equal(restored.result.skipped, 1);
+    assert.equal(restored.result.passed, 3);
+    assert.equal(restored.result.skipped, 0);
     assert.equal(restored.code, shortcutSolution);
     assert.ok(JSON.stringify(restored.messages).includes("Ready to teach."));
     const pane = page.getByTestId("chat-pane");
@@ -284,7 +288,50 @@ try {
     assert.ok(endpoint.requestedModels.slice(requestCount).includes(modelOption.value.slice("openai/".length)), "The next native inference request must use the selected model");
     assert.deepEqual(errors, []);
     assert.deepEqual(introductions, [], "Restoring an introduced lesson must not send another introduction");
-    console.log("Real CLI/browser: UIX workspace/editor/composer, real resources, reading preferences, chat visibility, native JSDoc, single-write save, undo/redo, checks, same-session reload, physical cancellation and next-turn model selection passed.");
+    assert.equal(answered.result.complete, true);
+    const [progressed] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/progressions")),
+      page.getByRole("button", { name: "Continue to next lesson", exact: true }).click(),
+    ]);
+    assert.equal(progressed.status(), 200);
+    await expect(page.locator(".view-lines")).toContainText("const next");
+    await expect.poll(async () => (await fetch(base.replace(/\/first$/, "/next")).then(response => response.json())).introduced, { timeout: 15_000 }).toBe(true);
+    await expect(page.getByRole("link", { name: /^First\b/ })).toBeVisible();
+    await page.getByRole("link", { name: /^First\b/ }).click();
+    await expect(page.locator(".view-lines")).toContainText("return 42");
+    await expect(page.getByRole("button", { name: "Check", exact: true })).toHaveCount(0);
+    const original = await inspectModels();
+    assert.equal(original.length, 1);
+    await page.locator(".monaco-editor textarea").focus();
+    await page.keyboard.insertText("Forbidden edit");
+    assert.equal((await inspectModels())[0].code, original[0].code, "A completed lesson's editor must remain read-only");
+    const completedSnapshot = await fetch(base).then(response => response.json());
+    assert.equal(completedSnapshot.isCurrent, false);
+    assert.equal(completedSnapshot.state, "completed");
+    assert.equal(completedSnapshot.sessionId, after.sessionId);
+    assert.equal(completedSnapshot.code, shortcutSolution);
+    await page.screenshot({ path: artifact("real-completed-lesson.png") });
+    const restoredUrl = page.url();
+    const oldReplies = replyCount(completedSnapshot);
+    const sentIntroductions = introductions.length;
+    await stopServer();
+    server = launchServer();
+    await expect.poll(async () => {
+      try { return (await fetch(`${origin}/api/control/courses`)).status; } catch { return 0; }
+    }, { timeout: 30_000 }).toBe(200);
+    await page.goto(restoredUrl);
+    await expect(page.locator(".view-lines")).toContainText("return 42");
+    await expect(page.getByTestId("chat-pane")).toHaveAttribute("data-chat-status", "ready");
+    const restarted = await fetch(base).then(response => response.json());
+    assert.equal(restarted.sessionId, after.sessionId);
+    assert.equal(restarted.code, shortcutSolution);
+    assert.equal(restarted.result.complete, true);
+    assert.equal(restarted.model.currentValue, modelOption.value);
+    assert.equal(replyCount(restarted), oldReplies);
+    assert.equal(introductions.length, sentIntroductions, "Restart must not reintroduce the restored lesson");
+    assert.deepEqual(errors, []);
+
+    console.log("Real CLI/browser: UIX workspace/editor/composer, real resources, reading preferences, chat visibility, native JSDoc, single-write save, undo/redo, checks, same-session reload, physical cancellation, next-turn model selection, progression, read-only completed lesson and server-restart restoration passed.");
   } catch (error) {
     if (page) {
       await page.screenshot({ path: artifact("results-failure.png") });
@@ -297,11 +344,33 @@ try {
   console.error(output);
   throw error;
 } finally {
-  if (server?.pid && server.exitCode === null && server.signalCode === null) {
-    const closed = once(server, "close");
-    if (process.platform === "win32") server.kill("SIGTERM"); else process.kill(-server.pid, "SIGTERM");
-    await closed;
-  }
+  await stopServer();
   await endpoint.close();
   await rm(scratch, { recursive: true, force: true });
+}
+
+async function stopServer() {
+  if (!server?.pid || server.exitCode !== null || server.signalCode !== null) return;
+  const child = server;
+  const processGroup = child.pid;
+  const closed = once(child, "close");
+  const kill = signal => {
+    try {
+      if (process.platform === "win32") child.kill(signal); else process.kill(-processGroup, signal);
+    } catch (error) { if (error.code !== "ESRCH") throw error; }
+  };
+  const timer = setTimeout(() => kill("SIGKILL"), 5_000);
+  try { kill("SIGTERM"); await closed; }
+  finally {
+    clearTimeout(timer);
+    if (process.platform !== "win32") {
+      // Reap any server descendants after the CLI leader exits. Signaling an
+      // empty process group can return EPERM on macOS; inspect actual members.
+      const members = execFileSync("ps", ["-axo", "pid=,pgid="], { encoding: "utf8" }).trim().split("\n")
+        .map(line => line.trim().split(/\s+/).map(Number)).filter(([, group]) => group === processGroup);
+      for (const [pid] of members) {
+        try { process.kill(pid, "SIGKILL"); } catch (error) { if (error.code !== "ESRCH") throw error; }
+      }
+    }
+  }
 }
