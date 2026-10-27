@@ -1,7 +1,7 @@
 # 0104: Use UIX layouts for native documentation and API reference
 
 Parent: UIX adoption (0100).
-Status: in progress on `feat/0104-uix-docs` in `.worktree/uix-0104`, based on verified main `c0173fd`.
+Status: done. PR #191 merged as `bf4426771554195759b6b091f5e8dfa0cef98bab`; merged staging and release workflow verified.
 
 Goal: serve the real compiled Fumadocs documentation and Elysia-generated OpenAPI pages inside the shared UIX documentation frame, using the application's router and content pipeline for URLs, history, headings, search and metadata.
 
@@ -40,3 +40,9 @@ Parity review also identified controls supplied by the retired notebook layout: 
 Final updated local gates: website browsers `19 passed (36.4s)` from a cold Vite cache with the test API origin supplied; Storybook browsers `79 passed (2.1m)`; web/UIX types passed; UIX unit tests `51 passed`; forced workspace build `6 successful, 0 cached, 34.753s`. The all-story surface check now waits for a visible rendered child, correctly admitting icon-only controls without depending on text content. No browser errors are filtered or retried. Hosted checks and deployment proof must cover this updated head.
 
 After the trace-based dependency correction, the fresh stable-input cold website gate passed: `19 passed (39.6s)`, with `DEBUG=vite:deps` reporting zero late dependency discoveries, zero optimizer changes, zero unhandled errors and zero Outdated Optimize Dep responses. Web types passed before this browser run. The only source change after `51a54f2` is the development optimizer include; presentation components and their earlier 79-story gate are unchanged. Updated CI/build/deployed proof must still pass before merge.
+
+## Merged verification
+
+PR [#191](https://github.com/dojofoo/dojofoo/pull/191) passed [Verify 40451801297](https://github.com/dojofoo/dojofoo/actions/runs/40451801297) on `6e71b79`: API 42 tests, UIX 51 tests, forced build 6 successful/0 cached, installed UI HTTP 200, website browsers 19 passed (1.1m). Its READY protected preview passed the deployed browser and OpenAPI/Markdown checks.
+
+Merged-main staging `bf4426771554195759b6b091f5e8dfa0cef98bab` is READY at https://dojofoo-ie4hy859a-tomsiwiks-projects.vercel.app (`dpl_HhTE3m3rPQoMdCUUU7HAdg3thp1t`). The actual browser verified compiled docs/authoring/developers/legacy pages, persistent header/sidebar nodes, complete Markdown copy, real installation/prompt copy, heading styling/hash/history, light/dark/system persistence, mobile navigation/outline/API width, one search palette and zero page errors. Supported Markdown returned 200; missing Markdown returned 404. Runtime OpenAPI was identical before/after course-profile traffic and matched the generated source. [Merged Release 40452228171](https://github.com/dojofoo/dojofoo/actions/runs/40452228171) passed. The live dojo.foo alias remained `dpl_DrTmJCAgt3oLbgrm8xJt3CJa29yB`; this merge did not promote production. All 18 concurrent root files retained their hashes after fast-forward.

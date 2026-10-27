@@ -10,7 +10,10 @@ import type { TeachingBlock } from "../lib/teaching-document";
 import { courseAssetUrl } from "../lib/course-asset-url.ts";
 
 type AssetContext = { basePath: string | null; workspaceId: string };
-const htmlNodes = (html: string) => fromHtml(html, { fragment: true }).children.filter((node) => node.type !== "doctype");
+// Parsed HTML fragments contain these children; root-only MDX declarations
+// added to HAST's type registry are not valid inside Twoslash hover elements.
+const htmlNodes = (html: string) => fromHtml(html, { fragment: true }).children.filter((node) =>
+  node.type === "element" || node.type === "text" || node.type === "comment");
 
 /** Compile authored content, not streaming chat. TypeScript stays on the server. */
 export async function renderTeachingMarkdown(source: string): Promise<string> {

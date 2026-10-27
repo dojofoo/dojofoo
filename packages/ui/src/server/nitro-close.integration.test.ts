@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { promisify, stripVTControlCharacters } from "node:util";
 import { expect, it } from "vitest";
 
 // Upstream #4593's lifecycle boundary, with no model or harness involved.
@@ -19,6 +19,8 @@ it.skipIf(process.platform === "win32").each([false, true])("awaits Nitro close 
     cwd: fixture, stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, CI: "true", NODE_ENV: "development", DOJO_NITRO_CLOSE_LOG: log,
       DOJO_PROJECT_ROOT: root, DOJO_NITRO_RUNTIME_ROOT: native ? root : "",
+      // Exercise the colored readiness output emitted by the CI runner.
+      FORCE_COLOR: "1", NO_COLOR: undefined,
       DOJOFOO_HOME: join(root, "home"), DOJO_EVE_ROOT: "", EVE_BASE_URL: "" },
   });
   let output = "";
@@ -26,7 +28,7 @@ it.skipIf(process.platform === "win32").each([false, true])("awaits Nitro close 
   const startup = setTimeout(() => ready.reject(new Error(`Vite startup timed out: ${output}`)), 10_000);
   child.stdout.on("data", data => {
     output += data;
-    const url = output.match(/Local:\s+(http:\/\/127\.0\.0\.1:\d+\/)/)?.[1];
+    const url = stripVTControlCharacters(output).match(/Local:\s+(http:\/\/127\.0\.0\.1:\d+\/)/)?.[1];
     if (url) ready.resolve(url);
   });
   child.stderr.on("data", data => { output += data; });
@@ -89,7 +91,7 @@ it.skipIf(process.platform === "win32")("closes production WebSockets before dra
     const ready = Promise.withResolvers<string>();
     const capture = (data: Buffer) => {
       output += data;
-      const url = output.match(/Listening on:\s+(http:\/\/127\.0\.0\.1:\d+)\/?/)?.[1];
+      const url = stripVTControlCharacters(output).match(/Listening on:\s+(http:\/\/127\.0\.0\.1:\d+)\/?/)?.[1];
       if (url) ready.resolve(url);
     };
     child.stdout!.on("data", capture);
