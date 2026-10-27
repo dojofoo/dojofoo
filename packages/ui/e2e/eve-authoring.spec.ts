@@ -16,6 +16,70 @@ const opening: MessageStreamEvent[] = [
   { type: "input.requested", data: { ...data, requests: [{ action, requestId: "question-review", kind: "question", prompt: "Choose a starting point", display: "select", options: [{ id: "review", label: "Review the outline" }, { id: "write", label: "Write a lesson" }] }] }, meta }, wait,
 ];
 
+test("Pages navigation filters nested authoring files and preserves selection across renames", async ({ page }) => {
+  let current = { ...draft, rootFiles: [...draft.rootFiles,
+    { path: "package.json", label: "package.json", content: "{}" },
+    { path: ".agents/skills/course/SKILL.md", label: "SKILL.md", content: "# Real guidance" },
+  ], lessons: [{ id: "first", title: "First lesson", senseiPath: "src/first/SENSEI.md", description: "", checks: [],
+    files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# Teach" }] }] };
+  const renames: unknown[] = [];
+  await page.routeWebSocket("**/api/authoring/changes*", () => {});
+  await page.route("**/api/authoring/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
+    if (path.endsWith("/draft")) return route.fulfill({ json: current });
+    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
+    if (route.request().method() === "PATCH") {
+      const { title } = route.request().postDataJSON();
+      renames.push({ path, title });
+      current = path.endsWith("/course") ? { ...current, name: title }
+        : { ...current, lessons: current.lessons.map(lesson => ({ ...lesson, title })) };
+      return route.fulfill({ json: current });
+    }
+    return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
+  });
+  await page.goto("/authoring?session=saved");
+  await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
+  const navigation = page.getByRole("navigation", { name: "Main menu" });
+  await expect(navigation.getByRole("tree")).toHaveCount(0);
+  await expect(navigation.locator("button button")).toHaveCount(0);
+  await expect(navigation.getByRole("button", { name: "package.json", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Course actions", exact: true }).click();
+  const boxStyle = (node: Element) => {
+    const style = getComputedStyle(node);
+    return { background: style.backgroundColor, radius: style.borderRadius, shadow: style.boxShadow };
+  };
+  const menuStyle = await page.getByRole("dialog").evaluate(boxStyle);
+  await page.getByRole("menuitemradio", { name: "Show all files", exact: true }).click();
+  for (const name of [".agents", "skills", "course"]) await navigation.getByRole("button", { name, exact: true }).click();
+  await navigation.getByRole("button", { name: "SKILL.md", exact: true }).click();
+  const tab = page.getByRole("tab", { name: "SKILL.md", exact: true });
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Real guidance");
+  const rename = async (from: string, to: string) => {
+    await navigation.getByRole("button", { name: from, exact: true }).hover();
+    await navigation.getByRole("button", { name: `Rename ${from}`, exact: true }).click();
+    const popup = page.getByRole("dialog");
+    expect(await popup.evaluate(boxStyle)).toEqual(menuStyle);
+    await popup.getByRole("textbox", { name: "Title", exact: true }).fill(to);
+    await page.screenshot({ path: test.info().outputPath(`rename-${from.replace(/\W+/gu, "-")}.png`), animations: "disabled" });
+    await popup.getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(navigation.getByRole("button", { name: to, exact: true })).toBeVisible();
+  };
+  await rename("Eve course", "Renamed draft");
+  await rename("First lesson", "Revised lesson");
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "Course actions", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "Show only course files", exact: true }).click();
+  await expect(navigation.getByRole("button", { name: "SKILL.md", exact: true })).toHaveCount(0);
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  expect(renames).toEqual([
+    { path: "/api/authoring/course", title: "Renamed draft" },
+    { path: "/api/authoring/lessons/first", title: "Revised lesson" },
+  ]);
+  await page.screenshot({ path: test.info().outputPath("authoring-pages-navigation.png"), animations: "disabled" });
+});
+
 test("reloading conversation history preserves the mounted editor and unsaved draft", async ({ page }) => {
   let repaired = false;
   await page.routeWebSocket("**/api/authoring/changes*", () => {});
@@ -277,8 +341,9 @@ test("report loading errors stay with their lesson and clear after watcher recov
   });
   await page.goto("/authoring?session=saved");
   const selectLesson = async (name: string) => {
-    const item = page.getByRole("treeitem", { name, exact: true });
-    if (await item.getAttribute("aria-expanded") !== "true") await item.getByRole("button", { name, exact: true }).click();
+    const button = page.getByRole("button", { name, exact: true });
+    if (await button.getAttribute("aria-expanded") !== "true") await button.click();
+    const item = page.locator(".ui-as-side__branch").filter({ has: button });
     await item.getByRole("button", { name: "SENSEI.md", exact: true }).click();
   };
   await selectLesson("first");
@@ -329,8 +394,9 @@ test("a late evaluation cannot replace another lesson's report", async ({ page }
   });
   await page.goto("/authoring?session=saved");
   const selectLesson = async (name: string) => {
-    const item = page.getByRole("treeitem", { name, exact: true });
-    if (await item.getAttribute("aria-expanded") !== "true") await item.getByRole("button", { name, exact: true }).click();
+    const button = page.getByRole("button", { name, exact: true });
+    if (await button.getAttribute("aria-expanded") !== "true") await button.click();
+    const item = page.locator(".ui-as-side__branch").filter({ has: button });
     await item.getByRole("button", { name: "SENSEI.md", exact: true }).click();
   };
   await selectLesson("first");
@@ -372,7 +438,7 @@ test("a course without lessons has no empty report button", async ({ page }) => 
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
   await page.goto("/authoring?session=saved");
-  await expect(page.getByTestId("authoring-chat-pane")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Course conversation", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Report|Evaluation results/ })).toHaveCount(0);
   expect(posts).toEqual([]);
 });
@@ -480,8 +546,9 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
   await page.goto("/authoring?session=saved");
-  const lessonItem = page.getByRole("treeitem", { name: "first", exact: true });
-  if (await lessonItem.getAttribute("aria-expanded") !== "true") await lessonItem.getByRole("button", { name: "first", exact: true }).click();
+  const lessonButton = page.getByRole("button", { name: "first", exact: true });
+  if (await lessonButton.getAttribute("aria-expanded") !== "true") await lessonButton.click();
+  const lessonItem = page.locator(".ui-as-side__branch").filter({ has: lessonButton });
   await lessonItem.getByRole("button", { name: "SENSEI.md", exact: true }).click();
   const popup = page.waitForEvent("popup", { timeout: 5000 });
   await page.getByRole("button", { name: "Trial", exact: true }).click();

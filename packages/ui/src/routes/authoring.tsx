@@ -20,7 +20,8 @@ import { AuthoringFilePreview } from "@/components/authoring-file-preview";
 import { AuthoringEvaluationReport } from "@/components/authoring-evaluation-report";
 import { AuthoringEvaluationSettings } from "@/components/authoring-evaluation-settings";
 import type { EvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
-import { AuthoringSidebar } from "@/components/authoring-sidebar";
+import { TreeTitleMenu, authoringEvaluationStatus, authoringSidebarSelection } from "@/components/authoring-sidebar";
+import { authoringNavigation } from "@/lib/authoring-navigation";
 import { AuthoringChat } from "@/components/authoring-chat";
 import { EveAuthoringChat } from "@/components/eve-authoring-chat";
 import { CourseContent } from "@/components/course-content";
@@ -32,11 +33,11 @@ import { useAuthoringWatch } from "@/hooks/use-authoring-watch";
 import { Button } from "@dojofoo/ui/button";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
-import { AppShell } from "@dojofoo/uix/components/app-shell";
+import { AppShell, Dropdown, Icon } from "@dojofoo/uix/components/app-shell";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
-import { CoursesIcon } from "@dojofoo/uix/icons";
+import { CoursesIcon, DoneIcon, Cancel01Icon, FilterIcon } from "@dojofoo/uix/icons";
 import { ScrollArea } from "@dojofoo/ui/scroll-area";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { FileTree, FileTreeFile, FileTreeFolder } from "@dojofoo/uix/components/motion/file-tree";
@@ -62,6 +63,8 @@ function AuthoringPage() {
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>(null);
   const [courseExpanded, setCourseExpanded] = useState(true);
+  const [onlyCourseFiles, setOnlyCourseFiles] = useState(true);
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const [scope, setScope] = useState<"course" | "lesson">("course");
   const [view, setView] = useState<"editor" | "preview">("editor");
   const [newLessonId, setNewLessonId] = useState<string | null>(null);
@@ -409,34 +412,53 @@ function AuthoringPage() {
     </main>
   </AppShell></div>;
 
+  const navigation = authoringNavigation(workspace, onlyCourseFiles);
+  const courseRow = navigation[0]!.items[0]!;
+  courseRow.actions = <TreeTitleMenu title={courseRow.label} disabled={Boolean(busy)} onRename={title => { void renameCourse(title); }} />;
+  navigation[0]!.actions = <Dropdown title="Course files" align="end" items={[{
+    label: onlyCourseFiles ? "Show all files" : "Show only course files", checked: !onlyCourseFiles, onSelect: () => setOnlyCourseFiles(value => !value),
+  }]} trigger={({ open, toggle }) => <button type="button" className="ui-as-icon-btn" aria-label="Course actions" aria-expanded={open} onClick={toggle}><Icon icon={FilterIcon} size={14} /></button>} />;
+  const lessonGroups = workspace.lessons.map(lesson => `authoring:lesson:${encodeURIComponent(lesson.id)}`);
+  navigation[1]!.items.forEach((row, index) => {
+    const lesson = workspace.lessons[index];
+    if (!lesson) { row.disabled = Boolean(busy); return; }
+    const status = authoringEvaluationStatus(lessonStatuses[lesson.id]);
+    const verdict = lessonStatuses[lesson.id];
+    row.note = status.label;
+    row.status = <span role="img" aria-label={status.label} className="flex size-4 shrink-0 items-center justify-center text-[var(--brand)]">
+      {verdict === "passed" ? <Icon icon={DoneIcon} size={13} /> : verdict?.endsWith("failed") ? <Icon icon={Cancel01Icon} size={13} /> : <i className="size-1.5 rounded-full bg-current opacity-60" />}
+    </span>;
+    row.actions = <TreeTitleMenu title={row.label} disabled={Boolean(busy)} onRename={title => { void renameLesson(lesson.id, title); }} />;
+  });
+  const activeResource = scope === "course" ? `authoring:course:file:${encodeURIComponent(activeFilePath)}`
+    : `authoring:lesson:${encodeURIComponent(selectedLessonId ?? "")}:file:${encodeURIComponent(activeFilePath)}`;
+  const expandedGroups = Object.fromEntries([
+    ["authoring:course", courseExpanded],
+    ...expandedFolders.map(id => [id, true]),
+    ...workspace.lessons.map(lesson => [`authoring:lesson:${encodeURIComponent(lesson.id)}`, expandedLessonId === lesson.id]),
+  ]);
   const conversation = backend === "eve"
     ? <EveAuthoringChat embedded sessionId={search.session} api={authoringApi} onSession={id => { void navigate({ search: previous => ({ ...previous, session: id }), replace: true }); }} />
     : <AuthoringChat embedded messages={chatMessages} status={chatStatus} busy={Boolean(busy)} value={message} onValueChange={setMessage} onSend={value => { void sendMessage(value); }} onAnswer={answerTool} />;
   return <div className="h-dvh overflow-hidden">
-    <AgentChatWorkspace {...shell} contentKind="code" active="authoring"
-      navigation={[
-        { id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] },
-        { id: "draft", items: [], before: <>
-            <AuthoringSidebar
-              activeFilePath={activeFilePath}
-              busy={Boolean(busy)}
-              courseExpanded={courseExpanded}
-              expandedLessonId={expandedLessonId}
-              onAddLesson={() => void addLesson()}
-              onCourseExpandedChange={setCourseExpanded}
-              onLessonExpandedChange={setExpandedLessonId}
-              onRenameCourse={(title) => void renameCourse(title)}
-              onRenameLesson={(lessonId, title) => void renameLesson(lessonId, title)}
-              onSelectLessonFile={selectLessonFile}
-              onSelectRootFile={selectRootFile}
-              scope={scope}
-              selectedLessonId={selectedLessonId}
-              statuses={lessonStatuses}
-              workspace={workspace}
-            />
-        </> },
-      ]}
-      onNavigate={id => { if (id === "courses") window.location.assign("/"); }}
+    <AgentChatWorkspace {...shell} contentKind="code" active={activeResource}
+      navigation={[{ id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] }, ...navigation]}
+      expandedGroups={expandedGroups} onExpandedGroupsChange={next => {
+        setCourseExpanded(Boolean(next["authoring:course"]));
+        const opened = lessonGroups.find(id => next[id] && !expandedGroups[id]) ?? lessonGroups.find(id => next[id]);
+        setExpandedLessonId(opened ? workspace.lessons[lessonGroups.indexOf(opened)]!.id : null);
+        setExpandedFolders(Object.keys(next).filter(id => next[id] && id !== "authoring:course" && !lessonGroups.includes(id)));
+      }}
+      onNavigate={id => {
+        if (id === "courses") { window.location.assign("/"); return; }
+        if (id === "authoring:add-lesson") { if (!busy) void addLesson(); return; }
+        const selected = authoringSidebarSelection(workspace, id);
+        if (selected?.scope === "course") selectRootFile(selected.path);
+        else if (selected) {
+          const lesson = workspace.lessons.find(item => item.id === selected.lessonId);
+          if (lesson) selectLessonFile(lesson, selected.path);
+        }
+      }}
       crumbs={[
         { label: workspace.name || "Untitled dojo", onClick: () => selectRootFile(workspace.rootFiles[0]?.path ?? "dojo.yaml") },
         ...(scope === "lesson" && selectedLesson ? [{ label: selectedLesson.title }] : []),

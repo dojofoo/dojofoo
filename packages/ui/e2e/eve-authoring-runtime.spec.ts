@@ -50,41 +50,44 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     const queued = ["Keep examples short", "Focus on one example"];
 
     // Edit through the same Monaco document and save shortcut as an author.
-    const edit = async (source: string) => {
-      await page.getByRole("textbox", { name: "Code editor" }).focus();
+    const edit = async (path: string, source: string) => {
+      await expect(page.locator("[data-file-tab][data-active]")).toHaveAttribute("data-file-tab", path);
+      const host = page.locator(".dojo-code-editor[data-file-path]");
+      await expect(host).toHaveAttribute("data-file-path", path);
+      await expect(host.locator(".monaco-editor[data-uri]")).toHaveAttribute("data-uri", new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`));
+      await expect(host.getByText("Loading editor…", { exact: true })).toHaveCount(0);
+      await host.getByRole("textbox", { name: "Code editor" }).focus();
       await page.keyboard.press("ControlOrMeta+a");
       await page.keyboard.insertText(source);
+      await expect(page.getByRole("button", { name: `Close ${path}`, exact: true })).toHaveAttribute("data-dirty", "true");
       const saved = page.waitForResponse(response => response.request().method() === "PUT" && response.url().includes("/api/authoring/"));
       await page.keyboard.press("ControlOrMeta+s");
       expect((await saved).ok()).toBe(true);
     };
-    await edit("mode: katas\nname: Browser authoring fixture\nversion: 0.0.1\ndescription: Learn pure functions.\nlanguage: typescript\ntest: npx vitest run {template}\nkatas: []\n");
-    await page.getByRole("button", { name: "Lessons actions" }).click();
-    await page.getByRole("button", { name: "Add lesson", exact: true }).click();
+    await edit("dojo.yaml", "mode: katas\nname: Browser authoring fixture\nversion: 0.0.1\ndescription: Learn pure functions.\nlanguage: typescript\ntest: npx vitest run {template}\nkatas: []\n");
+    await page.getByRole("button", { name: "New lesson", exact: true }).click();
     await page.getByRole("button", { name: "SENSEI.md", exact: true }).click();
     await expect(page.getByRole("tab", { name: "SENSEI.md", exact: true })).toBeVisible();
-    await edit("# Pure functions\n\nAsk the learner to predict an output before editing.\n");
+    await edit("src/001-untitled-lesson/SENSEI.md", "# Pure functions\n\nAsk the learner to predict an output before editing.\n");
     expect(await readFile(join(course, "src/001-untitled-lesson/SENSEI.md"), "utf8")).toContain("predict an output");
     await page.getByRole("button", { name: "kata.ts", exact: true }).click();
-    await edit('export function double(value: number): number { throw new Error("Your turn"); }\n');
+    await edit('src/001-untitled-lesson/kata.ts', 'export function double(value: number): number { throw new Error("Your turn"); }\n');
     await page.getByRole("button", { name: "kata.test.ts", exact: true }).click();
-    await edit('import { it, expect } from "vitest";\nimport { double } from "@/katas/001-untitled-lesson/kata";\nit("doubles a positive value", () => expect(double(2)).toBe(4));\nit("keeps zero", () => expect(double(0)).toBe(0));\n');
+    await edit('src/001-untitled-lesson/kata.test.ts', 'import { it, expect } from "vitest";\nimport { double } from "@/katas/001-untitled-lesson/kata";\nit("doubles a positive value", () => expect(double(2)).toBe(4));\nit("keeps zero", () => expect(double(0)).toBe(0));\n');
     // Author the next lesson separately so advancement has a real destination.
-    await page.getByRole("button", { name: "Lessons actions" }).click();
-    await page.getByRole("button", { name: "Add lesson", exact: true }).click();
-    const second = page.getByRole("treeitem", { name: "Untitled lesson", exact: true }).nth(1);
+    await page.getByRole("button", { name: "New lesson", exact: true }).click();
+    const second = page.locator(".ui-as-side__branch").filter({ has: page.getByRole("button", { name: "Untitled lesson", exact: true }) }).nth(1);
     await second.getByRole("button", { name: "SENSEI.md", exact: true }).click();
-    await edit("# Identity\n\nAsk the learner what should stay unchanged.\n");
+    await edit("src/002-untitled-lesson/SENSEI.md", "# Identity\n\nAsk the learner what should stay unchanged.\n");
     await second.getByRole("button", { name: "kata.ts", exact: true }).click();
-    await edit('export function identity(value: number): number { throw new Error("Your turn"); }\n');
+    await edit('src/002-untitled-lesson/kata.ts', 'export function identity(value: number): number { throw new Error("Your turn"); }\n');
     await second.getByRole("button", { name: "kata.test.ts", exact: true }).click();
-    await edit('import { it, expect } from "vitest";\nimport { identity } from "@/katas/002-untitled-lesson/kata";\nit("keeps its input", () => expect(identity(3)).toBe(3));\n');
+    await edit('src/002-untitled-lesson/kata.test.ts', 'import { it, expect } from "vitest";\nimport { identity } from "@/katas/002-untitled-lesson/kata";\nit("keeps its input", () => expect(identity(3)).toBe(3));\n');
     const selectFirstLesson = async () => {
-      const first = page.getByRole("treeitem", { name: "Untitled lesson", exact: true }).first();
-      if (await first.getAttribute("aria-expanded") !== "true") {
-        await first.getByRole("button", { name: "Untitled lesson", exact: true }).click();
-      }
-      await expect(first).toHaveAttribute("aria-expanded", "true");
+      const button = page.getByRole("button", { name: "Untitled lesson", exact: true }).first();
+      if (await button.getAttribute("aria-expanded") !== "true") await button.click();
+      const first = page.locator(".ui-as-side__branch").filter({ has: page.getByRole("button", { name: "Untitled lesson", exact: true }) }).first();
+      await expect(button).toHaveAttribute("aria-expanded", "true");
       await first.getByRole("button", { name: "SENSEI.md", exact: true }).click();
     };
     await selectFirstLesson();
