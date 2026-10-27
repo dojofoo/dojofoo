@@ -48,7 +48,8 @@
                     "status": {
                       "type": "string"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -146,7 +147,8 @@
                         }
                       }
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -495,7 +497,8 @@
                                   }
                                 }
                               }
-                            }
+                            },
+                            "additionalProperties": false
                           },
                           "trendingRank": {
                             "anyOf": [
@@ -512,7 +515,8 @@
                         }
                       }
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -729,7 +733,8 @@
                         }
                       }
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -751,7 +756,8 @@
                     "message": {
                       "type": "string"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -920,7 +926,8 @@
                     "durationMs": {
                       "type": "number"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -942,7 +949,8 @@
                     "message": {
                       "type": "string"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -1121,7 +1129,8 @@
                     "generatedAt": {
                       "type": "string"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -1355,7 +1364,8 @@
                         }
                       }
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -1377,7 +1387,8 @@
                     "message": {
                       "type": "string"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -1577,7 +1588,8 @@
                         }
                       }
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -1599,7 +1611,8 @@
                     "message": {
                       "type": "string"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -1705,7 +1718,8 @@
                         }
                       }
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -1727,7 +1741,8 @@
                     "message": {
                       "type": "string"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -1832,7 +1847,8 @@
                     "duplicate": {
                       "type": "boolean"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -1854,7 +1870,8 @@
                     "message": {
                       "type": "string"
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               }
             }

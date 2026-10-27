@@ -1,7 +1,7 @@
 # 0102: Make UIX a production library with explicit application inputs
 
 Parent: [UIX adoption](0100-uix-adoption.md).
-Status: in progress in `.worktree/uix-0102`, based on main `5751d74`; 0101 and its release fixes are merged.
+Status: library merged in PR 186; OpenAPI stability follow-through in progress on `fix/openapi-schema-stability` in `.worktree/uix-0103`.
 
 ## Goal
 
@@ -87,3 +87,11 @@ PASS: staging safeguard active; live alias unchanged.
 ```
 
 Website browser: 11 passed (20.8s). Hosted CI, PR deployment and post-merge staged deployment evidence must be attached before this slice is considered done. The full migration remains active through 0110.
+
+
+Hosted library follow-through: [PR 186](https://github.com/dojofoo/dojofoo/pull/186) merged as `bf6314c`. [Verify 40425810346](https://github.com/dojofoo/dojofoo/actions/runs/40425810346) passed in 4m44s; [main Release 40426353146](https://github.com/dojofoo/dojofoo/actions/runs/40426353146) passed. Its staged native API page responds with HTTP 200 and the live alias remains unchanged.
+
+The staged live OpenAPI comparison exposed request-order drift: after marketplace traffic Elysia added `additionalProperties: false` to that response schema. A two-app local probe reproduced the difference, and exercising the other endpoints exposed the same mutation in their response boundaries. The follow-through branch precompiles Elysia validators before its OpenAPI plugin observes their schemas and regenerates both Elysia/Fumadocs artifacts. The regression test compares cold and used API documents across all documented GET endpoints and the event route. Fresh API gates: 42 passed; ten Fumadocs documents verified. Acceptance still requires deployed equality after ordinary API traffic, not only a cold preview response.
+
+
+Fresh follow-through gates: API 42 passed; UIX 42 passed; website types exit 0; ten generated Fumadocs documents verified; forced build six tasks successful, zero cached (31.359s); website browser 11 passed (19.1s). Hosted and warm-deployment checks remain pending for the follow-through commit.
