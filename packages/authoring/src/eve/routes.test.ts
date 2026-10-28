@@ -174,7 +174,8 @@ describe("Eve authoring HTTP routes using the real Eve client", () => {
     const response = await app.request("/sessions", { method: "POST", body: JSON.stringify({ message: "Introduce the course" }) });
     const streamed = await response.text();
     expect(streamed).toContain('"threadId":"session-1"');
-    expect(streamed).toContain("Introduce the course");
+    expect(streamed).toContain("Continue with the review.");
+    expect(streamed).not.toContain("MESSAGES_SNAPSHOT");
     expect(streamed).toContain("RUN_FINISHED");
     expect(requests.filter(request => request.body)).toHaveLength(1);
     expect(requests[0].url.pathname).toBe("/eve/v1/session");
@@ -185,7 +186,8 @@ describe("Eve authoring HTTP routes using the real Eve client", () => {
     const response = await app.request("/sessions/session-1/messages", { method: "POST", body: JSON.stringify({ message: "Explain the prerequisites" }) });
     const streamed = await response.text();
     expect(streamed).toContain("Review?");
-    expect(streamed).toContain("Explain the prerequisites");
+    expect(streamed).toContain("Continue with the review.");
+    expect(streamed).not.toContain("MESSAGES_SNAPSHOT");
     expect(streamed).toContain("RUN_FINISHED");
     const posts = requests.filter(request => request.body);
     expect(posts).toHaveLength(1);
