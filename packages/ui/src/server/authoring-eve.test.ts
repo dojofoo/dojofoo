@@ -30,6 +30,24 @@ describe("authoring Eve mount", () => {
     expect((await app.request("/backend")).status).toBe(503);
   });
 
+  it("uses the owned production host's credentials through the original Client", async () => {
+    const calls: Headers[] = [];
+    const mock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      calls.push(new Headers(init?.headers));
+      return Response.json({ sessionId: "owned-session", deliveryId: "accepted" });
+    });
+    const app = new Hono();
+    const close = mountEveAuthoring(app, { ...workspace(), runtime: async () => ({
+      start: async () => ({ url: "http://owned-agent.invalid", auth: { basic: { username: "dojo-host", password: "fixture-secret" } } }),
+      close: async () => {},
+    }) });
+    try {
+      const response = await app.request("/eve/sessions/start", { method: "POST" });
+      expect(response.status).toBe(201);
+      expect(calls[0].get("authorization")).toBe(`Basic ${Buffer.from("dojo-host:fixture-secret").toString("base64")}`);
+    } finally { await close(); mock.mockRestore(); }
+  });
+
   it("does not start an unused host during shutdown", async () => {
     const runtime = vi.fn();
     const close = mountEveAuthoring(new Hono(), { ...workspace(), runtime });
