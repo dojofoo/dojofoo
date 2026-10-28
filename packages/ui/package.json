@@ -57,7 +57,7 @@
     "storybook": "10.6.3",
     "tm-grammars": "1.32.22",
     "typescript": "6.0.3",
-    "vite": "^8.3.4"
+    "vite": "^8.3.5"
   },
   "dependencies": {
     "@a2a-js/sdk": "0.3.14",

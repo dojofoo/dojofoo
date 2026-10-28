@@ -228,9 +228,9 @@
   "devDependencies": {
     "@tanstack/ai-client": "0.39.3",
     "@types/node": "^26.6.5",
-    "pnpm": "12.14.0",
+    "pnpm": "12.15.0",
     "typescript": "6.0.3",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vitest": "^5.0.5",
     "tsup": "9.0.0"
   }
