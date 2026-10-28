@@ -44,6 +44,29 @@ function fixture() {
 }
 
 describe("local control-plane API", () => {
+  it.each(["create-your-own-dojo", "how-to-run-a-dojo"])("installs %s only in the explicitly selected workspace", async courseId => {
+    const { root, stateHome } = fixture();
+    const workspaceId = observeWorkspacePath(root, { stateHome });
+    const installStarter = vi.fn(async (_root: string, _id: string) => {});
+    const routes = buildControlRoutes({ stateHome, installStarter });
+    const install = (id: string, workspace: string) => routes.request(`/starters/${id}/install`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceId: workspace }),
+    });
+    expect((await install(courseId, "unknown-workspace")).status).toBe(404);
+    expect((await install("unknown-course", workspaceId)).status).toBe(404);
+    expect(installStarter).not.toHaveBeenCalled();
+    const response = await install(courseId, workspaceId);
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ workspaceId, courseId });
+    expect(installStarter).toHaveBeenCalledExactlyOnceWith(root, courseId);
+    installStarter.mockRejectedValueOnce(new Error("Course already installed; existing edits preserved."));
+    const duplicate = await install(courseId, workspaceId);
+    expect(duplicate.status).toBe(500);
+    expect(await duplicate.json()).toEqual({ error: "Course already installed; existing edits preserved." });
+    expect((await routes.request(`/starters/${courseId}/install`, { method: "POST", headers: { Origin: "https://other.invalid" }, body: JSON.stringify({ workspaceId }) })).status).toBe(403);
+    expect(installStarter).toHaveBeenCalledTimes(2);
+  });
+
   it("cleans only its new directory when scaffolding fails and leaves no registered draft", async () => {
     const { root, stateHome } = fixture();
     const original = readFileSync(resolve(root, ".dojorc"), "utf8");

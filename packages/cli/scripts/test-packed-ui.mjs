@@ -1,6 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const expectedPackage = JSON.parse(readFileSync(resolve(cliRoot, "package.json"), "utf8"));
-const scratch = mkdtempSync(resolve(tmpdir(), "dojo-packed-install-"));
+const scratch = realpathSync(mkdtempSync(resolve(tmpdir(), "dojo-packed-install-")));
 const packs = resolve(scratch, "packs");
 const installRoot = resolve(scratch, "install");
 const projectRoot = resolve(scratch, "project");
@@ -21,6 +21,7 @@ try {
   mkdirSync(packs, { recursive: true });
   mkdirSync(installRoot, { recursive: true });
   mkdirSync(projectRoot, { recursive: true });
+  writeFileSync(resolve(projectRoot, ".dojorc"), JSON.stringify({ currentDojo: "", currentKata: null, editor: null }));
   writeFileSync(resolve(installRoot, "package.json"), JSON.stringify({ private: true }));
 
   // The public CLI must carry its private workspace runtime by itself.
@@ -95,7 +96,7 @@ try {
 
   const port = await availablePort();
   const executable = resolve(installRoot, "node_modules/.bin/dojofoo");
-  const help = execFileSync(executable, ["--help"], { encoding: "utf8" });
+  const help = execFileSync(executable, ["--help"], { encoding: "utf8", env: { ...process.env, DOJOFOO_HOME: resolve(scratch, "home") } });
   if (!help.includes("Usage: npx dojofoo") || !help.includes("install [--agent]") || !help.includes("ui [--background]") || !help.includes("https://dojo.localhost")) {
     throw new Error("Packed dojofoo executable does not advertise its install command and default UI URL.");
   }
@@ -108,6 +109,7 @@ try {
       CI: "",
       TEST: "",
       DOJO_PROJECT_ROOT: projectRoot,
+      DOJOFOO_HOME: resolve(scratch, "home"),
       DOJO_UI_DISABLE_PORTLESS: "1",
       PORT: String(port),
     },
@@ -123,6 +125,22 @@ try {
     throw new Error(`Packed dojo UI returned ${response.status} without an HTML document.`);
   }
   console.log(`Packed dojo UI responded with HTTP ${response.status}.`);
+  const base = `http://127.0.0.1:${port}`;
+  const workspaces = await (await fetch(`${base}/api/control/workspaces`)).json();
+  const workspace = workspaces.find(item => item.path === realpathSync(projectRoot));
+  if (!workspace) throw new Error("The packed CLI did not register its workspace.");
+  for (const courseId of ["create-your-own-dojo", "how-to-run-a-dojo"]) {
+    const installed = await fetch(`${base}/api/control/starters/${courseId}/install`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceId: workspace.id }),
+    });
+    if (installed.status !== 201) throw new Error(`Packed starter installation failed (${installed.status}): ${await installed.text()}`);
+    const resource = `${base}/api/workspaces/${workspace.id}/courses/${courseId}/interactive`;
+    const material = await (await fetch(resource)).json();
+    if (material.dojo !== courseId || material.current?.type !== "present") throw new Error(`Packed ${courseId} has no first learning material.`);
+    const conversation = await (await fetch(`${resource}/conversation`)).json();
+    if (conversation.sessionId !== null) throw new Error("Opening a starter unexpectedly created an agent session.");
+    console.log(`Packed starter ${courseId}: installed, first material available, no agent session.`);
+  }
 } catch (error) {
   if (output) process.stderr.write(output);
   throw error;

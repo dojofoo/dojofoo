@@ -1,4 +1,10 @@
-Open a terminal outside the tutorial's installation folder. Create an empty folder for your own course:
+Use the **Dashboard** breadcrumb, then choose **New course**. Dojo creates a separate folder for your draft and opens it in Kyoshi authoring.
+
+Your draft appears under **Authoring** on the Dashboard, so you can return to it later. Keep this tutorial open in another tab while you work.
+
+Ask Kyoshi to use the audience and outcome you chose in the previous step. Give your draft its own name and check the files in the editor before continuing.
+
+You can also start from an empty folder in a terminal:
 
 ```sh
 mkdir my-first-dojo
@@ -6,10 +12,4 @@ cd my-first-dojo
 npx dojofoo kyoshi --style katas --name my-first-dojo
 ```
 
-This is the existing authoring command. It scaffolds a kata course in the current folder and opens authoring. Agent setup or a first conversation may require your configured agent and its normal model usage.
-
-Use an empty folder you own. Do not run this command inside `.dojos/create-your-own-dojo` or inside the source of this tutorial. Your draft and this tutorial must have different file roots and names.
-
-Keep the tutorial available in its own workspace while you work. To reopen your draft later, run `npx dojofoo ui --authoring` from the draft folder.
-
-See [Author with Kyoshi](https://dojo.foo/authoring/authoring-ui) for the supported commands.
+To reopen that draft, run `npx dojofoo ui --authoring` from its folder.
