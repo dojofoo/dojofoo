@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Course authoring tools and Kyoshi agents for Dojofoo.",
-  "license": "MIT",
+  "license": "FSL-1.1-ALv2",
   "files": [
     "dist",
     "skills",
