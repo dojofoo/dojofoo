@@ -24,6 +24,16 @@
       "import": "./dist/server.js",
       "default": "./dist/server.js"
     },
+    "./server/production": {
+      "types": "./dist/server-production.d.ts",
+      "import": "./dist/server-production.js",
+      "default": "./dist/server-production.js"
+    },
+    "./server/build": {
+      "types": "./dist/server-build.d.ts",
+      "import": "./dist/server-build.js",
+      "default": "./dist/server-build.js"
+    },
     "./internal/programmatic-source-loader": {
       "types": "./dist/eve/dist/src/internal/programmatic-source-loader.d.ts",
       "import": "./dist/eve/dist/src/internal/programmatic-source-loader.js",

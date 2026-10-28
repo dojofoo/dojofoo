@@ -46,9 +46,11 @@ try {
   // Preserve package scope, internal imports, workers, assets and license notices.
   await cp(upstream, destination, { recursive: true });
   // Re-export the host API from our facade; do not modify Eve's public module.
-  const server = 'export * from "./eve/dist/src/public/server/index.js";\nexport { createDevelopmentServer } from "./eve/dist/src/internal/nitro/host/start-development-server.js";\n';
+  const server = 'export * from "./eve/dist/src/public/server/index.js";\nexport { createDevelopmentServer } from "./eve/dist/src/internal/nitro/host/start-development-server.js";\nexport { startProductionServer } from "./eve/dist/src/internal/nitro/host/start-production-server.js";\n';
   for (const extension of ["js", "d.ts"]) {
     await writeFile(join(root, "dist", `server.${extension}`), server);
+    await writeFile(join(root, "dist", `server-production.${extension}`), 'export { startProductionServer } from "./eve/dist/src/internal/nitro/host/start-production-server.js";\n');
+    await writeFile(join(root, "dist", `server-build.${extension}`), 'export { buildApplication } from "./eve/dist/src/internal/nitro/host/build-application.js";\n');
   }
   await writeFile(join(destination, "dojo-build.json"), JSON.stringify({
     upstream: `eve@${version}`, integrity: packed.integrity,
