@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { dojoDir, findManifestPath, readDojoRc } from "../config";
 import { pinPortlessAddress } from "../portless-address";
 
+const portlessCli = fileURLToPath(new URL("./cli.js", import.meta.resolve("portless")));
+
 /** Author the requested course, not its enclosing multi-course workspace. */
 export function resolveAuthoringRoot(cwd: string, workspace: string): string {
   if (findManifestPath(cwd)) return cwd;
@@ -50,14 +52,14 @@ export async function ui(cwd: string, args: string[]): Promise<void> {
     throw new Error(`Invalid dojo UI port: ${port}`);
   }
 
-  if (!args.includes("--no-portless") && process.env.DOJO_UI_DISABLE_PORTLESS !== "1" && hasCommand("portless")) {
+  if (!args.includes("--no-portless") && process.env.DOJO_UI_DISABLE_PORTLESS !== "1" && existsSync(portlessCli)) {
     // The UI is a disposable daemon. Always replace an existing route so a
     // newly installed CLI cannot keep serving HTML from an older asset manifest.
     // The managed name must not take over the website's existing dojo.td route.
     const managedName = `dojofoo-ui-${name}`;
     const portlessArgs = ["--name", managedName, "--force"];
     portlessArgs.push("--", process.execPath, uiEntry);
-    const child = spawn("portless", portlessArgs, {
+    const child = spawn(process.execPath, [portlessCli, ...portlessArgs], {
       cwd,
       env: { ...process.env, DOJO_CLI: process.argv[1] },
       stdio: background ? "ignore" : "inherit",
@@ -165,20 +167,11 @@ function replaceDirectDaemon(pidFile: string, uiEntry: string): void {
 
 function activePortlessUrl(name: string): string | null {
   try {
-    const output = execFileSync("portless", ["list"], { encoding: "utf8" });
+    const output = execFileSync(process.execPath, [portlessCli, "list"], { encoding: "utf8" });
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
     return output.match(new RegExp(`https?://${escaped}\\.[^\\s]+`))?.[0] ?? null;
   } catch {
     return null;
-  }
-}
-
-function hasCommand(command: string): boolean {
-  try {
-    execFileSync(command, ["--version"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
   }
 }
 
