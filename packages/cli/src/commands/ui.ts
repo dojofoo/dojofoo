@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dojoDir, findManifestPath, readDojoRc } from "../config";
 import { pinPortlessAddress } from "../portless-address";
+import { observeWorkspacePath } from "@dojofoo/config/local-state";
 
 const portlessCli = fileURLToPath(new URL("./cli.js", import.meta.resolve("portless")));
 
@@ -51,6 +52,7 @@ export async function ui(cwd: string, args: string[]): Promise<void> {
   if (!/^\d+$/u.test(port) || Number(port) < 1 || Number(port) > 65_535) {
     throw new Error(`Invalid dojo UI port: ${port}`);
   }
+  if (args.includes("--authoring")) observeWorkspacePath(process.env.DOJO_PROJECT_ROOT ?? cwd);
 
   if (!args.includes("--no-portless") && process.env.DOJO_UI_DISABLE_PORTLESS !== "1" && existsSync(portlessCli)) {
     // The UI is a disposable daemon. Always replace an existing route so a

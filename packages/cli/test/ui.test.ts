@@ -8,6 +8,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { ui, resolveAuthoringRoot, resolveUiEntry, resolveUiOpenPath } from "../src/commands/ui";
+import { listWorkspaces } from "@dojofoo/config/local-state";
 
 vi.mock(import("node:child_process"), { spy: true });
 vi.mock(import("node:fs"), { spy: true });
@@ -59,6 +60,22 @@ describe("bundled dojo UI", () => {
   it("opens authoring inside the same Portless UI", () => {
     expect(resolveUiOpenPath(["--authoring"])).toBe("/authoring");
     expect(resolveUiOpenPath([])).toBe("");
+  });
+
+  it("registers a standalone authoring course before opening its UI", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dojo-authoring-registration-"));
+    const stateHome = mkdtempSync(join(tmpdir(), "dojo-authoring-registration-home-"));
+    temporaryRoots.push(root, stateHome);
+    writeFileSync(join(root, "dojo.yaml"), "name: standalone\nversion: 1.0.0\n");
+    vi.stubEnv("DOJOFOO_HOME", stateHome);
+    vi.stubEnv("DOJO_PROJECT_ROOT", root);
+    const { existsSync: exists } = await vi.importActual<typeof import("node:fs")>("node:fs");
+    vi.spyOn(filesystem, "existsSync").mockImplementation(path => String(path).replaceAll("\\", "/").endsWith("/ui/server/index.mjs") || exists(path));
+    vi.spyOn(childProcess, "spawn").mockReturnValue(new EventEmitter() as ReturnType<typeof childProcess.spawn>);
+    try {
+      await ui(root, ["--authoring", "--no-portless", "--no-open", "--port", "60766"]);
+      expect(listWorkspaces({ stateHome }).map(workspace => workspace.path)).toContain(root);
+    } finally { vi.restoreAllMocks(); vi.unstubAllEnvs(); }
   });
 
   it("resolves the production server from an installed CLI package", () => {
