@@ -6,9 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AuthoringChat } from "./authoring-chat";
 import { httpError } from "@/lib/http-error";
 import { chatMessageContent } from "@/lib/chat-files";
+import { codingAgents } from "@/lib/coding-agents";
+import { AiBrain01Icon } from "@dojofoo/uix/icons";
 
-type Snapshot = { sessionId: string; messages: UIMessage[]; initialResumeSnapshot?: ChatClientOptions["initialResumeSnapshot"] };
-type Session = { id: string; resume?: { threadId: string; runId: string; pendingInterrupts: unknown[] } };
+type Snapshot = { sessionId: string; agent: string; messages: UIMessage[]; initialResumeSnapshot?: ChatClientOptions["initialResumeSnapshot"] };
+type Session = { id: string; agent: string; resume?: { threadId: string; runId: string; pendingInterrupts: unknown[] } };
 type Page<T> = { data: T[]; pagination: { hasMore: boolean } };
 const agentApi = (workspaceId: string, path = "") => `/api/v1/workspaces/${encodeURIComponent(workspaceId)}${path}`;
 
@@ -31,7 +33,7 @@ async function readSession(workspaceId: string, sessionId: string, signal: Abort
     hasMore = result.pagination.hasMore;
   }
   return {
-    sessionId: session.id, messages,
+    sessionId: session.id, agent: session.agent, messages,
     initialResumeSnapshot: session.resume ? {
       resumeState: { threadId: session.resume.threadId, runId: session.resume.runId },
       pendingInterrupts: session.resume.pendingInterrupts,
@@ -143,7 +145,9 @@ function AgentConversation({ workspaceId, snapshot, onReload, embedded, value, o
     for (const { interrupt, payload } of entries) interrupt.resolveInterrupt(payload);
   }
   const active = chat.resuming || chat.status === "submitted" || chat.status === "streaming";
-  return <AuthoringChat embedded={embedded} placeholder={placeholder} messages={chat.messages} status={chat.status} busy={chat.resuming}
+  const selectedAgent = codingAgents.find(choice => choice.value === snapshot.agent)
+    ?? { value: snapshot.agent, name: snapshot.agent, icon: AiBrain01Icon };
+  return <AuthoringChat embedded={embedded} agent={selectedAgent} placeholder={placeholder} messages={chat.messages} status={chat.status} busy={chat.resuming}
     value={value} onValueChange={onValueChange} attachments files={files} onFilesChange={onFilesChange}
     queueLabel={chat.interrupts.length > 0 && !chat.resuming ? "Waiting for your answer" : queueLabel}
     queue={chat.queue.map(item => {

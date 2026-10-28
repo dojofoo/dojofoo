@@ -8,6 +8,7 @@ test("authoring restores history and sends a file without text through the versi
   await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
   await expect(page.getByText("Your saved guidance.", { exact: true })).toBeVisible({ timeout: 4000 });
   const composer = page.getByTestId("authoring-chat-composer");
+  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toContainText("Codex");
   await composer.locator('input[type="file"]').setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("Course notes") });
   await composer.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByText("I received your notes.", { exact: true })).toBeVisible({ timeout: 4000 });
@@ -28,6 +29,25 @@ test("an accepted conversation survives a failed history read and retries withou
   await page.getByRole("button", { name: "Reload conversation", exact: true }).click();
   await expect(page.getByText("I received your notes.", { exact: true })).toBeVisible({ timeout: 4000 });
   expect(calls.filter(call => call === `POST /api/v1/workspaces/${workspaceId}/sessions`)).toHaveLength(1);
+});
+
+test("new authoring opens its files and conversation without calling the retired backend discovery route", async ({ page }) => {
+  test.setTimeout(20_000);
+  await mount(page);
+  const release = Promise.withResolvers<void>();
+  let discoveries = 0;
+  await page.route("**/api/authoring/backend*", async route => {
+    discoveries++;
+    await release.promise;
+    return route.fulfill({ json: { backend: "eve" } });
+  });
+  try {
+    await page.goto(`/authoring?workspace=${workspaceId}`);
+    await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible({ timeout: 4000 });
+    await expect(page).toHaveURL(/session=session-1/, { timeout: 4000 });
+    await expect(page.getByText("I received your notes.", { exact: true })).toBeVisible({ timeout: 4000 });
+    expect(discoveries).toBe(0);
+  } finally { release.resolve(); }
 });
 
 test("conversation reload preserves an unsent note and attachment through a failed retry", async ({ page }) => {

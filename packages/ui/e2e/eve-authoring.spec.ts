@@ -244,24 +244,22 @@ test("reloading conversation history preserves editor text and undo", async ({ p
   await expect(page.locator(".monaco-editor .view-lines")).not.toContainText("# unsaved draft");
 });
 
-test("workspace startup failure can be retried without replacing the conversation", async ({ page }) => {
+test("course files can be retried without replacing the conversation", async ({ page }) => {
   let repaired = false;
   agent.eve.histories.set("saved", turn("prior", "Keep my existing course conversation", ["Your saved guidance."]));
-  const starts: string[] = [];
   let changed: () => void = () => {};
   await page.routeWebSocket("**/api/authoring/changes*", socket => {
     changed = () => socket.send(JSON.stringify({ method: "workspace.changed" }));
   });
   await page.route("**/api/authoring/**", route => {
     const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/backend")) return repaired
-      ? route.fulfill({ json: { backend: "eve" } })
-      : route.fulfill({ status: 503, json: { error: "Harness runtime unavailable" } });
-    if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+    if (path.endsWith("/draft")) return repaired
+      ? route.fulfill({ json: draft })
+      : route.fulfill({ status: 503, json: { error: "Course files unavailable" } });
     return route.fulfill({ status: 404, json: { error: "Unexpected route" } });
   });
-  await page.goto("/authoring?session=saved");
-  await expect(page.getByRole("alert")).toContainText("Harness runtime unavailable");
+  await page.goto("/authoring?workspace=ws-1&session=saved");
+  await expect(page.getByRole("alert").filter({ hasText: "Course files unavailable" })).toBeVisible();
   // Saved guidance and draft input remain available while startup is repaired.
   const refreshed = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/draft"));
   changed();
@@ -275,7 +273,7 @@ test("workspace startup failure can be retried without replacing the conversatio
   await expect(question).toHaveValue("Keep this unsent note");
   await expect(page.getByText("Keep my existing course conversation", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/session=saved/);
-  expect(starts).toEqual([]);
+  expect([...agent.eve.histories.keys()]).toEqual(["saved"]);
 });
 
 test("a failed save stays with its file and preserves the unsaved content", async ({ page }) => {
@@ -463,7 +461,7 @@ test("evaluation settings save model choices, not secrets or worker paths, witho
   await page.goto("/authoring?session=saved&workspace=isolated-course");
   const composer = page.getByTestId("authoring-chat-composer");
   await expect(composer.getByRole("button", { name: "Add file", exact: true })).toBeEnabled();
-  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toContainText("Coding agent");
+  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toContainText("Codex");
   await page.getByRole("button", { name: "You", exact: true }).click();
   const boxStyle = (node: Element) => {
     const style = getComputedStyle(node);

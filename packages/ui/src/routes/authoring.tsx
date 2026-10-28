@@ -2,9 +2,7 @@ import { Eye, Code } from "@mynaui/icons-react";
 import type { AuthoringEvalReport } from "@dojofoo/authoring/server";
 import { httpError } from "@/lib/http-error";
 import type { AuthoringDraft, AuthoringWorkspace } from "@dojofoo/authoring/service";
-import { authoringMessageText, isAuthoringBootstrapMessage } from "@dojofoo/authoring/types";
 import { createFileRoute } from "@tanstack/react-router";
-import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
 import {
   ExternalLink,
   Refresh as RefreshCw,
@@ -33,7 +31,6 @@ import { WorkspaceSkeleton } from "@dojofoo/uix/components/workspace-skeleton";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LessonBrief, LessonChecklist } from "@dojofoo/uix/components/lesson-brief";
 import { CoursesIcon, DoneIcon, Cancel01Icon, File01Icon, FilterIcon } from "@dojofoo/uix/icons";
-import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 
 const CodeEditor = lazy(() => import("@dojofoo/uix/containers/code-editor").then(({ CodeEditor }) => ({ default: CodeEditor })));
 
@@ -52,7 +49,6 @@ function AuthoringPage() {
   const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const [backend, setBackend] = useState<"acp" | "eve">();
   const [workspace, setWorkspace] = useState<AuthoringDraft | null>(null);
   const agentWorkspace = useAgentWorkspace(search.workspace, workspace?.root);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
@@ -64,7 +60,6 @@ function AuthoringPage() {
   const [view, setView] = useState<"editor" | "preview">("editor");
   const [newLessonId, setNewLessonId] = useState<string | null>(null);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("Loading your dojo…");
   const [error, setError] = useState<string | null>(null);
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
@@ -76,18 +71,6 @@ function AuthoringPage() {
   const [evaluationError, setEvaluationError] = useState<{ lessonId: string; source: "load" | "run"; message: string; previousReport?: string } | null>(null);
   const reportLesson = useRef<string | null>(null);
   reportLesson.current = scope === "lesson" ? selectedLessonId : null;
-  const outgoing = useRef<Record<string, unknown>>({});
-  const chatConnection = useMemo(() => fetchServerSentEvents(
-    authoringApi("/api/authoring/messages"),
-    () => ({ body: outgoing.current })
-  ), []);
-  const {
-    messages: chatMessages,
-    sendMessage: sendChatMessage,
-    setMessages: setChatMessages,
-    status: chatStatus,
-  } = useChat({ connection: chatConnection, persistence: false, threadId: "kyoshi" });
-
   useEffect(() => { void bootstrap(); }, []);
 
   const selectedLesson = workspace?.lessons.find(({ id }) => id === selectedLessonId) ?? null;
@@ -207,50 +190,12 @@ function AuthoringPage() {
     setActiveFilePath(file.path);
   }
 
-  function hydrateChat(next: AuthoringWorkspace) {
-    setChatMessages(next.messages
-      .filter((entry) => (entry.kind === undefined || entry.kind === "message") && !isAuthoringBootstrapMessage(entry))
-      .map((entry, index): UIMessage => ({
-        id: `${entry.startedAt ?? 0}:${index}`,
-        role: entry.role,
-        parts: [{ type: "text", content: authoringMessageText(entry) }],
-      })));
-  }
-
   async function bootstrap() {
     setBusy("Loading your dojo…");
     setError(null);
-    // Files are independent of the agent connection and can be opened immediately.
-    let initialFiles = true;
-    const files = request<AuthoringDraft>(authoringApi("/api/authoring/draft")).then(
-      value => { if (initialFiles) selectWorkspace(value); return { value }; },
-      error => ({ error }),
-    );
-    try {
-      const selected = await request<{ backend: "acp" | "eve" }>(authoringApi("/api/authoring/backend"));
-      if (selected.backend === "eve") {
-        const result = await files;
-        if ("error" in result) throw result.error;
-        setBackend("eve");
-        return;
-      }
-      if (selected.backend !== "acp") throw new Error("Unsupported authoring backend");
-      setBackend("acp");
-      const initial = await request<AuthoringWorkspace>("/api/authoring/workspace");
-      initialFiles = false;
-      selectWorkspace(initial);
-      hydrateChat(initial);
-      setBusy("Kyoshi is preparing the course…");
-      await request<AuthoringWorkspace>("/api/authoring/session", { method: "POST" });
-      await drainStream("/api/authoring/introduction", { method: "POST" });
-      const ready = await request<AuthoringWorkspace>("/api/authoring/workspace");
-      selectWorkspace(ready);
-      hydrateChat(ready);
-    } catch (cause) {
-      setError(errorMessage(cause));
-    } finally {
-      setBusy("");
-    }
+    try { selectWorkspace(await request<AuthoringDraft>(authoringApi("/api/authoring/draft"))); }
+    catch (cause) { setError(errorMessage(cause)); }
+    finally { setBusy(""); }
   }
 
   async function perform(label: string, action: () => Promise<void>) {
@@ -264,30 +209,6 @@ function AuthoringPage() {
   async function refreshWorkspace() {
     await perform("Refreshing course files…", async () => {
       selectWorkspace(await request<AuthoringDraft>("/api/authoring/draft"));
-    });
-  }
-
-  async function sendMessage(value: string) {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    setMessage("");
-    outgoing.current = { message: trimmed };
-    setBusy("Kyoshi is responding…");
-    try { await sendChatMessage(trimmed); }
-    catch (cause) { setError(errorMessage(cause)); }
-    finally { setBusy(""); }
-  }
-
-  async function answerTool(answers: Record<string, AskUserAnswer>) {
-    await perform("Continuing authoring…", async () => {
-      await request("/api/authoring/answers", {
-        body: JSON.stringify({ answers: Object.fromEntries(Object.values(answers).map((answer) => [
-          answer.questionId,
-          answer.otherText ? [...answer.selectedIds, answer.otherText] : answer.selectedIds,
-        ])) }),
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      });
     });
   }
 
@@ -407,13 +328,11 @@ function AuthoringPage() {
 
   const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>;
   const shell = { ...account, brand, workspace: "Dojo", sidebarWidth: "18rem", showNews: false, showOnboarding: false };
-  const conversation = backend === "eve" || (backend === undefined && search.session)
-    ? agentWorkspace.id ? <AgentChat key={agentWorkspace.id} embedded workspaceId={agentWorkspace.id} persona="kyoshi" sessionId={search.session} onSession={id => {
+  const conversation = agentWorkspace.id ? <AgentChat key={agentWorkspace.id} embedded workspaceId={agentWorkspace.id} persona="kyoshi" sessionId={search.session} onSession={id => {
       rememberAuthoringSession(agentWorkspace.id!, id);
       void navigate({ search: previous => ({ ...previous, workspace: agentWorkspace.id, session: id }), replace: true });
     }} /> : <AuthoringChat embedded messages={[]} status="ready" busy={!agentWorkspace.error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}}
-      error={agentWorkspace.error} onRetryLoad={agentWorkspace.retry} />
-    : <AuthoringChat embedded messages={chatMessages} status={chatStatus} busy={Boolean(busy)} inputDisabled={!backend} value={message} onValueChange={setMessage} onSend={value => { void sendMessage(value); }} onAnswer={answerTool} />;
+      error={agentWorkspace.error} onRetryLoad={agentWorkspace.retry} />;
   if (!workspace) return <div className="h-dvh overflow-hidden"><AgentChatWorkspace {...shell} navigation={[
     { id: "files", heading: "Courses", items: [], before: !error && <WorkspaceSkeleton label="Loading course files" rows={4} /> },
   ]} crumbs={[{ label: "Authoring" }]} askAssistant={false}
@@ -476,18 +395,18 @@ function AuthoringPage() {
         { label: workspace.name || "Untitled dojo", onClick: () => selectRootFile(workspace.rootFiles[0]?.path ?? "dojo.yaml") },
         ...(scope === "lesson" && selectedLesson ? [{ label: selectedLesson.title }] : []),
       ]}
-      askAssistant={backend === "acp" && !busy}
+      askAssistant={false}
       commands={[{ id: "files", label: "Files", commands: (files ?? []).map(file => ({
         id: `open:${file.path}`, label: file.label, hint: fileLessons.get(file.path)?.title ?? workspace.name,
         icon: <Icon icon={File01Icon} size={16} />, keywords: file.path,
       })) }]}
-      onCommand={(id, query) => {
+      onCommand={id => {
         if (id.startsWith("open:")) {
           const path = id.slice(5);
           const lesson = fileLessons.get(path);
           if (lesson) selectLessonFile(lesson, path);
           else selectRootFile(path);
-        } else if (id === "ask" && query && backend === "acp" && !busy) void sendMessage(query);
+        }
       }}
       editor={<Editor flush className="h-full" tabs={
         <EditorTabs mode="authoring" label="Authoring workspace" active={activeFilePath}
@@ -523,7 +442,7 @@ function AuthoringPage() {
               </div>
             </section>
             {error ? <div role="alert" className="flex items-start gap-3 border-t border-dashed px-5 py-2 text-sm text-destructive"><p className="flex-1">{error}</p>
-              {!backend && <UIXButton disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</UIXButton>}
+              <UIXButton disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</UIXButton>
               <button type="button" className="shrink-0 underline" onClick={() => setError(null)}>Dismiss</button></div> : null}
             {fileErrors[activeFilePath] ? <div role="alert" className="flex items-start gap-3 border-t border-dashed px-5 py-2 text-sm text-destructive">
               <p className="flex-1">{activeFilePath}: {fileErrors[activeFilePath]}</p>
@@ -610,14 +529,6 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, withAuthoringWorkspace(init));
   if (!response.ok) throw await httpError(response);
   return response.json() as Promise<T>;
-}
-
-async function drainStream(url: string, init: RequestInit): Promise<void> {
-  const response = await fetch(url, withAuthoringWorkspace(init));
-  if (!response.ok) throw await httpError(response);
-  const reader = response.body?.getReader();
-  if (!reader) return;
-  while (!(await reader.read()).done) { /* Transcript is projected after the native turn. */ }
 }
 
 function useAgentWorkspace(fromUrl: string | undefined, root: string | undefined) {

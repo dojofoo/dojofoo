@@ -1,7 +1,7 @@
 import type { UIMessage } from "@tanstack/ai-react";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojofoo/ui/chat-container";
-import { Composer } from "@dojofoo/uix/containers/assistant-home";
+import { Composer, type ComposerAgent } from "@dojofoo/uix/containers/assistant-home";
 import { AiBrain01Icon } from "@dojofoo/uix/icons";
 import { ConversationContent } from "@dojofoo/uix/containers/learning-workspace";
 import { Button } from "@dojofoo/uix/components/button";
@@ -11,8 +11,9 @@ import { ChatTranscript } from "./chat/assistant-response";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 
 /** Shared presentation for ACP and Eve. Neither backend owns a separate layout. */
-export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryAnswer, onRetryLoad, queue = [], onCancelQueued, queueLabel = "Kyoshi is responding", embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…" }: {
+export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryAnswer, onRetryLoad, queue = [], onCancelQueued, queueLabel = "Kyoshi is responding", embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent }: {
   embedded?: boolean;
+  agent?: ComposerAgent;
   placeholder?: string;
   messages: UIMessage[];
   status: string;
@@ -45,7 +46,7 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
     </div>;
   const composer = <div data-testid="authoring-chat-composer">
       {queue.length > 0 ? <MessageQueue running={queueLabel} queued={queue} onCancel={onCancelQueued} /> : null}
-      <Composer tray={false} attachments={attachments || "unavailable"} files={files} onFilesChange={onFilesChange} dictation={false} plugins={false} models={[]} agent={{ name: "Coding agent", icon: AiBrain01Icon }}
+      <Composer tray={false} attachments={attachments || "unavailable"} files={files} onFilesChange={onFilesChange} dictation={false} plugins={false} models={[]} agent={agent ?? { name: "Coding agent", icon: AiBrain01Icon }}
         disabled={inputDisabled || readOnly} busy={active} onStop={onStop} queueing={Boolean(onCancelQueued)}
         history={messages.filter(({ role }) => role === "user").map(entry => entry.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
         onSend={(text, selected) => { scrollToBottom(); return onSend(text, selected); }} onValueChange={onValueChange} placeholder={placeholder} value={value} />
