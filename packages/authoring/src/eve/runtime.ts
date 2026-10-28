@@ -1,8 +1,10 @@
 import { readFile, realpath, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
 import { delimiter, join } from "node:path";
 import { authoringHarness, type AuthoringHarness } from "./harness.ts";
-import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness } from "./prepare.ts";
+import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiHost, prepareKyoshiOutput } from "./prepare.ts";
 import { authoringEnvironment } from "./environment.ts";
 import { evaluationConfiguration } from "../evaluation/host.ts";
 import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
@@ -44,27 +46,43 @@ export async function acquireKyoshiRuntime(courseRoot: string) {
 export async function createKyoshiRuntime(courseRoot: string, options: { model?: string } = {}) {
   const harnessId = authoringHarness({ ...process.env, DOJOFOO_HARNESS: resolveRuntimeHarness("authoring", courseRoot) }).harnessId;
   const harness = (harnessId === "grok-build" ? "grok" : harnessId) as AuthoringHarness;
-  const app = await prepareKyoshiApp(courseRoot);
+  const definition = await prepareKyoshiApp(courseRoot);
   const harnessRoot = await prepareKyoshiHarness(courseRoot);
-  const runtimePath = app === join(await realpath(courseRoot), ".dojo", "kyoshi")
+  const authored = definition === join(await realpath(courseRoot), ".dojo", "kyoshi");
+  let development = existsSync(join(definition, ".eve", "dev-runtime"));
+  const app = authored && !development ? await prepareKyoshiHost(courseRoot, "kyoshi-host") : definition;
+  const runtimePath = authored && development
     ? join(app, ".eve", "dojo-runtime.json") : join(app, "runtime.json");
   let model = options.model;
-  if (model === undefined) {
-    try {
-      const saved: unknown = JSON.parse(await readFile(runtimePath, "utf8"));
-      if (saved && typeof saved === "object" && "harness" in saved && saved.harness === harness
-        && "model" in saved && typeof saved.model === "string") model = saved.model;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
+  try {
+    const saved: unknown = JSON.parse(await readFile(runtimePath, "utf8"));
+    // Existing development Workflow generations cannot be resumed by a
+    // bundled production host. Their old binding has no production auth.
+    if (!authored && saved && typeof saved === "object" && !("auth" in saved)) development = true;
+    if (model === undefined && saved && typeof saved === "object" && "harness" in saved && saved.harness === harness
+      && "model" in saved && typeof saved.model === "string") model = saved.model;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   // Keep Node workers and the coordinator in the same installed package scope.
   const load = createRequire(import.meta.url);
-  const { createDevelopmentServer } = await import(load.resolve("@dojofoo/agent/server")) as typeof import("@dojofoo/agent/server");
+  const { startProductionServer } = await import(load.resolve("@dojofoo/agent/server/production")) as typeof import("@dojofoo/agent/server/production");
+  const { Client } = await import(load.resolve("@dojofoo/agent/client")) as typeof import("@dojofoo/agent/client");
   const { createLocalSandbox, registerLocalProcessHost, prepareHarnessEnvironment } = await import(load.resolve("@dojofoo/agent/experimental/local")) as typeof import("@dojofoo/agent/experimental/local");
-  const server = createDevelopmentServer(app, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
+  const auth = development ? undefined : { basic: { username: "dojo-host", password: randomBytes(32).toString("hex") } };
+  let production: Awaited<ReturnType<typeof startProductionServer>> | undefined;
+  const server = development
+    ? (await import(load.resolve("@dojofoo/agent/server")) as typeof import("@dojofoo/agent/server")).createDevelopmentServer(app, { host: "127.0.0.1", port: 0, existing: "reject", resume: true })
+    : {
+      async start() {
+        await prepareKyoshiOutput(app, authored ? definition : undefined);
+        production = await startProductionServer(app, { host: "127.0.0.1", port: 0 });
+        return production;
+      },
+      async close() { await production?.close(); },
+    };
   let host: ReturnType<typeof registerLocalProcessHost> | undefined;
-  let starting: Promise<{ url: string }> | undefined;
+  let starting: Promise<{ url: string; auth: typeof auth }> | undefined;
   let closing: Promise<void> | undefined;
   const cleanup = async () => {
     // Workers can still be waiting on native process pipes. Close both owners
@@ -86,6 +104,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
         try {
           await writeFile(runtimePath, JSON.stringify({
             courseRoot,
+            auth: auth?.basic,
             harnessRoot,
             model,
             harness,
@@ -97,12 +116,10 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
           const started = await server.start();
           // A bound port is not proof that Eve can load the authored agent.
           // This endpoint resolves the active compiled generation without a model turn.
-          const info = await fetch(new URL("eve/v1/info", started.url), {
+          await new Client({ host: started.url, auth }).info({
             signal: AbortSignal.timeout(10_000),
           });
-          if (!info.ok) throw new Error(`Kyoshi agent failed readiness (${info.status}): ${await info.text()}`);
-          await info.json();
-          return started;
+          return { url: started.url, auth };
         } catch (error) {
           await cleanup();
           throw error;

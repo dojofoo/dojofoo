@@ -319,6 +319,9 @@ importers:
       json-rpc-2.0:
         specifier: 1.7.0
         version: 1.7.0
+      just-bash:
+        specifier: 3.6.0
+        version: 3.6.0
       ws:
         specifier: 8.21.0
         version: 8.21.0
@@ -386,6 +389,9 @@ importers:
       jiti:
         specifier: ^2.7.0
         version: 2.7.0
+      just-bash:
+        specifier: 3.6.0
+        version: 3.6.0
       portless:
         specifier: ^0.15.8
         version: 0.15.8

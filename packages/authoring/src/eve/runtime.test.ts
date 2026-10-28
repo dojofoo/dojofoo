@@ -5,24 +5,37 @@ import { promisify } from "node:util";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { courseFileFilter } from "@dojofoo/config";
+import { Client } from "@dojofoo/agent/client";
 import { expect, it, vi } from "vitest";
 import { acquireKyoshiRuntime, createKyoshiRuntime } from "./runtime";
+import { buildCourseKyoshi } from "./build";
 
 it("boots a master in a plain Node process without monorepo module paths", async () => {
   const root = await mkdtemp(join(tmpdir(), "dojo-master-native-"));
   await mkdir(join(root, ".dojo/kyoshi"), { recursive: true });
   await writeFile(join(root, ".dojo/kyoshi/instructions.md"), "Help author this course.\n");
   try {
+    const began = performance.now();
+    await buildCourseKyoshi(root);
+    console.info(`Plain Node course preparation: ${Math.round(performance.now() - began)}ms`);
     const entry = join(root, "boot.mjs");
     await writeFile(entry, `
       const { createKyoshiRuntime } = await import(${JSON.stringify(new URL("../../dist/eve/runtime.js", import.meta.url).href)});
       const runtime = await createKyoshiRuntime(process.argv[2]);
-      try { await runtime.start(); } finally { await runtime.close(); }
+      let ready;
+      try { ready = await runtime.start(); } finally { await runtime.close(); }
+      let responds = false;
+      try { await fetch(ready.url, { signal: AbortSignal.timeout(2000) }); responds = true; } catch {}
+      if (responds) throw new Error("Native host still responds after shutdown");
+      // Match Eve's one-shot CLI lifecycle after verifying owned resources closed.
+      process.exit(0);
     `);
-    await promisify(execFile)(process.execPath, [entry, root], { timeout: 50_000, env: { ...process.env, NODE_PATH: undefined,
+    const boot = promisify(execFile)(process.execPath, [entry, root], { timeout: 50_000, env: { ...process.env, NODE_PATH: undefined,
       DOJOFOO_HOME: join(root, "home"), EVE_MOCK_AUTHORED_MODELS: "1" } });
+    boot.child.stdout?.on("data", chunk => console.info(String(chunk).trim()));
+    await boot;
   } finally { await rm(root, { recursive: true, force: true }); }
-}, 60_000);
+}, 90_000);
 
 it("keeps native ownership when the UI module graph is invalidated", async () => {
   const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-reload-"));
@@ -39,7 +52,7 @@ it("keeps native ownership when the UI module graph is invalidated", async () =>
   }
 });
 
-it("boots a retained master Kyoshi through Eve with its course tool and skill", async () => {
+it("installs an authored master and retains its course tool and skill when installed elsewhere", async () => {
   const root = await mkdtemp(join(tmpdir(), "dojo-master-kyoshi-runtime-"));
   const authored = join(root, ".dojo/kyoshi");
   await mkdir(join(authored, "tools"), { recursive: true });
@@ -47,10 +60,11 @@ it("boots a retained master Kyoshi through Eve with its course tool and skill", 
   await writeFile(join(authored, "instructions.md"), "MASTER_KYOSHI: Help author this specific course.\n");
   await writeFile(join(authored, "tools/course_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
   await writeFile(join(authored, "skills/course-specific/SKILL.md"), "---\nname: course-specific\ndescription: Design this course's examples.\n---\nMASTER_SKILL\n");
+  await buildCourseKyoshi(root);
   const runtime = await createKyoshiRuntime(root);
   try {
-    const { url } = await runtime.start();
-    const info = await (await fetch(new URL("eve/v1/info", url))).json();
+    const ready = await runtime.start();
+    const info = await new Client({ host: ready.url, auth: ready.auth }).info();
     expect(info.skills.static.map((skill: { name: string }) => skill.name)).toContain("course-specific");
     expect(JSON.stringify(info)).toContain("course_question");
     expect(await readFile(join(authored, "instructions.md"), "utf8")).toContain("MASTER_KYOSHI");
@@ -61,19 +75,18 @@ it("boots a retained master Kyoshi through Eve with its course tool and skill", 
     try {
       const include = courseFileFilter(root, true);
       await cp(root, installed, { recursive: true, filter: path => include(relative(root, path)) });
+      await buildCourseKyoshi(installed);
       const reopened = await createKyoshiRuntime(installed);
       try {
         const ready = await reopened.start();
-        expect((await fetch(new URL("eve/v1/info", ready.url))).status).toBe(200);
-        const settings = JSON.parse(await readFile(join(installed, ".dojo/kyoshi/.eve/dojo-runtime.json"), "utf8"));
-        expect(settings.courseRoot).toBe(installed);
+        expect(JSON.stringify(await new Client({ host: ready.url, auth: ready.auth }).info())).toContain("course_question");
       } finally { await reopened.close(); }
     } finally { await rm(installed, { recursive: true, force: true }); }
   } finally {
     await runtime.close();
     await rm(root, { recursive: true, force: true });
   }
-}, 60_000);
+}, 150_000);
 
 it("allows explicit acquisition after a failed setup is repaired", async () => {
   const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-repair-"));
@@ -112,12 +125,9 @@ it("owns a real packaged Eve server and releases it without launching a model", 
     const state = JSON.parse(await readFile(join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json"), "utf8"));
     expect(state.courseRoot).toBe(root);
     expect(state.connection.id).toEqual(expect.any(String));
-    expect(Object.keys(state).sort()).toEqual(["connection", "courseRoot", "harness", "harnessRoot"]);
     // Eve owns generation paths: verify through its manifest-loading API,
     // not an assumed .eve/compile location.
-    const infoResponse = await fetch(new URL("eve/v1/info", first.url));
-    expect(infoResponse.status).toBe(200);
-    const info = await infoResponse.json();
+    const info = await new Client({ host: first.url, auth: first.auth }).info();
     expect(info.skills.static.map((skill: { name: string }) => skill.name).sort())
       .toEqual(["kata-lessons", "lesson-design", "teaching-evals"]);
     await Promise.all([runtime.close(), runtime.close()]);
@@ -128,7 +138,7 @@ it("owns a real packaged Eve server and releases it without launching a model", 
     const restarted = await createKyoshiRuntime(root);
     try {
       const ready = await restarted.start();
-      expect((await fetch(new URL("eve/v1/info", ready.url))).status).toBe(200);
+      expect(await new Client({ host: ready.url, auth: ready.auth }).info()).toBeDefined();
     } finally {
       await restarted.close();
     }

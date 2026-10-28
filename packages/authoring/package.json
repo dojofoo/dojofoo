@@ -6,6 +6,8 @@
   "license": "MIT",
   "files": [
     "dist",
+    "agents/kyoshi",
+    "scripts/build-agent.mjs",
     "skills",
     "templates",
     "src/**/*.ts",
@@ -115,6 +117,24 @@
       "import": "./dist/eve/runtime.js",
       "default": "./dist/eve/runtime.js"
     },
+    "./eve/install": {
+      "types": "./src/eve/install.ts",
+      "development": "./src/eve/install.ts",
+      "import": "./dist/eve/install.js",
+      "default": "./dist/eve/install.js"
+    },
+    "./eve/artifact": {
+      "types": "./src/eve/artifact.ts",
+      "development": "./src/eve/artifact.ts",
+      "import": "./dist/eve/artifact.js",
+      "default": "./dist/eve/artifact.js"
+    },
+    "./eve/build": {
+      "types": "./src/eve/build.ts",
+      "development": "./src/eve/build.ts",
+      "import": "./dist/eve/build.js",
+      "default": "./dist/eve/build.js"
+    },
     "./KYOSHI.md": "./src/contracts/KYOSHI.md",
     "./NATIVE-HARNESS.md": "./src/contracts/NATIVE-HARNESS.md",
     "./prompts": {
@@ -200,8 +220,10 @@
   },
   "scripts": {
     "test": "vitest run",
+    "test:prepared": "node scripts/verify-agent.mjs",
+    "test:custom-agent": "node scripts/verify-custom-agent.mjs",
     "types:check": "tsc --noEmit",
-    "build": "tsup"
+    "build": "tsup && node scripts/build-agent.mjs"
   },
   "dependencies": {
     "@ai-sdk/harness": "1.0.153",
@@ -221,6 +243,7 @@
     "globby": "16.2.4",
     "hono": "^4.13.1",
     "json-rpc-2.0": "1.7.0",
+    "just-bash": "3.6.0",
     "ws": "8.21.0",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"

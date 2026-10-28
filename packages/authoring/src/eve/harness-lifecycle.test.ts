@@ -7,6 +7,7 @@ import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
 import { expect, it } from "vitest";
 import { authoringHarness } from "./harness";
 import { authoringEnvironment } from "./environment";
+import { prepareAuthoringHarness } from "./install";
 
 // No prompts or inference. Opt-in because official adapters may bootstrap their
 // native binaries and discover the user's existing authentication configuration.
@@ -14,6 +15,9 @@ const enabled = process.env.DOJO_HARNESS_LIFECYCLE === "1";
 it.skipIf(!enabled).each(["codex", "opencode", "pi", "cursor", "grok", "fx"])(
   "%s boots and reports its unprompted-session recovery capability",
   async name => {
+    const preparation = performance.now();
+    await prepareAuthoringHarness(name as Parameters<typeof prepareAuthoringHarness>[0]);
+    const preparedAt = performance.now();
     const environment = await authoringEnvironment(name as Parameters<typeof authoringEnvironment>[0], {
       ...process.env,
       PATH: `${fileURLToPath(new URL("../../node_modules/.bin", import.meta.url))}:${process.env.PATH}`,
@@ -26,6 +30,7 @@ it.skipIf(!enabled).each(["codex", "opencode", "pi", "cursor", "grok", "fx"])(
     });
     try {
       const session = await agent.createSession({ sandboxSession: sandbox, abortSignal: AbortSignal.timeout(60_000) });
+      console.info(`${name}: install preparation ${Math.round(preparedAt - preparation)}ms; prepared session ${Math.round(performance.now() - preparedAt)}ms (no prompt).`);
       expect(session.sessionId).toEqual(expect.any(String));
       if (["codex", "cursor", "grok", "fx"].includes(name)) {
         await expect(session.compact()).rejects.toMatchObject({
