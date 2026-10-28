@@ -4,6 +4,7 @@ import { httpError } from "./http-error";
 it.each([
   ['{"error":"History temporarily unavailable"}', "History temporarily unavailable"],
   ['{"message":"Session unavailable"}', "Session unavailable"],
+  ['{"error":"agent_failed","message":"The coding agent could not start"}', "The coding agent could not start"],
   ["Internal Server Error", "Internal Server Error"],
   ["", "Request failed (503)."],
   ['{"error":{"code":"unavailable"}}', '{"error":{"code":"unavailable"}}'],

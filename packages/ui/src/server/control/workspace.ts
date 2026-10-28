@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { findProjectRoot, hasWorkspaceConfiguration } from "@dojofoo/config";
+import { findManifestPath, findProjectRoot, hasWorkspaceConfiguration } from "@dojofoo/config";
 import { listWorkspaces, type LocalStateOptions } from "@dojofoo/config/local-state";
 
 /** @deprecated New resource routes identify the workspace in their URL. */
@@ -15,7 +15,7 @@ export function resolveRequestWorkspace(request: Request, options: LocalStateOpt
 
 export function resolveWorkspaceId(workspaceId: string, options: LocalStateOptions = {}): string {
   const workspace = listWorkspaces(options).find((candidate) => candidate.id === workspaceId);
-  if (!workspace || !hasWorkspaceConfiguration(workspace.path)) {
+  if (!workspace || (!hasWorkspaceConfiguration(workspace.path) && !findManifestPath(workspace.path))) {
     throw new Error("The selected dojo workspace is no longer available.");
   }
   return resolve(workspace.path);

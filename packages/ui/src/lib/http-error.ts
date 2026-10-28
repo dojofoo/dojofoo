@@ -4,8 +4,8 @@ export async function httpError(response: Response): Promise<Error> {
   try {
     const body: unknown = JSON.parse(text);
     if (body && typeof body === "object") {
-      if ("error" in body && typeof body.error === "string") return new Error(body.error);
       if ("message" in body && typeof body.message === "string") return new Error(body.message);
+      if ("error" in body && typeof body.error === "string") return new Error(body.error);
     }
   } catch { /* A plain-text error from a proxy is valid error evidence. */ }
   return new Error(text || `Request failed (${response.status}).`);
