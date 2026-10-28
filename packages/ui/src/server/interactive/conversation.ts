@@ -3,6 +3,7 @@ import type { UIMessage } from "@tanstack/ai-client";
 import { acpClient, type AcpStreamPart, type SessionModelConfiguration } from "../lesson/codex-client";
 import { transcriptToUIMessages } from "../lesson/service";
 import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
+import { readDojoMd } from "@dojofoo/config";
 import { dojofooHarness, lessonHarnesses } from "../harness/registry";
 import {
   getInteractiveLesson, readInteractiveConversation, writeInteractiveConversation,
@@ -126,6 +127,7 @@ export async function streamInteractiveSensei(
   activeOperations.add(key);
   try {
     const lesson = getInteractiveLesson(root, dojo);
+    const guidance = readDojoMd(root, dojo);
     const binding = await session(root, dojo);
     if (binding.pendingRuntime) {
       const submitted = { ...binding };
@@ -139,7 +141,10 @@ export async function streamInteractiveSensei(
         uri: `dojo://courses/${encodeURIComponent(dojo)}/interactive/context`,
         mimeType: "application/json",
         text: JSON.stringify(lesson),
-      }],
+      }, ...(guidance.trim() ? [{
+        uri: `dojo://courses/${encodeURIComponent(dojo)}/interactive/guidance`,
+        mimeType: "text/markdown", text: guidance,
+      }] : [])],
     });
   } finally { activeOperations.delete(key); }
 }

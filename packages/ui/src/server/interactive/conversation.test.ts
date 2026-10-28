@@ -34,6 +34,26 @@ function fixture() {
 }
 
 describe("interactive Sensei", () => {
+  it("supplies fresh private guidance from the selected course without putting it in learner content", async () => {
+    const root = fixture();
+    writeFileSync(resolve(root, ".dojos/first/DOJO.md"), "Private guidance for the first course.");
+    const guidance = resolve(root, ".dojos/second/DOJO.md");
+    writeFileSync(guidance, "Private guidance for the second course.");
+    await streamInteractiveSensei(root, "second", "Help me find the right view.", vi.fn());
+    const context = vi.mocked(acpClient.send).mock.calls.at(-1)![3]!.context!;
+    expect(context).toContainEqual({
+      uri: "dojo://courses/second/interactive/guidance", mimeType: "text/markdown", text: "Private guidance for the second course.",
+    });
+    expect(JSON.stringify(context)).not.toContain("Private guidance for the first course");
+    expect(JSON.stringify(getInteractiveLesson(root, "second"))).not.toContain("Private guidance");
+    writeFileSync(guidance, "Updated private guidance for the second course.");
+    await streamInteractiveSensei(root, "second", "What changed?", vi.fn());
+    const next = vi.mocked(acpClient.send).mock.calls.at(-1)!;
+    expect(next[0]).toBe("native-first");
+    expect(next[3]!.context).toContainEqual(expect.objectContaining({ text: "Updated private guidance for the second course." }));
+    expect(acpClient.startThread).toHaveBeenCalledTimes(1);
+  });
+
   it("does not start an agent just to read course content or an empty conversation", async () => {
     const root = fixture();
     expect(getInteractiveLesson(root).current?.id).toBe("read");

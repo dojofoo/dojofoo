@@ -43,6 +43,7 @@ try {
     ] }));
     await writeFile(join(source, "lessons/read.mdx"), `# Material from ${name}\n\n[Reference](reference.svg)\n\n\`\`\`js\nconst course = "${name}";\n\`\`\`\n`);
     await writeFile(join(source, "lessons/reference.svg"), `<svg xmlns="http://www.w3.org/2000/svg"><text>${name}</text></svg>`);
+    await writeFile(join(source, "DOJO.md"), `PRIVATE-GUIDANCE-${name}: Teach this course from its own authored notes.\n`);
     execFileSync(process.execPath, [cli, "add", source], { cwd: workspace, env: environment, stdio: "pipe", timeout: 30_000 });
   }
   const sourceBefore = await readFile(join(scratch, "first/lesson.json"), "utf8");
@@ -71,6 +72,28 @@ try {
   const workspaceId = courses[0].workspaceId;
   const base = `${origin}/api/workspaces/${encodeURIComponent(workspaceId)}/courses/first/interactive`;
   assert.equal((await fetch(base).then(response => response.json())).dojo, "first");
+  if (process.argv.includes("--context-only")) {
+    const { ChatClient, fetchServerSentEvents } = await import(pathToFileURL(join(repo, "packages/ui/node_modules/@tanstack/ai-client/dist/esm/index.js")));
+    for (const name of ["first", "second"]) {
+      const selected = base.replace("/first/", `/${name}/`);
+      const chat = new ChatClient({ connection: fetchServerSentEvents(`${selected}/messages`), threadId: name, persistence: false });
+      try {
+        const before = endpoint.requests.length;
+        const question = `Help me understand the ${name} guidance.`;
+        await chat.sendMessage(question);
+        assert.match(JSON.stringify(chat.getMessages()), /Ready to teach/);
+        const request = endpoint.requests.slice(before).find(request => JSON.stringify(request).includes(question));
+        assert.ok(request, `No native model request for ${name}`);
+        assert.ok(JSON.stringify(request).includes(`PRIVATE-GUIDANCE-${name}`));
+        assert.ok(JSON.stringify(request).includes(`Material from ${name}`));
+        assert.ok(!JSON.stringify(request).includes(`PRIVATE-GUIDANCE-${name === "first" ? "second" : "first"}`));
+        const conversation = await fetch(`${selected}/conversation`).then(response => response.json());
+        assert.ok(!JSON.stringify(conversation.messages).includes("PRIVATE-GUIDANCE-"), "Private teaching guidance leaked into learner chat");
+      } finally { chat.dispose(); }
+    }
+    await writeFile(artifact("native-requests.json"), JSON.stringify(endpoint.requests, null, 2));
+    console.log("Native course context: selected guidance reached both agents without cross-course or learner-transcript leakage.");
+  } else {
   browser = await chromium.launch({ headless: true });
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = [];
@@ -170,6 +193,7 @@ try {
   assert.deepEqual(errors, []);
   await writeFile(artifact("native-requests.json"), JSON.stringify(endpoint.requests, null, 2));
   console.log("Real CLI/interactive browser: two installed courses, exact target/assets/MDX, no-agent reading, native grounded replies, answer guard/feedback, progress, model, transcript and server-restart restoration passed.");
+  }
 } catch (error) {
   console.error(output);
   await writeFile(artifact("native-requests.json"), JSON.stringify(endpoint.requests, null, 2));
