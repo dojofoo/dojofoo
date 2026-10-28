@@ -7,13 +7,15 @@ export const workspaceId = "ws-1";
 export const sessionId = "saved";
 export const draft: AuthoringDraft = { root: "/tmp/agent-course", style: "katas", name: "Agent course", description: "A course", language: "TypeScript", manifestSource: "name: Agent course\n", courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: Agent course\n" }], lessons: [], issues: [], courseChecks: [] };
 
-export async function mountAgentChat(page: Page, options: { draft?: AuthoringDraft; root?: string; files?: boolean; workspaceId?: string; hold?: Promise<void>; failRead?: () => boolean; failRun?: () => boolean; failCancel?: () => boolean } = {}) {
+export async function mountAgentChat(page: Page, options: { existingSession?: boolean; draft?: AuthoringDraft; root?: string; files?: boolean; workspaceId?: string; hold?: Promise<void>; failRead?: () => boolean; failRun?: () => boolean; failCancel?: () => boolean } = {}) {
   const id = options.workspaceId ?? workspaceId;
   const selectedDraft = options.draft ?? draft;
   const eve = new FakeEve((message, id) => turn(id, typeof message === "string" ? message : "Attached notes", ["I received your notes."]));
-  eve.histories.set(sessionId, turn("saved-turn", "Help with this course", ["Your saved guidance."]));
   const runtime = fakeRuntime(eve, id);
-  runtime.records.push({ id: sessionId, agent: "codex", persona: "kyoshi", createdAt: "2026-10-28T00:00:00Z" });
+  if (options.existingSession !== false) {
+    eve.histories.set(sessionId, turn("saved-turn", "Help with this course", ["Your saved guidance."]));
+    runtime.records.push({ id: sessionId, agent: "codex", persona: "kyoshi", createdAt: "2026-10-28T00:00:00Z" });
+  }
   const api = createAgentApi(runtime);
   const calls: string[] = [];
   if (options.files !== false) {

@@ -69,14 +69,16 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
       if (controller.signal.aborted) return;
       void (async () => {
         if (!sessionId) {
-          const created = await json<Session>(agentApi(workspaceId, "/sessions"), {
+          const existing = await json<Page<Session>>(agentApi(workspaceId, `/sessions?persona=${persona}&per_page=1`), { signal: controller.signal });
+          if (controller.signal.aborted) return;
+          const selected = existing.data[0] ?? await json<Session>(agentApi(workspaceId, "/sessions"), {
             method: "POST", signal: controller.signal,
             headers: { "content-type": "application/json" }, body: JSON.stringify({ persona, forwardedProps }),
           });
           if (controller.signal.aborted) return;
           // Bookmark acceptance before reading history so retries reuse this session.
-          current.current = created.id;
-          onSession(created.id);
+          current.current = selected.id;
+          onSession(selected.id);
           return;
         }
         const saved = await readSession(workspaceId, sessionId, controller.signal);

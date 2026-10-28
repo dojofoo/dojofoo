@@ -2,6 +2,32 @@ import { expect, test } from "@playwright/test";
 import { turn } from "../../agent-api/src/fixtures";
 import { draft, mountAgentChat as mount, sessionId, workspaceId } from "./agent-chat.fixture";
 
+test("opening authoring without a session URL resumes its saved workspace conversation", async ({ page }) => {
+  test.setTimeout(20_000);
+  const { calls } = await mount(page);
+  await page.goto(`/authoring?workspace=${workspaceId}`);
+  await expect(page).toHaveURL(new RegExp(`session=${sessionId}(?:&|$)`), { timeout: 4000 });
+  await expect(page.getByText("Your saved guidance.", { exact: true })).toBeVisible({ timeout: 4000 });
+  expect(calls.filter(call => call === `POST /api/v1/workspaces/${workspaceId}/sessions`)).toHaveLength(0);
+});
+
+test("a failed saved-conversation lookup can retry without creating another conversation", async ({ page }) => {
+  test.setTimeout(20_000);
+  const { calls } = await mount(page);
+  let unavailable = true;
+  await page.route("**/api/v1/**/sessions?*", route => unavailable
+    ? route.fulfill({ status: 503, json: { error: "temporarily_unavailable", message: "Saved conversations temporarily unavailable" } })
+    : route.fallback());
+  await page.goto(`/authoring?workspace=${workspaceId}`);
+  await expect(page.getByRole("alert").filter({ hasText: "Saved conversations temporarily unavailable" })).toBeVisible({ timeout: 4000 });
+  expect(calls.filter(call => call.startsWith("POST "))).toHaveLength(0);
+  unavailable = false;
+  await page.getByRole("button", { name: "Reload conversation", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`session=${sessionId}(?:&|$)`), { timeout: 4000 });
+  await expect(page.getByText("Your saved guidance.", { exact: true })).toBeVisible({ timeout: 4000 });
+  expect(calls.filter(call => call.startsWith("POST "))).toHaveLength(0);
+});
+
 test("the same conversation follows the open lesson and file without saving unsent editor changes", async ({ page }) => {
   test.setTimeout(30_000);
   const saves: string[] = [];
@@ -55,7 +81,7 @@ test("authoring restores history and sends a file without text through the versi
 test("an accepted conversation survives a failed history read and retries without another start", async ({ page }) => {
   test.setTimeout(25_000);
   let failRead = true;
-  const { calls } = await mount(page, { failRead: () => failRead });
+  const { calls } = await mount(page, { existingSession: false, failRead: () => failRead });
   await page.goto(`/authoring?workspace=${workspaceId}`);
   await expect(page).toHaveURL(/session=session-1/, { timeout: 4000 });
   await expect(page.getByRole("alert").filter({ hasText: "Conversation temporarily unavailable" })).toBeVisible({ timeout: 4000 });
@@ -68,7 +94,7 @@ test("an accepted conversation survives a failed history read and retries withou
 
 test("new authoring opens its files and conversation without calling the retired backend discovery route", async ({ page }) => {
   test.setTimeout(20_000);
-  await mount(page);
+  await mount(page, { existingSession: false });
   const release = Promise.withResolvers<void>();
   let discoveries = 0;
   await page.route("**/api/authoring/backend*", async route => {

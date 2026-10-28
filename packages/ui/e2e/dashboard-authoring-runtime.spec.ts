@@ -31,12 +31,25 @@ for (const entry of ["installed", "dashboard"] as const) test(entry === "install
     fixtureRoot = root;
     const original = await readFile(join(course, "dojo.yaml"), "utf8");
     if (entry === "installed") {
+      const starts: string[] = [];
+      page.on("request", request => {
+        if (request.method() === "POST" && /\/api\/v1\/workspaces\/[^/]+\/sessions$/.test(new URL(request.url()).pathname)) starts.push(request.url());
+      });
       const began = performance.now();
       await page.goto(`${url}authoring`);
       await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled({ timeout: 30_000 });
       console.info(`Installed course: composer ready in ${Math.round(performance.now() - began)} ms.`);
       await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page).toHaveURL(/workspace=.+session=wrun_/);
+      const session = new URL(page.url()).searchParams.get("session");
+      await page.evaluate(() => localStorage.clear());
+      const resumed = performance.now();
+      await page.goto(`${url}authoring`);
+      await expect(page).toHaveURL(new RegExp(`session=${session}`));
+      await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible();
+      await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
+      console.info(`Installed course: saved conversation ready in ${Math.round(performance.now() - resumed)} ms.`);
+      expect(starts).toHaveLength(1);
       expect(await readFile(join(course, "dojo.yaml"), "utf8")).toBe(original);
       return;
     }
