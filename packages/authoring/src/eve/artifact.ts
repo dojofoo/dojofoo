@@ -13,7 +13,7 @@ export async function agentSourceHash(agentRoot: string): Promise<string> {
   const { name, version } = JSON.parse(await readFile(require.resolve("@dojofoo/agent/package.json"), "utf8"));
   hash.update(JSON.stringify({ name, version }));
   hash.update(await readFile(join(authoringPackageRoot, "scripts/build-agent.mjs")));
-  for (const directory of [agentRoot, join(authoringPackageRoot, "dist")]) {
+  for (const directory of [agentRoot, join(authoringPackageRoot, "dist"), join(authoringPackageRoot, "skills")]) {
     const files = await globby("**/*", {
       cwd: directory, dot: true, onlyFiles: true, followSymbolicLinks: false,
       ignore: ["**/.eve/**", "**/.output/**", "**/node_modules/**", "**/.git/**", "**/runtime.json", "prepared/**"],
