@@ -129,12 +129,6 @@
       "import": "./dist/eve/artifact.js",
       "default": "./dist/eve/artifact.js"
     },
-    "./eve/build": {
-      "types": "./src/eve/build.ts",
-      "development": "./src/eve/build.ts",
-      "import": "./dist/eve/build.js",
-      "default": "./dist/eve/build.js"
-    },
     "./KYOSHI.md": "./src/contracts/KYOSHI.md",
     "./NATIVE-HARNESS.md": "./src/contracts/NATIVE-HARNESS.md",
     "./prompts": {
@@ -221,7 +215,6 @@
   "scripts": {
     "test": "vitest run",
     "test:prepared": "node scripts/verify-agent.mjs",
-    "test:custom-agent": "node scripts/verify-custom-agent.mjs",
     "types:check": "tsc --noEmit",
     "build": "tsup && node scripts/build-agent.mjs"
   },

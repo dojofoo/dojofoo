@@ -1,10 +1,9 @@
 import { readFile, realpath, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
 import { delimiter, join } from "node:path";
 import { authoringHarness, type AuthoringHarness } from "./harness.ts";
-import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiHost, prepareKyoshiOutput } from "./prepare.ts";
+import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiOutput } from "./prepare.ts";
 import { authoringEnvironment } from "./environment.ts";
 import { evaluationConfiguration } from "../evaluation/host.ts";
 import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
@@ -46,19 +45,12 @@ export async function acquireKyoshiRuntime(courseRoot: string) {
 export async function createKyoshiRuntime(courseRoot: string, options: { model?: string } = {}) {
   const harnessId = authoringHarness({ ...process.env, DOJOFOO_HARNESS: resolveRuntimeHarness("authoring", courseRoot) }).harnessId;
   const harness = (harnessId === "grok-build" ? "grok" : harnessId) as AuthoringHarness;
-  const definition = await prepareKyoshiApp(courseRoot);
+  const app = await prepareKyoshiApp(courseRoot);
   const harnessRoot = await prepareKyoshiHarness(courseRoot);
-  const authored = definition === join(await realpath(courseRoot), ".dojo", "kyoshi");
-  let development = existsSync(join(definition, ".eve", "dev-runtime"));
-  const app = authored && !development ? await prepareKyoshiHost(courseRoot, "kyoshi-host") : definition;
-  const runtimePath = authored && development
-    ? join(app, ".eve", "dojo-runtime.json") : join(app, "runtime.json");
+  const runtimePath = join(app, "runtime.json");
   let model = options.model;
   try {
     const saved: unknown = JSON.parse(await readFile(runtimePath, "utf8"));
-    // Existing development Workflow generations cannot be resumed by a
-    // bundled production host. Their old binding has no production auth.
-    if (!authored && saved && typeof saved === "object" && !("auth" in saved)) development = true;
     if (model === undefined && saved && typeof saved === "object" && "harness" in saved && saved.harness === harness
       && "model" in saved && typeof saved.model === "string") model = saved.model;
   } catch (error) {
@@ -69,13 +61,11 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   const { startProductionServer } = await import(load.resolve("@dojofoo/agent/server/production")) as typeof import("@dojofoo/agent/server/production");
   const { Client } = await import(load.resolve("@dojofoo/agent/client")) as typeof import("@dojofoo/agent/client");
   const { createLocalSandbox, registerLocalProcessHost, prepareHarnessEnvironment } = await import(load.resolve("@dojofoo/agent/experimental/local")) as typeof import("@dojofoo/agent/experimental/local");
-  const auth = development ? undefined : { basic: { username: "dojo-host", password: randomBytes(32).toString("hex") } };
+  const auth = { basic: { username: "dojo-host", password: randomBytes(32).toString("hex") } };
   let production: Awaited<ReturnType<typeof startProductionServer>> | undefined;
-  const server = development
-    ? (await import(load.resolve("@dojofoo/agent/server")) as typeof import("@dojofoo/agent/server")).createDevelopmentServer(app, { host: "127.0.0.1", port: 0, existing: "reject", resume: true })
-    : {
+  const server = {
       async start() {
-        await prepareKyoshiOutput(app, authored ? definition : undefined);
+        await prepareKyoshiOutput(app);
         production = await startProductionServer(app, { host: "127.0.0.1", port: 0 });
         return production;
       },

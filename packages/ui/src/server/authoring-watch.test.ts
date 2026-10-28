@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, writeFile, rename, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -74,27 +74,4 @@ it("refreshes agent-written evaluation reports without watching private evidence
   await writeFile(join(directory, "report.json"), JSON.stringify({ status: "passed" }));
   await expect.poll(() => notices.length).toBe(3);
   expect(notices).toEqual(Array.from({ length: 3 }, () => ({ method: "workspace.changed" })));
-});
-
-it("prepares changed agent definitions after saves, while opening and runtime writes do not build", async () => {
-  root = await mkdtemp(join(tmpdir(), "dojo-authoring-agent-watch-"));
-  const source = join(root, ".dojo/kyoshi");
-  await mkdir(join(source, ".eve"), { recursive: true });
-  await writeFile(join(source, "instructions.md"), "Original guidance");
-  const prepared: string[] = [];
-  const local = createAuthoringWatchers(async workspace => {
-    prepared.push(await readFile(join(workspace, ".dojo/kyoshi/instructions.md"), "utf8"));
-  });
-  const notices: unknown[] = [];
-  try {
-    local.subscribe(root, notice => notices.push(notice));
-    await expect.poll(() => notices.length).toBe(1);
-    expect(prepared).toEqual([]);
-    await writeFile(join(source, "instructions.md"), "Updated guidance");
-    await expect.poll(() => prepared).toEqual(["Updated guidance"]);
-    await writeFile(join(source, "runtime.json"), "{}");
-    await writeFile(join(source, ".eve/private.json"), "{}");
-    await new Promise(resolve => setTimeout(resolve, 500));
-    expect(prepared).toEqual(["Updated guidance"]);
-  } finally { await local.close(); }
 });

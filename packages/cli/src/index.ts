@@ -1,4 +1,4 @@
-import { dojoDir, findProjectRoot, listDojos, readDojoRc } from "./config";
+import { dojoDir, findProjectRoot, readDojoRc } from "./config";
 import { observeLocalContext, sessionFromEnvironment } from "@dojofoo/config/local-state";
 import { prepareWorkspace } from "@dojofoo/config/project-preparation";
 import { root } from "./commands/root";
@@ -83,12 +83,6 @@ async function main() {
   } else {
     // Everything else is root-level flags
     root(process.cwd(), [command, ...args].filter(Boolean));
-  }
-  if ((isSetupCommand || command === "update") && !args.includes("--skills")) {
-    const { buildCourseKyoshi } = await import("@dojofoo/authoring/eve/build");
-    for (const course of new Set([process.cwd(), ...listDojos(projectRoot).map(name => dojoDir(projectRoot, name))])) {
-      await buildCourseKyoshi(course);
-    }
   }
   if (!isUiControlCommand) await flushCourseEvents();
 }

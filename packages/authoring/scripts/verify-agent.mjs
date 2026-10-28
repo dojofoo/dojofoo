@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import childProcess from "node:child_process";
-import { cp, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
@@ -22,6 +22,12 @@ const copy = await mkdtemp(join(tmpdir(), "dojo-prebuilt-relocated-"));
 const timings = [];
 let sessionId, saved;
 try {
+  const override = join(root, ".dojo/kyoshi");
+  await mkdir(override, { recursive: true });
+  await writeFile(join(override, "agent.ts"), 'throw new Error("Course Kyoshi overrides must not load");\n');
+  const legacy = join(root, ".dojo/kyoshi-app/agents/kyoshi");
+  await mkdir(join(legacy, ".eve/dev-runtime"), { recursive: true });
+  await writeFile(join(legacy, "runtime.json"), JSON.stringify({ harness: "opencode" }));
   for (const label of ["cold open", "cold resume"]) {
     const began = performance.now();
     const runtime = await createKyoshiRuntime(root);
@@ -64,7 +70,8 @@ try {
   } finally { await relocated.close(); }
   const builds = commands.filter(args => args.some(arg => /(?:^|\/)(?:vite|rolldown|tsup|tsc|nft)(?:\.|$)|^build$|dev-server/u.test(String(arg))));
   assert.deepEqual(builds, [], "Opening or resuming spawned a compiler");
-  console.log(JSON.stringify({ timings, sameSession: true, copiedArtifactReady: true, buildProcesses: builds.length }, null, 2));
+  assert.equal(await readFile(join(override, "agent.ts"), "utf8"), 'throw new Error("Course Kyoshi overrides must not load");\n');
+  console.log(JSON.stringify({ timings, sameSession: true, copiedArtifactReady: true, courseKyoshiIgnored: true, legacyBindingUsesProduction: true, buildProcesses: builds.length }, null, 2));
 } finally {
   childProcess.spawn = spawn;
   syncBuiltinESMExports();

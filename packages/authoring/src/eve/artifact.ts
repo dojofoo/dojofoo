@@ -7,8 +7,6 @@ import { globby } from "globby";
 const require = createRequire(import.meta.url);
 export const authoringPackageRoot = dirname(require.resolve("@dojofoo/authoring/package.json"));
 
-export const courseAgentOutput = (sourceRoot: string, hash: string) => join(dirname(sourceRoot), "kyoshi-builds", hash);
-
 /** Hash definitions and their installed implementation, never private runtime bindings. */
 export async function agentSourceHash(agentRoot: string): Promise<string> {
   const hash = createHash("sha256");
