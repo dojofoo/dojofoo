@@ -143,6 +143,12 @@
       "import": "./dist/eve/instructions.js",
       "default": "./dist/eve/instructions.js"
     },
+    "./eve/bootstrap": {
+      "types": "./src/eve/bootstrap.ts",
+      "development": "./src/eve/bootstrap.ts",
+      "import": "./dist/eve/bootstrap.js",
+      "default": "./dist/eve/bootstrap.js"
+    },
     "./eve/ask": {
       "types": "./src/eve/ask.ts",
       "development": "./src/eve/ask.ts",
@@ -210,7 +216,13 @@
       "default": "./dist/server/types.js"
     },
     "./skills/*": "./skills/*",
-    "./evaluation/prompts/*.md": "./src/evaluation/prompts/*.md"
+    "./evaluation/prompts/*.md": "./src/evaluation/prompts/*.md",
+    "./eve/resume": {
+      "types": "./src/eve/resume.ts",
+      "development": "./src/eve/resume.ts",
+      "import": "./dist/eve/resume.js",
+      "default": "./dist/eve/resume.js"
+    }
   },
   "scripts": {
     "test": "vitest run",
