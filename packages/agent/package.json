@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Eve with an experimental provider for official AI SDK harness adapters.",
-  "license": "Apache-2.0",
+  "license": "FSL-1.1-ALv2",
   "engines": {
     "node": ">=24"
   },
