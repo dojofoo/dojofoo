@@ -43,7 +43,7 @@ export async function acquireKyoshiRuntime(courseRoot: string) {
 
 /** Owns infrastructure, never the course files or the harness credentials. */
 export async function createKyoshiRuntime(courseRoot: string, options: { model?: string } = {}) {
-  const harnessId = authoringHarness({ ...process.env, DOJOFOO_HARNESS: resolveRuntimeHarness("authoring", courseRoot) }).harnessId;
+  const harnessId = (await authoringHarness({ ...process.env, DOJOFOO_HARNESS: resolveRuntimeHarness("authoring", courseRoot) })).harnessId;
   const harness = (harnessId === "grok-build" ? "grok" : harnessId) as AuthoringHarness;
   const app = await prepareKyoshiApp(courseRoot);
   const harnessRoot = await prepareKyoshiHarness(courseRoot);

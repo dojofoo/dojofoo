@@ -20,7 +20,7 @@ waiting for an answer and accepting messages during the resumed stream.
 
 ## OpenCode adapter compatibility
 
-`@ai-sdk/harness-opencode@1.0.155` creates legacy OpenCode sessions but calls the
+`@ai-sdk/harness-opencode@1.0.169` creates legacy OpenCode sessions but calls the
 v2 `switchModel` endpoint before every turn. That endpoint uses a different
 session store and can fail with a foreign-key constraint before inference.
 
@@ -29,14 +29,14 @@ existing legacy prompt API. Initial selection and subsequent model changes use
 the same session and API; native defaults remain untouched when no model is set.
 Compaction already supplies its model to the legacy summarize API.
 
-Regression coverage: `packages/authoring/src/eve/opencode-model.test.ts`.
+Regression coverage: `packages/authoring/src/eve/native-harness-contract.test.ts`,
+the OpenCode case, checks initial and changed models through the native agent.
 This is a dependency patch, not a replacement harness. Authoring bundles the
 tested adapter and its bridge assets so npm consumers receive the same fix;
 the packed-install smoke verifies model selection against that shipped bridge.
 Remove it when
 the upstream adapter consistently uses a compatible session/model API. The
-published 1.0.155 bridge still mixes these APIs; the rebased patch's model
-selection regression passes against that installed bridge.
+published 1.0.169 bridge still mixes these APIs, so the compatibility patch remains.
 
 ## Bundled Eve patches (0.81.1)
 

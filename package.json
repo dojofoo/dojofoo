@@ -24,7 +24,7 @@
       "esbuild"
     ],
     "patchedDependencies": {
-      "@ai-sdk/harness-opencode@1.0.155": "patches/@ai-sdk__harness-opencode@1.0.155.patch",
+      "@ai-sdk/harness-opencode@1.0.169": "patches/@ai-sdk__harness-opencode@1.0.169.patch",
       "@tanstack/ai-client@0.39.3": "patches/@tanstack__ai-client@0.39.3.patch",
       "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch"
     }

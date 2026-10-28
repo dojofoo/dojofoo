@@ -1,7 +1,7 @@
 diff --git a/dist/bridge/index.mjs b/dist/bridge/index.mjs
 --- a/dist/bridge/index.mjs
 +++ b/dist/bridge/index.mjs
-@@ -1865,11 +1865,6 @@ async function runTurn(start, turn) {
+@@ -1879,11 +1879,6 @@ async function runTurn(start, turn) {
  			start,
  			emit
  		});
@@ -33,7 +33,7 @@ diff --git a/dist/bridge/index.mjs b/dist/bridge/index.mjs
  	if (runtime.client && isDeepStrictEqual(runtime.openCodeConfig, start.openCodeConfig) && isDeepStrictEqual(runtime.inactiveBuiltinToolNames, start.inactiveBuiltinToolNames)) return;
  	closeRuntime();
 @@ -2091,6 +2074,8 @@
- async function legacySessionPrompt({ client, sessionId, start, prompt: promptText }) {
+ async function legacySessionPrompt({ client, sessionId, start, prompt }) {
  	const session = client.session;
 +	const model = modelRefFromStart(start);
  	return (session.promptAsync ?? session.prompt).call(session, {

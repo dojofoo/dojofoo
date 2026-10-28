@@ -3,12 +3,14 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { Readable } from "node:stream";
+import { Readable, Writable } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 
 type Session = HarnessV1NetworkSandboxSession;
 type Files = ReturnType<Session["restricted"]>;
 type ProcessHandle = Awaited<ReturnType<Files["spawn"]>>;
+type WritableProcessHandle = ProcessHandle & { stdin: WritableStream<Uint8Array> };
+type SpawnOptions = Parameters<Files["spawn"]>[0];
 
 /** Host execution, NOT isolation. Caller owns this session and its lifetime.
  * Course files are never deleted. Absolute paths retain their host meaning.
@@ -46,7 +48,10 @@ export async function createLocalSandbox(
     await mkdir(dirname(path(options.path)), { recursive: true });
     await writeFile(path(options.path), options.content, { signal: options.abortSignal });
   };
-  const spawnProcess: Files["spawn"] = async options => {
+  function spawnProcess(options: SpawnOptions & { stdin: true }): Promise<WritableProcessHandle>;
+  function spawnProcess(options: SpawnOptions & { stdin?: false }): Promise<ProcessHandle>;
+  function spawnProcess(options: SpawnOptions): Promise<ProcessHandle>;
+  async function spawnProcess(options: SpawnOptions): Promise<ProcessHandle> {
     assertRunning();
     options.abortSignal?.throwIfAborted();
     if (processHost) return processHost.spawn({
@@ -57,7 +62,7 @@ export async function createLocalSandbox(
       cwd: options.workingDirectory ? path(options.workingDirectory) : root,
       env: { ...environment, ...options.env },
       detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [options.stdin ? "pipe" : "ignore", "pipe", "pipe"],
     });
     const completion = new Promise<{ exitCode: number }>((resolve, reject) => {
       child.once("error", reject);
@@ -94,8 +99,8 @@ export async function createLocalSandbox(
       options.abortSignal?.removeEventListener("abort", abort);
       processes.delete(handle);
     }).catch(() => {});
-    return handle;
-  };
+    return options.stdin ? { ...handle, stdin: Writable.toWeb(child.stdin!) } : handle;
+  }
   const files: Files = {
     description: `Local host workspace: ${root}. Commands run with the user's permissions; this is not an isolation boundary.`,
     readBinaryFile,

@@ -43,6 +43,7 @@ try {
   const { output } = JSON.parse(await readFile(builtPath, "utf8"));
   await access(join(output, "server/index.mjs"));
   if (await agentSourceHash(source) !== hash) throw new Error("Agent definitions changed during preparation. Save again to prepare the current version.");
+  await rm(destination, { recursive: true, force: true });
   await cp(output, destination, { recursive: true, verbatimSymlinks: true });
   await writeFile(join(destination, "source.sha256"), hash);
   await writeFile(join(destination, "build.json"), JSON.stringify({

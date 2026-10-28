@@ -4,7 +4,7 @@ These are local contribution drafts, not published issues or PRs.
 
 ## OpenCode: keep model selection on the session API that created the session
 
-- Affected artifact: `@ai-sdk/harness-opencode@1.0.155`.
+- Affected artifact: `@ai-sdk/harness-opencode@1.0.169`.
 - The bridge creates/restores a legacy session, then calls
   `client.v2.session.switchModel` against a different session store.
   This can fail before inference with a missing-session/foreign-key error.
@@ -14,11 +14,11 @@ These are local contribution drafts, not published issues or PRs.
   its model to the legacy summarize API.
 - Source patch: [harness-opencode-legacy-model.patch](./harness-opencode-legacy-model.patch).
   Paths are relative to the published adapter package, not the monorepo root.
-- Regression: `packages/authoring/src/eve/opencode-model.test.ts`.
-  It exercises both prompt APIs, initial selection, repeated selection, changed
-  models with slashes in their IDs, and an absent model; session IDs stay fixed.
+- Regression: `packages/authoring/src/eve/native-harness-contract.test.ts`.
+  The OpenCode case checks initial and changed models through the
+  native OpenCode agent, including retained conversation history and session ID.
 - Packaged bridge patch:
-  [../@ai-sdk__harness-opencode@1.0.155.patch](../@ai-sdk__harness-opencode@1.0.155.patch).
+  [../@ai-sdk__harness-opencode@1.0.169.patch](../@ai-sdk__harness-opencode@1.0.169.patch).
 
 ## TanStack: preserve queued input while an interrupt owns the turn
 

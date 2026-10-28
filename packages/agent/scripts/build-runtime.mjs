@@ -4,10 +4,12 @@ import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 // Release-time assembly only. Consumers never execute this script or patch Eve.
 const root = fileURLToPath(new URL("../", import.meta.url));
 const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+const harness = JSON.parse(await readFile(createRequire(join(root, "package.json")).resolve("@ai-sdk/harness/package.json"), "utf8"));
 const version = manifest.devDependencies.eve;
 const staging = await mkdtemp(join(tmpdir(), "dojo-agent-runtime-"));
 try {
@@ -25,7 +27,10 @@ try {
     assert.ok(Object.hasOwn(manifest.exports, key), `Missing pinned Eve export ${key}`);
   }
   for (const [name, version] of Object.entries(eve.dependencies)) {
-    assert.equal(manifest.dependencies[name], version, `Keep Eve runtime dependency ${name} pinned`);
+    // The provider bridge and its consumers share HarnessAgent's SDK types.
+    // Keep other Eve dependencies pinned to the audited runtime artifact.
+    const pinned = name === "ai" || name === "@ai-sdk/provider" ? harness.dependencies[name] : version;
+    assert.equal(manifest.dependencies[name], pinned, `Keep runtime dependency ${name} pinned`);
   }
   const patch = join(root, "patches", `eve@${version}.patch`);
   execFileSync("git", ["apply", "--check", patch], { cwd: upstream });

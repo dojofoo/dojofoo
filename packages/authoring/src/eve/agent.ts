@@ -32,7 +32,7 @@ export function createKyoshiAgent(runtime: () => Promise<KyoshiRuntime>) {
           model: experimental_createHarnessModel({
             sandbox,
             sandboxConfig: { workDir: "course" },
-            harness: authoringHarness({ DOJOFOO_HARNESS: settings.harness }),
+            harness: await authoringHarness({ DOJOFOO_HARNESS: settings.harness }),
             model: settings.model,
           }).model,
           // A conservative Eve compaction budget, not a claimed model capacity.

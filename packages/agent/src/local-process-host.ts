@@ -5,6 +5,8 @@ import { MessageChannel, MessagePort, postMessageToThread, threadId } from "node
 
 type Files = ReturnType<HarnessV1NetworkSandboxSession["restricted"]>;
 type ProcessHandle = Awaited<ReturnType<Files["spawn"]>>;
+type WritableProcessHandle = ProcessHandle & { stdin: WritableStream<Uint8Array> };
+type SpawnOptions = Parameters<Files["spawn"]>[0];
 type HostConnection = { threadId: number; id: string };
 const hosts = new Map<string, { session: HarnessV1NetworkSandboxSession; ports: Set<MessagePort> }>();
 const connectMessage = "dojo.local-process-host.connect";
@@ -63,11 +65,17 @@ export async function requestLocalProcessHost(connection: HostConnection) {
 function createProcessHost(session: Pick<Files, "spawn">) {
   return {
     async spawn(options: Parameters<Files["spawn"]>[0]) {
-      const child = await session.spawn(options);
+      const writable = options.stdin ? await session.spawn({ ...options, stdin: true }) : undefined;
+      const child = writable ?? await session.spawn(options);
+      const stdin = writable?.stdin;
       return proxy({
         pid: child.pid,
         stdout: () => transfer(child.stdout, [child.stdout]),
         stderr: () => transfer(child.stderr, [child.stderr]),
+        stdin: () => {
+          if (!stdin) throw new Error("Process input was not requested.");
+          return transfer(stdin, [stdin]);
+        },
         wait: async () => await child.wait(),
         kill: async () => await child.kill(),
       });
@@ -85,14 +93,16 @@ export function exposeLocalProcessHost(session: Pick<Files, "spawn">, port: Mess
 
 export function connectLocalProcessHost(port: MessagePort): Pick<Files, "spawn"> {
   const host = wrap<ReturnType<typeof createProcessHost>>(port);
-  return {
-    async spawn(options): Promise<ProcessHandle> {
+  function spawn(options: SpawnOptions & { stdin: true }): Promise<WritableProcessHandle>;
+  function spawn(options: SpawnOptions & { stdin?: false }): Promise<ProcessHandle>;
+  function spawn(options: SpawnOptions): Promise<ProcessHandle>;
+  async function spawn(options: SpawnOptions): Promise<ProcessHandle> {
       // AbortSignal is not transferable. Cancellation remains the caller's
       // responsibility through the returned official process handle.
       options.abortSignal?.throwIfAborted();
       const { abortSignal, ...input } = options;
       const child = await host.spawn(input);
-      const [pid, stdout, stderr] = await Promise.all([child.pid, child.stdout(), child.stderr()]);
+      const [pid, stdout, stderr, stdin] = await Promise.all([child.pid, child.stdout(), child.stderr(), options.stdin ? child.stdin() : undefined]);
       let finished = false;
       const completion = child.wait().then(result => {
         abortSignal?.throwIfAborted();
@@ -107,7 +117,8 @@ export function connectLocalProcessHost(port: MessagePort): Pick<Files, "spawn">
       const abort = () => { void kill().catch(() => {}); };
       abortSignal?.addEventListener("abort", abort, { once: true });
       if (abortSignal?.aborted) await kill();
-      return { pid, stdout, stderr, wait: () => completion, kill };
-    },
-  };
+      const handle = { pid, stdout, stderr, wait: () => completion, kill };
+      return stdin ? { ...handle, stdin } : handle;
+  }
+  return { spawn };
 }
