@@ -1,7 +1,8 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, posix, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { isGitIgnoredSync } from "globby";
+import { ReadWriteFs, type IFileSystem } from "just-bash";
 
 const privateAuthoringDirectories = new Set([".dojo", ".git", "node_modules"]);
 
@@ -18,14 +19,18 @@ export function authoringFileFilter(root: string): (path: string) => boolean {
   };
 }
 
-export function readAuthoringFile(root: string, requestedPath: string): {
+function localFiles(root: string): IFileSystem {
+  return new ReadWriteFs({ root, maxFileReadSize: Number.MAX_SAFE_INTEGER, maxCopyOnWriteSize: 0 });
+}
+
+export async function readAuthoringFile(root: string, requestedPath: string, filesystem: IFileSystem = localFiles(root)): Promise<{
   content: string;
   path: string;
-} {
-  const path = authoringFilePath(root, requestedPath);
+}> {
+  authoringFilePath(root, requestedPath);
   return {
     path: requestedPath,
-    content: existsSync(path) ? readFileSync(path, "utf8") : "",
+    content: await filesystem.exists(requestedPath) ? await filesystem.readFile(requestedPath) : "",
   };
 }
 
@@ -38,6 +43,20 @@ export function writeAuthoringFile(
   validateAuthoringContent(requestedPath, content);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content.endsWith("\n") ? content : `${content}\n`);
+  recordAuthoringEdit(root, requestedPath);
+}
+
+/** Editor I/O uses the provider; compound course mutations keep their existing synchronous ordering. */
+export async function saveAuthoringFile(
+  root: string,
+  requestedPath: string,
+  content: string,
+  filesystem: IFileSystem = localFiles(root),
+): Promise<void> {
+  authoringFilePath(root, requestedPath);
+  validateAuthoringContent(requestedPath, content);
+  await filesystem.mkdir(posix.dirname(requestedPath), { recursive: true });
+  await filesystem.writeFile(requestedPath, content.endsWith("\n") ? content : `${content}\n`);
   recordAuthoringEdit(root, requestedPath);
 }
 

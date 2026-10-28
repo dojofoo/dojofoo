@@ -11,7 +11,7 @@ import {
   renameAuthoringLesson,
   readAuthoringDraft,
 } from "./service";
-import { readAuthoringFile, writeAuthoringFile } from "./files";
+import { readAuthoringFile, saveAuthoringFile } from "./files";
 import type { AuthoringAgent, AuthoringStreamPart } from "./types";
 import { evaluateFromAuthoring } from "../evaluation/host.ts";
 import { configuredEvaluation, readEvaluationSettings, writeEvaluationSettings } from "../evaluation/settings.ts";
@@ -138,9 +138,9 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
       return c.json({ error: errorMessage(cause) }, 422);
     }
   })
-  .get("/files/:path{.+}", (c) => {
+  .get("/files/:path{.+}", async (c) => {
     try {
-      return c.json(readAuthoringFile(
+      return c.json(await readAuthoringFile(
         dependencies.resolveWorkspace(c.req.raw),
         c.req.param("path")
       ));
@@ -155,7 +155,7 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
         return c.json({ error: "File content is required" }, 422);
       }
       const root = dependencies.resolveWorkspace(c.req.raw);
-      writeAuthoringFile(root, c.req.param("path"), input.content);
+      await saveAuthoringFile(root, c.req.param("path"), input.content);
       return c.json(readAuthoringDraft(root));
     } catch (cause) {
       return c.json({ error: errorMessage(cause) }, 422);

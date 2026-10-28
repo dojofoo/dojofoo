@@ -10,6 +10,13 @@ import type { AuthoringAgent } from "./types";
 import { kataTestTemplate } from "@dojofoo/config";
 
 describe("authoring service", () => {
+  it("keeps both lessons when creation requests arrive together", async () => {
+    const root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-concurrent-"));
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+    scaffoldAuthoringWorkspace({ root, name: "Concurrent lessons", style: "katas" });
+    await Promise.all([createAuthoringLesson(root, "First lesson"), createAuthoringLesson(root, "Second lesson")]);
+    expect(readAuthoringDraft(root).lessons.map(lesson => lesson.title)).toEqual(["First lesson", "Second lesson"]);
+  });
   it.each([
     ["src/first/kata.ts", "src/first/kata.test.ts"],
     ["src/first/solution.ts", "src/first/solution.test.ts"],
