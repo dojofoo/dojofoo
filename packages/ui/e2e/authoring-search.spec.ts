@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { mountAgentChat } from "./agent-chat.fixture";
 
 test("authoring search opens the chosen course or lesson file and preserves editor and chat drafts", async ({ page }) => {
   const writes: string[] = [];
-  let sessionReads = 0;
   const workspace = { root: "/tmp/search-course", style: "katas", name: "Search course", description: "One outcome", language: "TypeScript",
     manifestSource: "name: Search course\n", courseGuidance: "# Course guidance", issues: [], courseChecks: [],
     rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: Search course\n" }, { path: "DOJO.md", label: "DOJO.md", content: "# Course guidance" }],
@@ -19,12 +19,9 @@ test("authoring search opens the chosen course or lesson file and preserves edit
     if (path.endsWith("/draft")) return route.fulfill({ json: workspace });
     if (path.endsWith("/reports")) return route.fulfill({ json: { statuses: {} } });
     if (path.endsWith("/report")) return route.fulfill({ json: { report: null } });
-    if (path.endsWith("/sessions/saved")) {
-      sessionReads += 1;
-      return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
-    }
     return route.fulfill({ status: 404 });
   });
+  const agent = await mountAgentChat(page, { root: workspace.root, files: false });
   await page.goto("/authoring?session=saved");
   const input = page.getByRole("textbox", { name: "Code editor", exact: true });
   const lines = page.locator(".monaco-editor .view-lines");
@@ -75,6 +72,6 @@ test("authoring search opens the chosen course or lesson file and preserves edit
   await search.press("Enter");
   await expect(lines).toContainText("# Course guidance");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect(sessionReads).toBe(1);
+  expect(agent.calls.filter(call => call.endsWith("/sessions/saved"))).toHaveLength(1);
   expect(writes).toEqual([]);
 });

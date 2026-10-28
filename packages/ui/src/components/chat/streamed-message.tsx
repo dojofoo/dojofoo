@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { UIMessage, ThinkingPart, ToolCallPart } from "@tanstack/ai-client";
 import type { BundledLanguage } from "shiki";
 import { ChatMessage } from "@dojofoo/uix/components/chat-message";
+import { ChatAttachment } from "@dojofoo/uix/components/chat-attachment";
 import { ToolCallCard } from "@dojofoo/uix/components/tool-call-card";
 import { ThinkingPanel } from "@dojofoo/uix/components/thinking-panel";
 import { TerminalOutput } from "@dojofoo/uix/components/terminal-output";
@@ -15,6 +16,7 @@ import { codeHighlight, codeHighlights, type CodeHighlight } from "@/lib/code-hi
 import type { ChatWorkTiming } from "@/lib/chat-work-timing";
 import type { TestReport } from "@/server/lesson/service";
 import { AgentQuestion, isAgentQuestion, agentQuestionState, agentQuestionId } from "./agent-question";
+import { projectEveToolCall } from "@dojofoo/authoring/eve/messages";
 
 export function StreamedChatMessage({
   fragments,
@@ -34,7 +36,7 @@ export function StreamedChatMessage({
   workspaceId: string;
 }) {
   const assistant = message.role === "assistant";
-  const groups = groupMessageParts(message.parts);
+  const groups = groupMessageParts(message.parts.map(part => part.type === "tool-call" ? projectEveToolCall(part) : part));
   return (
     <ChatMessage role={assistant ? "assistant" : "user"} className="dojo-chat-message min-w-0 max-w-full font-prose"
       data-testid={assistant ? "sensei-streaming-message" : "senpai-streaming-message"}>
@@ -50,6 +52,13 @@ export function StreamedChatMessage({
           if (part.type === "text") {
             if (isInternalLessonMessage(part.content)) return null;
             return <MessageContent autoHighlight={streaming} fragments={fragments} key={`${part.type}-${index}`} onHighlight={onHighlight} text={part.content} workspaceId={workspaceId} />;
+          }
+          if (part.type === "image" || part.type === "audio" || part.type === "video" || part.type === "document") {
+            const metadata = part.metadata as { filename?: string; eve?: { filename?: string } } | undefined;
+            const src = part.source.type === "url" ? part.source.value
+              : part.source.type === "data" ? `data:${part.source.mimeType};base64,${part.source.value}` : undefined;
+            return <ChatAttachment key={`${part.type}-${index}`} kind={part.type} src={src}
+              name={metadata?.filename || metadata?.eve?.filename || `${part.type[0].toUpperCase()}${part.type.slice(1)} attachment`} />;
           }
           if (part.type === "ui-resource" && /^(?:dojo|dojofoo):\/\/lessons\//u.test(part.resource.uri)) {
             return <MessageContent fragments={fragments} key={`${part.type}-${index}`} kind="lesson-fragment" text={part.resource.text ?? ""} workspaceId={workspaceId} />;

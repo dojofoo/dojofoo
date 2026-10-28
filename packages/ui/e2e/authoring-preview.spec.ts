@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mountAgentChat } from "./agent-chat.fixture";
 
 test("authoring previews share the learner typography and keep unsupported diagrams out", async ({ page }) => {
   const source = "# Teaching notes\n\nDescribe one observable outcome.\n";
@@ -21,9 +22,9 @@ test("authoring previews share the learner typography and keep unsupported diagr
     if (request.method() !== "GET") writes.push(path);
     if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (path.endsWith("/draft")) return route.fulfill({ json: workspace });
-    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
     return route.fulfill({ status: 404 });
   });
+  const agent = await mountAgentChat(page, { root: "/tmp/preview-course", files: false });
   await page.goto("/authoring?session=saved");
   await page.getByRole("button", { name: "Switch to preview", exact: true }).click();
   const preview = page.getByTestId("authoring-workspace");

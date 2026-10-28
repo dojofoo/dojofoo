@@ -17,7 +17,7 @@ import type { EvaluationSettings } from "@dojofoo/authoring/evaluation/settings"
 import { TreeTitleMenu, authoringEvaluationStatus, authoringSidebarSelection } from "@/components/authoring-sidebar";
 import { authoringNavigation } from "@/lib/authoring-navigation";
 import { AuthoringChat } from "@/components/authoring-chat";
-import { EveAuthoringChat } from "@/components/eve-authoring-chat";
+import { AgentChat } from "@/components/agent-chat";
 import { CourseContent } from "@/components/course-content";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthoringFiles } from "@/hooks/use-authoring-files";
@@ -26,9 +26,10 @@ import { useAccountMenu } from "@/hooks/use-account-menu";
 import { rememberAuthoringSession } from "@/lib/authoring-session-link";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
-import { AppShell, Dropdown, Icon, MenuButton } from "@dojofoo/uix/components/app-shell";
+import { Dropdown, Icon, MenuButton } from "@dojofoo/uix/components/app-shell";
 import { codingAgents } from "@/lib/coding-agents";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
+import { WorkspaceSkeleton } from "@dojofoo/uix/components/workspace-skeleton";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LessonBrief, LessonChecklist } from "@dojofoo/uix/components/lesson-brief";
 import { CoursesIcon, DoneIcon, Cancel01Icon, File01Icon, FilterIcon } from "@dojofoo/uix/icons";
@@ -53,6 +54,7 @@ function AuthoringPage() {
   const navigate = Route.useNavigate();
   const [backend, setBackend] = useState<"acp" | "eve">();
   const [workspace, setWorkspace] = useState<AuthoringDraft | null>(null);
+  const agentWorkspace = useAgentWorkspace(search.workspace, workspace?.root);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>(null);
   const [courseExpanded, setCourseExpanded] = useState(true);
@@ -218,16 +220,24 @@ function AuthoringPage() {
   async function bootstrap() {
     setBusy("Loading your dojo…");
     setError(null);
+    // Files are independent of the agent connection and can be opened immediately.
+    let initialFiles = true;
+    const files = request<AuthoringDraft>(authoringApi("/api/authoring/draft")).then(
+      value => { if (initialFiles) selectWorkspace(value); return { value }; },
+      error => ({ error }),
+    );
     try {
       const selected = await request<{ backend: "acp" | "eve" }>(authoringApi("/api/authoring/backend"));
       if (selected.backend === "eve") {
-        selectWorkspace(await request<AuthoringDraft>(authoringApi("/api/authoring/draft")));
+        const result = await files;
+        if ("error" in result) throw result.error;
         setBackend("eve");
         return;
       }
       if (selected.backend !== "acp") throw new Error("Unsupported authoring backend");
       setBackend("acp");
       const initial = await request<AuthoringWorkspace>("/api/authoring/workspace");
+      initialFiles = false;
       selectWorkspace(initial);
       hydrateChat(initial);
       setBusy("Kyoshi is preparing the course…");
@@ -395,15 +405,24 @@ function AuthoringPage() {
     } finally { setBusy(""); }
   }
 
-  const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="w-11" /></a>;
+  const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>;
   const shell = { ...account, brand, workspace: "Dojo", sidebarWidth: "18rem", showNews: false, showOnboarding: false };
-  if (!workspace || !backend) return <div className="h-dvh"><AppShell {...shell} navigation={[]}>
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold">Kyoshi</h1>
-      <p role={error ? "alert" : "status"} className="mt-4 font-prose text-muted-foreground">{error ?? busy}</p>
-      {error ? <UIXButton className="mt-4" disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</UIXButton> : null}
-    </main>
-  </AppShell></div>;
+  const conversation = backend === "eve" || (backend === undefined && search.session)
+    ? agentWorkspace.id ? <AgentChat key={agentWorkspace.id} embedded workspaceId={agentWorkspace.id} persona="kyoshi" sessionId={search.session} onSession={id => {
+      rememberAuthoringSession(agentWorkspace.id!, id);
+      void navigate({ search: previous => ({ ...previous, workspace: agentWorkspace.id, session: id }), replace: true });
+    }} /> : <AuthoringChat embedded messages={[]} status="ready" busy={!agentWorkspace.error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}}
+      error={agentWorkspace.error} onRetryLoad={agentWorkspace.retry} />
+    : <AuthoringChat embedded messages={chatMessages} status={chatStatus} busy={Boolean(busy)} inputDisabled={!backend} value={message} onValueChange={setMessage} onSend={value => { void sendMessage(value); }} onAnswer={answerTool} />;
+  if (!workspace) return <div className="h-dvh overflow-hidden"><AgentChatWorkspace {...shell} navigation={[
+    { id: "files", heading: "Courses", items: [], before: !error && <WorkspaceSkeleton label="Loading course files" rows={4} /> },
+  ]} crumbs={[{ label: "Authoring" }]} askAssistant={false}
+    editor={<Editor flush>{error ? <div role="alert" className="p-5 text-sm"><p>{error}</p>
+      <UIXButton className="mt-4" disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</UIXButton></div>
+      : <WorkspaceSkeleton />}</Editor>}
+    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Kyoshi</b></span>}
+    conversation={conversation} />
+    {toast}</div>;
 
   const fileLessons = new Map(workspace.lessons.flatMap(lesson => lesson.files.map(file => [file.path, lesson] as const)));
   const navigation = authoringNavigation(workspace, onlyCourseFiles);
@@ -432,12 +451,6 @@ function AuthoringPage() {
     ...workspace.lessons.map(lesson => [`authoring:lesson:${encodeURIComponent(lesson.id)}`, expandedLessonId === lesson.id]),
   ]);
   const evaluationAction = scope === "lesson" && selectedLessonId ? <UIXButton size="sm" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</UIXButton> : null;
-  const conversation = backend === "eve"
-    ? <EveAuthoringChat embedded sessionId={search.session} api={authoringApi} onSession={id => {
-      if (search.workspace) rememberAuthoringSession(search.workspace, id);
-      void navigate({ search: previous => ({ ...previous, session: id }), replace: true });
-    }} />
-    : <AuthoringChat embedded messages={chatMessages} status={chatStatus} busy={Boolean(busy)} value={message} onValueChange={setMessage} onSend={value => { void sendMessage(value); }} onAnswer={answerTool} />;
   return <div className="h-dvh overflow-hidden">
     <AgentChatWorkspace {...shell} contentKind="code" active={activeResource}
       evals={visibleReport ? <AuthoringEvaluationReport report={visibleReport} actions={evaluationAction} /> : undefined}
@@ -492,7 +505,7 @@ function AuthoringPage() {
                 {view === "preview" && previewable
                   ? activeFile && <AuthoringFilePreview key={activeFile.path} path={activeFile.path} source={draft} workspace={workspace} />
                   : activeFile
-                    ? <Suspense fallback={<div className="p-6 text-sm text-[var(--fluid-muted)]">Loading editor…</div>}>
+                    ? <Suspense fallback={<WorkspaceSkeleton label="Loading editor" />}>
                         <CodeEditor
                           key={workspace.root}
                           code={draft}
@@ -509,7 +522,9 @@ function AuthoringPage() {
                     : <p className="p-6 text-sm text-muted-foreground">Open a file from the course or lesson sidebar.</p>}
               </div>
             </section>
-            {error ? <div role="alert" className="flex items-start gap-3 border-t border-dashed px-5 py-2 text-sm text-destructive"><p className="flex-1">{error}</p><button type="button" className="shrink-0 underline" onClick={() => setError(null)}>Dismiss</button></div> : null}
+            {error ? <div role="alert" className="flex items-start gap-3 border-t border-dashed px-5 py-2 text-sm text-destructive"><p className="flex-1">{error}</p>
+              {!backend && <UIXButton disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</UIXButton>}
+              <button type="button" className="shrink-0 underline" onClick={() => setError(null)}>Dismiss</button></div> : null}
             {fileErrors[activeFilePath] ? <div role="alert" className="flex items-start gap-3 border-t border-dashed px-5 py-2 text-sm text-destructive">
               <p className="flex-1">{activeFilePath}: {fileErrors[activeFilePath]}</p>
               <button type="button" className="shrink-0 underline" onClick={() => setFileErrors(current => { const next = { ...current }; delete next[activeFilePath]; return next; })}>Dismiss</button>
@@ -603,6 +618,23 @@ async function drainStream(url: string, init: RequestInit): Promise<void> {
   const reader = response.body?.getReader();
   if (!reader) return;
   while (!(await reader.read()).done) { /* Transcript is projected after the native turn. */ }
+}
+
+function useAgentWorkspace(fromUrl: string | undefined, root: string | undefined) {
+  const [found, setFound] = useState<{ root: string; id?: string; error?: string }>();
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (fromUrl || !root) return;
+    const controller = new AbortController();
+    setFound(undefined);
+    void request<{ id: string; path: string }[]>("/api/control/workspaces", { signal: controller.signal }).then(workspaces => {
+      const id = workspaces.find(item => item.path === root)?.id;
+      if (!controller.signal.aborted) setFound({ root, id, error: id ? undefined : "This course's workspace could not be found." });
+    }).catch(cause => { if (!controller.signal.aborted) setFound({ root, error: errorMessage(cause) }); });
+    return () => controller.abort();
+  }, [fromUrl, root, attempt]);
+  const current = found?.root === root ? found : undefined;
+  return { id: fromUrl ?? current?.id, error: current?.error, retry: () => setAttempt(value => value + 1) };
 }
 
 function withAuthoringWorkspace(init: RequestInit = {}): RequestInit {

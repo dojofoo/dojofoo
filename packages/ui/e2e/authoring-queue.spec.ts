@@ -1,27 +1,13 @@
 import { expect, test } from "@playwright/test";
+import { mountAgentChat } from "./agent-chat.fixture";
 
 test("queued authoring notes stay readable and can be removed with the shared controls", async ({ page }) => {
   const release = Promise.withResolvers<void>();
-  const requests: string[] = [];
+  let cancellations = 0;
+  const { calls } = await mountAgentChat(page, { hold: release.promise, failCancel: () => cancellations++ === 0 });
   const long = "Use plain language and keep each example focused. ".repeat(8).trim();
-  await page.routeWebSocket("**/api/authoring/changes*", () => {});
-  await page.route("**/api/**", async route => {
-    const request = route.request();
-    const path = new URL(request.url()).pathname;
-    if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [] } });
-    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
-    if (path.endsWith("/draft")) return route.fulfill({ json: { root: "/tmp/queue-course", style: "katas", name: "Queue course", description: "One outcome", language: "TypeScript",
-      manifestSource: "name: Queue course\n", courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: Queue course\n" }], lessons: [], issues: [], courseChecks: [] } });
-    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
-    if (path.endsWith("/sessions/saved/messages")) {
-      requests.push(path);
-      await release.promise;
-      return route.fulfill({ contentType: "text/event-stream", body: "" });
-    }
-    return route.fulfill({ status: 404 });
-  });
   try {
-    await page.goto("/authoring?session=saved");
+    await page.goto("/authoring?workspace=ws-1&session=saved");
     const input = page.getByTestId("authoring-chat-composer").getByRole("textbox");
     for (const text of ["Outline the first lesson", long, "Discard this note"]) {
       await input.fill(text);
@@ -46,6 +32,15 @@ test("queued authoring notes stay readable and can be removed with the shared co
     await expect(note).toBeVisible();
     await queue.getByRole("button").click();
     await expect(queue).toHaveCount(0);
-    expect(requests).toEqual(["/api/authoring/eve/sessions/saved/messages"]);
+    expect(calls.filter(call => call.startsWith("POST "))).toEqual(["POST /api/v1/workspaces/ws-1/sessions/saved/runs"]);
+    const stop = page.getByRole("button", { name: "Stop", exact: true });
+    await expect(stop).toBeVisible({ timeout: 2000 });
+    await stop.click();
+    await expect(page.getByRole("alert").filter({ hasText: "Could not stop the conversation" })).toBeVisible();
+    await stop.click();
+    await expect(input).toBeEnabled();
+    await expect(stop).toHaveCount(0);
+    await expect(page.getByRole("alert").filter({ hasText: "Could not stop the conversation" })).toHaveCount(0);
+    expect(calls.filter(call => call.startsWith("PATCH "))).toHaveLength(2);
   } finally { release.resolve(); }
 });

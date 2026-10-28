@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { mountAgentChat } from "./agent-chat.fixture";
 
 test("New course retries failed creation and reopens the accepted native session from the dashboard", async ({ page }) => {
   const pending = Promise.withResolvers<void>();
   const names: string[] = [];
   let created = false;
-  let starts = 0;
   const draft = { workspaceId: "created-draft", name: "New course", description: "", mode: "katas", lastSeenAt: 1, sessionId: null };
   await page.routeWebSocket("**/api/authoring/changes*", () => {});
   await page.route("**/api/**", async route => {
@@ -20,10 +20,9 @@ test("New course retries failed creation and reopens the accepted native session
     if (url.pathname.startsWith("/api/authoring/")) expect(url.searchParams.get("workspace")).toBe("created-draft");
     if (url.pathname.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { root: "/draft", style: "katas", name: "New course", description: "", language: "", manifestSource: "name: New course\n", courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: New course\n" }], lessons: [], issues: [], courseChecks: [] } });
-    if (url.pathname.endsWith("/sessions/start")) { starts += 1; return route.fulfill({ status: 201, json: { sessionId: "wrun_created" } }); }
-    if (url.pathname.endsWith("/sessions/wrun_created")) return route.fulfill({ json: { session: { sessionId: "wrun_created" }, messages: [] } });
     return route.fulfill({ status: 404 });
   });
+  const agent = await mountAgentChat(page, { workspaceId: "created-draft", files: false });
   await page.goto("/");
   const button = page.getByRole("button", { name: /^New course/ });
   await expect(button).toBeVisible();
@@ -33,15 +32,15 @@ test("New course retries failed creation and reopens the accepted native session
   await expect(page.getByRole("alert")).toContainText("Draft disk is full");
   await expect(button).toBeEnabled();
   await button.click();
-  await expect(page).toHaveURL(/\/authoring\?workspace=created-draft&session=wrun_created/);
+  await expect(page).toHaveURL(/\/authoring\?workspace=created-draft&session=session-1/);
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
-  expect(starts).toBe(1);
+  expect(agent.calls.filter(call => call === "POST /api/v1/workspaces/created-draft/sessions")).toHaveLength(1);
   await page.getByRole("link", { name: "Dojo dashboard", exact: true }).click();
   const entry = page.getByRole("region", { name: "Authoring", exact: true }).getByRole("link", { name: /New course/i });
-  await expect(entry).toHaveAttribute("href", /session=wrun_created/);
+  await expect(entry).toHaveAttribute("href", /session=session-1/);
   await entry.click();
   await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
-  expect(starts).toBe(1);
+  expect(agent.calls.filter(call => call === "POST /api/v1/workspaces/created-draft/sessions")).toHaveLength(1);
   expect(names).toEqual(["New course", "New course"]);
 });
 

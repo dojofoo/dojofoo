@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mountAgentChat } from "./agent-chat.fixture";
 
 test("authoring uses shared editor preferences while retaining file models and the native save", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("uix:preferences", JSON.stringify({ editorSize: 13 })));
@@ -16,7 +17,6 @@ test("authoring uses shared editor preferences while retaining file models and t
     if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [] } });
     if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (path.endsWith("/draft")) return route.fulfill({ json: workspace });
-    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
     if (path === "/api/authoring/files/dojo.yaml" && request.method() === "PUT") {
       const { content } = request.postDataJSON();
       saves.push({ path, content });
@@ -26,6 +26,7 @@ test("authoring uses shared editor preferences while retaining file models and t
     if (request.method() !== "GET") unexpected.push(path);
     return route.fulfill({ status: 404 });
   });
+  const agent = await mountAgentChat(page, { root: workspace.root, files: false });
   await page.goto("/authoring?session=saved");
   const lines = page.locator(".monaco-editor .view-lines");
   await expect(lines).toContainText("name: Editor course");

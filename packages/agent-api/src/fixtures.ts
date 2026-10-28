@@ -86,9 +86,20 @@ export class FakeEve {
           this.sent.push({ sessionId, message, context: options?.clientContext });
           return this.#run(sessionId, message);
         },
-        respond: async (answers: unknown) => {
+        respond: async (answers: { requestId: string }[]) => {
           this.answered.push({ sessionId, answers });
-          return this.#run(sessionId, "(answers)");
+          const history = this.histories.get(sessionId)!;
+          const resolved = answers.flatMap(response => {
+            const pending = history.findLast(item => item.type === "input.requested" && item.data.requests.some(request => request.requestId === response.requestId));
+            if (pending?.type !== "input.requested") return [];
+            return [event({ type: "input.resolved", data: {
+              sequence: history.length, turnId: pending.data.turnId, stepIndex: pending.data.stepIndex,
+              resolutions: [{ kind: "question", outcome: "answered", requestId: response.requestId, response }],
+            }, meta: pending.meta })];
+          });
+          history.push(...resolved);
+          const reply = this.#run(sessionId, "(answers)");
+          return (async function* () { yield* resolved; yield* reply; })();
         },
         stream: () => {
           const events = this.continuations.get(sessionId) ?? [];

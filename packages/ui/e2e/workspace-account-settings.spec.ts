@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mountAgentChat } from "./agent-chat.fixture";
 
 for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mode} account settings preserve the unsent workspace and return to it`, async ({ page }) => {
   const writes: string[] = [];
@@ -34,6 +35,7 @@ for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mod
   });
   const url = mode === "authoring" ? "/authoring?session=saved" : mode === "learner"
     ? "/course/settings-workspace/settings-course/lesson/first" : "/interactive?workspace=settings-workspace&course=settings-course";
+  if (mode === "authoring") await mountAgentChat(page, { root: "/tmp/settings-course", files: false });
   await page.goto(url);
   const editor = mode === "interactive" ? null : page.locator(".ui-ed__monaco");
   const input = page.getByRole("textbox", { name: mode === "interactive" ? "Message the sensei" : "Code editor", exact: true });
