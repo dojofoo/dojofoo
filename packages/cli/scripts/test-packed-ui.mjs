@@ -33,25 +33,16 @@ try {
   });
 
   const installedRequire = createRequire(resolve(installRoot, "node_modules/dojofoo/package.json"));
-  const bridge = readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/authoring/package.json")), "dist/bridge/index.mjs"), "utf8");
-  const helper = (name, next) => bridge.slice(bridge.indexOf(`function ${name}(`), bridge.indexOf(next, bridge.indexOf(`function ${name}(`) + 1));
-  const { legacySessionPrompt } = await import(`data:text/javascript,${encodeURIComponent([
-    "const procEnv2 = {};",
-    helper("splitModel", "\nfunction "),
-    helper("modelRefFromStart", "\nfunction "),
-    `async ${helper("legacySessionPrompt", "async function legacySessionSummarize(")}`,
-    "export { legacySessionPrompt };",
-  ].join("\n"))}`);
-  await legacySessionPrompt({
-    client: { session: { promptAsync: async (request) => {
-      if (request.sessionID !== "same-session" || request.model?.providerID !== "zai-coding-plan" || request.model?.modelID !== "glm-5.3") {
-        throw new Error("Packed OpenCode bridge lost model selection for an existing session.");
-      }
-      return { data: {} };
-    } } },
-    sessionId: "same-session",
-    start: { model: "zai-coding-plan/glm-5.3", prompt: "Continue" },
-  });
+  const label = JSON.parse(readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/authoring/package.json")), "dist/prepared/kyoshi/build.json"), "utf8"));
+  if (label.dojofoo !== `dojofoo@${expectedPackage.version}` || !label.sourceHash) {
+    throw new Error("The installed Kyoshi build is missing its release and source labels.");
+  }
+  // Preserve the original adapter's assets beside its module. Model switching
+  // is exercised by the production turn test, without extracting private code.
+  const adapter = dirname(installedRequire.resolve("@ai-sdk/harness-opencode"));
+  for (const asset of ["index.mjs", "host-tool-mcp.mjs", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"]) {
+    if (!existsSync(resolve(adapter, "bridge", asset))) throw new Error(`Installed OpenCode adapter is missing ${asset}.`);
+  }
   const { scaffoldAuthoringWorkspace } = await import(
     pathToFileURL(installedRequire.resolve("@dojofoo/authoring/scaffold")).href
   );
@@ -63,8 +54,7 @@ try {
     throw new Error("Packed authoring scaffold is missing its mise setup or private-state ignore rules.");
   }
   // Boot the shipped master from an npm installation, not workspace links.
-  // Readiness compiles the agent but never makes a paid model call.
-  mkdirSync(resolve(authorRoot, ".dojo/kyoshi"), { recursive: true });
+  // Readiness uses the release-built agent without compiling or sending a prompt.
   const { createKyoshiRuntime } = await import(
     pathToFileURL(installedRequire.resolve("@dojofoo/authoring/eve/runtime")).href
   );

@@ -17,6 +17,16 @@ const load = createRequire(new URL("../package.json", import.meta.url));
 const { Client } = await import(load.resolve("@dojofoo/agent/client"));
 const { startProductionServer } = await import(load.resolve("@dojofoo/agent/server/production"));
 const { createKyoshiRuntime } = await import("../dist/eve/runtime.js");
+const prepared = new URL("../dist/prepared/kyoshi/", import.meta.url);
+const label = JSON.parse(await readFile(new URL("build.json", prepared), "utf8"));
+const cli = JSON.parse(await readFile(new URL("../../cli/package.json", import.meta.url), "utf8"));
+const sdk = JSON.parse(await readFile(load.resolve("@dojofoo/agent/package.json"), "utf8"));
+const eve = JSON.parse(await readFile(load.resolve("@dojofoo/agent/eve/package.json"), "utf8"));
+assert.equal(label.dojofoo, `dojofoo@${cli.version}`);
+assert.equal(label.source, `dojofoo/kyoshi@${cli.version}`);
+assert.equal(label.agent, `@dojofoo/agent@${sdk.version}`);
+assert.equal(label.eve, `eve@${eve.version}`);
+assert.equal(label.sourceHash, await readFile(new URL("source.sha256", prepared), "utf8"));
 const root = await mkdtemp(join(tmpdir(), "dojo-prebuilt-startup-"));
 const copy = await mkdtemp(join(tmpdir(), "dojo-prebuilt-relocated-"));
 const timings = [];
@@ -51,6 +61,7 @@ try {
   }
   const app = join(root, ".dojo/kyoshi-app/agents/kyoshi");
   await cp(await realpath(join(app, ".output")), join(copy, ".output"), { recursive: true, verbatimSymlinks: true });
+  assert.deepEqual(JSON.parse(await readFile(join(copy, ".output/build.json"), "utf8")), label);
   async function verifyLinks(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
@@ -71,7 +82,7 @@ try {
   const builds = commands.filter(args => args.some(arg => /(?:^|\/)(?:vite|rolldown|tsup|tsc|nft)(?:\.|$)|^build$|dev-server/u.test(String(arg))));
   assert.deepEqual(builds, [], "Opening or resuming spawned a compiler");
   assert.equal(await readFile(join(override, "agent.ts"), "utf8"), 'throw new Error("Course Kyoshi overrides must not load");\n');
-  console.log(JSON.stringify({ timings, sameSession: true, copiedArtifactReady: true, courseKyoshiIgnored: true, legacyBindingUsesProduction: true, buildProcesses: builds.length }, null, 2));
+  console.log(JSON.stringify({ build: label, timings, sameSession: true, copiedArtifactReady: true, courseKyoshiIgnored: true, legacyBindingUsesProduction: true, buildProcesses: builds.length }, null, 2));
 } finally {
   childProcess.spawn = spawn;
   syncBuiltinESMExports();

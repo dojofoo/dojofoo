@@ -10,6 +10,10 @@ const { agentSourceHash } = await import("../dist/eve/artifact.js");
 const source = join(packageRoot, "agents/kyoshi");
 const hash = await agentSourceHash(source);
 const destination = join(packageRoot, "dist/prepared/kyoshi");
+const release = JSON.parse(await readFile(join(packageRoot, "../cli/package.json"), "utf8"));
+const installed = createRequire(join(packageRoot, "package.json"));
+const sdk = JSON.parse(await readFile(installed.resolve("@dojofoo/agent/package.json"), "utf8"));
+const eve = JSON.parse(await readFile(installed.resolve("@dojofoo/agent/eve/package.json"), "utf8"));
 
 async function build() {
   const scratch = await mkdtemp(join(tmpdir(), "dojo-agent-package-"));
@@ -41,6 +45,13 @@ try {
   if (await agentSourceHash(source) !== hash) throw new Error("Agent definitions changed during preparation. Save again to prepare the current version.");
   await cp(output, destination, { recursive: true, verbatimSymlinks: true });
   await writeFile(join(destination, "source.sha256"), hash);
+  await writeFile(join(destination, "build.json"), JSON.stringify({
+    dojofoo: `dojofoo@${release.version}`,
+    agent: `@dojofoo/agent@${sdk.version}`,
+    eve: `eve@${eve.version}`,
+    source: `dojofoo/kyoshi@${release.version}`,
+    sourceHash: hash,
+  }, null, 2) + "\n");
 } finally {
   await rm(scratch, { recursive: true, force: true });
 }
