@@ -5,7 +5,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
-test("the built dashboard creates two independent native authoring drafts and resumes them after restart", async ({ page }) => {
+for (const entry of ["installed", "dashboard"] as const) test(entry === "installed"
+  ? "the installed course opens native authoring through the CLI"
+  : "the built dashboard creates two independent native authoring drafts and resumes them after restart", async ({ page }) => {
   test.skip(process.env.DOJO_AUTHORING_RUNTIME_E2E !== "1", "Opt-in native runtime; inference is loopback only.");
   test.setTimeout(300_000);
   const fixture = fork(fileURLToPath(new URL("../../authoring/src/eve/browser.fixture.mjs", import.meta.url)), [], {
@@ -28,9 +30,20 @@ test("the built dashboard creates two independent native authoring drafts and re
     const { url, course, root } = await ready();
     fixtureRoot = root;
     const original = await readFile(join(course, "dojo.yaml"), "utf8");
+    if (entry === "installed") {
+      const began = performance.now();
+      await page.goto(`${url}authoring`);
+      await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled({ timeout: 30_000 });
+      console.info(`Installed course: composer ready in ${Math.round(performance.now() - began)} ms.`);
+      await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(page).toHaveURL(/workspace=.+session=wrun_/);
+      expect(await readFile(join(course, "dojo.yaml"), "utf8")).toBe(original);
+      return;
+    }
     const starts: string[] = [];
     page.on("request", request => {
-      if (request.method() === "POST" && new URL(request.url()).pathname.endsWith("/eve/sessions/start")) starts.push(new URL(request.url()).searchParams.get("workspace")!);
+      const match = new URL(request.url()).pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/sessions$/);
+      if (request.method() === "POST" && match) starts.push(decodeURIComponent(match[1]!));
     });
     const create = async () => {
       await page.goto(url);
@@ -54,7 +67,7 @@ test("the built dashboard creates two independent native authoring drafts and re
     expect(first.workspaceId).not.toBe(second.workspaceId);
     expect(first.session).not.toBe(second.session);
     expect(starts).toEqual([first.workspaceId, second.workspaceId]);
-    const foreign = await page.request.get(`${url}api/authoring/eve/sessions/${encodeURIComponent(first.session)}?workspace=${encodeURIComponent(second.workspaceId)}`);
+    const foreign = await page.request.get(`${url}api/v1/workspaces/${encodeURIComponent(second.workspaceId)}/sessions/${encodeURIComponent(first.session)}`);
     expect(foreign.status()).toBe(404);
     await page.screenshot({ path: test.info().outputPath("dashboard-created-authoring.png"), animations: "disabled" });
     const restarted = ready();
@@ -68,9 +81,9 @@ test("the built dashboard creates two independent native authoring drafts and re
     await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 120_000 });
     await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
     expect(starts).toEqual([first.workspaceId, second.workspaceId]);
-    const snapshot = await page.request.get(`${url}api/authoring/eve/sessions/${encodeURIComponent(first.session)}?workspace=${encodeURIComponent(first.workspaceId)}`);
+    const snapshot = await page.request.get(`${url}api/v1/workspaces/${encodeURIComponent(first.workspaceId)}/sessions/${encodeURIComponent(first.session)}`);
     expect(snapshot.ok()).toBe(true);
-    expect((await snapshot.json()).session.sessionId).toBe(first.session);
+    expect((await snapshot.json()).id).toBe(first.session);
     expect(await readFile(join(course, "dojo.yaml"), "utf8")).toBe(original);
   } finally {
     if (fixture.exitCode === null && fixture.signalCode === null) {
@@ -79,6 +92,7 @@ test("the built dashboard creates two independent native authoring drafts and re
       await exited;
     }
     await writeFile(test.info().outputPath("runtime.log"), logs);
+    expect.soft(logs, "The packaged Kyoshi instructions must reach the native agent").toContain('"shippedInstructionsLoaded":true');
     if (fixtureRoot) {
       const surviving = execFileSync("ps", ["-axo", "pid=,args="], { encoding: "utf8" }).split("\n").filter(line => line.includes(fixtureRoot!));
       expect.soft(surviving, "All owned native runtimes must close with the UI server").toEqual([]);

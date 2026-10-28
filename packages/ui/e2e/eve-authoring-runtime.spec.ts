@@ -35,31 +35,31 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     const sessionUrl = page.url();
     expect(sessionUrl).toContain("session=wrun_");
     const sessionId = new URL(sessionUrl).searchParams.get("session")!;
-    const snapshot = await page.request.get(`${url}api/authoring/eve/sessions/${sessionId}`);
+    const workspaceId = new URL(sessionUrl).searchParams.get("workspace")!;
+    const sessionApi = `${url}api/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions/${encodeURIComponent(sessionId)}`;
+    const snapshot = await page.request.get(sessionApi);
     expect(snapshot.ok()).toBe(true);
     const saved = await snapshot.json();
-    expect(saved.session.streamIndex).toBeGreaterThan(0);
-    expect(saved.messages.length).toBeGreaterThan(0);
+    expect(saved.position).toBeGreaterThan(0);
+    expect((await (await page.request.get(`${sessionApi}/messages`)).json()).data.length).toBeGreaterThan(0);
     await page.reload();
     await expect(page.getByRole("radio", { name: /^Beginners/ })).toBeVisible();
     await expect(page.getByText(/Eve stream ended|no saved events/)).toHaveCount(0);
     await expect(page.locator(".ui-as-chat__composer .ui-as-composer")).toBeVisible();
-    await expect(page.locator(".dojo-brand-logo")).toHaveCSS("width", "44px");
+    await expect(page.getByRole("link", { name: "Dojo dashboard", exact: true })).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("authoring-pages-layout.png"), animations: "disabled" });
 
     const queued = ["Keep examples short", "Focus on one example"];
 
     // Edit through the same Monaco document and save shortcut as an author.
     const edit = async (path: string, source: string) => {
-      await expect(page.locator("[data-file-tab][data-active]")).toHaveAttribute("data-file-tab", path);
-      const host = page.locator(".dojo-code-editor[data-file-path]");
-      await expect(host).toHaveAttribute("data-file-path", path);
-      await expect(host.locator(".monaco-editor[data-uri]")).toHaveAttribute("data-uri", new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`));
-      await expect(host.getByText("Loading editor…", { exact: true })).toHaveCount(0);
-      await host.getByRole("textbox", { name: "Code editor" }).focus();
+      const filename = path.split("/").at(-1)!;
+      const tab = page.getByRole("tab", { name: new RegExp(`^${filename.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}`) });
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      await page.getByRole("textbox", { name: "Code editor", exact: true }).focus();
       await page.keyboard.press("ControlOrMeta+a");
       await page.keyboard.insertText(source);
-      await expect(page.getByRole("button", { name: `Close ${path}`, exact: true })).toHaveAttribute("data-dirty", "true");
+      await expect(tab).toHaveAccessibleName(/unsaved changes/);
       const saved = page.waitForResponse(response => response.request().method() === "PUT" && response.url().includes("/api/authoring/"));
       await page.keyboard.press("ControlOrMeta+s");
       expect((await saved).ok()).toBe(true);
@@ -116,8 +116,8 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     // An empty optimistic queue means accepted, not durably processed. Verify
     // the actual saved transcript before disconnecting and testing recovery.
     await expect.poll(async () => {
-      const settled = await (await page.request.get(`${url}api/authoring/eve/sessions/${sessionId}`)).json();
-      return settled.messages.filter((message: { role: string }) => message.role === "user")
+      const settled = await (await page.request.get(`${sessionApi}/messages?per_page=500`)).json();
+      return settled.data.filter((message: { role: string }) => message.role === "user")
         .map((message: { parts: Array<{ content?: string }> }) => message.parts.map(part => part.content ?? "").join(""));
     }).toEqual(queued);
     await expect(answer).toHaveAttribute("aria-checked", "true");
@@ -130,8 +130,8 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     await composer.fill("Continue authoring");
     await composer.press("Enter");
     await expect.poll(async () => {
-      const settled = await (await page.request.get(`${url}api/authoring/eve/sessions/${sessionId}`)).json();
-      return JSON.stringify(settled.messages);
+      const settled = await (await page.request.get(`${sessionApi}/messages?per_page=500`)).json();
+      return JSON.stringify(settled.data);
     }).toContain("Continue authoring");
     const opened = context.waitForEvent("page");
     const launched = page.waitForResponse(response => response.request().method() === "POST"
@@ -198,8 +198,8 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     }
     await writeFile(test.info().outputPath("runtime.log"), logs);
     await test.info().attach("runtime-log", { body: logs, contentType: "text/plain" });
-    expect.soft(logs, "The installed Kyoshi instructions must reach the native harness").toContain('"masterInstructionsLoaded":true');
-    expect.soft(logs, "The installed course-specific question tool must execute").toContain('"customToolUsed":true');
+    expect.soft(logs, "The shipped Kyoshi instructions must reach the native harness").toContain('"shippedInstructionsLoaded":true');
+    expect.soft(logs, "The shipped question tool must execute").toContain('"questionToolUsed":true');
     if (fixtureRoot) {
       const surviving = execFileSync("ps", ["-axo", "pid=,args="], { encoding: "utf8" })
         .split("\n").filter(line => line.includes(fixtureRoot!));
