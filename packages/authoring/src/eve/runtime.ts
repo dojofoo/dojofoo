@@ -1,10 +1,9 @@
 import { readFile, realpath, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
-import { delimiter, join } from "node:path";
+import { join } from "node:path";
 import { authoringHarness, type AuthoringHarness } from "./harness.ts";
 import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiOutput } from "./prepare.ts";
-import { authoringEnvironment } from "./environment.ts";
 import { evaluationConfiguration } from "../evaluation/host.ts";
 import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
 import { configuredHarnessModel } from "./models.ts";
@@ -64,7 +63,6 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   const load = createRequire(import.meta.url);
   const { startProductionServer } = await import(load.resolve("@dojofoo/agent/server/production")) as typeof import("@dojofoo/agent/server/production");
   const { Client } = await import(load.resolve("@dojofoo/agent/client")) as typeof import("@dojofoo/agent/client");
-  const { createLocalSandbox, registerLocalProcessHost, prepareHarnessEnvironment } = await import(load.resolve("@dojofoo/agent/experimental/local")) as typeof import("@dojofoo/agent/experimental/local");
   const auth = { basic: { username: "dojo-host", password: randomBytes(32).toString("hex") } };
   let production: Awaited<ReturnType<typeof startProductionServer>> | undefined;
   const server = {
@@ -75,26 +73,16 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
       },
       async close() { await production?.close(); },
     };
-  let host: ReturnType<typeof registerLocalProcessHost> | undefined;
   let starting: Promise<{ url: string; auth: typeof auth }> | undefined;
   let closing: Promise<void> | undefined;
   const cleanup = async () => {
-    // Workers can still be waiting on native process pipes. Close both owners
-    // together so server shutdown cannot prevent the process host from stopping.
-    const results = await Promise.allSettled([server.close(), host?.close()]);
-    const failures = results.filter(result => result.status === "rejected").map(result => result.reason);
-    if (failures.length) throw new AggregateError(failures, "Failed to close Kyoshi runtime.");
+    await server.close();
   };
   return {
     start() {
       if (closing) return Promise.reject(new Error("Kyoshi runtime is closed."));
       return starting ??= (async () => {
-        const environment = await prepareHarnessEnvironment(await authoringEnvironment(harness));
-        if (process.env.DOJO_CLI) {
-          const commands = await prepareKyoshiCommand(harnessRoot, process.env.DOJO_CLI);
-          environment.PATH = [commands, environment.PATH].filter(Boolean).join(delimiter);
-        }
-        host = registerLocalProcessHost(await createLocalSandbox(harnessRoot, { environment }));
+        const commandPath = process.env.DOJO_CLI ? await prepareKyoshiCommand(harnessRoot, process.env.DOJO_CLI) : undefined;
         try {
           await writeFile(runtimePath, JSON.stringify({
             courseRoot,
@@ -106,7 +94,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
             // A half-configured evaluator must not stop Kyoshi from starting;
             // the evaluation tool then reports "not configured" instead.
             evaluation: (() => { try { return evaluationConfiguration(); } catch { return undefined; } })(),
-            connection: host.connection,
+            commandPath,
           }), { mode: 0o600 });
           const started = await server.start();
           // A bound port is not proof that Eve can load the authored agent.

@@ -118,7 +118,6 @@ it("owns a real packaged Eve server and releases it without launching a model", 
     expect(first.url).toBe(second.url);
     const state = JSON.parse(await readFile(join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json"), "utf8"));
     expect(state.courseRoot).toBe(root);
-    expect(state.connection.id).toEqual(expect.any(String));
     // Eve owns generation paths: verify through its manifest-loading API,
     // not an assumed .eve/compile location.
     const info = await new Client({ host: first.url, auth: first.auth }).info();

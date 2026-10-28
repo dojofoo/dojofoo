@@ -29,7 +29,10 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
   const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-turn-"));
   const home = join(root, "home");
   await mkdir(home);
-  if (selection === "codex") await mkdir(join(home, ".codex"));
+  if (selection === "codex") {
+    await mkdir(join(home, ".codex"));
+    await writeFile(join(home, ".codex/config.toml"), 'model = "fixture-codex"\n');
+  }
   const endpoint = await startLoopbackModel({ responses: selection !== "grok", latencyMs: selection === "grok" ? 250 : 0,
     selectChatTool: selection === "grok" ? (request: { messages?: Array<{ role: string; content?: string }> }, requested: string[]) => {
       if (requested.length === 0) return { name: "search_tool", input: { query: "dojo_ui_ask" } };
@@ -89,11 +92,11 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
   let runtime: Awaited<ReturnType<typeof createKyoshiRuntime>> | undefined;
   try {
     runtime = await createKyoshiRuntime(root, selection === "runtime" ? { model: "openai/gpt-4o" } : {});
-    const { url } = await runtime.start();
+    const { url, auth } = await runtime.start();
     const configuration = JSON.parse(await readFile(join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json"), "utf8"));
-    expect(configuration.model).toBe(selection === "runtime" ? "openai/gpt-4o" : undefined);
+    expect(configuration.model).toBe(selection === "runtime" ? "openai/gpt-4o" : selection === "codex" ? "fixture-codex" : undefined);
     expect(JSON.stringify(configuration)).not.toContain("fixture-only");
-    const created = await new Client({ host: url }).sessions.create({
+    const created = await new Client({ host: url, auth }).sessions.create({
       message: "Help me author a course.", signal: AbortSignal.timeout(120_000),
     });
     const parked = await created.response.result();
@@ -108,14 +111,17 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
     // A normal UI restart supplies no model; keep the author's previous choice.
     runtime = await createKyoshiRuntime(root);
     const restarted = await runtime.start();
-    const session = new Client({ host: restarted.url }).sessions.attach(state.sessionId, { streamIndex: state.streamIndex });
+    const session = new Client({ host: restarted.url, auth: restarted.auth }).sessions.attach(state.sessionId, { streamIndex: state.streamIndex });
     const result = await (await session.respond([{
       requestId: parked.inputRequests[0].requestId, optionId: "Beginner",
     }], { signal: AbortSignal.timeout(60_000) })).result();
     expect(result.message, JSON.stringify(result)).toBe("Ready to teach.");
     if (selection === "grok") expect(endpoint.requestedTools.filter((name: string) => name === "use_tool")).toHaveLength(1);
     else if (selection === "fx") expect(endpoint.requestedTools.filter((name: string) => name.endsWith("dojo_ui_ask"))).toHaveLength(1);
-    else if (selection === "codex") expect(endpoint.requestedTools).toEqual(["dojo_ui_ask"]);
+    else if (selection === "codex") {
+      expect(endpoint.requestedTools).toEqual(["dojo_ui_ask"]);
+      expect(endpoint.requests.some((request: { model?: string }) => request.model === "fixture-codex")).toBe(true);
+    }
     else expect(endpoint.requestedTools).toHaveLength(1);
     expect(JSON.stringify(endpoint.requests)).toContain(
       JSON.stringify(instructions.content).slice(1, -1),
