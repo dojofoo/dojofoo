@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { codexModels, parseOpenCodeModels, piModels } from "./models.ts";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { codexModels, configuredHarnessModel, parseOpenCodeModels, piModels } from "./models.ts";
 
 const createModelRuntime = vi.hoisted(() => vi.fn());
 const thinkingLevels = vi.hoisted(() => vi.fn());
@@ -17,6 +20,15 @@ const server = (response: string) => ["--input-type=module", "-e", `
 `];
 
 describe("native model discovery", () => {
+  it("uses Codex's configured model without confusing nested TOML settings with the root model", async () => {
+    const home = await mkdtemp(join(tmpdir(), "dojo-codex-config-"));
+    try {
+      expect(await configuredHarnessModel("codex", home)).toBeUndefined();
+      await writeFile(join(home, "config.toml"), `model = 'configured-model' # native choice\n[profiles.other]\nmodel = "other-model"\n`);
+      expect(await configuredHarnessModel("codex", home)).toBe("configured-model");
+      expect(await configuredHarnessModel("opencode", home)).toBeUndefined();
+    } finally { await rm(home, { recursive: true, force: true }); }
+  });
   it("uses Pi's configured availability without exposing credentials or inventing effort support", async () => {
     thinkingLevels.mockReturnValueOnce(["off", "high"]);
     const model = { provider: "custom", id: "reasoner", name: "Local reasoner", reasoning: true, apiKey: "private" };

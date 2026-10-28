@@ -1,10 +1,25 @@
 import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { createInterface } from "node:readline";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { JSONRPCClient } from "json-rpc-2.0";
+import { parse } from "smol-toml";
+
+/** Preserve the native CLI choice when the caller has not selected a model. */
+export async function configuredHarnessModel(harness: string, codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex")): Promise<string | undefined> {
+  if (harness !== "codex") return undefined;
+  let source: string;
+  try { source = await readFile(join(codexHome, "config.toml"), "utf8"); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+  const model = parse(source).model;
+  return typeof model === "string" && model.trim() ? model : undefined;
+}
 
 export interface HarnessModelChoice {
   id: string;

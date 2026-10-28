@@ -7,6 +7,7 @@ import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKy
 import { authoringEnvironment } from "./environment.ts";
 import { evaluationConfiguration } from "../evaluation/host.ts";
 import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
+import { configuredHarnessModel } from "./models.ts";
 
 // Native Node module lifetime, not Vite's reloadable route-module lifetime.
 // These are owned process resources. Eve remains the only session/history owner.
@@ -52,10 +53,13 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   try {
     const saved: unknown = JSON.parse(await readFile(runtimePath, "utf8"));
     if (model === undefined && saved && typeof saved === "object" && "harness" in saved && saved.harness === harness
+      && !("modelSource" in saved && saved.modelSource === "native")
       && "model" in saved && typeof saved.model === "string") model = saved.model;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  const selectedModel = model;
+  model ??= await configuredHarnessModel(harness);
   // Keep Node workers and the coordinator in the same installed package scope.
   const load = createRequire(import.meta.url);
   const { startProductionServer } = await import(load.resolve("@dojofoo/agent/server/production")) as typeof import("@dojofoo/agent/server/production");
@@ -97,6 +101,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
             auth: auth?.basic,
             harnessRoot,
             model,
+            modelSource: selectedModel === undefined && model !== undefined ? "native" : undefined,
             harness,
             // A half-configured evaluator must not stop Kyoshi from starting;
             // the evaluation tool then reports "not configured" instead.

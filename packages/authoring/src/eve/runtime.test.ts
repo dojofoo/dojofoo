@@ -8,6 +8,28 @@ import { Client } from "@dojofoo/agent/client";
 import { expect, it, vi } from "vitest";
 import { acquireKyoshiRuntime, createKyoshiRuntime } from "./runtime";
 
+it("defaults to the native Codex model, preserving saved and explicit selections", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-model-"));
+  vi.stubEnv("DOJOFOO_HARNESS", "codex");
+  vi.stubEnv("CODEX_HOME", root);
+  vi.stubEnv("DOJOFOO_HOME", root);
+  const statePath = join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json");
+  try {
+    await writeFile(join(root, "config.toml"), 'model = "native-model"\n');
+    for (const [options, expected] of [[{}, "native-model"], [{}, "changed-native-model"], [{ model: "selected-model" }, "selected-model"], [{}, "selected-model"]] as const) {
+      const runtime = await createKyoshiRuntime(root, options);
+      try {
+        await runtime.start();
+        expect(JSON.parse(await readFile(statePath, "utf8")).model).toBe(expected);
+      } finally { await runtime.close(); }
+      await writeFile(join(root, "config.toml"), 'model = "changed-native-model"\n');
+    }
+  } finally {
+    vi.unstubAllEnvs();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30_000);
+
 it("boots shipped Kyoshi in a plain Node process without monorepo module paths", async () => {
   const root = await mkdtemp(join(tmpdir(), "dojo-master-native-"));
   await mkdir(join(root, ".dojo/kyoshi"), { recursive: true });

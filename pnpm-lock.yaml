@@ -322,6 +322,9 @@ importers:
       just-bash:
         specifier: 3.6.0
         version: 3.6.0
+      smol-toml:
+        specifier: 1.9.1
+        version: 1.9.1
       ws:
         specifier: 8.21.0
         version: 8.21.0
