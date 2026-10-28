@@ -10,7 +10,7 @@ function publishedCourseFile(path: string, authoring: boolean): boolean {
   if (parts.some(part => (!authoring && part === "KYOSHI.md") || part === ".dojorc" || part === ".dojo-source.json")) return false;
   const dojo = parts.indexOf(".dojo");
   if (dojo < 0) return true;
-  return dojo === 0 && (parts.length === 1 || parts[1] === "sensei" || (authoring && parts[1] === "kyoshi")) && parts.lastIndexOf(".dojo") === 0;
+  return dojo === 0 && (parts.length === 1 || parts[1] === "sensei") && parts.lastIndexOf(".dojo") === 0;
 }
 
 /** Snapshot author-owned ignore rules once for each file-selection operation. */
