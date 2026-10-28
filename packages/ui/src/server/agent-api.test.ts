@@ -30,6 +30,18 @@ function runtime(start = async () => ({ url: "http://127.0.0.1:9" })) {
 }
 
 describe("local agent runtime", () => {
+  it("forwards the current page state without starting the agent or accepting a different workspace identity", async () => {
+    const { local, workspaceId, owned } = runtime();
+    const view = { scope: "lesson", lessonId: "first", file: "src/first/SENSEI.md", unsavedChanges: true };
+    const request = new Request("http://localhost/api/v1/sessions", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ forwardedProps: { view, workspaceId: "another-workspace" } }),
+    });
+    const body = await request.json();
+    expect(await local.context?.(workspaceId, request, body.forwardedProps)).toEqual({ view, workspaceId });
+    expect(owned.start).not.toHaveBeenCalled();
+  });
+
   it("lists the workspace's selected coding agent first and the others it supports", async () => {
     vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
     const { local, workspaceId } = runtime();

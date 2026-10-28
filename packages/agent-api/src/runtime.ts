@@ -42,8 +42,8 @@ export interface AgentRuntime {
   connect(workspaceId: string, target: { agent: string; persona: Persona }): Promise<Client>;
   /** The persona's first message when a session starts without one */
   greeting(persona: Persona): string;
-  /** Course context passed to the agent with every message */
-  context?(workspaceId: string, request: Request): Promise<SendTurnOptions["clientContext"]>;
+  /** Course context passed with every message; forwardedProps is already parsed page state. */
+  context?(workspaceId: string, request: Request, forwardedProps?: unknown): Promise<SendTurnOptions["clientContext"]>;
   sessions: {
     list(workspaceId: string): Promise<SessionRecord[]>;
     get(workspaceId: string, sessionId: string): Promise<SessionRecord | undefined>;

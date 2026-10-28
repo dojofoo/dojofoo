@@ -328,7 +328,10 @@ function AuthoringPage() {
 
   const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>;
   const shell = { ...account, brand, workspace: "Dojo", sidebarWidth: "18rem", showNews: false, showOnboarding: false };
-  const conversation = agentWorkspace.id ? <AgentChat key={agentWorkspace.id} embedded workspaceId={agentWorkspace.id} persona="kyoshi" sessionId={search.session} onSession={id => {
+  const conversation = agentWorkspace.id ? <AgentChat key={agentWorkspace.id} embedded workspaceId={agentWorkspace.id} persona="kyoshi" sessionId={search.session}
+    forwardedProps={{ view: { scope, ...(scope === "lesson" && selectedLessonId ? { lessonId: selectedLessonId } : {}),
+      ...(activeFilePath ? { file: activeFilePath, unsavedChanges: dirty } : {}),
+    } }} onSession={id => {
       rememberAuthoringSession(agentWorkspace.id!, id);
       void navigate({ search: previous => ({ ...previous, workspace: agentWorkspace.id, session: id }), replace: true });
     }} /> : <AuthoringChat embedded messages={[]} status="ready" busy={!agentWorkspace.error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}}

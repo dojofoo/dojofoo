@@ -90,7 +90,7 @@ export function createAgentApi(runtime: AgentRuntime) {
       // Eve starts the first run on acceptance; the client follows it through `listEvents`.
       const { session } = await client.sessions.create({
         message: body.message ?? runtime.greeting(persona),
-        clientContext: await runtime.context?.(params.workspaceId, request),
+        clientContext: await runtime.context?.(params.workspaceId, request, body.forwardedProps),
         signal: request.signal,
       });
       const saved: SessionRecord = { id: session.state.sessionId, agent, persona, createdAt: new Date().toISOString() };
@@ -122,7 +122,7 @@ export function createAgentApi(runtime: AgentRuntime) {
       const saved = await record(params.workspaceId, params.sessionId);
       const input = await runInput(body);
       const { session, projection } = await read(await connect(params.workspaceId, saved), saved.id, request.signal);
-      const options = { signal: request.signal, clientContext: await runtime.context?.(params.workspaceId, request) };
+      const options = { signal: request.signal, clientContext: await runtime.context?.(params.workspaceId, request, input.forwardedProps) };
       const events: AsyncIterable<MessageStreamEvent> = input.answers
         ? await session.respond(input.answers, options)
         : await session.send(input.message!, options);

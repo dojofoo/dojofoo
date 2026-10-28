@@ -6,11 +6,11 @@ export type AgentMessage = Parameters<ClientSession["send"]>[0];
 export type InputResponses = ReturnType<typeof parseInputResponses>;
 
 /** A run request (AG-UI `RunAgentInput`): the new user message, or answers to pending questions. */
-export async function runInput(body: unknown): Promise<{ runId?: string; message?: AgentMessage; answers?: InputResponses }> {
+export async function runInput(body: unknown): Promise<{ runId?: string; message?: AgentMessage; answers?: InputResponses; forwardedProps?: unknown }> {
   let input;
   try { input = await chatParamsFromRequestBody(body); }
   catch (cause) { throw new AgentApiError(400, "invalid_run", "The request is not a valid run.", { cause }); }
-  if (input.resume !== undefined) return { runId: input.runId, answers: answers(input.resume) };
+  if (input.resume !== undefined) return { runId: input.runId, answers: answers(input.resume), forwardedProps: input.forwardedProps };
   // The agent keeps the history; send only the new user turn, never replay the client's.
   const latest = convertMessagesToModelMessages(input.messages).at(-1);
   const content = latest?.role === "user" ? latest.content : undefined;
@@ -18,7 +18,7 @@ export async function runInput(body: unknown): Promise<{ runId?: string; message
   if (!message || !(typeof message === "string" ? message.trim() : message.length)) {
     throw new AgentApiError(422, "message_required", "A run needs a user message or answers.");
   }
-  return { runId: input.runId, message };
+  return { runId: input.runId, message, forwardedProps: input.forwardedProps };
 }
 
 function answers(resume: unknown): InputResponses {

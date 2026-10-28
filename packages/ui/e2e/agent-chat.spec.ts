@@ -1,6 +1,41 @@
 import { expect, test } from "@playwright/test";
 import { turn } from "../../agent-api/src/fixtures";
-import { mountAgentChat as mount, sessionId, workspaceId } from "./agent-chat.fixture";
+import { draft, mountAgentChat as mount, sessionId, workspaceId } from "./agent-chat.fixture";
+
+test("the same conversation follows the open lesson and file without saving unsent editor changes", async ({ page }) => {
+  test.setTimeout(30_000);
+  const saves: string[] = [];
+  page.on("request", request => { if (request.method() === "PUT" && request.url().includes("/api/authoring/files/")) saves.push(request.url()); });
+  const { runtime, calls } = await mount(page, { draft: { ...draft, lessons: [{
+    id: "first", title: "First lesson", description: "An introduction", senseiPath: "src/first/SENSEI.md",
+    sensei: "# Teaching notes", hasSensei: true, evalPaths: [], checks: [],
+    files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# Teaching notes" }],
+  }] } });
+  const contexts: unknown[] = [];
+  runtime.context = async (_workspaceId, _request, forwardedProps) => { contexts.push(forwardedProps); return { course: "starter" }; };
+  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await expect(page.getByText("Your saved guidance.", { exact: true })).toBeVisible();
+  const navigation = page.getByRole("navigation", { name: "Main menu" });
+  await navigation.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "Code editor", exact: true });
+  await editor.focus();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.insertText("# Unsaved teaching notes");
+  await expect(page.getByRole("tab", { name: /^SENSEI\.md/ })).toHaveAccessibleName(/unsaved changes/);
+  const composer = page.getByTestId("authoring-chat-composer");
+  await composer.getByRole("textbox").fill("Explain this file");
+  await composer.getByRole("button", { name: "Send", exact: true }).click();
+  await expect.poll(() => contexts.at(-1)).toEqual({ view: {
+    scope: "lesson", lessonId: "first", file: "src/first/SENSEI.md", unsavedChanges: true,
+  } });
+  await expect(page.getByText("I received your notes.", { exact: true })).toBeVisible();
+  await navigation.getByRole("button", { name: "dojo.yaml", exact: true }).click();
+  await composer.getByRole("textbox").fill("Now explain the course manifest");
+  await composer.getByRole("button", { name: "Send", exact: true }).click();
+  await expect.poll(() => contexts.at(-1)).toEqual({ view: { scope: "course", file: "dojo.yaml", unsavedChanges: false } });
+  expect(calls.filter(call => call === `POST /api/v1/workspaces/${workspaceId}/sessions`)).toHaveLength(0);
+  expect(saves).toHaveLength(0);
+});
 
 test("authoring restores history and sends a file without text through the versioned API", async ({ page }) => {
   test.setTimeout(25_000);

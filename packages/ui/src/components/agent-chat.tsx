@@ -42,12 +42,13 @@ async function readSession(workspaceId: string, sessionId: string, signal: Abort
 }
 
 /** Every persona uses the same conversation, uploads and session lifecycle. */
-export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded }: {
+export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded, forwardedProps }: {
   embedded?: boolean;
   workspaceId: string;
   persona: Persona;
   sessionId?: string;
   onSession(id: string): void;
+  forwardedProps?: Record<string, unknown>;
 }) {
   const current = useRef(sessionId);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -70,7 +71,7 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
         if (!sessionId) {
           const created = await json<Session>(agentApi(workspaceId, "/sessions"), {
             method: "POST", signal: controller.signal,
-            headers: { "content-type": "application/json" }, body: JSON.stringify({ persona }),
+            headers: { "content-type": "application/json" }, body: JSON.stringify({ persona, forwardedProps }),
           });
           if (controller.signal.aborted) return;
           // Bookmark acceptance before reading history so retries reuse this session.
@@ -88,15 +89,17 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles} onSend={() => {}} onAnswer={() => {}} error={error}
     onRetryLoad={error ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
   return <AgentConversation key={snapshot.sessionId} embedded={embedded} workspaceId={workspaceId} snapshot={snapshot} placeholder={placeholder}
+    forwardedProps={forwardedProps}
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles}
     queueLabel={persona === "kyoshi" ? "Kyoshi is responding" : "Sensei is responding"}
     onReload={() => { setSnapshot(null); setLoadAttempt(attempt => attempt + 1); }} />;
 }
 
-function AgentConversation({ workspaceId, snapshot, onReload, embedded, value, onValueChange, files, onFilesChange, placeholder, queueLabel }: {
+function AgentConversation({ workspaceId, snapshot, onReload, embedded, value, onValueChange, files, onFilesChange, placeholder, queueLabel, forwardedProps }: {
   embedded?: boolean; workspaceId: string; snapshot: Snapshot; onReload(): void;
   value: string; onValueChange(value: string): void; files: File[]; onFilesChange(files: File[]): void;
   placeholder: string; queueLabel: string;
+  forwardedProps?: Record<string, unknown>;
 }) {
   const [error, setError] = useState<string>();
   const path = agentApi(workspaceId, `/sessions/${encodeURIComponent(snapshot.sessionId)}`);
@@ -115,7 +118,7 @@ function AgentConversation({ workspaceId, snapshot, onReload, embedded, value, o
     return { connect: runs.connect, joinRun: events.joinRun };
   }, [path]);
   const chat = useChat({
-    connection, persistence: false, threadId: snapshot.sessionId,
+    connection, persistence: false, threadId: snapshot.sessionId, forwardedProps,
     initialMessages: snapshot.messages, initialResumeSnapshot: snapshot.initialResumeSnapshot,
     onError: reportError,
   });

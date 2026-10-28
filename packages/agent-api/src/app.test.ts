@@ -59,6 +59,17 @@ describe("agents", () => {
 });
 
 describe("sessions", () => {
+  it("passes initial page state to the runtime context hook", async () => {
+    const { json, runtime, eve } = setup();
+    const context = vi.fn(async () => ({ course: "starter" }));
+    runtime.context = context;
+    const view = { scope: "course", file: "dojo.yaml" };
+    const response = await json("/sessions", "POST", { persona: "kyoshi", forwardedProps: { view } });
+    expect(response.status).toBe(201);
+    expect(context).toHaveBeenCalledWith("ws-1", expect.any(Request), { view });
+    expect(eve.sent[0].context).toEqual({ course: "starter" });
+  });
+
   it("creates a session on the selected coding agent with the persona's greeting and course context", async () => {
     const { json, eve, runtime } = setup();
     const created = await json("/sessions", "POST", { persona: "kyoshi" });
@@ -164,18 +175,21 @@ describe("runs", () => {
   });
 
   it("answers questions through the run's resume", async () => {
-    const { app, json, eve } = setup((message, turnId) => message === "(answers)"
+    const { app, json, eve, runtime } = setup((message, turnId) => message === "(answers)"
       ? turn(turnId, "", ["Thanks"])
       : turn(turnId, String(message), ["Pick one"], { question: true }));
+    const context = vi.fn(async () => ({ course: "starter" }));
+    runtime.context = context;
     await json("/sessions", "POST", { persona: "kyoshi" });
     const response = await app.handle(new Request(`${base}/sessions/session-1/runs`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ threadId: "session-1", runId: "run-2", state: {}, messages: [], tools: [], context: [], forwardedProps: {},
+      body: JSON.stringify({ threadId: "session-1", runId: "run-2", state: {}, messages: [], tools: [], context: [], forwardedProps: { view: { file: "SENSEI.md" } },
         resume: [{ interruptId: "turn-1-q", status: "resolved", payload: { optionId: "review" } }] }),
     }));
     expect(response.headers.get("content-type")).toContain("text/event-stream");
     expect(await response.text()).toContain("RUN_FINISHED");
     expect(eve.answered).toEqual([{ sessionId: "session-1", answers: [expect.objectContaining({ requestId: "turn-1-q", optionId: "review" })] }]);
+    expect(context).toHaveBeenLastCalledWith("ws-1", expect.any(Request), { view: { file: "SENSEI.md" } });
   });
 
   it("rejects a run without a message or answers", async () => {

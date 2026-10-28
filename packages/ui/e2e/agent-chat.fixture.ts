@@ -1,13 +1,15 @@
 import type { Page } from "@playwright/test";
 import { createAgentApi } from "@dojofoo/agent-api";
 import { FakeEve, fakeRuntime, turn } from "../../agent-api/src/fixtures";
+import type { AuthoringDraft } from "@dojofoo/authoring/service";
 
 export const workspaceId = "ws-1";
 export const sessionId = "saved";
-const draft = { root: "/tmp/agent-course", style: "katas", name: "Agent course", description: "A course", language: "TypeScript", manifestSource: "name: Agent course\n", courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: Agent course\n" }], lessons: [], issues: [], courseChecks: [] };
+export const draft: AuthoringDraft = { root: "/tmp/agent-course", style: "katas", name: "Agent course", description: "A course", language: "TypeScript", manifestSource: "name: Agent course\n", courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: Agent course\n" }], lessons: [], issues: [], courseChecks: [] };
 
-export async function mountAgentChat(page: Page, options: { root?: string; files?: boolean; workspaceId?: string; hold?: Promise<void>; failRead?: () => boolean; failRun?: () => boolean; failCancel?: () => boolean } = {}) {
+export async function mountAgentChat(page: Page, options: { draft?: AuthoringDraft; root?: string; files?: boolean; workspaceId?: string; hold?: Promise<void>; failRead?: () => boolean; failRun?: () => boolean; failCancel?: () => boolean } = {}) {
   const id = options.workspaceId ?? workspaceId;
+  const selectedDraft = options.draft ?? draft;
   const eve = new FakeEve((message, id) => turn(id, typeof message === "string" ? message : "Attached notes", ["I received your notes."]));
   eve.histories.set(sessionId, turn("saved-turn", "Help with this course", ["Your saved guidance."]));
   const runtime = fakeRuntime(eve, id);
@@ -19,11 +21,11 @@ export async function mountAgentChat(page: Page, options: { root?: string; files
     await page.route("**/api/authoring/**", route => {
       const path = new URL(route.request().url()).pathname;
       if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
-      if (path.endsWith("/draft")) return route.fulfill({ json: draft });
+      if (path.endsWith("/draft")) return route.fulfill({ json: selectedDraft });
       return route.fulfill({ status: 404 });
     });
   }
-  await page.route("**/api/control/workspaces", route => route.fulfill({ json: [{ id, path: options.root ?? draft.root }] }));
+  await page.route("**/api/control/workspaces", route => route.fulfill({ json: [{ id, path: options.root ?? selectedDraft.root }] }));
   await page.route("**/api/v1/**", async route => {
     const request = route.request();
     const url = new URL(request.url());

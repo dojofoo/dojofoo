@@ -115,6 +115,13 @@ export function createLocalAgentRuntime(options: {
       return client(path);
     },
     greeting: persona => persona === "kyoshi" ? KYOSHI_START : "",
+    async context(workspaceId, _request, forwardedProps) {
+      root(workspaceId);
+      if (forwardedProps !== undefined && (!forwardedProps || typeof forwardedProps !== "object" || Array.isArray(forwardedProps))) {
+        throw new AgentApiError(400, "invalid_context", "Page context must be a JSON object.");
+      }
+      return { ...forwardedProps, workspaceId };
+    },
     sessions: {
       list: async workspaceId => read(root(workspaceId)),
       async get(workspaceId, sessionId) {

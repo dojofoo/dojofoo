@@ -71,7 +71,9 @@ export const routes = {
   createSession: {
     detail: details("createSession", "Create a session", "Starts a conversation with a persona on a coding agent (the workspace's selected one by default). Its first run starts with `message`, or the persona's greeting.", "Sessions"),
     params: t.Object(workspace),
-    body: t.Object({ persona, agent: t.Optional(t.String()), message: t.Optional(t.String({ minLength: 1 })) }),
+    body: t.Object({ persona, agent: t.Optional(t.String()), message: t.Optional(t.String({ minLength: 1 })),
+      forwardedProps: t.Optional(t.Record(t.String(), t.Unknown(), { description: "Client-controlled page state supplied to the runtime context hook, as in AG-UI run requests." })),
+    }),
     response: { 201: session, 404: error, 409: error },
   },
   getSession: {
