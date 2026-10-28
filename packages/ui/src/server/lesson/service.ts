@@ -155,7 +155,7 @@ function dojoContextResource(snapshot: LessonSnapshot) {
 /** Older transcripts began hidden evidence with this sentence; keep hiding them. */
 const legacyEvidencePrefix = "Preserve ownership of the kata.";
 
-export async function getLesson(root: string, requestedKata?: string): Promise<LessonSnapshot | null> {
+export async function getLesson(root: string, requestedKata?: string, { prepareSession = true }: { prepareSession?: boolean } = {}): Promise<LessonSnapshot | null> {
   const rc = readDojoRc(root);
   if (!rc.currentDojo) return null;
   const catalog = readCatalog(root, rc.currentDojo);
@@ -177,7 +177,7 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
   const contractHash = lessonContractHash(instructions);
   const senseiContent = parseSenseiContent(sensei);
   let messages: UIMessage[] = [];
-  if (threadId && harness) {
+  if (threadId && harness && prepareSession) {
     // A provider outage is not a new lesson. Let the route expose the error;
     // an explicit retry resumes the same durable conversation.
     await acpClient.resumeThread(threadId, {
@@ -200,9 +200,11 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
       };
       writeWebState(root, webState);
     }
-  } else if (threadId) threadId = undefined;
+  } else if (threadId && !harness) threadId = undefined;
 
-  if (threadId) {
+  if (threadId && !prepareSession) messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
+
+  if (threadId && prepareSession) {
     webState.learnerEvidence = rememberLearnerEvidence(root, key, selected.name, threadId, messages);
   }
   const priorLesson = katas.slice(0, katas.indexOf(selected)).reverse().find(kata => kataState(kata, progress) === "completed");
@@ -214,7 +216,7 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
   const starterCode = existsSync(scaffoldPath) ? readFileSync(scaffoldPath, "utf8") : "";
   let result: TestReport | null = webState.results[key] ?? null;
   let resultChanged = false;
-  if (selectedState === "completed" && catalog.runner?.coverage === true && !result?.coverage) {
+  if (prepareSession && selectedState === "completed" && catalog.runner?.coverage === true && !result?.coverage) {
     try {
       result = parseTestReport(runDojo(root, ["kata", selected.name, "--check", "--reporter=json"]));
       resultChanged = true;
@@ -224,7 +226,7 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
         resultChanged = true;
       }
     }
-  } else if (!result && selectedState === "completed") {
+  } else if (prepareSession && !result && selectedState === "completed") {
     result = completedTestReport(sensei);
     resultChanged = true;
   }
@@ -275,7 +277,7 @@ export async function readLessonFile(
   fileId: string,
 ): Promise<LessonFileResource> {
   if (fileId !== "solution") throw new Error(`Lesson file not found: ${fileId}`);
-  const lesson = await getLesson(root, lessonId);
+  const lesson = await getLesson(root, lessonId, { prepareSession: false });
   if (!lesson || lesson.dojo !== courseId) throw new Error(`Lesson not found: ${lessonId}`);
   return {
     type: "lesson-files",

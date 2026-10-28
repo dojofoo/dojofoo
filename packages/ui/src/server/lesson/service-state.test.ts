@@ -132,6 +132,23 @@ describe("fresh lesson state", () => {
     expect(start).toHaveBeenCalledWith(expect.objectContaining({ harness: "codex" }));
   });
 
+  it("opens saved course state while its coding agent is unavailable", async () => {
+    const root = freshCourse();
+    vi.spyOn(acpClient, "startThread").mockResolvedValue("saved-session");
+    const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    await startLessonSession(root, "001-first");
+    history.mockResolvedValue([{ role: "assistant", text: "Saved learner guidance" }]);
+    const before = readFileSync(resolve(root, ".dojo/web.json"), "utf8");
+    resume.mockRejectedValue(new Error("Coding agent unavailable"));
+    await expect(getLesson(root, "001-first", { prepareSession: false })).resolves.toMatchObject({
+      dojo: "starter", kata: "001-first", sessionId: "saved-session", fileId: "solution",
+      messages: [{ role: "assistant", parts: [{ type: "text", content: "Saved learner guidance" }] }],
+    });
+    expect(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).toBe(before);
+    await expect(getLesson(root, "001-first")).rejects.toThrow("Coding agent unavailable");
+  });
+
   it("surfaces a resume failure without replacing the conversation and recovers on retry", async () => {
     const root = freshCourse();
     const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("recoverable-session");
