@@ -37,3 +37,18 @@ export const LongModelList: StoryObj<typeof meta> = { args: { longModels: true }
 export const UnavailableAttachments: StoryObj<typeof meta> = {
   render: () => <div className="mx-auto w-full max-w-xl p-6"><Composer tray={false} attachments="unavailable" dictation={false} plugins={false} models={[]} placeholder="Ask your Sensei…" /></div>,
 };
+
+function AttachmentComposer({ failOnce = false }: { failOnce?: boolean }) {
+  const [sent, setSent] = useState("");
+  const [reject, setReject] = useState(failOnce);
+  return <div className="mx-auto w-full max-w-xl p-6">
+    <Composer tray={false} dictation={false} plugins={false} models={[]} onSend={async (text, files: File[] = []) => {
+      if (reject) { setReject(false); throw new Error("Try sending again."); }
+      const attachments = await Promise.all(files.map(async file => ({ name: file.name, content: await file.text() })));
+      setSent(JSON.stringify({ text, attachments }));
+    }} />
+    <output aria-label="Sent message">{sent}</output>
+  </div>;
+}
+export const Attachments: StoryObj<typeof meta> = { render: () => <AttachmentComposer /> };
+export const AttachmentRetry: StoryObj<typeof meta> = { render: () => <AttachmentComposer failOnce /> };

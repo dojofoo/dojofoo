@@ -310,7 +310,7 @@ export function Composer({
   agent, agents, onAgentChange, agentChanging,
   className, value, onValueChange, history, disabled, onStop, id, label, queueing,
   model: controlledModel, onModelChange, modelChanging,
-  attachments = true, dictation = true, plugins: pluginsEnabled = true,
+  attachments = true, files: controlledFiles, onFilesChange, dictation = true, plugins: pluginsEnabled = true,
 }: {
   value?: string;
   onValueChange?: (value: string) => void;
@@ -325,6 +325,8 @@ export function Composer({
   modelChanging?: boolean;
   /** Keep the + control visible but disabled when this connection cannot accept files. */
   attachments?: boolean | "unavailable";
+  files?: File[];
+  onFilesChange?: (files: File[]) => void;
   dictation?: boolean;
   plugins?: boolean;
   placeholder?: string;
@@ -336,8 +338,8 @@ export function Composer({
   agents?: ComposerAgent[];
   onAgentChange?: (value: string) => void;
   agentChanging?: boolean;
-  /** Called with the message when it is sent */
-  onSend?: (text: string) => void;
+  /** Resolves when the host accepts the text and selected files. A rejection keeps the draft. */
+  onSend?: (text: string, files: File[]) => void | Promise<void>;
   /** While an answer is being written, sending waits */
   busy?: boolean;
   /** The outer tray with the folder and connected apps; without it only the card remains */
@@ -358,7 +360,11 @@ export function Composer({
   const [plugins, setPlugins] = useState<string[]>([]);
   const [folder, setFolder] = useState<string | null>(null);
   const [apps, setApps] = useState<string[]>(["Gmail"]);
-  const [files, setFiles] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const files = controlledFiles ?? selectedFiles;
+  const setFiles = onFilesChange ?? setSelectedFiles;
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string>();
   const [recording, setRecording] = useState(false);
   const toggleIn = (list: string[], item: string) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
 
@@ -373,30 +379,36 @@ export function Composer({
     return () => window.clearTimeout(t);
   }, [recording]);
 
-  const submit = () => {
-    if (!text.trim() || (busy && !queueing)) return;
-    onSend?.(text.trim());
-    setText("");
-    setFiles([]);
+  const submit = async () => {
+    if ((!text.trim() && !files.length) || submitting || (busy && !queueing)) return;
+    setSubmitting(true);
+    setSubmitError(undefined);
+    try {
+      await onSend?.(text.trim(), files);
+      setText("");
+      setFiles([]);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "The message could not be sent. Try again.");
+    } finally { setSubmitting(false); }
   };
 
   return <ComposerSurface value={text} onValueChange={setText} onSend={submit} busy={busy}
     placeholder={placeholder} className={className} fieldRef={field}
-    history={history} disabled={disabled} onStop={onStop} id={id} label={label} queueing={queueing}
-    attachments={files.length > 0 && (
+    history={history} disabled={disabled || submitting} onStop={onStop} id={id} label={label} queueing={queueing} hasAttachments={files.length > 0}
+    attachments={<>{files.length > 0 && (
           <div className="ui-as-attachments">
             {files.map((f) => (
-              <span key={f} className="ui-as-attachment">
+              <span key={f.name} className="ui-as-attachment">
                 <Icon icon={File01Icon} size={13} />
-                {f}
-                <button type="button" aria-label={`Remove ${f}`} onClick={() => setFiles((list) => list.filter((x) => x !== f))}>
+                {f.name}
+                <button type="button" disabled={submitting} aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter(x => x !== f))}>
                   <Icon icon={Cancel01Icon} size={11} />
                 </button>
               </span>
             ))}
           </div>
-        )}
-    leading={<>{attachments && <><button type="button" className="ui-as-icon-btn" aria-label="Add file" disabled={attachments === "unavailable"}
+        )}{submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}</>}
+    leading={<>{attachments && <><button type="button" className="ui-as-icon-btn" aria-label="Add file" disabled={attachments === "unavailable" || disabled || submitting}
             title={attachments === "unavailable" ? "Attachments are not available in this connection yet" : undefined} onClick={() => fileInput.current?.click()}>
             <Icon icon={PlusSignIcon} size={15} />
           </button>
@@ -406,8 +418,8 @@ export function Composer({
             multiple
             hidden
             onChange={(e) => {
-              const picked = [...(e.target.files ?? [])].map((f) => f.name);
-              setFiles((list) => [...list, ...picked.filter((n) => !list.includes(n))]);
+              const picked = [...(e.target.files ?? [])];
+              setFiles([...files, ...picked.filter(file => !files.some(existing => existing.name === file.name))]);
               e.target.value = "";
             }}
           />}</>}

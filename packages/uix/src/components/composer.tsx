@@ -19,7 +19,7 @@ export function ComposerPicker({ title, children, items, icon, model, active, di
 
 /** Shared presentation; the caller owns the draft, requests and supported controls. */
 export function ComposerSurface({ value, onValueChange, onSend, busy = false, disabled = false, onStop, queueing = false,
-  history = [], placeholder = "Message…", label = "Message", id, leading, controls, attachments, tray, className, fieldRef,
+  history = [], placeholder = "Message…", label = "Message", id, leading, controls, attachments, hasAttachments = false, tray, className, fieldRef,
 }: {
   value: string;
   onValueChange: (value: string) => void;
@@ -29,6 +29,7 @@ export function ComposerSurface({ value, onValueChange, onSend, busy = false, di
   onStop?: () => void;
   /** The host accepts another request into its existing queue during this turn. */
   queueing?: boolean;
+  hasAttachments?: boolean;
   history?: string[];
   placeholder?: string;
   label?: string;
@@ -55,7 +56,7 @@ export function ComposerSurface({ value, onValueChange, onSend, busy = false, di
     if (node) node.setSelectionRange(node.value.length, node.value.length);
   });
   const submit = () => {
-    if (disabled || (busy && !queueing) || !value.trim()) return;
+    if (disabled || (busy && !queueing) || (!value.trim() && !hasAttachments)) return;
     setHistoryIndex(null);
     onSend(value.trim());
   };
@@ -98,9 +99,9 @@ export function ComposerSurface({ value, onValueChange, onSend, busy = false, di
         {leading}
         <span className="ui-as-composer__end">
           {controls}
-          {busy && onStop && !(queueing && value.trim())
+          {busy && onStop && !(queueing && (value.trim() || hasAttachments))
             ? <button type="button" className="ui-as-send" aria-label="Stop" onClick={onStop}><Icon icon={Cancel01Icon} size={15} /></button>
-            : <button type="submit" className="ui-as-send" aria-label={busy && queueing ? "Queue message" : "Send"} disabled={disabled || (busy && !queueing) || !value.trim()}><Icon icon={ArrowUp02Icon} size={15} /></button>}
+            : <button type="submit" className="ui-as-send" aria-label={busy && queueing ? "Queue message" : "Send"} disabled={disabled || (busy && !queueing) || (!value.trim() && !hasAttachments)}><Icon icon={ArrowUp02Icon} size={15} /></button>}
         </span>
       </div>
     </div>
