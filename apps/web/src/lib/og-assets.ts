@@ -7,6 +7,7 @@
 // functions do not contain the source project's public directory.
 
 import ground from '../../public/og-ground.png?inline'
+import groundCard from '../../public/og-ground-card.png?inline'
 import topography from '../../public/og-cards/topography.jpg?inline'
 import network from '../../public/og-cards/network.jpg?inline'
 import waves from '../../public/og-cards/waves.jpg?inline'
@@ -15,8 +16,9 @@ import logoWordmark from '../../../../assets/brand/dojofoo-dark.svg?raw'
 import iosevka from '@fontsource/iosevka/files/iosevka-latin-400-normal.woff2?inline'
 import inter from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?inline'
 
-/** The footer's contour map, blurred and fading up (scripts/og-ground.mjs), and its color */
-export const getOgGroundDataUrl = () => Promise.resolve(ground)
+/** The footer's contour map, blurred and fading up, under the glass fade – with a course's card, also the card's shadow
+    – each shade dithered (scripts/og-ground.mjs); and its color */
+export const getOgGroundDataUrl = (withCard = false) => Promise.resolve(withCard ? groundCard : ground)
 export const OG_GROUND_COLOR = '#171717'
 
 /** What drifts over a course card, white on black (scripts/og-textures.mjs), at the strength ColorCard screens it */

@@ -14,7 +14,8 @@ export function DojoOg({ title, description, logo, ground, groundColor, card }: 
   description?: string;
   /** The wordmark, as a data URL */
   logo: string;
-  /** The contour map (public/og-ground.png) and its color */
+  /** The contour map with its shade worked out and dithered (scripts/og-ground.mjs) – the glass fade behind the words, and
+      with a card its shadow (public/og-ground-card.png) – and its color */
   ground: string;
   groundColor: string;
   /** Beside the words on the right, e.g. a course's card */
@@ -24,8 +25,6 @@ export function DojoOg({ title, description, logo, ground, groundColor, card }: 
   return (
     <div style={{ position: "relative", display: "flex", width: "100%", height: "100%", backgroundColor: groundColor, color: "#ffffff" }}>
       <img alt="" src={ground} width={OG.width} height={OG.height} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
-      {/* The fade: clear behind the words, the map showing to the right and below */}
-      <div style={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(100deg, ${groundColor}b3 0%, ${groundColor}80 35%, ${groundColor}1a 65%, ${groundColor}00 100%)` }} />
 
       {/* The logo at the top, on the words' edge */}
       <img alt="" src={logo} height={56} width={198} style={{ position: "absolute", top: 98, left: 128, objectFit: "contain", objectPosition: "left" }} />
@@ -71,9 +70,8 @@ export function OgCourseCard({ hue, lines, linesOpacity = 0.55, mark, figure, ki
   return (
     <div style={{ position: "relative", display: "flex" }}>
       {/* Its thickness, a little below and to the right of the face */}
-      <div style={{ position: "absolute", top: 5, left: 3, width: size, height: size, borderRadius: radius, backgroundColor: edge,
-        // Lifted off the page, as under the pointer
-        boxShadow: "0 56px 90px -16px rgba(0, 0, 0, 0.75), 0 22px 36px -8px rgba(0, 0, 0, 0.5)" }} />
+      {/* Its shadow, lifted off the page as under the pointer, is in the ground (og-ground-card.png): dithered there */}
+      <div style={{ position: "absolute", top: 5, left: 3, width: size, height: size, borderRadius: radius, backgroundColor: edge }} />
       <div style={{
         position: "relative", display: "flex", flexDirection: "column", width: size, height: size, padding: 8 * u, overflow: "hidden",
         borderRadius: radius, color: "#ffffff", fontFamily: "Inter",

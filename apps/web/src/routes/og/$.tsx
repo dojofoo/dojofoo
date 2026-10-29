@@ -35,6 +35,8 @@ export const Route = createFileRoute('/og/$')({
           const listed = origin ? (await getMarketplaceCourses(origin)).find((item) => item.source === parts[1] && item.slug === parts[2]) : undefined
           if (!listed) return missing()
           const course = toUIXCourse(listed)
+          // The ground with the card's shadow in it
+          frame.ground = await getOgGroundDataUrl(true)
           const lines = cardLines[course.shader]
           return ogImage(
             <DojoOg {...frame} title={course.name} description={course.description}
