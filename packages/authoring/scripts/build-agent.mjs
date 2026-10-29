@@ -14,6 +14,25 @@ const release = JSON.parse(await readFile(join(packageRoot, "../cli/package.json
 const installed = createRequire(join(packageRoot, "package.json"));
 const sdk = JSON.parse(await readFile(installed.resolve("@dojofoo/agent/package.json"), "utf8"));
 const eve = JSON.parse(await readFile(installed.resolve("@dojofoo/agent/eve/package.json"), "utf8"));
+const label = {
+  dojofoo: `dojofoo@${release.version}`,
+  agent: `@dojofoo/agent@${sdk.version}`,
+  eve: `eve@${eve.version}`,
+  source: `dojofoo/kyoshi@${release.version}`,
+  sourceHash: hash,
+};
+
+try {
+  const saved = JSON.parse(await readFile(join(destination, "build.json"), "utf8"));
+  const savedHash = (await readFile(join(destination, "source.sha256"), "utf8")).trim();
+  await access(join(destination, "server/index.mjs"));
+  if (savedHash === hash && Object.entries(label).every(([key, value]) => saved[key] === value)) {
+    console.info("Kyoshi source and release match; reusing the prepared build.");
+    process.exit(0);
+  }
+} catch (error) {
+  if (!(error instanceof SyntaxError) && error.code !== "ENOENT") throw error;
+}
 
 async function build() {
   const scratch = await mkdtemp(join(tmpdir(), "dojo-agent-package-"));
@@ -46,13 +65,7 @@ try {
   await rm(destination, { recursive: true, force: true });
   await cp(output, destination, { recursive: true, verbatimSymlinks: true });
   await writeFile(join(destination, "source.sha256"), hash);
-  await writeFile(join(destination, "build.json"), JSON.stringify({
-    dojofoo: `dojofoo@${release.version}`,
-    agent: `@dojofoo/agent@${sdk.version}`,
-    eve: `eve@${eve.version}`,
-    source: `dojofoo/kyoshi@${release.version}`,
-    sourceHash: hash,
-  }, null, 2) + "\n");
+  await writeFile(join(destination, "build.json"), JSON.stringify(label, null, 2) + "\n");
 } finally {
   await rm(scratch, { recursive: true, force: true });
 }

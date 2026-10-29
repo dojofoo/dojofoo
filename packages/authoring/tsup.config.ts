@@ -11,5 +11,5 @@ export default defineConfig({
   format: ["esm"],
   target: "node24",
   splitting: true,
-  clean: true,
+  clean: ["!prepared", "!prepared/**"],
 });

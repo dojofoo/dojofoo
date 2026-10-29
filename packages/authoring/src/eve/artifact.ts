@@ -10,8 +10,11 @@ export const authoringPackageRoot = dirname(require.resolve("@dojofoo/authoring/
 /** Hash definitions and their installed implementation, never private runtime bindings. */
 export async function agentSourceHash(agentRoot: string): Promise<string> {
   const hash = createHash("sha256");
-  const { name, version } = JSON.parse(await readFile(require.resolve("@dojofoo/agent/package.json"), "utf8"));
-  hash.update(JSON.stringify({ name, version }));
+  const { name, version, dependencies } = JSON.parse(await readFile(require.resolve("@dojofoo/agent/package.json"), "utf8"));
+  hash.update(JSON.stringify({ name, version, dependencies }));
+  const own = JSON.parse(await readFile(join(authoringPackageRoot, "package.json"), "utf8"));
+  hash.update(JSON.stringify(Object.entries(own.dependencies).filter(([name]) => name.startsWith("@ai-sdk/") || name === "ai")));
+  hash.update(await readFile(require.resolve("@dojofoo/agent/experimental")));
   hash.update(await readFile(join(authoringPackageRoot, "scripts/build-agent.mjs")));
   for (const directory of [agentRoot, join(authoringPackageRoot, "dist"), join(authoringPackageRoot, "skills")]) {
     const files = await globby("**/*", {
