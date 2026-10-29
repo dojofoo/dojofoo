@@ -191,7 +191,7 @@ const css = /* css */ `
   .ui-land-note > span:first-child::before {
     content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg); border-radius: 2px;
     mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
-    mask-size: 100% 100%, var(--cut-top, 34%) 3px, var(--cut-bottom, 34%) 3px, 2px calc(100% - 3px);
+    mask-size: 100% 100%, var(--cut-top, 34%) 3px, var(--cut-bottom, 34%) 2px, 2px calc(100% - 2px);
     mask-position: 0 0, right 0 top 0, left 0 bottom 0, 6px 0;
     mask-repeat: no-repeat;
     mask-composite: exclude;
