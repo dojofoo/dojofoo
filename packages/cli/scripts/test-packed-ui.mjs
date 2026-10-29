@@ -41,9 +41,12 @@ try {
   // Preserve the original adapter's assets beside its module. Model switching
   // is exercised by the production turn test, without extracting private code.
   const adapter = dirname(installedRequire.resolve("@ai-sdk/harness-opencode"));
-  for (const asset of ["index.mjs", "host-tool-mcp.mjs", "package.json", "pnpm-lockfile.yaml", "pnpm-workspace.yaml"]) {
+  for (const asset of ["index.mjs", "host-tool-mcp.mjs", "package.json"]) {
     if (!existsSync(resolve(adapter, "bridge", asset))) throw new Error(`Installed OpenCode adapter is missing ${asset}.`);
   }
+  const { createOpenCode } = await import(pathToFileURL(installedRequire.resolve("@ai-sdk/harness-opencode")).href);
+  // Let the adapter resolve its own version's physical asset filenames.
+  await createOpenCode().getBootstrap();
   const { scaffoldAuthoringWorkspace } = await import(
     pathToFileURL(installedRequire.resolve("@dojofoo/authoring/scaffold")).href
   );
