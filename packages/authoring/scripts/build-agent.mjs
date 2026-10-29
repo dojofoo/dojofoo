@@ -41,7 +41,7 @@ async function build() {
 try {
   // Use the locked production graph, without links back into the monorepo.
   execFileSync(process.env.npm_execpath ?? "pnpm", ["--filter", "@dojofoo/authoring", "deploy",
-    "--config.inject-workspace-packages=true", "--prod", "--offline", "--ignore-scripts", isolated], {
+    "--config.inject-workspace-packages=true", "--prod", "--ignore-scripts", isolated], {
     cwd: resolve(packageRoot, "../.."), stdio: "inherit",
   });
   // Trace source dependencies once; a previous prepared server contains its
