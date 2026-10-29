@@ -41,7 +41,7 @@ export function LandingPage({ learning, courses, preview }: {
   const [mode, setMode] = useState<1 | 2 | 3>(1);
   const app = useRef<HTMLDivElement>(null);
   const card = useInside(app, ".lj-course");
-  const speaker = useInside(app, ".ui-as-chat__speaker");
+  const sensei = useInside(app, ".ui-as-chat__dot");
   return (
     <SitePage current="home" window={false} full backdrop={<TopographyBackdrop />}>
       <style href="ui-web-landing" precedence="default">{css}</style>
@@ -73,7 +73,7 @@ export function LandingPage({ learning, courses, preview }: {
       <div className="ui-land-app" ref={app}>
         {/* What the window shows, called out instead of explained: notes above it, their arrows drawn into the app */}
         <ArrowCallout target={card} flip className="ui-land-note ui-land-note--card">Install any course</ArrowCallout>
-        <ArrowCallout target={speaker} flip className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
+        <ArrowCallout target={sensei} flip wave={2.5} className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
         <AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview>
       </div>
 

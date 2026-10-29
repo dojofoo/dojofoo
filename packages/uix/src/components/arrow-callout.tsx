@@ -17,7 +17,7 @@ const TIP_GAP = 8;
 const PAD = 6;
 
 // The curve lives in the note's own coordinates: (0,0) is the note's top left.
-function geometry(note: Box, target: Box, flip = false) {
+function geometry(note: Box, target: Box, flip = false, wave = 0) {
   const tc = {
     x: target.left + target.width / 2 - note.left,
     y: target.top + target.height / 2 - note.top,
@@ -65,8 +65,33 @@ function geometry(note: Box, target: Box, flip = false) {
   const b1 = barb(0.5, 9);
   const b2 = barb(-0.45, 7.5);
 
-  const xs = [s.x, c1.x, c2.x, e.x, b1.x, b2.x];
-  const ys = [s.y, c1.y, c2.y, e.y, b1.y, b2.y];
+  // A wavy shaft: the same curve, sampled, with a sine across it that fades out at both ends so the arrow still
+  // leaves the note and lands on its tip where the plain one would
+  const shaft: Pt[] = [];
+  if (wave > 0) {
+    const at = (t: number) => {
+      const u = 1 - t;
+      return {
+        x: u * u * u * s.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * e.x,
+        y: u * u * u * s.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * e.y,
+      };
+    };
+    const steps = 64;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const here = at(t);
+      const ahead = at(Math.min(1, t + 0.001));
+      const behind = at(Math.max(0, t - 0.001));
+      const tx = ahead.x - behind.x;
+      const ty = ahead.y - behind.y;
+      const tl = Math.hypot(tx, ty) || 1;
+      const offset = 4 * Math.sin(2 * Math.PI * wave * t) * Math.sin(Math.PI * t);
+      shaft.push({ x: here.x - (ty / tl) * offset, y: here.y + (tx / tl) * offset });
+    }
+  }
+
+  const xs = [s.x, c1.x, c2.x, e.x, b1.x, b2.x, ...shaft.map((pt) => pt.x)];
+  const ys = [s.y, c1.y, c2.y, e.y, b1.y, b2.y, ...shaft.map((pt) => pt.y)];
   const box = {
     x: Math.min(...xs) - PAD,
     y: Math.min(...ys) - PAD,
@@ -76,7 +101,7 @@ function geometry(note: Box, target: Box, flip = false) {
   const p = (pt: Pt) => `${round(pt.x)} ${round(pt.y)}`;
   return {
     box,
-    body: `M${p(s)}C${p(c1)} ${p(c2)} ${p(e)}`,
+    body: shaft.length ? `M${shaft.map(p).join("L")}` : `M${p(s)}C${p(c1)} ${p(c2)} ${p(e)}`,
     head: `M${p(b1)}L${p(e)}L${p(b2)}`,
   };
 }
@@ -85,6 +110,7 @@ export function ArrowCallout({
   target,
   follow = false,
   flip = false,
+  wave = 0,
   children,
   className,
 }: {
@@ -94,6 +120,8 @@ export function ArrowCallout({
   follow?: boolean;
   /** Bends the arrow the other way: downward instead of the usual upward flick */
   flip?: boolean;
+  /** Wiggles the shaft: about this many waves along it (0, the default, draws it smooth) */
+  wave?: number;
   children: ReactNode;
   className?: string;
 }) {
@@ -125,6 +153,7 @@ export function ArrowCallout({
           height: t.height / k,
         },
         flip,
+        wave,
       );
       art.style.left = `${round(g.box.x)}px`;
       art.style.top = `${round(g.box.y)}px`;
@@ -197,7 +226,7 @@ export function ArrowCallout({
       window.removeEventListener("pointercancel", up);
       to.removeEventListener("transitionrun", wake);
     };
-  }, [target, follow, flip]);
+  }, [target, follow, flip, wave]);
 
   const ink = {
     fill: "none",
