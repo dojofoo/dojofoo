@@ -38,7 +38,7 @@ test("public course routes use the shared UIX presentation and one search owner"
   await expect(page.getByRole("heading", { name: "Security audits", exact: true })).toHaveCount(0);
   await page.goBack();
   await expect(page).toHaveURL(/\/dojos$/);
-  await expect(page.getByRole("heading", { name: "Find a dojo to practice in", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Find your dojo", exact: true })).toBeVisible();
   await page.goForward();
   await expect(page).toHaveURL(/\/courses\/dojofoo\/effect-ts$/);
   await expect(page.getByRole("heading", { name: "Effect TS", exact: true })).toBeVisible();

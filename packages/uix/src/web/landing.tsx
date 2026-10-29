@@ -2,7 +2,6 @@ import { followLink } from "../lib/link-event";
 import { useState } from "react";
 import { Icon } from "../components/app-shell";
 import { ButtonLink } from "../components/button";
-import { courseColor } from "../components/course-card";
 import { TabOverload } from "../components/tab-overload";
 import LogoCloud from "../components/logo-cloud-1";
 import { Carousel } from "../components/arc/carousel/carousel";
@@ -10,7 +9,6 @@ import { ArrowRight01Icon } from "../lib/icons";
 import type { WebCourse } from "./catalog";
 import type { ReactNode } from "react";
 import { AppPreview, CourseTile } from "./course-tile";
-import { ShaderText } from "./shader-text";
 import { CommandCopy, SitePage, useSite } from "./site";
 import { TopographyBackdrop } from "./topography-backdrop";
 
@@ -30,7 +28,7 @@ const modes = [
   { title: "Authoring Mode", short: "Authoring", beta: "Open beta", headline: "Create your own tutor-guided learning or interview", text: "Build a course with Kyoshi, your authoring agent. Shape lessons, exercises, and learning material, then try it as a learner before you share it." },
 ] as const;
 
-export function LandingPage({ learning, courses, featureCourse, preview }: {
+export function LandingPage({ learning, courses, preview }: {
   /** Optional live count supplied by a host with real presence data. */
   learning?: number;
   courses: WebCourse[];
@@ -45,16 +43,23 @@ export function LandingPage({ learning, courses, featureCourse, preview }: {
       <style href="ui-web-landing" precedence="default">{css}</style>
       <section className="ui-land-hero">
         {learning !== undefined && <p className="ui-land-hero__live"><span className="ui-land-live" aria-hidden="true" />{learning === 1 ? "1 person" : `${learning} people`} learning right now</p>}
-        <h1 className="ui-land-hero__title">Agentic teaching,<br />built around your <ShaderText color={featureCourse ? courseColor(featureCourse.art) : "var(--brand)"}>learning</ShaderText></h1>
-        <p className="ui-land-hero__lead">Your coding agent follows the course, watches your work and mentors you by adapting to how you learn best. Install a dojo in any folder and start learning right away.</p>
+        <figure className="ui-land-hero__quote">
+          <h1 className="ui-land-hero__title">You can only fight the way you practice</h1>
+          <figcaption className="ui-land-hero__cite">Miyamoto Musashi</figcaption>
+        </figure>
+        {/* One sentence per line, breaking between phrases, never inside one */}
+        <p className="ui-land-hero__lead">
+          <span><span>Take any course,</span> <span>rehearse for your next interview,</span> <span>or build a dojo of your own.</span></span>{" "}
+          <span>Any dojo you can install, you can master.</span>
+        </p>
         <div className="ui-land-hero__actions">
           {/* Getting started is the one command: down to it */}
           <ButtonLink href="#ui-land-start" onClick={event => followLink(event, () => {
             const heading = document.getElementById("ui-land-start");
             heading?.closest("section")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
             heading?.focus({ preventScroll: true });
-          })}>Start learning</ButtonLink>
-          <ButtonLink variant="secondary" href={links.sectionHref("courses")} onClick={event => followLink(event, () => links.navigate("courses"))}>Browse courses</ButtonLink>
+          })}>Start</ButtonLink>
+          <ButtonLink variant="secondary" href={links.sectionHref("courses")} onClick={event => followLink(event, () => links.navigate("courses"))}>Browse dojos</ButtonLink>
         </div>
       </section>
 
@@ -119,7 +124,14 @@ const css = /* css */ `
 :where(.dark, [data-theme="dark"]) .ui-land-live { --live: #4ade80; }
 .ui-land-live::after { width: 6px; height: 6px; border-radius: 50%; corner-shape: round; background: var(--live); content: ""; }
 .ui-land-hero__title { margin: 0; font-size: clamp(34px, 5.2vw, 56px); line-height: 1.05; font-weight: 650; letter-spacing: -0.035em; text-wrap: balance; }
+.ui-land-hero__quote { margin: 0; }
+.ui-land-hero__cite { margin-top: 14px; color: var(--muted); font-size: 15px; font-weight: 550; letter-spacing: 0.01em; }
+.ui-land-hero__cite::before { content: "— "; }
 .ui-land-hero__lead { max-width: 34rem; margin: 18px 0 0; color: var(--muted); font-size: 16px; line-height: 1.6; text-wrap: pretty; }
+.ui-land-hero__lead > span { display: block; text-wrap: balance; }
+.ui-land-hero__lead > span + span { margin-top: 8px; }
+/* A phrase wraps as a unit, so lines break after its comma, never inside "your next interview" */
+.ui-land-hero__lead > span > span { display: inline-block; }
 .ui-land-hero__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 28px; }
 
 /* The lesson in a window slightly wider than the page's content; no Getting started card in it (the
@@ -127,9 +139,12 @@ const css = /* css */ `
    close on the chat, and its sidebar cut off by the window's edge rather than scrolling */
 .ui-land-app, .ui-land-body { max-width: 1280px; margin: 0 auto; padding: 0 8px; }
 .ui-land-app { max-width: 1380px; }
+
 /* Match the main-to-composer gap: its 12px inset plus the 1px pane divider. */
 .ui-land-app .ui-as-app { --frame-gap: 13px; }
 @media (max-width: 1303px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
+/* Room between the hero and the window on wide screens (after the rule above, which resets the padding) */
+@media (min-width: 1200px) { .ui-land-app { padding-top: 64px; } }
 .ui-land-app :is(.ui-as-guide-slot, .ui-as-side__head, .ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
 .ui-land-app .ui-as-side__before { margin-top: 0; }
