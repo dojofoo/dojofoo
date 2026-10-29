@@ -12,6 +12,7 @@ On phones the website works like a phone site:
 - The dojos page keeps each filter's name in place while its choices scroll, and sorts from an icon-only button.
 - The footer's quote is right-aligned.
 - Interview joins the teaching styles the dojos can be filtered by.
+- A course page's weekly activity and its lesson-by-lesson reach collapse into one rounded bar chart: one bar per lesson, labelled every five, switching between Reached and Finished.
 
 Dojo.foo's pages now carry their own SEO, with a sitemap and robots.txt:
 - Their own titles, with the site's name only on the home page.
