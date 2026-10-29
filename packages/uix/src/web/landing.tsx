@@ -151,6 +151,8 @@ const css = /* css */ `
 /* Live: a green dot in a circle, the onboarding's "Installed" green (agent-setup) */
 .ui-land-live { --live: var(--ev-pass, #16a34a); display: grid; place-items: center; width: 14px; height: 14px; border: 1.5px solid color-mix(in oklab, var(--live) 45%, transparent); border-radius: 50%; corner-shape: round; }
 :where(.dark, [data-theme="dark"]) .ui-land-live { --live: #4ade80; }
+.ui-land-app { --land-arrow: #141414; --land-arrow-shadow: color-mix(in oklch, var(--brand) 45%, transparent); }
+:where(.dark, [data-theme="dark"]) .ui-land-app { --land-arrow: #fff; --land-arrow-shadow: #000; }
 .ui-land-live::after { width: 6px; height: 6px; border-radius: 50%; corner-shape: round; background: var(--live); content: ""; }
 .ui-land-hero__title { margin: 0; font-size: clamp(34px, 5.2vw, 56px); line-height: 1.05; font-weight: 650; letter-spacing: -0.035em; text-wrap: balance; }
 .ui-land-hero__quote { margin: 0; }
@@ -177,9 +179,9 @@ const css = /* css */ `
 .ui-land-note { display: none; }
 @media (min-width: 1200px) {
   .ui-land-app { padding-top: 64px; }
-  .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; color: #fff; }
-  /* White arrows with a hard black shadow, like a marker tag */
-  .ui-land-note svg { filter: drop-shadow(2px 2px 0 #000); }
+  .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; color: var(--land-arrow); }
+  /* Marker-tag arrows with a hard offset shadow: ink on light, white over black on dark */
+  .ui-land-note svg { filter: drop-shadow(2px 2px 0 var(--land-arrow-shadow)); }
   .ui-land-note--card { left: 40px; --cut-top: 18%; }
   /* The Sensei's dot sits at about 73% across the window: the note starts a little right of it, so its arrow runs left first */
   .ui-land-note--sensei { left: calc(73% + 26px); top: 2px; text-align: left; --cut-top: 55%; --cut-bottom: 16%; }
@@ -193,7 +195,9 @@ const css = /* css */ `
      steps are a clip-path, one clean outline with no antialiased sliver at a fractional edge; the slits are masked out.
      Both show the page through, over any background */
   .ui-land-note > span:first-child::before {
-    content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg);
+    content: ""; position: absolute; inset: 0; z-index: -1; transform: skewX(-14deg);
+    /* The logo's stripe gradient, orange into the brand, kept faint: only the slit end warms */
+    background: linear-gradient(90deg, color-mix(in oklch, #ff8a00 40%, var(--brand)), var(--brand) 65%);
     clip-path: polygon(0 0, calc(100% - var(--cut-top, 34%)) 0, calc(100% - var(--cut-top, 34%)) 3px, 100% 3px,
       100% calc(100% - 2px), calc(100% - var(--cut-bottom, 34%)) calc(100% - 2px), calc(100% - var(--cut-bottom, 34%)) 100%, 0 100%);
     mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
