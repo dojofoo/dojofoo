@@ -425,6 +425,7 @@ try {
     const oldReplies = replyCount(completedSnapshot);
     const sentIntroductions = introductions.length;
     await stopServer();
+    await writeFile(artifact("web-state-before-restart.json"), await readFile(join(workspace, ".dojo/web.json"), "utf8").catch(error => String(error)));
     server = launchServer();
     await expect.poll(async () => {
       try { return (await fetch(`${origin}/api/control/courses`)).status; } catch { return 0; }
@@ -435,6 +436,7 @@ try {
     const restarted = await fetch(base).then(response => response.json());
     await writeFile(artifact("before-restart.json"), JSON.stringify(completedSnapshot, null, 2));
     await writeFile(artifact("after-restart.json"), JSON.stringify(restarted, null, 2));
+    await writeFile(artifact("web-state-after-restart.json"), await readFile(join(workspace, ".dojo/web.json"), "utf8").catch(error => String(error)));
     assert.equal(restarted.sessionId, after.sessionId);
     assert.equal(restarted.code, shortcutSolution);
     assert.equal(restarted.result.complete, true);
