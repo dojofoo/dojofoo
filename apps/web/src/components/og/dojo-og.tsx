@@ -28,19 +28,20 @@ export function DojoOg({ title, description, author, logo, ground, groundColor, 
     <div style={{ position: "relative", display: "flex", width: "100%", height: "100%", backgroundColor: groundColor, color: "#ffffff" }}>
       <img alt="" src={ground} width={OG.width} height={OG.height} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
 
-      {/* The logo at the top, on the words' edge */}
-      <img alt="" src={logo} height={56} width={198} style={{ position: "absolute", top: 98, left: 128, objectFit: "contain", objectPosition: "left" }} />
-
-      <div style={{ position: "absolute", top: 196, bottom: 112, left: 128, width: narrow ? 500 : 896, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        {/* The site's type (the landing's hero): Inter, the title tight and heavy, the lead in the muted ink */}
-        <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontFamily: "Inter", fontWeight: 650, fontSize: narrow ? 56 : title.length > 24 ? 64 : 72, lineHeight: 1.05, letterSpacing: "-0.035em", textWrap: "balance" }}>{title}</div>
-        {description && <div style={{ display: "flex", marginTop: 24, color: "oklch(0.7155 0 0)", fontFamily: "Inter", fontWeight: 400, fontSize: narrow ? 26 : 30, lineHeight: 1.5, textWrap: "balance", lineClamp: 3 }}>{description}</div>}
+      {/* One column on the card's frame (105px above and below, the course card's own edges): the logo at the top, the
+          title and its description as one group in the middle, the byline as another at the foot – each group's lines
+          close, the groups apart (better-typography: display text at 1.1 and -0.02em, body at 1.5, short text balanced) */}
+      <div style={{ position: "absolute", top: 105, bottom: 105, left: 128, width: narrow ? 500 : 896, display: "flex", flexDirection: "column", fontFamily: "Inter" }}>
+        <img alt="" src={logo} height={56} width={198} style={{ objectFit: "contain", objectPosition: "left" }} />
+        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center", paddingBlock: 32 }}>
+          <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontWeight: 650, fontSize: narrow ? 56 : title.length > 24 ? 64 : 72, lineHeight: 1.1, letterSpacing: "-0.02em", textWrap: "balance" }}>{title}</div>
+          {description && <div style={{ display: "flex", marginTop: narrow ? 16 : 20, color: "oklch(0.7155 0 0)", fontWeight: 400, fontSize: narrow ? 26 : 30, lineHeight: 1.5, textWrap: "balance", lineClamp: 3 }}>{description}</div>}
+        </div>
+        {author && <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ display: "flex", color: "oklch(0.7155 0 0)", fontSize: 22, fontWeight: 400, lineHeight: 1.3 }}>by</div>
+          <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontSize: 26, fontWeight: 550, lineHeight: 1.3, letterSpacing: "-0.01em" }}>{author}</div>
+        </div>}
       </div>
-
-      {author && <div style={{ position: "absolute", left: 128, bottom: 92, display: "flex", flexDirection: "column", gap: 8, fontFamily: "Inter" }}>
-        <div style={{ display: "flex", color: "oklch(0.7155 0 0)", fontSize: 20, fontWeight: 400 }}>by</div>
-        <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontSize: 26, fontWeight: 550, letterSpacing: "-0.01em" }}>{author}</div>
-      </div>}
 
       {card && <div style={{ position: "absolute", top: 0, bottom: 0, right: 96, display: "flex", alignItems: "center" }}>{card}</div>}
     </div>
