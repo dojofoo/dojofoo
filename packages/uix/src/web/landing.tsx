@@ -197,7 +197,7 @@ const css = /* css */ `
   .ui-land-note > span:first-child::before {
     content: ""; position: absolute; inset: 0; z-index: -1; transform: skewX(-14deg);
     /* The logo's stripe gradient, orange into the brand, kept faint: only the slit end warms */
-    background: linear-gradient(90deg, color-mix(in oklch, #ff8a00 40%, var(--brand)), var(--brand) 65%);
+    background: linear-gradient(90deg, color-mix(in oklch, #ff8a00 22%, var(--brand)), var(--brand) 35%);
     clip-path: polygon(0 0, calc(100% - var(--cut-top, 34%)) 0, calc(100% - var(--cut-top, 34%)) 3px, 100% 3px,
       100% calc(100% - 2px), calc(100% - var(--cut-bottom, 34%)) calc(100% - 2px), calc(100% - var(--cut-bottom, 34%)) 100%, 0 100%);
     mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
