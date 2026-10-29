@@ -71,7 +71,7 @@ export function CoursesPage({ courses, initialQuery = "" }: { courses: WebCourse
                   placeholder="Search by name, language, framework or topic" aria-label="Search courses" />
                 {query && <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><Icon icon={Cancel01Icon} size={13} /></button>}
               </label>
-              <MenuButton label="Sort courses" value={sort} options={sorts.filter(item => item.value !== "rating" || courses.some(course => course.rating !== undefined))} onChange={setSort} icon={ArrowUpDownIcon} />
+              <MenuButton label="Sort courses" value={sort} options={sorts.filter(item => item.value !== "rating" || courses.some(course => course.rating !== undefined))} onChange={setSort} icon={ArrowUpDownIcon} className="ui-crs-sort" />
             </div>
             <div className="ui-crs-count">
               <p aria-live="polite">{results.length === 1 ? "1 course" : `${results.length} courses`}{query && <> for <b>“{query.trim()}”</b></>}</p>
@@ -92,12 +92,15 @@ export function CoursesPage({ courses, initialQuery = "" }: { courses: WebCourse
 /** A filter as the site's sidebar has them: its name, then its choices, the picked one marked */
 function FilterList({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string; title?: string }> }) {
   return (
-    <nav className="ui-crs-filter scroll-fade-x" aria-label={label}>
+    <nav className="ui-crs-filter" aria-label={label}>
       <span className="ui-crs-filter__label">{label}</span>
-      {options.map((option) => (
-        <button key={option.value} type="button" className={cn("ui-crs-filter__option", option.value === value && "ui-crs-filter__option--on")}
-          aria-pressed={option.value === value} title={option.title} onClick={() => onChange(option.value)}>{option.label}</button>
-      ))}
+      {/* The choices on their own, so on a phone they scroll sideways under a name that stays */}
+      <div className="ui-crs-filter__options scroll-fade-x">
+        {options.map((option) => (
+          <button key={option.value} type="button" className={cn("ui-crs-filter__option", option.value === value && "ui-crs-filter__option--on")}
+            aria-pressed={option.value === value} title={option.title} onClick={() => onChange(option.value)}>{option.label}</button>
+        ))}
+      </div>
     </nav>
   );
 }
@@ -111,7 +114,7 @@ const css = /* css */ `
 
 /* The sidebar: each filter's name, its choices as rows, the picked one as the shell's selected row */
 .ui-crs-side { position: sticky; top: 16px; align-self: start; display: grid; gap: 24px; max-height: calc(100dvh - 32px); overflow-y: auto; }
-.ui-crs-filter { display: grid; gap: 1px; }
+.ui-crs-filter, .ui-crs-filter__options { display: grid; gap: 1px; }
 .ui-crs-filter__label { margin: 0 0 6px 10px; color: var(--muted); font-size: var(--fs-caption); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
 .ui-crs-filter__option { height: 30px; padding: 0 10px; border-radius: calc(8px * var(--squircle-factor, 1)); color: var(--muted); font-size: var(--fs-subtitle); text-align: left; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
 .ui-crs-filter__option:hover { background: var(--hover); color: var(--ink); }
@@ -126,19 +129,26 @@ const css = /* css */ `
 .ui-crs-search input::-webkit-search-cancel-button { display: none; }
 .ui-crs-search button { display: grid; place-items: center; width: 26px; height: 26px; border-radius: calc(4px * var(--squircle-factor, 1)); }
 .ui-crs-search button:hover { background: var(--hover); color: var(--ink); }
+/* On a phone the sort is its icon in a box as tall as the search: what it sorts by shows in its menu (and its name) */
+@media (max-width: 760px) {
+  .ui-crs-sort.ui-as-tool { justify-content: center; gap: 0; width: 42px; height: 42px; padding: 0; border-radius: calc(12px * var(--squircle-factor, 1)); background: var(--surface-3); box-shadow: var(--shadow-2); font-size: 0; }
+  .ui-crs-sort > svg:last-child { display: none; }
+}
 .ui-crs-count { display: flex; align-items: center; gap: 8px; min-height: 32px; margin: 18px 0 14px; }
 .ui-crs-count p { flex: 1; margin: 0; color: var(--muted); font-size: var(--fs-body); }
 .ui-crs-count p b { color: var(--ink); font-weight: 550; }
 
 .ui-crs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14.5rem), 1fr)); gap: 20px 16px; }
 /* Its edges fade only where it scrolls: a mask anywhere else would clip what it paints past its box */
-@media (min-width: 761px) { .ui-crs-filter.scroll-fade-x { -webkit-mask-image: none; mask-image: none; } }
-/* On a phone each filter is one row that scrolls sideways, so the results aren't pushed a screen down */
+@media (min-width: 761px) { .ui-crs-filter__options.scroll-fade-x { -webkit-mask-image: none; mask-image: none; } }
+/* On a phone each filter is one row: its name a header that stays (the names one column, so the choices line up), its
+   choices scrolling sideways beside it, so the results aren't pushed a screen down */
 @media (max-width: 760px) {
-  .ui-crs-side { position: static; gap: 12px; max-height: none; overflow: visible; }
+  .ui-crs-side { position: static; grid-template-columns: auto minmax(0, 1fr); gap: 12px 10px; max-height: none; overflow: visible; }
   .ui-crs-side.scroll-fade { -webkit-mask-image: none; mask-image: none; }
-  .ui-crs-filter { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
-  .ui-crs-filter__label { flex: none; align-self: center; margin: 0 6px 0 0; }
-  .ui-crs-filter > :not(.ui-crs-filter__label) { flex: none; }
+  .ui-crs-filter { grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }
+  .ui-crs-filter__label { margin: 0; }
+  .ui-crs-filter__options { display: flex; gap: 4px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .ui-crs-filter__option { flex: none; }
 }
 `;

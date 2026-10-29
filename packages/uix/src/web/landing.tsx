@@ -28,6 +28,9 @@ const modes = [
   { title: "Authoring Mode", short: "Authoring", beta: "Open beta", headline: "Create your own tutor-guided learning or interview", text: "Build a course with Kyoshi, your authoring agent. Shape lessons, exercises, and learning material, then try it as a learner before you share it." },
 ] as const;
 
+/** What the phone's preview keeps live: opening and closing the sidebar and the Sensei, nothing else */
+const PREVIEW_CONTROLS = ".ui-as-side-open, .ui-as-chat__narrow, .ui-as-chat__close, .ui-as-scrim, .ui-as-aside-scrim";
+
 export function LandingPage({ learning, courses, preview }: {
   /** Optional live count supplied by a host with real presence data. */
   learning?: number;
@@ -66,7 +69,7 @@ export function LandingPage({ learning, courses, preview }: {
       {/* A course from inside, as learners see it: a lesson in the learner app itself, in a window as wide as the page, cut
           short – its sidebar runs on past the bottom (there's more to it), the composer sits in view – and without its
           Getting started card */}
-      <div className="ui-land-app"><AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview></div>
+      <div className="ui-land-app"><AppPreview ratio={16 / 9} controls={PREVIEW_CONTROLS} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview></div>
 
       <section className="ui-land-agents" aria-labelledby="ui-land-agents">
         <h2 id="ui-land-agents" className="ui-land-eyebrow">Works with</h2>
@@ -107,7 +110,7 @@ export function LandingPage({ learning, courses, preview }: {
           </div>
           {top.length > 0 ? <div className="ui-land-courses">
             {top.map((course) => <CourseTile key={course.id} course={course} href={links.courseHref(course)} onOpen={links.openCourse} shader />)}
-          </div> : <p className="ui-land-lead">No courses are available yet.</p>}
+          </div> : <p className="ui-land-lead ui-land-empty">No courses are available yet.</p>}
         </section>
       </div>
     </SitePage>
@@ -149,6 +152,9 @@ const css = /* css */ `
 .ui-land-app .ui-web-app:not([data-phone]) :is(.ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
 /* On a phone the app is live in its narrow layout: its buttons open and close the sidebar and the Sensei (not settings) */
 .ui-land-app .ui-web-app[data-phone] .ui-as-chat__tools > :not(.ui-as-chat__narrow) { display: none; }
+/* Taps too reach only those (PREVIEW_CONTROLS): the editor, composer and sidebar rows stay still */
+.ui-land-app .ui-web-app[data-phone] .ui-web-app__scale { pointer-events: none; }
+.ui-land-app .ui-web-app[data-phone] :is(.ui-as-side-open, .ui-as-chat__narrow, .ui-as-chat__close, .ui-as-scrim, .ui-as-aside-scrim) { pointer-events: auto; }
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
 .ui-land-app .ui-as-side__before { margin-top: 0; }
 
@@ -167,6 +173,10 @@ const css = /* css */ `
 /* A mode's headline and story rotate with its highlighted window. */
 .ui-land-modes { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 40px; align-items: center; }
 @media (max-width: 860px) { .ui-land-modes { grid-template-columns: minmax(0, 1fr); } }
+/* Stacked on a phone: the dots close under the copy, and the windows close under the dots (the art's top edge is the
+   room its glow needs, so it tucks up under them) */
+/* No courses yet: on a phone the line sits in the middle, with room around it */
+@media (max-width: 720px) { .ui-land-empty { max-width: none; margin: 0; padding: 40px 0 16px; text-align: center; } }
 .ui-land-modes__copy { min-width: 0; }
 .ui-land-modes__carousel { --space-4: 24px; --space-2: 8px; --space-1: 4px; --control-height-sm: 32px; --border-strong: var(--fluid-hairline); --radius-panel: 0; --duration-fast: var(--motion-fast); --duration-spring: var(--motion-slow); --ease-spring: var(--ease-slow); }
 .ui-land-modes__slide { padding-block: 4px; }
@@ -175,6 +185,14 @@ const css = /* css */ `
 .ui-land-modes__description { max-width: 42ch; margin: 20px 0 0; color: var(--muted); font-size: 16px; line-height: 1.65; text-wrap: pretty; }
 .ui-land-modes__beta { padding: 2px 7px; border-radius: calc(5px * var(--squircle-factor, 1)); background: var(--chip); color: var(--muted); font-size: var(--fs-caption); font-weight: 500; line-height: 1.4; }
 .ui-land-modes__art { border-radius: calc(14px * var(--squircle-factor, 1)); }
+/* Stacked on a phone: the dots close under the copy, and the windows close under the dots (the art's top edge is the
+   room its glow needs, so it tucks up under them, the dots kept on top) */
+@media (max-width: 720px) {
+  .ui-land-modes { gap: 0; }
+  .ui-land-modes__copy { position: relative; z-index: 1; }
+  .ui-land-modes__carousel { --space-4: 8px; }
+  .ui-land-modes__art { margin-top: -28px; }
+}
 
 /* Quickstart: one command, centered */
 .ui-land-start { display: grid; justify-items: center; text-align: center; }

@@ -162,11 +162,16 @@ function TocBar({ toc, onOpen }: { toc: Toc; onOpen: (href: string) => void }) {
           <circle cx="12" cy="12" r="9" />
           {progress > 0 && <circle cx="12" cy="12" r="9" pathLength="1" strokeDasharray={`${progress} 1`} transform="rotate(-90 12 12)" />}
         </svg>
-        <span className="ui-docs-tocbar__label">{started ? <><span className="sr-only">On this page: </span>{toc[at]?.text}</> : "On this page"}</span>
+        {/* "On this page" and the part being read in one place, one sliding up out of it as the other comes in */}
+        <span className="ui-docs-tocbar__label" data-reading={started && !open || undefined}>
+          <span>On this page</span>
+          <span aria-hidden={!started || open || undefined}>{toc[at]?.text}</span>
+        </span>
         <Icon icon={ArrowDown01Icon} size={15} />
       </button>
-      <div id="ui-docs-tocbar-outline" className="ui-docs-tocbar__outline scroll-fade" hidden={!open} onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>
-        <OnThisPage toc={toc} onOpen={onOpen} />
+      {/* Folds open to its height (rows 0fr to 1fr) and shut again, its links out of reach while shut */}
+      <div id="ui-docs-tocbar-outline" className="ui-docs-tocbar__outline" inert={!open} onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>
+        <div className="scroll-fade"><OnThisPage toc={toc} onOpen={onOpen} /></div>
       </div>
     </div>
   );
@@ -355,11 +360,25 @@ const css = /* css */ `
 .ui-docs-tocbar__toggle:hover, .ui-docs-tocbar[data-open] .ui-docs-tocbar__toggle { color: var(--ink); }
 .ui-docs-tocbar__toggle > svg:last-child { flex: none; transition: rotate var(--motion-fast) var(--ease-standard); }
 .ui-docs-tocbar[data-open] .ui-docs-tocbar__toggle > svg:last-child { rotate: 180deg; }
-.ui-docs-tocbar__label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ui-docs-tocbar__ring { flex: none; width: 18px; height: 18px; fill: none; stroke-width: 2.5; }
+.ui-docs-tocbar__label { display: grid; flex: 1; min-width: 0; overflow: hidden; }
+.ui-docs-tocbar__label > span { grid-area: 1 / 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; transition: opacity var(--motion-moderate) var(--ease-standard), translate var(--motion-moderate) var(--ease-standard); }
+.ui-docs-tocbar__label > span + span, .ui-docs-tocbar__label[data-reading] > span:first-child { opacity: 0; translate: 0 100%; pointer-events: none; }
+.ui-docs-tocbar__label[data-reading] > span:first-child { translate: 0 -100%; }
+.ui-docs-tocbar__label[data-reading] > span + span { opacity: 1; translate: 0 0; }
+.ui-docs-tocbar[data-open] .ui-docs-tocbar__label > span:first-child { color: var(--ink); }
+.ui-docs-tocbar__ring { flex: none; width: 18px; height: 18px; fill: none; stroke-width: 2.5; transition: color var(--motion-fast) var(--ease-standard); }
 .ui-docs-tocbar__ring circle:only-child, .ui-docs-tocbar__ring circle:first-child { stroke: var(--line); }
 .ui-docs-tocbar__ring circle + circle { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray var(--motion-moderate) var(--ease-standard); }
-.ui-docs-tocbar__outline { max-height: min(60dvh, 28rem); overflow-y: auto; padding: 4px 0 16px; }
+/* The outline drops over the page from under the bar, on the page's color (the bar's own is see-through) */
+.ui-docs-tocbar__outline { position: absolute; top: 100%; right: 0; left: 0; display: grid; grid-template-rows: 0fr; opacity: 0; background: var(--page);
+  /* Fluid's moderate tier: it folds shut a tier quicker than it opens */
+  transition: grid-template-rows var(--motion-moderate-exit) var(--ease-exit), opacity var(--motion-moderate-exit) var(--ease-exit), box-shadow var(--motion-moderate-exit) var(--ease-exit); }
+@media (max-width: 1303px) { .ui-docs-tocbar__outline { padding: 0 20px; } }
+.ui-docs-tocbar[data-open] .ui-docs-tocbar__outline { box-shadow: 0 1px 0 var(--line), var(--shadow-5); }
+.ui-docs-tocbar[data-open] .ui-docs-tocbar__outline { grid-template-rows: 1fr; opacity: 1; transition-duration: var(--motion-moderate); transition-timing-function: var(--ease-moderate); }
+.ui-docs-tocbar__outline > div { min-height: 0; max-height: min(50dvh, 28rem); overflow-y: auto; overscroll-behavior: contain; }
+.ui-docs-tocbar__outline .ui-docs-toc { padding: 4px 0 16px; }
+@media (prefers-reduced-motion: reduce) { .ui-docs-tocbar__outline, .ui-docs-tocbar__label > span { transition: none; } }
 .ui-docs-tocbar__outline .ui-docs-toc__title { display: none; }
 /* The phone's menu: the sections as a list, the open one's pages under them */
 .ui-docs-menu { display: grid; gap: 4px; padding-top: 14px; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; }

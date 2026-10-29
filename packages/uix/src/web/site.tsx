@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { Icon, ShellStyles } from "../components/app-shell";
 import { Avatar } from "../components/arc/avatar/avatar";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
-import { Cancel01Icon, Copy01Icon, CopyrightIcon, Menu01Icon, Search01Icon, Tick02Icon } from "../lib/icons";
+import { Copy01Icon, CopyrightIcon, Menu01Icon, Search01Icon, Tick02Icon } from "../lib/icons";
+import { Drawer, DrawerContent, DrawerTrigger } from "../components/arc/drawer/drawer";
 import { cn } from "../lib/utils";
 import makerPhoto from "../assets/tomhaxxx.jpg?url";
 import type { WebCourse } from "./catalog";
@@ -124,37 +125,26 @@ export function SiteHeader({ current, as: Component = "header", mobileAction, me
   );
 }
 
-/** The phone's menu: a sheet from the right over the page, closed by its button, Escape, a tap beside it or a link in it */
+/** The phone's menu: Arc's drawer from the right (drag its head or tap beside it to close), closed too by a link in it */
 function SiteMenu({ children }: { children: ReactNode }) {
-  const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const el = dialog.current;
-    if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
-  }, [open]);
-  // Wider than a phone it has nothing to hold (the header shows it all): it closes
+  // Wider than a phone it has nothing to hold (the header shows it all): it goes
   useEffect(() => {
     const wide = window.matchMedia("(min-width: 761px)");
-    const close = () => { if (wide.matches) setOpen(false); };
-    wide.addEventListener("change", close);
-    return () => wide.removeEventListener("change", close);
+    const away = () => { if (wide.matches) setOpen(false); };
+    wide.addEventListener("change", away);
+    return () => wide.removeEventListener("change", away);
   }, []);
-  return <>
-    <button type="button" className="ui-web-head__menu" aria-label="Menu" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
-      <Icon icon={Menu01Icon} size={17} />
-    </button>
-    <dialog ref={dialog} className="ui-web-menu" aria-label="Menu" onClose={() => setOpen(false)} onClick={(event) => {
-      const target = event.target as Element;
-      if (target === event.currentTarget || target.closest("a")) setOpen(false);
-    }}>
-      <div className="ui-web-menu__sheet scroll-fade">
-        <button type="button" className="ui-web-menu__close" aria-label="Close menu" onClick={() => setOpen(false)}><Icon icon={Cancel01Icon} size={17} /></button>
-        {children}
-      </div>
-    </dialog>
-  </>;
+  return (
+    <Drawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger className="ui-web-head__menu" aria-label="Menu">
+        <Icon icon={Menu01Icon} size={18} />
+      </DrawerTrigger>
+      <DrawerContent title="Menu" hideTitle closeLabel="Close menu" className="ui-as ui-web-menu" aria-describedby={undefined}>
+        <div className="ui-web-menu__body" onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>{children}</div>
+      </DrawerContent>
+    </Drawer>
+  );
 }
 
 const footer = [
@@ -187,10 +177,10 @@ export function SiteFooter({ current }: { current?: SiteSection }) {
         <span className="ui-web-foot__copy"><Icon icon={CopyrightIcon} size={15} /><span className="sr-only">Copyright</span>Dojo.foo{links.footerControls && <span className="ml-2">{links.footerControls}</span>}</span>
         {/* The maker's line as a small quote (the testimonials' mark), his avatar after it, online */}
         <a className="ui-web-foot__maker" href="https://x.com/tomhaxxx" target="_blank" rel="noreferrer" aria-label={`${line} – Tom Siwik on X`}>
-          <svg aria-hidden="true" viewBox="0 0 32 24" className="ui-web-foot__mark">
+          {/* The mark inside the quote, so it opens its first line however the line wraps */}
+          <q><svg aria-hidden="true" viewBox="0 0 32 24" className="ui-web-foot__mark">
             <path d="M0 24V14.4C0 6.6 4.2 1.8 12.4 0l1.4 3.4C9.4 4.8 7.3 7.6 7 11.2h6.2V24H0Zm18.2 0V14.4C18.2 6.6 22.4 1.8 30.6 0L32 3.4c-4.4 1.4-6.5 4.2-6.8 7.8h6.2V24H18.2Z" />
-          </svg>
-          <q>{line}</q>
+          </svg>{line}</q>
           <Avatar name="Tom Siwik" src={makerPhoto} size="md" status="online" />
         </a>
       </div>
@@ -276,21 +266,28 @@ const css = /* css */ `
   .ui-web-head__search :is(span, kbd) { display: none; }
   .ui-web-head .ui-web-head__start { display: none; }
 }
-/* The menu's button: a box like the search beside it, only on a phone */
-.ui-web-head__menu { display: none; place-items: center; width: 40px; height: 40px; border-radius: var(--box-radius); background: var(--box-surface); box-shadow: var(--box-shadow); color: var(--muted); }
+/* The menu's button beside the search: on a phone both are plain icons, their hit areas touching, the last one's icon
+   on the page's edge (as Fumadocs' header) */
+.ui-web-head__menu { display: none; place-items: center; width: 40px; height: 40px; border-radius: calc(10px * var(--squircle-factor, 1)); color: var(--muted); transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
 .ui-web-head__menu:hover, .ui-web-head__search:hover { color: var(--ink); }
-@media (max-width: 760px) { .ui-web-head__menu { display: grid; } }
-/* The menu: a sheet from the right on the page's color, the rest of the page dimmed and blurred behind it */
-.ui-web-menu { position: fixed; inset: 0; width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; padding: 0; border: 0; background: none; color: var(--ink); overflow: hidden; }
-.ui-web-menu::backdrop { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
-.ui-web-menu__sheet { position: absolute; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 6px; width: min(22rem, calc(100% - 48px)); overflow-y: auto; overscroll-behavior: contain; padding: 10px 20px 32px; background: var(--page); box-shadow: var(--shadow-6);
-  transition: translate var(--motion-slow) var(--ease-slow); }
-@starting-style { .ui-web-menu[open] .ui-web-menu__sheet { translate: 100% 0; } }
-/* Its parts keep their height; the sheet scrolls instead */
-.ui-web-menu__sheet > * { flex: none; }
-@media (prefers-reduced-motion: reduce) { .ui-web-menu__sheet { transition: none; } }
-.ui-web-menu__close { display: grid; flex: none; place-items: center; align-self: end; width: 40px; height: 40px; margin-bottom: 6px; border-radius: var(--box-radius); color: var(--muted); }
-.ui-web-menu__close:hover { color: var(--ink); }
+@media (max-width: 760px) {
+  .ui-web-head { column-gap: 0; }
+  .ui-web-head__end { gap: 0; margin-right: -10px; }
+  .ui-web-head__menu { display: grid; }
+  .ui-web-head__search { background: none; box-shadow: none; border-radius: calc(10px * var(--squircle-factor, 1)); }
+  .ui-web-head__menu:active, .ui-web-head__search:active { background: var(--hover); }
+}
+/* The menu: Arc's drawer (components/arc/drawer) on the page's tokens (it renders on the body, so it takes the shell's
+   own, .ui-as, and the site's rule), as wide as Fumadocs' (85%, at most 380px) */
+.ui-web-menu { --ui-web-rule: linear-gradient(to right, color-mix(in oklab, var(--ink) 30%, transparent) 0 1px, transparent 1px); --ui-web-rule-size: 10px 1px; 
+  --drawer-size: min(380px, 85vw); --border: var(--line); --surface-raised: var(--page); --foreground: var(--ink); --shadow-floating: var(--shadow-6);
+  --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 40px; --text-sm: var(--fs-body); --text-lg: 17px; --leading-body: 1.5;
+  --radius-control: calc(10px * var(--squircle-factor, 1)); --surface-muted: var(--hover); --text-secondary: var(--muted); }
+.ui-web-menu > :first-child { padding: 10px 10px 0 20px; border-bottom: 0; }
+.ui-web-menu > :first-child button { border: 0; background: none; }
+.ui-web-menu > :last-child { padding: 0; }
+.ui-web-menu__body { display: flex; flex-direction: column; gap: 6px; padding: 6px 20px 32px; }
+.ui-web-menu__body > * { flex: none; }
 .ui-web-menu__start { justify-content: center; }
 .ui-web-menu__nav { display: grid; padding: 10px 0 14px; }
 .ui-web-menu__nav a { padding: 10px 2px; color: var(--ink); font-size: 17px; font-weight: 550; text-decoration: none; }
@@ -313,8 +310,8 @@ const css = /* css */ `
 .ui-web-foot__maker { display: inline-flex; align-items: center; gap: 10px; }
 /* The avatar (its tokens in styles/arc.css) and its status dot stay circles under the corners' squircle */
 .ui-web-foot__maker [role="img"], .ui-web-foot__maker [role="img"] * { corner-shape: round; }
-.ui-web-foot__mark { align-self: flex-start; width: 14px; height: 11px; margin-top: 2px; fill: currentColor; opacity: 0.35; }
-.ui-web-foot__maker q { color: var(--ink); font-size: 15px; font-weight: 550; letter-spacing: -0.01em; quotes: none; }
+.ui-web-foot__mark { display: inline-block; width: 14px; height: 11px; margin-right: 10px; vertical-align: 0.45em; fill: var(--muted); opacity: 0.35; }
+.ui-web-foot__maker q { color: var(--ink); font-size: 15px; font-weight: 550; letter-spacing: -0.01em; quotes: none; text-align: right; text-wrap: balance; }
 .ui-web-foot__maker:hover q { color: var(--accent); }
 .ui-web-foot__base a:hover { color: var(--ink); }
 

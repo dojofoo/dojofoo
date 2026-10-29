@@ -6,6 +6,8 @@ import { AnimatePresence, animate, motion, motionValue, useMotionValue, useReduc
 import type { AnimationPlaybackControls, MotionValue, TargetAndTransition } from "motion/react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
+import { useFluidHover, useRegisterFluidHoverItem } from "../../../hooks/use-fluid-hover";
+import { FluidHoverHighlight } from "../../fluid-hover-highlight";
 import styles from "./carousel.module.css";
 
 /**
@@ -47,7 +49,12 @@ const SLOP = 6;
 /** Release speed in px/s that always moves at least one slide. */
 const FLICK = 360;
 /** Width of a resting dot and of the active pill, in px. */
-const DOT = 6, PILL = 22;
+/* UIX: the dots as Fluid Functionalism's CarouselDots – a 6px dot, the current one a 24px pill, each in an 18px round
+   hit area (12px between dots) that one fluid highlight glides between on hover */
+const DOT = 6, PILL = 24;
+/** The fill is a full-width pill slid in from the left, never scaled (scaling would squash its rounded end): at 0 a
+    full dot shows, at 1 it covers the pill */
+const fillAt = (p: number) => `translateX(calc(${Math.min(Math.max(p, 0), 1) - 1} * (100% - ${DOT}px)))`;
 /** Scale and opacity of a slide one full step from the center. */
 const SCALE = .9, DIM = .5;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -94,6 +101,8 @@ export function Carousel({ label, children, index: controlledIndex, defaultIndex
   const drains = useMemo(() => Array.from({ length: count }, () => motionValue(0)), [count]);
   const rootRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const dotsHover = useFluidHover(tabsRef, { axis: "x" });
   const trackRef = useRef<HTMLDivElement>(null);
   const playRef = useRef<HTMLButtonElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -318,9 +327,10 @@ export function Carousel({ label, children, index: controlledIndex, defaultIndex
           </motion.span>
         </AnimatePresence></span>
       </button>}
-      <div className={styles.tabs} role="tablist" aria-label="Choose a slide">
+      <div ref={tabsRef} className={styles.tabs} role="tablist" aria-label="Choose a slide" {...dotsHover.handlers}>
+        <FluidHoverHighlight hover={dotsHover} className="rounded-full" />
         {slides.map((_, i) => <Dot key={i} index={i} last={last} progress={progress} drain={drains[i]!} timed={canRotate && playing} selected={i === index} label={slideLabel(i, count)} controls={`${id}-slide-${i}`}
-          tabRef={node => { tabRefs.current[i] = node; }} onSelect={() => select(i)} />)}
+          tabRef={node => { tabRefs.current[i] = node; }} registerItem={dotsHover.registerItem} onSelect={() => select(i)} />)}
       </div>
       {controls === "all" && <div className={styles.arrows}>
         <button type="button" className={styles.control} aria-label="Previous slide" aria-disabled={index === 0} onClick={() => { if (target.current > 0) select(target.current - 1); }}><ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" /></button>
@@ -339,12 +349,16 @@ function Slide({ id, index, progress, active, label, children }: { id: string; i
 }
 
 /** Each indicator grows toward a pill as the track nears its slide, so the pill hands over continuously instead of hopping. */
-function Dot({ index, last, progress, drain, timed, selected, label, controls, tabRef, onSelect }: { index: number; last: number; progress: MotionValue<number>; drain: MotionValue<number>; timed: boolean; selected: boolean; label: string; controls: string; tabRef: Ref<HTMLButtonElement>; onSelect: () => void }) {
+function Dot({ index, last, progress, drain, timed, selected, label, controls, tabRef, registerItem, onSelect }: { index: number; last: number; progress: MotionValue<number>; drain: MotionValue<number>; timed: boolean; selected: boolean; label: string; controls: string; tabRef: Ref<HTMLButtonElement>; registerItem: (index: number, element: HTMLElement | null) => void; onSelect: () => void }) {
   const emphasis = useTransform(progress, value => Math.max(0, 1 - Math.abs(clamp(value, 0, last) - index)));
   const width = useTransform(emphasis, value => DOT + (PILL - DOT) * value);
-  return <button ref={tabRef} type="button" role="tab" className={styles.tab} aria-selected={selected} aria-controls={controls} aria-label={label} tabIndex={selected ? 0 : -1} onClick={onSelect}>
+  // Playing, the pill fills over the slide's time; still, it's solid
+  const fill = useTransform(drain, fillAt);
+  const own = useRef<HTMLButtonElement>(null);
+  useRegisterFluidHoverItem(registerItem, index, own);
+  return <button ref={node => { own.current = node; if (typeof tabRef === "function") tabRef(node); }} type="button" role="tab" className={styles.tab} aria-selected={selected} aria-controls={controls} aria-label={label} tabIndex={selected ? 0 : -1} onClick={onSelect}>
     <motion.span className={styles.dot} style={{ width }} aria-hidden="true">
-      <motion.span className={styles.dotFill} style={{ opacity: emphasis, scaleX: timed ? drain : 1 }} />
+      <motion.span className={styles.dotFill} style={{ opacity: emphasis, transform: timed ? fill : fillAt(1) }} />
     </motion.span>
   </button>;
 }
