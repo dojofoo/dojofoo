@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import DeviceAuth from "@dojofoo/uix/components/device-auth";
+import { authRobots, loadAuthFlags } from "@/lib/auth-flags.functions";
 
 // better-auth's device authorization sends the CLI's code here (its default verificationUri, /device?user_code=…)
 export const Route = createFileRoute("/device")({
@@ -7,7 +8,8 @@ export const Route = createFileRoute("/device")({
     user_code: typeof search.user_code === "string" ? search.user_code : undefined,
     status: search.status === "approved" || search.status === "denied" ? (search.status as "approved" | "denied") : undefined,
   }),
-  head: () => ({ meta: [{ title: "Authenticate device · dojofoo" }] }),
+  loader: () => loadAuthFlags(),
+  head: ({ loaderData }) => ({ meta: [{ title: "Authenticate device · dojofoo" }, ...authRobots(loaderData)] }),
   component: DevicePage,
 });
 

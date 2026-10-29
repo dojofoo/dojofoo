@@ -12,7 +12,8 @@ import { useEffect, useState, type ReactNode } from 'react'
  * Tailark's login block 9, in Dojo's look: our fields, buttons and type in the onboarding's card, the brand color on
  * links. One block for signing in and signing up – the same email, an optional password (without one, a magic link),
  * GitHub and Google beside it, the way in used last time marked. The forms only render for now; better-auth answers
- * under /api/v1/auth once it's wired.
+ * under /api/v1/auth once it's wired. Social sign-in and registration are the host's to open (both closed by default):
+ * without social sign-in there's only the email, without registration no way to create an account.
  */
 
 // better-auth's last-login-method plugin keeps it in a cookie the page can read: email, magic-link, github, google…
@@ -42,23 +43,40 @@ const copy = {
     'sign-up': { title: 'Create an account', lead: 'Sign up to save your progress and publish courses', submit: 'Sign Up', prompt: 'Already have an account?', link: 'Sign in', href: '/sign-in' },
 } as const
 
-export default function Login({ mode = 'sign-in' }: { mode?: keyof typeof copy }) {
+export default function Login({ mode = 'sign-in', socialSignIn = false, registration = false }: {
+    mode?: keyof typeof copy
+    /** The GitHub and Google buttons */
+    socialSignIn?: boolean
+    /** Creating an account; while closed, signing up says so and signing in doesn't offer it */
+    registration?: boolean
+}) {
     const [password, setPassword] = useState('')
     const lastMethod = useLastMethod()
     const text = copy[mode]
+    const foot = <>
+        {text.prompt}{' '}
+        <AuthLink
+            href={text.href}
+            className="font-medium text-(--brand) hover:underline">
+            {text.link}
+        </AuthLink>
+    </>
+
+    if (mode === 'sign-up' && !registration) {
+        return (
+            <AuthCard
+                title="Registrations are closed"
+                lead="Dojo.foo isn't taking new accounts yet."
+                foot={foot}
+            />
+        )
+    }
 
     return (
         <AuthCard
             title={text.title}
             lead={text.lead}
-            foot={<>
-                {text.prompt}{' '}
-                <AuthLink
-                    href={text.href}
-                    className="font-medium text-(--brand) hover:underline">
-                    {text.link}
-                </AuthLink>
-            </>}>
+            foot={mode === 'sign-in' && !registration ? undefined : foot}>
             <form
                 action=""
                 onSubmit={(event) => event.preventDefault()}
@@ -109,30 +127,32 @@ export default function Login({ mode = 'sign-in' }: { mode?: keyof typeof copy }
                 </LastUsed>
             </form>
 
-            <div className="ui-auth-divider my-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                <div className="h-px bg-(--line)" />
-                <div className="text-center text-[13px] text-(--muted)">or continue with</div>
-                <div className="h-px bg-(--line)" />
-            </div>
+            {socialSignIn && <>
+                <div className="ui-auth-divider my-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                    <div className="h-px bg-(--line)" />
+                    <div className="text-center text-[13px] text-(--muted)">or continue with</div>
+                    <div className="h-px bg-(--line)" />
+                </div>
 
-            <div className="ui-auth-social grid grid-cols-2 gap-3">
-                <LastUsed last={lastMethod === 'github'}>
-                    <Button
-                        variant="secondary"
-                        className="w-full"
-                        icon={<GithubFilled size={16} />}>
-                        GitHub
-                    </Button>
-                </LastUsed>
-                <LastUsed last={lastMethod === 'google'}>
-                    <Button
-                        variant="secondary"
-                        className="w-full"
-                        icon={<img src={googleLogo} alt="" className="size-4" />}>
-                        Google
-                    </Button>
-                </LastUsed>
-            </div>
+                <div className="ui-auth-social grid grid-cols-2 gap-3">
+                    <LastUsed last={lastMethod === 'github'}>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            icon={<GithubFilled size={16} />}>
+                            GitHub
+                        </Button>
+                    </LastUsed>
+                    <LastUsed last={lastMethod === 'google'}>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            icon={<img src={googleLogo} alt="" className="size-4" />}>
+                            Google
+                        </Button>
+                    </LastUsed>
+                </div>
+            </>}
         </AuthCard>
     )
 }

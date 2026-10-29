@@ -148,8 +148,9 @@ test("the account menu opens local Settings and Profile through the Pages layout
   await expect(page.getByRole("button", { name: "You", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "You", exact: true }).click();
   await expect(page.getByRole("menuitem", { name: "Profile", exact: true })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Log in", exact: true })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Log out", exact: true })).toBeVisible();
+  // No accounts locally: the menu ends at the theme row
+  await expect(page.getByRole("menuitem", { name: "Log in", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Log out", exact: true })).toHaveCount(0);
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   await expect(page).toHaveURL(/\/settings/);
   await page.reload();

@@ -75,7 +75,8 @@ export function AuthCard({ title, lead, foot, children }: {
     lead: ReactNode
     /** In the tray under the card: the way to the other page */
     foot?: ReactNode
-    children: ReactNode
+    /** The form; without one the card is only its heading (e.g. a page that's closed) */
+    children?: ReactNode
 }) {
     return (
         <AuthPage>
@@ -87,7 +88,7 @@ export function AuthCard({ title, lead, foot, children }: {
 
             <div className="ui-ob-card ui-auth-tray">
                 <div className="ui-ob-step ui-auth-step p-8!">
-                    <div className="ui-auth-head mb-8 space-y-1.5">
+                    <div className={`ui-auth-head space-y-1.5${children ? ' mb-8' : ''}`}>
                         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
                         <p className="text-sm text-(--muted)">{lead}</p>
                     </div>
