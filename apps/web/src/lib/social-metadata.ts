@@ -10,7 +10,7 @@ interface SocialMetadataOptions {
   title: string;
   description: string;
   url: string;
-  /** The page's own card (/og/<path>/og.webp); the site's otherwise */
+  /** The page's own card (its address + /og.webp); the site's otherwise */
   image?: string;
   type?: "article" | "website";
 }
@@ -49,8 +49,8 @@ export function socialMetadata({
 }
 
 /** The page's one address for search engines: the site's origin and its path, without a trailing slash */
-/** A page's own social card: /og/<its path>/og.webp */
-export const pageImage = (path: string) => `${SITE_URL}/og${path === "/" ? "" : path.replace(/\/$/, "")}/og.webp`;
+/** A page's own social card: its address + /og.webp */
+export const pageImage = (path: string) => `${SITE_URL}${path.replace(/\/$/, "")}/og.webp`;
 
 export function canonicalLink(path: string) {
   return { rel: "canonical", href: SITE_URL + (path === "/" ? "/" : path.replace(/\/$/, "")) };

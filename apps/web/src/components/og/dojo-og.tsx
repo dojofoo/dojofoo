@@ -1,15 +1,16 @@
 import type { ReactNode } from "react";
 
 /*
- * Dojo.foo's social cards (Takumi): a title over its description, in the site's Inter, on the footer's
- * contour map under a glass-like fade, the logo at the top. A course's card brings the course itself: its color card
+ * Dojo.foo's social cards (Takumi), each at its page's address + /og.webp: a title over its description, in the site's
+ * Inter, on the footer's map (the contour map, the waves for the docs; seeded by the page's path) under a glass-like
+ * fade, the logo at the top. A course's card brings the course itself: its color card
  * as the course page shows it, level and lifted as if the pointer were over it: lit from the top left (a sheen, its rims
  * catching the light there and in shade below), its edge showing under it, a deep shadow.
  */
 
 export const OG = { width: 1200, height: 630 } as const;
 
-export function DojoOg({ title, description, author, foot, logo, ground, groundColor, card }: {
+export function DojoOg({ title, description, author, foot, logo, map, fade, shadow, groundColor, card }: {
   title: string;
   description?: string;
   /** Who made it (a course's author), at the bottom left, "by" over it */
@@ -18,9 +19,11 @@ export function DojoOg({ title, description, author, foot, logo, ground, groundC
   foot?: string;
   /** The wordmark, as a data URL */
   logo: string;
-  /** The contour map with its shade worked out and dithered (scripts/og-ground.mjs) – the glass fade behind the words, and
-      with a card its shadow (public/og-ground-card.png) – and its color */
-  ground: string;
+  /** The ground (scripts/og-ground.mjs): the footer's map 2400 wide, which 1200 of it shows and whether mirrored (the
+      page's seed), the glass fade over it, with a card its shadow – each shade dithered there – and its color */
+  map: { src: string; x: number; flip: boolean };
+  fade: string;
+  shadow?: string;
   groundColor: string;
   /** Beside the words on the right, e.g. a course's card */
   card?: ReactNode;
@@ -28,7 +31,9 @@ export function DojoOg({ title, description, author, foot, logo, ground, groundC
   const narrow = Boolean(card);
   return (
     <div style={{ position: "relative", display: "flex", width: "100%", height: "100%", backgroundColor: groundColor, color: "#ffffff" }}>
-      <img alt="" src={ground} width={OG.width} height={OG.height} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+      <img alt="" src={map.src} width={OG.width * 2} height={OG.height} style={{ position: "absolute", top: 0, left: -map.x, width: OG.width * 2, height: OG.height, transform: map.flip ? "scaleX(-1)" : undefined }} />
+      <img alt="" src={fade} width={OG.width} height={OG.height} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+      {shadow && <img alt="" src={shadow} width={OG.width} height={OG.height} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />}
 
       {/* One column on the card's frame (105px above and below, the course card's own edges): the logo at the top, the
           title and its description as one group in the middle, the byline as another at the foot – each group's lines

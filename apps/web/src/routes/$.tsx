@@ -11,6 +11,16 @@ import { useMDXComponents } from '@/components/mdx'
 import { APIPage as OpenAPIPage, type APIPageProps } from '@dojofoo/uix/components/api-reference'
 
 export const Route = createFileRoute('/$')({
+  // A docs page's social card beside it, at its address + /og.webp; every other request is the page
+  server: {
+    handlers: {
+      GET: async ({ request, next }) => {
+        const { pathname } = new URL(request.url)
+        if (!pathname.endsWith('/og.webp')) return next()
+        return (await import('@/lib/og-pages')).docsCard(pathname.slice(0, -'/og.webp'.length) || '/')
+      },
+    },
+  },
   component: Page,
   loader: async ({ params }) => {
     const slugs = params._splat?.split('/') ?? []

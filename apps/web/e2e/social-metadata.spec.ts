@@ -29,7 +29,7 @@ test("uses the Dojo.foo social card on the main website", async ({ page }) => {
 test("uses the Dojo.foo social card with page metadata in the docs", async ({ page }) => {
   await page.goto("/docs");
   // Its own card, at its path
-  await expectSocialImage(page, "https://dojo.foo/og/docs/og.webp", "Usage");
+  await expectSocialImage(page, "https://dojo.foo/docs/og.webp", "Usage");
   await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "article");
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Usage");
   await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute("content", "Usage");
@@ -76,13 +76,13 @@ test("serves the social card as WebP", async ({ request }) => {
   expect(bytes.subarray(8, 12).toString()).toBe("WEBP");
 });
 
-test("draws each page's own card at /og/<path>/og.webp", async ({ request }) => {
-  for (const path of ["/og/docs/quickstart/og.webp", "/og/dojos/og.webp", "/og/courses/dojofoo/effect-ts/og.webp"]) {
+test("draws each page's own card at its address + /og.webp", async ({ request }) => {
+  for (const path of ["/docs/quickstart/og.webp", "/authoring/og.webp", "/dojos/og.webp", "/courses/dojofoo/effect-ts/og.webp"]) {
     const response = await request.get(path);
     expect(response.status(), path).toBe(200);
     expect(response.headers()["content-type"]).toContain("image/webp");
   }
-  for (const path of ["/og/docs/quickstart/image.webp", "/og/no-such-page/og.webp", "/og/courses/nobody/nothing/og.webp"]) {
+  for (const path of ["/og/docs/quickstart/og.webp", "/docs/no-such-page/og.webp", "/courses/nobody/nothing/og.webp"]) {
     expect((await request.get(path)).status(), path).toBe(404);
   }
 });
