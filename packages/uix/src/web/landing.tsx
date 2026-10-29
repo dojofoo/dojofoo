@@ -1,5 +1,6 @@
 import { followLink } from "../lib/link-event";
-import { useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { ArrowCallout } from "../components/arrow-callout";
 import { Icon } from "../components/app-shell";
 import { ButtonLink } from "../components/button";
 import { TabOverload } from "../components/tab-overload";
@@ -38,6 +39,9 @@ export function LandingPage({ learning, courses, preview }: {
   const links = useSite();
   const top = [...courses].sort((a, b) => a.trendingRank - b.trendingRank).slice(0, 4);
   const [mode, setMode] = useState<1 | 2 | 3>(1);
+  const app = useRef<HTMLDivElement>(null);
+  const card = useInside(app, ".lj-course");
+  const speaker = useInside(app, ".ui-as-chat__speaker");
   return (
     <SitePage current="home" window={false} full backdrop={<TopographyBackdrop />}>
       <style href="ui-web-landing" precedence="default">{css}</style>
@@ -66,7 +70,12 @@ export function LandingPage({ learning, courses, preview }: {
       {/* A course from inside, as learners see it: a lesson in the learner app itself, in a window as wide as the page, cut
           short – its sidebar runs on past the bottom (there's more to it), the composer sits in view – and without its
           Getting started card */}
-      <div className="ui-land-app"><AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview></div>
+      <div className="ui-land-app" ref={app}>
+        {/* What the window shows, called out instead of explained: notes above it, their arrows drawn into the app */}
+        <ArrowCallout target={card} flip className="ui-land-note ui-land-note--card">Install any course</ArrowCallout>
+        <ArrowCallout target={speaker} flip className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
+        <AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview>
+      </div>
 
       <section className="ui-land-agents" aria-labelledby="ui-land-agents">
         <h2 id="ui-land-agents" className="ui-land-eyebrow">Works with</h2>
@@ -114,6 +123,25 @@ export function LandingPage({ learning, courses, preview }: {
   );
 }
 
+/** An element inside the host's preview, for a callout to point at. The preview is the host's and fills in after the
+    first render, so it's found by class once it's there; a new ref then has the callout lay its arrow out. */
+function useInside(root: RefObject<HTMLElement | null>, selector: string): RefObject<HTMLElement | null> {
+  const [element, setElement] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const container = root.current;
+    if (!container) return;
+    const find = () => {
+      const match = container.querySelector<HTMLElement>(selector);
+      if (match) { setElement(match); observer.disconnect(); }
+    };
+    const observer = new MutationObserver(find);
+    observer.observe(container, { childList: true, subtree: true });
+    find();
+    return () => observer.disconnect();
+  }, [root, selector]);
+  return useMemo(() => ({ current: element }), [element]);
+}
+
 const css = /* css */ `
 /* Hero: on the page, centered, the live count as a pill above the title */
 .ui-land-hero { display: grid; justify-items: center; max-width: 760px; margin: 0 auto; padding: 72px 20px 40px; text-align: center; }
@@ -139,6 +167,15 @@ const css = /* css */ `
    close on the chat, and its sidebar cut off by the window's edge rather than scrolling */
 .ui-land-app, .ui-land-body { max-width: 1280px; margin: 0 auto; padding: 0 8px; }
 .ui-land-app { max-width: 1380px; }
+/* The notes sit in a band above the window; where the window is too small to point into, they go */
+.ui-land-app { position: relative; }
+.ui-land-note { display: none; }
+@media (min-width: 1100px) {
+  .ui-land-app { padding-top: 64px; }
+  .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; }
+  .ui-land-note--card { left: 40px; }
+  .ui-land-note--sensei { right: 40px; top: -14px; text-align: right; }
+}
 /* Match the main-to-composer gap: its 12px inset plus the 1px pane divider. */
 .ui-land-app .ui-as-app { --frame-gap: 13px; }
 @media (max-width: 1303px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
