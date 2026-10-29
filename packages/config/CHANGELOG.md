@@ -1,5 +1,15 @@
 # @dojofoo/config
 
+## 0.2.0
+
+### Minor Changes
+
+- b55d1a4: Relicense under the Functional Source License 1.1 with an Apache 2.0 future license (FSL-1.1-ALv2). Each release may be used for any purpose except a competing commercial product or service, and becomes available under Apache 2.0 two years after its release. Versions released before this change remain available under MIT.
+
+### Patch Changes
+
+- 9b85745: New courses start in trial: installable by their repository, left out of the catalog until they're enabled (`bun scripts/enable-course.ts owner/repository` in apps/api). Each registered version gets Dojo's security checks, and a scheduled workflow adds Cisco's skill-scanner; `add` reads them before installing – a failed check stops it, a warning asks first (`--yes` answers). Manifests can say `private: true` to stay unlisted (`marketplace: false` still works).
+
 ## 0.1.0
 
 ### Minor Changes

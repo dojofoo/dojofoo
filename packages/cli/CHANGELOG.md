@@ -1,5 +1,49 @@
 # dojofoo
 
+## 0.3.0
+
+### Minor Changes
+
+- f1942cd: Run `npx dojofoo` in a terminal to start learning: it sets the folder up first when needed, then opens the local lesson UI, and takes the same options as `ui` (`--no-open`, `--background`, `--port`, `--authoring` and the others). Without a terminal – in scripts, CI or pipes – it still prints the help. `npx dojofoo ui` keeps working for scripts and agents, including `ui prompt` and `ui --skill`.
+- b55d1a4: Relicense under the Functional Source License 1.1 with an Apache 2.0 future license (FSL-1.1-ALv2). Each release may be used for any purpose except a competing commercial product or service, and becomes available under Apache 2.0 two years after its release. Versions released before this change remain available under MIT.
+
+### Patch Changes
+
+- 9394f74: Align shared highlighter and schema dependency types before adopting UIX in the local learning application, and preserve valid HTML fragments in teaching Markdown hovers.
+- f31107e: Allow release packaging to fetch locked agent dependencies missing from the build cache.
+- 9b85745: New courses start in trial: installable by their repository, left out of the catalog until they're enabled (`bun scripts/enable-course.ts owner/repository` in apps/api). Each registered version gets Dojo's security checks, and a scheduled workflow adds Cisco's skill-scanner; `add` reads them before installing – a failed check stops it, a warning asks first (`--yes` answers). Manifests can say `private: true` to stay unlisted (`marketplace: false` still works).
+- bf60239: Restore the audited Eve 0.81.1 runtime build, preserve upstream sign-in parking,
+  and reduce the bundled Eve patch surface without changing the Dojofoo agent API.
+- bed2241: Use the shared UIX workspace for interactive courses with persistent native Sensei conversations, current-step context and model selection while retaining saved answers and course materials.
+- d5c1c90: Show real lesson check results in the shared UIX table, including failure output and source references. Collect fresh Vitest JSON reports across reporter versions and launch OpenCode ACP without the removed directory flag.
+- 510502c: Use shared UIX conversation and tool presentation. Preserve authored question answers in native tool results and honor native approval choices and rejected-tool outcomes.
+- e653da4: Use the shared UIX editor, tabs and actions for local lessons. Preserve native file models and undo history across test views, and save the focused editor's current value once per keyboard shortcut.
+- b73e8c7: Color the lesson editor's visible lines right away, even when a busy page postpones Monaco's idle-time highlighting.
+- 422048a: Install kata courses whose lessons have no explicit `name` or `id`: each lesson takes its folder's name, as the rest of the CLI already does, instead of failing with "Each installed lesson needs a stable ID".
+- f19a55f: Use the shared UIX lesson workspace, material settings, navigation and composer with real agent sessions and native model selection. Keep large model catalogs reachable within scrollable dropdowns.
+- 2e98a34: Show Log in and Log out in the account menu only when the host provides them. The local UI has no accounts, so its menu now ends at the theme row instead of offering both placeholder actions.
+- b6e09a7: Render the local course library through shared UIX presentation while preserving real installation discovery, workspace/session choices, native links and empty/error states.
+- bed2241: Render local lesson materials and authoring documentation through Portless by preserving the forwarded browser origin. Pre-bundle the lazy diagram renderer for stable development navigation.
+- bed2241: Keep the local UI at dojo.localhost when a shared Portless proxy uses another domain, without replacing the website's route. The repository UI script uses the same launcher. Follow the proxy's configured HTTP or HTTPS transport without a package-install certificate-trust step.
+- bf44267: Render native Fumadocs documentation inside the shared UIX frame, preserve host navigation and compiled heading metadata, and align documentation stories with the same controlled presentation.
+- c0173fd: Use shared UIX presentation for the public website, preserve real navigation and course data, and isolate the illustrative learning preview from learner controllers. Add native button links and handle document transition interruptions through the shared document bootstrap.
+- bed2241: Show saved authoring findings in the shared Pages Evals view, with filtering, evidence, next steps and judge limitations. Keep the existing evaluation action available and retain editor drafts and undo history when switching views.
+- bed2241: Use the Pages sidebar for authoring files, nested folders and evaluation status. Keep file filtering, course and lesson renames, and new-lesson actions connected to the existing authoring handlers.
+- bed2241: Use the shared Pages lesson checklist for authoring readiness, preserving real preflight findings and omitting empty sections.
+- bed2241: Use the shared UIX workspace, editor tabs and Pages composer for authoring. Keep the editor mounted when conversation history reloads and send queued requests through the existing native queue.
+- bed2241: Use coding-agent and agent-owned model controls in the shared Pages composer and local kata workspace. Preserve unsaved code and questions through agent changes, retain the previous conversation on failure, and avoid an automatic model turn when selecting a different agent.
+- bed2241: Create independent course drafts from the local dashboard and resume their native authoring conversations. Keep each locally managed draft on its own Eve runtime while preserving explicitly configured fixed-owner hosts.
+- bed2241: Use the shared Storybook avatar and profile fields in local General settings. Account editing stays disabled until an account integration is available.
+- bed2241: Connect interactive courses to the shared coding-agent and model pickers. Retain each agent's native conversation and model, preserve course progress and typed questions, recover unused selections without automatic turns, and ignore stale refreshes after a switch.
+- bed2241: Restore the Pages learner course card and Dashboard breadcrumb, show installed course metadata, and add the local account menu and Settings route with shared appearance controls.
+- bed2241: Use the shared Pages Explore view locally and keep the two draft starter-course shells available from the dashboard without creating installations or agent sessions.
+- bf6314c: Share UIX providers and library-owned assets across application hosts and Storybook. Require application-supplied prepared OpenAPI data and keep preview content behind story adapters so the bundled local UI can adopt the shared presentation safely.
+- bed2241: Use the shared account-menu dropdown for trial and evaluation selections, preserve manual model IDs, and theme the evaluation dialog with UIX surfaces. Keep the composer's attachment control visible but disabled when its connection cannot accept files.
+- Updated dependencies [9b85745]
+- Updated dependencies [b55d1a4]
+  - @dojofoo/config@0.2.0
+  - @dojofoo/authoring@0.1.1
+
 ## 0.2.1
 
 ### Patch Changes

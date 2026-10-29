@@ -1,6 +1,6 @@
 {
   "name": "@dojofoo/agent-api",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "description": "Versioned workspace agent API (sessions, runs, coding agents) as a mountable Elysia app.",
