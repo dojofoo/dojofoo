@@ -87,7 +87,9 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
     vi.stubEnv("FX_AUTO_UPGRADE", "0");
   }
   vi.stubEnv("VERCEL_OIDC_TOKEN", "");
-  vi.stubEnv("CI", "1");
+  // srvx skips production shutdown handlers under CI/TEST. Exercise a normal CLI restart.
+  vi.stubEnv("CI", "");
+  vi.stubEnv("TEST", "");
   vi.stubEnv("PATH", `${fileURLToPath(new URL("../../node_modules/.bin", import.meta.url))}:${process.env.PATH}`);
   let runtime: Awaited<ReturnType<typeof createKyoshiRuntime>> | undefined;
   try {
