@@ -73,7 +73,7 @@ export function LandingPage({ learning, courses, preview }: {
       <div className="ui-land-app" ref={app}>
         {/* What the window shows, called out instead of explained: notes above it, their arrows drawn into the app */}
         <ArrowCallout target={card} flip bend={0.25} weight={3} className="ui-land-note ui-land-note--card">Install any course</ArrowCallout>
-        <ArrowCallout target={sensei} shape="elbow" weight={3} className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
+        <ArrowCallout target={sensei} shape="elbow" weight={3} gap={16} className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
         <AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview>
       </div>
 

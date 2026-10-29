@@ -20,7 +20,7 @@ const TIP_GAP = 8;
 const PAD = 6;
 
 // The curve lives in the note's own coordinates: (0,0) is the note's top left.
-function geometry(note: Box, target: Box, flip = false, shape: ArrowShape = "arc", bend = 1, weight = 1.6) {
+function geometry(note: Box, target: Box, flip = false, shape: ArrowShape = "arc", bend = 1, weight = 1.6, gap = TIP_GAP) {
   const tc = {
     x: target.left + target.width / 2 - note.left,
     y: target.top + target.height / 2 - note.top,
@@ -35,8 +35,8 @@ function geometry(note: Box, target: Box, flip = false, shape: ArrowShape = "arc
   else s = { x: note.width * 0.35, y: dy < 0 ? -4 : note.height + 4 };
 
   // Aims at the target's centre and stops where that line meets its edge.
-  const hw = target.width / 2 + TIP_GAP;
-  const hh = target.height / 2 + TIP_GAP;
+  const hw = target.width / 2 + gap;
+  const hh = target.height / 2 + gap;
   const ax = s.x - tc.x;
   const ay = s.y - tc.y;
   const k = Math.min(ax ? hw / Math.abs(ax) : Infinity, ay ? hh / Math.abs(ay) : Infinity);
@@ -44,7 +44,7 @@ function geometry(note: Box, target: Box, flip = false, shape: ArrowShape = "arc
   // An elbow leaves the side of the note facing the target, level, and comes down onto the target's top
   if (shape === "elbow") {
     s = { x: tc.x < note.width / 2 ? -6 : note.width + 6, y: note.height / 2 };
-    e = { x: tc.x, y: target.top - note.top - TIP_GAP };
+    e = { x: tc.x, y: target.top - note.top - gap };
   }
 
   // A pen arc: bulges to one side (always upward, like a flick of the
@@ -102,6 +102,7 @@ export function ArrowCallout({
   shape = "arc",
   bend = 1,
   weight = 1.6,
+  gap = TIP_GAP,
   children,
   className,
 }: {
@@ -117,6 +118,8 @@ export function ArrowCallout({
   bend?: number;
   /** The stroke's width in pixels; a heavier line reads as marker or spray paint */
   weight?: number;
+  /** Room left between the tip and the target, in pixels */
+  gap?: number;
   children: ReactNode;
   className?: string;
 }) {
@@ -151,6 +154,7 @@ export function ArrowCallout({
         shape,
         bend,
         weight,
+        gap,
       );
       art.style.left = `${round(g.box.x)}px`;
       art.style.top = `${round(g.box.y)}px`;
@@ -223,7 +227,7 @@ export function ArrowCallout({
       window.removeEventListener("pointercancel", up);
       to.removeEventListener("transitionrun", wake);
     };
-  }, [target, follow, flip, shape, bend, weight]);
+  }, [target, follow, flip, shape, bend, weight, gap]);
 
   const ink = {
     fill: "none",
