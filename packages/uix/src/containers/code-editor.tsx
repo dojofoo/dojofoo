@@ -43,6 +43,7 @@ function FileEditor(props: CodeEditorProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const files = useRef(new Map<string, { model: Monaco.editor.ITextModel; view: Monaco.editor.ICodeEditorViewState | null }>());
   const detachFile = useRef<(() => void) | undefined>(undefined);
+  const tokenizeVisibleRef = useRef<(() => void) | undefined>(undefined);
   const { code, filePath, language, lessonApiBase, readOnly, coverage, lineHits, failedLines, highlight, documentationUrl } = props;
 
   useEffect(() => {
@@ -107,7 +108,17 @@ function FileEditor(props: CodeEditorProps) {
         }
       });
       hoverUpdates.observe(widgets, { childList: true, subtree: true, characterData: true });
+      // Monaco colors visible lines from idle-time work, which a busy main thread (a slow
+      // renderer) can postpone indefinitely; tokenize up to the last visible line directly
+      const tokenizeVisible = () => {
+        const model = editor.getModel() as (Monaco.editor.ITextModel & { tokenization?: { forceTokenization?(lineNumber: number): void } }) | null;
+        if (!model) return;
+        const last = editor.getVisibleRanges().at(-1)?.endLineNumber ?? model.getLineCount();
+        model.tokenization?.forceTokenization?.(Math.min(Math.max(last, 1), model.getLineCount()));
+      };
+      tokenizeVisibleRef.current = tokenizeVisible;
       const changes = editor.onDidChangeModelContent(() => {
+        tokenizeVisible();
         const value = editor.getModel()?.getValue();
         if (value !== undefined && value !== latest.current.code) latest.current.onChange(value);
       });
@@ -131,7 +142,7 @@ function FileEditor(props: CodeEditorProps) {
         code.style.setProperty("--ui-ed-fade-start", String(1 - Math.min(Math.max(top / 48, 0), 1)));
         code.style.setProperty("--ui-ed-fade-end", String(1 - Math.min(Math.max(rest / 48, 0), 1)));
       };
-      const scrolls = editor.onDidScrollChange(fade);
+      const scrolls = editor.onDidScrollChange(() => { fade(); tokenizeVisible(); });
       const sizes = editor.onDidContentSizeChange(fade);
       fade();
       setInstance({ editor, monaco });
@@ -161,6 +172,7 @@ function FileEditor(props: CodeEditorProps) {
     const { model } = file;
     if (model.getLanguageId() !== language) monaco.editor.setModelLanguage(model, language);
     editor.setModel(model);
+    tokenizeVisibleRef.current?.();
     editor.updateOptions({ readOnly });
     if (file.view) editor.restoreViewState(file.view);
     const detach = language === "typescript" && lessonApiBase && !readOnly
