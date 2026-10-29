@@ -132,7 +132,7 @@ try {
   const choice = initial.model.options.find(option => option.value === "openai/gpt-4o-mini");
   assert.ok(choice);
   await page.getByRole("button", { name: "Model", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: new RegExp(choice.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+  await page.getByRole("menuitemradio", { name: choice.name, exact: true }).click();
   await expect.poll(async () => (await fetch(`${base}/conversation`).then(response => response.json())).model.currentValue).toBe(choice.value);
   const cancelQuestion = "Hold this response until I stop it";
   const held = endpoint.holdNextResponse(request => JSON.stringify(request.input ?? []).includes(cancelQuestion));
