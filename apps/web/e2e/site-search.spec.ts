@@ -5,8 +5,12 @@ test("the shared palette searches docs and marketplace courses and opens results
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/docs", { waitUntil: "networkidle" });
   const opener = page.getByRole("button", { name: "Search docs", exact: true }).first();
-  await opener.click();
   const palette = page.locator("dialog.ui-as-palette[open]");
+  // A click before hydration has no handler yet; retry until the palette opens.
+  await expect(async () => {
+    await opener.click();
+    await expect(palette).toBeVisible({ timeout: 1_000 });
+  }).toPass();
   const input = palette.getByRole("combobox");
   await expect(input).toBeFocused();
   await expect(palette.getByRole("tab", { name: "Docs", exact: true })).toHaveAttribute("aria-selected", "true");

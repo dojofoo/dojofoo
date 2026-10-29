@@ -100,8 +100,11 @@ test("Installation uses shared command controls and preserves the agent setup pr
   });
   await page.goto("/docs/installation", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Installation", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Copy npx dojofoo install", exact: true }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-copied-command", "npx dojofoo install");
+  // A click before hydration has no handler yet; retry until the copy lands.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Copy npx dojofoo install", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-copied-command", "npx dojofoo install", { timeout: 1_000 });
+  }).toPass();
   await page.getByRole("button", { name: "Copy Prompt", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-copied-command", AGENT_PROMPT);
 });
