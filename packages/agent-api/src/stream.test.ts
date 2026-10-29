@@ -25,6 +25,12 @@ async function run(stream: (input: Parameters<typeof streamEveRun>[0]) => AsyncG
 const history = (turns: number) => Array.from({ length: turns }, (_, index) => turn(`old-${index}`, `Question ${index}`, ["Answer ".repeat(60)])).flat();
 
 describe("streamEveRun", () => {
+  it("reports a stable agent error when the upstream stream fails", async () => {
+    const chunks: StreamChunk[] = [];
+    const events = (async function* () { throw new Error("Agent connection closed"); })();
+    for await (const chunk of streamEveRun({ events, initial: reducer.initial(), threadId: "s", runId: "r" })) chunks.push(chunk);
+    expect(chunks.at(-1)).toMatchObject({ type: "RUN_ERROR", code: "agent_stream_failed", message: "Agent connection closed" });
+  });
   it("preserves saved history and text on both sides of a tool call", async () => {
     const saved = history(3);
     const live = turn("live", "Read the lesson", ["Let me ", "look"], { tool: true, tail: ["It ", "covers ", "katas."] });

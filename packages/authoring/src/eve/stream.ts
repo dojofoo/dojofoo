@@ -125,7 +125,7 @@ export async function* streamEveAsAgUi({ events, initial, threadId, runId, attac
       outcome: interrupts.length ? { type: "interrupt", interrupts } : { type: "success" },
     };
   } catch (error) {
-    yield { type: EventType.RUN_ERROR, code: "EVE_STREAM_ERROR", message: error instanceof Error ? error.message : String(error), metadata: { tanstack: { threadId, runId } } };
+    yield { type: EventType.RUN_ERROR, code: "agent_stream_failed", message: error instanceof Error ? error.message : String(error), metadata: { tanstack: { threadId, runId } } };
   }
 }
 

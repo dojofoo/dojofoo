@@ -4,7 +4,7 @@ import type { Client, SendTurnOptions } from "@dojofoo/agent/client";
 export const personas = ["sensei", "kyoshi"] as const;
 export type Persona = (typeof personas)[number];
 
-export type AgentStatus = "stopped" | "starting" | "ready" | "failed";
+export type AgentStatus = "stopped" | "starting" | "migrating" | "ready" | "failed";
 
 /** A coding agent (Codex, OpenCode, Pi, …) as one workspace can run it. */
 export interface Agent {

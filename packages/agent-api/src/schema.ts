@@ -15,8 +15,8 @@ const agent = t.Object({
   id: t.String({ examples: ["codex"] }),
   name: t.String({ examples: ["Codex"] }),
   selected: t.Boolean({ description: "The workspace's selected coding agent." }),
-  status: t.Union([t.Literal("stopped"), t.Literal("starting"), t.Literal("ready"), t.Literal("failed")]),
-  message: t.Optional(t.String({ description: "Why the last start failed." })),
+  status: t.Union([t.Literal("stopped"), t.Literal("starting"), t.Literal("migrating"), t.Literal("ready"), t.Literal("failed")]),
+  message: t.Optional(t.String({ description: "Startup or migration progress, or why the last start failed." })),
 });
 const sessionSummary = {
   id: t.String(),

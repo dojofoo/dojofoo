@@ -25,6 +25,13 @@ function connection(app: ReturnType<typeof createAgentApi>, sessionId: string) {
 }
 
 describe("agents", () => {
+  it("exposes migration progress without reporting the agent ready", async () => {
+    const { json, runtime } = setup();
+    runtime.agents = async () => [{ id: "codex", name: "Codex", selected: true, status: "migrating", message: "Migrating to the new course version…" }];
+    const response = await json("/agents");
+    expect(response.status).toBe(200);
+    expect((await response.json()).data[0]).toMatchObject({ status: "migrating", message: "Migrating to the new course version…" });
+  });
   it("lists a workspace's coding agents in the public collection shape", async () => {
     const { json } = setup();
     const response = await json("/agents");
