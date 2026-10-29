@@ -8,7 +8,7 @@ const loadAccountPage = () => import("@/components/account-settings").then(({ Wo
     every page's (SidebarStateProvider). */
 export function useAccountMenu({ preserveWorkspace = false }: { preserveWorkspace?: boolean } = {}) {
   const navigate = useNavigate();
-  const [toast, notify] = useToast();
+  const [toast] = useToast();
   const sidebar = useSidebarState();
   return {
     account: {
@@ -18,8 +18,6 @@ export function useAccountMenu({ preserveWorkspace = false }: { preserveWorkspac
         onSettings: () => { void navigate({ to: "/settings", search: { tab: "Appearance" } }); },
         onProfile: () => { void navigate({ to: "/settings", search: { tab: "General" } }); },
       }),
-      onLogin: () => notify("Sign-in is coming soon."),
-      onLogout: () => notify("Account sign-out is coming soon."),
     },
     toast,
   };

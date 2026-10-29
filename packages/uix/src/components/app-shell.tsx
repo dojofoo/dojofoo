@@ -664,11 +664,11 @@ export function AppShell({
               { label: "Changelog", icon: Megaphone01Icon, onSelect: () => go("changelog") },
               { label: "Help & feedback", icon: HelpCircleIcon },
             ]}
-            // Light or dark, right above logging out; choosing keeps the menu open
+            // Light or dark, right above logging in or out (each only when the host has it); choosing keeps the menu open
             footer={(close) => <>
               <ThemeRow />
-              <MenuList items={[...(onLogin ? [{ label: "Log in", icon: UserIcon, onSelect: onLogin }] : []),
-                { label: "Log out", icon: Logout01Icon, danger: true, onSelect: onLogout }]} onPick={close} />
+              {(onLogin || onLogout) && <MenuList items={[...(onLogin ? [{ label: "Log in", icon: UserIcon, onSelect: onLogin }] : []),
+                ...(onLogout ? [{ label: "Log out", icon: Logout01Icon, danger: true, onSelect: onLogout }] : [])]} onPick={close} />}
             </>}
             trigger={({ open, toggle }) => (
               <RailTip enabled={rail} label={user.name}>
