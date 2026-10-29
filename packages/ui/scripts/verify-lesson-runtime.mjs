@@ -460,7 +460,12 @@ try {
         const { editor, languages } = await import("modern-monaco/editor-core");
         return { mode: document.documentElement.className, languages: languages.getLanguages().map(language => language.id),
           models: editor.getModels().map(model => ({ uri: model.uri.toString(), language: model.getLanguageId(),
-            tokens: editor.tokenize(model.getLineContent(Math.min(6, model.getLineCount())), model.getLanguageId()) })) };
+            tokens: editor.tokenize(model.getLineContent(Math.min(6, model.getLineCount())), model.getLanguageId()),
+            lineTokens: (() => { const line = model.tokenization.getLineTokens(Math.min(6, model.getLineCount()));
+              return Array.from({ length: line.getCount() }, (_, index) => line.getClassName(index)); })(),
+            backgroundTokenizationState: model.tokenization.backgroundTokenizationState })),
+          editors: editor.getEditors().map(instance => ({ model: instance.getModel()?.uri.toString(), theme: instance.getRawOptions().theme,
+            rendered: (instance.render(true), [...instance.getDomNode().querySelectorAll(".view-line span[class^=mtk]")].map(node => node.className)) })) };
       }).catch(error => String(error)), null, 2));
     }
     throw error;
