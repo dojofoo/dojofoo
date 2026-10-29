@@ -53,8 +53,7 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
 
     // Edit through the same Monaco document and save shortcut as an author.
     const edit = async (path: string, source: string) => {
-      const filename = path.split("/").at(-1)!;
-      const tab = page.getByRole("tab", { name: new RegExp(`^${filename.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}`) });
+      const tab = page.getByRole("tab").and(page.getByTitle(path, { exact: true }));
       await expect(tab).toHaveAttribute("aria-selected", "true");
       await page.getByRole("textbox", { name: "Code editor", exact: true }).focus();
       await page.keyboard.press("ControlOrMeta+a");
@@ -198,6 +197,7 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     }
     await writeFile(test.info().outputPath("runtime.log"), logs);
     await test.info().attach("runtime-log", { body: logs, contentType: "text/plain" });
+    expect.soft(logs, "Production API schemas must compile with their compatible validator").not.toContain("[exact-mirror]");
     expect.soft(logs, "The shipped Kyoshi instructions must reach the native harness").toContain('"shippedInstructionsLoaded":true');
     expect.soft(logs, "The shipped question tool must execute").toContain('"questionToolUsed":true');
     if (fixtureRoot) {
