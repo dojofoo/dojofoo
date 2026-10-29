@@ -15,7 +15,8 @@ const getRenderer = () => renderer ??= (async () => {
 export async function ogImage(node: ReactElement) {
   const [{ default: ImageResponse }, takumi] = await Promise.all([import('takumi-js/response'), getRenderer()])
   return new ImageResponse(node, {
-    ...OG, format: 'webp', renderer: takumi,
+    // Lossless, and dithered, so the fades and the card's gradient don't band
+    ...OG, format: 'webp', lossless: true, dithering: 'floyd-steinberg', renderer: takumi,
     headers: { 'Cache-Control': 'public, max-age=0, s-maxage=3600' },
   })
 }

@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 /*
  * Dojo.foo's social cards (Takumi): a title over its description, in the site's Inter, on the footer's
  * contour map under a glass-like fade, the logo at the top. A course's card brings the course itself: its color card
- * as the course page shows it, lifted and leaning as if the pointer were over it. Takumi draws flat (no perspective),
- * so the lean is a turn and a skew, the lift a deeper shadow.
+ * as the course page shows it, level and lifted as if the pointer were over it: lit from the top left (a sheen, its rims
+ * catching the light there and in shade below), its edge showing under it, a deep shadow.
  */
 
 export const OG = { width: 1200, height: 630 } as const;
@@ -26,11 +26,6 @@ export function DojoOg({ title, description, logo, ground, groundColor, card }: 
       <img alt="" src={ground} width={OG.width} height={OG.height} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
       {/* The fade: clear behind the words, the map showing to the right and below */}
       <div style={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(100deg, ${groundColor}b3 0%, ${groundColor}80 35%, ${groundColor}1a 65%, ${groundColor}00 100%)` }} />
-      {/* The grid's dotted frame */}
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 64, width: 1, borderLeft: "1px dotted #44403c" }} />
-      <div style={{ position: "absolute", top: 0, bottom: 0, right: 64, width: 1, borderLeft: "1px dotted #44403c" }} />
-      <div style={{ position: "absolute", left: 0, right: 0, top: 64, height: 1, borderTop: "1px dotted #44403c" }} />
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 64, height: 1, borderTop: "1px dotted #44403c" }} />
 
       {/* The logo at the top, on the words' edge */}
       <img alt="" src={logo} height={56} width={198} style={{ position: "absolute", top: 98, left: 128, objectFit: "contain", objectPosition: "left" }} />
@@ -74,7 +69,7 @@ export function OgCourseCard({ hue, lines, linesOpacity = 0.55, mark, figure, ki
   const edge = `oklch(0.2 0.08 ${(hue + 40) % 360})`;
   const radius = 6 * u;
   return (
-    <div style={{ position: "relative", display: "flex", transform: "rotate(-1.2deg) skew(-0.4deg, 0.2deg)" }}>
+    <div style={{ position: "relative", display: "flex" }}>
       {/* Its thickness, a little below and to the right of the face */}
       <div style={{ position: "absolute", top: 5, left: 3, width: size, height: size, borderRadius: radius, backgroundColor: edge,
         // Lifted off the page, as under the pointer
