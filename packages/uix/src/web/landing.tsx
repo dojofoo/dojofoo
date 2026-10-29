@@ -183,8 +183,17 @@ const css = /* css */ `
   /* The Sensei's dot sits at about 73% across the window: the note starts a little right of it, so its arrow runs left first */
   .ui-land-note--sensei { left: calc(73% + 34px); top: 2px; text-align: left; }
   /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
-  .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 3px 10px; color: #fff; }
-  .ui-land-note > span:first-child::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg); border-radius: 2px; }
+  .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 1px 9px 2px; color: #fff; }
+  /* The plate, with the logo's thin cuts: a sliver sliced off along the top right and the bottom left, the page showing
+     through each gap (masked out, so it works over any background) */
+  .ui-land-note > span:first-child::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg); border-radius: 2px;
+    mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
+    mask-size: 100% 100%, 34% 1.5px, 34% 1.5px;
+    mask-position: 0 0, right 0 top 3px, left 0 bottom 3px;
+    mask-repeat: no-repeat;
+    mask-composite: exclude;
+  }
 }
 .ui-land-app :is(.ui-as-guide-slot, .ui-as-side__head, .ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
