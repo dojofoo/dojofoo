@@ -185,6 +185,9 @@ const css = /* css */ `
   .ui-land-note--sensei { left: calc(73% + 26px); top: 2px; text-align: left; --cut-top: 55%; --cut-bottom: 16%; }
   /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
   .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 1px 9px 2px 14px; color: #fff; }
+  /* Stuck on at a slight angle, leaning away from each other */
+  .ui-land-note--card > span:first-child { rotate: -3deg; }
+  .ui-land-note--sensei > span:first-child { rotate: 2.5deg; }
   /* The plate, cut like the logo's FOO: its top edge steps down along the right and its bottom edge steps up along the
      left (each note sets how far), and two thin diagonal slits by its left edge leave two slivers, clear of the text. The
      steps are a clip-path, one clean outline with no antialiased sliver at a fractional edge; the slits are masked out.
