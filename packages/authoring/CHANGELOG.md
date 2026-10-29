@@ -1,5 +1,13 @@
 # @dojofoo/authoring
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [9b85745]
+- Updated dependencies [b55d1a4]
+  - @dojofoo/config@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes
