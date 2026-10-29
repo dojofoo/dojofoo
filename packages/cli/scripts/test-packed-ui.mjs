@@ -46,7 +46,10 @@ try {
   }
   const { createOpenCode } = await import(pathToFileURL(installedRequire.resolve("@ai-sdk/harness-opencode")).href);
   // Let the adapter resolve its own version's physical asset filenames.
-  await createOpenCode().getBootstrap();
+  const bootstrap = await createOpenCode().getBootstrap();
+  if (!bootstrap.files.some(file => file.path.endsWith("/patches/@opencode-ai__sdk@1.18.34.patch"))) {
+    throw new Error("The packed OpenCode adapter lost its native server shutdown patch.");
+  }
   const { scaffoldAuthoringWorkspace } = await import(
     pathToFileURL(installedRequire.resolve("@dojofoo/authoring/scaffold")).href
   );

@@ -14,6 +14,8 @@ const scratch = mkdtempSync(resolve(tmpdir(), "dojo-cli-runtime-"));
 const packages = ["config", "agent", "authoring"].map(name => resolve(root, "..", name));
 // Retain the tested shutdown fix rather than reinstalling unpatched Nitro.
 packages.push(dirname(createRequire(resolve(root, "../agent/package.json")).resolve("nitro/package.json")));
+// Warm installation and the prepared agent must use the same patched bootstrap.
+packages.push(dirname(createRequire(resolve(root, "../authoring/package.json")).resolve("@ai-sdk/harness-opencode/package.json")));
 const dependencies = { ...manifest.dependencies };
 const bundledDependencies = [];
 
