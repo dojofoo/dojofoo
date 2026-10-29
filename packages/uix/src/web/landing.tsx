@@ -184,17 +184,20 @@ const css = /* css */ `
   /* The Sensei's dot sits at about 73% across the window: the note starts a little right of it, so its arrow runs left first */
   .ui-land-note--sensei { left: calc(73% + 34px); top: 2px; text-align: left; --cut-top: 55%; --cut-bottom: 16%; }
   /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
-  .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 1px 9px 2px; color: #fff; }
-  /* The plate, cut like the logo's: its top edge steps down along the right third and its bottom edge steps up along
-     the left third (masked out, so the page shows through over any background) */
+  .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 1px 9px 2px 14px; color: #fff; }
+  /* The plate, cut like the logo's FOO: its top edge steps down along the right and its bottom edge steps up along the
+     left (each note sets how far), and a thin diagonal slit near its left end leaves a sliver, clear of the text. Masked
+     out, so the page shows through over any background; the slit stops at the bottom step so the two don't overlap */
   .ui-land-note > span:first-child::before {
     content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg); border-radius: 2px;
-    mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
-    mask-size: 100% 100%, var(--cut-top, 34%) 3px, var(--cut-bottom, 34%) 3px;
-    mask-position: 0 0, right 0 top 0, left 0 bottom 0;
+    mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
+    mask-size: 100% 100%, var(--cut-top, 34%) 3px, var(--cut-bottom, 34%) 3px, 2px calc(100% - 3px);
+    mask-position: 0 0, right 0 top 0, left 0 bottom 0, 6px 0;
     mask-repeat: no-repeat;
     mask-composite: exclude;
   }
+
+
 }
 .ui-land-app :is(.ui-as-guide-slot, .ui-as-side__head, .ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
