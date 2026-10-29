@@ -37,6 +37,8 @@ export default defineConfig({
     // Include it up front so opening docs cannot invalidate in-flight modules.
     include: ['fumadocs-ui > @fuma-translate/react'],
   },
+  // The social cards' maps (scripts/og-ground.mjs): binary, inlined into the server (lib/og-ground)
+  assetsInclude: ['**/*.bin'],
   plugins: [
     monacoAssets(),
     wgslVitePlugin(),

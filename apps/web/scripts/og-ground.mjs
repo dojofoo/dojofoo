@@ -1,14 +1,8 @@
-// Draws the social cards' ground, for Takumi to lay out per page:
-//
-//   public/og-map-topography.png, og-map-waves.png  the footer's map (TopographyBackdrop: the shader's lines, a blurred
-//                                                    copy fading in above, a sharp one below), 2400 wide – a page's card
-//                                                    shows the 1200 its URL picks (lib/og-assets mapWindow)
-//   public/og-fade.png                               the glass fade behind the words: the ground's color, its alpha
-//   public/og-shadow.png                             a course card's shadow: black, its alpha
-//
-// Takumi composites in 8 bits, so every slow ramp is worked out here in full precision and dithered straight after:
-// the maps drawn at twice the size and each 2×2 block averaged before rounding with noise, the fade's and the shadow's
-// alpha rounded with noise. Run with the site and Storybook up:
+// Draws the social cards' maps: the footer's (TopographyBackdrop: the shader's lines, a blurred copy fading in above, a
+// sharp one below) as public/og-map-topography.bin, and the docs' waves laid out the same as og-map-waves.bin – 2400
+// wide, gray, each level kept to 1/64 (16-bit, worked out in full precision from lines drawn at twice the size), deflated. The server
+// (lib/og-ground) cuts a page's 1200 from it, shades it – the glass fade, a course card's shadow – in full precision and
+// dithers it straight after, since Takumi composites in 8 bits. Run with the site and Storybook up:
 //   node scripts/og-ground.mjs [https://dojo.td] [http://localhost:6006]
 import { chromium } from "playwright";
 import { writeFileSync } from "node:fs";
@@ -48,103 +42,55 @@ await page.addStyleTag({ content: `
 await page.waitForTimeout(3000);
 lines.waves = (await page.locator("[data-og] .ui-card__lines").screenshot()).toString("base64");
 
-// Each laid out as the footer lays out its map (topography-backdrop.tsx), on the page's color – then averaged and dithered
-for (const [kind, shot] of Object.entries(lines)) {
-  await page.setContent(`<!doctype html><style>
-    html, body { margin: 0; background: ${color}; overflow: hidden; }
-    .map { position: fixed; inset: 0; width: ${STRIP}px; height: ${H}px; }
-    .layer { position: absolute; inset: 0; background: url(data:image/png;base64,${shot}) 0 0 / ${STRIP}px ${H}px; mix-blend-mode: screen; opacity: 0.5; }
-    .soft { filter: blur(5px); mask-image: linear-gradient(to bottom, transparent 0%, #000 45%, transparent 85%); }
-    .sharp { mask-image: linear-gradient(to bottom, transparent 35%, #000 100%); }
-  </style><div class="map"><div class="layer soft"></div><div class="layer sharp"></div></div>`);
-  await page.waitForTimeout(500);
-  const laid = (await page.screenshot()).toString("base64");
-  const png = await page.evaluate(async (laid) => {
-    const image = new Image();
-    image.src = `data:image/png;base64,${laid}`;
-    await image.decode();
-    const source = Object.assign(document.createElement("canvas"), { width: image.width, height: image.height }).getContext("2d");
-    source.drawImage(image, 0, 0);
-    const big = source.getImageData(0, 0, image.width, image.height).data;
-    const width = image.width / 2, height = image.height / 2;
-    const canvas = Object.assign(document.createElement("canvas"), { width, height });
-    const context = canvas.getContext("2d");
-    const pixels = context.createImageData(width, height);
-    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-      // Triangular noise of a level either way, then rounded
-      const noise = Math.random() + Math.random() - 1;
-      const at = (y * width + x) * 4;
-      for (let c = 0; c < 3; c++) {
-        const row = (2 * y * image.width + 2 * x) * 4 + c, below = row + image.width * 4;
-        pixels.data[at + c] = Math.round((big[row] + big[row + 4] + big[below] + big[below + 4]) / 4 + noise);
-      }
-      pixels.data[at + 3] = 255;
-    }
-    context.putImageData(pixels, 0, 0);
-    return canvas.toDataURL("image/png").split(",")[1];
-  }, laid);
-  writeFileSync(file(`og-map-${kind}.png`), Buffer.from(png, "base64"));
-  console.log(`wrote og-map-${kind}.png`);
-}
-// The ground's color as a level: what the fade fades to
+// The ground's color as a level: what the map lies on and the fade fades to (lib/og-ground OG_GROUND)
 const ground = await page.evaluate((color) => {
   const context = Object.assign(document.createElement("canvas"), { width: 1, height: 1 }).getContext("2d");
   context.fillStyle = color;
   context.fillRect(0, 0, 1, 1);
   return context.getImageData(0, 0, 1, 1).data[0];
 }, color);
+
+// Each laid out as the footer lays out its map (topography-backdrop.tsx) – on the ground, a blurred copy of the lines
+// fading in from the top to 45% and out by 85%, the sharp lines fading in from 35% to the foot, each screened at half
+// strength – worked out here in full precision (a browser would mask and blend in 8 bits, banding the fades), then each
+// 2×2 block averaged and kept to 1/64 of a level
+for (const [kind, shot] of Object.entries(lines)) {
+  const levels = await page.evaluate(async ({ shot, ground }) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${shot}`;
+    await image.decode();
+    const read = (filter) => {
+      const context = Object.assign(document.createElement("canvas"), { width: image.width, height: image.height }).getContext("2d");
+      context.filter = filter;
+      context.drawImage(image, 0, 0);
+      return context.getImageData(0, 0, image.width, image.height).data;
+    };
+    // blur(5px) at twice the size
+    const sharp = read("none"), soft = read("blur(10px)");
+    const width = image.width / 2, height = image.height / 2;
+    const softMask = (t) => (t < 0.45 ? t / 0.45 : t < 0.85 ? 1 - (t - 0.45) / 0.4 : 0);
+    const sharpMask = (t) => (t < 0.35 ? 0 : (t - 0.35) / 0.65);
+    const out = new Uint16Array(width * height);
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      let sum = 0;
+      for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+        const px = 2 * x + dx, py = 2 * y + dy, at = (py * image.width + px) * 4;
+        const t = (py + 0.5) / image.height;
+        // Screened at alpha a: B + a·L·(1 − B)
+        let level = ground / 255;
+        level += 0.5 * softMask(t) * (soft[at] / 255) * (1 - level);
+        level += 0.5 * sharpMask(t) * (sharp[at] / 255) * (1 - level);
+        sum += level;
+      }
+      out[y * width + x] = Math.round((sum / 4) * 255 * 64);
+    }
+    let binary = "";
+    const bytes = new Uint8Array(out.buffer);
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(binary);
+  }, { shot, ground });
+  writeFileSync(file(`og-map-${kind}.bin`), deflateSync(Buffer.from(levels, "base64"), { level: 9 }));
+  console.log(`wrote og-map-${kind}.bin`);
+}
 await browser.close();
-
-// The overlays, their alpha worked out here and dithered: written as PNGs directly (a canvas would premultiply them)
-const dithered = (alpha) => Math.max(0, Math.min(255, Math.round(alpha * 255 + Math.random() + Math.random() - 1)));
-
-// The glass fade: linear-gradient(100deg) from the ground at 0.7 to clear (CSS: 0deg points up, turning clockwise)
-const angle = (100 * Math.PI) / 180, dx = Math.sin(angle), dy = -Math.cos(angle);
-const length = Math.abs(W * dx) + Math.abs(H * dy);
-const stops = [[0, 0.702], [0.35, 0.502], [0.65, 0.102], [1, 0]];
-const fadeAt = (x, y) => {
-  const t = Math.min(1, Math.max(0, ((x - W / 2) * dx + (y - H / 2) * dy) / length + 0.5));
-  const i = stops.findIndex(([at]) => at >= t);
-  if (i <= 0) return stops[0][1];
-  const [a, va] = stops[i - 1], [b, vb] = stops[i];
-  return va + ((t - a) / (b - a)) * (vb - va);
-};
-writeFileSync(file("og-fade.png"), png(W, H, (x, y) => [ground, ground, ground, dithered(fadeAt(x + 0.5, y + 0.5))]));
-console.log(`wrote og-fade.png on level ${ground}`);
-
-// The course card's shadow, as components/og/dojo-og.tsx lays the card out: 420px square, 96px from the right,
-// centered; its edge, 3px right and 5px down, casts it – rectangles blurred by Gaussians of σ = blur / 2
-const card = { left: W - 96 - 420 + 3, top: (H - 420) / 2 + 5, size: 420 };
-const shadows = [{ y: 56, blur: 90, spread: -16, alpha: 0.75 }, { y: 22, blur: 36, spread: -8, alpha: 0.5 }];
-const erf = (x) => { const s = Math.sign(x), t = 1 / (1 + 0.3275911 * Math.abs(x)); return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x)); };
-const cover = (v, from, to, sigma) => 0.5 * (erf((to - v) / (sigma * Math.SQRT2)) - erf((from - v) / (sigma * Math.SQRT2)));
-const shadowAt = (x, y) => 1 - shadows.reduce((left, { y: offset, blur, spread, alpha }) => {
-  const sigma = blur / 2, x0 = card.left - spread, x1 = card.left + card.size + spread, y0 = card.top + offset - spread, y1 = card.top + card.size + offset + spread;
-  return left * (1 - alpha * cover(x, x0, x1, sigma) * cover(y, y0, y1, sigma));
-}, 1);
-writeFileSync(file("og-shadow.png"), png(W, H, (x, y) => [0, 0, 0, dithered(shadowAt(x + 0.5, y + 0.5))]));
-console.log("wrote og-shadow.png");
-
-/** A straight-alpha RGBA PNG from a pixel function */
-function png(width, height, pixel) {
-  const raw = Buffer.alloc((width * 4 + 1) * height);
-  for (let y = 0; y < height; y++) {
-    raw[y * (width * 4 + 1)] = 0;
-    for (let x = 0; x < width; x++) raw.set(pixel(x, y), y * (width * 4 + 1) + 1 + x * 4);
-  }
-  const chunk = (type, data) => {
-    const body = Buffer.concat([Buffer.from(type), data]);
-    const size = Buffer.alloc(4); size.writeUInt32BE(data.length);
-    const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body));
-    return Buffer.concat([size, body, crc]);
-  };
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4); header.set([8, 6, 0, 0, 0], 8);
-  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", header), chunk("IDAT", deflateSync(raw, { level: 9 })), chunk("IEND", Buffer.alloc(0))]);
-}
-
-function crc32(buffer) {
-  let crc = ~0;
-  for (const byte of buffer) { crc ^= byte; for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1)); }
-  return ~crc >>> 0;
-}
+console.log(`the ground is level ${ground}`);

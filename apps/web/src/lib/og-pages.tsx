@@ -1,7 +1,8 @@
 import { DojoOg, OgCourseCard } from '@/components/og/dojo-og'
 import { teachingModes } from '@dojofoo/uix/web/catalog'
 import { toUIXCourse } from '@/lib/uix-course'
-import { cardLines, getLogoWordmarkDataUrl, mapWindow, ogFade, ogMaps, ogShadow, OG_GROUND_COLOR } from './og-assets'
+import { cardLines, getLogoWordmarkDataUrl, OG_GROUND_COLOR } from './og-assets'
+import { ogGround, type OgMap } from './og-ground'
 import { ogImage } from './og-image'
 
 /*
@@ -13,10 +14,10 @@ import { ogImage } from './og-image'
 /** A plain 404 (a thrown notFound() leaves a server handler as a 500) */
 export const missing = () => new Response('Not found', { status: 404 })
 
-const frame = async (path: string, map: keyof typeof ogMaps = 'topography') => ({
+// The page's ground, seeded by its path: the contour map, or the docs' waves; under a course's card, its shadow
+const frame = async (path: string, map: OgMap = 'topography', withShadow = false) => ({
   logo: await getLogoWordmarkDataUrl(),
-  map: { src: ogMaps[map], ...mapWindow(path) },
-  fade: ogFade,
+  ground: ogGround(map, path, withShadow),
   groundColor: OG_GROUND_COLOR,
 })
 
@@ -47,7 +48,7 @@ export async function courseCard(source: string, slug: string) {
   const course = toUIXCourse(listed)
   const lines = cardLines[course.shader]
   return ogImage(
-    <DojoOg {...await frame(`/courses/${source}/${slug}`)} shadow={ogShadow} title={course.name} description={course.description} author={course.author}
+    <DojoOg {...await frame(`/courses/${source}/${slug}`, 'topography', true)} title={course.name} description={course.description} author={course.author}
       card={<OgCourseCard hue={course.art.hue} lines={lines.src} linesOpacity={lines.opacity}
         // Its version at the top, beside it its rating once someone has rated it (its language till then); its last
         // update at the foot
