@@ -63,7 +63,7 @@ export function LandingPage({ learning, courses, preview }: {
             const heading = document.getElementById("ui-land-start");
             heading?.closest("section")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
             heading?.focus({ preventScroll: true });
-          })}>Start learning</ButtonLink>
+          })}>Start</ButtonLink>
           <ButtonLink variant="secondary" href={links.sectionHref("courses")} onClick={event => followLink(event, () => links.navigate("courses"))}>Browse courses</ButtonLink>
         </div>
       </section>
