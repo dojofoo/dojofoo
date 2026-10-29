@@ -38,7 +38,7 @@ export function DojoOg({ title, description, author, logo, ground, groundColor, 
       </div>
 
       {author && <div style={{ position: "absolute", left: 128, bottom: 92, display: "flex", flexDirection: "column", gap: 8, fontFamily: "Inter" }}>
-        <div style={{ display: "flex", color: "oklch(0.7155 0 0)", fontSize: 20, fontWeight: 400 }}>Author</div>
+        <div style={{ display: "flex", color: "oklch(0.7155 0 0)", fontSize: 20, fontWeight: 400 }}>by</div>
         <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontSize: 26, fontWeight: 550, letterSpacing: "-0.01em" }}>{author}</div>
       </div>}
 
