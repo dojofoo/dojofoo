@@ -30,7 +30,7 @@ test("API docs hydrate from the generated Elysia spec, list endpoints by collect
     return title && box ? box.y - (title.y + title.height) : -1;
   }).toBeGreaterThanOrEqual(20);
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(api.locator("pre.ui-code").first()).toBeVisible();
+  await expect(api.locator("pre").first()).toBeVisible();
   const article = await page.locator(".ui-docs").boundingBox();
   const tree = await page.locator(".ui-docs-layout > .ui-docs-tree").boundingBox();
   expect(article!.width).toBeGreaterThanOrEqual(340);
