@@ -31,7 +31,7 @@ export function DojoOg({ title, description, author, logo, ground, groundColor, 
       {/* One column on the card's frame (105px above and below, the course card's own edges): the logo at the top, the
           title and its description as one group in the middle, the byline as another at the foot – each group's lines
           close, the groups apart (better-typography: display text at 1.1 and -0.02em, body at 1.5, short text balanced) */}
-      <div style={{ position: "absolute", top: 105, bottom: 105, left: 128, width: narrow ? 500 : 896, display: "flex", flexDirection: "column", fontFamily: "Inter" }}>
+      <div style={{ position: "absolute", top: 105, bottom: 105, left: 96, width: narrow ? 532 : 928, display: "flex", flexDirection: "column", fontFamily: "Inter" }}>
         <img alt="" src={logo} height={56} width={198} style={{ objectFit: "contain", objectPosition: "left" }} />
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center", paddingBlock: 32 }}>
           <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontWeight: 650, fontSize: narrow ? 56 : title.length > 24 ? 64 : 72, lineHeight: 1.1, letterSpacing: "-0.02em", textWrap: "balance" }}>{title}</div>
