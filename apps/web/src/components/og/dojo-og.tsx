@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /*
- * Dojo.foo's social cards (Takumi): the grid template's arrangement – a title over its description – on the footer's
+ * Dojo.foo's social cards (Takumi): a title over its description, in the site's Inter, on the footer's
  * contour map under a glass-like fade, the logo at the top. A course's card brings the course itself: its color card
  * as the course page shows it, lifted and leaning as if the pointer were over it. Takumi draws flat (no perspective),
  * so the lean is a turn and a skew, the lift a deeper shadow.
@@ -36,8 +36,9 @@ export function DojoOg({ title, description, logo, ground, groundColor, card }: 
       <img alt="" src={logo} height={56} width={198} style={{ position: "absolute", top: 98, left: 128, objectFit: "contain", objectPosition: "left" }} />
 
       <div style={{ position: "absolute", top: 196, bottom: 112, left: 128, width: narrow ? 500 : 896, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ display: "flex", fontFamily: "Khand", fontWeight: 500, fontSize: narrow ? 60 : title.length > 20 ? 72 : 84, lineHeight: 1.08, textWrap: "balance" }}>{title}</div>
-        {description && <div style={{ display: "flex", marginTop: 24, color: "#a8a29e", fontFamily: "Hind", fontWeight: 400, fontSize: narrow ? 30 : 38, lineHeight: 1.45, textWrap: "balance", lineClamp: 3 }}>{description}</div>}
+        {/* The site's type (the landing's hero): Inter, the title tight and heavy, the lead in the muted ink */}
+        <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontFamily: "Inter", fontWeight: 650, fontSize: narrow ? 56 : title.length > 24 ? 64 : 72, lineHeight: 1.05, letterSpacing: "-0.035em", textWrap: "balance" }}>{title}</div>
+        {description && <div style={{ display: "flex", marginTop: 24, color: "oklch(0.7155 0 0)", fontFamily: "Inter", fontWeight: 400, fontSize: narrow ? 26 : 30, lineHeight: 1.5, textWrap: "balance", lineClamp: 3 }}>{description}</div>}
       </div>
 
       {card && <div style={{ position: "absolute", top: 0, bottom: 0, right: 96, display: "flex", alignItems: "center" }}>{card}</div>}
@@ -73,7 +74,7 @@ export function OgCourseCard({ hue, lines, linesOpacity = 0.55, mark, figure, ki
   const edge = `oklch(0.2 0.08 ${(hue + 40) % 360})`;
   const radius = 6 * u;
   return (
-    <div style={{ position: "relative", display: "flex", transform: "rotate(-3deg) skew(-1deg, 0.5deg)" }}>
+    <div style={{ position: "relative", display: "flex", transform: "rotate(-1.2deg) skew(-0.4deg, 0.2deg)" }}>
       {/* Its thickness, a little below and to the right of the face */}
       <div style={{ position: "absolute", top: 5, left: 3, width: size, height: size, borderRadius: radius, backgroundColor: edge,
         // Lifted off the page, as under the pointer

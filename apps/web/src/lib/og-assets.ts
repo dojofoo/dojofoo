@@ -12,8 +12,6 @@ import network from '../../public/og-cards/network.jpg?inline'
 import waves from '../../public/og-cards/waves.jpg?inline'
 import opal from '../../public/og-cards/opal.jpg?inline'
 import logoWordmark from '../../../../assets/brand/dojofoo-dark.svg?raw'
-import khand from '@fontsource/khand/files/khand-latin-500-normal.woff2?inline'
-import hind from '@fontsource/hind/files/hind-latin-400-normal.woff2?inline'
 import iosevka from '@fontsource/iosevka/files/iosevka-latin-400-normal.woff2?inline'
 import inter from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?inline'
 
@@ -34,10 +32,8 @@ export const cardLines = {
 export const getLogoWordmarkDataUrl = () =>
   Promise.resolve(`data:image/svg+xml;base64,${Buffer.from(logoWordmark).toString('base64')}`)
 
-/** The cards' fonts: Khand and Hind for the words (the grid template's), Inter and Iosevka for a course card (UIX's) */
+/** The cards' fonts, the site's: Inter, and Iosevka for a course's repository */
 export const ogFonts = [
-  { name: 'Khand', weight: 500, data: khand },
-  { name: 'Hind', weight: 400, data: hind },
   { name: 'Inter', data: inter },
   { name: 'Iosevka', weight: 400, data: iosevka },
 ].map(({ data, ...font }) => ({ ...font, data: Buffer.from(data.split(',')[1], 'base64') }))
