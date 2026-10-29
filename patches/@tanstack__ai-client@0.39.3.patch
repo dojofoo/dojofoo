@@ -1,5 +1,5 @@
 diff --git a/dist/esm/chat-client.js b/dist/esm/chat-client.js
-index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..dfc942d76f50387917bcf77a436d641eea5fc2d0 100644
+index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..ddb8a7ec6c6fd337e29998c307cfff4e0f42f25b 100644
 --- a/dist/esm/chat-client.js
 +++ b/dist/esm/chat-client.js
 @@ -1122,6 +1122,7 @@ var ChatClient = class {
@@ -51,6 +51,15 @@ index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..dfc942d76f50387917bcf77a436d641e
  		if (this.isSendBusy()) {
  			const { action, id } = this.decideWhenBusy(content, sendOptions);
  			if (action === "drop") return;
+@@ -1570,7 +1582,7 @@ var ChatClient = class {
+ 					this.rememberProcessorMessageIds();
+ 					if (this.status !== "ready") this.setStatus("ready");
+ 					if (!this.messageQueueDraining) await this.drainQueue();
+-				} else this.flushQueue();
++				} else if (!resumeItems?.length || signal.aborted) this.flushQueue();
+ 			}
+ 		}
+ 		return streamCompletedSuccessfully;
 @@ -1924,7 +1936,7 @@ var ChatClient = class {
  	* by control-flow analysis.
  	*/
@@ -70,7 +79,7 @@ index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..dfc942d76f50387917bcf77a436d641e
  		this.stopMessageQueueDrain = false;
  		try {
 diff --git a/src/chat-client.ts b/src/chat-client.ts
-index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..ac1e0630c1fc6b470687a11a839b0bd9c7779189 100644
+index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae794e5bdc 100644
 --- a/src/chat-client.ts
 +++ b/src/chat-client.ts
 @@ -2073,6 +2073,7 @@ export class ChatClient<
@@ -127,7 +136,23 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..ac1e0630c1fc6b470687a11a839b0bd9
      if (this.isSendBusy()) {
        const { action, id } = this.decideWhenBusy(content, sendOptions)
        if (action === 'drop') {
-@@ -3409,7 +3418,7 @@ export class ChatClient<
+@@ -2831,11 +2840,10 @@ export class ChatClient<
+           if (!this.messageQueueDraining) {
+             await this.drainQueue()
+           }
+-        } else {
+-          // Error/abort settle for the active generation: don't strand or
+-          // later mis-order queued messages. A failed turn flushes the queue
+-          // (consistent with stop()); it must NOT auto-drain into a likely
+-          // broken endpoint.
++        } else if (!resumeItems?.length || signal.aborted) {
++          // Keep notes behind a failed answer for its explicit retry. Normal
++          // failed sends and stop/abort still clear the queue; never auto-drain
++          // into an endpoint that just failed.
+           this.flushQueue()
+         }
+       }
+@@ -3409,7 +3417,7 @@ export class ChatClient<
     * by control-flow analysis.
     */
    private shouldAbortMessageQueueDrain(): boolean {
@@ -136,7 +161,7 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..ac1e0630c1fc6b470687a11a839b0bd9
    }
  
    /**
-@@ -3429,6 +3438,7 @@ export class ChatClient<
+@@ -3429,6 +3437,7 @@ export class ChatClient<
      if (
        this.messageQueueDraining ||
        this.isLoading ||

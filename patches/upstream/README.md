@@ -30,9 +30,12 @@ These are local contribution drafts, not published issues or PRs.
   Do not answer, dismiss, or replace the pending question.
 - Prepared source and distribution patch:
   [../@tanstack__ai-client@0.39.3.patch](../@tanstack__ai-client@0.39.3.patch).
-- Browser regression:
-  `packages/ui/e2e/eve-authoring.spec.ts`, “keeps a pending question while
-  queuing messages through its continuation”. Uses mocked transport, no model.
-- Verification: unpatched 0.39.3 fails the queue/drop regression; patched 0.39.3
-  passes all three public-client contracts and both browser queue/continuation
-  scenarios. Do not report the draft as upstream-accepted.
+- Upstream issue draft: a failed answer submission also clears queued notes in
+  0.39.3 and 1.0.0. Keep those notes until an explicit retry succeeds. Normal
+  failed sends, stop and abort still clear the queue; an error never auto-drains it.
+- Regressions: `packages/authoring/src/eve/chat-queue.test.ts` checks queue/drop,
+  failed answer then successful retry with ordered notes, stop and in-flight abort.
+  `packages/ui/e2e/agent-chat.spec.ts` covers the same answer retry through the
+  versioned API and rendered composer. Both use local fixtures without model calls.
+- This is a local upstream report and patch, not an upstream-accepted fix or a
+  published GitHub issue.

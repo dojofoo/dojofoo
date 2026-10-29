@@ -174,7 +174,7 @@ test("opening an in-flight conversation rejoins its saved prefix in the same ses
   expect([...eve.histories.keys()]).toEqual([sessionId]);
 });
 
-for (const failures of [0]) test(`saved questions resume through the API and release queued notes (failures=${failures})`, async ({ page }) => {
+for (const failures of [0, 1]) test(`saved questions resume through the API and release queued notes (failures=${failures})`, async ({ page }) => {
   test.setTimeout(25_000);
   let attempts = 0;
   const { eve } = await mount(page, { failRun: () => attempts++ < failures });
