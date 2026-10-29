@@ -1,6 +1,5 @@
 import { followLink } from "../lib/link-event";
-import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { ArrowCallout } from "../components/arrow-callout";
+import { useState } from "react";
 import { Icon } from "../components/app-shell";
 import { ButtonLink } from "../components/button";
 import { TabOverload } from "../components/tab-overload";
@@ -39,9 +38,6 @@ export function LandingPage({ learning, courses, preview }: {
   const links = useSite();
   const top = [...courses].sort((a, b) => a.trendingRank - b.trendingRank).slice(0, 4);
   const [mode, setMode] = useState<1 | 2 | 3>(1);
-  const app = useRef<HTMLDivElement>(null);
-  const card = useInside(app, ".lj-course");
-  const sensei = useInside(app, ".ui-as-chat__dot");
   return (
     <SitePage current="home" window={false} full backdrop={<TopographyBackdrop />}>
       <style href="ui-web-landing" precedence="default">{css}</style>
@@ -51,8 +47,7 @@ export function LandingPage({ learning, courses, preview }: {
           <h1 className="ui-land-hero__title">You can only fight the way you practice</h1>
           <figcaption className="ui-land-hero__cite">Miyamoto Musashi</figcaption>
         </figure>
-        {/* The callouts over the window show the sensei and the courses; the lead names what the dojo is for, one sentence
-            per line, breaking between phrases, never inside one */}
+        {/* One sentence per line, breaking between phrases, never inside one */}
         <p className="ui-land-hero__lead">
           <span><span>Take any course,</span> <span>rehearse for your next interview,</span> <span>or build a dojo of your own.</span></span>{" "}
           <span>Any dojo you can install, you can master.</span>
@@ -71,12 +66,7 @@ export function LandingPage({ learning, courses, preview }: {
       {/* A course from inside, as learners see it: a lesson in the learner app itself, in a window as wide as the page, cut
           short – its sidebar runs on past the bottom (there's more to it), the composer sits in view – and without its
           Getting started card */}
-      <div className="ui-land-app" ref={app}>
-        {/* What the window shows, called out instead of explained: notes above it, their arrows drawn into the app */}
-        <ArrowCallout target={card} flip bend={0.25} weight={2.4} anchor={0.5} className="ui-land-note ui-land-note--card">Install any course;<br />progress saved</ArrowCallout>
-        <ArrowCallout target={sensei} shape="elbow" weight={2.4} gap={16} className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />specialized to mentor you through it</ArrowCallout>
-        <AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview>
-      </div>
+      <div className="ui-land-app"><AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview></div>
 
       <section className="ui-land-agents" aria-labelledby="ui-land-agents">
         <h2 id="ui-land-agents" className="ui-land-eyebrow">Works with</h2>
@@ -124,25 +114,6 @@ export function LandingPage({ learning, courses, preview }: {
   );
 }
 
-/** An element inside the host's preview, for a callout to point at. The preview is the host's and fills in after the
-    first render, so it's found by class once it's there; a new ref then has the callout lay its arrow out. */
-function useInside(root: RefObject<HTMLElement | null>, selector: string): RefObject<HTMLElement | null> {
-  const [element, setElement] = useState<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    const container = root.current;
-    if (!container) return;
-    const find = () => {
-      const match = container.querySelector<HTMLElement>(selector);
-      if (match) { setElement(match); observer.disconnect(); }
-    };
-    const observer = new MutationObserver(find);
-    observer.observe(container, { childList: true, subtree: true });
-    find();
-    return () => observer.disconnect();
-  }, [root, selector]);
-  return useMemo(() => ({ current: element }), [element]);
-}
-
 const css = /* css */ `
 /* Hero: on the page, centered, the live count as a pill above the title */
 .ui-land-hero { display: grid; justify-items: center; max-width: 760px; margin: 0 auto; padding: 72px 20px 40px; text-align: center; }
@@ -151,8 +122,6 @@ const css = /* css */ `
 /* Live: a green dot in a circle, the onboarding's "Installed" green (agent-setup) */
 .ui-land-live { --live: var(--ev-pass, #16a34a); display: grid; place-items: center; width: 14px; height: 14px; border: 1.5px solid color-mix(in oklab, var(--live) 45%, transparent); border-radius: 50%; corner-shape: round; }
 :where(.dark, [data-theme="dark"]) .ui-land-live { --live: #4ade80; }
-.ui-land-app { --land-arrow: #141414; --land-arrow-shadow: color-mix(in oklch, var(--brand) 45%, transparent); }
-:where(.dark, [data-theme="dark"]) .ui-land-app { --land-arrow: #fff; --land-arrow-shadow: #000; }
 .ui-land-live::after { width: 6px; height: 6px; border-radius: 50%; corner-shape: round; background: var(--live); content: ""; }
 .ui-land-hero__title { margin: 0; font-size: clamp(34px, 5.2vw, 56px); line-height: 1.05; font-weight: 650; letter-spacing: -0.035em; text-wrap: balance; }
 .ui-land-hero__quote { margin: 0; }
@@ -174,21 +143,8 @@ const css = /* css */ `
 /* Match the main-to-composer gap: its 12px inset plus the 1px pane divider. */
 .ui-land-app .ui-as-app { --frame-gap: 13px; }
 @media (max-width: 1303px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
-/* The notes sit in a band above the window; where the window is too small to point into, they go */
-.ui-land-app { position: relative; }
-.ui-land-note { display: none; }
-@media (min-width: 1200px) {
-  .ui-land-app { padding-top: 64px; }
-  .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; color: var(--land-arrow); }
-  /* Marker-tag arrows with a hard offset shadow: ink on light, white over black on dark */
-  .ui-land-note svg { filter: drop-shadow(2px 2px 0 var(--land-arrow-shadow)); }
-  .ui-land-note--card { left: 40px; }
-  /* The Sensei's dot sits at about 73% across the window: the note starts a little right of it, so its arrow runs left first */
-  .ui-land-note--sensei { left: calc(73% + 26px); top: 2px; text-align: left; }
-
-
-
-}
+/* Room between the hero and the window on wide screens (after the rule above, which resets the padding) */
+@media (min-width: 1200px) { .ui-land-app { padding-top: 64px; } }
 .ui-land-app :is(.ui-as-guide-slot, .ui-as-side__head, .ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
 .ui-land-app .ui-as-side__before { margin-top: 0; }
