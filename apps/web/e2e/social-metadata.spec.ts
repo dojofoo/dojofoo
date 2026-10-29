@@ -20,6 +20,10 @@ test("uses the Dojo.foo social card on the main website", async ({ page }) => {
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Dojo.foo");
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", "https://dojo.foo");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://dojo.foo/");
+  // The site's name for search results comes from WebSite on the home page, not from every title
+  const graph = JSON.parse(await page.locator('script[type="application/ld+json"]').first().textContent() ?? "{}")["@graph"];
+  expect(graph.map((node: { "@type": string }) => node["@type"])).toEqual(["WebSite", "Organization", "SoftwareApplication"]);
+  expect(graph[0]).toMatchObject({ name: "Dojo.foo", url: "https://dojo.foo/" });
 });
 
 test("uses the Dojo.foo social card with page metadata in the docs", async ({ page }) => {
@@ -28,8 +32,29 @@ test("uses the Dojo.foo social card with page metadata in the docs", async ({ pa
   await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "article");
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Usage");
   await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute("content", "Usage");
-  await expect(page).toHaveTitle("Usage · Dojo.foo");
+  await expect(page).toHaveTitle("Usage");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://dojo.foo/docs");
+  const graph = JSON.parse(await page.locator('script[type="application/ld+json"]').first().textContent() ?? "{}")["@graph"];
+  expect(graph[0]).toMatchObject({ "@type": "TechArticle", headline: "Usage", url: "https://dojo.foo/docs" });
+});
+
+test("names pages without repeating the site's name", async ({ page }) => {
+  await page.goto("/dojos");
+  await expect(page).toHaveTitle("Find your dojo – Free coding courses with an AI sensei");
+  await page.goto("/docs/quickstart");
+  await expect(page).toHaveTitle("Quickstart");
+  const graph = JSON.parse(await page.locator('script[type="application/ld+json"]').first().textContent() ?? "{}")["@graph"];
+  expect(graph[1]["itemListElement"].map((item: { name: string }) => item.name)).toEqual(["Usage", "Quickstart"]);
+});
+
+test("describes the site for language models", async ({ request }) => {
+  const index = await (await request.get("/llms.txt")).text();
+  expect(index.startsWith("# Dojo.foo\n\n> ")).toBe(true);
+  expect(index).toContain("npx dojofoo");
+  expect(index).toContain("](https://dojo.foo/docs/quickstart)");
+  const full = await request.get("/llms-full.txt");
+  expect(full.headers()["content-type"]).toContain("text/plain");
+  expect((await full.text()).startsWith("# Dojo.foo docs")).toBe(true);
 });
 
 test("lists the pages to index and keeps the auth pages out", async ({ request }) => {

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/device")({
     status: search.status === "approved" || search.status === "denied" ? (search.status as "approved" | "denied") : undefined,
   }),
   loader: () => loadAuthFlags(),
-  head: ({ loaderData }) => ({ meta: [{ title: "Authenticate device · Dojo.foo" }, ...authRobots(loaderData)] }),
+  head: ({ loaderData }) => ({ meta: [{ title: "Authenticate device" }, ...authRobots(loaderData)] }),
   component: DevicePage,
 });
 

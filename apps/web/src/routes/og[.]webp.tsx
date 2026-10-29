@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import khand from '@fontsource/khand/files/khand-latin-500-normal.woff2?inline'
 import hind from '@fontsource/hind/files/hind-latin-400-normal.woff2?inline'
 import { Grid } from '@/components/og/grid'
-import { getLogoWordmarkDataUrl } from '@/lib/og-assets'
+import { getLogoWordmarkDataUrl, getOgGroundDataUrl, OG_GROUND_COLOR } from '@/lib/og-assets'
 
 export const Route = createFileRoute('/og.webp')({
   server: {
@@ -20,10 +20,12 @@ export const Route = createFileRoute('/og.webp')({
         ])
         return new ImageResponse(
           <Grid
-            title="Agentic teaching built around your learning"
-            description="Practice with katas. Save your progress. Author your own course."
+            title="Free courses with agentic tutors"
+            description="Take any course, rehearse for your next interview, or build a dojo of your own."
             brand=""
             logo={await getLogoWordmarkDataUrl()}
+            background={await getOgGroundDataUrl()}
+            backgroundColor={OG_GROUND_COLOR}
           />,
           { width: 1200, height: 630, format: 'webp', renderer,
             headers: { 'Cache-Control': 'public, max-age=0, s-maxage=3600' },

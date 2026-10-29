@@ -12,4 +12,13 @@ On phones the website works like a phone site:
 - The dojos page keeps each filter's name in place while its choices scroll, and sorts from an icon-only button.
 - The footer's quote is right-aligned.
 
-Dojo.foo's pages now carry their own titles, descriptions and canonical links, with a sitemap and robots.txt.
+Dojo.foo's pages now carry their own SEO, with a sitemap and robots.txt:
+- Their own titles, with the site's name only on the home page.
+- Descriptions and canonical links.
+- JSON-LD:
+  - home: WebSite, Organization and the CLI as a SoftwareApplication;
+  - dojos: CollectionPage;
+  - each course: Course with breadcrumbs;
+  - each docs page: TechArticle with breadcrumbs.
+- An llms.txt in the llmstxt.org shape, and a headed llms-full.txt.
+- A social card drawn on the footer's contour map.

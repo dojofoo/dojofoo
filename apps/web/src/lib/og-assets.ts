@@ -7,11 +7,16 @@
 // functions do not contain the source project's public directory.
 
 import background from '../../public/og-bg.png?inline'
+import ground from '../../public/og-ground.png?inline'
 import logoWordmark from '../../../../assets/brand/dojofoo-dark.svg?raw'
 
 /** Cherry-blossom OG background. */
 export const getOgBackgroundDataUrl = () =>
   Promise.resolve(background)
+
+/** The footer's contour map, blurred and fading up (scripts/og-ground.mjs), and its color */
+export const getOgGroundDataUrl = () => Promise.resolve(ground)
+export const OG_GROUND_COLOR = '#171717'
 
 /** Wide "DOJO.FOO" wordmark — the single brand mark. */
 export const getLogoWordmarkDataUrl = () =>

@@ -4,12 +4,15 @@ export interface GridProps {
   description: string;
   brand: string;
   logo?: string;
+  /** Dojo.foo: the ground under it, e.g. the footer's contour map (public/og-ground.png), on its color */
+  background?: string;
+  backgroundColor?: string;
 }
 
-export const Grid = ({ title, description, brand, logo = "" }: GridProps) => (
+export const Grid = ({ title, description, brand, logo = "", background, backgroundColor = "#0a0a0a" }: GridProps) => (
   <div
     style={{
-      backgroundColor: "#0a0a0a",
+      backgroundColor,
       color: "#ffffff",
       display: "flex",
       height: "100%",
@@ -17,6 +20,9 @@ export const Grid = ({ title, description, brand, logo = "" }: GridProps) => (
       width: "100%",
     }}
   >
+    {background && <img alt="" src={background} width={1200} height={630} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />}
+    {/* Dojo.foo: a glass-like fade over the map, clearing it behind the words and letting it show to the right */}
+    {background && <div style={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(100deg, ${backgroundColor}b3 0%, ${backgroundColor}80 35%, ${backgroundColor}1a 65%, ${backgroundColor}00 100%)` }} />}
     <div
       style={{
         borderLeft: "1px dotted #44403c",

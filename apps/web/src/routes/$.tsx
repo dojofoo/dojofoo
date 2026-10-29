@@ -6,6 +6,7 @@ import browserCollections from 'collections/browser'
 import { Suspense, useMemo } from 'react'
 import { SITE_URL } from '@/lib/site'
 import { canonicalLink, DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from '@/lib/social-metadata'
+import { breadcrumbs, jsonLd, techArticle } from '@/lib/structured-data'
 import { useMDXComponents } from '@/components/mdx'
 import { APIPage as OpenAPIPage, type APIPageProps } from '@dojofoo/uix/components/api-reference'
 
@@ -23,10 +24,15 @@ export const Route = createFileRoute('/$')({
     const description = loaderData.description ?? DEFAULT_SOCIAL_DESCRIPTION
     return {
       meta: [
-        { title: `${title} · Dojo.foo` },
+        // A command's page is named by the command, as it's typed: "dojofoo install"
+        { title: loaderData.pageUrl.startsWith('/docs/commands/') ? `dojofoo ${title}` : title },
         ...socialMetadata({ title, description, url: ogUrl, type: 'article' }),
       ],
       links: [canonicalLink(loaderData.pageUrl)],
+      scripts: [jsonLd(
+        techArticle({ headline: title, description: loaderData.description, path: loaderData.pageUrl }),
+        breadcrumbs(loaderData.trail),
+      )],
     }
   },
 })
@@ -48,6 +54,8 @@ const loader = createServerFn({ method: 'GET' })
       pageUrl: page.url,
       headings: page.data.toc.map(heading => ({ id: heading.url.slice(1), depth: heading.depth, html: renderToStaticMarkup(heading.title) })),
       title: page.data.title,
+      // The docs above it that have a page of their own, then it: its breadcrumbs
+      trail: [...page.slugs.map((_, index) => source.getPage(page.slugs.slice(0, index))).filter(parent => parent !== undefined).map(parent => [parent.data.title, parent.url] as const), [page.data.title, page.url] as const],
       description: page.data.description,
       ogUrl: SITE_URL + page.url,
       sections: (await import('@/lib/uix-docs.server')).getUIXDocsSections(page.path, await page.data.getText('processed')),
