@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import DeviceAuth from "@dojofoo/uix/components/device-auth";
-import { authRobots, loadAuthFlags } from "@/lib/auth-flags.functions";
+import { authRobots, loadAuthFlags } from "@/lib/feature-flags.functions";
 
 // better-auth's device authorization sends the CLI's code here (its default verificationUri, /device?user_code=…)
 export const Route = createFileRoute("/device")({
