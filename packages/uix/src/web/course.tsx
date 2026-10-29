@@ -71,7 +71,7 @@ export function CoursePage({ course }: { course: WebCourse }) {
                 : <p>No installation source is available for this course.</p>}
               {command && <p className="ui-crp-install__note">
                 {way === "Command"
-                  ? "Run it in your project, then npx dojofoo ui to open its first lesson in your browser."
+                  ? "Run it in your project, then npx dojofoo to open its first lesson in your browser."
                   : "Paste it into your agent. It installs the course and opens its first lesson in your browser."}
                 <a href="/docs/quickstart" onClick={event => followLink(event, () => links.openDoc("/docs/quickstart"))}><Icon icon={BookOpen01Icon} size={13} />Quickstart</a>
               </p>}

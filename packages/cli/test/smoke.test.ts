@@ -88,7 +88,7 @@ describe("dojo setup", () => {
     try {
       const output = await captureLogAsync(() => setup(root, [], async () => ["opencode", "pi"]));
       expect(output).toContain("Dojo ready");
-      expect(output).toContain("npx dojofoo ui");
+      expect(output).toMatch(/Start learning: +npx dojofoo$/m);
       expect(output).not.toContain("/kata");
       expect(existsSync(resolve(root, ".agents/skills/dojofoo/SKILL.md"))).toBe(true);
       expect(existsSync(resolve(root, ".opencode/skills/dojofoo"))).toBe(false);

@@ -15,7 +15,7 @@ The options are `--claude`, `--opencode`, `--codex`, `--gemini` and `--pi`.
 
 ## `/kata` doesn't exist in my agent
 
-`/kata` is deprecated. Run `npx dojofoo ui` in the project instead – it opens the lesson in your
+`/kata` is deprecated. Run `npx dojofoo` in the project instead – it opens the lesson in your
 browser.
 
 ## The lesson UI doesn't open
@@ -24,7 +24,7 @@ browser.
 skip Portless:
 
 ```sh
-npx dojofoo ui --no-portless
+npx dojofoo --no-portless
 ```
 
 If Portless is installed but the address fails:

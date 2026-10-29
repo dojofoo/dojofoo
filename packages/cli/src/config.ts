@@ -25,6 +25,7 @@ export {
   loadConfig,
   validateDojoRc,
   findProjectRoot,
+  hasWorkspaceConfiguration,
   readDojoRc,
   writeDojoRc,
   readCatalog,

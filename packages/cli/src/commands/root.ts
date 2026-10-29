@@ -15,10 +15,10 @@ import { findCurrentKata, findNextKata, completedCount } from "../state";
 import type { KataProgress } from "../config";
 import { prompt, invokeAsk } from "../format";
 
-const USAGE = `Usage: ${CLI} <command> [flags]
+const USAGE = `Usage: ${CLI} [command] [flags]
 
 Commands:
-  (none)              Project-level actions (use flags below)
+  (none)              Set up this folder if needed, then open the lesson UI
   kata                Kata-level actions (sensei, check, scaffold)
   intro               Show the active dojo's introduction
   status              Show current dojo/kata state
@@ -27,7 +27,7 @@ Commands:
   add <source> [--master] Add a learner course or editable master copy
   update <source>     Update an installed dojo from its recorded source
   remove <name>       Remove a dojo
-  ui [--background]   Start or control the lesson UI
+  ui                  Open or control the lesson UI from scripts and agents
   track               Record the active agent session as a cassette
   kyoshi              Author, inspect, scaffold, check, or evaluate a course (--help)
 
@@ -38,15 +38,29 @@ Flags:
   --change <dojo>     Switch active dojo
 
 UI flags:
-  prompt              Show a structured prompt in the current lesson UI
-  --skill             Print agent instructions for controlling the UI
   --authoring         Open the current workspace in Kyoshi authoring mode
   --background        Keep the UI daemon running after this command exits
   --no-open           Print the URL without opening a browser
   --name <name>       Set the Portless subdomain (default URL: https://dojo.localhost)
   --tld <tld>         Set the Portless top-level domain
   --no-portless       Use the http://localhost:4567 fallback directly
-  --port <port>       Change the direct/fallback port`;
+  --port <port>       Change the direct/fallback port
+
+Agent UI controls:
+  ui prompt           Show a structured prompt in the current lesson UI
+  ui --skill          Print agent instructions for controlling the UI`;
+
+const UI_FLAGS = ["--authoring", "--background", "--no-open", "--name", "--tld", "--no-portless", "--port", "--skill"];
+
+/**
+ * Bare `dojofoo` in a terminal opens the lesson UI, setting the folder up first. Project flags keep their own
+ * actions, and without a terminal (scripts, CI, pipes) it prints the help instead of starting a server.
+ */
+export function bareOpensUi(argv: string[], interactive: boolean): boolean {
+  const [command] = argv;
+  if (!interactive || (command && !command.startsWith("-"))) return false;
+  return argv.every((argument) => !argument.startsWith("--") || UI_FLAGS.includes(argument));
+}
 
 export function root(rootDir: string, args: string[]): void {
   const flag = args.find((a) => a.startsWith("--"));
@@ -78,6 +92,10 @@ export function root(rootDir: string, args: string[]): void {
       console.log(USAGE);
       break;
     default:
+      if (UI_FLAGS.includes(flag)) {
+        console.log(USAGE);
+        break;
+      }
       throw new Error(`Unknown flag: ${flag}\n\n${USAGE}`);
   }
 }

@@ -1,7 +1,7 @@
-import { dojoDir, findProjectRoot, readDojoRc } from "./config";
+import { dojoDir, findManifestPath, findProjectRoot, hasWorkspaceConfiguration, readDojoRc } from "./config";
 import { observeLocalContext, sessionFromEnvironment } from "@dojofoo/config/local-state";
 import { prepareWorkspace } from "@dojofoo/config/project-preparation";
-import { root } from "./commands/root";
+import { bareOpensUi, root } from "./commands/root";
 import { kata } from "./commands/kata";
 import { intro } from "./commands/intro";
 import { configuredAgents, setup } from "./commands/setup";
@@ -17,16 +17,26 @@ import { bootstrapMise } from "./mise-bootstrap";
 import { miseConfigPath } from "@dojofoo/config/project-preparation";
 import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
 
-const [command, ...args] = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const [command, ...args] = argv;
+const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY) && !process.env.CI;
+// `ui` stays as the explicit form that scripts and agents call; bare `dojofoo` opens the UI only in a terminal.
+const opensUi = command === "ui" || bareOpensUi(argv, interactive);
+const uiArgs = command === "ui" ? args : argv;
 
-process.env.DOJO_PROJECT_ROOT ??= command === "ui" && args.includes("--authoring")
+process.env.DOJO_PROJECT_ROOT ??= opensUi && uiArgs.includes("--authoring")
   ? resolveAuthoringRoot(process.cwd(), findProjectRoot()) : findProjectRoot();
 
 async function main() {
   const projectRoot = process.env.DOJO_PROJECT_ROOT!;
-  const isUiControlCommand = command === "ui" && ["prompt", "--skill"].includes(args[0] ?? "");
+  const isUiControlCommand = opensUi && ["prompt", "--skill"].includes(uiArgs[0] ?? "");
   const isSetupCommand = command === "install" || command === "setup" || command === "add";
-  const needsPreparation = command === "kata" || (command === "ui" && !isUiControlCommand);
+  const needsPreparation = command === "kata" || (opensUi && !isUiControlCommand);
+  // A folder that isn't a workspace or course yet gets the install wizard before its UI opens.
+  if (opensUi && command !== "ui" && !isUiControlCommand
+    && !hasWorkspaceConfiguration(projectRoot) && !findManifestPath(projectRoot)) {
+    await install([]);
+  }
   if (
     !process.env.DOJO_SKIP_PREPARE
     && needsPreparation
@@ -43,22 +53,7 @@ async function main() {
   } else if (command === "intro") {
     intro(findProjectRoot(), args);
   } else if (command === "install" || command === "setup") {
-    if (!args.includes("--skills")) await bootstrapMise();
-    await setup(process.cwd(), args);
-    if (!args.includes("--skills")) {
-      const { prepareAuthoringHarness } = await import("@dojofoo/authoring/eve/install");
-      const selected = new Set([
-        ...configuredAgents(process.cwd()),
-        resolveRuntimeHarness("authoring", process.cwd()),
-        resolveRuntimeHarness("lesson", process.cwd()),
-      ]);
-      for (const agent of selected) {
-        if (agent !== "codex" && agent !== "opencode" && agent !== "pi"
-          && agent !== "cursor" && agent !== "grok" && agent !== "fx") continue;
-        console.log(`Preparing ${agent} for the course UI…`);
-        await prepareAuthoringHarness(agent);
-      }
-    }
+    await install(args);
   } else if (command === "add") {
     await add(process.cwd(), args);
     const root = findProjectRoot();
@@ -73,9 +68,9 @@ async function main() {
     await update(findProjectRoot(), args);
   } else if (command === "status") {
     status(findProjectRoot(), args);
-  } else if (command === "ui") {
+  } else if (opensUi) {
     process.env.PORT ??= process.env.DOJO_UI_PORT ?? "4567";
-    await ui(projectRoot, args);
+    await ui(projectRoot, uiArgs);
   } else if (command === "track") {
     track(findProjectRoot(), args);
   } else if (command === "kyoshi") {
@@ -85,6 +80,24 @@ async function main() {
     root(process.cwd(), [command, ...args].filter(Boolean));
   }
   if (!isUiControlCommand) await flushCourseEvents();
+}
+
+async function install(installArgs: string[]): Promise<void> {
+  if (!installArgs.includes("--skills")) await bootstrapMise();
+  await setup(process.cwd(), installArgs);
+  if (installArgs.includes("--skills")) return;
+  const { prepareAuthoringHarness } = await import("@dojofoo/authoring/eve/install");
+  const selected = new Set([
+    ...configuredAgents(process.cwd()),
+    resolveRuntimeHarness("authoring", process.cwd()),
+    resolveRuntimeHarness("lesson", process.cwd()),
+  ]);
+  for (const agent of selected) {
+    if (agent !== "codex" && agent !== "opencode" && agent !== "pi"
+      && agent !== "cursor" && agent !== "grok" && agent !== "fx") continue;
+    console.log(`Preparing ${agent} for the course UI…`);
+    await prepareAuthoringHarness(agent);
+  }
 }
 
 main().catch((err: unknown) => {

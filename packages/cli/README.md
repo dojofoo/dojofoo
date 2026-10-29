@@ -13,7 +13,7 @@ npx dojofoo add dojofoo/effect-ts # install a training pack (a "dojo")
 npx dojofoo add owner/repository    # install a dojo directly from GitHub
 npx dojofoo add owner/repository --master # include editable source and Kyoshi definitions
 npx dojofoo update owner/repository # update it from its recorded source
-npx dojofoo ui            # open the course and start practicing
+npx dojofoo               # open the course and start practicing
 npx dojofoo track --list  # inspect locally recorded .dojo/cassettes
 ```
 
