@@ -72,8 +72,8 @@ export function LandingPage({ learning, courses, preview }: {
           Getting started card */}
       <div className="ui-land-app" ref={app}>
         {/* What the window shows, called out instead of explained: notes above it, their arrows drawn into the app */}
-        <ArrowCallout target={card} flip className="ui-land-note ui-land-note--card">Install any course</ArrowCallout>
-        <ArrowCallout target={sensei} flip wave={2.5} className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
+        <ArrowCallout target={card} shape="straight" className="ui-land-note ui-land-note--card">Install any course</ArrowCallout>
+        <ArrowCallout target={sensei} shape="elbow" loop className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
         <AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview>
       </div>
 
@@ -167,21 +167,23 @@ const css = /* css */ `
    close on the chat, and its sidebar cut off by the window's edge rather than scrolling */
 .ui-land-app, .ui-land-body { max-width: 1280px; margin: 0 auto; padding: 0 8px; }
 .ui-land-app { max-width: 1380px; }
+
+/* Match the main-to-composer gap: its 12px inset plus the 1px pane divider. */
+.ui-land-app .ui-as-app { --frame-gap: 13px; }
+@media (max-width: 1303px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
 /* The notes sit in a band above the window; where the window is too small to point into, they go */
 .ui-land-app { position: relative; }
 .ui-land-note { display: none; }
-@media (min-width: 1100px) {
+@media (min-width: 1180px) {
   .ui-land-app { padding-top: 64px; }
   .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; }
   .ui-land-note--card { left: 40px; }
-  .ui-land-note--sensei { right: 40px; top: -14px; text-align: right; }
+  /* The Sensei's dot sits at about 73% across the window: the note starts a little right of it, so its arrow runs left first */
+  .ui-land-note--sensei { left: calc(73% + 56px); top: -14px; text-align: left; }
   /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
   .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 3px 10px; color: #fff; }
   .ui-land-note > span:first-child::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg); border-radius: 2px; }
 }
-/* Match the main-to-composer gap: its 12px inset plus the 1px pane divider. */
-.ui-land-app .ui-as-app { --frame-gap: 13px; }
-@media (max-width: 1303px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
 .ui-land-app :is(.ui-as-guide-slot, .ui-as-side__head, .ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
 .ui-land-app .ui-as-side__before { margin-top: 0; }

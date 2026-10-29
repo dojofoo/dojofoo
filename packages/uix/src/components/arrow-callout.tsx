@@ -8,6 +8,8 @@ import { cn } from "../lib/utils";
  */
 
 type Pt = { x: number; y: number };
+/** arc: a pen flick bulging to one side; straight: a ruled line; elbow: out of the note's side, then down into the target */
+export type ArrowShape = "arc" | "straight" | "elbow";
 type Box = { left: number; top: number; width: number; height: number };
 
 const round = (n: number) => Math.round(n * 10) / 10;
@@ -17,7 +19,7 @@ const TIP_GAP = 8;
 const PAD = 6;
 
 // The curve lives in the note's own coordinates: (0,0) is the note's top left.
-function geometry(note: Box, target: Box, flip = false, wave = 0) {
+function geometry(note: Box, target: Box, flip = false, loop = false, shape: ArrowShape = "arc") {
   const tc = {
     x: target.left + target.width / 2 - note.left,
     y: target.top + target.height / 2 - note.top,
@@ -37,7 +39,12 @@ function geometry(note: Box, target: Box, flip = false, wave = 0) {
   const ax = s.x - tc.x;
   const ay = s.y - tc.y;
   const k = Math.min(ax ? hw / Math.abs(ax) : Infinity, ay ? hh / Math.abs(ay) : Infinity);
-  const e = k < 1 ? { x: tc.x + ax * k, y: tc.y + ay * k } : tc;
+  let e = k < 1 ? { x: tc.x + ax * k, y: tc.y + ay * k } : tc;
+  // An elbow leaves the side of the note facing the target, level, and comes down onto the target's top
+  if (shape === "elbow") {
+    s = { x: tc.x < note.width / 2 ? -6 : note.width + 6, y: note.height / 2 };
+    e = { x: tc.x, y: target.top - note.top - TIP_GAP };
+  }
 
   // A pen arc: bulges to one side (always upward, like a flick of the
   // wrist) by about a third of its length, capped so long arrows stay calm.
@@ -52,8 +59,12 @@ function geometry(note: Box, target: Box, flip = false, wave = 0) {
   }
   const bulge = Math.min(len * 0.32, 56);
   // Asymmetric handles: a quick start, a longer approach into the tip.
-  const c1 = { x: s.x + vx * 0.15 + nx * bulge, y: s.y + vy * 0.15 + ny * bulge };
-  const c2 = { x: s.x + vx * 0.7 + nx * bulge * 0.75, y: s.y + vy * 0.7 + ny * bulge * 0.75 };
+  const c1 = shape === "straight" ? { x: s.x + vx / 3, y: s.y + vy / 3 }
+    : shape === "elbow" ? { x: s.x + Math.min(vx * 0.9, -40), y: s.y }
+    : { x: s.x + vx * 0.15 + nx * bulge, y: s.y + vy * 0.15 + ny * bulge };
+  const c2 = shape === "straight" ? { x: s.x + (vx * 2) / 3, y: s.y + (vy * 2) / 3 }
+    : shape === "elbow" ? { x: e.x, y: e.y - vy * 0.9 }
+    : { x: s.x + vx * 0.7 + nx * bulge * 0.75, y: s.y + vy * 0.7 + ny * bulge * 0.75 };
 
   // The head follows the curve's last tangent, two unequal barbs like a
   // quick hand would draw them.
@@ -65,10 +76,10 @@ function geometry(note: Box, target: Box, flip = false, wave = 0) {
   const b1 = barb(0.5, 9);
   const b2 = barb(-0.45, 7.5);
 
-  // A wavy shaft: the same curve, sampled, with a sine across it that fades out at both ends so the arrow still
-  // leaves the note and lands on its tip where the plain one would
+  // A loop halfway, the way a pen curls: the stroke rises off the curve, swings back over itself and carries on a
+  // little further along (a looped cycloid), then finishes the curve to the tip
   const shaft: Pt[] = [];
-  if (wave > 0) {
+  if (loop) {
     const at = (t: number) => {
       const u = 1 - t;
       return {
@@ -76,17 +87,36 @@ function geometry(note: Box, target: Box, flip = false, wave = 0) {
         y: u * u * u * s.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * e.y,
       };
     };
-    const steps = 64;
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const here = at(t);
-      const ahead = at(Math.min(1, t + 0.001));
-      const behind = at(Math.max(0, t - 0.001));
-      const tx = ahead.x - behind.x;
-      const ty = ahead.y - behind.y;
-      const tl = Math.hypot(tx, ty) || 1;
-      const offset = 4 * Math.sin(2 * Math.PI * wave * t) * Math.sin(Math.PI * t);
-      shaft.push({ x: here.x - (ty / tl) * offset, y: here.y + (tx / tl) * offset });
+    const steps = 32;
+    // An elbow loops in its corner; an arc a little before halfway
+    const start = shape === "elbow" ? 0.5 : 0.42;
+    for (let i = 0; i <= steps; i++) shaft.push(at((i / steps) * start));
+    const from = at(start);
+    const ahead = at(start + 0.001);
+    const tl = Math.hypot(ahead.x - from.x, ahead.y - from.y) || 1;
+    const tx = (ahead.x - from.x) / tl;
+    const ty = (ahead.y - from.y) / tl;
+    // Curls to the outside of the bend
+    const side = flip ? -1 : 1;
+    const nx = -ty * side;
+    const ny = tx * side;
+    // Moves k along per radian while circling at radius R; R > k makes it cross itself
+    const k = 3;
+    const R = 10;
+    for (let i = 1; i <= 48; i++) {
+      const phi = (i / 48) * Math.PI * 2;
+      const along = k * phi + R * Math.sin(phi);
+      const across = R * (1 - Math.cos(phi));
+      shaft.push({ x: from.x + tx * along + nx * across, y: from.y + ty * along + ny * across });
+    }
+    // Rejoins the curve: the gap between where the loop ends and the curve point it resumes from fades out by the tip
+    const resume = Math.min(0.95, start + (2 * Math.PI * k) / len);
+    const end = shaft[shaft.length - 1]!;
+    const rejoin = at(resume);
+    for (let i = 1; i <= steps; i++) {
+      const pt = at(resume + (i / steps) * (1 - resume));
+      const fade = (1 - i / steps) ** 2;
+      shaft.push({ x: pt.x + (end.x - rejoin.x) * fade, y: pt.y + (end.y - rejoin.y) * fade });
     }
   }
 
@@ -110,7 +140,8 @@ export function ArrowCallout({
   target,
   follow = false,
   flip = false,
-  wave = 0,
+  loop = false,
+  shape = "arc",
   children,
   className,
 }: {
@@ -120,8 +151,10 @@ export function ArrowCallout({
   follow?: boolean;
   /** Bends the arrow the other way: downward instead of the usual upward flick */
   flip?: boolean;
-  /** Wiggles the shaft: about this many waves along it (0, the default, draws it smooth) */
-  wave?: number;
+  /** Curls the shaft once halfway, a flourish of the pen */
+  loop?: boolean;
+  /** How the arrow runs to its target (arc, the default; straight; or elbow) */
+  shape?: ArrowShape;
   children: ReactNode;
   className?: string;
 }) {
@@ -153,7 +186,8 @@ export function ArrowCallout({
           height: t.height / k,
         },
         flip,
-        wave,
+        loop,
+        shape,
       );
       art.style.left = `${round(g.box.x)}px`;
       art.style.top = `${round(g.box.y)}px`;
@@ -226,7 +260,7 @@ export function ArrowCallout({
       window.removeEventListener("pointercancel", up);
       to.removeEventListener("transitionrun", wake);
     };
-  }, [target, follow, flip, wave]);
+  }, [target, follow, flip, loop, shape]);
 
   const ink = {
     fill: "none",
