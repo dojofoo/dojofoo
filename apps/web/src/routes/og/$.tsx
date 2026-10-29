@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { DojoOg, OgCourseCard } from '@/components/og/dojo-og'
 import { teachingModes } from '@dojofoo/uix/web/catalog'
 import { toUIXCourse } from '@/lib/uix-course'
-import { SITE_NAME } from '@/lib/social-metadata'
 
 // A page's own social card, at /og/<its path>/og.webp: a docs page's title and description, the dojos', or a course's
 // with its card beside them
@@ -41,10 +40,10 @@ export const Route = createFileRoute('/og/$')({
           return ogImage(
             <DojoOg {...frame} title={course.name} description={course.description}
               card={<OgCourseCard hue={course.art.hue} lines={lines.src} linesOpacity={lines.opacity}
-                mark={course.author === SITE_NAME ? <img alt="" src={frame.logo} height={26} width={92} style={{ objectFit: 'contain', objectPosition: 'left' }} /> : course.author}
-                figure={course.version.startsWith('v') ? course.version : `v${course.version}`} kicker={course.repository} title={course.name}
-                // As the course page's card: when it was last published, and how it teaches
-                label={course.publishedAt ? 'Updated' : undefined} value={course.publishedAt ? new Date(course.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : undefined}
+                // Its version and rating (when it has one, as on the site) at the top, who made it at the foot
+                mark={course.version.startsWith('v') ? course.version : `v${course.version}`} figure={course.rating === undefined ? undefined : `★ ${course.rating.toFixed(1)}`}
+                kicker={course.repository} title={course.name}
+                label="Author" value={course.author}
                 tag={teachingModes.find((mode) => mode.value === course.mode)?.label} />} />,
           )
         }
