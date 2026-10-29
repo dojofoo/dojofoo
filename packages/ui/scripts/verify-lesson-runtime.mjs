@@ -434,6 +434,13 @@ try {
     await expect(page.locator(".view-lines")).toContainText("return 42");
     await expect(page.getByTestId("chat-pane")).toHaveAttribute("data-chat-status", "ready");
     const restarted = await fetch(base).then(response => response.json());
+    // Evidence only: how the restored model reads over the next seconds.
+    const modelTimeline = [{ at: 0, model: restarted.model?.currentValue }];
+    for (const at of [1_000, 3_000, 6_000]) {
+      await new Promise(resolve => setTimeout(resolve, at - modelTimeline.at(-1).at));
+      modelTimeline.push({ at, model: (await fetch(base).then(response => response.json())).model?.currentValue });
+    }
+    await writeFile(artifact("model-after-restart.json"), JSON.stringify(modelTimeline, null, 2));
     await writeFile(artifact("before-restart.json"), JSON.stringify(completedSnapshot, null, 2));
     await writeFile(artifact("after-restart.json"), JSON.stringify(restarted, null, 2));
     await writeFile(artifact("web-state-after-restart.json"), await readFile(join(workspace, ".dojo/web.json"), "utf8").catch(error => String(error)));
