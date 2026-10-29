@@ -22,18 +22,24 @@ const stateHome = join(scratch, "state");
 const toolQuestion = "Inspect the native lesson context";
 const askQuestion = "Ask the authored native hint question";
 const rejectQuestion = "Decline a second native context read";
+const completeQuestion = "Complete this fixture lesson";
 let nativeContextSent = false;
 let nativeQuestionSent = false;
 let nativeRejectSent = false;
+let nativeCompleteSent = false;
 const endpoint = await startLoopbackModel({
   selectResponsesTool(input) {
     const text = JSON.stringify(input.input ?? []);
     const target = text.includes(askQuestion) && !nativeQuestionSent
       ? { name: "dojo_ui_ask", input: { title: "Which hint would help?", options: [{ id: "example", title: "A small example" }, { id: "review", title: "Review the goal" }] } }
       : text.includes(rejectQuestion) && !nativeRejectSent ? { name: "dojo_context", input: {}, reject: true }
-      : text.includes(toolQuestion) && !nativeContextSent ? { name: "dojo_context", input: {} } : undefined;
+      : text.includes(toolQuestion) && !nativeContextSent ? { name: "dojo_context", input: {} }
+      : text.includes(completeQuestion) && !nativeCompleteSent ? { name: "dojo_lesson_complete", input: {} } : undefined;
     if (!target) return;
-    const mark = () => { if (target.reject) nativeRejectSent = true; else if (target.name === "dojo_context") nativeContextSent = true; else nativeQuestionSent = true; };
+    const mark = () => {
+      if (target.reject) nativeRejectSent = true; else if (target.name === "dojo_context") nativeContextSent = true;
+      else if (target.name === "dojo_lesson_complete") nativeCompleteSent = true; else nativeQuestionSent = true;
+    };
     const available = (input.tools ?? []).flatMap(tool => tool.type === "namespace" ? tool.tools.map(child => ({ ...child, namespace: tool.name })) : [tool]);
     const tool = available.find(tool => tool.name?.endsWith(target.name));
     if (tool) { mark(); return { name: tool.name, ...(tool.namespace ? { namespace: tool.namespace } : {}), input: target.input }; }
@@ -299,7 +305,7 @@ try {
     const [configured] = await Promise.all([
       page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith("/configuration/model")),
       (async () => {
-        await page.getByRole("button", { name: "Harness model", exact: true }).click();
+        await page.getByRole("button", { name: "Model", exact: true }).click();
         await page.getByRole("menuitemradio", { name: modelOption.group ? `${modelOption.group} · ${modelOption.name}` : modelOption.name, exact: true }).click();
       })(),
     ]);
@@ -380,11 +386,18 @@ try {
     await expect(page.getByRole("radio", { name: /A small example/ })).toBeDisabled();
     await expect(page.getByRole("radio", { name: /A small example/ })).toHaveAttribute("aria-checked", "true");
     assert.equal(answered.result.complete, true);
+    // Kata courses have no Continue control: the Sensei offers the completion
+    // choice (dojo_lesson_complete) and the host advances on Move on.
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).fill(completeQuestion);
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).press("Enter");
+    const moveOn = page.getByRole("radio", { name: "Move on", exact: true }).last();
+    await expect(moveOn).toBeEnabled({ timeout: 15_000 });
     const [progressed] = await Promise.all([
-      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/progressions")),
-      page.getByRole("button", { name: "Continue to next lesson", exact: true }).click(),
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/messages") && Boolean(response.request().postDataJSON()?.answers)),
+      moveOn.click(),
     ]);
-    assert.equal(progressed.status(), 200);
+    assert.equal(progressed.status(), 201);
+    assert.equal((await progressed.json()).kata, "next");
     await expect(page.locator(".view-lines")).toContainText("const next");
     await expect.poll(async () => (await fetch(base.replace(/\/first$/, "/next")).then(response => response.json())).introduced, { timeout: 15_000 }).toBe(true);
     await expect(page.getByRole("link", { name: /^First\b/ })).toBeVisible();
