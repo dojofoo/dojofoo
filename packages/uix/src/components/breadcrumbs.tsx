@@ -6,7 +6,8 @@ import type { ReactNode } from "react";
  * runs out, the trail shortens from the left – the further back a segment, the sooner it gives way to an ellipsis, so
  * where you are reads in full the longest: Ev… / Largest numb… / Evals.
  */
-export type Crumb = { label: string; /** Makes the segment a link back to it (the last one never is) */ onClick?: () => void; /** Before the label, e.g. a back arrow on "Dashboard" */ icon?: ReactNode };
+export type Crumb = { label: string; /** Makes the segment a link back to it (the last one never is) */ onClick?: () => void; /** Before the label, e.g. a back arrow on "Dashboard" */ icon?: ReactNode;
+  /** Only the icon shows – a back arrow on its own, without a slash after it; the label still names it for screen readers */ iconOnly?: boolean };
 
 export function Breadcrumbs({ items, label = "Breadcrumb", className }: { items: readonly Crumb[]; label?: string; className?: string }) {
   const last = items.length - 1;
@@ -16,19 +17,23 @@ export function Breadcrumbs({ items, label = "Breadcrumb", className }: { items:
       <ol>
         {items.map((item, index) => (
           <li key={index}>
-            {index > 0 && <Separator />}
+            {index > 0 && !items[index - 1]!.iconOnly && <Separator />}
             {index === last ? (
               <span className="ui-crumbs__current" aria-current="page" title={item.label}>{item.label}</span>
             ) : item.onClick ? (
-              <button type="button" className="ui-crumbs__link" title={item.label} onClick={item.onClick}>{item.icon}{item.label}</button>
+              <button type="button" className="ui-crumbs__link" title={item.label} onClick={item.onClick}>{item.icon}<Label item={item} /></button>
             ) : (
-              <span className="ui-crumbs__text" title={item.label}>{item.icon}{item.label}</span>
+              <span className="ui-crumbs__text" title={item.label}>{item.icon}<Label item={item} /></span>
             )}
           </li>
         ))}
       </ol>
     </nav>
   );
+}
+
+function Label({ item }: { item: Crumb }) {
+  return item.iconOnly ? <span className="ui-crumbs__hidden">{item.label}</span> : <>{item.label}</>;
 }
 
 function Separator() {
@@ -61,8 +66,9 @@ const css = /* css */ `
   transition: color 150ms ease-out, text-decoration-color 150ms ease-out;
 }
 .ui-crumbs__link:hover { color: var(--ink); text-decoration-color: color-mix(in oklch, var(--ink) 40%, transparent); }
-.ui-crumbs__link:has(> svg) { display: inline-flex; align-items: center; gap: 6px; }
-.ui-crumbs__link > svg { flex: none; }
+.ui-crumbs__link:has(> svg), .ui-crumbs__text:has(> svg) { display: inline-flex; align-items: center; gap: 6px; }
+.ui-crumbs__link > svg, .ui-crumbs__text > svg { flex: none; }
+.ui-crumbs__hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ui-crumbs__link:focus-visible { outline: 1px solid var(--focus-ring); outline-offset: 1px; }
 .ui-crumbs__current { font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); }
 `;

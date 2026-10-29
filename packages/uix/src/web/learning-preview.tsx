@@ -68,7 +68,7 @@ export function LearningPreview() {
     <ChatStyles />
     <AgentChatWorkspace workspace="Dojo" user={{ name: "Sam Altman", avatar: samAltmanPhoto }} sidebarWidth="18rem" showNews={false} setup={[]} showUser
       contentKind="code" navigation={navigation} navigationKey="llm" active={[`chapter:${chapter.id}`, `lesson:${selected.id}`]}
-      crumbs={[{ label: "Dashboard", icon: <Icon icon={BackIcon} size={14} /> }, { label: chapter.title }, { label: selected.title }]}
+      crumbs={[{ label: "Dashboard", icon: <Icon icon={BackIcon} size={14} />, iconOnly: true }, { label: chapter.title }, { label: selected.title }]}
       editor={<Editor flush
         tabs={<EditorTabs mode="learning" label="Lesson files" active="kata.ts" tabs={[{ path: "kata.ts", label: "kata.py" }, { path: "results", label: "Test results" }]} onSelect={() => {}} />}
         status={<EditorStatus passed={1} total={3} />}>

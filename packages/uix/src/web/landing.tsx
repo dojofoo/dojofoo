@@ -47,7 +47,11 @@ export function LandingPage({ learning, courses, preview }: {
           <h1 className="ui-land-hero__title">You can only fight the way you practice</h1>
           <figcaption className="ui-land-hero__cite">Miyamoto Musashi</figcaption>
         </figure>
-        <p className="ui-land-hero__lead">Deliberate practice, with a sensei at your side who can mentor you through every challenge. Your dojo, your way: take any course, rehearse for your next interview, or turn what you know into a dojo anyone can install.</p>
+        {/* One sentence per line, each balanced, so neither starts at the end of the other's line; the second breaks between its phrases */}
+        <p className="ui-land-hero__lead">
+          <span>Deliberate practice, with a sensei at your side who can mentor you through every challenge.</span>{" "}
+          <span><span>Your dojo, your way: take any course,</span> <span>rehearse for your next interview,</span> <span>or turn what you know into a dojo anyone can install.</span></span>
+        </p>
         <div className="ui-land-hero__actions">
           {/* Getting started is the one command: down to it */}
           <ButtonLink href="#ui-land-start" onClick={event => followLink(event, () => {
@@ -124,6 +128,10 @@ const css = /* css */ `
 .ui-land-hero__cite { margin-top: 14px; color: var(--muted); font-size: 15px; font-weight: 550; letter-spacing: 0.01em; }
 .ui-land-hero__cite::before { content: "— "; }
 .ui-land-hero__lead { max-width: 34rem; margin: 18px 0 0; color: var(--muted); font-size: 16px; line-height: 1.6; text-wrap: pretty; }
+.ui-land-hero__lead > span { display: block; text-wrap: balance; }
+.ui-land-hero__lead > span + span { margin-top: 8px; }
+/* A phrase wraps as a unit, so lines break after its comma, never inside "your next interview" */
+.ui-land-hero__lead > span > span { display: inline-block; }
 .ui-land-hero__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 28px; }
 
 /* The lesson in a window slightly wider than the page's content; no Getting started card in it (the
