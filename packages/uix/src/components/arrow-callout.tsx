@@ -3,8 +3,8 @@ import { cn } from "../lib/utils";
 
 /*
  * ArrowCallout – a note whose arrow draws itself to whatever it points at, after Xevrion's
- * (lab.xevrion.dev/lab/arrow-callout). Set in the page's own face, bold italic, in the brand color: the note reads as
- * an annotation without bringing a handwriting font along.
+ * (lab.xevrion.dev/lab/arrow-callout). Set in the page's own face, bold, in the brand color unless the host sets one:
+ * the note reads as an annotation without bringing a handwriting font along.
  */
 
 type Pt = { x: number; y: number };
@@ -244,7 +244,7 @@ export function ArrowCallout({
 
   return (
     <span ref={note} className={cn("relative inline-block text-(--brand)", className)}>
-      <span className="inline-block text-[15px] leading-tight font-bold italic whitespace-nowrap">
+      <span className="inline-block text-[15px] leading-tight font-bold whitespace-nowrap">
         {children}
       </span>
       <svg

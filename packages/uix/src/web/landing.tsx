@@ -182,30 +182,9 @@ const css = /* css */ `
   .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; color: var(--land-arrow); }
   /* Marker-tag arrows with a hard offset shadow: ink on light, white over black on dark */
   .ui-land-note svg { filter: drop-shadow(2px 2px 0 var(--land-arrow-shadow)); }
-  .ui-land-note--card { left: 40px; --cut-top: 18%; }
+  .ui-land-note--card { left: 40px; }
   /* The Sensei's dot sits at about 73% across the window: the note starts a little right of it, so its arrow runs left first */
-  .ui-land-note--sensei { left: calc(73% + 26px); top: 2px; text-align: left; --cut-top: 55%; --cut-bottom: 16%; }
-  /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
-  .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 1px 9px 2px 14px; color: #fff; }
-  /* Stuck on at a slight angle, leaning away from each other */
-  .ui-land-note--card > span:first-child { rotate: -1.5deg; }
-  .ui-land-note--sensei > span:first-child { rotate: 1.25deg; }
-  /* The plate, cut like the logo's FOO: its top edge steps down and its bottom edge steps up, both along the right
-     (each note sets how far), and two thin diagonal slits by its left edge leave two slivers, clear of the text. The
-     steps are a clip-path, one clean outline with no antialiased sliver at a fractional edge; the slits are masked out.
-     Both show the page through, over any background */
-  .ui-land-note > span:first-child::before {
-    content: ""; position: absolute; inset: 0; z-index: -1; transform: skewX(-14deg);
-    /* The logo's stripe gradient, orange into the brand, kept faint: only the slit end warms */
-    background: linear-gradient(90deg, color-mix(in oklch, #ff8a00 22%, var(--brand)), var(--brand) 35%);
-    clip-path: polygon(0 0, calc(100% - var(--cut-top, 34%)) 0, calc(100% - var(--cut-top, 34%)) 3px, 100% 3px,
-      100% calc(100% - 2px), calc(100% - var(--cut-bottom, 34%)) calc(100% - 2px), calc(100% - var(--cut-bottom, 34%)) 100%, 0 100%);
-    mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
-    mask-size: 100% 100%, 2px 100%, 2px 100%;
-    mask-position: 0 0, 2px 0, 6px 0;
-    mask-repeat: no-repeat;
-    mask-composite: exclude;
-  }
+  .ui-land-note--sensei { left: calc(73% + 26px); top: 2px; text-align: left; }
 
 
 
