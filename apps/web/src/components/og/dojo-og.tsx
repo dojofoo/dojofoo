@@ -9,9 +9,11 @@ import type { ReactNode } from "react";
 
 export const OG = { width: 1200, height: 630 } as const;
 
-export function DojoOg({ title, description, logo, ground, groundColor, card }: {
+export function DojoOg({ title, description, author, logo, ground, groundColor, card }: {
   title: string;
   description?: string;
+  /** Who made it (a course's author), at the bottom left */
+  author?: string;
   /** The wordmark, as a data URL */
   logo: string;
   /** The contour map with its shade worked out and dithered (scripts/og-ground.mjs) – the glass fade behind the words, and
@@ -34,6 +36,11 @@ export function DojoOg({ title, description, logo, ground, groundColor, card }: 
         <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontFamily: "Inter", fontWeight: 650, fontSize: narrow ? 56 : title.length > 24 ? 64 : 72, lineHeight: 1.05, letterSpacing: "-0.035em", textWrap: "balance" }}>{title}</div>
         {description && <div style={{ display: "flex", marginTop: 24, color: "oklch(0.7155 0 0)", fontFamily: "Inter", fontWeight: 400, fontSize: narrow ? 26 : 30, lineHeight: 1.5, textWrap: "balance", lineClamp: 3 }}>{description}</div>}
       </div>
+
+      {author && <div style={{ position: "absolute", left: 128, bottom: 92, display: "flex", flexDirection: "column", gap: 8, fontFamily: "Inter" }}>
+        <div style={{ display: "flex", color: "oklch(0.7155 0 0)", fontSize: 20, fontWeight: 400 }}>Author</div>
+        <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontSize: 26, fontWeight: 550, letterSpacing: "-0.01em" }}>{author}</div>
+      </div>}
 
       {card && <div style={{ position: "absolute", top: 0, bottom: 0, right: 96, display: "flex", alignItems: "center" }}>{card}</div>}
     </div>
