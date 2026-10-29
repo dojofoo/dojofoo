@@ -39,7 +39,7 @@ importers:
     dependencies:
       '@elysiajs/openapi':
         specifier: 1.4.16
-        version: 1.4.16(@sinclair/typebox@0.34.52)(elysia@1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@1.2.4(typebox@1.3.27))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3))(typescript@6.0.3)
+        version: 1.4.16(@sinclair/typebox@0.34.52)(elysia@1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@0.2.7(@sinclair/typebox@0.34.52))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3))(typescript@6.0.3)
       '@libsql/client':
         specifier: 0.17.4
         version: 0.17.4
@@ -48,7 +48,10 @@ importers:
         version: 0.45.2(@libsql/client@0.17.4)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)(sql.js@1.14.2)
       elysia:
         specifier: ^1.4.18
-        version: 1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@1.2.4(typebox@1.3.27))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3)
+        version: 1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@0.2.7(@sinclair/typebox@0.34.52))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3)
+      exact-mirror:
+        specifier: 0.2.7
+        version: 0.2.7(@sinclair/typebox@0.34.52)
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -279,7 +282,10 @@ importers:
         version: 0.69.0(@opentelemetry/api@1.9.0)(zod@4.6.7)
       elysia:
         specifier: ^1.4.18
-        version: 1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@1.2.4(typebox@1.3.27))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3)
+        version: 1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@0.2.7(@sinclair/typebox@0.34.52))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3)
+      exact-mirror:
+        specifier: 0.2.7
+        version: 0.2.7(@sinclair/typebox@0.34.52)
     devDependencies:
       '@tanstack/ai-client':
         specifier: 0.39.3
@@ -6478,12 +6484,12 @@ packages:
     resolution: {integrity: sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA==}
     engines: {node: '>=18.0.0'}
 
-  exact-mirror@1.2.4:
-    resolution: {integrity: sha512-lNLw824fkSqcHSxNIh8skA7gHO5X5Q8UUllXuRedtJCU8cJwKOT3XPQY8GfhveatFMO4nCK8+oEXsLGErMWC/Q==}
+  exact-mirror@0.2.7:
+    resolution: {integrity: sha512-+MeEmDcLA4o/vjK2zujgk+1VTxPR4hdp23qLqkWfStbECtAq9gmsvQa3LW6z/0GXZyHJobrCnmy1cdeE7BjsYg==}
     peerDependencies:
-      typebox: '>= 1.1.0'
+      '@sinclair/typebox': ^0.34.15
     peerDependenciesMeta:
-      typebox:
+      '@sinclair/typebox':
         optional: true
 
   execa@5.1.1:
@@ -11305,10 +11311,10 @@ snapshots:
       get-east-asian-width: 1.6.0
       marked: 18.0.11
 
-  '@elysiajs/openapi@1.4.16(@sinclair/typebox@0.34.52)(elysia@1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@1.2.4(typebox@1.3.27))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3))(typescript@6.0.3)':
+  '@elysiajs/openapi@1.4.16(@sinclair/typebox@0.34.52)(elysia@1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@0.2.7(@sinclair/typebox@0.34.52))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3))(typescript@6.0.3)':
     dependencies:
       '@sinclair/typebox': 0.34.52
-      elysia: 1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@1.2.4(typebox@1.3.27))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3)
+      elysia: 1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@0.2.7(@sinclair/typebox@0.34.52))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3)
       typescript: 6.0.3
 
   '@emnapi/core@1.11.0':
@@ -16275,11 +16281,11 @@ snapshots:
 
   elkjs@0.9.3: {}
 
-  elysia@1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@1.2.4(typebox@1.3.27))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3):
+  elysia@1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@0.2.7(@sinclair/typebox@0.34.52))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3):
     dependencies:
       '@sinclair/typebox': 0.34.52
       cookie: 1.1.1
-      exact-mirror: 1.2.4(typebox@1.3.27)
+      exact-mirror: 0.2.7(@sinclair/typebox@0.34.52)
       fast-decode-uri-component: 1.0.1
       file-type: 22.0.1
       memoirist: 0.4.0
@@ -16462,9 +16468,9 @@ snapshots:
     dependencies:
       eventsource-parser: 3.1.1
 
-  exact-mirror@1.2.4(typebox@1.3.27):
+  exact-mirror@0.2.7(@sinclair/typebox@0.34.52):
     optionalDependencies:
-      typebox: 1.3.27
+      '@sinclair/typebox': 0.34.52
 
   execa@5.1.1:
     dependencies:
