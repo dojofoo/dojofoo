@@ -101,13 +101,13 @@ describe("Giget-backed dojo lifecycle", () => {
     });
   });
 
-  it("keeps authored Kyoshi definitions only with --master, preserves the license and retains the choice on update", async () => {
+  it("keeps authoring guidance and the license on update without course Kyoshi overrides", async () => {
     const root = workspace();
     await add(root, ["example/remote-dojo", "--master"]);
     const dojo = resolve(root, "courses/remote-dojo");
     expect(JSON.parse(readFileSync(resolve(root, ".dojorc"), "utf8")).currentKata).toBeNull();
     expect(readFileSync(resolve(dojo, "KYOSHI.md"), "utf8")).toContain("Authoring guidance");
-    expect(readFileSync(resolve(dojo, ".dojo/kyoshi/instructions.md"), "utf8")).toContain("kyoshi guidance");
+    expect(() => readFileSync(resolve(dojo, ".dojo/kyoshi/instructions.md"), "utf8")).toThrow();
     expect(readFileSync(resolve(dojo, "LICENSE"), "utf8")).toBe("Fixture license\n");
     for (const path of [".dojo/state/session.json", ".dojo/kyoshi/.eve/private.json", ".dojo/sensei/.eve/private.json", ".env.local"]) {
       expect(() => readFileSync(resolve(dojo, path)), path).toThrow();
@@ -115,7 +115,7 @@ describe("Giget-backed dojo lifecycle", () => {
     expect(readInstalledSource(dojo)?.authoring).toBe(true);
     acquisition.version = "0.0.2";
     await update(root, ["remote-dojo"]);
-    expect(readFileSync(resolve(dojo, ".dojo/kyoshi/instructions.md"), "utf8")).toContain("kyoshi guidance");
+    expect(() => readFileSync(resolve(dojo, ".dojo/kyoshi/instructions.md"), "utf8")).toThrow();
     expect(readInstalledSource(dojo)?.authoring).toBe(true);
   });
 
