@@ -185,13 +185,13 @@ const css = /* css */ `
   .ui-land-note--sensei { left: calc(73% + 34px); top: 2px; text-align: left; }
   /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
   .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 1px 9px 2px; color: #fff; }
-  /* The plate, with the logo's thin cuts: a sliver sliced off along the top right and the bottom left, the page showing
-     through each gap (masked out, so it works over any background) */
+  /* The plate, cut like the logo's: its top edge steps down along the right third and its bottom edge steps up along
+     the left third (masked out, so the page shows through over any background) */
   .ui-land-note > span:first-child::before {
     content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg); border-radius: 2px;
     mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
-    mask-size: 100% 100%, 34% 1.5px, 34% 1.5px;
-    mask-position: 0 0, right 0 top 3px, left 0 bottom 3px;
+    mask-size: 100% 100%, 34% 3px, 34% 3px;
+    mask-position: 0 0, right 0 top 0, left 0 bottom 0;
     mask-repeat: no-repeat;
     mask-composite: exclude;
   }
