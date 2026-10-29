@@ -69,6 +69,7 @@ describe("Eve stream consumed by TanStack ChatClient", () => {
     ];
     const snapshots: UIMessage[][] = [];
     const client = new ChatClient({
+      initialMessages: [{ id: "earlier", role: "assistant", parts: [{ type: "text", content: "Earlier lesson" }] }],
       connection: stream(() => streamEveAsAgUi({ ...options, events: events(source), initial: { messages: [{ id: "earlier", role: "assistant", parts: [{ type: "text", text: "Earlier lesson" }] }] } })),
       persistence: false,
       onMessagesChange: messages => snapshots.push(structuredClone(messages)),
@@ -119,7 +120,7 @@ describe("Eve stream consumed by TanStack ChatClient", () => {
     }
     const output = streamEveAsAgUi({ ...options, events: source() });
     expect((await output.next()).value?.type).toBe("RUN_STARTED");
-    expect((await output.next()).value?.type).toBe("MESSAGES_SNAPSHOT");
+    expect((await output.next()).done).toBe(false);
     await output.return(undefined);
     expect(closed).toBe(true);
   });

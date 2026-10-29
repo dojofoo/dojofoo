@@ -34,36 +34,29 @@ it.skipIf(process.platform === "win32").each([false, true])("awaits Nitro close 
   child.stderr.on("data", data => { output += data; });
   child.once("error", ready.reject);
   child.once("exit", () => ready.reject(new Error(output)));
-  let nativePid: number | undefined;
+  let nativeUrl: string | undefined;
   try {
     const url = await ready.promise;
     clearTimeout(startup);
     const response = await fetch(`${url}api/hello`, { signal: AbortSignal.timeout(30_000) });
     expect(response.ok, output).toBe(true);
     if (native) {
-      nativePid = (await response.json()).pid;
-      expect(typeof nativePid).toBe("number");
-      process.kill(nativePid!, 0);
+      nativeUrl = (await response.json()).url;
+      expect(typeof nativeUrl).toBe("string");
+      await fetch(nativeUrl!, { signal: AbortSignal.timeout(2000) });
     } else expect(await response.text(), output).toContain("hello");
     const exited = once(child, "exit", { signal: AbortSignal.timeout(10_000) });
     child.kill("SIGTERM");
     await exited;
     expect((await readFile(log, "utf8")).trim().split("\n"), output).toEqual(expect.arrayContaining(["build:close", "runtime:close"]));
-    if (nativePid) {
-      let failure: unknown;
-      try { process.kill(nativePid, 0); } catch (error) { failure = error; }
-      expect(failure, "The actual native process must be gone, not just its close hook").toMatchObject({ code: "ESRCH" });
-    }
+    if (nativeUrl) await expect(fetch(nativeUrl, { signal: AbortSignal.timeout(2000) }))
+      .rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
   } finally {
     clearTimeout(startup);
     if (child.exitCode === null && child.signalCode === null) {
       const exited = once(child, "exit");
-      child.kill("SIGKILL");
+      child.kill("SIGTERM");
       await exited;
-    }
-    if (nativePid) {
-      try { process.kill(-nativePid, "SIGKILL"); }
-      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
     }
     await rm(root, { recursive: true, force: true });
   }
