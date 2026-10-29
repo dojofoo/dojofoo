@@ -74,7 +74,7 @@ export function LandingPage({ learning, courses, preview }: {
       <div className="ui-land-app" ref={app}>
         {/* What the window shows, called out instead of explained: notes above it, their arrows drawn into the app */}
         <ArrowCallout target={card} flip bend={0.25} weight={2.4} className="ui-land-note ui-land-note--card">Install any course;<br />progress saved</ArrowCallout>
-        <ArrowCallout target={sensei} shape="elbow" weight={2.4} gap={16} className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
+        <ArrowCallout target={sensei} shape="elbow" weight={2.4} gap={16} className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />specialized to mentor you through it</ArrowCallout>
         <AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview>
       </div>
 
@@ -182,20 +182,20 @@ const css = /* css */ `
   .ui-land-note svg { filter: drop-shadow(2px 2px 0 #000); }
   .ui-land-note--card { left: 40px; --cut-top: 18%; }
   /* The Sensei's dot sits at about 73% across the window: the note starts a little right of it, so its arrow runs left first */
-  .ui-land-note--sensei { left: calc(73% + 34px); top: 2px; text-align: left; --cut-top: 55%; --cut-bottom: 16%; }
+  .ui-land-note--sensei { left: calc(73% + 26px); top: 2px; text-align: left; --cut-top: 55%; --cut-bottom: 16%; }
   /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
   .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 1px 9px 2px 14px; color: #fff; }
   /* The plate, cut like the logo's FOO: its top edge steps down along the right and its bottom edge steps up along the
-     left (each note sets how far), and a thin diagonal slit near its left end leaves a sliver, clear of the text. The
-     steps are a clip-path, one clean outline with no antialiased sliver at a fractional edge; the slit is masked out.
+     left (each note sets how far), and two thin diagonal slits by its left edge leave two slivers, clear of the text. The
+     steps are a clip-path, one clean outline with no antialiased sliver at a fractional edge; the slits are masked out.
      Both show the page through, over any background */
   .ui-land-note > span:first-child::before {
     content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg);
     clip-path: polygon(0 0, calc(100% - var(--cut-top, 34%)) 0, calc(100% - var(--cut-top, 34%)) 3px, 100% 3px, 100% 100%,
       var(--cut-bottom, 34%) 100%, var(--cut-bottom, 34%) calc(100% - 2px), 0 calc(100% - 2px));
-    mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000);
-    mask-size: 100% 100%, 2px 100%;
-    mask-position: 0 0, 6px 0;
+    mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
+    mask-size: 100% 100%, 2px 100%, 2px 100%;
+    mask-position: 0 0, 2px 0, 6px 0;
     mask-repeat: no-repeat;
     mask-composite: exclude;
   }
