@@ -42,6 +42,9 @@ for (const entry of ["installed", "dashboard"] as const) test(entry === "install
       await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page).toHaveURL(/workspace=.+session=wrun_/);
       const session = new URL(page.url()).searchParams.get("session");
+      const workspace = new URL(page.url()).searchParams.get("workspace")!;
+      const sessionUrl = `${url}api/v1/workspaces/${encodeURIComponent(workspace)}/sessions/${encodeURIComponent(session!)}`;
+      await expect.poll(async () => (await (await page.request.get(sessionUrl)).json()).status).toBe("idle");
       await page.evaluate(() => localStorage.clear());
       const resumed = performance.now();
       await page.goto(`${url}authoring`);
@@ -50,6 +53,7 @@ for (const entry of ["installed", "dashboard"] as const) test(entry === "install
       await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
       console.info(`Installed course: saved conversation ready in ${Math.round(performance.now() - resumed)} ms.`);
       expect(starts).toHaveLength(1);
+      expect((await (await page.request.get(sessionUrl)).json()).status).toBe("idle");
       expect(await readFile(join(course, "dojo.yaml"), "utf8")).toBe(original);
       return;
     }
