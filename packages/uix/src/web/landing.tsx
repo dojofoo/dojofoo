@@ -186,16 +186,16 @@ const css = /* css */ `
   /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
   .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 1px 9px 2px 14px; color: #fff; }
   /* Stuck on at a slight angle, leaning away from each other */
-  .ui-land-note--card > span:first-child { rotate: -3deg; }
-  .ui-land-note--sensei > span:first-child { rotate: 2.5deg; }
-  /* The plate, cut like the logo's FOO: its top edge steps down along the right and its bottom edge steps up along the
-     left (each note sets how far), and two thin diagonal slits by its left edge leave two slivers, clear of the text. The
+  .ui-land-note--card > span:first-child { rotate: -1.5deg; }
+  .ui-land-note--sensei > span:first-child { rotate: 1.25deg; }
+  /* The plate, cut like the logo's FOO: its top edge steps down and its bottom edge steps up, both along the right
+     (each note sets how far), and two thin diagonal slits by its left edge leave two slivers, clear of the text. The
      steps are a clip-path, one clean outline with no antialiased sliver at a fractional edge; the slits are masked out.
      Both show the page through, over any background */
   .ui-land-note > span:first-child::before {
     content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg);
-    clip-path: polygon(0 0, calc(100% - var(--cut-top, 34%)) 0, calc(100% - var(--cut-top, 34%)) 3px, 100% 3px, 100% 100%,
-      var(--cut-bottom, 34%) 100%, var(--cut-bottom, 34%) calc(100% - 2px), 0 calc(100% - 2px));
+    clip-path: polygon(0 0, calc(100% - var(--cut-top, 34%)) 0, calc(100% - var(--cut-top, 34%)) 3px, 100% 3px,
+      100% calc(100% - 2px), calc(100% - var(--cut-bottom, 34%)) calc(100% - 2px), calc(100% - var(--cut-bottom, 34%)) 100%, 0 100%);
     mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
     mask-size: 100% 100%, 2px 100%, 2px 100%;
     mask-position: 0 0, 2px 0, 6px 0;
