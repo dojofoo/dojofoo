@@ -33,20 +33,20 @@ export function DojoOg({ title, description, logo, ground, groundColor, card }: 
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 64, height: 1, borderTop: "1px dotted #44403c" }} />
 
       {/* The logo at the top, on the words' edge */}
-      <img alt="" src={logo} height={44} width={156} style={{ position: "absolute", top: 104, left: 128, objectFit: "contain", objectPosition: "left" }} />
+      <img alt="" src={logo} height={56} width={198} style={{ position: "absolute", top: 98, left: 128, objectFit: "contain", objectPosition: "left" }} />
 
-      <div style={{ position: "absolute", top: 196, bottom: 112, left: 128, width: narrow ? 520 : 896, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      <div style={{ position: "absolute", top: 196, bottom: 112, left: 128, width: narrow ? 500 : 896, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div style={{ display: "flex", fontFamily: "Khand", fontWeight: 500, fontSize: narrow ? 60 : title.length > 20 ? 72 : 84, lineHeight: 1.08, textWrap: "balance" }}>{title}</div>
         {description && <div style={{ display: "flex", marginTop: 24, color: "#a8a29e", fontFamily: "Hind", fontWeight: 400, fontSize: narrow ? 30 : 38, lineHeight: 1.45, textWrap: "balance", lineClamp: 3 }}>{description}</div>}
       </div>
 
-      {card && <div style={{ position: "absolute", top: 0, bottom: 0, right: 112, display: "flex", alignItems: "center" }}>{card}</div>}
+      {card && <div style={{ position: "absolute", top: 0, bottom: 0, right: 96, display: "flex", alignItems: "center" }}>{card}</div>}
     </div>
   );
 }
 
 /** A course's color card (packages/uix ColorCard + CourseCard), drawn for Takumi at `size`, hovered */
-export function OgCourseCard({ hue, lines, linesOpacity = 0.55, mark, figure, kicker, title, label, value, tag, size = 360 }: {
+export function OgCourseCard({ hue, lines, linesOpacity = 0.55, mark, figure, kicker, title, label, value, tag, size = 420 }: {
   /** The course's hue: its color is oklch(0.58 0.2 hue), as courseColor draws it */
   hue: number;
   /** Its shader's lines, white on black (public/og-cards) */
@@ -69,16 +69,25 @@ export function OgCourseCard({ hue, lines, linesOpacity = 0.55, mark, figure, ki
   // ColorCard's gradient, its relative colors worked out: lighter at the top left, deeper and turned at the bottom right
   const light = `oklch(0.74 0.2 ${hue} / 0.85)`;
   const deep = `oklch(0.3 0.12 ${(hue + 40) % 360})`;
+  // The card's edge, seen past its face as it leans: the color at its deepest
+  const edge = `oklch(0.2 0.08 ${(hue + 40) % 360})`;
+  const radius = 6 * u;
   return (
-    <div style={{ display: "flex", transform: "rotate(-5deg) skew(-2deg, 1deg)" }}>
+    <div style={{ position: "relative", display: "flex", transform: "rotate(-3deg) skew(-1deg, 0.5deg)" }}>
+      {/* Its thickness, a little below and to the right of the face */}
+      <div style={{ position: "absolute", top: 5, left: 3, width: size, height: size, borderRadius: radius, backgroundColor: edge,
+        // Lifted off the page, as under the pointer
+        boxShadow: "0 56px 90px -16px rgba(0, 0, 0, 0.75), 0 22px 36px -8px rgba(0, 0, 0, 0.5)" }} />
       <div style={{
         position: "relative", display: "flex", flexDirection: "column", width: size, height: size, padding: 8 * u, overflow: "hidden",
-        borderRadius: 6 * u, border: "1px solid rgba(255, 255, 255, 0.14)", color: "#ffffff", fontFamily: "Inter",
+        borderRadius: radius, color: "#ffffff", fontFamily: "Inter",
         backgroundImage: `radial-gradient(120% 90% at 0% 0%, ${light}, transparent 60%), linear-gradient(140deg, ${color}, ${deep})`,
-        // Lifted off the page, as under the pointer
-        boxShadow: "0 48px 80px -16px rgba(0, 0, 0, 0.7), 0 18px 32px -8px rgba(0, 0, 0, 0.45)",
       }}>
         <img alt="" src={lines} width={size} height={size} style={{ position: "absolute", top: 0, left: 0, width: size, height: size, mixBlendMode: "screen", opacity: linesOpacity }} />
+        {/* The light from the top left: a sheen across the face, its rims lit there and in shade at the bottom right */}
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(125deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.07) 30%, rgba(255, 255, 255, 0) 50%)" }} />
+        <div style={{ position: "absolute", inset: 0, borderRadius: radius, border: "1.5px solid rgba(255, 255, 255, 0.6)", maskImage: "linear-gradient(135deg, black 0%, rgba(0, 0, 0, 0.35) 35%, transparent 60%)" }} />
+        <div style={{ position: "absolute", inset: 0, borderRadius: radius, border: "1.5px solid rgba(0, 0, 0, 0.35)", maskImage: "linear-gradient(315deg, black 0%, transparent 45%)" }} />
         <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div style={{ display: "flex", fontSize: 5.6 * u, fontWeight: 600 }}>{mark}</div>
           {figure && <div style={{ display: "flex", fontSize: 5 * u, fontWeight: 600 }}>{figure}</div>}
