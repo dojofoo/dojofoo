@@ -1,7 +1,22 @@
 diff --git a/dist/bridge/index.mjs b/dist/bridge/index.mjs
+index 438703786ec0823a66b1dcc38d74142e07fa4862..7d25da87d417dcd674074f6e9d0468a9a381b8e2 100644
 --- a/dist/bridge/index.mjs
 +++ b/dist/bridge/index.mjs
-@@ -1879,11 +1879,6 @@ async function runTurn(start, turn) {
+@@ -1866,7 +1866,12 @@ await runBridge({
+ 	bridgeType: "opencode",
+ 	bridgeStateDir,
+ 	onStart: runTurn,
+-	onStop: () => runtime.sessionId ? { openCodeSessionId: runtime.sessionId } : {}
++	onStop: () => {
++		const state = runtime.sessionId ? { openCodeSessionId: runtime.sessionId } : {};
++		closeRuntime();
++		return state;
++	},
++	onDestroy: closeRuntime
+ });
+ async function runTurn(start, turn) {
+ 	currentTurn = turn;
+@@ -1881,11 +1886,6 @@ async function runTurn(start, turn) {
  			start,
  			emit
  		});
@@ -13,7 +28,7 @@ diff --git a/dist/bridge/index.mjs b/dist/bridge/index.mjs
  		if (start.operation === "compact") await runCompaction({
  			client,
  			sessionId,
-@@ -1901,18 +1896,6 @@ async function runTurn(start, turn) {
+@@ -1917,18 +1917,6 @@ async function runTurn(start, turn) {
  		});
  	}
  }
@@ -32,7 +47,8 @@ diff --git a/dist/bridge/index.mjs b/dist/bridge/index.mjs
  async function ensureRuntime({ start }) {
  	if (runtime.client && isDeepStrictEqual(runtime.openCodeConfig, start.openCodeConfig) && isDeepStrictEqual(runtime.inactiveBuiltinToolNames, start.inactiveBuiltinToolNames)) return;
  	closeRuntime();
-@@ -2091,6 +2074,8 @@
+@@ -2106,8 +2094,10 @@ async function legacySessionCreate({ client }) {
+ }
  async function legacySessionPrompt({ client, sessionId, start, prompt }) {
  	const session = client.session;
 +	const model = modelRefFromStart(start);
@@ -41,3 +57,194 @@ diff --git a/dist/bridge/index.mjs b/dist/bridge/index.mjs
 +		...model ? { model } : {},
  		...start.instructions ? { system: start.instructions } : {},
  		...start.variant ? { variant: start.variant } : {},
+ 		...start.responseFormat?.type === "json" && start.responseFormat.schema != null ? { format: {
+diff --git a/dist/bridge/opencode-sdk-process.patch b/dist/bridge/opencode-sdk-process.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..4a6d66b2068f43c34ab82b6f4e2288d2e0843a85
+--- /dev/null
++++ b/dist/bridge/opencode-sdk-process.patch
+@@ -0,0 +1,31 @@
++diff --git a/dist/process.js b/dist/process.js
++index 01b680c5a91aaa9120a29c300a8bb6d9b7a306f2..671eb3a13c4b00ca5d6bd62086b6bf506068bc51 100644
++--- a/dist/process.js
+++++ b/dist/process.js
++@@ -9,6 +9,14 @@ export function stop(proc) {
++         if (!out.error && out.status === 0)
++             return;
++     }
+++    if (process.platform !== "win32" && proc.pid) {
+++        try {
+++            process.kill(-proc.pid, "SIGTERM");
+++            return;
+++        } catch (error) {
+++            if (error.code !== "ESRCH") throw error;
+++        }
+++    }
++     proc.kill();
++ }
++ export function bindAbort(proc, signal, onAbort) {
++diff --git a/dist/v2/server.js b/dist/v2/server.js
++index 252797f8a782f33d9770e3c5334d679fbc638ed9..0444d0da99ecc05c88d1b46ea3e164ed1b587ffa 100644
++--- a/dist/v2/server.js
+++++ b/dist/v2/server.js
++@@ -10,6 +10,7 @@ export async function createOpencodeServer(options) {
++     if (options.config?.logLevel)
++         args.push(`--log-level=${options.config.logLevel}`);
++     const proc = launch(`opencode`, args, {
+++        detached: process.platform !== "win32",
++         env: {
++             ...process.env,
++             OPENCODE_CONFIG_CONTENT: JSON.stringify(options.config ?? {}),
+diff --git a/dist/bridge/package.json b/dist/bridge/package.json
+index c1aad55cd041f95deb9fc98ac6545f23313eb77d..909d699be0f71d7f615a6ce3bc6716bc7f245775 100644
+--- a/dist/bridge/package.json
++++ b/dist/bridge/package.json
+@@ -2,6 +2,7 @@
+   "name": "harness-opencode-bridge",
+   "version": "0.0.0",
+   "private": true,
++  "packageManager": "pnpm@10.28.0",
+   "type": "module",
+   "dependencies": {
+     "@modelcontextprotocol/sdk": "1.32.1",
+diff --git a/dist/bridge/pnpm-lockfile.yaml b/dist/bridge/pnpm-lockfile.yaml
+index ee1ceddc080554e4dca508aaae70f9a74b937573..3c2de98079215a325fd995ce7c643fbedb066429 100644
+--- a/dist/bridge/pnpm-lockfile.yaml
++++ b/dist/bridge/pnpm-lockfile.yaml
+@@ -4,6 +4,11 @@ settings:
+   autoInstallPeers: true
+   excludeLinksFromLockfile: false
+ 
++patchedDependencies:
++  '@opencode-ai/sdk@1.18.34':
++    hash: 9427b3c10f8cfc56c0b80015d4ad5bdc754e179d396f7a1074bd215be47fc369
++    path: patches/@opencode-ai__sdk@1.18.34.patch
++
+ importers:
+ 
+   .:
+@@ -13,7 +18,7 @@ importers:
+         version: 1.32.1(zod@3.25.76)
+       '@opencode-ai/sdk':
+         specifier: 1.18.34
+-        version: 1.18.34
++        version: 1.18.34(patch_hash=9427b3c10f8cfc56c0b80015d4ad5bdc754e179d396f7a1074bd215be47fc369)
+       '@vscode/ripgrep':
+         specifier: 1.18.0
+         version: 1.18.0
+@@ -117,6 +122,11 @@ packages:
+ 
+   ajv-formats@3.0.1:
+     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
++    peerDependencies:
++      ajv: ^8.0.0
++    peerDependenciesMeta:
++      ajv:
++        optional: true
+ 
+   ajv@8.20.0:
+     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
+@@ -551,7 +561,7 @@ snapshots:
+     dependencies:
+       '@hono/node-server': 1.19.17(hono@4.13.8)
+       ajv: 8.20.0
+-      ajv-formats: 3.0.1
++      ajv-formats: 3.0.1(ajv@8.20.0)
+       content-type: 1.0.5
+       cors: 2.8.6
+       cross-spawn: 7.0.6
+@@ -569,7 +579,7 @@ snapshots:
+     transitivePeerDependencies:
+       - supports-color
+ 
+-  '@opencode-ai/sdk@1.18.34':
++  '@opencode-ai/sdk@1.18.34(patch_hash=9427b3c10f8cfc56c0b80015d4ad5bdc754e179d396f7a1074bd215be47fc369)':
+     dependencies:
+       cross-spawn: 7.0.6
+ 
+@@ -629,8 +639,8 @@ snapshots:
+       mime-types: 3.0.2
+       negotiator: 1.0.0
+ 
+-  ajv-formats@3.0.1:
+-    dependencies:
++  ajv-formats@3.0.1(ajv@8.20.0):
++    optionalDependencies:
+       ajv: 8.20.0
+ 
+   ajv@8.20.0:
+diff --git a/dist/bridge/pnpm-workspace.yaml b/dist/bridge/pnpm-workspace.yaml
+index ca93fb1e8d591d6aa55624dfeadcdafe9992b479..de594d676a1a170504759b3d18eb7f9d4c978466 100644
+--- a/dist/bridge/pnpm-workspace.yaml
++++ b/dist/bridge/pnpm-workspace.yaml
+@@ -1,2 +1,4 @@
+ allowBuilds:
+   opencode-ai: true
++patchedDependencies:
++  '@opencode-ai/sdk@1.18.34': patches/@opencode-ai__sdk@1.18.34.patch
+diff --git a/dist/index.js b/dist/index.js
+index 5f6cdf95c87630da39a4809eade42399a5b4dd42..405c78404abbc71dabdaae08ecc8f9a21092b17b 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -12,23 +12,25 @@ const readBridgeAsset = createReadBridgeAsset({
+ 	"pnpm-lock.yaml": new URL("./bridge/pnpm-lockfile.yaml", import.meta.url),
+ 	"pnpm-workspace.yaml": new URL("./bridge/pnpm-workspace.yaml", import.meta.url),
+ 	"index.mjs": new URL("./bridge/index.mjs", import.meta.url),
++	"opencode-sdk-process.patch": new URL("./bridge/opencode-sdk-process.patch", import.meta.url),
+ 	"host-tool-mcp.mjs": new URL("./bridge/host-tool-mcp.mjs", import.meta.url)
+ });
+ const OPENCODE_BOOTSTRAP_DIR = ".harness-bootstrap/opencode";
+ let cachedBootstrap;
+ async function getOpenCodeBootstrap() {
+ 	if (cachedBootstrap != null) return cachedBootstrap;
+-	const [pkg, lock, workspace, bridge, hostToolMcp] = await Promise.all([
++	const [pkg, lock, workspace, bridge, hostToolMcp, sdkPatch] = await Promise.all([
+ 		readBridgeAsset("package.json"),
+ 		readBridgeAsset("pnpm-lock.yaml"),
+ 		readBridgeAsset("pnpm-workspace.yaml"),
+ 		readBridgeAsset("index.mjs"),
+-		readBridgeAsset("host-tool-mcp.mjs")
++		readBridgeAsset("host-tool-mcp.mjs"),
++		readBridgeAsset("opencode-sdk-process.patch")
+ 	]);
+ 	cachedBootstrap = {
+ 		harnessId: "opencode",
+ 		bootstrapDir: OPENCODE_BOOTSTRAP_DIR,
+-		files: [
++		files: [{ path: `${OPENCODE_BOOTSTRAP_DIR}/patches/@opencode-ai__sdk@1.18.34.patch`, content: sdkPatch },
+ 			{
+ 				path: `${OPENCODE_BOOTSTRAP_DIR}/package.json`,
+ 				content: pkg
+diff --git a/src/opencode-bootstrap.ts b/src/opencode-bootstrap.ts
+index 3bb56c4410f6d5772693115cc61a3bdfdac1c634..b853660782a94ff683d5e2b6a3e2dc78a3c0a2c3 100644
+--- a/src/opencode-bootstrap.ts
++++ b/src/opencode-bootstrap.ts
+@@ -16,6 +16,7 @@ const readBridgeAsset = createReadBridgeAsset({
+   ),
+   'index.mjs': new URL('./bridge/index.mjs', import.meta.url),
+   'host-tool-mcp.mjs': new URL('./bridge/host-tool-mcp.mjs', import.meta.url),
++  'opencode-sdk-process.patch': new URL('./bridge/opencode-sdk-process.patch', import.meta.url),
+ });
+ 
+ export const OPENCODE_BOOTSTRAP_DIR = '.harness-bootstrap/opencode';
+@@ -24,17 +25,19 @@ let cachedBootstrap: HarnessV1Bootstrap | undefined;
+ 
+ export async function getOpenCodeBootstrap(): Promise<HarnessV1Bootstrap> {
+   if (cachedBootstrap != null) return cachedBootstrap;
+-  const [pkg, lock, workspace, bridge, hostToolMcp] = await Promise.all([
++  const [pkg, lock, workspace, bridge, hostToolMcp, sdkPatch] = await Promise.all([
+     readBridgeAsset('package.json'),
+     readBridgeAsset('pnpm-lock.yaml'),
+     readBridgeAsset('pnpm-workspace.yaml'),
+     readBridgeAsset('index.mjs'),
+     readBridgeAsset('host-tool-mcp.mjs'),
++    readBridgeAsset('opencode-sdk-process.patch'),
+   ]);
+   cachedBootstrap = {
+     harnessId: 'opencode',
+     bootstrapDir: OPENCODE_BOOTSTRAP_DIR,
+     files: [
++      { path: `${OPENCODE_BOOTSTRAP_DIR}/patches/@opencode-ai__sdk@1.18.34.patch`, content: sdkPatch },
+       { path: `${OPENCODE_BOOTSTRAP_DIR}/package.json`, content: pkg },
+       { path: `${OPENCODE_BOOTSTRAP_DIR}/pnpm-lock.yaml`, content: lock },
+       {

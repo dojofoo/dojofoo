@@ -2,7 +2,7 @@
 
 These are local contribution drafts, not published issues or PRs.
 
-## OpenCode: keep model selection on the session API that created the session
+## OpenCode: native model selection and runtime cleanup
 
 - Affected artifact: `@ai-sdk/harness-opencode@1.0.169`.
 - The bridge creates/restores a legacy session, then calls
@@ -17,6 +17,15 @@ These are local contribution drafts, not published issues or PRs.
 - Regression: `packages/authoring/src/eve/native-harness-contract.test.ts`.
   The OpenCode case checks initial and changed models through the
   native OpenCode agent, including retained conversation history and session ID.
+- Stop/destroy also need the bridge's existing `closeRuntime` callback. Without
+  it, answering a parked tool and stopping the resumed session leaves OpenCode's
+  server and host-tool process alive. The existing native authoring browser
+  flow checks that these processes stop after a paused-question restart.
+- The pinned OpenCode SDK also stops only its launcher on POSIX. Its bootstrap
+  now applies a frozen pnpm patch: the server owns a process group and the
+  existing SDK stop function signals that group. Windows keeps its taskkill
+  behavior. A direct SDK start/close probe drops from one surviving native
+  process to zero; the full browser restart/shutdown gate remains required.
 - Packaged bridge patch:
   [../@ai-sdk__harness-opencode@1.0.169.patch](../@ai-sdk__harness-opencode@1.0.169.patch).
 

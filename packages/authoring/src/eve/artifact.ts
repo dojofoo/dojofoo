@@ -15,6 +15,11 @@ export async function agentSourceHash(agentRoot: string): Promise<string> {
   const own = JSON.parse(await readFile(join(authoringPackageRoot, "package.json"), "utf8"));
   hash.update(JSON.stringify(Object.entries(own.dependencies).filter(([name]) => name.startsWith("@ai-sdk/") || name === "ai")));
   hash.update(await readFile(require.resolve("@dojofoo/agent/experimental")));
+  const { createOpenCode } = await import(require.resolve("@ai-sdk/harness-opencode"));
+  for (const file of (await createOpenCode().getBootstrap()).files) {
+    hash.update(JSON.stringify([file.path, file.content.length]));
+    hash.update(file.content);
+  }
   hash.update(await readFile(join(authoringPackageRoot, "scripts/build-agent.mjs")));
   for (const directory of [agentRoot, join(authoringPackageRoot, "dist"), join(authoringPackageRoot, "skills")]) {
     const files = await globby("**/*", {
