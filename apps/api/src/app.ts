@@ -2,6 +2,7 @@ import { Elysia } from "elysia";
 import { openapi } from "@elysiajs/openapi";
 import { apiRoutes } from "./api-schema";
 import { MemoryCourseEventStore, type CourseEventStore } from "./event-store";
+import { auditCourseFiles, auditProviders, verdict, type CourseAuditStore } from "./course-audit";
 
 export interface CourseFile {
   path: string;
@@ -31,7 +32,11 @@ export interface Course {
   hash: string | null;
   files: CourseFile[] | null;
   mode?: "katas" | "interactive";
+  /** Trial: installable by its repository, not in the catalog. Courses without one are enabled. */
+  status?: CourseStatus;
 }
+
+export type CourseStatus = "trial" | "enabled";
 
 export type CourseEventName = "installed" | "started" | "kata_completed" | "finished";
 
@@ -63,6 +68,7 @@ interface CoursesAppOptions {
   eventStore?: CourseEventStore;
   registrar?: CourseRegistrar;
   courseStore?: CourseStore;
+  auditStore?: CourseAuditStore;
 }
 
 const listingFields = ({
@@ -192,13 +198,16 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
   const allCourses = async () => {
     if (coursesCache && coursesCache.expiresAt > Date.now()) return coursesCache.value;
     const externalCourses = options.courseStore ? await options.courseStore.list() : [];
+    // The store's copy wins over this instance's registrations: a course enabled there is listed here
     const value = [...new Map(
-      [...builtInCourses, ...externalCourses, ...registeredCourses]
+      [...builtInCourses, ...registeredCourses, ...externalCourses]
         .map((course) => [course.id, course]),
     ).values()];
     coursesCache = { expiresAt: Date.now() + 30_000, value };
     return value;
   };
+  // The catalog: every course out of trial
+  const listedCourses = async () => (await allCourses()).filter((course) => course.status !== "trial");
   const findCourse = async (source: string, slug: string) =>
     (await allCourses()).find(
       (candidate) =>
@@ -217,10 +226,10 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
     installs: courseMetrics(course, await eventsForCourse(course)).installs,
   });
   const catalogWithRecordedInstalls = async () =>
-    Promise.all((await allCourses()).map(withRecordedInstalls));
+    Promise.all((await listedCourses()).map(withRecordedInstalls));
   const marketplaceCourses = async () => {
     const [courses, allEvents] = await Promise.all([
-      allCourses(),
+      listedCourses(),
       eventStore.listAll(),
     ]);
     const normalizedEvents = new Map(courses.map((course) => [course.id, [] as CourseEvent[]]));
@@ -290,7 +299,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
     .get("/api/v1/health", () => ({ status: "ok" }), apiRoutes.health)
     .get("/api/v1/course-profiles", async ({ set }) => {
       set.headers["cache-control"] = snapshotCacheControl;
-      return { data: (await allCourses()).map(({ id, description, version, publishedAt, repository, repositoryUrl, author, language, framework, tags, kataCount }) => ({
+      return { data: (await listedCourses()).map(({ id, description, version, publishedAt, repository, repositoryUrl, author, language, framework, tags, kataCount }) => ({
         id,
         description,
         version,
@@ -425,11 +434,34 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       set.headers["cache-control"] = catalogCacheControl;
       return courseMetrics(course, await eventsForCourse(course));
     }, apiRoutes.metrics)
-    .get("/api/v1/courses/audit/:source/:slug", ({ status }) =>
-      status(404, {
-        error: "course_audit_not_found",
-        message: "No audits exist for this course.",
-      }), apiRoutes.audit)
+    .get("/api/v1/courses/audit/:source/:slug", async ({ params, set, status }) => {
+      const course = await findCourse(params.source, params.slug);
+      const audits = course && options.auditStore ? await options.auditStore.list(course.id) : [];
+      if (!course || audits.length === 0) {
+        return status(404, {
+          error: "course_audit_not_found",
+          message: "No audits exist for this course.",
+        });
+      }
+      set.headers["cache-control"] = catalogCacheControl;
+      return {
+        id: course.id,
+        source: course.source,
+        slug: course.slug,
+        status: course.status ?? "enabled",
+        hash: course.hash,
+        audits: audits.map((audit) => ({
+          provider: auditProviders[audit.provider],
+          slug: audit.provider,
+          status: audit.status,
+          riskLevel: audit.riskLevel,
+          summary: audit.summary,
+          auditedAt: audit.auditedAt,
+          hash: audit.hash,
+          findings: audit.findings,
+        })),
+      };
+    }, apiRoutes.audit)
     .get("/api/v1/courses/:source/:slug", async ({ params, set, status }) => {
       const course = await findCourse(params.source, params.slug);
       if (!course) {
@@ -482,13 +514,19 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         && sourceRepository === body.courseId
         && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(sourceRepository)
       ) {
-        const registered = await options.registrar.register({
+        const registration = await options.registrar.register({
           type: "github",
           repository: sourceRepository,
           ...(typeof body.source.integrity === "string"
             ? { integrity: body.source.integrity }
             : {}),
         }) ?? undefined;
+        const previous = registration && (await allCourses()).find((candidate) => candidate.id === registration.id);
+        // A course the API hasn't seen starts in trial; one it knows keeps its status
+        const registered = registration && {
+          ...registration,
+          status: registration.status ?? (previous ? previous.status ?? "enabled" : "trial"),
+        };
         if (registered) {
           course = registered;
           const existingIndex = registeredCourses.findIndex(
@@ -497,6 +535,21 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
           if (existingIndex === -1) registeredCourses.push(registered);
           else registeredCourses[existingIndex] = registered;
           coursesCache = undefined;
+          // Dojo's checks, once per snapshot
+          if (options.auditStore) {
+            const audits = await options.auditStore.list(registered.id);
+            if (!audits.some((audit) => audit.provider === "dojo" && audit.hash === registered.hash)) {
+              const findings = auditCourseFiles(registered.files);
+              await options.auditStore.save({
+                courseId: registered.id,
+                provider: "dojo",
+                hash: registered.hash,
+                ...verdict(findings),
+                findings,
+                auditedAt: new Date().toISOString(),
+              });
+            }
+          }
         }
       }
       if (!course) {

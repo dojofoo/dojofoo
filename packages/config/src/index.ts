@@ -156,6 +156,9 @@ export interface KataEntry {
 }
 
 export interface DojoManifest {
+  /** Installable from GitHub but never listed in the marketplace – as package.json's `private` keeps a package off the registry */
+  private?: boolean;
+  /** @deprecated `false` is the older spelling of `private: true` */
   marketplace?: boolean;
   mode?: "katas";
   name: string;
@@ -174,6 +177,9 @@ export interface DojoManifest {
 }
 
 export interface InteractiveDojoManifest {
+  /** Installable from GitHub but never listed in the marketplace – as package.json's `private` keeps a package off the registry */
+  private?: boolean;
+  /** @deprecated `false` is the older spelling of `private: true` */
   marketplace?: boolean;
   mode: "interactive";
   name: string;
@@ -317,8 +323,10 @@ export function validateManifest(data: unknown): string[] {
       errors.push('"tags" must not repeat "language" or "framework"');
     }
   }
-  if ("marketplace" in obj && typeof obj.marketplace !== "boolean") {
-    errors.push('"marketplace" must be a boolean');
+  for (const field of ["private", "marketplace"] as const) {
+    if (field in obj && typeof obj[field] !== "boolean") {
+      errors.push(`"${field}" must be a boolean`);
+    }
   }
 
   return errors;

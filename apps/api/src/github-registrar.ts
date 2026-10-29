@@ -2,12 +2,14 @@ import type {
   Course,
   CourseRegistrar,
   CourseRegistrationSource,
+  CourseStatus,
 } from "./app";
 import { parse as parseYaml } from "yaml";
 
 interface CourseSnapshotStore {
   remove(id: string): Promise<void>;
-  upsert(course: Course): Promise<void>;
+  /** Resolves to the course's status, when the store keeps one */
+  upsert(course: Course): Promise<CourseStatus | void>;
 }
 
 interface GitHubCourseRegistrarOptions {
@@ -28,6 +30,8 @@ interface GitHubTree {
 }
 
 interface ExternalManifest {
+  private?: boolean;
+  /** The older spelling: `false` for `private: true` */
   marketplace?: boolean;
   mode?: "katas" | "interactive";
   name: string;
@@ -62,6 +66,7 @@ function parseExternalManifest(contents: string, path: string): ExternalManifest
     || (value.author !== undefined && typeof value.author !== "string")
     || (value.language !== undefined && typeof value.language !== "string")
     || (value.framework !== undefined && typeof value.framework !== "string")
+    || (value.private !== undefined && typeof value.private !== "boolean")
     || (value.marketplace !== undefined && typeof value.marketplace !== "boolean")
     || (value.tags !== undefined
       && (!Array.isArray(value.tags) || value.tags.some((tag) => typeof tag !== "string")))
@@ -88,7 +93,9 @@ function parseExternalManifest(contents: string, path: string): ExternalManifest
 }
 
 function snapshotPath(path: string) {
-  if ([...manifestNames, "DOJO.md", "README.md", "package.json", "mise.toml", ".mise.toml"].includes(path)) return true;
+  if ([...manifestNames, "DOJO.md", "README.md", "package.json", "mise.toml", ".mise.toml", "prepare.sh"].includes(path)) return true;
+  // What installing runs, for the security checks: prepare.sh above, mise's file tasks here
+  if (/^(?:mise-tasks|\.mise\/tasks|\.config\/mise\/tasks)\/.+$/u.test(path)) return true;
   return /^katas\/[^/]+\/(?:KATA|SENSEI)\.md$/u.test(path)
     || /^katas\/[^/]+\/[^/]+\.(?:ts|tsx|js|jsx|json|py|java)$/u.test(path)
     || /^(?:lessons|content|assets|components)\/.+\.(?:mdx|md|json|yaml|yml|svg|png|jpe?g|webp|pdf|mp4|webm|html|css|js)$/u.test(path);
@@ -170,7 +177,7 @@ export class GitHubCourseRegistrar implements CourseRegistrar {
       const manifestText = files.find((file) => file.path === manifestPath)?.contents;
       if (!manifestText) return null;
       const manifest = parseExternalManifest(manifestText, manifestPath);
-      if (manifest.marketplace === false) {
+      if (manifest.private === true || manifest.marketplace === false) {
         await Promise.all([
           this.#store.remove(canonicalRepository),
           ...(canonicalRepository === source.repository ? [] : [this.#store.remove(source.repository)]),
@@ -203,8 +210,8 @@ export class GitHubCourseRegistrar implements CourseRegistrar {
         mode: manifest.mode ?? "katas",
       };
       if (canonicalRepository !== source.repository) await this.#store.remove(source.repository);
-      await this.#store.upsert(course);
-      return course;
+      const status = await this.#store.upsert(course);
+      return status ? { ...course, status } : course;
     } catch {
       return null;
     }

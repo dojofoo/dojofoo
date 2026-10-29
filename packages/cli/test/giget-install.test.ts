@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const acquisition = vi.hoisted(() => ({ version: "0.0.1", calls: [] as string[] }));
 
@@ -45,7 +45,21 @@ import { readInstalledSource } from "../src/source";
 
 const roots: string[] = [];
 
+// The course API's checks: none by default, so installs go ahead as they did before them
+const audits = vi.hoisted(() => ({ response: null as unknown, requests: [] as string[] }));
+beforeEach(() => {
+  vi.stubEnv("DOJO_API_URL", "https://courses.example.test");
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    audits.requests.push(url);
+    return audits.response ? Response.json(audits.response) : new Response(null, { status: 404 });
+  }));
+});
+
 afterEach(() => {
+  audits.response = null;
+  audits.requests.length = 0;
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   acquisition.version = "0.0.1";
   acquisition.calls.length = 0;
   delete process.env.DOJOFOO_HOME;
@@ -126,5 +140,37 @@ describe("Giget-backed dojo lifecycle", () => {
     const dojo = resolve(root, "courses/remote-dojo");
     expect(readFileSync(resolve(dojo, "KYOSHI.md"), "utf8")).toContain("Authoring guidance");
     expect(readInstalledSource(dojo)?.authoring).toBe(true);
+  });
+
+  it("won't install a course that failed its security checks", async () => {
+    const root = workspace();
+    audits.response = {
+      status: "trial",
+      audits: [{ provider: "Dojo", status: "fail", riskLevel: "HIGH", summary: "1 finding: runs a postinstall script on install", findings: [{ message: "runs a postinstall script on install", path: "package.json" }] }],
+    };
+
+    await expect(add(root, ["example/remote-dojo", "--yes"])).rejects.toThrow(/example\/remote-dojo failed its security checks[\s\S]*package\.json: runs a postinstall script on install/u);
+    expect(audits.requests).toEqual(["https://courses.example.test/api/v1/courses/audit/example/remote-dojo"]);
+    expect(() => readFileSync(resolve(root, "courses", "remote-dojo", "DOJO.md"))).toThrow();
+  });
+
+  it("asks before installing a course with warnings, unless told --yes", async () => {
+    const root = workspace();
+    audits.response = {
+      status: "enabled",
+      audits: [{ provider: "Cisco Skill Scanner", status: "warn", riskLevel: "MEDIUM", summary: "1 finding: Installs an unpinned tool.", findings: [{ message: "Installs an unpinned tool." }] }],
+    };
+
+    await expect(add(root, ["example/remote-dojo"])).rejects.toThrow("Run again with --yes to install example/remote-dojo anyway.");
+    await add(root, ["example/remote-dojo", "--yes"]);
+    expect(readFileSync(resolve(root, "courses", "remote-dojo", "DOJO.md"), "utf8")).toContain("Remote dojo");
+  });
+
+  it("keeps the repository to itself when telemetry is off", async () => {
+    vi.stubEnv("DO_NOT_TRACK", "1");
+    audits.response = { status: "trial", audits: [{ provider: "Dojo", status: "fail", riskLevel: "HIGH", summary: "", findings: [] }] };
+
+    await add(workspace(), ["example/remote-dojo"]);
+    expect(audits.requests).toEqual([]);
   });
 });

@@ -35,10 +35,16 @@
       "description": "Human-readable description of what this dojo teaches.",
       "examples": ["Master Effect-TS through 40 hands-on katas"]
     },
+    "private": {
+      "type": "boolean",
+      "default": false,
+      "description": "Keeps this dojo out of the dojo.foo marketplace: it stays installable from GitHub, but installs never list it (like package.json's private)."
+    },
     "marketplace": {
       "type": "boolean",
       "default": true,
-      "description": "Whether installs may publish this public GitHub dojo to the dojo.foo marketplace."
+      "deprecated": true,
+      "description": "Deprecated: use \"private\": true. false keeps this dojo out of the dojo.foo marketplace."
     },
     "test": {
       "type": "string",

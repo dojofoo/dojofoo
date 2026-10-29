@@ -35,9 +35,14 @@ describe("GitHubCourseRegistrar", () => {
             { path: "dojo.json", type: "blob", size: 500 },
             { path: "DOJO.md", type: "blob", size: 100 },
             { path: "katas/001-values/KATA.md", type: "blob", size: 100 },
+            { path: "prepare.sh", type: "blob", size: 20 },
+            { path: "mise-tasks/setup", type: "blob", size: 20 },
+            { path: "scripts/release.sh", type: "blob", size: 20 },
           ],
         });
       }
+      if (url.endsWith("/prepare.sh")) return new Response("#!/bin/sh\n");
+      if (url.endsWith("/mise-tasks/setup")) return new Response("#!/bin/sh\n");
       if (url.endsWith("/dojo.json")) {
         return new Response(JSON.stringify(manifest));
       }
@@ -75,6 +80,8 @@ describe("GitHubCourseRegistrar", () => {
       { path: "DOJO.md", contents: "# TypeScript Basics" },
       { path: "dojo.json", contents: JSON.stringify(manifest) },
       { path: "katas/001-values/KATA.md", contents: "# Values" },
+      { path: "mise-tasks/setup", contents: "#!/bin/sh\n" },
+      { path: "prepare.sh", contents: "#!/bin/sh\n" },
     ]);
     expect(saved).toEqual([registered]);
   });
@@ -209,7 +216,44 @@ describe("GitHubCourseRegistrar", () => {
     expect(upsert).toHaveBeenCalledWith(registered);
   });
 
-  it("removes an opted-out repository from the marketplace", async () => {
+  it("removes a private repository from the marketplace", async () => {
+    const manifest = JSON.stringify({
+      private: true,
+      name: "@acme/private-starter",
+      version: "0.0.1",
+      description: "A starter that should not be listed.",
+      test: "true",
+      katas: [{ template: "katas/001/solution.ts" }],
+    });
+    const fetch = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/repos/acme/private-starter")) {
+        return Response.json({
+          private: false,
+          full_name: "acme/private-starter",
+          default_branch: "main",
+        });
+      }
+      if (url.includes("/git/trees/main?recursive=1")) {
+        return Response.json({ tree: [{ path: "dojo.json", type: "blob", size: manifest.length }] });
+      }
+      return url.endsWith("/dojo.json")
+        ? new Response(manifest)
+        : new Response("missing", { status: 404 });
+    });
+    const remove = vi.fn();
+    const upsert = vi.fn();
+
+    const registered = await new GitHubCourseRegistrar({ fetch, store: { remove, upsert } }).register({
+      type: "github",
+      repository: "acme/private-starter",
+    });
+
+    expect(registered).toBeNull();
+    expect(remove).toHaveBeenCalledWith("acme/private-starter");
+    expect(upsert).not.toHaveBeenCalled();
+  });
+  it("still honors the older marketplace: false", async () => {
     const manifest = JSON.stringify({
       marketplace: false,
       name: "@acme/private-starter",

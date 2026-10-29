@@ -1,7 +1,9 @@
 import { createCoursesApp } from "./app";
+import { MemoryCourseAuditStore } from "./course-audit";
 import { MemoryCourseEventStore } from "./event-store";
 import { GitHubCourseRegistrar } from "./github-registrar";
 import {
+  LibsqlCourseAuditStore,
   LibsqlCourseStore,
   LibsqlCourseEventStore,
   libsqlConnectionFromEnv,
@@ -15,6 +17,7 @@ const eventStore = database
   ? await LibsqlCourseEventStore.create(database)
   : new MemoryCourseEventStore();
 const courseStore = database ? await LibsqlCourseStore.create(database) : null;
+const auditStore = database ? await LibsqlCourseAuditStore.create(database) : new MemoryCourseAuditStore();
 const registrar = new GitHubCourseRegistrar({
   store: courseStore ?? {
     remove: async () => undefined,
@@ -25,5 +28,6 @@ const registrar = new GitHubCourseRegistrar({
 export default createCoursesApp({
   ...(courseStore ? { courseStore } : {}),
   eventStore,
+  auditStore,
   registrar,
 });

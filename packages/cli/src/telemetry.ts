@@ -39,9 +39,13 @@ interface RegistrationOutbox {
   registrations: RegistrationEvent[];
 }
 
-function telemetryDisabled() {
+export function telemetryDisabled() {
   return [process.env.DO_NOT_TRACK, process.env.DOJO_TELEMETRY_DISABLED]
     .some((value) => value === "1" || value === "true");
+}
+
+export function apiOrigin() {
+  return (process.env.DOJO_API_URL || "https://dojofoo.vercel.app").replace(/\/$/u, "");
 }
 
 function normalizeCourseId(name: string) {
@@ -130,7 +134,7 @@ export function queueCourseEvent(
 export async function flushCourseEvents() {
   const events = queuedEvents.splice(0);
   if (telemetryDisabled()) return;
-  const origin = (process.env.DOJO_API_URL || "https://dojofoo.vercel.app").replace(/\/$/u, "");
+  const origin = apiOrigin();
 
   const roots = new Set(events.map(({ root }) => root));
   if (process.env.DOJO_PROJECT_ROOT) roots.add(process.env.DOJO_PROJECT_ROOT);
