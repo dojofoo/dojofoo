@@ -117,9 +117,9 @@ try {
   const initial = await fetch(`${base}/conversation`).then(response => response.json());
   assert.ok(initial.sessionId);
   assert.ok(endpoint.requests.some(request => JSON.stringify(request.input).includes("Material from first")));
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(material).toContainText("Which view has the lesson resources?");
-  assert.equal((await fetch(`${base}/advance`, { method: "POST" })).status, 500);
+  assert.equal((await fetch(base.replace(/interactive$/, "lessons/answer/progressions"), { method: "POST" })).status, 409);
   await page.getByRole("textbox", { name: "Your answer", exact: true }).fill("sidebar");
   await page.getByRole("button", { name: "Check answer", exact: true }).click();
   await expect(material).toContainText("Not quite: sidebar");
@@ -131,8 +131,8 @@ try {
   assert.ok(endpoint.requests.slice(count).some(request => JSON.stringify(request.input).includes('\\"answer\\":\\"sidebar\\"')));
   const choice = initial.model.options.find(option => option.value === "openai/gpt-4o-mini");
   assert.ok(choice);
-  await page.getByRole("button", { name: "Harness model", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: choice.group ? `${choice.group} · ${choice.name}` : choice.name, exact: true }).click();
+  await page.getByRole("button", { name: "Model", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: new RegExp(choice.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
   await expect.poll(async () => (await fetch(`${base}/conversation`).then(response => response.json())).model.currentValue).toBe(choice.value);
   const cancelQuestion = "Hold this response until I stop it";
   const held = endpoint.holdNextResponse(request => JSON.stringify(request.input ?? []).includes(cancelQuestion));
@@ -152,7 +152,7 @@ try {
   await expect(material).toContainText("Not quite: sidebar");
   await expect(page.getByTestId("chat-pane")).toContainText("Help me understand the first material");
   await expect(composer).toBeEnabled();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(material).toContainText("You practiced the first course.");
   await expect.poll(() => page.getByTestId("sensei-streaming-message").first().evaluate(node => Number(getComputedStyle(node).opacity))).toBe(1);
   await expect(page.getByTestId("sensei-streaming-message").first()).toContainText("Ready to teach.");
@@ -180,7 +180,7 @@ try {
   await page.goto(route.replace("course=first", "course=second"));
   await expect(material).toContainText("Material from second");
   assert.equal((await fetch(`${secondBase}/conversation`).then(response => response.json())).sessionId, null);
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("textbox", { name: "Your answer", exact: true }).fill("resources");
   await page.getByRole("button", { name: "Check answer", exact: true }).click();
   await expect(material).toContainText("Correct: resources");

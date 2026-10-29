@@ -18,7 +18,7 @@ function InteractiveExample({ initialStep = 0 }: { initialStep?: number }) {
       step={step} totalSteps={2} complete={step === 2} question={step === 1} answer={answer} onAnswerChange={setAnswer}
       response={response} explanation={<p>The Resources section contains the lesson's authored links.</p>}
       onAnswer={() => setResponse({ answer, correct: answer.trim().toLowerCase() === "resources" })}
-      onContinue={() => setStep(value => value + 1)}>
+      onNext={() => setStep(value => value + 1)}>
       <p>{step === 0 ? "Read the material here, and ask Sensei whenever you need a hand." : "Which view contains the lesson's authored links?"}</p>
     </InteractiveLesson>}
     header={<span className="ui-as-chat__route">Sensei</span>}

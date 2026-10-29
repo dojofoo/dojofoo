@@ -27,6 +27,7 @@ type InteractiveState = {
 };
 
 export type InteractiveSnapshot = {
+  workspaceId?: string;
   dojo: string;
   course?: Pick<DojoManifest, "name" | "version" | "description" | "author" | "repository" | "language"> & { lessons: number };
   title: string;

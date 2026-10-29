@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { interactiveRoutes } from "./routes";
+import { lessonRoutes } from "../lesson/routes";
 import { acpClient } from "../lesson/codex-client";
 
 const roots: string[] = [];
@@ -24,9 +25,10 @@ function fixture() {
   }
   const workspace = observeWorkspacePath(root);
   const app = new Hono().route("/api/interactive", interactiveRoutes)
+    .route("/api/workspaces", lessonRoutes)
     .route("/api/workspaces/:workspaceId/courses/:courseId/interactive", interactiveRoutes);
   app.onError((error, c) => c.json({ error: error.message }, 500));
-  return { app, base: `/api/workspaces/${workspace}/courses/second/interactive` };
+  return { app, root, base: `/api/workspaces/${workspace}/courses/second/interactive` };
 }
 
 describe("interactive course API", () => {
@@ -34,9 +36,26 @@ describe("interactive course API", () => {
     const { app, base } = fixture();
     expect(await (await app.request(base)).json()).toMatchObject({ dojo: "second", complete: false });
     expect(await (await app.request(`${base}/asset?path=reference.svg`)).text()).toBe("<svg>second</svg>");
-    expect(await (await app.request(`${base}/advance`, { method: "POST" })).json()).toMatchObject({ dojo: "second", complete: true });
+    expect(await (await app.request(base.replace(/interactive$/, "lessons/read/progressions"), { method: "POST" })).json()).toMatchObject({ dojo: "second", complete: true });
     expect(await (await app.request("/api/interactive")).json()).toMatchObject({ dojo: "first", complete: false });
     expect((await app.request(base.replace("second", "missing"))).status).toBe(500);
+  });
+
+  it("advances only through the existing progression route after a question is answered", async () => {
+    const { app, root, base } = fixture();
+    writeFileSync(resolve(root, ".dojos/second/lesson.json"), JSON.stringify({ id: "intro", title: "Second", steps: [
+      { id: "read", type: "present", title: "Read", content: "Read this." },
+      { id: "recall", type: "question", title: "Recall", prompt: "What?", answers: ["this"], explanation: "It was this." },
+    ] }));
+    const next = (id: string) => app.request(base.replace(/interactive$/, `lessons/${id}/progressions`), { method: "POST" });
+    expect(await (await next("read")).json()).toMatchObject({ step: 1, current: { id: "recall" } });
+    expect((await next("read")).status).toBe(409);
+    expect((await next("recall")).status).toBe(409);
+    const answered = await app.request(`${base}/answer`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "this" }) });
+    expect(await answered.json()).toMatchObject({ step: 1, response: { correct: true } });
+    expect(await (await app.request(base)).json()).toMatchObject({ step: 1 });
+    expect(await (await next("recall")).json()).toMatchObject({ step: 2, complete: true });
+    expect((await app.request(`${base}/advance`, { method: "POST" })).status).toBe(404);
   });
 
   it("streams through the existing native bridge without making course reads depend on the provider", async () => {

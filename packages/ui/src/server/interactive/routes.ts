@@ -4,8 +4,9 @@ import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSent
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, extname, relative, resolve } from "node:path";
 import { dojoDir, readDojoRc } from "@dojofoo/config";
+import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { resolveRequestWorkspace, resolveWorkspaceId } from "../control/workspace";
-import { advanceInteractiveLesson, answerInteractiveQuestion, getInteractiveLesson } from "./service";
+import { answerInteractiveQuestion, getInteractiveLesson } from "./service";
 import { answerInteractiveSensei, getInteractiveConversation, selectInteractiveHarness, setInteractiveModel, streamInteractiveSensei } from "./conversation";
 import { dojofooHarness, lessonHarnesses } from "../harness/registry";
 import { streamAcpAsAgUi } from "../lesson/agui-stream";
@@ -16,13 +17,12 @@ const course = (c: Context) => c.req.param("courseId") ?? c.req.query("course");
 const target = (c: Context) => getInteractiveLesson(root(c), course(c)).dojo;
 
 export const interactiveRoutes = new Hono()
-  .get("/", (c) => c.json(getInteractiveLesson(root(c), course(c))))
+  .get("/", (c) => c.json({ ...getInteractiveLesson(root(c), course(c)), workspaceId: observeWorkspacePath(root(c)) }))
   .post("/answer", async (c) => {
     const body = await c.req.json<{ answer?: string }>();
     if (typeof body.answer !== "string" || !body.answer.trim()) return c.json({ error: "An answer is required." }, 400);
     return c.json(answerInteractiveQuestion(root(c), body.answer, course(c)));
   })
-  .post("/advance", (c) => c.json(advanceInteractiveLesson(root(c), course(c))))
   .get("/conversation", async c => c.json(await getInteractiveConversation(root(c), target(c))))
   .put("/configuration/harness", async c => {
     let body: unknown;

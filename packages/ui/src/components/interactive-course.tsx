@@ -8,7 +8,7 @@ import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Button } from "@dojofoo/uix/components/button";
 import { Composer } from "@dojofoo/uix/containers/assistant-home";
 import { Spinner } from "@mynaui/icons-react";
-import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
+import { InteractiveLesson } from "@dojofoo/uix/components/interactive-lesson";
 import { CourseCard } from "@dojofoo/uix/components/course-card";
 import { BackIcon } from "@dojofoo/uix/icons";
 import { followLink } from "@dojofoo/uix/lib/link-event";
@@ -45,6 +45,9 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
   const [lesson, setLesson] = useState<InteractiveSnapshot | null>(null);
   const [workspace, setWorkspace] = useState("");
   const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [stepBusy, setStepBusy] = useState(false);
+  const stepRequest = useRef<AbortController | null>(null);
   const [error, setError] = useState<string>();
   const [conversation, setConversation] = useState<InteractiveConversation>();
   const [conversationError, setConversationError] = useState<string>();
@@ -65,6 +68,8 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    stepRequest.current = controller;
     const selected = requestedWorkspace ?? window.localStorage.getItem("dojofoo.workspace") ?? "";
     setWorkspace(selected);
     setLesson(null);
@@ -73,13 +78,30 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     setModelChanging(false);
     setConversationReady(false);
     setQuestion("");
+    setAnswer("");
+    setStepBusy(false);
     setError(undefined);
     const url = requestedCourse ? api(selected, requestedCourse) : `/api/interactive${selected ? `?workspace=${encodeURIComponent(selected)}` : ""}`;
     void read<InteractiveSnapshot>(url)
-      .then(value => { if (!cancelled) setLesson(value); })
+      .then(value => { if (!cancelled) { setLesson(value); if (value.workspaceId) setWorkspace(value.workspaceId); } })
       .catch(cause => { if (!cancelled) setError(cause.message); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [requestedCourse, requestedWorkspace]);
+
+  async function updateStep(action: "answer" | "next") {
+    if (!lesson?.current || stepBusy) return;
+    const signal = stepRequest.current?.signal;
+    setStepBusy(true);
+    setError(undefined);
+    const path = action === "answer" ? api(workspace, lesson.dojo, "/answer")
+      : `/api/workspaces/${encodeURIComponent(workspace)}/courses/${encodeURIComponent(lesson.dojo)}/lessons/${encodeURIComponent(lesson.current.id)}/progressions`;
+    try {
+      const next = await read<InteractiveSnapshot>(path, { ...json(action === "answer" ? { answer } : {}), signal });
+      if (!signal?.aborted) { setLesson(next); setAnswer(""); }
+    } catch (cause) {
+      if (!signal?.aborted) setError(cause instanceof Error ? cause.message : String(cause));
+    } finally { if (!signal?.aborted) setStepBusy(false); }
+  }
 
   const loadConversation = useCallback(async () => {
     const request = ++conversationRequest.current;
@@ -167,9 +189,13 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     contentKind="material" editor={null} scroller={viewportRef} askAssistant={acceptsInput}
     onCommand={(id, query) => { if (id === "ask" && query) void send(query); }}
     details={<div data-testid="interactive-material">
-      <LessonBrief title={current?.title ?? lesson.lessonTitle} resources={resources}>
+      <InteractiveLesson title={current?.title ?? lesson.lessonTitle} resources={resources}
+        step={lesson.step} totalSteps={lesson.totalSteps} complete={lesson.complete} question={current?.type === "question"}
+        response={lesson.response} answer={answer} onAnswerChange={setAnswer} busy={stepBusy}
+        onAnswer={() => { void updateStep("answer"); }} onNext={() => { void updateStep("next"); }}
+        explanation={current?.type === "question" ? <CourseContent basePath={current.explanationBase} workspaceId={workspace} courseId={lesson.dojo} diagrams={false}>{current.explanation}</CourseContent> : undefined}>
         <CourseContent basePath={basePath} workspaceId={workspace} courseId={lesson.dojo} diagrams={false}>{material}</CourseContent>
-      </LessonBrief>
+      </InteractiveLesson>
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
