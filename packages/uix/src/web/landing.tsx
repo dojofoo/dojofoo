@@ -180,7 +180,7 @@ const css = /* css */ `
   .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; color: #fff; }
   /* White arrows with a hard black shadow, like a marker tag */
   .ui-land-note svg { filter: drop-shadow(2px 2px 0 #000); }
-  .ui-land-note--card { left: 40px; }
+  .ui-land-note--card { left: 40px; --cut-top: 18%; }
   /* The Sensei's dot sits at about 73% across the window: the note starts a little right of it, so its arrow runs left first */
   .ui-land-note--sensei { left: calc(73% + 34px); top: 2px; text-align: left; --cut-top: 55%; --cut-bottom: 16%; }
   /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
