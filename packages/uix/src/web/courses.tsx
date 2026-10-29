@@ -54,7 +54,7 @@ export function CoursesPage({ courses, initialQuery = "" }: { courses: WebCourse
     <SitePage current="courses" window={false}>
       <style href="ui-web-courses" precedence="default">{css}</style>
       <div className="ui-crs">
-        <PageHead kicker="Courses" title="Find your dojo" lead="A dojo is an installable package with its own sensei, built to help you master what it teaches. It guides you through coding katas, interactive lessons, capstone projects or even interviews." />
+        <PageHead kicker="Courses" title="Find your dojo" lead="A dojo is an installable package with its own sensei. It learns how you learn, then guides you through coding katas, interactive lessons, capstone projects or even interviews." />
         <div className="ui-crs-layout">
           <aside className="ui-crs-side scroll-fade" aria-label="Filters">
             <FilterList label="Teaching style" value={mode} onChange={(value) => setMode(value as TeachingMode | "all")}
