@@ -109,10 +109,12 @@ test("uses the same site navigation on marketplace and docs", async ({ page }) =
 test("reflects install, progress, and completion events", async ({ page, request }) => {
   const instanceId = "playwright-completed-course";
   for (const event of [
-    { event: "installed" },
-    { event: "started", kata: "001-hello-effect" },
-    { event: "kata_completed", kata: "001-hello-effect" },
-    { event: "finished", kata: "040-request-batching" },
+    // The test API is shared by every spec: an old install leaves the trending
+    // order alone, and the fixture's own lesson names leave the lesson reach at 40.
+    { event: "installed", occurredAt: new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString() },
+    { event: "started", kata: "001-lesson" },
+    { event: "kata_completed", kata: "001-lesson" },
+    { event: "finished", kata: "040-lesson" },
   ]) {
     const response = await request.post(`${apiOrigin}/api/v1/events`, {
       data: { instanceId, courseId: "dojofoo/effect-ts", ...event },

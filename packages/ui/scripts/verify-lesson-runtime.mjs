@@ -22,18 +22,24 @@ const stateHome = join(scratch, "state");
 const toolQuestion = "Inspect the native lesson context";
 const askQuestion = "Ask the authored native hint question";
 const rejectQuestion = "Decline a second native context read";
+const completeQuestion = "Complete this fixture lesson";
 let nativeContextSent = false;
 let nativeQuestionSent = false;
 let nativeRejectSent = false;
+let nativeCompleteSent = false;
 const endpoint = await startLoopbackModel({
   selectResponsesTool(input) {
     const text = JSON.stringify(input.input ?? []);
     const target = text.includes(askQuestion) && !nativeQuestionSent
       ? { name: "dojo_ui_ask", input: { title: "Which hint would help?", options: [{ id: "example", title: "A small example" }, { id: "review", title: "Review the goal" }] } }
       : text.includes(rejectQuestion) && !nativeRejectSent ? { name: "dojo_context", input: {}, reject: true }
-      : text.includes(toolQuestion) && !nativeContextSent ? { name: "dojo_context", input: {} } : undefined;
+      : text.includes(toolQuestion) && !nativeContextSent ? { name: "dojo_context", input: {} }
+      : text.includes(completeQuestion) && !nativeCompleteSent ? { name: "dojo_lesson_complete", input: {} } : undefined;
     if (!target) return;
-    const mark = () => { if (target.reject) nativeRejectSent = true; else if (target.name === "dojo_context") nativeContextSent = true; else nativeQuestionSent = true; };
+    const mark = () => {
+      if (target.reject) nativeRejectSent = true; else if (target.name === "dojo_context") nativeContextSent = true;
+      else if (target.name === "dojo_lesson_complete") nativeCompleteSent = true; else nativeQuestionSent = true;
+    };
     const available = (input.tools ?? []).flatMap(tool => tool.type === "namespace" ? tool.tools.map(child => ({ ...child, namespace: tool.name })) : [tool]);
     const tool = available.find(tool => tool.name?.endsWith(target.name));
     if (tool) { mark(); return { name: tool.name, ...(tool.namespace ? { namespace: tool.namespace } : {}), input: target.input }; }
@@ -130,6 +136,7 @@ try {
   const browser = await chromium.launch({ headless: true });
   let page;
   const frames = [];
+  const browserLog = [];
   const settleTool = async card => {
     await expect.poll(() => card.evaluate(element => [element, element.querySelector(".ui-tc__body"), element.closest(".ui-as-msg"), element.closest(".ui-think")?.querySelector(".ui-think__body")]
       .some(node => node?.getAnimations().some(animation => animation.playState === "running"))), { timeout: 5_000 }).toBe(false);
@@ -141,7 +148,10 @@ try {
     page.on("request", request => {
       if (request.method() === "POST" && request.url().endsWith("/messages") && request.postDataJSON()?.forwardedProps?.kind === "introduction") introductions.push(request.url());
     });
-    page.on("pageerror", error => errors.push(error.message));
+    page.on("pageerror", error => { errors.push(error.message); browserLog.push(`page error: ${error.stack ?? error.message}`); });
+    page.on("console", message => browserLog.push(`${message.type()}: ${message.text()}`));
+    page.on("requestfailed", request => browserLog.push(`request failed: ${request.url()} ${request.failure()?.errorText ?? ""}`));
+    page.on("response", response => { if (response.status() >= 400) browserLog.push(`HTTP ${response.status()}: ${response.url()}`); });
     page.on("websocket", socket => socket.on("framereceived", frame => { try { frames.push(JSON.parse(String(frame.payload))); } catch {} }));
     await page.goto(`${origin}/session/${after.sessionId}`);
     await expect(page.locator(".monaco-editor textarea")).toBeVisible();
@@ -152,6 +162,8 @@ try {
       const faces = await document.fonts.load('16px "Iosevka"');
       return faces.length > 0 && faces.every(face => face.status === "loaded");
     }), true, "The real editor font must load from the built app");
+    await expect.poll(() => page.locator(".view-lines").evaluate(node => new Set([...node.querySelectorAll("span[class^=mtk]")].map(span => span.classList[0])).size),
+      { message: "The real editor must apply syntax highlighting", timeout: 15_000 }).toBeGreaterThan(1);
     await page.locator(".view-lines").getByText("answer", { exact: true }).first().hover();
     const hover = page.locator(".monaco-hover:visible");
     await expect(hover).toContainText("Count the tokens in the fixture.");
@@ -299,7 +311,7 @@ try {
     const [configured] = await Promise.all([
       page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith("/configuration/model")),
       (async () => {
-        await page.getByRole("button", { name: "Harness model", exact: true }).click();
+        await page.getByRole("button", { name: "Model", exact: true }).click();
         await page.getByRole("menuitemradio", { name: modelOption.group ? `${modelOption.group} · ${modelOption.name}` : modelOption.name, exact: true }).click();
       })(),
     ]);
@@ -380,11 +392,18 @@ try {
     await expect(page.getByRole("radio", { name: /A small example/ })).toBeDisabled();
     await expect(page.getByRole("radio", { name: /A small example/ })).toHaveAttribute("aria-checked", "true");
     assert.equal(answered.result.complete, true);
+    // Kata courses have no Continue control: the Sensei offers the completion
+    // choice (dojo_lesson_complete) and the host advances on Move on.
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).fill(completeQuestion);
+    await page.getByRole("textbox", { name: "Message the sensei", exact: true }).press("Enter");
+    const moveOn = page.getByRole("radio", { name: "Move on", exact: true }).last();
+    await expect(moveOn).toBeEnabled({ timeout: 15_000 });
     const [progressed] = await Promise.all([
-      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/progressions")),
-      page.getByRole("button", { name: "Continue to next lesson", exact: true }).click(),
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/messages") && Boolean(response.request().postDataJSON()?.answers)),
+      moveOn.click(),
     ]);
-    assert.equal(progressed.status(), 200);
+    assert.equal(progressed.status(), 201);
+    assert.equal((await progressed.json()).kata, "next");
     await expect(page.locator(".view-lines")).toContainText("const next");
     await expect.poll(async () => (await fetch(base.replace(/\/first$/, "/next")).then(response => response.json())).introduced, { timeout: 15_000 }).toBe(true);
     await expect(page.getByRole("link", { name: /^First\b/ })).toBeVisible();
@@ -406,6 +425,7 @@ try {
     const oldReplies = replyCount(completedSnapshot);
     const sentIntroductions = introductions.length;
     await stopServer();
+    await writeFile(artifact("web-state-before-restart.json"), await readFile(join(workspace, ".dojo/web.json"), "utf8").catch(error => String(error)));
     server = launchServer();
     await expect.poll(async () => {
       try { return (await fetch(`${origin}/api/control/courses`)).status; } catch { return 0; }
@@ -414,8 +434,16 @@ try {
     await expect(page.locator(".view-lines")).toContainText("return 42");
     await expect(page.getByTestId("chat-pane")).toHaveAttribute("data-chat-status", "ready");
     const restarted = await fetch(base).then(response => response.json());
+    // Evidence only: how the restored model reads over the next seconds.
+    const modelTimeline = [{ at: 0, model: restarted.model?.currentValue }];
+    for (const at of [1_000, 3_000, 6_000]) {
+      await new Promise(resolve => setTimeout(resolve, at - modelTimeline.at(-1).at));
+      modelTimeline.push({ at, model: (await fetch(base).then(response => response.json())).model?.currentValue });
+    }
+    await writeFile(artifact("model-after-restart.json"), JSON.stringify(modelTimeline, null, 2));
     await writeFile(artifact("before-restart.json"), JSON.stringify(completedSnapshot, null, 2));
     await writeFile(artifact("after-restart.json"), JSON.stringify(restarted, null, 2));
+    await writeFile(artifact("web-state-after-restart.json"), await readFile(join(workspace, ".dojo/web.json"), "utf8").catch(error => String(error)));
     assert.equal(restarted.sessionId, after.sessionId);
     assert.equal(restarted.code, shortcutSolution);
     assert.equal(restarted.result.complete, true);
@@ -438,6 +466,21 @@ try {
       await page.screenshot({ path: artifact("results-failure.png") });
       await writeFile(artifact("results-failure.html"), await page.content());
       await writeFile(artifact("results-failure-frames.json"), JSON.stringify(frames, null, 2));
+      await writeFile(artifact("results-failure-browser.log"), browserLog.join("\n"));
+      await writeFile(artifact("results-failure-editor.json"), JSON.stringify(await page.evaluate(async () => {
+        const { editor, languages } = await import("modern-monaco/editor-core");
+        return { mode: document.documentElement.className, languages: languages.getLanguages().map(language => language.id),
+          models: editor.getModels().map(model => ({ uri: model.uri.toString(), language: model.getLanguageId(),
+            tokens: editor.tokenize(model.getLineContent(Math.min(6, model.getLineCount())), model.getLanguageId()),
+            lineTokens: (() => { const line = model.tokenization.getLineTokens(Math.min(6, model.getLineCount()));
+              return Array.from({ length: line.getCount() }, (_, index) => line.getClassName(index)); })(),
+            backgroundTokenizationState: model.tokenization.backgroundTokenizationState,
+            accurate: model.tokenization.hasAccurateTokensForLine(Math.min(6, model.getLineCount())),
+            forced: (() => { model.tokenization.forceTokenization(model.getLineCount()); const line = model.tokenization.getLineTokens(Math.min(6, model.getLineCount()));
+              return Array.from({ length: line.getCount() }, (_, index) => line.getClassName(index)); })() })),
+          editors: editor.getEditors().map(instance => ({ model: instance.getModel()?.uri.toString(), theme: instance.getRawOptions().theme,
+            rendered: (instance.render(true), [...instance.getDomNode().querySelectorAll(".view-line span[class^=mtk]")].map(node => node.className)) })) };
+      }).catch(error => String(error)), null, 2));
     }
     throw error;
   } finally { await browser.close(); }

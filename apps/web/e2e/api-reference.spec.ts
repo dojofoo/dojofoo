@@ -31,10 +31,13 @@ test("API docs hydrate from the generated Elysia spec, list endpoints by collect
   }).toBeGreaterThanOrEqual(20);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(api.locator("pre").first()).toBeVisible();
-  const article = await page.locator(".ui-docs").boundingBox();
-  const tree = await page.locator(".ui-docs-layout > .ui-docs-tree").boundingBox();
-  expect(article!.width).toBeGreaterThanOrEqual(340);
-  expect(tree!.y).toBeGreaterThanOrEqual(article!.y + article!.height);
+  // Measure both boxes in one frame: hydration can still resize or scroll the
+  // article between two separate boundingBox calls.
+  await expect.poll(() => page.evaluate(() => {
+    const article = document.querySelector(".ui-docs")!.getBoundingClientRect();
+    const tree = document.querySelector(".ui-docs-layout > .ui-docs-tree")!.getBoundingClientRect();
+    return { wide: article.width >= 340, treeBelowArticle: tree.top >= article.bottom };
+  })).toEqual({ wide: true, treeBelowArticle: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
