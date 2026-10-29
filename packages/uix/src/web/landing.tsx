@@ -47,7 +47,7 @@ export function LandingPage({ learning, courses, preview }: {
           <h1 className="ui-land-hero__title">You can only fight the way you practice</h1>
           <figcaption className="ui-land-hero__cite">Miyamoto Musashi</figcaption>
         </figure>
-        <p className="ui-land-hero__lead">Deliberate practice, with a sensei at your side through every challenge. Your dojo, your way: take any course, rehearse for your next interview, or turn what you know into a dojo anyone can install.</p>
+        <p className="ui-land-hero__lead">Deliberate practice, with a sensei at your side who can mentor you through every challenge. Your dojo, your way: take any course, rehearse for your next interview, or turn what you know into a dojo anyone can install.</p>
         <div className="ui-land-hero__actions">
           {/* Getting started is the one command: down to it */}
           <ButtonLink href="#ui-land-start" onClick={event => followLink(event, () => {
