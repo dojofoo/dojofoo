@@ -29,7 +29,7 @@ dojofoo is a CLI you run with `npx` and a set of dojos you bolt onto any project
 ```sh
 npx dojofoo install          # one-time: auto-detects your agent via env vars
 npx dojofoo add dojofoo/effect-ts # add a ryū (training pack) you want to study
-npx dojofoo ui               # open the course and start learning
+npx dojofoo                  # open the course and start learning
 ```
 
 The agent follows the kata's `SENSEI.mdx` or `SENSEI.md`, runs your tests, and

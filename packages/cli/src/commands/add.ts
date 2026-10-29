@@ -419,7 +419,7 @@ function finalize(root: string, name: string, targetPath: string, source?: Insta
 
   Location:  ${DOJOS_DIR}/${name}
   Active:    ${name}
-  Start:     ${source?.authoring ? `cd ${DOJOS_DIR}/${name} && ${CLI} ui --authoring` : `${CLI} ui`}`);
+  Start:     ${source?.authoring ? `cd ${DOJOS_DIR}/${name} && ${CLI} --authoring` : CLI}`);
 
   queueCourseEvent(
     root,

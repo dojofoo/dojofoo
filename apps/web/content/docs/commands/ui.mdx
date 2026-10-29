@@ -4,12 +4,17 @@ description: Open the lesson UI in your browser – the lesson, an editor, the t
 ---
 
 ```sh
-npx dojofoo ui [options]
+npx dojofoo [options]
 ```
 
-Starts a local server for the UI and opens it. Stopping the command stops the server; your
-courses and sessions stay indexed in `~/.dojofoo/dojofoo.db`. This is how you learn with
-dojofoo.
+Run in a terminal, `npx dojofoo` starts a local server for the UI and opens it. In a folder
+that isn't set up yet, it first runs [install](/docs/commands/install). Stopping the command
+stops the server; your courses and sessions stay indexed in `~/.dojofoo/dojofoo.db`. This is
+how you learn with dojofoo.
+
+Without a terminal – in a script, CI or a pipe – `npx dojofoo` prints its help instead.
+Scripts and agents open the UI with `npx dojofoo ui [options]`, which takes the same options
+and never runs the setup.
 
 ## Options
 
@@ -32,10 +37,20 @@ dojofoo.
 ## Examples
 
 ```sh
-npx dojofoo ui                            # open the UI
-npx dojofoo ui --background --no-open     # keep it running, quietly
-npx dojofoo ui --no-portless --port 4570  # localhost, on another port
+npx dojofoo                            # open the UI
+npx dojofoo --background --no-open     # keep it running, quietly
+npx dojofoo --no-portless --port 4570  # localhost, on another port
 ```
+
+## Agent controls
+
+Agents drive the open UI through the `ui` command:
+
+| Command | Does |
+| --- | --- |
+| `npx dojofoo ui [options]` | Open the UI from a script or agent, with the options above |
+| `npx dojofoo ui prompt` | Show a structured prompt in the current lesson UI |
+| `npx dojofoo ui --skill` | Print the agent instructions for controlling the UI |
 
 ## The address
 
@@ -67,7 +82,7 @@ portless prune       # clear routes left by crashed processes
 ```
 
 From this repository, build once with `pnpm ui:build`, then use `pnpm ui`.
-The script launches the same CLI and hostname as `dojofoo ui`.
+The script launches the same CLI and hostname as `npx dojofoo`.
 
 ## The sensei's agent
 

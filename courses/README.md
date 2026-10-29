@@ -9,7 +9,7 @@ Install a source into a separate learning workspace with the existing local-path
 
 ```sh
 npx dojofoo add /absolute/path/to/dojo/courses/how-to-run-a-dojo --master
-npx dojofoo ui
+npx dojofoo
 ```
 
 Use the corresponding path for `create-your-own-dojo`. `--master` keeps editable authoring source. A second installation requires an explicit update decision; these sources must not overwrite a learner's edited installation.

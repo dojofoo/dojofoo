@@ -8,6 +8,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { ui, resolveAuthoringRoot, resolveUiEntry, resolveUiOpenPath } from "../src/commands/ui";
+import { bareOpensUi } from "../src/commands/root";
 import { listWorkspaces } from "@dojofoo/config/local-state";
 
 vi.mock(import("node:child_process"), { spy: true });
@@ -88,5 +89,17 @@ describe("bundled dojo UI", () => {
     const cliModuleUrl = pathToFileURL(resolve(root, "dist/index.js")).href;
 
     expect(resolveUiEntry(cliModuleUrl)).toBe(resolve(root, "dist/ui/server/index.mjs"));
+  });
+});
+
+describe("bare dojofoo", () => {
+  it("opens the UI from a terminal and prints the help for scripts", () => {
+    expect(bareOpensUi([], true)).toBe(true);
+    expect(bareOpensUi(["--no-open", "--port", "4699"], true)).toBe(true);
+    expect(bareOpensUi([], false)).toBe(false);
+    expect(bareOpensUi(["--no-open"], false)).toBe(false);
+    for (const flags of [["--list"], ["--check"], ["--change", "other"], ["--help"], ["status"], ["--no-open", "--typo"]]) {
+      expect(bareOpensUi(flags, true)).toBe(false);
+    }
   });
 });

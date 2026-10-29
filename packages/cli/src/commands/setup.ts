@@ -122,7 +122,7 @@ export async function setup(
   console.log(`Dojo ready${suffix}.
 
   Add a dojo with: ${CLI} add <source>
-  Start learning:  ${CLI} ui`);
+  Start learning:  ${CLI}`);
 }
 
 export function parseAgentSelection(answer: string): AgentName[] | null {

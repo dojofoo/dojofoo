@@ -21,7 +21,7 @@ import { TopographyBackdrop } from "./topography-backdrop";
  */
 
 /** The command that starts dojo: the lesson workspace in the browser – agents and courses are installed from there */
-const START = "npx dojofoo ui";
+const START = "npx dojofoo";
 
 /** The three ways to use a dojo – interview first. */
 const modes = [
