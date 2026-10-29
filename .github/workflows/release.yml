@@ -52,3 +52,10 @@ jobs:
         run: |
           release_version=$(node -p 'require("./packages/cli/package.json").version')
           npm exec --yes --package="dojofoo@$release_version" -- dojofoo --help
+
+      # A version tag is production: the tagged commit's staged deployment takes dojo.foo
+      - name: Promote the release to production
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node scripts/vercel/promote-release.mjs "$GITHUB_SHA"
