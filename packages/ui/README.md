@@ -54,4 +54,4 @@ pnpm --filter @dojofoo/ui exec vitest run
 
 ## License
 
-MIT. The ACP SDK and `codex-acp` are Apache-2.0 dependencies.
+FSL-1.1-ALv2. The ACP SDK and `codex-acp` are Apache-2.0 dependencies.

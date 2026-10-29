@@ -2,6 +2,7 @@
   "name": "@dojofoo/evals",
   "version": "0.0.2",
   "private": true,
+  "license": "FSL-1.1-ALv2",
   "type": "module",
   "scripts": {
     "eval:introduction": "tsx src/introduction.ts",

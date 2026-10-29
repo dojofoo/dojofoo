@@ -2,6 +2,7 @@
   "name": "@dojofoo/api",
   "version": "0.0.1",
   "private": true,
+  "license": "FSL-1.1-ALv2",
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/index.ts",

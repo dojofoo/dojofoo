@@ -2,7 +2,7 @@
   "name": "@dojofoo/ui",
   "version": "0.0.2",
   "private": true,
-  "license": "MIT",
+  "license": "FSL-1.1-ALv2",
   "description": "Shared Dojofoo UI components, local learning interface, and agent-facing server.",
   "type": "module",
   "sideEffects": [

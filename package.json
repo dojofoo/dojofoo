@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "type": "module",
-  "license": "MIT",
+  "license": "FSL-1.1-ALv2",
   "scripts": {
     "assets:logo": "node scripts/assets/build-logo.mjs",
     "build": "turbo build",
