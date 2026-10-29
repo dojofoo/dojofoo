@@ -40,8 +40,9 @@ export const Route = createFileRoute('/og/$')({
           return ogImage(
             <DojoOg {...frame} title={course.name} description={course.description} author={course.author}
               card={<OgCourseCard hue={course.art.hue} lines={lines.src} linesOpacity={lines.opacity}
-                // Its version and rating (when it has one, as on the site) at the top, its last update at the foot
-                mark={course.version.startsWith('v') ? course.version : `v${course.version}`} figure={course.rating === undefined ? undefined : `★ ${course.rating.toFixed(1)}`}
+                // Its version at the top, beside it its rating once someone has rated it (its language till then); its last
+                // update at the foot
+                mark={course.version.startsWith('v') ? course.version : `v${course.version}`} figure={course.rating === undefined ? course.language : `★ ${course.rating.toFixed(1)}`}
                 kicker={course.repository} title={course.name}
                 label={course.publishedAt ? 'Updated' : undefined} value={course.publishedAt ? new Date(course.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : undefined}
                 tag={teachingModes.find((mode) => mode.value === course.mode)?.label} />} />,
