@@ -8,7 +8,8 @@ import { cn } from "../lib/utils";
  */
 
 type Pt = { x: number; y: number };
-/** arc: a pen flick bulging to one side; straight: a ruled line; elbow: out of the note's side, then down into the target */
+/** arc: a pen flick bulging to one side; straight: a ruled line; elbow: one quarter curve, level out of the note's side and
+    down into the target (handles at 0.55, about a quarter ellipse, so it turns the whole way rather than at a corner) */
 export type ArrowShape = "arc" | "straight" | "elbow";
 type Box = { left: number; top: number; width: number; height: number };
 
@@ -60,10 +61,10 @@ function geometry(note: Box, target: Box, flip = false, shape: ArrowShape = "arc
   const bulge = Math.min(len * 0.32, 56) * bend;
   // Asymmetric handles: a quick start, a longer approach into the tip.
   const c1 = shape === "straight" ? { x: s.x + vx / 3, y: s.y + vy / 3 }
-    : shape === "elbow" ? { x: s.x + Math.min(vx * 0.9, -40), y: s.y }
+    : shape === "elbow" ? { x: s.x + Math.min(vx * 0.55, -24), y: s.y }
     : { x: s.x + vx * 0.15 + nx * bulge, y: s.y + vy * 0.15 + ny * bulge };
   const c2 = shape === "straight" ? { x: s.x + (vx * 2) / 3, y: s.y + (vy * 2) / 3 }
-    : shape === "elbow" ? { x: e.x, y: e.y - vy * 0.9 }
+    : shape === "elbow" ? { x: e.x, y: e.y - vy * 0.55 }
     : { x: s.x + vx * 0.7 + nx * bulge * 0.75, y: s.y + vy * 0.7 + ny * bulge * 0.75 };
 
   // The head follows the curve's last tangent, two unequal barbs like a
