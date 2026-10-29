@@ -1,7 +1,7 @@
 # 0108: Draft starter courses and deliberate installation
 
 Parent: UIX adoption (0100).
-Status: draft content and local empty-shell/discovery presentation prepared; full installation/teaching integration still depends on 0106–0107. Local review remains unmerged.
+Status: draft content, packaged assets and explicit Explore installation implemented; full teaching integration and tutorial-to-draft acceptance still depend on 0106–0107. Local review remains unmerged.
 
 Goal: ship the editable “Create your own dojo” and “How to run a dojo” starters through the packaged local application, with deliberate offline installation, actual Sensei context, saved progress, and an independent authoring-to-trial journey. Source content alone does not complete this goal.
 
@@ -17,7 +17,7 @@ Fresh result on 2026-10-27: 2 passed (714ms). The real local-path installer copi
 
 Remaining acceptance:
 
-- Bundle the source assets in the actual CLI distribution and expose deliberate installation using the existing workspace/installer ownership. Validate the installed tarball outside the monorepo, offline. Do not overwrite edited installations or auto-install courses on every launch.
+- Expose deliberate installation of the bundled assets using the existing workspace/installer ownership. Validate the installed tarball outside the monorepo, offline. Do not overwrite edited installations or auto-install courses on every launch.
 - Connect the selected course's teaching guidance and relevant docs to its real Sensei context; the current interactive conversation sends the selected step/snapshot, not these separate `DOJO.md` files. Do not claim the guidance is already supplied to the agent.
 - Use the approved Pages layout and settle the learner navigation/answer presentation under the user's no-Continue constraint. Verify progress, answers, conversation identity and model across reload and server restart with a native harness and scripted local inference.
 - Demonstrate the tutorial-to-independent-draft handoff, real file edits/save, learner trial and return to that same draft without changing either tutorial's source or installation. Evaluation/publication stay explicit and must never be reported as successful before execution.
@@ -44,3 +44,12 @@ Both empty starter shells disabled the message field while leaving the default f
 Red checks reproduced an enabled Add file button and one unsupported Ask assistant option. Fresh final local gates: host types and built CLI passed; host 415 passed / 4 skipped (26.70s); learner-page browser 5 passed (12.4s), gated on successful /api/health. The extended journey opens both shells through local discovery, verifies unavailable controls/no file input, checks no assistant search fallback with settings still discoverable, and records zero write requests or external popups. Starter screenshot inspected. Evidence: /tmp/dojo-ui-starter-composer-{red,final-types,final-build,final-tests,final-browser}.log; /tmp/dojo-ui-starter-search-red.log; /tmp/dojo-ui-starter-composer-final-browser-results/.
 
 Concurrent branding is excluded; all 47 other preserved user files and 18 root audit files retain their hashes. The current agent/authoring/UI-server source diff is empty. A separate read-only branch audit confirms older runtime commits still affect 22 server/authoring paths relative to main; they were neither changed nor reverted. Keep the branch unmerged and distinguish that older history before any UI-only merge. Audit evidence: /tmp/dojo-ui-starter-composer-existing-core-{range,commits}.txt. Full UI parity, supported tutorial installation/handoff, clean CI/package and release acceptance remain open.
+
+
+## CLI asset packaging checkpoint, 2026-10-28
+
+The existing CLI bundling step now copies only the two starter course directories into `dist/starters`. It replaces their generated distribution copies on rebuild and leaves source courses and user installations untouched. There is no automatic course installation, new runtime filesystem code, dependency or agent build.
+
+Fresh actual UI/CLI build and `pnpm pack` passed. The resulting `/tmp/dojo-bundled-starters-pack/dojofoo-0.2.1.tgz` contains all nine files from each starter, including manifests, teaching guidance and lesson content. An archive reader compared the complete file lists and every file's bytes against source: both match. The existing installer/progression/source-preservation content gate passed **2/2 (1.08s)**. Evidence, archive hash and logs: `/tmp/dojo-bundled-starters-evidence.json`.
+
+This proves the assets are shipped in the archive. It does not prove installed-runtime behavior, offline dependency installation, an installation button, native conversation persistence or tutorial-to-draft handoff. Those acceptance items remain open; the existing empty-shell UI remains as requested until connected to deliberate installation. The protected agent source/build and pending production-launcher decision are unchanged.

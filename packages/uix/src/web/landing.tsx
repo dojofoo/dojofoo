@@ -1,16 +1,10 @@
 import { followLink } from "../lib/link-event";
-import claudeDarkLogo from "../assets/agents/claude-wordmark-dark.svg?url";
-import claudeLightLogo from "../assets/agents/claude-wordmark-light.svg?url";
-import codexLogo from "../assets/agents/codex.svg?url";
-import cursorLogo from "../assets/agents/cursor.svg?url";
-import fxLogo from "../assets/agents/fx.svg?url";
-import opencodeLogo from "../assets/agents/opencode-wordmark.svg?url";
-import piLogo from "../assets/agents/pi.svg?url";
 import { useState } from "react";
 import { Icon } from "../components/app-shell";
 import { ButtonLink } from "../components/button";
 import { courseColor } from "../components/course-card";
 import { TabOverload } from "../components/tab-overload";
+import LogoCloud from "../components/logo-cloud-1";
 import { Carousel } from "../components/arc/carousel/carousel";
 import { ArrowRight01Icon } from "../lib/icons";
 import type { WebCourse } from "./catalog";
@@ -28,17 +22,6 @@ import { TopographyBackdrop } from "./topography-backdrop";
 
 /** The command that starts dojo: the lesson workspace in the browser – agents and courses are installed from there */
 const START = "npx dojofoo ui";
-
-const agents: Array<{ name: string; src: string; className: string; theme?: "light" | "dark" }> = [
-  { name: "Codex", src: codexLogo, className: "h-6 dark:invert" },
-  // Claude's wordmark in two inks: dark letters on the light page, white on the dark one
-  { name: "Claude", src: claudeLightLogo, className: "h-6", theme: "light" },
-  { name: "Claude", src: claudeDarkLogo, className: "h-6", theme: "dark" },
-  { name: "OpenCode", src: opencodeLogo, className: "h-5 invert dark:invert-0" },
-  { name: "Cursor", src: cursorLogo, className: "h-5 dark:invert" },
-  { name: "Pi", src: piLogo, className: "h-6 invert dark:invert-0" },
-  { name: "FX", src: fxLogo, className: "h-5 dark:invert" },
-];
 
 /** The three ways to use a dojo – interview first. */
 const modes = [
@@ -82,13 +65,7 @@ export function LandingPage({ learning, courses, featureCourse, preview }: {
 
       <section className="ui-land-agents" aria-labelledby="ui-land-agents">
         <h2 id="ui-land-agents" className="ui-land-eyebrow">Works with</h2>
-        <ul>
-          {agents.map((agent) => (
-          <li key={agent.src} className={agent.theme === "light" ? "dark:hidden" : agent.theme === "dark" ? "hidden dark:block" : undefined}>
-            <img src={agent.src} alt={agent.name} className={agent.className} />
-          </li>
-        ))}
-        </ul>
+        <LogoCloud />
       </section>
 
       <div className="ui-land-body">
@@ -157,10 +134,8 @@ const css = /* css */ `
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
 .ui-land-app .ui-as-side__before { margin-top: 0; }
 
-/* The agents, quiet, in a roomy row */
+/* The agents: the logo cloud, its groups taking turns */
 .ui-land-agents { display: grid; justify-items: center; gap: 22px; padding: 56px 20px 24px; }
-.ui-land-agents ul { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px 64px; margin: 0; padding: 0; list-style: none; opacity: 0.75; }
-.ui-land-agents img { display: block; width: auto; }
 
 /* The sections, on the page, dotted rules between them */
 .ui-land-section { padding: 64px 0; }

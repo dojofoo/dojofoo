@@ -14,9 +14,10 @@ import {
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Button } from "@dojofoo/uix/components/button";
 import { AppShell, Icon, MenuButton } from "@dojofoo/uix/components/app-shell";
-import { CoursesIcon, ExploreIcon, MoonIcon, SunIcon } from "@dojofoo/uix/icons";
+import { MoonIcon, SunIcon } from "@dojofoo/uix/icons";
 import { setPageMode, usePageMode } from "@dojofoo/uix/lib/ui-preferences";
 import { useAccountMenu } from "@/hooks/use-account-menu";
+import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
 
 export const Route = createFileRoute("/avatar")({ component: AvatarStudio });
 
@@ -55,8 +56,7 @@ function AvatarStudio() {
   return (
     <div className="h-dvh overflow-hidden"><AppShell {...account} workspace="Dojo" sidebarWidth="18rem" showNews={false} showOnboarding={false}
       brand={<Link aria-label="Dojo dashboard" className="flex items-center" to="/"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>}
-      navigation={[{ id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" },
-        { id: "explore", label: "Explore", icon: ExploreIcon, href: "/explore" }] }]}
+      navigation={dashboardNavigation()} navigationKey={dashboardNavigationKey} active={[]}
       onNavigate={id => { void navigate({ to: id === "explore" ? "/explore" : "/" }); }}>
       <div className="px-6 pt-5 md:px-10 flex items-center justify-between gap-4">
         <Link className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground" to="/"><ArrowLeft size={15} /> Courses</Link>

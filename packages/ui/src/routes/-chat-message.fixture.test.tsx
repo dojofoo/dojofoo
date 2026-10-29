@@ -190,3 +190,12 @@ it.each([["complete", "success"], ["error", "error"]] as const)("keeps failed ch
   expect(html).toContain("1/2 lesson checks passed");
   expect(html).toContain("Expected [] but received undefined");
 });
+
+it("keeps a preliminary Eve tool result visibly running until Eve finishes it", () => {
+  const [message] = eveChatMessages([{ id: "partial", role: "assistant", parts: [{
+    type: "dynamic-tool", toolCallId: "read", toolName: "read_file", input: {}, state: "output-available", output: "Preview", partial: true,
+  }] }]);
+  message!.parts = message!.parts.map(part => part.type === "tool-call" ? { ...part, state: "complete" } : part);
+  const html = renderToStaticMarkup(<StreamedChatMessage message={message!} fragments={{}} workspaceId="fixture" streaming />);
+  expect(html).toContain('class="ui-tc" data-status="running"');
+});

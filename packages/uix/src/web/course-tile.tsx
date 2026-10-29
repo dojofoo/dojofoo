@@ -13,7 +13,7 @@ export function CourseTile({ course, href, onOpen, shader = false }: { course: W
       if (href) event.preventDefault();
       onOpen(course);
     } : undefined}
-      header={<><CardMark>{course.author === "Dojo.foo" ? <BrandLogo /> : course.author}</CardMark>{course.rating !== undefined && <CardFigure aria-label={`Rated ${course.rating} out of 5`}>★ {course.rating.toFixed(1)}</CardFigure>}</>}
+      header={<><CardMark>{course.author === "Dojo.foo" ? <BrandLogo mono /> : course.author}</CardMark>{course.rating !== undefined && <CardFigure aria-label={`Rated ${course.rating} out of 5`}>★ {course.rating.toFixed(1)}</CardFigure>}</>}
       main={<><CardKicker code>{course.repository}</CardKicker><CardTitle>{course.name}</CardTitle></>}
       footer={<><CardText label={course.language} value={`${compactNumber(course.metrics.installs)} installs`} />{mode && <ColorCardTag>{mode}</ColorCardTag>}</>} />
   );

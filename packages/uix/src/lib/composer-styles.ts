@@ -38,6 +38,10 @@ export const composerCss = /* css */ `
 .ui-as-ghost[data-active] { color: var(--ink); }
 .ui-as-ghost[data-active] svg { color: var(--accent); }
 .ui-as-ghost--model > svg:last-child { margin-left: -2px; color: var(--faint); }
+/* Waiting on the host (an agent session loading): a spinner in place of the picker's icon */
+.ui-as-ghost[aria-busy="true"] { cursor: progress; }
+.ui-as-spinner { flex: none; animation: ui-as-spin 900ms linear infinite; }
+@keyframes ui-as-spin { to { transform: rotate(1turn); } }
 .ui-as-composer .ui-as-menu { min-width: 248px; }
 .ui-as-composer__tray .ui-as-anchor { display: flex; }
 /* Dictation: the mic turns red and pulses while it listens */

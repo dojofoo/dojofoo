@@ -13,7 +13,7 @@ import { cn } from "../lib/utils";
  * (`enrolled`) says what you have instead: your version top left – an Update button once there is a newer one – its
  * author over the title, and your progress at the foot, as the small cards show it.
  *
- *   <CourseCard mark={<BrandLogo />} course={{ title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript",
+ *   <CourseCard mark={<BrandLogo mono />} course={{ title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript",
  *     author: "Dojo.foo", rating: 4.9, version: "v1.4.0", updated: "12 Oct 2026", language: "TypeScript", chapters: 4,
  *     lessons: 12, hours: 6, art: { hue: 350, glyph: "TS" } }}
  *     enrolled={{ version: "v1.4.0", latest: "v1.5.0", onUpdate, progress: 42, label: "02 · Objects", value: "Merge settings" }} />

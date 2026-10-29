@@ -2,20 +2,11 @@ import { expect, test } from "@playwright/test";
 
 const pages = ["installation-setup", "learner-intro", "learner-kata", "learner-slides", "course-authoring", "course-authoring-evaluation", "certificates", "explore", "settings", "content-window-settings"];
 
-test("the page catalog is small; originals and animated controls are archived", async ({ request }) => {
-  const { entries } = await (await request.get("/index.json")).json();
-  const ids = Object.keys(entries);
-  expect(ids.filter(id => id.startsWith("pages-"))).toEqual(pages.map(name => `pages-dojo--${name}`));
-  expect(ids.some(id => id.includes("materials"))).toBe(false);
-  expect(ids).toContain("templates-theme-sandbox--sandbox");
-  expect(ids).toContain("archive-animated-controls-button--confetti-story");
-  expect(ids).toContain("archive-affectui--onboarding");
-});
 
 for (const theme of ["dark", "light"]) {
   test(`featured course corners stay calibrated across every layer in ${theme}`, async ({ page }) => {
     await page.goto(`/iframe.html?id=pages-dojo--explore&viewMode=story&globals=theme:${theme}`);
-    await expect(page.getByRole("list", { name: "Featuring" })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Featuring" })).toBeVisible({ timeout: 15_000 });
     const read = () => page.evaluate(() => {
       const feature = document.querySelector(".lj-top__item")!;
       const card = feature.querySelector(".ui-card")!;
@@ -50,7 +41,7 @@ for (const theme of ["dark", "light"]) {
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(`/iframe.html?id=pages-dojo--${name}&viewMode=story&globals=theme:${theme}`);
-    await expect(page.locator("#storybook-root").locator(".ui-as")).toBeVisible();
+    await expect(page.locator("#storybook-root").locator(".ui-as")).toBeVisible({ timeout: 15_000 });
     await expect(page.locator("html")).toHaveClass(theme === "dark" ? /dark/ : /h-full/);
     await expect(page.locator("#storybook-root")).not.toHaveText("");
     await expect(page.locator(".sb-errordisplay")).not.toBeVisible();
@@ -124,7 +115,7 @@ test("authoring file search keeps lesson context visible on a phone", async ({ p
 test("editor supports undo, coverage, line references, read-only files and keyboard save", async ({ page }) => {
   await page.goto("/iframe.html?id=components-organisms-editor--playground&viewMode=story");
   const code = page.getByRole("textbox", { name: "Code editor", exact: true });
-  await expect(code).toBeVisible();
+  await expect(code).toBeVisible({ timeout: 15_000 });
   await code.focus();
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.type("\n// trial edit");

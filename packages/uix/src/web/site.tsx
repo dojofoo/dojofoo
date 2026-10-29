@@ -87,7 +87,7 @@ export function SiteHeader({ current, as: Component = "header", mobileAction }: 
   };
   return (
     <Component className="ui-web-head" data-site-navigation="">
-      <a href={links.sectionHref("home")} className="ui-web-head__brand" aria-label="Dojo.foo home" onClick={go("home")}><BrandLogo className="w-12" /></a>
+      <a href={links.sectionHref("home")} className="ui-web-head__brand" aria-label="Dojo.foo home" onClick={go("home")}><BrandLogo className="aspect-[2567/1211] h-[30px] w-auto" /></a>
       {/* The search in the middle, the sections beside the way in */}
       <button type="button" className="ui-web-head__search" aria-haspopup="dialog" aria-label={scope === "docs" ? "Search docs" : "Search courses"} onClick={() => links.openSearch(scope)}>
         <Icon icon={Search01Icon} size={15} />
@@ -120,13 +120,13 @@ const footer = [
 export function SiteFooter({ current }: { current?: SiteSection }) {
   const links = useSite();
   // The maker's line for the section: owning up to the docs, daring the course browser
-  const line = current === "help" || current === "docs" ? "I have no idea how this works, ask AI"
+  const line = current === "help" || current === "docs" ? "No idea how that works, ask AI"
     : current === "courses" ? "If you're such a pro, make your own course!"
     : "I made dis";
   return (
     <footer className="ui-web-foot">
       <div className="ui-web-foot__about">
-        <BrandLogo className="w-12" />
+        <BrandLogo className="aspect-[2567/1211] h-6 w-auto" />
         <p>Deliberate practice, guided by the coding agent you already use.</p>
       </div>
       {(links.footerLinks ?? footer).map((column) => (

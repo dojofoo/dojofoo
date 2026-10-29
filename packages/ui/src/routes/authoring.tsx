@@ -290,12 +290,8 @@ function AuthoringPage() {
         authoringApi(`/api/authoring/lessons/${encodeURIComponent(lessonId)}/trials`),
         { method: "POST" }
       );
-      await request(`/api/workspaces/${encodeURIComponent(trial.workspaceId)}/courses/${encodeURIComponent(trial.courseId)}/lessons/${encodeURIComponent(trial.lessonId)}/sessions`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(trialHarness ? { harness: trialHarness } : {}),
-      });
-      if (!tab.closed) tab.location.replace(`/course/${encodeURIComponent(trial.workspaceId)}/${encodeURIComponent(trial.courseId)}/lesson/${encodeURIComponent(trial.lessonId)}`);
+      const search = trialHarness ? `?${new URLSearchParams({ harness: trialHarness })}` : "";
+      if (!tab.closed) tab.location.replace(`/course/${encodeURIComponent(trial.workspaceId)}/${encodeURIComponent(trial.courseId)}/lesson/${encodeURIComponent(trial.lessonId)}${search}`);
     } catch (cause) {
       tab.close();
       setTrialError({ lessonId, message: errorMessage(cause) });

@@ -28,7 +28,7 @@ import { cn } from "../lib/utils";
  * button. Its compositions: CourseCard and CertificateCard (course-card.tsx).
  *
  *   <ColorCard color="oklch(0.58 0.2 350)" shader
- *     header={<><CardMark><BrandLogo /></CardMark><CardFigure>★ 4.9</CardFigure></>}
+ *     header={<><CardMark><BrandLogo mono /></CardMark><CardFigure>★ 4.9</CardFigure></>}
  *     main={<CardTitle>Everyday TypeScript</CardTitle>}
  *     footer={<><CardText label="Updated" value="12 Oct 2026" /><ColorCardButton>Install</ColorCardButton></>} />
  *

@@ -156,7 +156,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /** A course's color, for the cards drawn from one */
 const colorOf = (item: { art: CourseArtwork }) => `oklch(0.58 0.2 ${item.art.hue})`;
 /** Our own courses carry our logo, at the author name's size; others their author's name */
-const markOf = (item: Course) => (item.author === "Dojo.foo" ? <BrandLogo /> : undefined);
+const markOf = (item: Course) => (item.author === "Dojo.foo" ? <BrandLogo mono /> : undefined);
 const lockNote = (items: Array<{ title: string; state: Progress }>, index: number, what: string) =>
   items[index].state === "locked" && index > 0 ? `Finish “${items[index - 1].title}” to unlock this ${what}` : undefined;
 
@@ -192,7 +192,7 @@ function Journey({ start, slideSource, documentationUrl, settings }: { start: Le
   const shell: Partial<AppShellProps> = {
     workspace: "Dojo",
     user: { name: "Sam Rivera", email: "sam.rivera@example.com" },
-    brand: <a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={(event) => event.preventDefault()}><BrandLogo className="w-11" /></a>,
+    brand: <a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={(event) => event.preventDefault()}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>,
     sidebarWidth: "18rem",
     showNews: false,
     setup,

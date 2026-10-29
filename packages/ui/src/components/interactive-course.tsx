@@ -3,13 +3,15 @@ import { useNavigate } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat } from "@tanstack/ai-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
-import { AppShell, Icon } from "@dojofoo/uix/components/app-shell";
+import { Icon } from "@dojofoo/uix/components/app-shell";
+import { WorkspaceSkeleton } from "@dojofoo/uix/components/workspace-skeleton";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { Button } from "@dojofoo/uix/components/button";
 import { Composer } from "@dojofoo/uix/containers/assistant-home";
 import { Spinner } from "@mynaui/icons-react";
 import { InteractiveLesson } from "@dojofoo/uix/components/interactive-lesson";
 import { CourseCard } from "@dojofoo/uix/components/course-card";
+import { courseArt } from "@/lib/course-color";
 import { BackIcon } from "@dojofoo/uix/icons";
 import { followLink } from "@dojofoo/uix/lib/link-event";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
@@ -166,11 +168,16 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     finally { if (request === conversationRequest.current) setModelChanging(false); }
   }
 
-  const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>;
+  const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>;
   const shell = { ...account, workspace: "Dojo", brand, sidebarWidth: "18rem", showNews: false, showOnboarding: false };
-  if (!lesson) return <div style={{ height: "100dvh" }}><AppShell {...shell} navigation={[]}>
-    <p role={error ? "alert" : "status"} className="p-8 text-sm text-muted-foreground">{error ?? "Loading your lesson…"}</p>
-  </AppShell></div>;
+  if (!lesson) return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...shell}
+    navigation={[{ id: "course", heading: "Lessons", items: [], before: !error && <WorkspaceSkeleton label="Loading lessons" rows={4} /> }]}
+    crumbs={[{ label: "Dashboard", icon: <Icon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }]}
+    contentKind="material" askAssistant={false}
+    editor={error ? <p role="alert" className="p-5 text-sm text-destructive">{error}</p> : <WorkspaceSkeleton />}
+    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b></span>}
+    composer={<Composer tray={false} disabled models={[]} attachments="unavailable" dictation={false} plugins={false}
+      agent={{ name: "Coding agent", icon: AiMagicIcon }} placeholder="Ask your Sensei…" />} />{toast}</div>;
 
   const current = lesson.current;
   const material = current?.type === "present" ? current.content : current?.prompt ?? "";
@@ -180,7 +187,7 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
   return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...shell}
     navigation={[{ id: "course", heading: "Lessons", before: <div className="lj-course"><CourseCard
         course={{ title: lesson.course?.name ?? lesson.title, version: lesson.course?.version, author: lesson.course?.author,
-          repo: lesson.course?.repository, language: lesson.course?.language, lessons: lesson.course?.lessons, art: { hue: 350, glyph: "" } }}
+          repo: lesson.course?.repository, language: lesson.course?.language, lessons: lesson.course?.lessons, art: courseArt(lesson.dojo) }}
         enrolled={{ version: lesson.course?.version, progress: Math.round(lesson.step / lesson.totalSteps * 100),
           label: `${String(Math.min(lesson.step + 1, lesson.totalSteps)).padStart(2, "0")} · ${lesson.lessonTitle}`, value: current?.title }} />
       </div>, items: [{ id: "current", label: current?.title ?? "Course complete", marker: String(Math.min(lesson.step + 1, lesson.totalSteps)), state: lesson.complete ? "done" : "active" }] }]}

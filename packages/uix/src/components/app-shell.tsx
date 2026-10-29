@@ -153,7 +153,7 @@ export type AppShellProps = {
   onLogin?: () => void;
   onLogout?: () => void;
   /** Names the menu that's showing (e.g. "dashboard", a course's id); when it changes, the old rows swipe out to the right
-      and the new ones in from the left */
+      and the new ones in from the left. Pages that name the same menu share it: moving between them, it stays put */
   navigationKey?: string;
   /** Project-specific navigation below the main menu. */
   sidebar?: ReactNode;
@@ -161,6 +161,9 @@ export type AppShellProps = {
   showOnboarding?: boolean;
   brand?: ReactNode;
   sidebarWidth?: string;
+  /** Folded to the icon rail: the host's, when its pages share one sidebar (else the shell keeps its own, open at first) */
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
   /** The sidebar's search button, e.g. to open a command menu */
   onSearch?: () => void;
   /** The sidebar's rows by section – replaces nav, groups and projects. Rows report their id to onNavigate */
@@ -295,9 +298,11 @@ export function AppShell({
   showOnboarding = true,
   showUser = true,
   onProfile, onSettings, onLogin, onLogout, loadAccountPage,
-  navigationKey = "menu",
+  navigationKey: namedMenu,
   brand,
   sidebarWidth = "220px",
+  collapsed: collapsedProp,
+  onCollapsedChange,
   onSearch,
   navigation,
   expandedGroups, onExpandedGroupsChange,
@@ -313,8 +318,18 @@ export function AppShell({
   onDrawerOpenChange,
   className,
 }: AppShellProps) {
+  const navigationKey = namedMenu ?? "menu";
   const [news, setNews] = useState(2);
-  const [collapsed, setCollapsed] = useState(false);
+  const [ownCollapsed, setOwnCollapsed] = useState(false);
+  const collapsed = collapsedProp ?? ownCollapsed;
+  const collapsedNow = useRef(collapsed);
+  collapsedNow.current = collapsed;
+  const setCollapsed = (next: boolean | ((value: boolean) => boolean)) => {
+    const value = typeof next === "function" ? next(collapsedNow.current) : next;
+    collapsedNow.current = value;
+    setOwnCollapsed(value);
+    onCollapsedChange?.(value);
+  };
   // Narrow (tablet, phone): the sidebar waits off screen and slides in as a drawer over the main area
   const root = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
@@ -536,7 +551,7 @@ export function AppShell({
         <LayoutGroup id={baseId}>
         <nav className="ui-as-side__nav scroll-fade" aria-label="Main menu">
           {/* Page changes use the native fade; individual rows keep their own selection feedback. */}
-          <div key={navigationKey} className="ui-as-side__menu">
+          <div key={navigationKey} className="ui-as-side__menu" style={namedMenu ? { "--ui-as-menu-name": `ui-menu-${namedMenu.replace(/[^\w-]/g, "-")}` } as CSSProperties : undefined}>
           {sections.map((section, index) => {
             const headingId = `${baseId}-${section.id}`;
             const layoutId = `${baseId}-${section.layout ?? "nav"}-lit`;

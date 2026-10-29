@@ -32,10 +32,11 @@ export function CourseExplore({ courses, categories = [], installed = [], busy, 
   description?: string;
 }) {
   const top = featuredId ? courses.filter(item => item.id === featuredId) : [...courses].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 1);
-  const open = (id: string) => (onOpen ?? onInstall)?.(id);
+  const opens = (id: string) => !!onOpen && (!onInstall || installed.includes(id));
+  const open = (id: string) => (opens(id) ? onOpen : onInstall)?.(id);
   const action = (item: ExploreCourse) => installed.includes(item.id) && !onOpen
     ? <span className="lj-installed rounded-lg"><Icon icon={DoneIcon} size={13} />Installed</span>
-    : <Button size="sm" loading={busy === item.id} disabled={!onOpen && !onInstall} onClick={() => open(item.id)}>{onOpen ? "Open course" : "Install"}</Button>;
+    : <Button size="sm" loading={busy === item.id} disabled={!onOpen && !onInstall} onClick={() => open(item.id)}>{opens(item.id) ? "Open course" : "Install"}</Button>;
   return <div className="lj-page">
     <header className="lj-page__head">
       <span className="ui-ob-kicker">Explore</span>
@@ -75,8 +76,8 @@ export function CourseExplore({ courses, categories = [], installed = [], busy, 
           main={<CardTitle>{item.title}</CardTitle>}
           footer={<><CardText label={item.updated ? "Updated" : undefined} value={item.updated} />{installed.includes(item.id) && !onOpen
             ? <ColorCardTag><Icon icon={DoneIcon} size={13} />Installed</ColorCardTag>
-            : <ColorCardButton disabled={busy === item.id || (!onOpen && !onInstall)} aria-label={`${onOpen ? "Open" : "Install"} ${item.title}`} onClick={() => open(item.id)}>
-              {onOpen ? "Open" : busy === item.id ? "Installing…" : "Install"}
+            : <ColorCardButton disabled={busy === item.id || (!onOpen && !onInstall)} aria-label={`${opens(item.id) ? "Open" : "Install"} ${item.title}`} onClick={() => open(item.id)}>
+              {opens(item.id) ? "Open" : busy === item.id ? "Installing…" : "Install"}
             </ColorCardButton>}</>} />;
       })}</div>} />
   </div>;

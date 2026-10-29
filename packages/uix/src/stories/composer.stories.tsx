@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AppShell, Dropdown } from "../components/app-shell";
 import { BrandLogo } from "../components/brand-logo";
 import { ComposerSurface } from "../components/composer";
+import { CodexIcon, OpenCodeIcon } from "../components/harness-icons";
 import { Composer } from "../containers/assistant-home";
 
 function ControlledComposer({ disabled = false, longModels = false }: { disabled?: boolean; longModels?: boolean }) {
@@ -36,6 +37,14 @@ export const Unavailable: StoryObj<typeof meta> = { args: { disabled: true } };
 export const LongModelList: StoryObj<typeof meta> = { args: { longModels: true } };
 export const UnavailableAttachments: StoryObj<typeof meta> = {
   render: () => <div className="mx-auto w-full max-w-xl p-6"><Composer tray={false} attachments="unavailable" dictation={false} plugins={false} models={[]} placeholder="Ask your Sensei…" /></div>,
+};
+/** The agent's session is still loading: the agent and model pickers wait with a spinner */
+export const LoadingSession: StoryObj<typeof meta> = {
+  render: () => <div className="mx-auto w-full max-w-xl p-6">
+    <Composer tray={false} attachments={false} dictation={false} plugins={false} placeholder="Ask your Sensei…" disabled loading
+      agent={{ value: "opencode", name: "OpenCode", icon: OpenCodeIcon }} onAgentChange={() => undefined} models={[]}
+      agents={[{ value: "opencode", name: "OpenCode", icon: OpenCodeIcon }, { value: "codex", name: "Codex", icon: CodexIcon }]} />
+  </div>,
 };
 
 function AttachmentComposer({ failOnce = false }: { failOnce?: boolean }) {

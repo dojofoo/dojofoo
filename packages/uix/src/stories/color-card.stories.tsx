@@ -33,7 +33,7 @@ export const Playground: Story = {
   render: (args) => (
     <div style={{ width: args.size === "big" ? 260 : 240 }}>
       <ColorCard {...args} aria-label="Everyday TypeScript"
-        header={<><CardMark><BrandLogo /></CardMark><CardFigure>★ 4.9</CardFigure></>}
+        header={<><CardMark><BrandLogo mono /></CardMark><CardFigure>★ 4.9</CardFigure></>}
         main={<><CardKicker>Arrays, objects and types</CardKicker><CardTitle>Everyday TypeScript</CardTitle></>}
         footer={args.progress !== undefined
           ? <><CardText label="02 · Objects" value="Merge settings" /><CardFigure>{args.progress}%</CardFigure></>
@@ -131,12 +131,12 @@ export const Variants: Story = {
       </Section>
 
       <Section title="Big · course – turn it over" size="big">
-        <CourseCard course={everyday} mark={<BrandLogo />} />
-        <CourseCard course={advanced} mark={<BrandLogo />} />
+        <CourseCard course={everyday} mark={<BrandLogo mono />} />
+        <CourseCard course={advanced} mark={<BrandLogo mono />} />
       </Section>
       <Section title="Big · course you study – update, up to date, progress" size="big">
-        <CourseCard course={everyday} mark={<BrandLogo />} enrolled={{ version: "v1.4.0", latest: "v1.5.0", progress: 33, label: "02 · Objects", value: "Merge settings" }} />
-        <CourseCard course={advanced} mark={<BrandLogo />} enrolled={{ version: "v0.9.2", progress: 0, label: "01 · Narrowing shapes", value: "Narrow by tag" }} />
+        <CourseCard course={everyday} mark={<BrandLogo mono />} enrolled={{ version: "v1.4.0", latest: "v1.5.0", progress: 33, label: "02 · Objects", value: "Merge settings" }} />
+        <CourseCard course={advanced} mark={<BrandLogo mono />} enrolled={{ version: "v0.9.2", progress: 0, label: "01 · Narrowing shapes", value: "Narrow by tag" }} />
       </Section>
       <Section title="Big · certificate – turn it over" size="big">
         <CertificateCard certificate={{ id: "js-foundations", title: "JavaScript Foundations", learner: "Sam Rivera", issued: "12 Sep 2026", lessons: 24, score: 96, art: { hue: 35, glyph: "JS" }, digest }} />

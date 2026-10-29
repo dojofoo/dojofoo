@@ -214,7 +214,7 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
   const language: EditorLanguage = file.endsWith(".md") ? "markdown" : file.endsWith(".yaml") ? "yaml" : "typescript";
   return <div className="h-dvh w-full overflow-hidden">
     <AgentChatWorkspace contentKind={page ? course === courses[0] ? "video" : "material" : "code"} key={`${settings}:${evals}`} defaultSettingsOpen={settings} defaultEvalsOpen={evals} evals={view === "Trial" ? undefined : evaluationReport ? <EvalsReportPanel {...evaluationReport} /> : <EvalsPanel />} workspace={course.name} user={{ name: "You" }} active={[view, `course:${course.name}`, ...(page ? [] : [`file:${file}`])]} showOnboarding showNews={false} sidebarWidth="18rem"
-      brand={<a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={event => event.preventDefault()}><BrandLogo className="w-11" /></a>}
+      brand={<a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={event => event.preventDefault()}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
       navigation={[
         { id: "views", layout: "views", items: [
           { id: "Authoring", label: "Authoring", icon: PencilEdit02Icon },

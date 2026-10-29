@@ -8,21 +8,17 @@ import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
 import { followLink } from "@dojofoo/uix/lib/link-event";
 import { lessonResources } from "@/lib/lesson-resources";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
-import { CourseCard } from "@dojofoo/uix/components/course-card";
+import { WorkspaceSkeleton } from "@dojofoo/uix/components/workspace-skeleton";
+import { CourseCard, courseColor } from "@dojofoo/uix/components/course-card";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
-import { CommandPalette } from "@dojofoo/uix/components/command-palette";
-import { ArrowDown01Icon, BackIcon, BookOpen01Icon, Cancel01Icon, CoursesIcon, DoneIcon, ExploreIcon } from "@dojofoo/uix/icons";
+import { DashboardPalette } from "@/components/dashboard-palette";
+import { ArrowDown01Icon, BackIcon, Cancel01Icon, DoneIcon } from "@dojofoo/uix/icons";
 import { ClientOnly, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowRight,
-  Check,
-  Circle,
-  Spinner as Loader2,
-  LockKeyhole,
   RefreshAlt as RotateCcw,
   Save as SaveIcon,
   Undo as Undo2,
@@ -45,12 +41,13 @@ import {
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { codingAgents } from "@/lib/coding-agents";
+import { courseArt } from "@/lib/course-color";
+import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
 import { starterCourses } from "@/lib/starter-courses";
 import { authoringSessionLink, authoringSessionSearch } from "@/lib/authoring-session-link";
 import { httpError } from "@/lib/http-error";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 import type { JsonRpcRequest } from "@/server/session/protocol";
-import { applyLessonMetadata, hydrateLesson } from "@/lib/lesson-snapshot";
 import { projectChatTimeline, type AnchoredChatEvent } from "@/lib/chat-timeline";
 import { chatAcceptsInput, isInternalLessonMessage, lessonIntroductionCanStart } from "@/lib/chat-internal";
 import { useChatWorkTiming } from "@/lib/chat-work-timing";
@@ -117,6 +114,10 @@ function CourseIndex() {
   const [courseChoiceOpen, setCourseChoiceOpen] = useState(false);
   const [choiceWorkspaceId, setChoiceWorkspaceId] = useState("");
   const [choiceSessionId, setChoiceSessionId] = useState("current");
+  const [openingCourse, setOpeningCourse] = useState(false);
+  const [courseOpenError, setCourseOpenError] = useState<string>();
+  const courseOpenRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => courseOpenRequest.current?.abort(), []);
 
   useEffect(() => {
     fetch("/api/control/courses")
@@ -148,24 +149,28 @@ function CourseIndex() {
       return rightSeen - leftSeen;
     });
 
-  async function openCourse(course: ActiveCourse, sessionId?: string | null) {
+  async function openCourse(course: ActiveCourse, sessionId?: string | null, signal?: AbortSignal) {
     window.localStorage.setItem("dojofoo.workspace", course.workspaceId);
     if (course.mode === "interactive") {
       await navigate({ to: "/interactive", search: { workspace: course.workspaceId, course: course.dojo } });
       return;
     }
     if (sessionId === null && course.kata) {
-      const response = await fetch(`${lessonApi(course.workspaceId, course.dojo, course.kata)}/sessions`, { method: "POST" });
+      const response = await fetch(`${lessonApi(course.workspaceId, course.dojo, course.kata)}/sessions`, { method: "POST", signal });
       await assertResponse(response);
       const started = await response.json() as LessonSnapshot;
+      if (signal?.aborted) return;
       if (started.sessionId) {
-        await navigate({ to: "/session/$sessionId", params: { sessionId: started.sessionId } });
+        await navigate({ to: "/session/$sessionId", params: { sessionId: started.sessionId },
+          state: { lesson: { workspaceId: course.workspaceId, courseId: course.dojo, lessonId: started.kata, sessionId: started.sessionId } } });
         return;
       }
     }
     const existingSession = sessionId === undefined ? course.sessionId : sessionId;
     if (existingSession) {
-      await navigate({ to: "/session/$sessionId", params: { sessionId: existingSession } });
+      const lessonId = course.sessions.find(session => session.sessionId === existingSession)?.lessonId;
+      await navigate({ to: "/session/$sessionId", params: { sessionId: existingSession },
+        state: lessonId ? { lesson: { workspaceId: course.workspaceId, courseId: course.dojo, lessonId, sessionId: existingSession } } : undefined });
       return;
     }
     if (course.kata) {
@@ -179,6 +184,7 @@ function CourseIndex() {
   }
 
   function chooseCourse(group: CourseGroup) {
+    setCourseOpenError(undefined);
     if (group.workspaces.length === 1) {
       void openCourse(group.workspaces[0]);
       return;
@@ -207,19 +213,14 @@ function CourseIndex() {
   }
 
   const explore = () => { void navigate({ to: "/explore" }); };
-  const documentation = () => window.open("https://dojo.foo/docs", "_blank", "noopener,noreferrer");
-  const navigation: ShellSection[] = [{ id: "library", items: [
-    { id: "courses", label: "Courses", icon: CoursesIcon, count: groups.length + starters.length || undefined },
-    { id: "explore", label: "Explore", icon: ExploreIcon },
-    { id: "docs", label: "Documentation", icon: BookOpen01Icon },
-  ] }];
+  const navigation = dashboardNavigation();
 
   return (
     <div style={{ height: "100dvh" }}>
-      <AppShell {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojofoo courses"><BrandLogo className="w-11" /></a>}
-        navigation={navigation} navigationKey="local-courses" active="courses"
+      <AppShell {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojofoo courses"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
+        navigation={navigation} navigationKey={dashboardNavigationKey} active="courses"
         showNews={false} showOnboarding={false}
-        onSearch={() => setPaletteOpen(true)} onNavigate={id => { if (id === "explore") explore(); else if (id === "docs") documentation(); }}>
+        onSearch={() => setPaletteOpen(true)} onNavigate={id => { if (id === "explore") explore(); }}>
         <LearningLibrary loading={coursesLoading} error={error ?? undefined} onExplore={explore}
           onNewCourse={() => { void createCourse(); }} newCoursePending={creatingCourse} authoringError={authoringError}
           controls={<>
@@ -235,31 +236,31 @@ function CourseIndex() {
               : course.sessionId ? `/session/${encodeURIComponent(course.sessionId)}`
               : course.kata ? `/course/${encodeURIComponent(course.workspaceId)}/${encodeURIComponent(course.dojo)}/lesson/${encodeURIComponent(course.kata)}`
               : `/course/${encodeURIComponent(course.workspaceId)}`;
-            return { id: group.dojo, title: humanTitle(course.dojo), mark: course.language, href,
+            return { id: group.dojo, title: humanTitle(course.dojo), color: courseColor(courseArt(group.dojo)), mark: course.language, href,
               caption: single ? course.mode === "interactive" ? "Interactive lesson" : humanTitle(course.kata ?? "Not started") : `${group.workspaces.length} workspaces`,
               detail: single ? course.workspaceName : "Choose where to continue", onOpen: () => chooseCourse(group) };
-          }), ...(language === "all" ? starters.map(course => ({ id: `starter:${course.id}`, title: course.title, mark: "Dojo",
-            caption: "Draft starter", detail: "Lessons coming soon", href: `/starter/${encodeURIComponent(course.id)}`,
+          }), ...(language === "all" ? starters.map(course => ({ id: `starter:${course.id}`, title: course.title, color: courseColor(course.art), mark: "Dojo",
+            caption: "Draft starter", detail: "Install to begin", href: `/starter/${encodeURIComponent(course.id)}`,
             onOpen: () => { void navigate({ to: "/starter/$courseId", params: { courseId: course.id } }); },
           })) : [])]}
-          drafts={drafts.map(draft => ({ id: draft.workspaceId, title: humanTitle(draft.name), mark: draft.mode,
+          drafts={drafts.map(draft => ({ id: draft.workspaceId, title: humanTitle(draft.name), color: courseColor(courseArt(draft.workspaceId)), mark: draft.mode,
             caption: "Draft", detail: draft.description || "Open authoring", href: authoringSessionLink(draft.workspaceId) }))} />
         {toast}
       </AppShell>
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} assistant={false} searchLabel="Search your courses"
+      <DashboardPalette open={paletteOpen} onOpenChange={setPaletteOpen} searchLabel="Search your courses"
         placeholder="Search courses, drafts and documentation…" groups={[
           { id: "courses", label: "Courses", commands: groups.map(group => ({ id: `course:${group.dojo}`, label: humanTitle(group.dojo), keywords: preferredWorkspace(group).language })) },
           { id: "starters", label: "Starter courses", commands: starters.map(course => ({ id: `starter:${course.id}`, label: course.title, keywords: course.blurb })) },
           { id: "drafts", label: "Authoring", commands: drafts.map(draft => ({ id: `draft:${draft.workspaceId}`, label: humanTitle(draft.name) })) },
-          { id: "help", label: "Help", commands: [{ id: "explore", label: "Explore courses" }, { id: "docs", label: "Documentation" }] },
         ]} onRun={id => {
-          if (id === "explore") explore();
-          else if (id === "docs") documentation();
-          else if (id.startsWith("course:")) { const group = groups.find(item => item.dojo === id.slice(7)); if (group) chooseCourse(group); }
+          if (id.startsWith("course:")) { const group = groups.find(item => item.dojo === id.slice(7)); if (group) chooseCourse(group); }
           else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: authoringSessionSearch(id.slice(6)) });
           else if (id.startsWith("starter:")) void navigate({ to: "/starter/$courseId", params: { courseId: id.slice(8) } });
         }} />
-      <Dialog open={courseChoiceOpen} onOpenChange={setCourseChoiceOpen}>
+      <Dialog open={courseChoiceOpen} onOpenChange={open => {
+        setCourseChoiceOpen(open);
+        if (!open) courseOpenRequest.current?.abort();
+      }}>
         <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
           <DialogHeader>
             <DialogTitle>Continue {humanTitle(courseChoice?.dojo ?? "course")}</DialogTitle>
@@ -268,7 +269,7 @@ function CourseIndex() {
           <div className="grid gap-5 py-2">
             <label className="grid gap-2">
               <span className="text-xs font-medium text-muted-foreground">Workspace</span>
-              <MenuButton label="Course workspace" align="start" className="w-full justify-between"
+              <MenuButton label="Course workspace" align="start" className="w-full justify-between" disabled={openingCourse}
                 value={choiceWorkspaceId} onChange={workspaceId => {
                   const workspace = courseChoice?.workspaces.find(candidate => candidate.workspaceId === workspaceId);
                   setChoiceWorkspaceId(workspaceId);
@@ -279,23 +280,32 @@ function CourseIndex() {
             </label>
             <label className="grid gap-2">
               <span className="text-xs font-medium text-muted-foreground">Session</span>
-              <MenuButton label="Course session" align="start" className="w-full justify-between" value={choiceSessionId} onChange={setChoiceSessionId}
+              <MenuButton label="Course session" align="start" className="w-full justify-between" disabled={openingCourse} value={choiceSessionId} onChange={setChoiceSessionId}
                 options={[{ value: "current", label: choiceWorkspace?.sessionId ? "Start a new session" : "Start current lesson" },
                   ...(choiceWorkspace?.sessions.map(session => ({ value: session.sessionId,
                     label: `${humanTitle(session.lessonId)} · ${middleEllipsis(session.sessionId)}` })) ?? [])]} />
             </label>
           </div>
+          {courseOpenError && <p role="alert" className="text-sm text-destructive">{courseOpenError}</p>}
           <DialogFooter>
             <DialogClose render={<UIXButton variant="ghost">Cancel</UIXButton>} />
             <UIXButton
-              disabled={!choiceWorkspace}
-              onClick={() => {
-                if (!choiceWorkspace) return;
-                setCourseChoiceOpen(false);
-                void openCourse(choiceWorkspace, choiceSessionId === "current" ? null : choiceSessionId);
+              disabled={!choiceWorkspace || openingCourse}
+              onClick={async () => {
+                if (!choiceWorkspace || openingCourse) return;
+                const controller = new AbortController();
+                courseOpenRequest.current = controller;
+                setOpeningCourse(true);
+                setCourseOpenError(undefined);
+                try {
+                  await openCourse(choiceWorkspace, choiceSessionId === "current" ? null : choiceSessionId, controller.signal);
+                  if (!controller.signal.aborted) setCourseChoiceOpen(false);
+                } catch (cause) {
+                  if (!controller.signal.aborted) setCourseOpenError(cause instanceof Error ? cause.message : String(cause));
+                } finally { setOpeningCourse(false); }
               }}
             >
-              Continue
+              {openingCourse ? "Opening…" : "Continue"}
             </UIXButton>
           </DialogFooter>
         </DialogContent>
@@ -319,7 +329,8 @@ function preferredWorkspace(group: CourseGroup): ActiveCourse {
     ?? [...group.workspaces].sort((left, right) => right.lastSeenAt - left.lastSeenAt)[0];
 }
 
-export function LessonPage({ requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
+export function LessonPage({ requestedHarness, requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
+  requestedHarness?: string;
   requestedCourseId?: string;
   requestedLessonId?: string;
   requestedSessionId?: string;
@@ -328,9 +339,13 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const navigate = useNavigate();
   const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   const [lesson, setLesson] = useState<LessonSnapshot | null>(null);
+  const [conversationReady, setConversationReady] = useState(false);
+  const [conversationError, setConversationError] = useState<string>();
+  const [conversationAttempt, setConversationAttempt] = useState(0);
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
   const [coursesReady, setCoursesReady] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState("");
+  const [selectedWorkspaceId, setWorkspaceId] = useState("");
+  const workspaceId = requestedWorkspaceId ?? selectedWorkspaceId;
   const [code, setCode] = useState("");
   const [editorHighlight, setEditorHighlight] = useState<(CodeHighlight & { nonce: number }) | undefined>();
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"code" | "tests">("code");
@@ -340,6 +355,12 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const [question, setQuestion] = useState("");
   const [modelChanging, setModelChanging] = useState(false);
   const [agentChanging, setAgentChanging] = useState(false);
+  const navigationRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    navigationRequest.current = controller;
+    return () => controller.abort();
+  }, []);
   const [modelNotice, setModelNotice] = useState("");
   const [busy, setBusy] = useState("Loading your dojo…");
   const [error, setError] = useState<string | null>(null);
@@ -354,8 +375,9 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const selectedLessonId = requestedLessonId
     ?? selectedCourse?.sessions.find((session) => session.sessionId === requestedSessionId)?.lessonId
     ?? selectedCourse?.kata;
-  const apiBase = workspaceId && selectedCourse && selectedLessonId
-    ? lessonApi(workspaceId, selectedCourse.dojo, selectedLessonId)
+  const dojoId = requestedCourseId ?? selectedCourse?.dojo;
+  const apiBase = workspaceId && dojoId && selectedLessonId
+    ? lessonApi(workspaceId, dojoId, selectedLessonId)
     : "";
   const chatConnection = useMemo(() => fetchServerSentEvents(
     apiBase ? `${apiBase}/messages` : "/api/unavailable",
@@ -388,20 +410,28 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
     setEditorHighlight((current) => ({ ...highlight, nonce: (current?.nonce ?? 0) + 1 }));
   }, []);
 
-  const metadataTarget = useMemo(() => ({ setCode, setLesson }), []);
   const setStreamedMessagesRef = useRef(setStreamedMessages);
   setStreamedMessagesRef.current = setStreamedMessages;
   const hydrate = useCallback((next: LessonSnapshot) => {
-    hydrateLesson(next, { ...metadataTarget, setMessages: (value) => setStreamedMessagesRef.current(value) });
+    setLesson(next);
+    setCode(next.code);
+    setStreamedMessagesRef.current(next.messages);
     setHostChatEvents([]);
     setBusy("");
     setError(null);
-  }, [metadataTarget]);
-  const updateMetadata = useCallback((next: LessonSnapshot) => {
-    applyLessonMetadata(next, metadataTarget);
-    setBusy("");
-    setError(null);
-  }, [metadataTarget]);
+  }, []);
+  const setSessionAddress = useCallback((next: LessonSnapshot) => {
+    if (!next.sessionId) return;
+    const sessionAddress = { lesson: { workspaceId, courseId: next.dojo, lessonId: next.kata, sessionId: next.sessionId } };
+    return navigate({
+      to: ".",
+      state: sessionAddress,
+      mask: { to: "/session/$sessionId", params: { sessionId: next.sessionId }, unmaskOnReload: true, state: sessionAddress },
+      replace: true,
+      resetScroll: false,
+      viewTransition: false,
+    });
+  }, [navigate, workspaceId]);
 
   useEffect(() => {
     fetch("/api/control/courses")
@@ -416,7 +446,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
           ?? activeCourses.find((course) => course.workspaceId === stored)
           ?? activeCourses.find((course) => course.selected)
           ?? activeCourses[0];
-        if (requestedSessionId && !selected?.sessions.some((session) => session.sessionId === requestedSessionId)) {
+        if (requestedSessionId && !requestedLessonId && !selected?.sessions.some((session) => session.sessionId === requestedSessionId)) {
           throw new Error("This exact lesson session is unavailable. Dojofoo will not substitute another session's transcript.");
         }
         setCourses(activeCourses);
@@ -425,27 +455,27 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
       })
       .catch((cause: Error) => {
         setCoursesReady(true);
-        setError(cause.message);
+        if (!requestedWorkspaceId || !requestedCourseId || !requestedLessonId) setError(cause.message);
       });
-  }, [requestedSessionId, requestedWorkspaceId]);
+  }, [requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId]);
 
   useEffect(() => {
-    if (!coursesReady) return;
+    if (!coursesReady || apiBase) return;
+    setBusy("");
+    setError(current => current ?? (selectedCourse ? "This course has no lesson to continue." : "Course not found."));
+  }, [apiBase, coursesReady, selectedCourse]);
+
+  useEffect(() => {
+    if (!apiBase) return;
+    // Updating an already accepted session's address must not reload its files.
+    if (requestedSessionId && lesson?.sessionId === requestedSessionId
+      && lesson.dojo === dojoId && lesson.kata === selectedLessonId) return;
     setLesson(null);
+    setConversationReady(false);
+    setConversationError(undefined);
     setModelNotice("");
-    const course = courses.find((candidate) => candidate.workspaceId === workspaceId);
-    const lessonId = requestedLessonId ?? course?.kata;
-    if (!course || (requestedCourseId && course.dojo !== requestedCourseId)) {
-      setBusy("");
-      setError("Course not found.");
-      return;
-    }
-    if (!lessonId) {
-      setBusy("");
-      setError("This course has no lesson to continue.");
-      return;
-    }
-    fetch(lessonApi(workspaceId, course.dojo, lessonId))
+    const controller = new AbortController();
+    fetch(`${apiBase}?prepare=false`, { signal: controller.signal })
       .then(async (response) => ({
         response,
         body: (await response.json()) as LessonSnapshot | { error: string } | null,
@@ -455,21 +485,54 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
           throw new Error(body && "error" in body ? body.error : `Could not load the dojo (${response.status})`);
         }
         if (body && !("error" in body)) {
+          if (requestedCourseId && body.dojo !== requestedCourseId) throw new Error("Course not found.");
+          if (requestedSessionId && body.sessionId !== requestedSessionId) throw new Error("This exact lesson session is unavailable. Dojofoo will not substitute another session’s transcript.");
+          if (controller.signal.aborted) return;
           hydrate(body);
           if (!requestedLessonId && body.sessionId && body.sessionId !== requestedSessionId) {
-            await navigate({
-              to: "/session/$sessionId",
-              params: { sessionId: body.sessionId },
-              replace: true,
-            });
+            await setSessionAddress(body);
           }
         }
       })
       .catch((cause: Error) => {
+        if (controller.signal.aborted) return;
         setBusy("");
         setError(cause.message);
       });
-  }, [courses, coursesReady, hydrate, navigate, requestedCourseId, requestedLessonId, requestedSessionId, workspaceId]);
+    return () => controller.abort();
+  }, [apiBase, dojoId, hydrate, requestedCourseId, requestedLessonId, requestedSessionId, selectedLessonId, setSessionAddress]);
+
+  useEffect(() => {
+    if (!apiBase || !lesson) return;
+    if (conversationReady && requestedSessionId === lesson.sessionId) return;
+    const controller = new AbortController();
+    setConversationReady(false);
+    setConversationError(undefined);
+    // The existing host owns native resume and history. Apply only conversation
+    // fields so a slow agent cannot overwrite edits made since files appeared.
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      void (async () => {
+        // A retry reads the accepted session before deciding to create one.
+        const saved = requestedHarness && conversationAttempt > 0
+          ? await fetch(`${apiBase}?prepare=false`, { signal: controller.signal }).then(assertResponse).then(response => response.json() as Promise<LessonSnapshot>)
+          : lesson;
+        if (controller.signal.aborted) return;
+        const startSelected = requestedHarness && !saved.sessionId;
+        const response = await fetch(startSelected ? `${apiBase}/sessions` : apiBase, {
+          signal: controller.signal,
+          ...(startSelected ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ harness: requestedHarness }) } : {}),
+        }).then(assertResponse);
+        const next = await response.json() as LessonSnapshot;
+        if (controller.signal.aborted) return;
+        if (requestedSessionId && next.sessionId !== requestedSessionId) throw new Error("This exact lesson session is unavailable.");
+        setLesson(current => current ? { ...current, sessionId: next.sessionId, model: next.model, harness: next.harness, harnesses: next.harnesses } : current);
+        setStreamedMessagesRef.current(next.messages);
+        setConversationReady(true);
+      })().catch(cause => { if (!controller.signal.aborted) setConversationError(cause.message); });
+    });
+    return () => controller.abort();
+  }, [apiBase, lesson?.kata, requestedSessionId, requestedHarness, conversationAttempt]);
 
   useEffect(() => {
     if (chatError) setError(chatError.message);
@@ -477,7 +540,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   useEffect(() => {
     const sessionId = lesson?.sessionId;
-    if (!workspaceId || !selectedCourse || !selectedLessonId || !sessionId) {
+    if (!workspaceId || !dojoId || !selectedLessonId || !sessionId) {
       return;
     }
     let cancelled = false;
@@ -542,41 +605,42 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
       sessionSocket.current?.close();
       sessionSocket.current = null;
     };
-  }, [hydrate, lesson?.sessionId, navigate, selectedCourse, selectedLessonId, workspaceId]);
+  }, [dojoId, lesson?.sessionId, selectedLessonId, workspaceId]);
 
   useEffect(() => {
     const observation = pendingCheckObservation;
-    if (!observation || chatStatus !== "ready") return;
+    if (!observation || !conversationReady || chatStatus !== "ready") return;
     setPendingCheckObservation(null);
     forwardedProps.current = { kind: "check-observation", observation };
     void sendMessage(
       CHECK_OBSERVATION_MESSAGE,
     ).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => { forwardedProps.current = {}; });
-  }, [chatStatus, pendingCheckObservation, sendMessage]);
+  }, [chatStatus, conversationReady, pendingCheckObservation, sendMessage]);
 
   useEffect(() => {
-    if (!apiBase || !lesson || !lessonIntroductionCanStart(chatStatus, messages)) return;
+    if (!apiBase || !lesson || lesson.introduced || !conversationReady || !lessonIntroductionCanStart(chatStatus, messages)) return;
     if (introductions.current.has(apiBase)) return;
     introductions.current.add(apiBase);
     setBusy("Sensei is introducing the lesson…");
     forwardedProps.current = { kind: "introduction" };
+    const signal = navigationRequest.current?.signal;
     void sendMessage(INTRODUCTION_MESSAGE)
       .then(async () => {
-        const response = await fetch(apiBase);
+        if (signal?.aborted) return;
+        const response = await fetch(apiBase, { signal });
         if (!response.ok) throw new Error(`Could not refresh the lesson (${response.status})`);
         const updated = await response.json() as LessonSnapshot;
+        if (signal?.aborted) return;
         // The AI SDK stream is the authoritative message state for this turn.
         // Refresh lesson metadata (especially the newly-created session ID)
         // without replacing the completed streamed parts with a transcript
         // reconstruction that may not yet contain the same tool grouping.
-        updateMetadata(updated);
-        if (updated.sessionId) {
-          await navigate({
-            to: "/session/$sessionId",
-            params: { sessionId: updated.sessionId },
-            replace: true,
-          });
+        setLesson(updated);
+        setBusy("");
+        setError(null);
+        if (updated.sessionId && updated.sessionId !== requestedSessionId) {
+          await setSessionAddress(updated);
         }
       })
       .catch((cause: unknown) => {
@@ -585,7 +649,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         setError(cause instanceof Error ? cause.message : String(cause));
       })
       .finally(() => { forwardedProps.current = {}; });
-  }, [apiBase, chatStatus, lesson, messages, navigate, sendMessage, updateMetadata]);
+  }, [apiBase, chatStatus, conversationReady, lesson, messages, requestedSessionId, sendMessage, setSessionAddress]);
 
   async function sendQuestion(message = question.trim()) {
     if (!message) return;
@@ -601,19 +665,24 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   async function changeAgent(value: string) {
     if (!apiBase || !lesson || value === lesson.harness || agentChanging || modelChanging || !lesson.harnesses?.some(harness => harness === value)) return;
+    const signal = navigationRequest.current?.signal;
     setAgentChanging(true);
     setModelNotice("Starting a conversation with the selected coding agent…");
     setError(null);
     try {
-      const response = await fetch(`${apiBase}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ harness: value }) });
+      const response = await fetch(`${apiBase}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ harness: value }), signal });
       if (!response.ok) throw await httpError(response);
       const next = await response.json() as LessonSnapshot;
+      if (signal?.aborted) return;
       // Agent selection creates no paid turn and must not navigate away from dirty code.
       introductions.current.add(apiBase);
       // A new agent owns a new conversation. The mounted editor and unsaved code stay local.
       setLesson(next);
       setStreamedMessages(next.messages);
       setHostChatEvents([]);
+      setConversationReady(true);
+      setConversationError(undefined);
+      await setSessionAddress(next);
       setModelNotice(`Started a conversation with ${codingAgents.find(agent => agent.value === next.harness)?.name ?? next.harness}.`);
     } catch (cause) {
       setModelNotice("Agent change failed. Your conversation stays open.");
@@ -651,9 +720,11 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
     scrollToBottom();
     setBusy("Continuing lesson…");
     if (!apiBase) return;
+    const signal = navigationRequest.current?.signal;
     try {
       const response = await fetch(`${apiBase}/messages`, {
         method: "POST",
+        signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           answers: Object.fromEntries(Object.values(answers).map((answer) => [
@@ -663,27 +734,12 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         }),
       });
       const body = await response.json() as LessonSnapshot | { ok: true } | { error: string };
+      if (signal?.aborted) return;
       if (!response.ok || "error" in body) {
         throw new Error("error" in body ? body.error : `Could not answer the sensei (${response.status})`);
       }
       if ("kata" in body) await viewLesson(body.kata, body.dojo);
       else setBusy("");
-    } catch (cause) {
-      setBusy("");
-      setError(cause instanceof Error ? cause.message : String(cause));
-    }
-  }
-
-  async function continueLesson() {
-    if (!apiBase) return;
-    setBusy("Preparing the next lesson…");
-    try {
-      const response = await fetch(`${apiBase}/progressions`, { method: "POST" });
-      const body = await response.json() as LessonSnapshot | { error: string };
-      if (!response.ok || "error" in body) {
-        throw new Error("error" in body ? body.error : `Could not continue the course (${response.status})`);
-      }
-      await viewLesson(body.kata, body.dojo);
     } catch (cause) {
       setBusy("");
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -706,7 +762,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         jsonrpc: "2.0",
         id: crypto.randomUUID(),
         method: "lesson.check",
-        params: { courseId: selectedCourse?.dojo, lessonId: selectedLessonId },
+        params: { courseId: dojoId, lessonId: selectedLessonId },
       } satisfies JsonRpcRequest));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -716,7 +772,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   }
 
   const chatIsWorking = chatStatus === "submitted" || chatStatus === "streaming";
-  const chatCanAcceptInput = chatAcceptsInput(chatStatus);
+  const chatCanAcceptInput = conversationReady && chatAcceptsInput(chatStatus);
   const chatWorkTiming = useChatWorkTiming(chatIsWorking, lesson?.sessionId ?? apiBase);
 
   async function reset() {
@@ -727,7 +783,9 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: lesson.starterCode }),
       }).then(assertResponse);
-      updateMetadata({ ...lesson, code: lesson.starterCode, result: null });
+      setCode(lesson.starterCode);
+      setLesson(current => current ? { ...current, code: lesson.starterCode, result: null } : current);
+      setError(null);
       setActiveWorkspaceTab("code");
       setResetDialogOpen(false);
     } catch (cause) {
@@ -737,12 +795,12 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   }
 
   async function viewLesson(name: string, courseId?: string) {
-    const course = courses.find((candidate) => candidate.workspaceId === workspaceId);
-    if (!course) return setError("Course not found");
+    const targetCourseId = courseId ?? lesson?.dojo ?? dojoId;
+    if (!targetCourseId) return setError("Course not found");
     setActiveWorkspaceTab("code");
     await navigate({
       to: "/course/$workspaceId/$courseId/lesson/$lessonId",
-      params: { workspaceId, courseId: courseId ?? course.dojo, lessonId: name },
+      params: { workspaceId, courseId: targetCourseId, lessonId: name },
     });
   }
 
@@ -755,12 +813,12 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: nextCode }),
       }).then(assertResponse);
-      updateMetadata({ ...lesson, code: nextCode });
+      setLesson(current => current ? { ...current, code: nextCode } : current);
+      setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
-      setBusy("");
     }
-  }, [apiBase, code, lesson, updateMetadata]);
+  }, [apiBase, code, lesson]);
 
   useEffect(() => {
     const onSave = (event: KeyboardEvent) => {
@@ -774,21 +832,22 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   if (!lesson) {
     return (
-      <div style={{ height: "100dvh" }}><AppShell {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
-        navigation={[]} showNews={false} showOnboarding={false}>
-        <p role={error ? "alert" : "status"} className="p-8 text-sm text-muted-foreground">{error ?? busy}</p>
-      </AppShell></div>
+      <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
+        navigation={[{ id: "lessons", heading: "Lessons", items: [], before: !error && <WorkspaceSkeleton label="Loading lessons" rows={4} /> }]}
+        showNews={false} showOnboarding={false} askAssistant={false}
+        crumbs={[{ label: "Dashboard", icon: <UIXIcon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }]}
+        editor={<Editor flush>{error ? <p role="alert" className="p-5 text-sm text-destructive">{error}</p> : <WorkspaceSkeleton />}</Editor>}
+        header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b></span>}
+        composer={<Composer tray={false} disabled models={[]} attachments="unavailable" dictation={false} plugins={false}
+          agent={{ name: "Coding agent", icon: AiMagicIcon }} placeholder="Ask your Sensei…" />} />{toast}</div>
     );
   }
 
-  const completed = lesson.result?.complete === true || lesson.state === "completed";
   const thinking = chatStatus === "submitted" || chatStatus === "streaming";
-  const nextLesson = lesson.lessons[lesson.lessons.findIndex((item) => item.name === lesson.kata) + 1];
-  const nextLessonPending = busy === "Preparing the next lesson…";
   const navigation: ShellSection[] = [
     { id: "lessons", heading: "Lessons", layout: "lessons", before: <div className="lj-course"><CourseCard
       course={{ title: lesson.course?.name ?? humanTitle(lesson.dojo), version: lesson.course?.version, author: lesson.course?.author,
-        repo: lesson.course?.repository, language: lesson.course?.language, lessons: lesson.course?.lessons ?? lesson.lessons.length, art: { hue: 350, glyph: "" } }}
+        repo: lesson.course?.repository, language: lesson.course?.language, lessons: lesson.course?.lessons ?? lesson.lessons.length, art: courseArt(lesson.dojo) }}
       enrolled={{ version: lesson.course?.version, progress: Math.round(lesson.lessons.filter(item => item.state === "completed").length / lesson.lessons.length * 100), value: lesson.title }} />
     </div>, items: lesson.lessons.map((item, index) => ({
       id: `lesson:${item.name}`, label: item.title, marker: String(index + 1).padStart(2, "0"),
@@ -799,7 +858,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         : { href: `/course/${encodeURIComponent(workspaceId)}/${encodeURIComponent(lesson.dojo)}/lesson/${encodeURIComponent(item.name)}` }),
     })) },
   ];
-  return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
+  return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
     workspace="Dojo" showNews={false} showOnboarding={false} sidebarWidth="18rem"
     navigation={navigation} navigationKey={`${workspaceId}:${lesson.dojo}`} active={`lesson:${lesson.kata}`} navigationTransition={false}
     onNavigate={id => { if (id.startsWith("lesson:")) void viewLesson(id.slice(7)); }}
@@ -877,23 +936,10 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Dialog open={nextLessonPending} onOpenChange={() => undefined}>
-                <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
-                  <div className="flex items-start gap-4 py-2">
-                    <Loader2 className="mt-0.5 size-5 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none" />
-                    <DialogHeader>
-                      <DialogTitle>Opening {nextLesson?.title ?? "the next lesson"}</DialogTitle>
-                      <DialogDescription>
-                        Preparing its scaffold and lesson context…
-                      </DialogDescription>
-                    </DialogHeader>
-                  </div>
-                </DialogContent>
-              </Dialog>
               <div className="h-full min-h-0 overflow-hidden" data-testid="lesson-canvas">
                 <div className="h-full" hidden={activeWorkspaceTab !== "code"} id="code-panel" role="tabpanel">
                   <ClientOnly fallback={<div className="h-full animate-pulse bg-[var(--ui-ed-surface)]" />}>
-                    <Suspense fallback={<div className="h-full animate-pulse bg-[var(--ui-ed-surface)]" />}>
+                    <Suspense fallback={<WorkspaceSkeleton label="Loading editor" />}>
                       <CodeEditor
                         code={code}
                         coverage={true}
@@ -928,7 +974,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
     composer={<div data-testid="chat-composer">
       <Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === lesson.harness) ?? { value: lesson.harness, name: lesson.harness ?? "Coding agent", icon: AiMagicIcon }}
         agents={codingAgents.filter(agent => lesson.harnesses?.some(value => value === agent.value)).map(agent => ({ ...agent, description: "Start a new conversation" }))}
-        onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging || modelChanging} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
+        onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging || (!conversationReady && !conversationError)} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
         placeholder="Ask your Sensei…" disabled={!chatCanAcceptInput || agentChanging} busy={chatIsWorking} onStop={stop}
         history={messages.filter(item => item.role === "user").map(item => item.parts.flatMap(part => part.type === "text" && !isInternalLessonMessage(part.content) ? [part.content] : []).join("")).filter(Boolean)}
         onSend={message => { void sendQuestion(message); }} model={lesson.model?.currentValue} models={lesson.model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging}
@@ -936,6 +982,8 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
       {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}
     </div>}>
     <div data-chat-error={chatError?.message} data-chat-status={chatStatus} data-host-event-count={hostChatEvents.length} data-testid="chat-pane">
+      {conversationError && <div role="alert" className="space-y-3 p-3 text-sm text-destructive"><p>{conversationError}</p>
+        <UIXButton variant="secondary" onClick={() => setConversationAttempt(attempt => attempt + 1)}>Reload conversation</UIXButton></div>}
       <ChatTranscript messages={timelineMessages} streaming={chatIsWorking} renderMessage={(message, streaming) => (
                   <StreamedChatMessage
                     fragments={lesson.fragments}

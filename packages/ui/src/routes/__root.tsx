@@ -9,6 +9,7 @@ import stylesUrl from "../app.css?url";
 import { ShapeProvider } from "@dojofoo/ui";
 import { Button } from "@dojofoo/uix/components/button";
 import { UIXProvider } from "@dojofoo/uix/provider";
+import { SidebarStateProvider } from "@/hooks/sidebar-state";
 import { documentTransitionScript } from "@dojofoo/uix/lib/view-transition";
 import type { ReactNode } from "react";
 
@@ -60,7 +61,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       >
         <UIXProvider>
           <ShapeProvider defaultShape="square">
-            {children}
+            <SidebarStateProvider>{children}</SidebarStateProvider>
           </ShapeProvider>
         </UIXProvider>
         <Scripts />

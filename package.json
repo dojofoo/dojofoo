@@ -6,7 +6,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "assets:logo": "node scripts/assets/apply-svg-perspective.mjs --fills-only assets/brand/dojofoo-flat.svg assets/brand/dojofoo-perspective.af packages/ui/public/brand/dojofoo.svg apps/web/public/dojofoo.svg packages/uix/src/assets/brand/dojofoo.svg",
+    "assets:logo": "node scripts/assets/build-logo.mjs",
     "build": "turbo build",
     "ui": "pnpm --filter dojofoo exec node dist/index.js ui",
     "ui:build": "pnpm --filter dojofoo build",

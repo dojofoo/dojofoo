@@ -29,6 +29,7 @@
     "./web/landing": "./src/web/landing.tsx",
     "./web/learning-preview": "./src/web/learning-preview.tsx",
     "./web/courses": "./src/web/courses.tsx",
+    "./web/pricing": "./src/web/pricing.tsx",
     "./web/course": "./src/web/course.tsx",
     "./web/catalog": "./src/web/catalog.ts",
     "./docs/layout": "./src/docs/docs-site.tsx",
@@ -51,6 +52,7 @@
     "react-dom": "^19.2.8"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/iosevka": "5.3.0",
     "@hugeicons/core-free-icons": "^4.3.5",
     "@hugeicons/react": "^1.1.10",
@@ -58,10 +60,17 @@
     "@iconify-json/solar": "1.2.13",
     "@mingcute/react": "3.0.2",
     "@mynaui/icons-react": "^0.4.11",
+    "@number-flow/react": "^0.6.2",
+    "@radix-ui/react-label": "^2.1.17",
+    "@radix-ui/react-navigation-menu": "^1.4.1",
+    "@radix-ui/react-slot": "^1.3.3",
+    "@radix-ui/react-tooltip": "^1.2.16",
     "@toolwind/corner-shape": "0.0.8-3",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.4.0",
     "cuelume": "^0.2.2",
+    "dither-plugin": "^1.1.1",
     "fumadocs-core": "16.14.3",
     "fumadocs-openapi": "11.1.0",
     "fumadocs-ui": "16.14.3",
@@ -75,8 +84,7 @@
     "shiki": "^4.5.0",
     "tailwind-merge": "^3.6.0",
     "yaml": "2.9.1",
-    "youtube-video-element": "1.9.0",
-    "@fontsource-variable/inter": "^5.3.0"
+    "youtube-video-element": "1.9.0"
   },
   "devDependencies": {
     "@fontsource-variable/noto-sans": "5.3.0",

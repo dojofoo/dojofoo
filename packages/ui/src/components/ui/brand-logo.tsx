@@ -11,7 +11,7 @@ function BrandLogo({ alt = "dojofoo", className, ...props }: BrandLogoProps) {
     <span
       aria-label={alt}
       className={cn(
-        "dojo-brand-logo relative inline-block aspect-[3.19/1] h-6 w-16 shrink-0 text-neutral-700 [&_circle]:!fill-current [&_path]:!fill-current [&_svg]:absolute [&_svg]:top-1/2 [&_svg]:-translate-y-1/2 [&_svg]:block [&_svg]:h-auto [&_svg]:w-full dark:text-white",
+        "dojo-brand-logo relative inline-block aspect-[3.19/1] h-6 w-18 shrink-0 text-neutral-700 [&_circle]:!fill-current [&_path]:!fill-current [&_svg]:absolute [&_svg]:top-1/2 [&_svg]:-translate-y-1/2 [&_svg]:block [&_svg]:h-auto [&_svg]:w-full dark:text-white",
         className,
       )}
       dangerouslySetInnerHTML={{ __html: logoSvg }}

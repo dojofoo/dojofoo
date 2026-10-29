@@ -3,6 +3,18 @@ import { flushSync } from "react-dom";
 export type UiTransition = "ui-navigation" | "ui-theme" | "ui-pane";
 /** The same navigation contract for TanStack Router and interactive Storybook previews. */
 export const routerViewTransition = { types: ({ pathChanged }: { pathChanged: boolean }) => pathChanged ? ["ui-navigation"] : false as const };
+/**
+ * routerViewTransition, told how deep each page sits (e.g. 0 the dashboard's pages, 1 a course's): a move deeper is also
+ * ui-forward, one back up ui-back, so the sidebar's menu swipes one way into a course and the other way out of it
+ */
+export function routerNavigationTransition(depth: (pathname: string) => number) {
+  return { types: ({ pathChanged, fromLocation, toLocation }: { pathChanged: boolean; fromLocation?: { pathname: string }; toLocation: { pathname: string } }) => {
+    if (!pathChanged) return false as const;
+    const from = fromLocation ? depth(fromLocation.pathname) : undefined;
+    const to = depth(toLocation.pathname);
+    return from === undefined || from === to ? ["ui-navigation"] : ["ui-navigation", to > from ? "ui-forward" : "ui-back"];
+  } };
+}
 let committing = false;
 let active: ViewTransition | undefined;
 

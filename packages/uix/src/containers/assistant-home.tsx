@@ -307,7 +307,7 @@ export function Composer({
   busy,
   tray = true,
   models = defaultModels,
-  agent, agents, onAgentChange, agentChanging,
+  agent, agents, onAgentChange, agentChanging, loading,
   className, value, onValueChange, history, disabled, onStop, id, label, queueing,
   model: controlledModel, onModelChange, modelChanging,
   attachments = true, files: controlledFiles, onFilesChange, dictation = true, plugins: pluginsEnabled = true,
@@ -338,6 +338,8 @@ export function Composer({
   agents?: ComposerAgent[];
   onAgentChange?: (value: string) => void;
   agentChanging?: boolean;
+  /** The host is still loading the agent's session: the agent and model pickers show it and wait */
+  loading?: boolean;
   /** Resolves when the host accepts the text and selected files. A rejection keeps the draft. */
   onSend?: (text: string, files: File[]) => void | Promise<void>;
   /** While an answer is being written, sending waits */
@@ -424,7 +426,8 @@ export function Composer({
             }}
           />}</>}
           {(agent || pluginsEnabled) && <ComposerPicker title={agent ? "Agent" : "Plugins"} icon={agent?.icon ?? Plug01Icon} active={plugins.length > 0}
-            disabled={Boolean(agent && (!onAgentChange || !agents?.length || agentChanging || disabled || busy))}
+            loading={Boolean(agent && (loading || agentChanging))}
+            disabled={Boolean(agent && (!onAgentChange || !agents?.length || modelChanging || disabled || busy))}
             items={agent ? (agents ?? []).map(choice => ({ label: choice.name, description: choice.description, icon: choice.icon,
               checked: choice.value === agent.value, onSelect: () => onAgentChange?.(choice.value) })) : pluginList.map(p => ({
               label: p.label, description: p.description, icon: p.icon, checked: plugins.includes(p.label),
@@ -432,10 +435,11 @@ export function Composer({
             }))}>
             {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
           </ComposerPicker>}</>}
-    controls={<><ComposerPicker title="Model" model disabled={!models.length || modelChanging || agentChanging || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
+    controls={<><ComposerPicker title="Model" model loading={loading || agentChanging || modelChanging}
+              disabled={!models.length || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
               items={models.map(m => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon,
                 checked: (m.value ?? m.name) === model, onSelect: () => { const next = m.value ?? m.name; if (onModelChange) onModelChange(next); else setSelected(next); } }))}>
-              {selectedModel?.name ?? model ?? "Model"}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}
+              {selectedModel?.name ?? model ?? (loading || agentChanging ? "Loading…" : "Model")}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}
             </ComposerPicker>
             {dictation && <button
               type="button"

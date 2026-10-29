@@ -1,10 +1,16 @@
 # UIX production adoption and first-party starter courses
 
-Status: local execution blocked pending the manual production preview and UI review; 0101–0105 merged (0105 through PR #197, `510502c`). Local review is in `.worktree/uix-0105` on `chore/local-review`; 0106 is unmerged, 0107 remains open, and 0108 has source-content preparation only. Do not promote a release before 0110.
+Status: active following explicit approval of prepared-agent/library and starter-installation host integration; full migration, production-preview, native capability and release acceptance remain open. 0101–0105 merged (0105 through PR #197, `510502c`). Local review is in `.worktree/uix-0105` on `chore/local-review`; 0106 is unmerged, 0107 remains open, and 0108 has source-content preparation only. Do not promote a release before 0110.
 Date: 2026-10-26.
 Baseline: `main` after PR #181, merge commit `4f31a76116d23c8d9613f77d80698b5dc766096b`.
 
 Current user constraint (2026-10-27): finish UI presentation against the current Storybook Pages before further agent integration. Do not modify Eve, agent execution, session ownership, or core services. Use the existing agent-package interfaces. Runtime gaps are deferred work, not reasons to change core during the UI migration. Uncommitted authoring runtime/model experiments were removed from the review tree into the stash named `Deferred authoring core experiments; UI-only work requested`.
+
+Explicit exception approved by the user on 2026-10-28: split the existing learner host read from agent preparation so saved files/state can load first, keeping Eve and the agent package unchanged. Only `server/lesson/routes.ts`, `service.ts` and its focused `service-state.test.ts` carry that pending adapter change. It does not authorize additional core work. Current UI/session/loading checkpoints and remaining capability gaps are recorded in [0113](0113-uix-page-readiness.md).
+
+Additional approval, 2026-10-28: the user approved exposing Eve’s existing production launcher, packaging prepared agents and connecting explicit starter installation through the existing installer. Agent engine and installer logic remain unchanged.
+
+User architecture confirmation, 2026-10-28: learning, authoring and other modes must use the same composer/chat/file interface. Hono forwards through `@dojofoo/agent`; workspace access belongs behind the existing filesystem/sandbox library, with local and cloud providers. The user explicitly resumed implementation. Host integration and shared file-message forwarding are authorized; do not change Eve or the agent engine, parse provider journals, add a competing history store or couple requests to build tools. The prior narrow learner-read exception remains in place.
 
 ## Goal statement
 

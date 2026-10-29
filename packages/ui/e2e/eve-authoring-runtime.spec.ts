@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync, fork } from "node:child_process";
 import { once } from "node:events";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 // Opt-in infrastructure test: real Eve + official OpenCode, local model only.
-test("authors, resumes, checks, reviews and advances an isolated learner trial", async ({ page, context }) => {
+test("the starter tutorial creates an independent draft, trials it and returns after restart", async ({ page, context }) => {
   test.skip(process.env.DOJO_AUTHORING_RUNTIME_E2E !== "1", "Requires local OpenCode and built @dojofoo/agent");
   test.setTimeout(300_000);
   context.setDefaultTimeout(30_000);
@@ -28,9 +28,39 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     return message as { url: string; course: string; root: string };
   };
   try {
-    const { url, course, root } = await ready();
+    const { url, course: installedCourse, root } = await ready();
     fixtureRoot = root;
-    await page.goto(`${url}authoring`);
+    const installedManifest = await readFile(join(installedCourse, "dojo.yaml"), "utf8");
+    const workspaces = await (await page.request.get(`${url}api/control/workspaces`)).json() as Array<{ id: string; path: string }>;
+    const learningRoot = await realpath(join(root, "learning"));
+    const learning = workspaces.find(workspace => workspace.path === learningRoot);
+    expect(learning, "The installed learning workspace must remain available").toBeDefined();
+    const tutorial = await context.newPage();
+    await tutorial.goto(`${url}explore?course=create-your-own-dojo`);
+    const install = tutorial.getByRole("dialog", { name: "Create your own dojo", exact: true });
+    await install.getByRole("button", { name: /^Course workspace:/ }).click();
+    await tutorial.getByRole("menuitemradio", { name: learning!.path, exact: true }).click();
+    await install.getByRole("button", { name: "Install course", exact: true }).click();
+    const material = tutorial.getByTestId("interactive-material");
+    await expect(material).toContainText("Choose someone you want to help");
+    await tutorial.getByRole("button", { name: "Next", exact: true }).click();
+    await tutorial.getByRole("button", { name: "Next", exact: true }).click();
+    await expect(material).toContainText("Use the Dashboard breadcrumb");
+    const tutorialRoot = join(learning!.path, "courses/create-your-own-dojo");
+    const tutorialFiles = (await readdir(tutorialRoot, { recursive: true, withFileTypes: true }))
+      .filter(file => file.isFile()).map(file => join(file.parentPath, file.name));
+    const tutorialBefore = await Promise.all(tutorialFiles.map(path => readFile(path, "utf8")));
+    // Follow the tutorial in a second tab, keeping it open as a reference.
+    await page.goto(tutorial.url());
+    await page.getByRole("button", { name: "Dashboard", exact: true }).click();
+    const created = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/control/authoring");
+    await page.getByRole("button", { name: /^New course/ }).click();
+    const response = await created;
+    expect(response.status()).toBe(201);
+    const draft = await response.json() as { path: string; workspaceId: string };
+    const course = draft.path;
+    expect(course).not.toBe(installedCourse);
+    expect(course.startsWith(tutorialRoot)).toBe(false);
     await expect(page.getByRole("radio", { name: /^Beginners/ })).toBeVisible({ timeout: 120_000 });
     const sessionUrl = page.url();
     expect(sessionUrl).toContain("session=wrun_");
@@ -189,6 +219,14 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     const afterRestart = await (await trial.request.get(new URL(nextApi, url).href)).json();
     expect(afterRestart.sessionId).toBe(beforeRestart.sessionId);
     expect(afterRestart.code).toContain('throw new Error("Your turn")');
+    await page.goto(sessionUrl);
+    await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
+    expect(new URL(page.url()).searchParams.get("workspace")).toBe(draft.workspaceId);
+    expect(new URL(page.url()).searchParams.get("session")).toBe(sessionId);
+    expect(await readFile(join(course, "src/001-untitled-lesson/kata.ts"), "utf8")).toContain('throw new Error("Your turn")');
+    await expect(material).toContainText("Use the Dashboard breadcrumb");
+    expect(await Promise.all(tutorialFiles.map(path => readFile(path, "utf8")))).toEqual(tutorialBefore);
+    expect(await readFile(join(installedCourse, "dojo.yaml"), "utf8")).toBe(installedManifest);
   } finally {
     if (fixture.exitCode === null && fixture.signalCode === null) {
       const exited = once(fixture, "exit");

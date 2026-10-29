@@ -43,7 +43,7 @@ export function CoursePage({ course }: { course: WebCourse }) {
         <div className="ui-crp-layout">
           <div className="ui-crp-main">
             <header className="ui-crp-head">
-              <div className="ui-crp-head__card"><CourseCard flip={false} course={cardInfo(course)} mark={course.author === "Dojo.foo" ? <BrandLogo /> : undefined} showVersion /></div>
+              <div className="ui-crp-head__card"><CourseCard flip={false} course={cardInfo(course)} mark={course.author === "Dojo.foo" ? <BrandLogo mono /> : undefined} showVersion /></div>
               <div className="ui-crp-head__text">
                 <p className="ui-crp-head__repo">{course.repository}</p>
                 <h1>{course.name}</h1>

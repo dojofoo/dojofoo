@@ -10,7 +10,10 @@
 
 @supports (view-transition-class: ui-main) and (view-transition-name: match-element) {
   /* Automatic names stay unique, even when a story contains several app previews. */
-  :root:active-view-transition-type(ui-navigation) :is(.ui-as-side__menu, .ui-docs-tree, #nd-sidebar) { view-transition-name: match-element; view-transition-class: ui-left; }
+  :root:active-view-transition-type(ui-navigation) :is(.ui-docs-tree, #nd-sidebar) { view-transition-name: match-element; view-transition-class: ui-left; }
+  /* A menu its pages name (AppShell's navigationKey) is one element across them: the same menu on the next page stays put
+     instead of swiping out and in */
+  :root:active-view-transition-type(ui-navigation) .ui-as-side__menu { view-transition-name: var(--ui-as-menu-name, match-element); view-transition-class: ui-left ui-menu; }
   :root:active-view-transition-type(ui-pane) .ui-as-side { view-transition-name: match-element; view-transition-class: ui-left; }
   :root:active-view-transition-type(ui-navigation) :is(.ui-as-main__scroll:not([aria-hidden="true"]), .ui-web__main:not(:has(.ui-docs-layout)), .ui-docs, #nd-page) { view-transition-name: match-element; view-transition-class: ui-main; }
   :root:active-view-transition-type(ui-navigation) body:not(:has(.ui-as)) main:not(:has(main)) { view-transition-name: match-element; view-transition-class: ui-main; }
@@ -42,6 +45,12 @@
   :root:active-view-transition-type(ui-pane)::view-transition-new(.ui-right):only-child { animation-name: ui-view-fade-in; }
   :root:active-view-transition-type(ui-pane)::view-transition-old(.ui-settings):only-child { animation-name: ui-settings-out; }
   :root:active-view-transition-type(ui-pane)::view-transition-new(.ui-settings):only-child { animation-name: ui-settings-in; }
+  /* Into a course (ui-forward) the menu's box moves on to the right and the course's comes in from the left after it;
+     back out (ui-back) the other way – each clipped to the sidebar's box */
+  :root:active-view-transition-type(ui-forward)::view-transition-old(.ui-menu):only-child { animation: ui-menu-to-right 300ms cubic-bezier(.65, 0, .35, 1) both; }
+  :root:active-view-transition-type(ui-forward)::view-transition-new(.ui-menu):only-child { animation: ui-menu-from-left 300ms cubic-bezier(.65, 0, .35, 1) both; }
+  :root:active-view-transition-type(ui-back)::view-transition-old(.ui-menu):only-child { animation: ui-menu-to-left 300ms cubic-bezier(.65, 0, .35, 1) both; }
+  :root:active-view-transition-type(ui-back)::view-transition-new(.ui-menu):only-child { animation: ui-menu-from-right 300ms cubic-bezier(.65, 0, .35, 1) both; }
   :root:active-view-transition-type(ui-navigation)::view-transition-old(.ui-main) { animation: ui-main-out 180ms cubic-bezier(.16, 1, .3, 1) both; }
   :root:active-view-transition-type(ui-navigation)::view-transition-new(.ui-main) { animation: ui-main-in 220ms cubic-bezier(.16, 1, .3, 1) both; }
   :root:active-view-transition-type(ui-pane) :is(.ui-as-main, .ui-as-side, .ui-as-aside, .ui-as-end, .ui-as-aside-scrim) { transition: none !important; }
@@ -50,6 +59,10 @@
 @keyframes ui-left-out { to { opacity: 0; transform: translateX(-24px) scale(.985); } }
 @keyframes ui-right-in { from { opacity: 0; transform: translateX(24px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes ui-right-out { to { opacity: 0; transform: translateX(24px) scale(.97); } }
+@keyframes ui-menu-to-right { to { transform: translateX(100%); } }
+@keyframes ui-menu-from-left { from { transform: translateX(-100%); } }
+@keyframes ui-menu-to-left { to { transform: translateX(-100%); } }
+@keyframes ui-menu-from-right { from { transform: translateX(100%); } }
 @keyframes ui-settings-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes ui-settings-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 @keyframes ui-main-in { from { opacity: 0; transform: translateX(12px) scale(.99); } to { opacity: 1; transform: none; } }
