@@ -9,6 +9,6 @@ export const Route = createFileRoute("/pricing")({
     return { open: true };
   },
   // Closed, the 404 keeps the site's own title
-  head: ({ loaderData }) => loaderData ? { meta: [{ title: "Pricing · dojofoo" }, { name: "robots", content: "noindex, nofollow" }] } : {},
+  head: ({ loaderData }) => loaderData ? { meta: [{ title: "Pricing · Dojo.foo" }, { name: "robots", content: "noindex, nofollow" }] } : {},
   component: PricingPage,
 });

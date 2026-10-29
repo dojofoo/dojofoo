@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router"
 import { RootProvider } from "fumadocs-ui/provider/tanstack"
 import SearchDialog from "@/components/search"
-import { DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from "@/lib/social-metadata"
+import { DEFAULT_SOCIAL_DESCRIPTION, DEFAULT_TITLE, socialMetadata } from "@/lib/social-metadata"
 import { SITE_URL } from "@/lib/site"
 import { ShapeProvider } from "@dojofoo/ui"
 import { documentTransitionScript } from "@dojofoo/uix/lib/view-transition"
@@ -21,9 +21,9 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "dojofoo" },
+      { title: DEFAULT_TITLE },
       ...socialMetadata({
-        title: "dojofoo",
+        title: DEFAULT_TITLE,
         description: DEFAULT_SOCIAL_DESCRIPTION,
         url: SITE_URL,
       }),

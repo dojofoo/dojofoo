@@ -64,7 +64,8 @@ export function LearningPreview() {
       items: chapter.lessons.map((item, index) => ({ id: `lesson:${item.id}`, label: item.title, marker: String(index + 1).padStart(2, "0"), state: item.state })),
     },
   ];
-  return <div className="h-full" inert data-learning-illustration="">
+  // Inert in the wide preview (AppPreview); on a phone its drawers open
+  return <div className="h-full" data-learning-illustration="">
     <ChatStyles />
     <AgentChatWorkspace workspace="Dojo" user={{ name: "Sam Altman", avatar: samAltmanPhoto }} sidebarWidth="18rem" showNews={false} setup={[]} showUser
       contentKind="code" navigation={navigation} navigationKey="llm" active={[`chapter:${chapter.id}`, `lesson:${selected.id}`]}

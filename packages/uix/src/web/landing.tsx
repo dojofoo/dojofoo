@@ -136,7 +136,7 @@ const css = /* css */ `
 
 /* The lesson in a window slightly wider than the page's content; no Getting started card in it (the
    composer shows). Pared down to the lesson: no logo, search or sidebar toggle above the course card, no settings or
-   close on the chat, and its sidebar cut off by the window's edge rather than scrolling */
+   close on the chat, and its sidebar cut off by the window's edge rather than scrolling. On a phone the toggles stay */
 .ui-land-app, .ui-land-body { max-width: 1280px; margin: 0 auto; padding: 0 8px; }
 .ui-land-app { max-width: 1380px; }
 
@@ -145,7 +145,10 @@ const css = /* css */ `
 @media (max-width: 1303px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
 /* Room between the hero and the window on wide screens (after the rule above, which resets the padding) */
 @media (min-width: 1200px) { .ui-land-app { padding-top: 64px; } }
-.ui-land-app :is(.ui-as-guide-slot, .ui-as-side__head, .ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
+.ui-land-app :is(.ui-as-guide-slot, .ui-as-side__head) { display: none; }
+.ui-land-app .ui-web-app:not([data-phone]) :is(.ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
+/* On a phone the app is live in its narrow layout: its buttons open and close the sidebar and the Sensei (not settings) */
+.ui-land-app .ui-web-app[data-phone] .ui-as-chat__tools > :not(.ui-as-chat__narrow) { display: none; }
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
 .ui-land-app .ui-as-side__before { margin-top: 0; }
 

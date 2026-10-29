@@ -45,8 +45,13 @@ test("public course routes use the shared UIX presentation and one search owner"
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/", { waitUntil: "networkidle" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  const mobileFrame = await page.locator(".ui-web-app__frame").boundingBox();
-  expect(mobileFrame!.width / mobileFrame!.height).toBeCloseTo(16 / 9, 2);
+  // On a phone the preview is the app's own narrow layout, live: its sidebar opens as a drawer
+  const preview = page.locator(".ui-web-app[data-phone]");
+  await expect(preview).toBeVisible();
+  const mobileFrame = await preview.locator(".ui-web-app__frame").boundingBox();
+  expect(mobileFrame!.height).toBeGreaterThan(mobileFrame!.width);
+  await preview.getByRole("button", { name: "Open sidebar" }).click();
+  await expect(preview.locator(".ui-as-app[data-drawer]")).toHaveCount(1);
   await page.screenshot({ path: testInfo.outputPath("uix-home-mobile.png"), animations: "disabled" });
   expect(errors).toEqual([]);
 });

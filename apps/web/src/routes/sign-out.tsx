@@ -4,6 +4,6 @@ import { authRobots, loadAuthFlags } from "@/lib/feature-flags.functions";
 
 export const Route = createFileRoute("/sign-out")({
   loader: () => loadAuthFlags(),
-  head: ({ loaderData }) => ({ meta: [{ title: "Sign out · dojofoo" }, ...authRobots(loaderData)] }),
+  head: ({ loaderData }) => ({ meta: [{ title: "Sign out · Dojo.foo" }, ...authRobots(loaderData)] }),
   component: SignOut,
 });

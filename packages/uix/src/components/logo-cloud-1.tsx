@@ -51,13 +51,33 @@ const groups: Agent[][] = [
     [agents.opencode, agents.antigravity, agents.epicat, agents.junie, agents.fx],
 ]
 
+/** On a phone three columns, so five turns of three: each turn one of every kind, a little quicker */
+const narrowGroups: Agent[][] = groups[0].map((_, i) => groups.map((group) => group[i]))
+const NARROW = '(max-width: 640px)'
+
+/** The brand files' own <title>s out: the label names the mark, and a page's crawlers shouldn't read them as its title */
+const untitled = (svg: string) => svg.replace(/<title>[\s\S]*?<\/title>/g, '')
+
 export default function LogoCloud() {
     const [current, setCurrent] = useState(0)
+    const [narrow, setNarrow] = useState(false)
+    const pages = narrow ? narrowGroups : groups
 
     useEffect(() => {
-        const interval = setInterval(() => setCurrent((prev) => (prev + 1) % groups.length), 6000)
-        return () => clearInterval(interval)
+        const query = window.matchMedia(NARROW)
+        const update = () => {
+            setNarrow(query.matches)
+            setCurrent(0)
+        }
+        update()
+        query.addEventListener('change', update)
+        return () => query.removeEventListener('change', update)
     }, [])
+
+    useEffect(() => {
+        const interval = setInterval(() => setCurrent((prev) => (prev + 1) % pages.length), narrow ? 4000 : 6000)
+        return () => clearInterval(interval)
+    }, [narrow, pages.length])
 
     return (
         <LazyMotion features={domAnimation}>
@@ -67,7 +87,7 @@ export default function LogoCloud() {
                     <AnimatePresence
                         initial={false}
                         mode="popLayout">
-                        {groups[current].map((agent, i) => (
+                        {pages[current].map((agent, i) => (
                             <m.li
                                 key={`${current}-${agent.name}`}
                                 className="ui-logos__item"
@@ -80,7 +100,7 @@ export default function LogoCloud() {
                                     aria-label={agent.name}
                                     className="ui-logos__mark"
                                     style={{ height: agent.height }}
-                                    dangerouslySetInnerHTML={{ __html: agent.svg }}
+                                    dangerouslySetInnerHTML={{ __html: untitled(agent.svg) }}
                                 />
                                 {agent.label && <span className="ui-logos__name" aria-hidden="true">{agent.name}</span>}
                             </m.li>
@@ -102,10 +122,11 @@ const css = /* css */ `
 .ui-logos__mark svg { display: block; width: auto; max-width: 100%; height: 100%; }
 .ui-logos__mark svg :is(path, circle, rect, polygon, ellipse):not([fill="none"]) { fill: currentColor !important; }
 .ui-logos__mark svg [style*="fill"] { fill: currentColor !important; }
-/* Narrow, the marks shrink to their column and the names give way */
+/* Narrow, three columns (the turns regroup), the marks shrink to their column and the names give way */
 @media (max-width: 640px) {
+    .ui-logos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .ui-logos__item { padding: 0 4px; }
-    .ui-logos__mark { flex: 0 1 auto; max-height: 18px; }
+    .ui-logos__mark { flex: 0 1 auto; max-height: 22px; }
     .ui-logos__name { display: none; }
 }
 `

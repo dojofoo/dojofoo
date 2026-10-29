@@ -5,7 +5,7 @@ import { createDocsContent } from '@dojofoo/uix/docs/content'
 import browserCollections from 'collections/browser'
 import { Suspense, useMemo } from 'react'
 import { SITE_URL } from '@/lib/site'
-import { DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from '@/lib/social-metadata'
+import { canonicalLink, DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from '@/lib/social-metadata'
 import { useMDXComponents } from '@/components/mdx'
 import { APIPage as OpenAPIPage, type APIPageProps } from '@dojofoo/uix/components/api-reference'
 
@@ -23,9 +23,10 @@ export const Route = createFileRoute('/$')({
     const description = loaderData.description ?? DEFAULT_SOCIAL_DESCRIPTION
     return {
       meta: [
-        { title: `${title} — dojofoo` },
+        { title: `${title} · Dojo.foo` },
         ...socialMetadata({ title, description, url: ogUrl, type: 'article' }),
       ],
+      links: [canonicalLink(loaderData.pageUrl)],
     }
   },
 })

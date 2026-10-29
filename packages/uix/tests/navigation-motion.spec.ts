@@ -61,7 +61,7 @@ test("website and docs navigation use named pane transitions without duplicate c
   await page.getByRole("link", { name: "All courses", exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as any).__transitions.length)).toBe(1);
   await page.getByRole("navigation", { name: "Site", exact: true }).getByRole("link", { name: "Help", exact: true }).click();
-  await expect(page.locator(".ui-docs-tree")).toBeVisible();
+  await expect(page.locator(".ui-docs-layout > .ui-docs-tree")).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).__transitions.length)).toBe(2);
   const transitions = await page.evaluate(() => (window as any).__transitions);
   expect(transitions.every((entry: any) => entry.types.includes("ui-navigation"))).toBe(true);

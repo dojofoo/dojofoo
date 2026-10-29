@@ -62,7 +62,8 @@ test("native documentation uses UIX while the host keeps URLs, content and brows
   await page.goto("/docs", { waitUntil: "networkidle" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("uix-docs-mobile.png"), animations: "disabled" });
-  await tree.getByRole("link", { name: "Quickstart", exact: true }).click();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await page.getByRole("dialog", { name: "Menu", exact: true }).getByRole("link", { name: "Quickstart", exact: true }).click();
   await expect(page).toHaveURL(/\/docs\/quickstart$/);
   await expect(page.getByRole("heading", { name: "Quickstart", exact: true })).toBeInViewport();
   expect(errors).toEqual([]);
@@ -140,24 +141,28 @@ test("public theme preference keeps light, dark and system modes with native fad
 test("mobile documentation keeps its page navigation and outline within reach", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/docs", { waitUntil: "networkidle" });
-  const pages = page.getByRole("button", { name: "Pages", exact: true });
-  await expect(pages).toBeInViewport();
-  await pages.click();
-  const navigation = page.getByRole("dialog", { name: "Documentation pages", exact: true });
+  // The sections and pages fold into the header's menu, as in Fumadocs
+  const menu = page.getByRole("button", { name: "Menu", exact: true });
+  await expect(menu).toBeInViewport();
+  await menu.click();
+  const navigation = page.getByRole("dialog", { name: "Menu", exact: true });
   await expect(navigation).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(navigation).toHaveCount(0);
-  await pages.click();
+  await expect(navigation).toBeHidden();
+  await menu.click();
+  await expect(navigation.getByRole("navigation", { name: "Documentation", exact: true }).getByRole("link", { name: "Authoring", exact: true })).toBeVisible();
   await navigation.getByRole("link", { name: "Quickstart", exact: true }).click();
   await expect(page).toHaveURL(/\/docs\/quickstart$/);
-  await expect(navigation).toHaveCount(0);
+  await expect(navigation).toBeHidden();
+  // What's on the page is a bar in the sticky header, opening into the outline
   const outline = page.getByRole("button", { name: "On this page", exact: true });
   await expect(outline).toBeInViewport();
   await outline.click();
-  const popup = page.getByRole("dialog", { name: "Page outline", exact: true });
+  const popup = page.locator(".ui-docs-tocbar__outline");
   const first = popup.getByRole("link").first();
   const href = await first.getAttribute("href");
   await first.click();
   await expect.poll(() => new URL(page.url()).hash).toBe(href);
-  await expect(popup).toHaveCount(0);
+  await expect(popup).toBeHidden();
+  await expect(page.locator(".ui-docs-tocbar__toggle")).toBeInViewport();
 });

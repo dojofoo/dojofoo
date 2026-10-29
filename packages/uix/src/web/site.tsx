@@ -1,9 +1,9 @@
-import { createContext, useContext, useState, type MouseEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Icon, ShellStyles } from "../components/app-shell";
 import { Avatar } from "../components/arc/avatar/avatar";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
-import { Copy01Icon, CopyrightIcon, Search01Icon, Tick02Icon } from "../lib/icons";
+import { Cancel01Icon, Copy01Icon, CopyrightIcon, Menu01Icon, Search01Icon, Tick02Icon } from "../lib/icons";
 import { cn } from "../lib/utils";
 import makerPhoto from "../assets/tomhaxxx.jpg?url";
 import type { WebCourse } from "./catalog";
@@ -47,7 +47,7 @@ const sections: Array<{ id: SiteSection; label: string }> = [
   { id: "help", label: "Help" },
 ];
 
-export function SitePage({ current, children, window = true, full = false, backdrop, subnav }: {
+export function SitePage({ current, children, window = true, full = false, backdrop, subnav, menu }: {
   current?: SiteSection;
   children: ReactNode;
   /** Off: the content sits on the page itself (the landing's hero), not in the window */
@@ -58,13 +58,15 @@ export function SitePage({ current, children, window = true, full = false, backd
   backdrop?: ReactNode;
   /** A second row under the header (the docs' tabs): the two stay at the top as one bar, the page sliding under it */
   subnav?: ReactNode;
+  /** More for the phone's menu, under the site's sections (the docs: their sections and pages) */
+  menu?: ReactNode;
   /** @deprecated Links come from SiteContext */
   onNavigate?: (section: SiteSection) => void;
 }) {
   return (
     <div className={cn("ui-as ui-web", backdrop && "ui-web--ground")}>
       <SiteStyles />
-      {subnav ? <div className="ui-web-bar"><SiteHeader current={current} />{subnav}</div> : <SiteHeader current={current} />}
+      {subnav ? <div className="ui-web-bar"><SiteHeader current={current} menu={menu} />{subnav}</div> : <SiteHeader current={current} menu={menu} />}
       <main className={cn("ui-web__main", window && "ui-web__window", full && "ui-web__main--full")}>{children}</main>
       {backdrop}
       <SiteFooter current={current} />
@@ -76,7 +78,7 @@ export function SiteStyles() {
   return <><ShellStyles /><style href="ui-web" precedence="default">{css}</style></>;
 }
 
-export function SiteHeader({ current, as: Component = "header", mobileAction }: { current?: SiteSection; as?: "header" | "div"; mobileAction?: ReactNode }) {
+export function SiteHeader({ current, as: Component = "header", mobileAction, menu }: { current?: SiteSection; as?: "header" | "div"; mobileAction?: ReactNode; menu?: ReactNode }) {
   const links = useSite();
   // In the docs the search looks in the docs; anywhere else in the courses (the dialog switches either way)
   const scope: SearchScope = current === "help" || current === "docs" ? "docs" : "courses";
@@ -84,6 +86,11 @@ export function SiteHeader({ current, as: Component = "header", mobileAction }: 
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
     event.preventDefault();
     links.navigate(section);
+  };
+  const getStarted = (event: MouseEvent) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+    event.preventDefault();
+    links.openDoc("/docs/quickstart");
   };
   return (
     <Component className="ui-web-head" data-site-navigation="">
@@ -101,14 +108,53 @@ export function SiteHeader({ current, as: Component = "header", mobileAction }: 
           ))}
         </nav>
         {mobileAction}
-        <ButtonLink size="sm" href="/docs/quickstart" onClick={event => {
-          if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-          event.preventDefault();
-          links.openDoc("/docs/quickstart");
-        }}>Get started</ButtonLink>
+        <ButtonLink size="sm" className="ui-web-head__start" href="/docs/quickstart" onClick={getStarted}>Get started</ButtonLink>
+        {/* On a phone the sections and the way in fold into a menu beside the search (as Fumadocs' docs do) */}
+        <SiteMenu>
+          <ButtonLink href="/docs/quickstart" className="ui-web-menu__start" onClick={getStarted}>Get started</ButtonLink>
+          <nav className="ui-web-menu__nav" aria-label="Site">
+            {sections.map((section) => (
+              <a key={section.id} href={links.sectionHref(section.id)} aria-current={current === section.id ? "page" : undefined} onClick={go(section.id)}>{section.label}</a>
+            ))}
+          </nav>
+          {menu}
+        </SiteMenu>
       </div>
     </Component>
   );
+}
+
+/** The phone's menu: a sheet from the right over the page, closed by its button, Escape, a tap beside it or a link in it */
+function SiteMenu({ children }: { children: ReactNode }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const el = dialog.current;
+    if (!el) return;
+    if (open && !el.open) el.showModal();
+    if (!open && el.open) el.close();
+  }, [open]);
+  // Wider than a phone it has nothing to hold (the header shows it all): it closes
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 761px)");
+    const close = () => { if (wide.matches) setOpen(false); };
+    wide.addEventListener("change", close);
+    return () => wide.removeEventListener("change", close);
+  }, []);
+  return <>
+    <button type="button" className="ui-web-head__menu" aria-label="Menu" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+      <Icon icon={Menu01Icon} size={17} />
+    </button>
+    <dialog ref={dialog} className="ui-web-menu" aria-label="Menu" onClose={() => setOpen(false)} onClick={(event) => {
+      const target = event.target as Element;
+      if (target === event.currentTarget || target.closest("a")) setOpen(false);
+    }}>
+      <div className="ui-web-menu__sheet scroll-fade">
+        <button type="button" className="ui-web-menu__close" aria-label="Close menu" onClick={() => setOpen(false)}><Icon icon={Cancel01Icon} size={17} /></button>
+        {children}
+      </div>
+    </dialog>
+  </>;
 }
 
 const footer = [
@@ -228,7 +274,27 @@ const css = /* css */ `
   .ui-web-head__nav { display: none; }
   .ui-web-head__search { justify-self: end; justify-content: center; width: 40px; padding: 0; }
   .ui-web-head__search :is(span, kbd) { display: none; }
+  .ui-web-head .ui-web-head__start { display: none; }
 }
+/* The menu's button: a box like the search beside it, only on a phone */
+.ui-web-head__menu { display: none; place-items: center; width: 40px; height: 40px; border-radius: var(--box-radius); background: var(--box-surface); box-shadow: var(--box-shadow); color: var(--muted); }
+.ui-web-head__menu:hover, .ui-web-head__search:hover { color: var(--ink); }
+@media (max-width: 760px) { .ui-web-head__menu { display: grid; } }
+/* The menu: a sheet from the right on the page's color, the rest of the page dimmed and blurred behind it */
+.ui-web-menu { position: fixed; inset: 0; width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; padding: 0; border: 0; background: none; color: var(--ink); overflow: hidden; }
+.ui-web-menu::backdrop { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.ui-web-menu__sheet { position: absolute; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 6px; width: min(22rem, calc(100% - 48px)); overflow-y: auto; overscroll-behavior: contain; padding: 10px 20px 32px; background: var(--page); box-shadow: var(--shadow-6);
+  transition: translate var(--motion-slow) var(--ease-slow); }
+@starting-style { .ui-web-menu[open] .ui-web-menu__sheet { translate: 100% 0; } }
+/* Its parts keep their height; the sheet scrolls instead */
+.ui-web-menu__sheet > * { flex: none; }
+@media (prefers-reduced-motion: reduce) { .ui-web-menu__sheet { transition: none; } }
+.ui-web-menu__close { display: grid; flex: none; place-items: center; align-self: end; width: 40px; height: 40px; margin-bottom: 6px; border-radius: var(--box-radius); color: var(--muted); }
+.ui-web-menu__close:hover { color: var(--ink); }
+.ui-web-menu__start { justify-content: center; }
+.ui-web-menu__nav { display: grid; padding: 10px 0 14px; }
+.ui-web-menu__nav a { padding: 10px 2px; color: var(--ink); font-size: 17px; font-weight: 550; text-decoration: none; }
+.ui-web-menu__nav a[aria-current="page"] { color: var(--accent); }
 
 /* Footer: back on the page, under the window */
 .ui-web-foot { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 32px; max-width: 1280px; margin: 0 auto; padding: 56px 8px 28px; }

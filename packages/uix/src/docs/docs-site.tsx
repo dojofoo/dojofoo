@@ -98,8 +98,21 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
     </nav>
   );
 
+  // On a phone the tabs and the tree move into the site's menu, as in Fumadocs: the sections, then the open one's pages
+  const menu = (
+    <div className="ui-docs-menu">
+      <nav className="ui-docs-menu__sections" aria-label="Documentation">
+        {docsSections.map((item) => (
+          <a key={item.id} href={item.groups[0].entries[0].path} aria-current={item.id === section.id ? "page" : undefined}
+            onClick={follow(item.groups[0].entries[0].path)}>{item.title}</a>
+        ))}
+      </nav>
+      <Tree key={section.id} active={page.path}>{treeEntries}</Tree>
+    </div>
+  );
+
   return (
-    <SitePage current="help" window={false} subnav={tabs}>
+    <SitePage current="help" window={false} menu={menu} subnav={<>{tabs}{!page.apiPage && toc.length > 1 && <TocBar key={page.path} toc={toc} onOpen={open} />}</>}>
       <style href="ui-docs" precedence="default">{css}</style>
       <div className="ui-docs-layout" data-api={page.apiPage ? "" : undefined}>
         <Tree key={section.id} active={page.path}>{treeEntries}</Tree>
@@ -107,14 +120,6 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
         <article className="ui-docs">
           <h1 ref={title} tabIndex={-1} className="ui-docs__title">{page.title}</h1>
           {page.description && <p className="ui-docs__lead">{page.description}</p>}
-          <div className="ui-docs-mobile-tools">
-            <DocsMenu key={`pages:${page.path}`} label="Pages" dialogLabel="Documentation pages" className="ui-docs-pages-control" icon={<Icon icon={File01Icon} size={13} />}>
-              <Tree active={page.path}>{treeEntries}</Tree>
-            </DocsMenu>
-            {!page.apiPage && toc.length > 1 && <DocsMenu key={`outline:${page.path}`} label="On this page" dialogLabel="Page outline" icon={<Icon icon={LeftToRightListBulletIcon} size={13} />}>
-              <OnThisPage toc={toc} onOpen={open} />
-            </DocsMenu>}
-          </div>
           {renderPage ? <Fragment key={page.path}>{renderPage(page)}</Fragment>
             : page.apiPage ? <Fragment key={page.path}>{renderApiPage?.(page.apiPage)}</Fragment> : <Prose body={page.body} boxed={boxed} onLink={open} />}
           <nav className="ui-docs__pager" aria-label="More pages">
@@ -133,17 +138,38 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
   );
 }
 
-/** Compact access to the same page tree and outline when their desktop rails move away. */
-function DocsMenu({ label, dialogLabel, icon, children, className = "" }: { label: string; dialogLabel: string; icon: ReactNode; children: ReactNode; className?: string }) {
+/** What's on the page when its column is hidden (Fumadocs' TOC popover): a bar in the sticky header naming the part
+    being read, a ring filling as the page goes by; tapped, it opens into the outline */
+function TocBar({ toc, onOpen }: { toc: Toc; onOpen: (href: string) => void }) {
+  const [active, , started] = useReading(toc);
   const [open, setOpen] = useState(false);
-  return <span className={`ui-as-anchor ${className}`}>
-    <button type="button" className="ui-docs-tools__btn" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)}>{icon}{label}<Icon icon={ArrowDown01Icon} size={13} /></button>
-    <Popover open={open} onClose={() => setOpen(false)} align="start">
-      <div role="dialog" aria-label={dialogLabel} className="ui-as-menu ui-docs-mobile-menu scroll-fade" onClick={event => {
-        if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.button === 0 && event.target instanceof Element && event.target.closest("a")) setOpen(false);
-      }}>{children}</div>
-    </Popover>
-  </span>;
+  const at = Math.max(0, toc.findIndex((item) => item.id === active));
+  const progress = started ? (at + 1) / toc.length : 0;
+  const bar = useRef<HTMLDivElement>(null);
+  // A tap outside closes it, as does Escape
+  useEffect(() => {
+    if (!open) return;
+    const away = (event: PointerEvent) => { if (!bar.current?.contains(event.target as Node)) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", escape); };
+  }, [open]);
+  return (
+    <div ref={bar} className="ui-docs-tocbar" data-open={open || undefined}>
+      <button type="button" className="ui-docs-tocbar__toggle" aria-expanded={open} aria-controls="ui-docs-tocbar-outline" onClick={() => setOpen((value) => !value)}>
+        <svg className="ui-docs-tocbar__ring" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          {progress > 0 && <circle cx="12" cy="12" r="9" pathLength="1" strokeDasharray={`${progress} 1`} transform="rotate(-90 12 12)" />}
+        </svg>
+        <span className="ui-docs-tocbar__label">{started ? <><span className="sr-only">On this page: </span>{toc[at]?.text}</> : "On this page"}</span>
+        <Icon icon={ArrowDown01Icon} size={15} />
+      </button>
+      <div id="ui-docs-tocbar-outline" className="ui-docs-tocbar__outline scroll-fade" hidden={!open} onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>
+        <OnThisPage toc={toc} onOpen={onOpen} />
+      </div>
+    </div>
+  );
 }
 
 /** The page's source on GitHub, to edit: under what's on the page, or at the page's end when that column is hidden */
@@ -264,26 +290,38 @@ function Prose({ body, boxed, onLink }: { body: string; /** Its code on the box'
   </div>;
 }
 
-/** What's on the page, the part being read marked on its rail */
-function OnThisPage({ toc, onOpen }: { toc: Array<{ depth: number; text: ReactNode; id: string }>; onOpen: (href: string) => void }) {
+type Toc = Array<{ depth: number; text: ReactNode; id: string }>;
+
+/** The part being read: the last heading above a third of the window */
+function useReading(toc: Toc) {
   const [active, setActive] = useState(toc[0]?.id);
-  const box = useRef<HTMLElement>(null);
-  const glide = useGlide(box, active);
+  // Whether the first heading has been reached: before it, the page's lead is being read
+  const [started, setStarted] = useState(false);
   useEffect(() => {
     const update = () => {
       // The last heading above a third of the window is the part being read; at the very end, the last one
       let at = toc[0]?.id;
+      let reached = false;
       for (const item of toc) {
         const heading = document.getElementById(item.id);
-        if (heading && heading.getBoundingClientRect().top < window.innerHeight / 3) at = item.id;
+        if (heading && heading.getBoundingClientRect().top < window.innerHeight / 3) { at = item.id; reached = true; }
       }
-      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) at = toc.at(-1)?.id ?? at;
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) { at = toc.at(-1)?.id ?? at; reached = true; }
       setActive(at);
+      setStarted(reached);
     };
     update();
     window.addEventListener("scroll", update, { passive: true });
     return () => window.removeEventListener("scroll", update);
   }, [toc]);
+  return [active, setActive, started] as const;
+}
+
+/** What's on the page, the part being read marked on its rail */
+function OnThisPage({ toc, onOpen }: { toc: Toc; onOpen: (href: string) => void }) {
+  const [active, setActive] = useReading(toc);
+  const box = useRef<HTMLElement>(null);
+  const glide = useGlide(box, active);
   if (toc.length < 2) return null;
   return (
     <nav ref={box} className="ui-docs-toc" aria-label="On this page">
@@ -306,18 +344,36 @@ function OnThisPage({ toc, onOpen }: { toc: Array<{ depth: number; text: ReactNo
 const css = /* css */ `
 /* The header and the tabs are one bar at the top (SitePage's subnav): what stays in view starts under it */
 .ui-web:has(.ui-docs-tabs) { --ui-docs-bar: 108px; }
-.ui-docs-mobile-tools { display: none; gap: 8px; }
-.ui-docs-mobile-menu { width: 18rem; max-width: calc(100vw - 40px); max-height: min(60dvh, 24rem); overflow-y: auto; padding: 12px; }
-.ui-docs-mobile-menu .ui-docs-tree { position: relative; top: auto; max-height: none; padding: 4px 0; background: none; }
-@media (max-width: 1100px) { .ui-docs-mobile-tools { display: flex; } .ui-docs-mobile-tools > .ui-as-anchor { margin-top: 16px; } }
-@media (min-width: 761px) { .ui-docs-pages-control { display: none; } }
+/* With its column hidden, what's on the page is a bar under the tabs; on a phone the tabs go to the menu */
+@media (max-width: 1100px) { .ui-web:has(.ui-docs-tocbar) { --ui-docs-bar: 152px; } }
+@media (max-width: 760px) { .ui-web:has(.ui-docs-tabs) { --ui-docs-bar: 60px; } .ui-web:has(.ui-docs-tocbar) { --ui-docs-bar: 104px; } }
+.ui-docs-tocbar { position: relative; display: none; max-width: 1280px; margin: 0 auto; padding: 0 8px; }
+@media (max-width: 1303px) { .ui-docs-tocbar { padding: 0 20px; } }
+@media (max-width: 1100px) { .ui-docs-tocbar { display: block; } }
+.ui-docs-tocbar::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; background: var(--line); content: ""; }
+.ui-docs-tocbar__toggle { display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; color: var(--muted); font-size: var(--fs-subtitle); text-align: left; }
+.ui-docs-tocbar__toggle:hover, .ui-docs-tocbar[data-open] .ui-docs-tocbar__toggle { color: var(--ink); }
+.ui-docs-tocbar__toggle > svg:last-child { flex: none; transition: rotate var(--motion-fast) var(--ease-standard); }
+.ui-docs-tocbar[data-open] .ui-docs-tocbar__toggle > svg:last-child { rotate: 180deg; }
+.ui-docs-tocbar__label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ui-docs-tocbar__ring { flex: none; width: 18px; height: 18px; fill: none; stroke-width: 2.5; }
+.ui-docs-tocbar__ring circle:only-child, .ui-docs-tocbar__ring circle:first-child { stroke: var(--line); }
+.ui-docs-tocbar__ring circle + circle { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray var(--motion-moderate) var(--ease-standard); }
+.ui-docs-tocbar__outline { max-height: min(60dvh, 28rem); overflow-y: auto; padding: 4px 0 16px; }
+.ui-docs-tocbar__outline .ui-docs-toc__title { display: none; }
+/* The phone's menu: the sections as a list, the open one's pages under them */
+.ui-docs-menu { display: grid; gap: 4px; padding-top: 14px; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; }
+.ui-docs-menu__sections { display: flex; flex-wrap: wrap; gap: 6px; }
+.ui-docs-menu__sections a { padding: 6px 12px; border-radius: 999px; background: var(--surface-3); box-shadow: var(--shadow-1); color: var(--muted); font-size: var(--fs-body); font-weight: 500; text-decoration: none; }
+.ui-docs-menu__sections a[aria-current="page"] { background: var(--accent-soft); box-shadow: none; color: var(--accent); }
+.ui-docs-menu .ui-docs-tree { position: relative; top: auto; display: block; max-height: none; overflow: visible; padding: 18px 0 0; }
 /* The tabs: the sections, under the header, the open one underlined in the brand's color, over a solid rule (the page
    scrolls under it, so a dotted one would flicker) */
 .ui-docs-tabs { position: relative; display: flex; max-width: 1280px; margin: 0 auto; align-items: center; gap: 22px; padding: 0 8px; }
 .ui-docs-tabs::before { position: absolute; right: 8px; bottom: 0; left: 8px; height: 1px; background: var(--line); content: ""; }
 /* On the header's edge: its logo, the first tab and the tree share a line */
 .ui-docs-tabs__row { display: flex; flex: 1; align-items: center; gap: 22px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-@media (max-width: 760px) { .ui-docs-tools { display: none; } }
+@media (max-width: 760px) { .ui-docs-tools, .ui-docs-tabs { display: none; } }
 @media (max-width: 1303px) { .ui-docs-tabs { padding: 0 20px; } .ui-docs-tabs::before { right: 20px; left: 20px; } }
 .ui-docs-tabs a { position: relative; flex: none; padding: 14px 0 13px; white-space: nowrap; color: var(--muted); font-size: var(--fs-subtitle); font-weight: 500; text-decoration: none; }
 .ui-docs-tabs a:hover { color: var(--ink); }
@@ -410,9 +466,9 @@ const css = /* css */ `
 
 /* The right column, sticky: the tools, then on this page – on its own rail, the part being read marked */
 .ui-docs-side { position: sticky; top: var(--ui-docs-bar); align-self: start; display: grid; gap: 28px; padding: 40px 0 24px; }
-/* Narrower: "On this page" goes; on a phone the tree follows the article, unstuck (relative: its marker's frame) */
+/* Narrower: "On this page" goes to the bar under the tabs; on a phone the tree goes to the menu */
 @media (max-width: 1100px) { .ui-docs-side { display: none; } }
-@media (max-width: 760px) { .ui-docs-layout, .ui-docs-layout[data-api] { grid-template-columns: minmax(0, 1fr); } .ui-docs-tree { position: relative; order: 1; max-height: none; padding: 32px 0 0; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; } }
+@media (max-width: 760px) { .ui-docs-layout, .ui-docs-layout[data-api] { grid-template-columns: minmax(0, 1fr); } .ui-docs-layout > .ui-docs-tree { display: none; } }
 .ui-docs-toc { position: relative; }
 .ui-docs-toc__title { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--muted); font-size: var(--fs-caption); font-weight: 550; }
 .ui-docs-toc a { display: block; padding: 5px 0 5px 12px; color: var(--muted); font-size: var(--fs-body); text-decoration: none; transition: color var(--motion-fast) var(--ease-standard); }
