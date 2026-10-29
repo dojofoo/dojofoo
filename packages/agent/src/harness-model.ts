@@ -88,7 +88,8 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
       const deliveries = options.prompt.slice(checkpointIndex + 1);
       const continuing = last?.role === "tool" || Boolean(checkpoint?.resumeFrom.continueFrom);
       const pendingPrompts = [...(checkpoint?.pendingPrompts ?? [])];
-      pendingPrompts.push(...deliveries.filter(message => message.role === "user"));
+      const input = deliveries.filter(message => message.role === "user");
+      if (input.length) pendingPrompts.push({ role: "user", content: input.flatMap(message => message.content) });
 
       if (!continuing) {
         if (last?.role !== "user") {

@@ -393,12 +393,15 @@ test("queued input survives another tool suspension and provider reconstruction"
     ...JSON.parse(JSON.stringify(paused.response.messages)), toolMessage("echo-2"),
   ] });
   assert.deepEqual(receipts, ["echo-1", "echo-2"]);
-  assert.deepEqual(native.prompts.slice(0, 3).map(turn => turn.prompt), ["Use the tool.", "Child completed.", "Agent status updated."]);
-  const attachment = native.prompts[3].prompt.content[0];
+  assert.equal(native.prompts.length, 2);
+  assert.equal(native.prompts[0].prompt, "Use the tool.");
+  const [child, status, attachment] = native.prompts[1].prompt.content;
+  assert.equal(child.text, "Child completed.");
+  assert.equal(status.text, "Agent status updated.");
   assert.equal(attachment.filename, "lesson.bin");
   assert.deepEqual(attachment.data, { type: "data", data: "AAH/" });
   assert.equal(new Set(native.starts).size, 1);
-  assert.equal(resumed.totalUsage.inputTokens, 4);
+  assert.equal(resumed.totalUsage.inputTokens, 2);
   assert.equal(native.active, 0);
 });
 
@@ -601,6 +604,19 @@ function fixtureSandbox() {
   const sandbox = createJustBashSandbox();
   return { ...sandbox, resumeSession: options => sandbox.createSession(options) };
 }
+
+test("context and the user's message produce one native prompt and one reply", async () => {
+  const native = fixture();
+  const { model } = createHarnessModel({ harness: native.harness, sandbox: fixtureSandbox() });
+  const result = await model.doGenerate({ prompt: [
+    { role: "system", content: "Teach this course." },
+    { role: "user", content: [{ type: "text", text: "Client context: lesson first, file SENSEI.md" }] },
+    { role: "user", content: [{ type: "text", text: "Explain this file." }] },
+  ] });
+  assert.deepEqual(native.prompts.map(turn => turn.prompt), ["Client context: lesson first, file SENSEI.md\nExplain this file."]);
+  assert.equal(result.content.filter(part => part.type === "text").map(part => part.text).join(""), "A streamed response.");
+  assert.equal(native.active, 0);
+});
 
 test("provider streams chunks through the official AI SDK", async () => {
   const native = fixture();
