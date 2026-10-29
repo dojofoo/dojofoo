@@ -162,6 +162,8 @@ try {
       const faces = await document.fonts.load('16px "Iosevka"');
       return faces.length > 0 && faces.every(face => face.status === "loaded");
     }), true, "The real editor font must load from the built app");
+    await expect.poll(() => page.locator(".view-lines").evaluate(node => new Set([...node.querySelectorAll("span[class^=mtk]")].map(span => span.classList[0])).size),
+      { message: "The real editor must apply syntax highlighting", timeout: 15_000 }).toBeGreaterThan(1);
     await page.locator(".view-lines").getByText("answer", { exact: true }).first().hover();
     const hover = page.locator(".monaco-hover:visible");
     await expect(hover).toContainText("Count the tokens in the fixture.");
