@@ -19,7 +19,7 @@ const TIP_GAP = 8;
 const PAD = 6;
 
 // The curve lives in the note's own coordinates: (0,0) is the note's top left.
-function geometry(note: Box, target: Box, flip = false, loop = false, shape: ArrowShape = "arc") {
+function geometry(note: Box, target: Box, flip = false, shape: ArrowShape = "arc", bend = 1) {
   const tc = {
     x: target.left + target.width / 2 - note.left,
     y: target.top + target.height / 2 - note.top,
@@ -57,7 +57,7 @@ function geometry(note: Box, target: Box, flip = false, loop = false, shape: Arr
     nx = -nx;
     ny = -ny;
   }
-  const bulge = Math.min(len * 0.32, 56);
+  const bulge = Math.min(len * 0.32, 56) * bend;
   // Asymmetric handles: a quick start, a longer approach into the tip.
   const c1 = shape === "straight" ? { x: s.x + vx / 3, y: s.y + vy / 3 }
     : shape === "elbow" ? { x: s.x + Math.min(vx * 0.9, -40), y: s.y }
@@ -76,52 +76,8 @@ function geometry(note: Box, target: Box, flip = false, loop = false, shape: Arr
   const b1 = barb(0.5, 9);
   const b2 = barb(-0.45, 7.5);
 
-  // A loop halfway, the way a pen curls: the stroke rises off the curve, swings back over itself and carries on a
-  // little further along (a looped cycloid), then finishes the curve to the tip
-  const shaft: Pt[] = [];
-  if (loop) {
-    const at = (t: number) => {
-      const u = 1 - t;
-      return {
-        x: u * u * u * s.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * e.x,
-        y: u * u * u * s.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * e.y,
-      };
-    };
-    const steps = 32;
-    // An elbow loops in its corner; an arc a little before halfway
-    const start = shape === "elbow" ? 0.5 : 0.42;
-    for (let i = 0; i <= steps; i++) shaft.push(at((i / steps) * start));
-    const from = at(start);
-    const ahead = at(start + 0.001);
-    const tl = Math.hypot(ahead.x - from.x, ahead.y - from.y) || 1;
-    const tx = (ahead.x - from.x) / tl;
-    const ty = (ahead.y - from.y) / tl;
-    // Curls to the outside of the bend
-    const side = flip ? -1 : 1;
-    const nx = -ty * side;
-    const ny = tx * side;
-    // Moves k along per radian while circling at radius R; R > k makes it cross itself
-    const k = 3;
-    const R = 10;
-    for (let i = 1; i <= 48; i++) {
-      const phi = (i / 48) * Math.PI * 2;
-      const along = k * phi + R * Math.sin(phi);
-      const across = R * (1 - Math.cos(phi));
-      shaft.push({ x: from.x + tx * along + nx * across, y: from.y + ty * along + ny * across });
-    }
-    // Rejoins the curve: the gap between where the loop ends and the curve point it resumes from fades out by the tip
-    const resume = Math.min(0.95, start + (2 * Math.PI * k) / len);
-    const end = shaft[shaft.length - 1]!;
-    const rejoin = at(resume);
-    for (let i = 1; i <= steps; i++) {
-      const pt = at(resume + (i / steps) * (1 - resume));
-      const fade = (1 - i / steps) ** 2;
-      shaft.push({ x: pt.x + (end.x - rejoin.x) * fade, y: pt.y + (end.y - rejoin.y) * fade });
-    }
-  }
-
-  const xs = [s.x, c1.x, c2.x, e.x, b1.x, b2.x, ...shaft.map((pt) => pt.x)];
-  const ys = [s.y, c1.y, c2.y, e.y, b1.y, b2.y, ...shaft.map((pt) => pt.y)];
+  const xs = [s.x, c1.x, c2.x, e.x, b1.x, b2.x];
+  const ys = [s.y, c1.y, c2.y, e.y, b1.y, b2.y];
   const box = {
     x: Math.min(...xs) - PAD,
     y: Math.min(...ys) - PAD,
@@ -131,7 +87,7 @@ function geometry(note: Box, target: Box, flip = false, loop = false, shape: Arr
   const p = (pt: Pt) => `${round(pt.x)} ${round(pt.y)}`;
   return {
     box,
-    body: shaft.length ? `M${shaft.map(p).join("L")}` : `M${p(s)}C${p(c1)} ${p(c2)} ${p(e)}`,
+    body: `M${p(s)}C${p(c1)} ${p(c2)} ${p(e)}`,
     head: `M${p(b1)}L${p(e)}L${p(b2)}`,
   };
 }
@@ -140,8 +96,8 @@ export function ArrowCallout({
   target,
   follow = false,
   flip = false,
-  loop = false,
   shape = "arc",
+  bend = 1,
   children,
   className,
 }: {
@@ -151,10 +107,10 @@ export function ArrowCallout({
   follow?: boolean;
   /** Bends the arrow the other way: downward instead of the usual upward flick */
   flip?: boolean;
-  /** Curls the shaft once halfway, a flourish of the pen */
-  loop?: boolean;
   /** How the arrow runs to its target (arc, the default; straight; or elbow) */
   shape?: ArrowShape;
+  /** How far an arc bulges, as a share of its usual flick: 0.25 is a slight curve */
+  bend?: number;
   children: ReactNode;
   className?: string;
 }) {
@@ -186,8 +142,8 @@ export function ArrowCallout({
           height: t.height / k,
         },
         flip,
-        loop,
         shape,
+        bend,
       );
       art.style.left = `${round(g.box.x)}px`;
       art.style.top = `${round(g.box.y)}px`;
@@ -260,7 +216,7 @@ export function ArrowCallout({
       window.removeEventListener("pointercancel", up);
       to.removeEventListener("transitionrun", wake);
     };
-  }, [target, follow, flip, loop, shape]);
+  }, [target, follow, flip, shape, bend]);
 
   const ink = {
     fill: "none",

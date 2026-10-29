@@ -72,8 +72,8 @@ export function LandingPage({ learning, courses, preview }: {
           Getting started card */}
       <div className="ui-land-app" ref={app}>
         {/* What the window shows, called out instead of explained: notes above it, their arrows drawn into the app */}
-        <ArrowCallout target={card} shape="straight" className="ui-land-note ui-land-note--card">Install any course</ArrowCallout>
-        <ArrowCallout target={sensei} shape="elbow" loop className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
+        <ArrowCallout target={card} flip bend={0.25} className="ui-land-note ui-land-note--card">Install any course</ArrowCallout>
+        <ArrowCallout target={sensei} shape="elbow" className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
         <AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview>
       </div>
 
@@ -174,7 +174,7 @@ const css = /* css */ `
 /* The notes sit in a band above the window; where the window is too small to point into, they go */
 .ui-land-app { position: relative; }
 .ui-land-note { display: none; }
-@media (min-width: 1180px) {
+@media (min-width: 1200px) {
   .ui-land-app { padding-top: 64px; }
   .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; }
   .ui-land-note--card { left: 40px; }
