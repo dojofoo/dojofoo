@@ -1,17 +1,18 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync, fork } from "node:child_process";
 import { once } from "node:events";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 // Opt-in infrastructure test: real Eve + official OpenCode, local model only.
-test("authors, resumes, checks, reviews and advances an isolated learner trial", async ({ page, context }) => {
+test("the starter tutorial creates an independent draft, trials it and returns after restart", async ({ page, context }) => {
   test.skip(process.env.DOJO_AUTHORING_RUNTIME_E2E !== "1", "Requires local OpenCode and built @dojofoo/agent");
   test.setTimeout(300_000);
   context.setDefaultTimeout(30_000);
   const fixture = fork(fileURLToPath(new URL("../../authoring/src/eve/browser.fixture.mjs", import.meta.url)), [], {
     stdio: ["ignore", "pipe", "pipe", "ipc"], execArgv: [],
+    env: { ...process.env, DOJO_AUTHORING_REQUEST_LOG: test.info().outputPath("inference-requests.json") },
   });
   let logs = "";
   let fixtureRoot: string | undefined;
@@ -27,60 +28,95 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     return message as { url: string; course: string; root: string };
   };
   try {
-    const { url, course, root } = await ready();
+    const { url, course: installedCourse, root } = await ready();
     fixtureRoot = root;
-    await page.goto(`${url}authoring`);
+    const installedManifest = await readFile(join(installedCourse, "dojo.yaml"), "utf8");
+    const workspaces = await (await page.request.get(`${url}api/control/workspaces`)).json() as Array<{ id: string; path: string }>;
+    const learningRoot = await realpath(join(root, "learning"));
+    const learning = workspaces.find(workspace => workspace.path === learningRoot);
+    expect(learning, "The installed learning workspace must remain available").toBeDefined();
+    const tutorial = await context.newPage();
+    await tutorial.goto(`${url}explore?course=create-your-own-dojo`);
+    const install = tutorial.getByRole("dialog", { name: "Create your own dojo", exact: true });
+    await install.getByRole("button", { name: /^Course workspace:/ }).click();
+    await tutorial.getByRole("menuitemradio", { name: learning!.path, exact: true }).click();
+    await install.getByRole("button", { name: "Install course", exact: true }).click();
+    const material = tutorial.getByTestId("interactive-material");
+    await expect(material).toContainText("Choose someone you want to help");
+    await tutorial.getByRole("button", { name: "Next", exact: true }).click();
+    await tutorial.getByRole("button", { name: "Next", exact: true }).click();
+    await expect(material).toContainText("Use the Dashboard breadcrumb");
+    const tutorialRoot = join(learning!.path, "courses/create-your-own-dojo");
+    const tutorialFiles = (await readdir(tutorialRoot, { recursive: true, withFileTypes: true }))
+      .filter(file => file.isFile()).map(file => join(file.parentPath, file.name));
+    const tutorialBefore = await Promise.all(tutorialFiles.map(path => readFile(path, "utf8")));
+    // Follow the tutorial in a second tab, keeping it open as a reference.
+    await page.goto(tutorial.url());
+    await page.getByRole("button", { name: "Dashboard", exact: true }).click();
+    const created = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/control/authoring");
+    await page.getByRole("button", { name: /^New course/ }).click();
+    const response = await created;
+    expect(response.status()).toBe(201);
+    const draft = await response.json() as { path: string; workspaceId: string };
+    const course = draft.path;
+    expect(course).not.toBe(installedCourse);
+    expect(course.startsWith(tutorialRoot)).toBe(false);
     await expect(page.getByRole("radio", { name: /^Beginners/ })).toBeVisible({ timeout: 120_000 });
     const sessionUrl = page.url();
     expect(sessionUrl).toContain("session=wrun_");
     const sessionId = new URL(sessionUrl).searchParams.get("session")!;
-    const snapshot = await page.request.get(`${url}api/authoring/eve/sessions/${sessionId}`);
+    const workspaceId = new URL(sessionUrl).searchParams.get("workspace")!;
+    const sessionApi = `${url}api/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions/${encodeURIComponent(sessionId)}`;
+    const snapshot = await page.request.get(sessionApi);
     expect(snapshot.ok()).toBe(true);
     const saved = await snapshot.json();
-    expect(saved.session.streamIndex).toBeGreaterThan(0);
-    expect(saved.messages.length).toBeGreaterThan(0);
+    expect(saved.position).toBeGreaterThan(0);
+    expect((await (await page.request.get(`${sessionApi}/messages`)).json()).data.length).toBeGreaterThan(0);
     await page.reload();
     await expect(page.getByRole("radio", { name: /^Beginners/ })).toBeVisible();
     await expect(page.getByText(/Eve stream ended|no saved events/)).toHaveCount(0);
+    await expect(page.locator(".ui-as-chat__composer .ui-as-composer")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Dojo dashboard", exact: true })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath("authoring-pages-layout.png"), animations: "disabled" });
 
     const queued = ["Keep examples short", "Focus on one example"];
 
     // Edit through the same Monaco document and save shortcut as an author.
-    const edit = async (source: string) => {
-      await page.getByRole("textbox", { name: "Code editor" }).focus();
+    const edit = async (path: string, source: string) => {
+      const tab = page.getByRole("tab").and(page.getByTitle(path, { exact: true }));
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      await page.getByRole("textbox", { name: "Code editor", exact: true }).focus();
       await page.keyboard.press("ControlOrMeta+a");
       await page.keyboard.insertText(source);
+      await expect(tab).toHaveAccessibleName(/unsaved changes/);
       const saved = page.waitForResponse(response => response.request().method() === "PUT" && response.url().includes("/api/authoring/"));
       await page.keyboard.press("ControlOrMeta+s");
       expect((await saved).ok()).toBe(true);
     };
-    await edit("mode: katas\nname: Browser authoring fixture\nversion: 0.0.1\ndescription: Learn pure functions.\nlanguage: typescript\ntest: npx vitest run {template}\nkatas: []\n");
-    await page.getByRole("button", { name: "Lessons actions" }).click();
-    await page.getByRole("button", { name: "Add lesson", exact: true }).click();
+    await edit("dojo.yaml", "mode: katas\nname: Browser authoring fixture\nversion: 0.0.1\ndescription: Learn pure functions.\nlanguage: typescript\ntest: npx vitest run {template}\nkatas: []\n");
+    await page.getByRole("button", { name: "New lesson", exact: true }).click();
     await page.getByRole("button", { name: "SENSEI.md", exact: true }).click();
     await expect(page.getByRole("tab", { name: "SENSEI.md", exact: true })).toBeVisible();
-    await edit("# Pure functions\n\nAsk the learner to predict an output before editing.\n");
+    await edit("src/001-untitled-lesson/SENSEI.md", "# Pure functions\n\nAsk the learner to predict an output before editing.\n");
     expect(await readFile(join(course, "src/001-untitled-lesson/SENSEI.md"), "utf8")).toContain("predict an output");
     await page.getByRole("button", { name: "kata.ts", exact: true }).click();
-    await edit('export function double(value: number): number { throw new Error("Your turn"); }\n');
+    await edit('src/001-untitled-lesson/kata.ts', 'export function double(value: number): number { throw new Error("Your turn"); }\n');
     await page.getByRole("button", { name: "kata.test.ts", exact: true }).click();
-    await edit('import { it, expect } from "vitest";\nimport { double } from "@/katas/001-untitled-lesson/kata";\nit("doubles a positive value", () => expect(double(2)).toBe(4));\nit("keeps zero", () => expect(double(0)).toBe(0));\n');
+    await edit('src/001-untitled-lesson/kata.test.ts', 'import { it, expect } from "vitest";\nimport { double } from "@/katas/001-untitled-lesson/kata";\nit("doubles a positive value", () => expect(double(2)).toBe(4));\nit("keeps zero", () => expect(double(0)).toBe(0));\n');
     // Author the next lesson separately so advancement has a real destination.
-    await page.getByRole("button", { name: "Lessons actions" }).click();
-    await page.getByRole("button", { name: "Add lesson", exact: true }).click();
-    const second = page.getByRole("treeitem", { name: "Untitled lesson", exact: true }).nth(1);
+    await page.getByRole("button", { name: "New lesson", exact: true }).click();
+    const second = page.locator(".ui-as-side__branch").filter({ has: page.getByRole("button", { name: "Untitled lesson", exact: true }) }).nth(1);
     await second.getByRole("button", { name: "SENSEI.md", exact: true }).click();
-    await edit("# Identity\n\nAsk the learner what should stay unchanged.\n");
+    await edit("src/002-untitled-lesson/SENSEI.md", "# Identity\n\nAsk the learner what should stay unchanged.\n");
     await second.getByRole("button", { name: "kata.ts", exact: true }).click();
-    await edit('export function identity(value: number): number { throw new Error("Your turn"); }\n');
+    await edit('src/002-untitled-lesson/kata.ts', 'export function identity(value: number): number { throw new Error("Your turn"); }\n');
     await second.getByRole("button", { name: "kata.test.ts", exact: true }).click();
-    await edit('import { it, expect } from "vitest";\nimport { identity } from "@/katas/002-untitled-lesson/kata";\nit("keeps its input", () => expect(identity(3)).toBe(3));\n');
+    await edit('src/002-untitled-lesson/kata.test.ts', 'import { it, expect } from "vitest";\nimport { identity } from "@/katas/002-untitled-lesson/kata";\nit("keeps its input", () => expect(identity(3)).toBe(3));\n');
     const selectFirstLesson = async () => {
-      const first = page.getByRole("treeitem", { name: "Untitled lesson", exact: true }).first();
-      if (await first.getAttribute("aria-expanded") !== "true") {
-        await first.getByRole("button", { name: "Untitled lesson", exact: true }).click();
-      }
-      await expect(first).toHaveAttribute("aria-expanded", "true");
+      const button = page.getByRole("button", { name: "Untitled lesson", exact: true }).first();
+      if (await button.getAttribute("aria-expanded") !== "true") await button.click();
+      const first = page.locator(".ui-as-side__branch").filter({ has: page.getByRole("button", { name: "Untitled lesson", exact: true }) }).first();
+      await expect(button).toHaveAttribute("aria-expanded", "true");
       await first.getByRole("button", { name: "SENSEI.md", exact: true }).click();
     };
     await selectFirstLesson();
@@ -109,8 +145,8 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     // An empty optimistic queue means accepted, not durably processed. Verify
     // the actual saved transcript before disconnecting and testing recovery.
     await expect.poll(async () => {
-      const settled = await (await page.request.get(`${url}api/authoring/eve/sessions/${sessionId}`)).json();
-      return settled.messages.filter((message: { role: string }) => message.role === "user")
+      const settled = await (await page.request.get(`${sessionApi}/messages?per_page=500`)).json();
+      return settled.data.filter((message: { role: string }) => message.role === "user")
         .map((message: { parts: Array<{ content?: string }> }) => message.parts.map(part => part.content ?? "").join(""));
     }).toEqual(queued);
     await expect(answer).toHaveAttribute("aria-checked", "true");
@@ -123,8 +159,8 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     await composer.fill("Continue authoring");
     await composer.press("Enter");
     await expect.poll(async () => {
-      const settled = await (await page.request.get(`${url}api/authoring/eve/sessions/${sessionId}`)).json();
-      return JSON.stringify(settled.messages);
+      const settled = await (await page.request.get(`${sessionApi}/messages?per_page=500`)).json();
+      return JSON.stringify(settled.data);
     }).toContain("Continue authoring");
     const opened = context.waitForEvent("page");
     const launched = page.waitForResponse(response => response.request().method() === "POST"
@@ -183,15 +219,25 @@ test("authors, resumes, checks, reviews and advances an isolated learner trial",
     const afterRestart = await (await trial.request.get(new URL(nextApi, url).href)).json();
     expect(afterRestart.sessionId).toBe(beforeRestart.sessionId);
     expect(afterRestart.code).toContain('throw new Error("Your turn")');
+    await page.goto(sessionUrl);
+    await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
+    expect(new URL(page.url()).searchParams.get("workspace")).toBe(draft.workspaceId);
+    expect(new URL(page.url()).searchParams.get("session")).toBe(sessionId);
+    expect(await readFile(join(course, "src/001-untitled-lesson/kata.ts"), "utf8")).toContain('throw new Error("Your turn")');
+    await expect(material).toContainText("Use the Dashboard breadcrumb");
+    expect(await Promise.all(tutorialFiles.map(path => readFile(path, "utf8")))).toEqual(tutorialBefore);
+    expect(await readFile(join(installedCourse, "dojo.yaml"), "utf8")).toBe(installedManifest);
   } finally {
     if (fixture.exitCode === null && fixture.signalCode === null) {
       const exited = once(fixture, "exit");
       fixture.kill("SIGTERM");
       await exited;
     }
+    await writeFile(test.info().outputPath("runtime.log"), logs);
     await test.info().attach("runtime-log", { body: logs, contentType: "text/plain" });
-    expect.soft(logs, "The installed Kyoshi instructions must reach the native harness").toContain('"masterInstructionsLoaded":true');
-    expect.soft(logs, "The installed course-specific question tool must execute").toContain('"customToolUsed":true');
+    expect.soft(logs, "Production API schemas must compile with their compatible validator").not.toContain("[exact-mirror]");
+    expect.soft(logs, "The shipped Kyoshi instructions must reach the native harness").toContain('"shippedInstructionsLoaded":true');
+    expect.soft(logs, "The shipped question tool must execute").toContain('"questionToolUsed":true');
     if (fixtureRoot) {
       const surviving = execFileSync("ps", ["-axo", "pid=,args="], { encoding: "utf8" })
         .split("\n").filter(line => line.includes(fixtureRoot!));

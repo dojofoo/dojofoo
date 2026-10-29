@@ -13,7 +13,7 @@ import { cn } from "../lib/utils";
  * (`enrolled`) says what you have instead: your version top left – an Update button once there is a newer one – its
  * author over the title, and your progress at the foot, as the small cards show it.
  *
- *   <CourseCard mark={<BrandLogo />} course={{ title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript",
+ *   <CourseCard mark={<BrandLogo mono />} course={{ title: "Everyday TypeScript", repo: "dojofoo/everyday-typescript",
  *     author: "Dojo.foo", rating: 4.9, version: "v1.4.0", updated: "12 Oct 2026", language: "TypeScript", chapters: 4,
  *     lessons: 12, hours: 6, art: { hue: 350, glyph: "TS" } }}
  *     enrolled={{ version: "v1.4.0", latest: "v1.5.0", onUpdate, progress: 42, label: "02 · Objects", value: "Merge settings" }} />
@@ -44,7 +44,7 @@ export type CourseInfo = {
 
 /** A course you study: the version you have (a newer `latest` turns it into an Update button) and how far you are */
 export type CourseEnrollment = {
-  version: string;
+  version?: string;
   latest?: string;
   /** While the update runs */
   updating?: boolean;
@@ -69,11 +69,11 @@ export function CourseArt({ art, size = 44, cover = false, className }: { art: C
 /** A course's color, for the cards drawn from one */
 export const courseColor = (art: CourseArtwork) => `oklch(0.58 0.2 ${art.hue})`;
 
-export function CourseCard({ course, mark, enrolled, badge, className, showVersion = false, flip = true }: { course: CourseInfo; /** In the author's name's place, e.g. our logo on our own courses */ mark?: ReactNode; /** A course you study: your version and progress */ enrolled?: CourseEnrollment; /** A format badge in place of the enrolled version label. */ badge?: ReactNode; className?: string; showVersion?: boolean; flip?: boolean }) {
-  const outdated = enrolled?.latest !== undefined && enrolled.latest !== enrolled.version;
+export function CourseCard({ course, mark, enrolled, badge, className, showVersion = false, flip = true }: { course: Pick<CourseInfo, "title" | "art"> & Partial<Omit<CourseInfo, "title" | "art">>; /** In the author's name's place, e.g. our logo on our own courses */ mark?: ReactNode; /** A course you study: your version and progress */ enrolled?: CourseEnrollment; /** A format badge in place of the enrolled version label. */ badge?: ReactNode; className?: string; showVersion?: boolean; flip?: boolean }) {
+  const outdated = enrolled?.version !== undefined && enrolled.latest !== undefined && enrolled.latest !== enrolled.version;
   return (<>
     <style href="ui-course-card" precedence="default">{css}</style>
-    <ColorCard size="big" flip={flip} color={courseColor(course.art)} shader={course.shader ?? "topography"} seed={course.repo} className={cn("ui-course", className)}
+    <ColorCard size="big" flip={flip} color={courseColor(course.art)} shader={course.shader ?? "topography"} seed={course.repo ?? course.title} className={cn("ui-course", className)}
       aria-label={enrolled ? `${course.title}, ${enrolled.progress}% done` : course.title}
       header={<>
         {!enrolled ? <CardMark>{mark ?? course.author}</CardMark>
@@ -85,10 +85,10 @@ export function CourseCard({ course, mark, enrolled, badge, className, showVersi
         {showVersion ? <CardFigure aria-label={`Version ${course.version}`}>{course.version}</CardFigure> : course.rating !== undefined && <CardFigure aria-label={`Rated ${course.rating} out of 5`}>★ {course.rating.toFixed(1)}</CardFigure>}
       </>}
       // Its version has the top left, so a course you study names its author over the title (others, their repository)
-      main={<>{enrolled ? <CardKicker>{course.author}</CardKicker> : <CardKicker code>{course.repo}</CardKicker>}<CardTitle>{course.title}</CardTitle></>}
-      footer={enrolled ? <><CardText label={enrolled.label} value={enrolled.value} /><CardFigure>{enrolled.progress}%</CardFigure></> : <CardText label="Updated" value={course.updated} />}
+      main={<>{enrolled ? course.author && <CardKicker>{course.author}</CardKicker> : course.repo && <CardKicker code>{course.repo}</CardKicker>}<CardTitle>{course.title}</CardTitle></>}
+      footer={enrolled ? <><CardText label={enrolled.label} value={enrolled.value} /><CardFigure>{enrolled.progress}%</CardFigure></> : course.updated ? <CardText label="Updated" value={course.updated} /> : undefined}
       progress={enrolled?.progress}>
-      <CardDetails items={[["Version", enrolled?.version ?? course.version], ["Language", course.language], ...(course.chapters === undefined ? [] : [["Chapters", course.chapters] as [string, number]]), ["Lessons", course.lessons], ...(course.hours === undefined ? [] : [["Time to complete", `~${course.hours}\u00a0h`] as [string, string]])]} />
+      <CardDetails items={[...((enrolled?.version ?? course.version) ? [["Version", (enrolled?.version ?? course.version)!] as [string, string]] : []), ...(course.language ? [["Language", course.language] as [string, string]] : []), ...(course.chapters === undefined ? [] : [["Chapters", course.chapters] as [string, number]]), ...(course.lessons === undefined ? [] : [["Lessons", course.lessons] as [string, number]]), ...(course.hours === undefined ? [] : [["Time to complete", `~${course.hours}\u00a0h`] as [string, string]])]} />
     </ColorCard>
   </>);
 }

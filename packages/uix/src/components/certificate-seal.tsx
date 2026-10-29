@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useRef } from "react";
-import logo from "../assets/brand/dojofoo.svg?raw";
+import logo from "../assets/brand/dojofoo-mono.svg?raw";
 import { cn } from "../lib/utils";
 import { certificateWatermarkPaths, type CertificateGeometry } from "../lib/certificate-seal";
 
 // Trusted, repository-owned vector artwork. Keep its paths inside the exported
-// SVG so the logo and engraving share currentColor in either theme.
+// SVG so the logo and engraving share currentColor in either theme (the mono
+// build: one colour, FOO cut out of the ribbon).
 const logoPaths = logo.slice(logo.indexOf("<g "), logo.lastIndexOf("</svg>")).replaceAll("fill:white", "fill:currentColor");
+const logoViewBox = /viewBox="([^"]+)"/.exec(logo)?.[1] ?? "0 0 2225 1212";
+const [, , logoWidth = 1, logoHeight = 1] = logoViewBox.split(" ").map(Number);
+/** The logo 84 across, centred where the medallion's rings centre (100, 100) */
+const LOGO_HEIGHT = (84 * logoHeight) / logoWidth;
 
 /** Points per ring while the twist moves – the seal at rest keeps the full count */
 const MOVING_SAMPLES = 480;
@@ -117,7 +122,7 @@ export function CertificateSeal({ digest, deformation = "twisted", relief = 1, a
       <g ref={group} data-part="watermark" fill="none" stroke="currentColor" strokeWidth={1.1 / MEDALLION_SCALE / 1.6} opacity="0.8">
         {rings.map((path, index) => <path key={index} d={path} />)}
       </g>
-      <svg x="58" y="77.12" width="84" height="45.76" viewBox="0 0 2225 1212" dangerouslySetInnerHTML={{ __html: logoPaths }} />
+      <svg x="58" y={100 - LOGO_HEIGHT / 2} width="84" height={LOGO_HEIGHT} viewBox={logoViewBox} dangerouslySetInnerHTML={{ __html: logoPaths }} />
     </g>
   </svg>;
 }

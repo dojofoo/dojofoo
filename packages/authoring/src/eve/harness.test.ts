@@ -15,10 +15,10 @@ vi.mock("@ai-sdk/harness-pi", async (original) => {
 });
 
 describe("authoring harness selection", () => {
-  it("reads Pi's native provider/model settings without copying credentials", () => {
-    authoringHarness({ DOJOFOO_HARNESS: "pi" });
+  it("reads Pi's native provider/model settings without copying credentials", async () => {
+    await authoringHarness({ DOJOFOO_HARNESS: "pi" });
     expect(createPi).toHaveBeenLastCalledWith({ agentDir: join(homedir(), ".pi", "agent") });
-    authoringHarness({ DOJOFOO_HARNESS: "pi", PI_CODING_AGENT_DIR: "/tmp/custom-pi" });
+    await authoringHarness({ DOJOFOO_HARNESS: "pi", PI_CODING_AGENT_DIR: "/tmp/custom-pi" });
     expect(createPi).toHaveBeenLastCalledWith({ agentDir: "/tmp/custom-pi" });
   });
   it.each([
@@ -27,26 +27,26 @@ describe("authoring harness selection", () => {
     ["fx", fx],
     ["grok", grokBuild],
     ["pi", pi],
-  ] as const)("uses the official %s adapter contract", (name, adapter) => {
-    const selected = authoringHarness({ DOJOFOO_HARNESS: name });
+  ] as const)("uses the official %s adapter contract", async (name, adapter) => {
+    const selected = await authoringHarness({ DOJOFOO_HARNESS: name });
     expect(selected.harnessId).toBe(adapter.harnessId);
     expect(selected.specificationVersion).toBe(adapter.specificationVersion);
     expect(Object.keys(selected)).toEqual(Object.keys(adapter));
   });
 
-  it("preserves the existing OpenCode default", () => {
-    const selected = authoringHarness({ DOJOFOO_HARNESS: "opencode" });
+  it("preserves the existing OpenCode default", async () => {
+    const selected = await authoringHarness({ DOJOFOO_HARNESS: "opencode" });
     expect(selected.harnessId).toBe(openCode.harnessId);
     expect(Object.keys(selected)).toEqual(Object.keys(openCode));
-    expect(authoringHarness({})).toBe(selected);
-    expect(authoringHarness({ DOJOFOO_HARNESS: "" })).toBe(selected);
+    expect(await authoringHarness({})).toBe(selected);
+    expect(await authoringHarness({ DOJOFOO_HARNESS: "" })).toBe(selected);
   });
 
   it.each(["unknown", "claude", "constructor", "__proto__", "toString"])(
     "rejects %s rather than silently switching harnesses",
-    (name) => {
-      expect(() => authoringHarness({ DOJOFOO_HARNESS: name }))
-        .toThrow(`Unsupported Dojofoo authoring harness: ${name}`);
+    async (name) => {
+      await expect(authoringHarness({ DOJOFOO_HARNESS: name }))
+        .rejects.toThrow(`Unsupported Dojofoo authoring harness: ${name}`);
     },
   );
 });

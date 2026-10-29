@@ -2,6 +2,8 @@ import { createHighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import javascript from "shiki/langs/javascript.mjs";
 import typescript from "shiki/langs/typescript.mjs";
+import jsx from "shiki/langs/jsx.mjs";
+import tsx from "shiki/langs/tsx.mjs";
 import json from "shiki/langs/json.mjs";
 import markdown from "shiki/langs/markdown.mjs";
 import yaml from "shiki/langs/yaml.mjs";
@@ -22,7 +24,7 @@ export const getRenderedMarkdown = (source: string, theme: string) => rendered.g
 function getHighlighter() {
   highlighter ??= createHighlighterCore({
     themes: editorSchemes.flatMap(scheme => [scheme.theme, ...(scheme.light ? [scheme.light.theme] : [])]),
-    langs: [...javascript, ...typescript, ...json, ...markdown, ...yaml, ...python, ...shellscript, ...toml, ...mdx],
+    langs: [...javascript, ...typescript, ...jsx, ...tsx, ...json, ...markdown, ...yaml, ...python, ...shellscript, ...toml, ...mdx],
     engine: createJavaScriptRegexEngine(),
   }).catch(error => { highlighter = undefined; throw error; });
   return highlighter;

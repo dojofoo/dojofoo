@@ -23,10 +23,10 @@
     "@dojofoo/config": "workspace:*",
     "@dojofoo/protocol": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.1",
-    "@ai-sdk/harness": "1.0.153",
-    "@ai-sdk/harness-pi": "1.0.155",
-    "@ai-sdk/sandbox-just-bash": "1.0.153",
-    "ai": "7.0.142",
+    "@ai-sdk/harness": "1.0.167",
+    "@ai-sdk/harness-pi": "1.0.170",
+    "@ai-sdk/sandbox-just-bash": "1.0.167",
+    "ai": "7.0.156",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

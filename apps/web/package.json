@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "types:check": "fumadocs-mdx && node scripts/generate-routes.mjs && tsc --noEmit",
-    "postinstall": "fumadocs-mdx && ([ -n \"$CI\" ] || [ -f ~/.portless/ca.trusted ] || portless trust)"
+    "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
     "@dojofoo/ui": "workspace:*",

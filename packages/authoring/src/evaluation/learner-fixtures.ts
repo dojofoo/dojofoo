@@ -55,7 +55,7 @@ export async function generateLearnerFixtures({ material, lessonIds, harness, mo
   await writeFile(join(directory, "input.json"), JSON.stringify({ harness, model, lessonIds, material: learnerMaterial, instructions }, null, 2));
   const agent = new HarnessAgent({
     id: "dojo-learner-fixtures",
-    harness: authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness }),
+    harness: await authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness }),
     model,
     activeTools: [],
     instructions,

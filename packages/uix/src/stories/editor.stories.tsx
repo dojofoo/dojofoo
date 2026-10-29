@@ -57,13 +57,15 @@ function EditorExample({ readOnly = false, coverage = true, lessonApiBase = "/ui
   return <div className="flex h-dvh flex-col gap-3 p-5">
     <div className="flex flex-wrap items-center gap-2">
       <Button size="sm" onClick={() => reveal()}>Highlight lines</Button>
-      <Button size="sm" variant="secondary" disabled={view === "results" || readOnly || file.readOnly} onClick={() => undo.current()}>Undo edit</Button>
-      <Button size="sm" variant="secondary" onClick={() => { setFiles(samples); setSaved(samples); }}>Reset files</Button>
       <span role="status">{file.code === saved[filePath].code ? "Saved" : "Unsaved edits · ⌘/Ctrl S"}</span>
     </div>
     <p className="text-sm text-[var(--fluid-muted)]">Hover a symbol for JSDoc, examples and references. Edit TypeScript for diagnostics; use Ctrl Space for completion. The test file is read-only; test results are sample output.</p>
     <Editor className="flex-1" tabs={<EditorTabs mode="learning" label="Lesson files" active={view}
       tabs={[...Object.keys(files).map(path => ({ path, label: path, dirty: files[path].code !== saved[path].code })), { path: "results", label: "Test results · 2/4" }]} onSelect={select} />}
+      actions={<div role="toolbar" aria-label="File actions" className="flex items-center gap-2">
+        <Button size="sm" variant="ghost" disabled={view === "results" || readOnly || file.readOnly} onClick={() => undo.current()}>Undo edit</Button>
+        <Button size="sm" variant="ghost" onClick={() => { setFiles(samples); setSaved(samples); }}>Reset files</Button>
+      </div>}
       status={view !== "results" ? <EditorStatus passed={2} total={4} /> : undefined}>
       <div hidden={view === "results"} className="h-full" role="tabpanel" aria-label={filePath}>
         <CodeEditor code={file.code} onChange={code => setFiles(current => ({ ...current, [filePath]: { ...current[filePath], code } }))}

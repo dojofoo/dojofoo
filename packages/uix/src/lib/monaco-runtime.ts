@@ -22,7 +22,8 @@ export function loadMonaco() {
       map.type = "importmap";
     }
     const config = JSON.parse(map.textContent || "{}");
-    map.textContent = JSON.stringify({ ...config, imports: { ...config.imports, "modern-monaco/editor-core": editorCoreUrl } });
+    // modern-monaco reads this value itself; resolve relative build bases against the page, not its JS chunk.
+    map.textContent = JSON.stringify({ ...config, imports: { ...config.imports, "modern-monaco/editor-core": new URL(editorCoreUrl, document.baseURI).href } });
     if (!existing) document.head.append(map);
     // Every editor color scheme is registered upfront (small JSON, bundled): switching is a setTheme by name
     runtime = init({ defaultTheme: vercelCursorTheme, themes: editorSchemes.flatMap((scheme) => [scheme.theme, ...(scheme.light ? [scheme.light.theme] : [])]), cdn: window.location.origin,

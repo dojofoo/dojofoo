@@ -3,6 +3,8 @@ import { useState } from "react";
 import { AppShell, Dropdown } from "../components/app-shell";
 import { BrandLogo } from "../components/brand-logo";
 import { ComposerSurface } from "../components/composer";
+import { CodexIcon, OpenCodeIcon } from "../components/harness-icons";
+import { Composer } from "../containers/assistant-home";
 
 function ControlledComposer({ disabled = false, longModels = false }: { disabled?: boolean; longModels?: boolean }) {
   const [value, setValue] = useState("");
@@ -33,3 +35,29 @@ export default meta;
 export const Controlled: StoryObj<typeof meta> = {};
 export const Unavailable: StoryObj<typeof meta> = { args: { disabled: true } };
 export const LongModelList: StoryObj<typeof meta> = { args: { longModels: true } };
+export const UnavailableAttachments: StoryObj<typeof meta> = {
+  render: () => <div className="mx-auto w-full max-w-xl p-6"><Composer tray={false} attachments="unavailable" dictation={false} plugins={false} models={[]} placeholder="Ask your Sensei…" /></div>,
+};
+/** The agent's session is still loading: the agent and model pickers wait with a spinner */
+export const LoadingSession: StoryObj<typeof meta> = {
+  render: () => <div className="mx-auto w-full max-w-xl p-6">
+    <Composer tray={false} attachments={false} dictation={false} plugins={false} placeholder="Ask your Sensei…" disabled loading
+      agent={{ value: "opencode", name: "OpenCode", icon: OpenCodeIcon }} onAgentChange={() => undefined} models={[]}
+      agents={[{ value: "opencode", name: "OpenCode", icon: OpenCodeIcon }, { value: "codex", name: "Codex", icon: CodexIcon }]} />
+  </div>,
+};
+
+function AttachmentComposer({ failOnce = false }: { failOnce?: boolean }) {
+  const [sent, setSent] = useState("");
+  const [reject, setReject] = useState(failOnce);
+  return <div className="mx-auto w-full max-w-xl p-6">
+    <Composer tray={false} dictation={false} plugins={false} models={[]} onSend={async (text, files: File[] = []) => {
+      if (reject) { setReject(false); throw new Error("Try sending again."); }
+      const attachments = await Promise.all(files.map(async file => ({ name: file.name, content: await file.text() })));
+      setSent(JSON.stringify({ text, attachments }));
+    }} />
+    <output aria-label="Sent message">{sent}</output>
+  </div>;
+}
+export const Attachments: StoryObj<typeof meta> = { render: () => <AttachmentComposer /> };
+export const AttachmentRetry: StoryObj<typeof meta> = { render: () => <AttachmentComposer failOnce /> };

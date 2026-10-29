@@ -28,6 +28,13 @@ export function eveQuestion(part: ToolCallPart) {
   };
 }
 
+/** AG-UI transports tool results; Eve owns preliminary/final lifecycle state. */
+export function projectEveToolCall(part: ToolCallPart): ToolCallPart {
+  const source = (part.metadata as { eve?: EveMessagePart } | undefined)?.eve;
+  if (source?.type !== "dynamic-tool" || source.state === "input-streaming") return part;
+  return { ...part, ...projectPart(source)[0] } as ToolCallPart;
+}
+
 const toolStates = {
   "input-streaming": "input-streaming",
   "input-available": "input-complete",

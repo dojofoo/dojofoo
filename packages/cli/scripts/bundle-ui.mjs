@@ -22,3 +22,10 @@ cpSync(templateSource, templateDestination, {
     && !path.endsWith("/.dojo")
     && !path.includes("/.dojo/"),
 });
+
+// Ship editable starter content for deliberate offline installation.
+for (const id of ["create-your-own-dojo", "how-to-run-a-dojo"]) {
+  const starterDestination = resolve(packageRoot, "dist/starters", id);
+  rmSync(starterDestination, { recursive: true, force: true });
+  cpSync(resolve(packageRoot, "../../courses", id), starterDestination, { recursive: true });
+}

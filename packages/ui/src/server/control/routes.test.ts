@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +9,7 @@ import {
   recordDojoLifecycle,
 } from "@dojofoo/config/local-state";
 import { buildControlRoutes } from "./routes";
+import * as scaffold from "@dojofoo/authoring/scaffold";
 import { resolveRequestWorkspace, WORKSPACE_HEADER } from "./workspace";
 
 const temporaryPaths: string[] = [];
@@ -43,6 +44,87 @@ function fixture() {
 }
 
 describe("local control-plane API", () => {
+  it.each(["create-your-own-dojo", "how-to-run-a-dojo"])("installs %s only in the explicitly selected workspace", async courseId => {
+    const { root, stateHome } = fixture();
+    const workspaceId = observeWorkspacePath(root, { stateHome });
+    const installStarter = vi.fn(async (_root: string, _id: string) => {});
+    const routes = buildControlRoutes({ stateHome, installStarter });
+    const install = (id: string, workspace: string) => routes.request(`/starters/${id}/install`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceId: workspace }),
+    });
+    expect((await install(courseId, "unknown-workspace")).status).toBe(404);
+    expect((await install("unknown-course", workspaceId)).status).toBe(404);
+    expect(installStarter).not.toHaveBeenCalled();
+    const response = await install(courseId, workspaceId);
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ workspaceId, courseId });
+    expect(installStarter).toHaveBeenCalledExactlyOnceWith(root, courseId);
+    installStarter.mockRejectedValueOnce(new Error("Course already installed; existing edits preserved."));
+    const duplicate = await install(courseId, workspaceId);
+    expect(duplicate.status).toBe(500);
+    expect(await duplicate.json()).toEqual({ error: "Course already installed; existing edits preserved." });
+    expect((await routes.request(`/starters/${courseId}/install`, { method: "POST", headers: { Origin: "https://other.invalid" }, body: JSON.stringify({ workspaceId }) })).status).toBe(403);
+    expect(installStarter).toHaveBeenCalledTimes(2);
+  });
+
+  it("cleans only its new directory when scaffolding fails and leaves no registered draft", async () => {
+    const { root, stateHome } = fixture();
+    const original = readFileSync(resolve(root, ".dojorc"), "utf8");
+    const fail = vi.spyOn(scaffold, "scaffoldAuthoringWorkspace").mockImplementationOnce(({ root }) => {
+      writeFileSync(resolve(root, "partial.txt"), "Partial scaffold");
+      throw new Error("Scaffold unavailable");
+    });
+    try {
+      const routes = buildControlRoutes({ stateHome });
+      const response = await routes.request("/authoring", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Draft" }) });
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({ error: "Scaffold unavailable" });
+      expect(readdirSync(resolve(stateHome, "drafts"))).toEqual([]);
+      expect(await (await routes.request("/authoring")).json()).toEqual([]);
+      expect(readFileSync(resolve(root, ".dojorc"), "utf8")).toBe(original);
+    } finally { fail.mockRestore(); }
+  });
+
+  it("creates independently registered kata drafts without changing an installation or starting an agent", async () => {
+    const { root, stateHome } = fixture();
+    const original = readFileSync(resolve(root, ".dojorc"), "utf8");
+    const routes = buildControlRoutes({ stateHome, now: 200 });
+    const create = () => routes.request("/authoring", { method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" }, body: JSON.stringify({ name: "My first course" }) });
+    const firstResponse = await create();
+    expect(firstResponse.status).toBe(201);
+    const first = await firstResponse.json();
+    const second = await (await create()).json();
+    expect(first.workspaceId).not.toBe(second.workspaceId);
+    expect(first.path).not.toBe(second.path);
+    expect(first.path.startsWith(resolve(stateHome, "drafts") + "/")).toBe(true);
+    expect(readFileSync(resolve(first.path, "dojo.yaml"), "utf8")).toContain("name: My first course");
+    expect(existsSync(resolve(first.path, "DOJO.md"))).toBe(true);
+    expect(existsSync(resolve(first.path, "mise.toml"))).toBe(true);
+    expect(existsSync(resolve(first.path, ".dojo/config.yaml"))).toBe(true);
+    const restarted = buildControlRoutes({ stateHome, now: 300 });
+    expect(await (await restarted.request("/authoring")).json()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ workspaceId: first.workspaceId, path: first.path, name: "My first course", sessionId: null }),
+      expect.objectContaining({ workspaceId: second.workspaceId }),
+    ]));
+    expect(resolveRequestWorkspace(new Request(`http://localhost/api/authoring/draft?workspace=${first.workspaceId}`), { stateHome })).toBe(first.path);
+    expect(await (await restarted.request("/courses")).json()).toEqual([]);
+    expect(listSessions({ stateHome })).toEqual([]);
+    expect(readFileSync(resolve(root, ".dojorc"), "utf8")).toBe(original);
+  });
+
+  it("rejects malformed, unsupported and foreign-origin draft requests before creating files", async () => {
+    const { stateHome } = fixture();
+    const routes = buildControlRoutes({ stateHome });
+    for (const body of [{ name: "" }, { name: "x".repeat(121) }, { name: "bad\nname" }, { name: "Draft", path: "/tmp/must-not-create" }, { name: "Draft", style: "interactive" }]) {
+      const response = await routes.request("/authoring", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      expect(response.status).toBe(422);
+    }
+    expect((await routes.request("/authoring", { method: "POST", headers: { "content-type": "application/json" }, body: "{" })).status).toBe(400);
+    expect((await routes.request("/authoring", { method: "POST", headers: { "content-type": "application/json", origin: "https://other.example" }, body: JSON.stringify({ name: "Draft" }) })).status).toBe(403);
+    expect(existsSync(resolve(stateHome, "drafts"))).toBe(false);
+    expect(readdirSync(stateHome)).toEqual([]);
+  });
+
   it("lists resumable Kyoshi drafts without requiring an installed dojo", async () => {
     const root = mkdtempSync(join(tmpdir(), "dojofoo-authoring-workspace-"));
     const stateHome = mkdtempSync(join(tmpdir(), "dojofoo-authoring-home-"));

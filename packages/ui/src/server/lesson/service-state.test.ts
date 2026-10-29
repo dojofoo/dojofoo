@@ -50,6 +50,18 @@ function freshCourse(): string {
 }
 
 describe("fresh lesson state", () => {
+  it("exposes installed course details for the learner card without starting a session", async () => {
+    vi.stubEnv("DOJOFOO_LESSON_HARNESS", "opencode");
+    const root = freshCourse();
+    const start = vi.spyOn(acpClient, "startThread");
+    const lesson = await getLesson(root, "001-first");
+    expect(lesson?.course).toMatchObject({ name: "@test/starter", version: "1.0.0", description: "A fresh course.", lessons: 2 });
+    expect(lesson?.harnesses).toEqual(expect.arrayContaining(["codex", "opencode"]));
+    expect(lesson?.harnesses).not.toContain("pi");
+    expect(lesson?.harness).toBe("opencode");
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it("restores the explicitly selected model with its existing lesson session", async () => {
     const root = freshCourse();
     vi.spyOn(acpClient, "startThread").mockResolvedValue("model-session");
@@ -120,6 +132,23 @@ describe("fresh lesson state", () => {
     expect(start).toHaveBeenCalledWith(expect.objectContaining({ harness: "codex" }));
   });
 
+  it("opens saved course state while its coding agent is unavailable", async () => {
+    const root = freshCourse();
+    vi.spyOn(acpClient, "startThread").mockResolvedValue("saved-session");
+    const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    await startLessonSession(root, "001-first");
+    history.mockResolvedValue([{ role: "assistant", text: "Saved learner guidance" }]);
+    const before = readFileSync(resolve(root, ".dojo/web.json"), "utf8");
+    resume.mockRejectedValue(new Error("Coding agent unavailable"));
+    await expect(getLesson(root, "001-first", { prepareSession: false })).resolves.toMatchObject({
+      dojo: "starter", kata: "001-first", sessionId: "saved-session", fileId: "solution",
+      messages: [{ role: "assistant", parts: [{ type: "text", content: "Saved learner guidance" }] }],
+    });
+    expect(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).toBe(before);
+    await expect(getLesson(root, "001-first")).rejects.toThrow("Coding agent unavailable");
+  });
+
   it("surfaces a resume failure without replacing the conversation and recovers on retry", async () => {
     const root = freshCourse();
     const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("recoverable-session");
@@ -146,7 +175,7 @@ describe("fresh lesson state", () => {
     await startLessonSession(root, "001-first");
 
     vi.stubEnv("DOJOFOO_HARNESS", "pi");
-    expect((await getLesson(root, "001-first"))?.sessionId).toBe("owned-session");
+    expect(await getLesson(root, "001-first")).toMatchObject({ sessionId: "owned-session", harness: "codex" });
     await streamSensei(root, "001-first", "Please explain this", () => {});
     expect(start).toHaveBeenCalledTimes(1);
     expect(resume).toHaveBeenLastCalledWith("owned-session", expect.objectContaining({ harness: "codex" }));

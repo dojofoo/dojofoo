@@ -9,7 +9,7 @@
  * icons from the Hugeicons free set.
  */
 
-import { useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useRef, useState, type ComponentProps, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import {
   Analytics01Icon,
   BubbleChatIcon,
@@ -147,27 +147,45 @@ export function SettingsContent({ defaultTab = "Appearance", workspace = "Dojo",
   const [tab, setTab] = useState<SettingsTab>(defaultTab);
   const [profile, setProfile] = useState<AccountProfile>({ name: userName, handle: userName.toLowerCase().replace(/[^a-z0-9]/g, "") });
   const [toast, showToast] = useToast();
+  return <SettingsLayout tab={tab} onTabChange={setTab} onClose={onClose} footer={toast}>
+    {tab === "General" && <GeneralTab profile={profile} onSave={setProfile} toast={showToast} />}
+    {tab === "Members" && <MembersTab toast={showToast} />}
+    {tab === "Appearance" && <div className="ui-account-appearance"><AppearanceSettings /></div>}
+    {tab === "API keys" && <KeysTab toast={showToast} />}
+  </SettingsLayout>;
+}
+
+/** The Pages settings geometry with host-owned sections and account behavior. */
+export function SettingsLayout({ tab, onTabChange, availableTabs = tabs, onClose, children, footer,
+  description = "Your profile, appearance, members and API access.", helpText = help[tab],
+}: {
+  tab: SettingsTab;
+  onTabChange: (tab: SettingsTab) => void;
+  availableTabs?: readonly SettingsTab[];
+  onClose?: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  description?: string;
+  helpText?: { about: string; tip: string };
+}) {
   return <section className="ui-sb" role="region" aria-label="Account settings">
     <style href="ui-settings-billing" precedence="default">{css}</style>
     {onClose && <button type="button" className="ui-sb-back" onClick={onClose}>Back to workspace</button>}
     <h1 className="ui-as-page-title" tabIndex={-1}>Settings</h1>
-    <p className="ui-as-page-sub">Your profile, appearance, members and API access.</p>
+    <p className="ui-as-page-sub">{description}</p>
     <div className="ui-as-toolbar ui-sb__bar">
-      <Tabs items={tabs} value={tab} onChange={next => setTab(next as SettingsTab)} />
+      <Tabs items={[...availableTabs]} value={tab} onChange={next => onTabChange(next as SettingsTab)} />
     </div>
     <div key={tab} className="ui-sb__body">
       <div className="ui-sb__content">
-        {tab === "General" && <GeneralTab profile={profile} onSave={setProfile} toast={showToast} />}
-        {tab === "Members" && <MembersTab toast={showToast} />}
-        {tab === "Appearance" && <div className="ui-account-appearance"><AppearanceSettings /></div>}
-        {tab === "API keys" && <KeysTab toast={showToast} />}
+        {children}
       </div>
       <aside className="ui-sb-help" aria-label={`About ${tab}`}>
-        <p>{help[tab].about}</p>
-        <small>{help[tab].tip}</small>
+        <p>{helpText.about}</p>
+        <small>{helpText.tip}</small>
       </aside>
     </div>
-    {toast}
+    {footer}
   </section>;
 }
 
@@ -436,6 +454,11 @@ function BillingTab({ toast }: { toast: Toast }) {
 
 type AccountProfile = { name: string; handle: string; photo?: string };
 
+/** Shared General/onboarding fields; the host owns account data and actions. */
+export function ProfileSettingsFields({ avatar, ...fields }: ComponentProps<typeof ProfileFields> & { avatar: ReactNode }) {
+  return <div className="ui-sb-card ui-sb-profile__fields">{avatar}<ProfileFields {...fields} /></div>;
+}
+
 function GeneralTab({ profile, onSave, toast }: { profile: AccountProfile; onSave: (profile: AccountProfile) => void; toast: Toast }) {
   const [name, setName] = useState(profile.name);
   const [handle, setHandle] = useState(profile.handle);
@@ -449,8 +472,8 @@ function GeneralTab({ profile, onSave, toast }: { profile: AccountProfile; onSav
     setName(name.trim());
     toast("Profile settings saved");
   }}>
-    <div className="ui-sb-card ui-sb-profile__fields">
-      <AvatarUpload name={name || profile.name} src={profile.photo}
+    <ProfileSettingsFields name={name} handle={handle} handleState={handleState} onNameChange={setName} onHandleChange={setHandle}
+      avatar={<AvatarUpload name={name || profile.name} src={profile.photo}
         onUpload={(image, { report, signal }) => new Promise<string>((resolve, reject) => {
           // The Storybook workspace keeps the chosen crop locally; no simulated network upload.
           const reader = new FileReader();
@@ -470,9 +493,7 @@ function GeneralTab({ profile, onSave, toast }: { profile: AccountProfile; onSav
           if (signal.aborted) { reject(new DOMException("Upload canceled", "AbortError")); return; }
           reader.readAsDataURL(image);
         })}
-        onRemove={() => onSave({ ...profile, photo: undefined })} />
-      <ProfileFields name={name} handle={handle} handleState={handleState} onNameChange={setName} onHandleChange={setHandle} />
-    </div>
+        onRemove={() => onSave({ ...profile, photo: undefined })} />} />
     <div className="ui-sb-form__foot">
       <Button type="button" size="sm" variant="ghost" disabled={!dirty} onClick={() => { setName(profile.name); setHandle(profile.handle); }}>Discard</Button>
       <Button type="submit" size="sm" disabled={!dirty || !valid}>Save changes</Button>

@@ -9,7 +9,7 @@ import pi from "../assets/agents/pi.svg?raw";
 /*
  * The coding harnesses' marks, from the website's "Works with" row (apps/web/public/agents) – one source for both. The
  * wordmarks are cropped to their mark (the viewBoxes below), and every mark draws in currentColor, so it follows the
- * text around it in light and dark; OpenCode keeps its two tones as two opacities.
+ * text around it in light and dark.
  */
 function harness(svg: string, viewBox: string, recolor: (body: string) => string = (body) => body): IconGlyph {
   const body = recolor(svg.replace(/^[\s\S]*?<svg[^>]*>|<\/svg>\s*$/g, ""));
@@ -22,7 +22,7 @@ export const CodexIcon = harness(codex, "0 0 361 360");
 export const CursorIcon = harness(cursor, "-23 0 545 545");
 export const FxIcon = harness(fx, "166.241 0 155.861 156");
 export const GrokIcon = harness(grok, "0 -0.5 34 34");
-export const OpenCodeIcon = harness(opencode, "-30 0 300 300", (body) => body.replace('fill="#4b4646"', 'fill="currentColor" fill-opacity="0.3"').replace('fill="#f1ecec"', 'fill="currentColor"'));
+export const OpenCodeIcon = harness(opencode, "0 0 24 24");
 export const PiIcon = harness(pi, "100 100 600 600", (body) => body.replaceAll('fill="#fff"', 'fill="currentColor"'));
 
 /** The harnesses by name, as the website lists them */

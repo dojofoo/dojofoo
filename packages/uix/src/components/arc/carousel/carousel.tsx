@@ -35,6 +35,8 @@ export interface CarouselProps {
   controls?: "all" | "indicators";
   /** Whether pointing at the slides pauses rotation. */
   pauseOnHover?: boolean;
+  /** Fade horizontal edges while slides move through the viewport. */
+  edgeFade?: boolean;
   className?: string;
 }
 
@@ -69,7 +71,7 @@ function velocityOf(samples: [number, number][], now: number) {
   return lastTime > firstTime ? (lastX - firstX) / ((lastTime - firstTime) / 1000) : 0;
 }
 
-export function Carousel({ label, children, index: controlledIndex, defaultIndex = 0, onIndexChange, slideSize = "min(80cqw, 340px)", slideLabel = defaultSlideLabel, interval, autoplay = false, controls = "all", pauseOnHover = true, className }: CarouselProps) {
+export function Carousel({ label, children, index: controlledIndex, defaultIndex = 0, onIndexChange, slideSize = "min(80cqw, 340px)", slideLabel = defaultSlideLabel, interval, autoplay = false, controls = "all", pauseOnHover = true, edgeFade = false, className }: CarouselProps) {
   const slides = Children.toArray(children);
   const count = slides.length;
   const last = Math.max(0, count - 1);
@@ -299,7 +301,7 @@ export function Carousel({ label, children, index: controlledIndex, defaultIndex
   return <section ref={rootRef} className={[styles.root, className].filter(Boolean).join(" ")} style={rootStyle} aria-roledescription="carousel" aria-label={label} onKeyDown={onKeyDown}
     onFocus={event => setFocusPaused(event.target !== playRef.current && event.target.matches(":focus-visible"))}
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusPaused(false); }}>
-    <div ref={viewportRef} className={styles.viewport} role="group" aria-label="Slides" tabIndex={0} data-dragging={dragging || undefined}
+    <div ref={viewportRef} className={styles.viewport} role="group" aria-label="Slides" tabIndex={0} data-dragging={dragging || undefined} data-edge-fade={edgeFade || undefined}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={event => finish(event, false)} onPointerCancel={event => finish(event, true)}
       onPointerEnter={event => { if (event.pointerType === "mouse") setHovered(true); }} onPointerLeave={() => setHovered(false)}
       onClickCapture={event => { if (swallowClick.current) { event.preventDefault(); event.stopPropagation(); swallowClick.current = false; } }}
@@ -317,7 +319,7 @@ export function Carousel({ label, children, index: controlledIndex, defaultIndex
         </AnimatePresence></span>
       </button>}
       <div className={styles.tabs} role="tablist" aria-label="Choose a slide">
-        {slides.map((_, i) => <Dot key={i} index={i} last={last} progress={progress} drain={drains[i]!} selected={i === index} label={slideLabel(i, count)} controls={`${id}-slide-${i}`}
+        {slides.map((_, i) => <Dot key={i} index={i} last={last} progress={progress} drain={drains[i]!} timed={canRotate && playing} selected={i === index} label={slideLabel(i, count)} controls={`${id}-slide-${i}`}
           tabRef={node => { tabRefs.current[i] = node; }} onSelect={() => select(i)} />)}
       </div>
       {controls === "all" && <div className={styles.arrows}>
@@ -337,13 +339,12 @@ function Slide({ id, index, progress, active, label, children }: { id: string; i
 }
 
 /** Each indicator grows toward a pill as the track nears its slide, so the pill hands over continuously instead of hopping. */
-function Dot({ index, last, progress, drain, selected, label, controls, tabRef, onSelect }: { index: number; last: number; progress: MotionValue<number>; drain: MotionValue<number>; selected: boolean; label: string; controls: string; tabRef: Ref<HTMLButtonElement>; onSelect: () => void }) {
+function Dot({ index, last, progress, drain, timed, selected, label, controls, tabRef, onSelect }: { index: number; last: number; progress: MotionValue<number>; drain: MotionValue<number>; timed: boolean; selected: boolean; label: string; controls: string; tabRef: Ref<HTMLButtonElement>; onSelect: () => void }) {
   const emphasis = useTransform(progress, value => Math.max(0, 1 - Math.abs(clamp(value, 0, last) - index)));
   const width = useTransform(emphasis, value => DOT + (PILL - DOT) * value);
   return <button ref={tabRef} type="button" role="tab" className={styles.tab} aria-selected={selected} aria-controls={controls} aria-label={label} tabIndex={selected ? 0 : -1} onClick={onSelect}>
     <motion.span className={styles.dot} style={{ width }} aria-hidden="true">
-      <motion.span className={styles.dotFill} style={{ opacity: emphasis }} />
-      <motion.span className={styles.dotDrain} style={{ scaleX: drain }} />
+      <motion.span className={styles.dotFill} style={{ opacity: emphasis, scaleX: timed ? drain : 1 }} />
     </motion.span>
   </button>;
 }

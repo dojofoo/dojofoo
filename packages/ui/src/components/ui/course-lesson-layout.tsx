@@ -61,7 +61,7 @@ export function CourseLessonNavigation({
     <aside className="flex min-h-0 flex-col border-r border-dashed bg-surface-1" data-testid="lesson-navigation">
       <div className="px-5 pb-5 pt-5">
         {showLogo && <a aria-label="Back to your dojos" className="inline-flex" href={homeHref}>
-          <BrandLogo alt="Dojofoo wordmark" className="h-6 w-14" />
+          <BrandLogo alt="Dojofoo wordmark" className="aspect-[2567/1211] h-6 w-auto" />
         </a>}
         {courseTitle ? <h1 className="mt-1.5 text-xl font-semibold">{courseTitle}</h1> : null}
         {sectionTitle ? <h2 className="mt-7 font-display text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{sectionTitle}</h2> : null}

@@ -7,7 +7,7 @@ export { ChatStyles } from "../components/chat-message";
  */
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { ComposerSurface } from "../components/composer";
+import { ComposerPicker, ComposerSurface } from "../components/composer";
 import { ThinkingState, type ThinkingStep } from "../components/thinking-state";
 import type { IconGlyph } from "../lib/icons";
 import {
@@ -283,7 +283,8 @@ function Answer({ name, reply, onGrow, onDone }: { name: string; reply: ChatRepl
 
 
 /** Models in the composer's picker – the first one is selected */
-export type ComposerModel = { name: string; effort?: string; description: string; icon: IconGlyph };
+export type ComposerModel = { value?: string; name: string; effort?: string; description: string; icon: IconGlyph };
+export type ComposerAgent = { value: string; name: string; icon: IconGlyph; description?: string };
 const defaultModels: ComposerModel[] = [
   { name: "Auto", description: "Picks the best model for each task", icon: AiMagicIcon },
   { name: "Claude", description: "Thoughtful writing and code", icon: AiBrain01Icon },
@@ -298,7 +299,7 @@ const pluginList = [
 
 /**
  * Chat input: white card in a gray tray, the tray holds the folder and app shortcuts.
- * Preview controller; production hosts supply state and controls to ComposerSurface.
+ * Used by the Pages templates and production; hosts can own drafts and model selection.
  */
 export function Composer({
   placeholder = "Help me brainstorm ideas for...",
@@ -306,31 +307,66 @@ export function Composer({
   busy,
   tray = true,
   models = defaultModels,
-  agent,
-  className,
+  agent, agents, onAgentChange, agentChanging, loading,
+  className, value, onValueChange, history, disabled, onStop, id, label, queueing,
+  model: controlledModel, onModelChange, modelChanging,
+  attachments = true, files: controlledFiles, onFilesChange, dictation = true, plugins: pluginsEnabled = true,
 }: {
+  value?: string;
+  onValueChange?: (value: string) => void;
+  history?: string[];
+  disabled?: boolean;
+  onStop?: () => void;
+  queueing?: boolean;
+  id?: string;
+  label?: string;
+  model?: string;
+  onModelChange?: (value: string) => void;
+  modelChanging?: boolean;
+  /** Keep the + control visible but disabled when this connection cannot accept files. */
+  attachments?: boolean | "unavailable";
+  files?: File[];
+  onFilesChange?: (files: File[]) => void;
+  dictation?: boolean;
+  plugins?: boolean;
   placeholder?: string;
   /** The picker's models – the first one is selected; the default is a general assistant's */
   models?: ComposerModel[];
   /** A selected coding agent in place of the general assistant's plugins. */
-  agent?: { name: string; icon: IconGlyph };
-  /** Called with the message when it is sent */
-  onSend?: (text: string) => void;
+  agent?: { value?: string; name: string; icon: IconGlyph };
+  /** Available coding agents; the host owns selection and session transitions. */
+  agents?: ComposerAgent[];
+  onAgentChange?: (value: string) => void;
+  agentChanging?: boolean;
+  /** The host is still loading the agent's session: the agent and model pickers show it and wait */
+  loading?: boolean;
+  /** Resolves when the host accepts the text and selected files. A rejection keeps the draft. */
+  onSend?: (text: string, files: File[]) => void | Promise<void>;
   /** While an answer is being written, sending waits */
   busy?: boolean;
   /** The outer tray with the folder and connected apps; without it only the card remains */
   tray?: boolean;
   className?: string;
 }) {
-  const [text, setText] = useState("");
+  const [draft, setDraft] = useState("");
+  const text = value ?? draft;
+  const setText = (next: string | ((previous: string) => string)) => {
+    const updated = typeof next === "function" ? next(text) : next;
+    if (onValueChange) onValueChange(updated); else setDraft(updated);
+  };
   const field = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const [model, setModel] = useState(models[0].name);
-  const selectedModel = models.find((item) => item.name === model);
+  const [selected, setSelected] = useState(models[0]?.value ?? models[0]?.name);
+  const model = controlledModel ?? selected;
+  const selectedModel = models.find(item => (item.value ?? item.name) === model);
   const [plugins, setPlugins] = useState<string[]>([]);
   const [folder, setFolder] = useState<string | null>(null);
   const [apps, setApps] = useState<string[]>(["Gmail"]);
-  const [files, setFiles] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const files = controlledFiles ?? selectedFiles;
+  const setFiles = onFilesChange ?? setSelectedFiles;
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string>();
   const [recording, setRecording] = useState(false);
   const toggleIn = (list: string[], item: string) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
 
@@ -345,71 +381,67 @@ export function Composer({
     return () => window.clearTimeout(t);
   }, [recording]);
 
-  const submit = () => {
-    if (!text.trim() || busy) return;
-    onSend?.(text.trim());
-    setText("");
-    setFiles([]);
+  const submit = async () => {
+    if ((!text.trim() && !files.length) || submitting || (busy && !queueing)) return;
+    setSubmitting(true);
+    setSubmitError(undefined);
+    try {
+      await onSend?.(text.trim(), files);
+      setText("");
+      setFiles([]);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "The message could not be sent. Try again.");
+    } finally { setSubmitting(false); }
   };
 
   return <ComposerSurface value={text} onValueChange={setText} onSend={submit} busy={busy}
     placeholder={placeholder} className={className} fieldRef={field}
-    attachments={files.length > 0 && (
+    history={history} disabled={disabled || submitting} onStop={onStop} id={id} label={label} queueing={queueing} hasAttachments={files.length > 0}
+    attachments={<>{files.length > 0 && (
           <div className="ui-as-attachments">
             {files.map((f) => (
-              <span key={f} className="ui-as-attachment">
+              <span key={f.name} className="ui-as-attachment">
                 <Icon icon={File01Icon} size={13} />
-                {f}
-                <button type="button" aria-label={`Remove ${f}`} onClick={() => setFiles((list) => list.filter((x) => x !== f))}>
+                {f.name}
+                <button type="button" disabled={submitting} aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter(x => x !== f))}>
                   <Icon icon={Cancel01Icon} size={11} />
                 </button>
               </span>
             ))}
           </div>
-        )}
-    leading={<><button type="button" className="ui-as-icon-btn" aria-label="Add file" onClick={() => fileInput.current?.click()}>
+        )}{submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}</>}
+    leading={<>{attachments && <><button type="button" className="ui-as-icon-btn" aria-label="Add file" disabled={attachments === "unavailable" || disabled || submitting}
+            title={attachments === "unavailable" ? "Attachments are not available in this connection yet" : undefined} onClick={() => fileInput.current?.click()}>
             <Icon icon={PlusSignIcon} size={15} />
           </button>
-          <input
+          {attachments === true && <input
             ref={fileInput}
             type="file"
             multiple
             hidden
             onChange={(e) => {
-              const picked = [...(e.target.files ?? [])].map((f) => f.name);
-              setFiles((list) => [...list, ...picked.filter((n) => !list.includes(n))]);
+              const picked = [...(e.target.files ?? [])];
+              setFiles([...files, ...picked.filter(file => !files.some(existing => existing.name === file.name))]);
               e.target.value = "";
             }}
-          />
-          <Dropdown
-            title={agent ? "Agent" : "Plugins"}
-            items={agent ? [{ label: agent.name, icon: agent.icon, checked: true }] : pluginList.map((p) => ({
-              label: p.label,
-              description: p.description,
-              icon: p.icon,
-              checked: plugins.includes(p.label),
-              onSelect: () => setPlugins((list) => toggleIn(list, p.label)),
-            }))}
-            trigger={({ open, toggle }) => (
-              <button type="button" className="ui-as-ghost" aria-expanded={open} data-active={plugins.length > 0 || undefined} onClick={toggle}>
-                <Icon icon={agent?.icon ?? Plug01Icon} size={14} />
-                {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
-              </button>
-            )}
-          /></>}
-    controls={<><Dropdown
-              align="end"
-              title="Model"
-              items={models.map((m) => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon, checked: m.name === model, onSelect: () => setModel(m.name) }))}
-              trigger={({ open, toggle }) => (
-                <button type="button" className="ui-as-ghost ui-as-ghost--model" aria-expanded={open} aria-haspopup="menu" onClick={toggle}>
-                  {!agent && <Icon icon={selectedModel?.icon ?? AiMagicIcon} size={14} />}
-                  <span className={agent ? "whitespace-nowrap" : undefined}>{model}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}</span>
-                  <Icon icon={ArrowDown01Icon} size={12} />
-                </button>
-              )}
-            />
-            <button
+          />}</>}
+          {(agent || pluginsEnabled) && <ComposerPicker title={agent ? "Agent" : "Plugins"} icon={agent?.icon ?? Plug01Icon} active={plugins.length > 0}
+            loading={Boolean(agent && (loading || agentChanging))}
+            disabled={Boolean(agent && (!onAgentChange || !agents?.length || modelChanging || disabled || busy))}
+            items={agent ? (agents ?? []).map(choice => ({ label: choice.name, description: choice.description, icon: choice.icon,
+              checked: choice.value === agent.value, onSelect: () => onAgentChange?.(choice.value) })) : pluginList.map(p => ({
+              label: p.label, description: p.description, icon: p.icon, checked: plugins.includes(p.label),
+              onSelect: () => setPlugins(list => toggleIn(list, p.label)),
+            }))}>
+            {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
+          </ComposerPicker>}</>}
+    controls={<><ComposerPicker title="Model" model loading={loading || agentChanging || modelChanging}
+              disabled={!models.length || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
+              items={models.map(m => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon,
+                checked: (m.value ?? m.name) === model, onSelect: () => { const next = m.value ?? m.name; if (onModelChange) onModelChange(next); else setSelected(next); } }))}>
+              {selectedModel?.name ?? model ?? (loading || agentChanging ? "Loading…" : "Model")}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}
+            </ComposerPicker>
+            {dictation && <button
               type="button"
               className="ui-as-icon-btn ui-as-mic"
               aria-label={recording ? "Stop dictation" : "Dictate"}
@@ -417,7 +449,7 @@ export function Composer({
               onClick={() => setRecording((r) => !r)}
             >
               <Icon icon={Mic01Icon} size={15} />
-            </button></>}
+            </button>}</>}
     tray={tray && <div className="ui-as-composer__tray">
         <Dropdown
           title="Work in a folder"

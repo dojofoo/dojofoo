@@ -1,12 +1,12 @@
 import type { Plugin } from "vite";
 import { fileURLToPath } from "node:url";
-import { getTypeScriptCompletions, getTypeScriptDiagnostics, getTypeScriptHover } from "../../ui/src/server/lesson/typescript-language-service.ts";
 
 /** Exercise the same language service as the app, without requiring a lesson server. */
 export function languageApi(): Plugin {
   return {
     name: "uix-storybook-language-api",
-    configureServer(server) {
+    async configureServer(server) {
+      const { getTypeScriptCompletions, getTypeScriptDiagnostics, getTypeScriptHover } = await import("../../ui/src/server/lesson/typescript-language-service.ts");
       server.middlewares.use("/uix-language/files/solution", async (req, res, next) => {
         const method = req.url?.split("?")[0];
         if (req.method !== "POST" || !["/hover", "/diagnostics", "/completions"].includes(method ?? "")) return next();

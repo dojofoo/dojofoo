@@ -1,42 +1,34 @@
-import { ChatMessage } from "@dojofoo/uix/components/chat-message";
+import { AiMagicIcon } from "@dojofoo/uix/icons";
+import { StreamedChatMessage } from "@/components/chat/streamed-message";
+export { StreamedChatMessage, evaluationSummary } from "@/components/chat/streamed-message";
 import { AppShell, Dropdown, Icon as UIXIcon, MenuButton, type ShellSection } from "@dojofoo/uix/components/app-shell";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
-import { ComposerSurface } from "@dojofoo/uix/components/composer";
+import { Composer } from "@dojofoo/uix/containers/assistant-home";
 import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
 import { followLink } from "@dojofoo/uix/lib/link-event";
 import { lessonResources } from "@/lib/lesson-resources";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
+import { WorkspaceSkeleton } from "@dojofoo/uix/components/workspace-skeleton";
+import { CourseCard, courseColor } from "@dojofoo/uix/components/course-card";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
-import { CommandPalette } from "@dojofoo/uix/components/command-palette";
-import { ArrowDown01Icon, BookOpen01Icon, Cancel01Icon, CoursesIcon, DoneIcon, ExploreIcon } from "@dojofoo/uix/icons";
+import { DashboardPalette } from "@/components/dashboard-palette";
+import { ArrowDown01Icon, BackIcon, Cancel01Icon, DoneIcon } from "@dojofoo/uix/icons";
 import { ClientOnly, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
-import type { ThinkingPart, ToolCallPart } from "@tanstack/ai-client";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { BundledLanguage } from "shiki";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowRight,
-  Check,
-  Circle,
-  Spinner as Loader2,
-  LockKeyhole,
   RefreshAlt as RotateCcw,
   Save as SaveIcon,
   Undo as Undo2,
 } from "@mynaui/icons-react";
-import { CodeBlock, CodeBlockCopyButton } from "@/components/ai-elements/code-block";
 import { CourseContent } from "@/components/course-content";
 import { LessonTestResults } from "@/components/lesson-test-results";
 import { failureLines } from "@/lib/lesson-test-results";
-import { TerminalBlock } from "@dojofoo/ui/elements/terminal-block";
-import { ToolCallCard } from "@dojofoo/uix/components/tool-call-card";
-import { ThinkingPanel } from "@dojofoo/uix/components/thinking-panel";
+import { TerminalOutput } from "@dojofoo/uix/components/terminal-output";
 import { ChatTranscript } from "@/components/chat/assistant-response";
-import { activityLabels, toolActivity } from "@/lib/chat-activity-labels";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
-import { Button } from "@dojofoo/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -47,15 +39,19 @@ import {
   DialogTitle,
 } from "@dojofoo/ui/dialog";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
+import { useAccountMenu } from "@/hooks/use-account-menu";
+import { codingAgents } from "@/lib/coding-agents";
+import { courseArt } from "@/lib/course-color";
+import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
+import { starterCourses } from "@/lib/starter-courses";
+import { authoringSessionLink, authoringSessionSearch } from "@/lib/authoring-session-link";
+import { httpError } from "@/lib/http-error";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 import type { JsonRpcRequest } from "@/server/session/protocol";
-import { applyLessonMetadata, hydrateLesson } from "@/lib/lesson-snapshot";
 import { projectChatTimeline, type AnchoredChatEvent } from "@/lib/chat-timeline";
 import { chatAcceptsInput, isInternalLessonMessage, lessonIntroductionCanStart } from "@/lib/chat-internal";
-import { cn } from "@/lib/utils";
-import { AgentQuestion, isAgentQuestion, agentQuestionState, agentQuestionId } from "@/components/chat/agent-question";
-import { useChatWorkTiming, type ChatWorkTiming } from "@/lib/chat-work-timing";
-import { codeHighlight, codeHighlights, type CodeHighlight } from "@/lib/code-highlight";
+import { useChatWorkTiming } from "@/lib/chat-work-timing";
+import { type CodeHighlight } from "@/lib/code-highlight";
 
 const CodeEditor = lazy(() => import("@dojofoo/uix/containers/code-editor").then(({ CodeEditor }) => ({ default: CodeEditor })));
 const INTRODUCTION_MESSAGE = "[dojo:begin-lesson]";
@@ -104,10 +100,13 @@ async function assertResponse(response: Response): Promise<Response> {
 
 function CourseIndex() {
   const navigate = useNavigate();
+  const { account, toast } = useAccountMenu();
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [drafts, setDrafts] = useState<AuthoringDraft[]>([]);
+  const [creatingCourse, setCreatingCourse] = useState(false);
+  const [authoringError, setAuthoringError] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
@@ -115,6 +114,10 @@ function CourseIndex() {
   const [courseChoiceOpen, setCourseChoiceOpen] = useState(false);
   const [choiceWorkspaceId, setChoiceWorkspaceId] = useState("");
   const [choiceSessionId, setChoiceSessionId] = useState("current");
+  const [openingCourse, setOpeningCourse] = useState(false);
+  const [courseOpenError, setCourseOpenError] = useState<string>();
+  const courseOpenRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => courseOpenRequest.current?.abort(), []);
 
   useEffect(() => {
     fetch("/api/control/courses")
@@ -134,6 +137,7 @@ function CourseIndex() {
   }, []);
 
   const groups = groupCourses(courses);
+  const starters = starterCourses.filter(item => !groups.some(group => group.dojo === item.id));
   const languages = [...new Set(groups.flatMap((group) => group.workspaces.map((course) => course.language)))].sort();
   const visibleCourses = groups
     .filter((group) => language === "all" || group.workspaces.some((course) => course.language === language))
@@ -145,24 +149,28 @@ function CourseIndex() {
       return rightSeen - leftSeen;
     });
 
-  async function openCourse(course: ActiveCourse, sessionId?: string | null) {
+  async function openCourse(course: ActiveCourse, sessionId?: string | null, signal?: AbortSignal) {
     window.localStorage.setItem("dojofoo.workspace", course.workspaceId);
     if (course.mode === "interactive") {
-      await navigate({ to: "/interactive" });
+      await navigate({ to: "/interactive", search: { workspace: course.workspaceId, course: course.dojo } });
       return;
     }
     if (sessionId === null && course.kata) {
-      const response = await fetch(`${lessonApi(course.workspaceId, course.dojo, course.kata)}/sessions`, { method: "POST" });
+      const response = await fetch(`${lessonApi(course.workspaceId, course.dojo, course.kata)}/sessions`, { method: "POST", signal });
       await assertResponse(response);
       const started = await response.json() as LessonSnapshot;
+      if (signal?.aborted) return;
       if (started.sessionId) {
-        await navigate({ to: "/session/$sessionId", params: { sessionId: started.sessionId } });
+        await navigate({ to: "/session/$sessionId", params: { sessionId: started.sessionId },
+          state: { lesson: { workspaceId: course.workspaceId, courseId: course.dojo, lessonId: started.kata, sessionId: started.sessionId } } });
         return;
       }
     }
     const existingSession = sessionId === undefined ? course.sessionId : sessionId;
     if (existingSession) {
-      await navigate({ to: "/session/$sessionId", params: { sessionId: existingSession } });
+      const lessonId = course.sessions.find(session => session.sessionId === existingSession)?.lessonId;
+      await navigate({ to: "/session/$sessionId", params: { sessionId: existingSession },
+        state: lessonId ? { lesson: { workspaceId: course.workspaceId, courseId: course.dojo, lessonId, sessionId: existingSession } } : undefined });
       return;
     }
     if (course.kata) {
@@ -176,6 +184,7 @@ function CourseIndex() {
   }
 
   function chooseCourse(group: CourseGroup) {
+    setCourseOpenError(undefined);
     if (group.workspaces.length === 1) {
       void openCourse(group.workspaces[0]);
       return;
@@ -189,53 +198,69 @@ function CourseIndex() {
 
   const choiceWorkspace = courseChoice?.workspaces.find((course) => course.workspaceId === choiceWorkspaceId) ?? null;
 
-  const explore = () => window.open("https://dojo.foo/dojos", "_blank", "noopener,noreferrer");
-  const documentation = () => window.open("https://dojo.foo/docs", "_blank", "noopener,noreferrer");
-  const navigation: ShellSection[] = [{ id: "library", items: [
-    { id: "courses", label: "Courses", icon: CoursesIcon, count: groups.length || undefined },
-    { id: "explore", label: "Explore", icon: ExploreIcon },
-    { id: "docs", label: "Documentation", icon: BookOpen01Icon },
-  ] }];
+  async function createCourse() {
+    if (creatingCourse) return;
+    setCreatingCourse(true);
+    setAuthoringError(undefined);
+    try {
+      const response = await fetch("/api/control/authoring", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "New course" }) });
+      if (!response.ok) throw await httpError(response);
+      const draft = await response.json() as AuthoringDraft;
+      setDrafts(previous => [draft, ...previous.filter(item => item.workspaceId !== draft.workspaceId)]);
+      await navigate({ to: "/authoring", search: { workspace: draft.workspaceId } });
+    } catch (error) { setAuthoringError(error instanceof Error ? error.message : "Could not create the draft."); }
+    finally { setCreatingCourse(false); }
+  }
+
+  const explore = () => { void navigate({ to: "/explore" }); };
+  const navigation = dashboardNavigation();
 
   return (
     <div style={{ height: "100dvh" }}>
-      <AppShell workspace="Dojo" brand={<a href="/" aria-label="Dojofoo courses"><BrandLogo /></a>}
-        navigation={navigation} navigationKey="local-courses" active="courses"
-        showUser={false} showNews={false} showOnboarding={false} showFooter={false}
-        onSearch={() => setPaletteOpen(true)} onNavigate={id => { if (id === "explore") explore(); else if (id === "docs") documentation(); }}>
+      <AppShell {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojofoo courses"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
+        navigation={navigation} navigationKey={dashboardNavigationKey} active="courses"
+        showNews={false} showOnboarding={false}
+        onSearch={() => setPaletteOpen(true)} onNavigate={id => { if (id === "explore") explore(); }}>
         <LearningLibrary loading={coursesLoading} error={error ?? undefined} onExplore={explore}
+          onNewCourse={() => { void createCourse(); }} newCoursePending={creatingCourse} authoringError={authoringError}
           controls={<>
             <MenuButton label="Language" value={language} onChange={setLanguage}
               options={[{ value: "all", label: "All languages" }, ...languages.map(value => ({ value, label: value }))]} />
             <MenuButton label="Sort local dojos" value={sortBy} onChange={setSortBy}
               options={[{ value: "recent", label: "Most recent" }, { value: "oldest", label: "Oldest activity" }, { value: "name", label: "Course name" }]} />
           </>}
-          courses={visibleCourses.map(group => {
+          courses={[...visibleCourses.map(group => {
             const course = preferredWorkspace(group);
             const single = group.workspaces.length === 1;
             const href = !single || course.mode === "interactive" ? undefined
               : course.sessionId ? `/session/${encodeURIComponent(course.sessionId)}`
               : course.kata ? `/course/${encodeURIComponent(course.workspaceId)}/${encodeURIComponent(course.dojo)}/lesson/${encodeURIComponent(course.kata)}`
               : `/course/${encodeURIComponent(course.workspaceId)}`;
-            return { id: group.dojo, title: humanTitle(course.dojo), mark: course.language, href,
+            return { id: group.dojo, title: humanTitle(course.dojo), color: courseColor(courseArt(group.dojo)), mark: course.language, href,
               caption: single ? course.mode === "interactive" ? "Interactive lesson" : humanTitle(course.kata ?? "Not started") : `${group.workspaces.length} workspaces`,
               detail: single ? course.workspaceName : "Choose where to continue", onOpen: () => chooseCourse(group) };
-          })}
-          drafts={drafts.map(draft => ({ id: draft.workspaceId, title: humanTitle(draft.name), mark: draft.mode,
-            caption: "Draft", detail: draft.description || "Resume authoring", href: `/authoring?workspace=${encodeURIComponent(draft.workspaceId)}` }))} />
+          }), ...(language === "all" ? starters.map(course => ({ id: `starter:${course.id}`, title: course.title, color: courseColor(course.art), mark: "Dojo",
+            caption: "Draft starter", detail: "Install to begin", href: `/starter/${encodeURIComponent(course.id)}`,
+            onOpen: () => { void navigate({ to: "/starter/$courseId", params: { courseId: course.id } }); },
+          })) : [])]}
+          drafts={drafts.map(draft => ({ id: draft.workspaceId, title: humanTitle(draft.name), color: courseColor(courseArt(draft.workspaceId)), mark: draft.mode,
+            caption: "Draft", detail: draft.description || "Open authoring", href: authoringSessionLink(draft.workspaceId) }))} />
+        {toast}
       </AppShell>
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} assistant={false} searchLabel="Search your courses"
+      <DashboardPalette open={paletteOpen} onOpenChange={setPaletteOpen} searchLabel="Search your courses"
         placeholder="Search courses, drafts and documentation…" groups={[
           { id: "courses", label: "Courses", commands: groups.map(group => ({ id: `course:${group.dojo}`, label: humanTitle(group.dojo), keywords: preferredWorkspace(group).language })) },
+          { id: "starters", label: "Starter courses", commands: starters.map(course => ({ id: `starter:${course.id}`, label: course.title, keywords: course.blurb })) },
           { id: "drafts", label: "Authoring", commands: drafts.map(draft => ({ id: `draft:${draft.workspaceId}`, label: humanTitle(draft.name) })) },
-          { id: "help", label: "Help", commands: [{ id: "explore", label: "Explore courses" }, { id: "docs", label: "Documentation" }] },
         ]} onRun={id => {
-          if (id === "explore") explore();
-          else if (id === "docs") documentation();
-          else if (id.startsWith("course:")) { const group = groups.find(item => item.dojo === id.slice(7)); if (group) chooseCourse(group); }
-          else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: { workspace: id.slice(6) } });
+          if (id.startsWith("course:")) { const group = groups.find(item => item.dojo === id.slice(7)); if (group) chooseCourse(group); }
+          else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: authoringSessionSearch(id.slice(6)) });
+          else if (id.startsWith("starter:")) void navigate({ to: "/starter/$courseId", params: { courseId: id.slice(8) } });
         }} />
-      <Dialog open={courseChoiceOpen} onOpenChange={setCourseChoiceOpen}>
+      <Dialog open={courseChoiceOpen} onOpenChange={open => {
+        setCourseChoiceOpen(open);
+        if (!open) courseOpenRequest.current?.abort();
+      }}>
         <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
           <DialogHeader>
             <DialogTitle>Continue {humanTitle(courseChoice?.dojo ?? "course")}</DialogTitle>
@@ -244,7 +269,7 @@ function CourseIndex() {
           <div className="grid gap-5 py-2">
             <label className="grid gap-2">
               <span className="text-xs font-medium text-muted-foreground">Workspace</span>
-              <MenuButton label="Course workspace" align="start" className="w-full justify-between"
+              <MenuButton label="Course workspace" align="start" className="w-full justify-between" disabled={openingCourse}
                 value={choiceWorkspaceId} onChange={workspaceId => {
                   const workspace = courseChoice?.workspaces.find(candidate => candidate.workspaceId === workspaceId);
                   setChoiceWorkspaceId(workspaceId);
@@ -255,23 +280,32 @@ function CourseIndex() {
             </label>
             <label className="grid gap-2">
               <span className="text-xs font-medium text-muted-foreground">Session</span>
-              <MenuButton label="Course session" align="start" className="w-full justify-between" value={choiceSessionId} onChange={setChoiceSessionId}
+              <MenuButton label="Course session" align="start" className="w-full justify-between" disabled={openingCourse} value={choiceSessionId} onChange={setChoiceSessionId}
                 options={[{ value: "current", label: choiceWorkspace?.sessionId ? "Start a new session" : "Start current lesson" },
                   ...(choiceWorkspace?.sessions.map(session => ({ value: session.sessionId,
                     label: `${humanTitle(session.lessonId)} · ${middleEllipsis(session.sessionId)}` })) ?? [])]} />
             </label>
           </div>
+          {courseOpenError && <p role="alert" className="text-sm text-destructive">{courseOpenError}</p>}
           <DialogFooter>
             <DialogClose render={<UIXButton variant="ghost">Cancel</UIXButton>} />
             <UIXButton
-              disabled={!choiceWorkspace}
-              onClick={() => {
-                if (!choiceWorkspace) return;
-                setCourseChoiceOpen(false);
-                void openCourse(choiceWorkspace, choiceSessionId === "current" ? null : choiceSessionId);
+              disabled={!choiceWorkspace || openingCourse}
+              onClick={async () => {
+                if (!choiceWorkspace || openingCourse) return;
+                const controller = new AbortController();
+                courseOpenRequest.current = controller;
+                setOpeningCourse(true);
+                setCourseOpenError(undefined);
+                try {
+                  await openCourse(choiceWorkspace, choiceSessionId === "current" ? null : choiceSessionId, controller.signal);
+                  if (!controller.signal.aborted) setCourseChoiceOpen(false);
+                } catch (cause) {
+                  if (!controller.signal.aborted) setCourseOpenError(cause instanceof Error ? cause.message : String(cause));
+                } finally { setOpeningCourse(false); }
               }}
             >
-              Continue
+              {openingCourse ? "Opening…" : "Continue"}
             </UIXButton>
           </DialogFooter>
         </DialogContent>
@@ -295,17 +329,23 @@ function preferredWorkspace(group: CourseGroup): ActiveCourse {
     ?? [...group.workspaces].sort((left, right) => right.lastSeenAt - left.lastSeenAt)[0];
 }
 
-export function LessonPage({ requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
+export function LessonPage({ requestedHarness, requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
+  requestedHarness?: string;
   requestedCourseId?: string;
   requestedLessonId?: string;
   requestedSessionId?: string;
   requestedWorkspaceId?: string;
 }) {
   const navigate = useNavigate();
+  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   const [lesson, setLesson] = useState<LessonSnapshot | null>(null);
+  const [conversationReady, setConversationReady] = useState(false);
+  const [conversationError, setConversationError] = useState<string>();
+  const [conversationAttempt, setConversationAttempt] = useState(0);
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
   const [coursesReady, setCoursesReady] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState("");
+  const [selectedWorkspaceId, setWorkspaceId] = useState("");
+  const workspaceId = requestedWorkspaceId ?? selectedWorkspaceId;
   const [code, setCode] = useState("");
   const [editorHighlight, setEditorHighlight] = useState<(CodeHighlight & { nonce: number }) | undefined>();
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"code" | "tests">("code");
@@ -314,6 +354,13 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [modelChanging, setModelChanging] = useState(false);
+  const [agentChanging, setAgentChanging] = useState(false);
+  const navigationRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    navigationRequest.current = controller;
+    return () => controller.abort();
+  }, []);
   const [modelNotice, setModelNotice] = useState("");
   const [busy, setBusy] = useState("Loading your dojo…");
   const [error, setError] = useState<string | null>(null);
@@ -328,8 +375,9 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   const selectedLessonId = requestedLessonId
     ?? selectedCourse?.sessions.find((session) => session.sessionId === requestedSessionId)?.lessonId
     ?? selectedCourse?.kata;
-  const apiBase = workspaceId && selectedCourse && selectedLessonId
-    ? lessonApi(workspaceId, selectedCourse.dojo, selectedLessonId)
+  const dojoId = requestedCourseId ?? selectedCourse?.dojo;
+  const apiBase = workspaceId && dojoId && selectedLessonId
+    ? lessonApi(workspaceId, dojoId, selectedLessonId)
     : "";
   const chatConnection = useMemo(() => fetchServerSentEvents(
     apiBase ? `${apiBase}/messages` : "/api/unavailable",
@@ -362,20 +410,28 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
     setEditorHighlight((current) => ({ ...highlight, nonce: (current?.nonce ?? 0) + 1 }));
   }, []);
 
-  const metadataTarget = useMemo(() => ({ setCode, setLesson }), []);
   const setStreamedMessagesRef = useRef(setStreamedMessages);
   setStreamedMessagesRef.current = setStreamedMessages;
   const hydrate = useCallback((next: LessonSnapshot) => {
-    hydrateLesson(next, { ...metadataTarget, setMessages: (value) => setStreamedMessagesRef.current(value) });
+    setLesson(next);
+    setCode(next.code);
+    setStreamedMessagesRef.current(next.messages);
     setHostChatEvents([]);
     setBusy("");
     setError(null);
-  }, [metadataTarget]);
-  const updateMetadata = useCallback((next: LessonSnapshot) => {
-    applyLessonMetadata(next, metadataTarget);
-    setBusy("");
-    setError(null);
-  }, [metadataTarget]);
+  }, []);
+  const setSessionAddress = useCallback((next: LessonSnapshot) => {
+    if (!next.sessionId) return;
+    const sessionAddress = { lesson: { workspaceId, courseId: next.dojo, lessonId: next.kata, sessionId: next.sessionId } };
+    return navigate({
+      to: ".",
+      state: sessionAddress,
+      mask: { to: "/session/$sessionId", params: { sessionId: next.sessionId }, unmaskOnReload: true, state: sessionAddress },
+      replace: true,
+      resetScroll: false,
+      viewTransition: false,
+    });
+  }, [navigate, workspaceId]);
 
   useEffect(() => {
     fetch("/api/control/courses")
@@ -390,7 +446,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
           ?? activeCourses.find((course) => course.workspaceId === stored)
           ?? activeCourses.find((course) => course.selected)
           ?? activeCourses[0];
-        if (requestedSessionId && !selected?.sessions.some((session) => session.sessionId === requestedSessionId)) {
+        if (requestedSessionId && !requestedLessonId && !selected?.sessions.some((session) => session.sessionId === requestedSessionId)) {
           throw new Error("This exact lesson session is unavailable. Dojofoo will not substitute another session's transcript.");
         }
         setCourses(activeCourses);
@@ -399,27 +455,27 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
       })
       .catch((cause: Error) => {
         setCoursesReady(true);
-        setError(cause.message);
+        if (!requestedWorkspaceId || !requestedCourseId || !requestedLessonId) setError(cause.message);
       });
-  }, [requestedSessionId, requestedWorkspaceId]);
+  }, [requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId]);
 
   useEffect(() => {
-    if (!coursesReady) return;
+    if (!coursesReady || apiBase) return;
+    setBusy("");
+    setError(current => current ?? (selectedCourse ? "This course has no lesson to continue." : "Course not found."));
+  }, [apiBase, coursesReady, selectedCourse]);
+
+  useEffect(() => {
+    if (!apiBase) return;
+    // Updating an already accepted session's address must not reload its files.
+    if (requestedSessionId && lesson?.sessionId === requestedSessionId
+      && lesson.dojo === dojoId && lesson.kata === selectedLessonId) return;
     setLesson(null);
+    setConversationReady(false);
+    setConversationError(undefined);
     setModelNotice("");
-    const course = courses.find((candidate) => candidate.workspaceId === workspaceId);
-    const lessonId = requestedLessonId ?? course?.kata;
-    if (!course || (requestedCourseId && course.dojo !== requestedCourseId)) {
-      setBusy("");
-      setError("Course not found.");
-      return;
-    }
-    if (!lessonId) {
-      setBusy("");
-      setError("This course has no lesson to continue.");
-      return;
-    }
-    fetch(lessonApi(workspaceId, course.dojo, lessonId))
+    const controller = new AbortController();
+    fetch(`${apiBase}?prepare=false`, { signal: controller.signal })
       .then(async (response) => ({
         response,
         body: (await response.json()) as LessonSnapshot | { error: string } | null,
@@ -429,21 +485,54 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
           throw new Error(body && "error" in body ? body.error : `Could not load the dojo (${response.status})`);
         }
         if (body && !("error" in body)) {
+          if (requestedCourseId && body.dojo !== requestedCourseId) throw new Error("Course not found.");
+          if (requestedSessionId && body.sessionId !== requestedSessionId) throw new Error("This exact lesson session is unavailable. Dojofoo will not substitute another session’s transcript.");
+          if (controller.signal.aborted) return;
           hydrate(body);
           if (!requestedLessonId && body.sessionId && body.sessionId !== requestedSessionId) {
-            await navigate({
-              to: "/session/$sessionId",
-              params: { sessionId: body.sessionId },
-              replace: true,
-            });
+            await setSessionAddress(body);
           }
         }
       })
       .catch((cause: Error) => {
+        if (controller.signal.aborted) return;
         setBusy("");
         setError(cause.message);
       });
-  }, [courses, coursesReady, hydrate, navigate, requestedCourseId, requestedLessonId, requestedSessionId, workspaceId]);
+    return () => controller.abort();
+  }, [apiBase, dojoId, hydrate, requestedCourseId, requestedLessonId, requestedSessionId, selectedLessonId, setSessionAddress]);
+
+  useEffect(() => {
+    if (!apiBase || !lesson) return;
+    if (conversationReady && requestedSessionId === lesson.sessionId) return;
+    const controller = new AbortController();
+    setConversationReady(false);
+    setConversationError(undefined);
+    // The existing host owns native resume and history. Apply only conversation
+    // fields so a slow agent cannot overwrite edits made since files appeared.
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      void (async () => {
+        // A retry reads the accepted session before deciding to create one.
+        const saved = requestedHarness && conversationAttempt > 0
+          ? await fetch(`${apiBase}?prepare=false`, { signal: controller.signal }).then(assertResponse).then(response => response.json() as Promise<LessonSnapshot>)
+          : lesson;
+        if (controller.signal.aborted) return;
+        const startSelected = requestedHarness && !saved.sessionId;
+        const response = await fetch(startSelected ? `${apiBase}/sessions` : apiBase, {
+          signal: controller.signal,
+          ...(startSelected ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ harness: requestedHarness }) } : {}),
+        }).then(assertResponse);
+        const next = await response.json() as LessonSnapshot;
+        if (controller.signal.aborted) return;
+        if (requestedSessionId && next.sessionId !== requestedSessionId) throw new Error("This exact lesson session is unavailable.");
+        setLesson(current => current ? { ...current, sessionId: next.sessionId, model: next.model, harness: next.harness, harnesses: next.harnesses } : current);
+        setStreamedMessagesRef.current(next.messages);
+        setConversationReady(true);
+      })().catch(cause => { if (!controller.signal.aborted) setConversationError(cause.message); });
+    });
+    return () => controller.abort();
+  }, [apiBase, lesson?.kata, requestedSessionId, requestedHarness, conversationAttempt]);
 
   useEffect(() => {
     if (chatError) setError(chatError.message);
@@ -451,7 +540,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   useEffect(() => {
     const sessionId = lesson?.sessionId;
-    if (!workspaceId || !selectedCourse || !selectedLessonId || !sessionId) {
+    if (!workspaceId || !dojoId || !selectedLessonId || !sessionId) {
       return;
     }
     let cancelled = false;
@@ -516,41 +605,42 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
       sessionSocket.current?.close();
       sessionSocket.current = null;
     };
-  }, [hydrate, lesson?.sessionId, navigate, selectedCourse, selectedLessonId, workspaceId]);
+  }, [dojoId, lesson?.sessionId, selectedLessonId, workspaceId]);
 
   useEffect(() => {
     const observation = pendingCheckObservation;
-    if (!observation || chatStatus !== "ready") return;
+    if (!observation || !conversationReady || chatStatus !== "ready") return;
     setPendingCheckObservation(null);
     forwardedProps.current = { kind: "check-observation", observation };
     void sendMessage(
       CHECK_OBSERVATION_MESSAGE,
     ).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => { forwardedProps.current = {}; });
-  }, [chatStatus, pendingCheckObservation, sendMessage]);
+  }, [chatStatus, conversationReady, pendingCheckObservation, sendMessage]);
 
   useEffect(() => {
-    if (!apiBase || !lesson || !lessonIntroductionCanStart(chatStatus, messages)) return;
+    if (!apiBase || !lesson || lesson.introduced || !conversationReady || !lessonIntroductionCanStart(chatStatus, messages)) return;
     if (introductions.current.has(apiBase)) return;
     introductions.current.add(apiBase);
     setBusy("Sensei is introducing the lesson…");
     forwardedProps.current = { kind: "introduction" };
+    const signal = navigationRequest.current?.signal;
     void sendMessage(INTRODUCTION_MESSAGE)
       .then(async () => {
-        const response = await fetch(apiBase);
+        if (signal?.aborted) return;
+        const response = await fetch(apiBase, { signal });
         if (!response.ok) throw new Error(`Could not refresh the lesson (${response.status})`);
         const updated = await response.json() as LessonSnapshot;
+        if (signal?.aborted) return;
         // The AI SDK stream is the authoritative message state for this turn.
         // Refresh lesson metadata (especially the newly-created session ID)
         // without replacing the completed streamed parts with a transcript
         // reconstruction that may not yet contain the same tool grouping.
-        updateMetadata(updated);
-        if (updated.sessionId) {
-          await navigate({
-            to: "/session/$sessionId",
-            params: { sessionId: updated.sessionId },
-            replace: true,
-          });
+        setLesson(updated);
+        setBusy("");
+        setError(null);
+        if (updated.sessionId && updated.sessionId !== requestedSessionId) {
+          await setSessionAddress(updated);
         }
       })
       .catch((cause: unknown) => {
@@ -559,7 +649,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         setError(cause instanceof Error ? cause.message : String(cause));
       })
       .finally(() => { forwardedProps.current = {}; });
-  }, [apiBase, chatStatus, lesson, messages, navigate, sendMessage, updateMetadata]);
+  }, [apiBase, chatStatus, conversationReady, lesson, messages, requestedSessionId, sendMessage, setSessionAddress]);
 
   async function sendQuestion(message = question.trim()) {
     if (!message) return;
@@ -571,6 +661,33 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
       setError(cause instanceof Error ? cause.message : String(cause));
       setBusy("");
     }
+  }
+
+  async function changeAgent(value: string) {
+    if (!apiBase || !lesson || value === lesson.harness || agentChanging || modelChanging || !lesson.harnesses?.some(harness => harness === value)) return;
+    const signal = navigationRequest.current?.signal;
+    setAgentChanging(true);
+    setModelNotice("Starting a conversation with the selected coding agent…");
+    setError(null);
+    try {
+      const response = await fetch(`${apiBase}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ harness: value }), signal });
+      if (!response.ok) throw await httpError(response);
+      const next = await response.json() as LessonSnapshot;
+      if (signal?.aborted) return;
+      // Agent selection creates no paid turn and must not navigate away from dirty code.
+      introductions.current.add(apiBase);
+      // A new agent owns a new conversation. The mounted editor and unsaved code stay local.
+      setLesson(next);
+      setStreamedMessages(next.messages);
+      setHostChatEvents([]);
+      setConversationReady(true);
+      setConversationError(undefined);
+      await setSessionAddress(next);
+      setModelNotice(`Started a conversation with ${codingAgents.find(agent => agent.value === next.harness)?.name ?? next.harness}.`);
+    } catch (cause) {
+      setModelNotice("Agent change failed. Your conversation stays open.");
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally { setAgentChanging(false); }
   }
 
   async function changeModel(value: string) {
@@ -603,9 +720,11 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
     scrollToBottom();
     setBusy("Continuing lesson…");
     if (!apiBase) return;
+    const signal = navigationRequest.current?.signal;
     try {
       const response = await fetch(`${apiBase}/messages`, {
         method: "POST",
+        signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           answers: Object.fromEntries(Object.values(answers).map((answer) => [
@@ -615,27 +734,12 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         }),
       });
       const body = await response.json() as LessonSnapshot | { ok: true } | { error: string };
+      if (signal?.aborted) return;
       if (!response.ok || "error" in body) {
         throw new Error("error" in body ? body.error : `Could not answer the sensei (${response.status})`);
       }
       if ("kata" in body) await viewLesson(body.kata, body.dojo);
       else setBusy("");
-    } catch (cause) {
-      setBusy("");
-      setError(cause instanceof Error ? cause.message : String(cause));
-    }
-  }
-
-  async function continueLesson() {
-    if (!apiBase) return;
-    setBusy("Preparing the next lesson…");
-    try {
-      const response = await fetch(`${apiBase}/progressions`, { method: "POST" });
-      const body = await response.json() as LessonSnapshot | { error: string };
-      if (!response.ok || "error" in body) {
-        throw new Error("error" in body ? body.error : `Could not continue the course (${response.status})`);
-      }
-      await viewLesson(body.kata, body.dojo);
     } catch (cause) {
       setBusy("");
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -658,7 +762,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         jsonrpc: "2.0",
         id: crypto.randomUUID(),
         method: "lesson.check",
-        params: { courseId: selectedCourse?.dojo, lessonId: selectedLessonId },
+        params: { courseId: dojoId, lessonId: selectedLessonId },
       } satisfies JsonRpcRequest));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -668,7 +772,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   }
 
   const chatIsWorking = chatStatus === "submitted" || chatStatus === "streaming";
-  const chatCanAcceptInput = chatAcceptsInput(chatStatus);
+  const chatCanAcceptInput = conversationReady && chatAcceptsInput(chatStatus);
   const chatWorkTiming = useChatWorkTiming(chatIsWorking, lesson?.sessionId ?? apiBase);
 
   async function reset() {
@@ -679,7 +783,9 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: lesson.starterCode }),
       }).then(assertResponse);
-      updateMetadata({ ...lesson, code: lesson.starterCode, result: null });
+      setCode(lesson.starterCode);
+      setLesson(current => current ? { ...current, code: lesson.starterCode, result: null } : current);
+      setError(null);
       setActiveWorkspaceTab("code");
       setResetDialogOpen(false);
     } catch (cause) {
@@ -689,12 +795,12 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
   }
 
   async function viewLesson(name: string, courseId?: string) {
-    const course = courses.find((candidate) => candidate.workspaceId === workspaceId);
-    if (!course) return setError("Course not found");
+    const targetCourseId = courseId ?? lesson?.dojo ?? dojoId;
+    if (!targetCourseId) return setError("Course not found");
     setActiveWorkspaceTab("code");
     await navigate({
       to: "/course/$workspaceId/$courseId/lesson/$lessonId",
-      params: { workspaceId, courseId: courseId ?? course.dojo, lessonId: name },
+      params: { workspaceId, courseId: targetCourseId, lessonId: name },
     });
   }
 
@@ -707,12 +813,12 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: nextCode }),
       }).then(assertResponse);
-      updateMetadata({ ...lesson, code: nextCode });
+      setLesson(current => current ? { ...current, code: nextCode } : current);
+      setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
-      setBusy("");
     }
-  }, [apiBase, code, lesson, updateMetadata]);
+  }, [apiBase, code, lesson]);
 
   useEffect(() => {
     const onSave = (event: KeyboardEvent) => {
@@ -726,20 +832,24 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
 
   if (!lesson) {
     return (
-      <div style={{ height: "100dvh" }}><AppShell workspace="Dojo" brand={<a href="/" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo /></a>}
-        navigation={[]} showUser={false} showFooter={false} showNews={false} showOnboarding={false}>
-        <p role={error ? "alert" : "status"} className="p-8 text-sm text-muted-foreground">{error ?? busy}</p>
-      </AppShell></div>
+      <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
+        navigation={[{ id: "lessons", heading: "Lessons", items: [], before: !error && <WorkspaceSkeleton label="Loading lessons" rows={4} /> }]}
+        showNews={false} showOnboarding={false} askAssistant={false}
+        crumbs={[{ label: "Dashboard", icon: <UIXIcon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }]}
+        editor={<Editor flush>{error ? <p role="alert" className="p-5 text-sm text-destructive">{error}</p> : <WorkspaceSkeleton />}</Editor>}
+        header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b></span>}
+        composer={<Composer tray={false} disabled models={[]} attachments="unavailable" dictation={false} plugins={false}
+          agent={{ name: "Coding agent", icon: AiMagicIcon }} placeholder="Ask your Sensei…" />} />{toast}</div>
     );
   }
 
-  const completed = lesson.result?.complete === true || lesson.state === "completed";
   const thinking = chatStatus === "submitted" || chatStatus === "streaming";
-  const nextLesson = lesson.lessons[lesson.lessons.findIndex((item) => item.name === lesson.kata) + 1];
-  const nextLessonPending = busy === "Preparing the next lesson…";
   const navigation: ShellSection[] = [
-    { id: "main", items: [{ id: "courses", label: "Courses", icon: CoursesIcon, href: "/" }] },
-    { id: "lessons", heading: humanTitle(lesson.dojo), layout: "lessons", items: lesson.lessons.map((item, index) => ({
+    { id: "lessons", heading: "Lessons", layout: "lessons", before: <div className="lj-course"><CourseCard
+      course={{ title: lesson.course?.name ?? humanTitle(lesson.dojo), version: lesson.course?.version, author: lesson.course?.author,
+        repo: lesson.course?.repository, language: lesson.course?.language, lessons: lesson.course?.lessons ?? lesson.lessons.length, art: courseArt(lesson.dojo) }}
+      enrolled={{ version: lesson.course?.version, progress: Math.round(lesson.lessons.filter(item => item.state === "completed").length / lesson.lessons.length * 100), value: lesson.title }} />
+    </div>, items: lesson.lessons.map((item, index) => ({
       id: `lesson:${item.name}`, label: item.title, marker: String(index + 1).padStart(2, "0"),
       state: item.state === "completed" ? "done" : item.isCurrent ? "active" : "locked",
       note: item.state !== "completed" && !item.isCurrent ? "Upcoming lesson; expand to preview its goal" : undefined,
@@ -748,11 +858,11 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
         : { href: `/course/${encodeURIComponent(workspaceId)}/${encodeURIComponent(lesson.dojo)}/lesson/${encodeURIComponent(item.name)}` }),
     })) },
   ];
-  return <div style={{ height: "100dvh" }}><AgentChatWorkspace brand={<a href="/" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="w-11" /></a>}
-    workspace="Dojo" showUser={false} showFooter={false} showNews={false} showOnboarding={false} sidebarWidth="18rem"
+  return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
+    workspace="Dojo" showNews={false} showOnboarding={false} sidebarWidth="18rem"
     navigation={navigation} navigationKey={`${workspaceId}:${lesson.dojo}`} active={`lesson:${lesson.kata}`} navigationTransition={false}
-    onNavigate={id => { if (id === "courses") void navigate({ to: "/" }); else if (id.startsWith("lesson:")) void viewLesson(id.slice(7)); }}
-    crumbs={[{ label: "Courses", onClick: () => { void navigate({ to: "/" }); } }, { label: humanTitle(lesson.dojo) }, { label: lesson.title }]}
+    onNavigate={id => { if (id.startsWith("lesson:")) void viewLesson(id.slice(7)); }}
+    crumbs={[{ label: "Dashboard", icon: <UIXIcon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }, { label: lesson.course?.name ?? humanTitle(lesson.dojo) }, { label: lesson.title }]}
     commands={[
       { id: "lessons", label: "Lessons", commands: lesson.lessons.filter(item => item.state === "completed" || item.isCurrent).map(item => ({ id: `lesson:${item.name}`, label: item.title })) },
       { id: "files", label: "Lesson workspace", commands: [{ id: "view:code", label: lesson.filePath }, { id: "view:tests", label: "Test results" }] },
@@ -764,13 +874,13 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
       else if (id === "ask" && chatCanAcceptInput && query?.trim()) void sendQuestion(query.trim());
     }}
     editor={<div className="h-full w-full" data-testid="lesson-workspace">
-              <Editor className="h-full" flush tabs={<div className="flex w-full min-w-0 items-stretch" data-testid="workspace-bar">
+              <Editor className="h-full" flush tabs={
                 <EditorTabs mode="learning" label="Lesson workspace" active={activeWorkspaceTab}
                   onSelect={(path) => { if (path === "code" || path === "tests") setActiveWorkspaceTab(path); }}
                   tabs={[
                     { path: "code", label: <span className="font-mono">{fileName(lesson.filePath)}</span>, dirty, panelId: "code-panel" },
                     { path: "tests", panelId: "tests-panel", label: <><TestStateIcon report={lesson.result} /><span>Tests</span><span className="text-xs text-muted-foreground">{testPercentage(lesson.result)}</span></> },
-                  ]} />
+                  ]} />} actions={lesson.isCurrent || busy && !thinking ? <>
                 {busy && !thinking && <span className="ml-auto self-center px-3 text-xs text-muted-foreground">{busy}</span>}
                 {lesson.isCurrent && (
                   <div aria-label="Lesson actions" className={`${busy && !thinking ? "" : "ml-auto"} flex shrink-0 items-center gap-1 px-1`} role="toolbar">
@@ -809,40 +919,27 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                     </UIXButton>
                   </div>
                 )}
-              </div>}>
+              </> : undefined}>
               <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
-                <DialogContent>
+                <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
                   <DialogHeader>
                     <DialogTitle>Reset this lesson?</DialogTitle>
-                    <DialogDescription className="font-prose">
+                    <DialogDescription>
                       Restore the original scaffold. Your current solution will be discarded.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <DialogClose render={<Button variant="secondary">Cancel</Button>} />
-                    <Button disabled={Boolean(busy)} onClick={() => void reset()}>
+                    <DialogClose render={<UIXButton variant="ghost">Cancel</UIXButton>} />
+                    <UIXButton disabled={Boolean(busy)} onClick={() => void reset()}>
                       Reset lesson
-                    </Button>
+                    </UIXButton>
                   </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Dialog open={nextLessonPending} onOpenChange={() => undefined}>
-                <DialogContent>
-                  <div className="flex items-start gap-4 py-2">
-                    <Loader2 className="mt-0.5 size-5 shrink-0 animate-spin text-blue-500 motion-reduce:animate-none" />
-                    <DialogHeader>
-                      <DialogTitle>Opening {nextLesson?.title ?? "the next lesson"}</DialogTitle>
-                      <DialogDescription className="font-prose">
-                        Preparing its scaffold and lesson context…
-                      </DialogDescription>
-                    </DialogHeader>
-                  </div>
                 </DialogContent>
               </Dialog>
               <div className="h-full min-h-0 overflow-hidden" data-testid="lesson-canvas">
                 <div className="h-full" hidden={activeWorkspaceTab !== "code"} id="code-panel" role="tabpanel">
                   <ClientOnly fallback={<div className="h-full animate-pulse bg-[var(--ui-ed-surface)]" />}>
-                    <Suspense fallback={<div className="h-full animate-pulse bg-[var(--ui-ed-surface)]" />}>
+                    <Suspense fallback={<WorkspaceSkeleton label="Loading editor" />}>
                       <CodeEditor
                         code={code}
                         coverage={true}
@@ -870,29 +967,23 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
             </div>}
     details={<div data-testid="lesson-pane">
       <LessonMaterial lesson={lesson} workspaceId={workspaceId} />
-      {completed && lesson.isCurrent && <div className="mt-5"><UIXButton variant="secondary" disabled={Boolean(busy)} onClick={() => void continueLesson()}>Continue to next lesson</UIXButton></div>}
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     scroller={chatViewportRef}
     composer={<div data-testid="chat-composer">
-      <ComposerSurface id="sensei-composer" label="Message the sensei" value={question} onValueChange={setQuestion}
-        placeholder="Ask about the lesson…" disabled={!chatCanAcceptInput} busy={chatIsWorking} onStop={stop}
+      <Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === lesson.harness) ?? { value: lesson.harness, name: lesson.harness ?? "Coding agent", icon: AiMagicIcon }}
+        agents={codingAgents.filter(agent => lesson.harnesses?.some(value => value === agent.value)).map(agent => ({ ...agent, description: "Start a new conversation" }))}
+        onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging || (!conversationReady && !conversationError)} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
+        placeholder="Ask your Sensei…" disabled={!chatCanAcceptInput || agentChanging} busy={chatIsWorking} onStop={stop}
         history={messages.filter(item => item.role === "user").map(item => item.parts.flatMap(part => part.type === "text" && !isInternalLessonMessage(part.content) ? [part.content] : []).join("")).filter(Boolean)}
-        onSend={message => { void sendQuestion(message); }} leading={<span className="text-xs text-[var(--muted)]">Sensei</span>}
-        controls={lesson.model && <fieldset className="min-w-0" disabled={modelChanging || !chatCanAcceptInput}>
-          <Dropdown title="Harness model" align="end" items={lesson.model.options.map(option => ({
-            label: option.group ? `${option.group} · ${option.name}` : option.name, checked: option.value === lesson.model!.currentValue,
-            onSelect: () => { if (!modelChanging && chatCanAcceptInput) void changeModel(option.value); },
-          }))} trigger={({ open, toggle }) => <button type="button" className="ui-as-ghost ui-as-ghost--model max-w-56" aria-label="Harness model"
-            data-testid="harness-model-selector" aria-haspopup="menu" aria-expanded={open} disabled={modelChanging || !chatCanAcceptInput} onClick={toggle}>
-            <span className="min-w-0 truncate">{lesson.model?.options.find(option => option.value === lesson.model?.currentValue)?.name ?? lesson.model?.currentValue}</span>
-            <UIXIcon icon={ArrowDown01Icon} size={12} />
-          </button>} />
-        </fieldset>} />
+        onSend={message => { void sendQuestion(message); }} model={lesson.model?.currentValue} models={lesson.model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging}
+        onModelChange={value => { void changeModel(value); }} />
       {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}
     </div>}>
     <div data-chat-error={chatError?.message} data-chat-status={chatStatus} data-host-event-count={hostChatEvents.length} data-testid="chat-pane">
+      {conversationError && <div role="alert" className="space-y-3 p-3 text-sm text-destructive"><p>{conversationError}</p>
+        <UIXButton variant="secondary" onClick={() => setConversationAttempt(attempt => attempt + 1)}>Reload conversation</UIXButton></div>}
       <ChatTranscript messages={timelineMessages} streaming={chatIsWorking} renderMessage={(message, streaming) => (
                   <StreamedChatMessage
                     fragments={lesson.fragments}
@@ -912,7 +1003,7 @@ export function LessonPage({ requestedCourseId, requestedLessonId, requestedSess
                 </div>
               )}
     </div>
-  </AgentChatWorkspace></div>;
+  </AgentChatWorkspace>{toast}</div>;
 
 }
 
@@ -921,230 +1012,6 @@ function middleEllipsis(value: string, visibleCharacters = 22): string {
   const startLength = Math.ceil(visibleCharacters / 2);
   const endLength = Math.floor(visibleCharacters / 2);
   return `${value.slice(0, startLength)}…${value.slice(-endLength)}`;
-}
-
-export function StreamedChatMessage({
-  fragments,
-  message,
-  onToolAnswer,
-  onHighlight,
-  streaming = false,
-  timing,
-  workspaceId,
-}: {
-  fragments: Record<string, string>;
-  message: UIMessage;
-  onToolAnswer?: (answers: Record<string, AskUserAnswer>) => void | Promise<void>;
-  onHighlight?: (highlight: CodeHighlight) => void;
-  streaming?: boolean;
-  timing?: ChatWorkTiming;
-  workspaceId: string;
-}) {
-  const assistant = message.role === "assistant";
-  const groups = groupMessageParts(message.parts);
-  return (
-    <ChatMessage role={assistant ? "assistant" : "user"} className="dojo-chat-message min-w-0 max-w-full font-prose"
-      data-testid={assistant ? "sensei-streaming-message" : "senpai-streaming-message"}>
-      <div className={cn("min-w-0 max-w-full space-y-2", assistant && "w-full")}>
-        {groups.map((group, index) => {
-          if (group.kind === "activity") {
-            return <ActivityTimeline activities={group.parts} key={`activity-${index}`} streaming={streaming && index === groups.length - 1} />;
-          }
-          const part = group.part;
-          if (part.type === "thinking") {
-            return null;
-          }
-          if (part.type === "text") {
-            if (isInternalLessonMessage(part.content)) return null;
-            return <MessageContent autoHighlight={streaming} fragments={fragments} key={`${part.type}-${index}`} onHighlight={onHighlight} text={part.content} workspaceId={workspaceId} />;
-          }
-          if (part.type === "ui-resource" && /^(?:dojo|dojofoo):\/\/lessons\//u.test(part.resource.uri)) {
-            return <MessageContent fragments={fragments} key={`${part.type}-${index}`} kind="lesson-fragment" text={part.resource.text ?? ""} workspaceId={workspaceId} />;
-          }
-          if (part.type === "tool-call") {
-            if (part.name.includes("dojo_ui_show") && part.state === "complete") {
-              const fragmentId = lessonFragmentId(part.input);
-              return fragmentId
-                ? <MessageContent fragments={fragments} key={`${part.type}-${part.id}`} kind="lesson-fragment" text={fragmentId} workspaceId={workspaceId} />
-                : null;
-            }
-            if (isAgentQuestion(part)) {
-              return onToolAnswer ? (
-                <AgentQuestion
-                  className="w-full max-w-none"
-                  key={`${part.type}-${part.id}`}
-                  onAnswer={onToolAnswer}
-                  {...agentQuestionState(part)}
-                />
-              ) : null;
-            }
-            if (part.name.includes("dojo_lesson_complete") && !toolFailed(part)) return null;
-            return null;
-          }
-          return null;
-        })}
-      </div>
-    </ChatMessage>
-  );
-}
-
-type MessagePart = UIMessage["parts"][number];
-type ActivityPart = ThinkingPart | ToolCallPart;
-type MessagePartGroup = { kind: "activity"; parts: ActivityPart[] } | { kind: "part"; part: MessagePart };
-
-function groupMessageParts(parts: UIMessage["parts"]): MessagePartGroup[] {
-  const groups: MessagePartGroup[] = [];
-  const questionIds = new Set<string>();
-  for (const part of parts) {
-    if (part.type === "tool-call" && isAgentQuestion(part)) {
-      const id = agentQuestionId(part);
-      if (questionIds.has(id)) continue;
-      questionIds.add(id);
-    }
-    if (part.type === "tool-result") continue;
-    if (isTimelineActivity(part)) {
-      const previous = groups.at(-1);
-      if (previous?.kind === "activity") previous.parts.push(part);
-      else groups.push({ kind: "activity", parts: [part] });
-    } else groups.push({ kind: "part", part });
-  }
-  return groups;
-}
-
-function isTimelineActivity(part: MessagePart): part is ActivityPart {
-  if (part.type === "thinking") return true;
-  if (part.type !== "tool-call") return false;
-  if (isAgentQuestion(part)) return false;
-  if (part.name.includes("dojo_ui_show") || (part.name.includes("dojo_lesson_complete") && !toolFailed(part))) return false;
-  // A question renders as its form once Eve publishes the input request.
-  if (part.name.includes("dojo_ui_ask") && !toolFailed(part)) return false;
-  return true;
-}
-
-function lessonFragmentId(input: unknown): string | undefined {
-  if (!input || typeof input !== "object" || !("fragmentId" in input)) return undefined;
-  return typeof input.fragmentId === "string" ? input.fragmentId : undefined;
-}
-
-function isActiveThinkingActivity(activity: ToolCallPart): boolean {
-  return activity.type === "tool-call"
-    && (activity.state === "awaiting-input" || activity.state === "input-streaming" || activity.state === "input-complete");
-}
-
-function ActivityTimeline({ activities, streaming }: { activities: ActivityPart[]; streaming: boolean }) {
-  // Part durations may overlap; only a single part gives a chain duration.
-  const durationMs = activities.length === 1
-    ? (activities[0] as ActivityPart & { durationMs?: number }).durationMs
-    : undefined;
-  const usedTools = activities.some(part => part.type === "tool-call");
-  const currentTool = activities.findLast(part => part.type === "tool-call" && isActiveThinkingActivity(part));
-  const tail = activities.at(-1);
-  const currentActivity = currentTool?.type === "tool-call" ? toolActivity(currentTool.name, currentTool.input ?? currentTool.arguments)
-    : tail?.type === "thinking" ? "thinking" : "waiting";
-  const visible = activities.filter(part => part.type !== "thinking" || part.content.trim());
-  const duration = typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs >= 0 ? durationMs : undefined;
-  const completedLabel = usedTools ? "Worked" : "Thought";
-  return <ThinkingPanel label="Activity details" done={!streaming} defaultOpen={false} collapsible={visible.length > 0}
-    title={streaming ? <span className="ui-think__shimmer" data-text={activityLabels[currentActivity].label}>{activityLabels[currentActivity].label}</span>
-      : duration === undefined ? completedLabel : `${completedLabel} for ${duration < 1000 ? "<1s" : `${Math.round(duration / 1000)}s`}`}>
-    {visible.length > 0 ? <div className="w-full min-w-0">
-    {visible.map((activity, index) => {
-      if (activity.type === "thinking") return <ToolCallCard key={`thinking-${index}`} name="Reasoning" status="success"
-        icon={<span className="size-1.5 rounded-full bg-muted-foreground/50" />}>
-        <div role="region" aria-label="Reasoning step details" tabIndex={0}
-          className="scrollbar-compact max-h-[min(12rem,40vh)] overflow-y-auto overflow-x-hidden overscroll-contain focus-visible:outline focus-visible:outline-1 focus-visible:outline-ring focus-visible:-outline-offset-1">
-          <p className="whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground [overflow-wrap:anywhere]">{activity.content}</p>
-        </div>
-      </ToolCallCard>;
-      const failed = toolFailed(activity);
-      const active = isActiveThinkingActivity(activity);
-      const output = activity.output === undefined ? undefined : toolOutputText(activity.output) ?? serializeToolValue(activity.output);
-      const evaluation = activity.name.includes("dojo_authoring_evaluate") ? evaluationSummary(activity.output, active) : undefined;
-      return <ToolCallCard
-        key={activity.id}
-        name={activity.name}
-        summary={evaluation?.label}
-        args={typeof activity.input === "string" ? activity.input : activity.input && typeof activity.input === "object" ? activity.input as Record<string, unknown> : undefined}
-        result={activity.name === "dojo_lesson_verify" && isTestReport(activity.output) ? undefined : evaluation?.detail ?? output}
-        error={failed ? output || "Tool call failed." : undefined}
-        status={failed ? "error" : active ? "running" : "success"}
-        duration={(activity as ToolCallPart & { durationMs?: number }).durationMs}
-      >
-        {activity.name === "dojo_lesson_verify" && (isTestReport(activity.output)
-          ? <ChatTestTerminal report={activity.output} /> : active ? <ChatTestTerminal /> : null)}
-      </ToolCallCard>;
-    })}
-  </div> : null}
-  </ThinkingPanel>;
-}
-
-/** ACP tool updates wrap the actual result in content blocks. */
-function toolOutputText(value: unknown): string | undefined {
-  if (!value || typeof value !== "object") return;
-  const content = (value as Record<string, unknown>).content;
-  if (!Array.isArray(content)) return;
-  const text = content.flatMap(block => block?.type === "content" && block.content?.type === "text" && typeof block.content.text === "string" ? [block.content.text] : []);
-  return text.length ? text.join("\n") : undefined;
-}
-
-function serializeToolValue(value: unknown): string {
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value ?? {}, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
-const evaluationStatuses: Record<string, string> = {
-  passed: "Teaching passed",
-  "material-failed": "Lesson material needs a revision",
-  "teaching-failed": "Trial teaching needs a revision",
-  "infrastructure-failed": "Evaluation could not finish",
-  "preflight-failed": "Preflight found gaps to fix (no attempt used)",
-  "not-configured": "Evaluations are not configured",
-  "allowance-exhausted": "All three attempts are used",
-  stale: "Result no longer matches the lesson",
-};
-
-/** A teaching evaluation is a verdict, not a crashed tool: summarize it. */
-export function evaluationSummary(output: unknown, active: boolean): { label: string; detail?: string } | undefined {
-  if (active) return { label: "Evaluating teaching: trial and two judges, a few minutes" };
-  let value = output;
-  if (typeof value === "string") { try { value = JSON.parse(value); } catch { return undefined; } }
-  if (!value || typeof value !== "object") return undefined;
-  const result = value as { status?: string; remaining?: number; error?: string; next?: string; decisions?: Record<string, { blocking?: Array<{ id: string }>; disputed?: Array<{ id: string }> } | undefined> };
-  if (!result.status) return undefined;
-  const remaining = typeof result.remaining === "number" ? ` · ${result.remaining} ${result.remaining === 1 ? "attempt" : "attempts"} left` : "";
-  const decisions = Object.values(result.decisions ?? {}).filter(decision => decision !== undefined);
-  const blocking = [...new Set(decisions.flatMap(decision => decision.blocking?.map(({ id }) => id) ?? []))];
-  const disputed = [...new Set(decisions.flatMap(decision => decision.disputed?.map(({ id }) => id) ?? []))];
-  const detail = [
-    blocking.length ? `Revise: ${blocking.join(", ")}` : "",
-    disputed.length ? `Disputed (one judge): ${disputed.join(", ")}` : "",
-    result.error ?? "",
-    result.next ?? "",
-  ].filter(Boolean).join("\n");
-  return { label: `${evaluationStatuses[result.status] ?? result.status}${remaining}`, detail: detail || undefined };
-}
-
-function toolFailed(part: ToolCallPart): boolean {
-  if (part.state === "error") return true;
-  if (part.output && typeof part.output === "object") {
-    const native = part.output as { rawOutput?: { metadata?: { error?: unknown } } };
-    if (native.rawOutput?.metadata?.error === true) return true;
-  }
-  return /(?:"status"\s*:\s*"failed"|request timed out|mcp error)/iu.test(serializeToolValue(part.output));
-}
-
-
-
-function isTestReport(value: unknown): value is TestReport {
-  if (!value || typeof value !== "object") return false;
-  const report = value as Partial<TestReport>;
-  return typeof report.passed === "number"
-    && typeof report.total === "number"
-    && Array.isArray(report.tests);
 }
 
 function TestStateIcon({ report }: { report: TestReport | null }) {
@@ -1164,158 +1031,13 @@ function LessonMaterial({ lesson, workspaceId }: { lesson: LessonSnapshot; works
   const basePath = lesson.briefingBasePath ?? null;
   const resources = useMemo(() => lessonResources(lesson.briefing, basePath, workspaceId), [lesson.briefing, basePath, workspaceId]);
   return <LessonBrief title={lesson.title} resources={resources}>
-    <CourseContent basePath={basePath} workspaceId={workspaceId}>{lesson.briefing}</CourseContent>
+    <CourseContent basePath={basePath} workspaceId={workspaceId} diagrams={false}>{lesson.briefing}</CourseContent>
   </LessonBrief>;
-}
-
-function MessageContent({
-  autoHighlight = false,
-  fragments,
-  kind,
-  onHighlight,
-  text,
-  workspaceId,
-}: {
-  autoHighlight?: boolean;
-  fragments?: Record<string, string>;
-  kind?: "message" | "commentary" | "reasoning" | "tool" | "checkpoint" | "lesson-fragment";
-  onHighlight?: (highlight: CodeHighlight) => void;
-  text: string;
-  workspaceId?: string;
-}) {
-  const automaticHighlight = useRef("");
-  useEffect(() => {
-    if (!autoHighlight || !onHighlight) return;
-    const highlight = codeHighlights(text).at(-1);
-    if (!highlight) return;
-    const signature = `${highlight.from}:${highlight.to}`;
-    if (automaticHighlight.current === signature) return;
-    automaticHighlight.current = signature;
-    onHighlight(highlight);
-  }, [autoHighlight, onHighlight, text]);
-
-  if (kind === "lesson-fragment") {
-    const fragment = fragments?.[text];
-    return fragment
-      ? <div className="w-full border border-border bg-surface-1 p-4"><CourseContent basePath={null} workspaceId={workspaceId ?? ""}>{fragment}</CourseContent></div>
-      : <p className="w-full text-sm text-muted-foreground">The authored lesson fragment “{text}” is unavailable.</p>;
-  }
-  if (kind === "commentary") {
-    return (
-      <div className="w-full border-l border-dashed pl-3 text-sm text-muted-foreground">
-        <p className="mb-1 font-display text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Agent note</p>
-        <MarkdownText onHighlight={onHighlight} text={text} />
-      </div>
-    );
-  }
-  if (kind === "tool" || kind === "checkpoint") {
-    return <p className="w-full font-mono text-xs text-muted-foreground">{text}</p>;
-  }
-
-  const parts = text.split(/```([\w-]*)\n([\s\S]*?)```/g);
-  return (
-    <div className="w-full space-y-2 text-sm leading-6">
-      {parts.map((part, index) => {
-        if (index % 3 === 1) return null;
-        if (index % 3 === 2) {
-          return (
-            <CodeBlock className="my-2 w-full" code={part.trimEnd()} key={index} language={codeLanguage(parts[index - 1])}>
-              <CodeBlockCopyButton aria-label="Copy code" />
-            </CodeBlock>
-          );
-        }
-        return part.trim() ? <MarkdownText key={index} onHighlight={onHighlight} text={part} /> : null;
-      })}
-    </div>
-  );
-}
-
-function MarkdownText({ onHighlight, text }: { onHighlight?: (highlight: CodeHighlight) => void; text: string }) {
-  const lines = text.split("\n");
-  const blocks: React.ReactNode[] = [];
-  let index = 0;
-  while (index < lines.length) {
-    const line = lines[index].trim();
-    if (!line) {
-      index += 1;
-      continue;
-    }
-    const listMatch = line.match(/^([-*]|\d+[.)])\s+(.*)$/);
-    if (listMatch) {
-      const ordered = /^\d/.test(listMatch[1]);
-      const items: string[] = [];
-      while (index < lines.length) {
-        const match = lines[index].trim().match(/^([-*]|\d+[.)])\s+(.*)$/);
-        if (!match || /^\d/.test(match[1]) !== ordered) break;
-        items.push(match[2]);
-        index += 1;
-      }
-      const List = ordered ? "ol" : "ul";
-      blocks.push(
-        <List className={`${ordered ? "list-decimal" : "list-disc"} space-y-1 pl-7`} key={`list-${index}`}>
-          {items.map((item, itemIndex) => <li key={itemIndex}>{inlineMessage(item, onHighlight)}</li>)}
-        </List>,
-      );
-      continue;
-    }
-    const heading = line.match(/^(#{1,3})\s+(.*)$/);
-    if (heading) {
-      blocks.push(<p className="font-semibold text-foreground" key={`heading-${index}`}>{inlineMessage(heading[2], onHighlight)}</p>);
-    } else if (line.startsWith("> ")) {
-      blocks.push(<blockquote className="border-l border-dashed pl-3 text-muted-foreground" key={index}>{inlineMessage(line.slice(2), onHighlight)}</blockquote>);
-    } else {
-      blocks.push(<p className="whitespace-pre-wrap" key={index}>{inlineMessage(line, onHighlight)}</p>);
-    }
-    index += 1;
-  }
-  return <>{blocks}</>;
-}
-
-function inlineMessage(value: string, onHighlight?: (highlight: CodeHighlight) => void) {
-  return value.split(/(`[^`]+`|\*\*[^*]+\*\*|\[highlight:L\d+(?:-(?:L)?\d+)?\])/giu).map((part, index) => {
-    const highlight = codeHighlight(part);
-    if (highlight) {
-      return (
-        <button
-          className="dojo-inline-code cursor-pointer text-blue-500 hover:text-blue-400"
-          key={index}
-          onClick={() => onHighlight?.(highlight)}
-          type="button"
-        >
-          {part}
-        </button>
-      );
-    }
-    if (part.startsWith("`") && part.endsWith("`")) {
-      return <code className="dojo-inline-code" key={index}>{part.slice(1, -1)}</code>;
-    }
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={index}>{part.slice(2, -2)}</strong>;
-    }
-    return part;
-  });
-}
-
-function ChatTestTerminal({ report }: { report?: TestReport }) {
-  const lines = report?.tests.flatMap((test) => [
-    `${test.status === "passed" ? "✓" : test.status === "failed" ? "×" : "-"} ${test.name}`,
-    ...test.failureMessages.slice(0, 1).map((failure) => `  ${failure.split("\n")[0]}`),
-  ]) ?? [];
-  return (
-    <TerminalBlock
-      className="max-w-none"
-      command={report ? `${report.passed}/${report.total} lesson checks passed` : "Running lesson checks"}
-      done={Boolean(report)}
-      failed={Boolean(report?.failed)}
-      lines={lines}
-      visibleCount={lines.length}
-    />
-  );
 }
 
 function LiveCheckSummary({ tests }: { tests: TestReport["tests"] }) {
   const lines = tests.map((test) => `${test.status === "passed" ? "✓" : test.status === "failed" ? "×" : "-"} ${test.name}`);
-  return <TerminalBlock className="max-w-none" command="Running lesson checks" done={false} lines={lines} visibleCount={lines.length} />;
+  return <TerminalOutput label="Running lesson checks" status="running" lines={lines} />;
 }
 
 function humanTitle(value: string): string {
@@ -1324,15 +1046,4 @@ function humanTitle(value: string): string {
 
 function fileName(path: string): string {
   return path.split("/").at(-1) ?? path;
-}
-
-function codeLanguage(value: string): BundledLanguage {
-  const language = value.toLowerCase();
-  if (language === "js") return "javascript";
-  if (language === "ts") return "typescript";
-  if (language === "py") return "python";
-  if (language === "tsx" || language === "jsx" || language === "javascript" || language === "typescript" || language === "python" || language === "json" || language === "bash" || language === "shell") {
-    return language;
-  }
-  return "markdown";
 }

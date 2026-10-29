@@ -1,0 +1,27 @@
+{
+  "name": "@dojofoo/agent-api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Versioned workspace agent API (sessions, runs, coding agents) as a mountable Elysia app.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "types:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dojofoo/agent": "workspace:*",
+    "@dojofoo/authoring": "workspace:*",
+    "@tanstack/ai": "0.69.0",
+    "elysia": "^1.4.18",
+    "exact-mirror": "0.2.7"
+  },
+  "devDependencies": {
+    "@tanstack/ai-client": "0.39.3",
+    "@types/node": "^26.6.5",
+    "typescript": "6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,5 +1,5 @@
 /** Resolve authored relative links through the course's existing asset boundary. */
-export function courseAssetUrl(source: string, basePath: string | null, workspaceId: string): string {
+export function courseAssetUrl(source: string, basePath: string | null, workspaceId: string, courseId?: string): string {
   if (/^(?:https?:|mailto:|#)/iu.test(source)) return source;
   if (/^data:image\/(?:png|gif|jpeg|webp);/iu.test(source)) return source;
   if (/^[a-z][a-z\d+.-]*:/iu.test(source) || source.startsWith("//")) return "#";
@@ -8,5 +8,5 @@ export function courseAssetUrl(source: string, basePath: string | null, workspac
     else if (part && part !== ".") parts.push(part);
     return parts;
   }, []).join("/");
-  return `/api/interactive/asset?workspace=${encodeURIComponent(workspaceId)}&path=${encodeURIComponent(path)}`;
+  return `/api/interactive/asset?workspace=${encodeURIComponent(workspaceId)}&path=${encodeURIComponent(path)}${courseId ? `&course=${encodeURIComponent(courseId)}` : ""}`;
 }

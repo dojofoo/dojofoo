@@ -1,16 +1,10 @@
 import { followLink } from "../lib/link-event";
-import claudeDarkLogo from "../assets/agents/claude-wordmark-dark.svg?url";
-import claudeLightLogo from "../assets/agents/claude-wordmark-light.svg?url";
-import codexLogo from "../assets/agents/codex.svg?url";
-import cursorLogo from "../assets/agents/cursor.svg?url";
-import fxLogo from "../assets/agents/fx.svg?url";
-import opencodeLogo from "../assets/agents/opencode-wordmark.svg?url";
-import piLogo from "../assets/agents/pi.svg?url";
 import { useState } from "react";
 import { Icon } from "../components/app-shell";
 import { ButtonLink } from "../components/button";
 import { courseColor } from "../components/course-card";
 import { TabOverload } from "../components/tab-overload";
+import LogoCloud from "../components/logo-cloud-1";
 import { Carousel } from "../components/arc/carousel/carousel";
 import { ArrowRight01Icon } from "../lib/icons";
 import type { WebCourse } from "./catalog";
@@ -28,17 +22,6 @@ import { TopographyBackdrop } from "./topography-backdrop";
 
 /** The command that starts dojo: the lesson workspace in the browser – agents and courses are installed from there */
 const START = "npx dojofoo ui";
-
-const agents: Array<{ name: string; src: string; className: string; theme?: "light" | "dark" }> = [
-  { name: "Codex", src: codexLogo, className: "h-6 dark:invert" },
-  // Claude's wordmark in two inks: dark letters on the light page, white on the dark one
-  { name: "Claude", src: claudeLightLogo, className: "h-6", theme: "light" },
-  { name: "Claude", src: claudeDarkLogo, className: "h-6", theme: "dark" },
-  { name: "OpenCode", src: opencodeLogo, className: "h-5 invert dark:invert-0" },
-  { name: "Cursor", src: cursorLogo, className: "h-5 dark:invert" },
-  { name: "Pi", src: piLogo, className: "h-6 invert dark:invert-0" },
-  { name: "FX", src: fxLogo, className: "h-5 dark:invert" },
-];
 
 /** The three ways to use a dojo – interview first. */
 const modes = [
@@ -82,20 +65,14 @@ export function LandingPage({ learning, courses, featureCourse, preview }: {
 
       <section className="ui-land-agents" aria-labelledby="ui-land-agents">
         <h2 id="ui-land-agents" className="ui-land-eyebrow">Works with</h2>
-        <ul>
-          {agents.map((agent) => (
-          <li key={agent.src} className={agent.theme === "light" ? "dark:hidden" : agent.theme === "dark" ? "hidden dark:block" : undefined}>
-            <img src={agent.src} alt={agent.name} className={agent.className} />
-          </li>
-        ))}
-        </ul>
+        <LogoCloud />
       </section>
 
       <div className="ui-land-body">
         <section className="ui-land-section ui-land-modes">
           <div className="ui-land-modes__copy">
             <Carousel label="Learning modes" index={mode - 1} onIndexChange={index => setMode((index + 1) as 1 | 2 | 3)}
-              slideSize="100cqw" slideLabel={index => modes[index].title} autoplay interval={8000} controls="indicators" pauseOnHover={false} className="ui-land-modes__carousel">
+              slideSize="calc(100cqw - 32px)" slideLabel={index => modes[index].title} autoplay interval={8000} controls="indicators" pauseOnHover={false} edgeFade className="ui-land-modes__carousel">
               {modes.map(item => <article className="ui-land-modes__slide" key={item.title}>
                 <p className="ui-land-modes__name">{item.title}{item.beta && <span className="ui-land-modes__beta">{item.beta}</span>}</p>
                 <h2 className="ui-land-modes__headline">{item.headline}</h2>
@@ -148,19 +125,17 @@ const css = /* css */ `
 /* The lesson in a window slightly wider than the page's content; no Getting started card in it (the
    composer shows). Pared down to the lesson: no logo, search or sidebar toggle above the course card, no settings or
    close on the chat, and its sidebar cut off by the window's edge rather than scrolling */
-.ui-land-app, .ui-land-body { max-width: 1180px; margin: 0 auto; padding: 0 8px; }
-.ui-land-app { max-width: 1280px; }
+.ui-land-app, .ui-land-body { max-width: 1280px; margin: 0 auto; padding: 0 8px; }
+.ui-land-app { max-width: 1380px; }
 /* Match the main-to-composer gap: its 12px inset plus the 1px pane divider. */
 .ui-land-app .ui-as-app { --frame-gap: 13px; }
-@media (max-width: 1203px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
+@media (max-width: 1303px) { .ui-land-app, .ui-land-body { padding: 0 20px; } }
 .ui-land-app :is(.ui-as-guide-slot, .ui-as-side__head, .ui-as-side-open, .ui-as-chat__tools, .ui-as-chat__close) { display: none; }
 .ui-land-app .ui-as-side__nav { overflow: hidden; margin-top: var(--frame-gap); }
 .ui-land-app .ui-as-side__before { margin-top: 0; }
 
-/* The agents, quiet, in a roomy row */
+/* The agents: the logo cloud, its groups taking turns */
 .ui-land-agents { display: grid; justify-items: center; gap: 22px; padding: 56px 20px 24px; }
-.ui-land-agents ul { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px 64px; margin: 0; padding: 0; list-style: none; opacity: 0.75; }
-.ui-land-agents img { display: block; width: auto; }
 
 /* The sections, on the page, dotted rules between them */
 .ui-land-section { padding: 64px 0; }

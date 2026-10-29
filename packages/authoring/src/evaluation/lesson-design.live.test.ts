@@ -68,7 +68,7 @@ it.runIf(process.env.DOJOFOO_EVAL_DESIGN === "1").each(cases)(
     if (!harness || !model) throw new Error("Select the authoring harness and model explicitly");
     await writeFile(join(directory, "input.json"), JSON.stringify({ name, harness, model, rubric: materialRubricVersion, instructions, prompt }, null, 2));
     const agent = new HarnessAgent({
-      harness: authoringHarness(), model, instructions, activeTools: [],
+      harness: await authoringHarness(), model, instructions, activeTools: [],
       sandbox: createLocalHarnessSandbox(directory),
       stopWhen: ({ steps }) => steps.length >= 1,
     });

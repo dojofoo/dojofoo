@@ -9,6 +9,7 @@
 .ui-ed__scheme.dark { color-scheme: dark; }
 .ui-ed__scheme.light { color-scheme: light; }
 .ui-ed {
+  container: ui-editor / inline-size;
   --ui-ed-edge: inset 0 0 0 1px rgb(var(--overlay) / 0.05), inset 0 1px 0 0 rgb(var(--overlay) / 0.03);
   position: relative;
   isolation: isolate;
@@ -42,6 +43,13 @@
    along the strip's foot – the open tab covers it, so it joins the code – and up both sides of the open tab */
 .ui-ed { --ui-ed-line: var(--fluid-hairline); }
 .ui-ed__tabs { display: flex; flex: none; height: 40px; background: var(--surface-2); box-shadow: inset 0 -1px 0 var(--ui-ed-line); }
+.ui-ed__actions { display: flex; flex: none; align-items: center; gap: 4px; padding: 0 4px; }
+@container ui-editor (max-width: 600px) {
+  .ui-ed__tabs[data-actions] { flex-wrap: wrap; height: auto; }
+  .ui-ed__tabs[data-actions] > .ui-ed__tablist { flex-basis: 100%; height: 40px; }
+  .ui-ed__actions { justify-content: flex-end; flex: 1 0 100%; min-width: 0; min-height: 40px; box-shadow: inset 0 1px 0 var(--ui-ed-line); }
+}
+
 /* The list reaches 1px past both ends of the strip, where the card clips it: a tab's side line at the very edge – the
    first tab's left, the last tab's right once the tabs fill the strip – falls outside, so no line doubles the edge */
 .ui-ed__tablist { display: flex; flex: 1; min-width: 0; align-items: stretch; margin: 0 -1px; padding-top: 2px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }

@@ -22,3 +22,8 @@ it("includes Markdown in Shiki's highlighted code languages", async () => {
   expect(html).toMatch(/<span style="color:/);
   expect(html).toContain("Heading");
 });
+
+it.each(["jsx", "tsx"])("keeps %s snippets highlighted in the shared code renderer", async language => {
+  const html = await renderMarkdown(`\`\`\`${language}\nconst View = () => <button>Try it</button>;\n\`\`\``, editorSchemes[0].theme.name);
+  expect(html).toMatch(/<span style="color:/);
+});

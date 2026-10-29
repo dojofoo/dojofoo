@@ -231,7 +231,7 @@ function Shell() {
     <>
       <div ref={frame} className="ts__shell">
         <AppShell workspace="Dojofoo" user={{ name: "You" }} showOnboarding showNews={false} sidebarWidth="15rem" navigation={navigation}
-          brand={<a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={(event) => event.preventDefault()}><BrandLogo className="w-11" /></a>}
+          brand={<a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={(event) => event.preventDefault()}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
           active={[view, `file:${file}`]}
           onNavigate={(id) => {
             if (id.startsWith("file:")) setFile(id.slice(5));

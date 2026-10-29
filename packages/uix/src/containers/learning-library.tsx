@@ -28,10 +28,12 @@ export type LearningLibraryProps = {
   error?: string;
   onExplore?: () => void;
   onNewCourse?: () => void;
+  newCoursePending?: boolean;
+  authoringError?: string;
 };
 
 /** The learner's library; discovery, progress and navigation belong to its host. */
-export function LearningLibrary({ courses, drafts = [], controls, loading, error, onExplore, onNewCourse }: LearningLibraryProps) {
+export function LearningLibrary({ courses, drafts = [], controls, loading, error, onExplore, onNewCourse, newCoursePending, authoringError }: LearningLibraryProps) {
   const card = (entry: LearningLibraryEntry) => <ColorCard key={entry.id} color={entry.color ?? "var(--brand)"} href={entry.href}
     aria-label={entry.progress === undefined ? entry.title : `${entry.title}, ${entry.progress}% done`}
     onPointerEnter={entry.onPrepare} onFocus={entry.onPrepare}
@@ -67,9 +69,10 @@ export function LearningLibrary({ courses, drafts = [], controls, loading, error
     </section>
     {(drafts.length > 0 || onNewCourse) && <section className="lj-courses__next" aria-label="Authoring">
       <h2 className="lj-section">Authoring</h2>
+      {authoringError && <p role="alert" className="mb-4 text-sm text-[var(--destructive)]">{authoringError}</p>}
       <div className="lj-grid lj-grid--cards">
         {drafts.map(card)}
-        {onNewCourse && <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title="New course" label="Start from a template" onClick={onNewCourse} />}
+        {onNewCourse && <AddCard icon={<Icon icon={PlusSignIcon} size={18} />} title={newCoursePending ? "Creating course…" : "New course"} label="Start from a template" disabled={newCoursePending} onClick={onNewCourse} />}
       </div>
     </section>}
   </div>;

@@ -1,7 +1,10 @@
 # UIX
 
-The successor UI library and page-design preview. The live learning/authoring app
-has not been switched to these page fixtures.
+The shared presentation library for the website, documentation and local
+learning/authoring application. The current **Pages** stories define the design;
+production hosts use their shared components and containers with existing application
+controllers. Page fixtures and simulated conversations stay in Storybook. Migration
+and release acceptance remain tracked in [the adoption plan](../../.prd/0100-uix-adoption.md).
 
 Production entry points are `@dojofoo/uix/provider`, `fonts.css`, `styles.css`,
 `web/site`, `web/landing`, `web/learning-preview`, `web/courses`, `web/course`, `web/catalog`,

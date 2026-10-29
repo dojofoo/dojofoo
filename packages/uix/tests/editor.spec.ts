@@ -41,6 +41,14 @@ test("editor keeps edits and undo across highlighted files and test results", as
   await expect(page.locator(".ui-ed-line-flash").first()).toBeVisible();
   await expect(page.locator(".ui-ed-number-covered").first()).toBeVisible();
   await expect(page.locator(".ui-ed-number-failed").first()).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const tabs = page.getByRole("tablist", { name: "Lesson files", exact: true });
+  const toolbar = page.getByRole("toolbar", { name: "File actions", exact: true });
+  await expect(toolbar.getByRole("button", { name: "Undo edit", exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(toolbar.getByRole("button", { name: "Reset files", exact: true })).toBeInViewport({ ratio: 1 });
+  const [tabBox, actionBox] = await Promise.all([tabs.boundingBox(), toolbar.boundingBox()]);
+  expect(actionBox!.y).toBeGreaterThanOrEqual(tabBox!.y + tabBox!.height);
+  await page.screenshot({ path: testInfo.outputPath("editor-phone-actions.png") });
 });
 
 test("JSDoc works without supplying a documentation endpoint", async ({ page }) => {

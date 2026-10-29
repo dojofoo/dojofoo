@@ -22,13 +22,13 @@ it("uses author-owned nested ignore rules and negations instead of guessing sens
   expect(courseFileFilter(root)("signing.key")).toBe(false);
 });
 
-it("installs only teaching definitions by default and includes authored Kyoshi files only when requested", () => {
+it("installs Sensei definitions and excludes retired Kyoshi overrides in every mode", () => {
   const root = course();
   for (const authoring of [false, true]) {
     const include = courseFileFilter(root, authoring);
     for (const path of ["LICENSE", "DOJO.md", "chapters/01/README.md", ".dojo/sensei/skills/help/SKILL.md", ".dojo/sensei/tools/help.ts"]) expect(include(path), path).toBe(true);
-    for (const path of ["KYOSHI.md", ".dojo/kyoshi/instructions.md"]) expect(include(path), path).toBe(authoring);
-    for (const path of ["../outside", ".dojo/config.yaml", ".dojo/state/history.json", ".dojo/sensei/.eve/history.json", ".dojo/kyoshi/.eve/history.json", ".dojo/kyoshi-app/agent.ts", ".dojo/kyoshi-harness/course", ".dojo/kyoshi.json", ".dojo/evaluations/report.json", "node_modules/code.js"]) expect(include(path), path).toBe(false);
+    expect(include("KYOSHI.md")).toBe(authoring);
+    for (const path of ["../outside", ".dojo/config.yaml", ".dojo/state/history.json", ".dojo/sensei/.eve/history.json", ".dojo/kyoshi/instructions.md", ".dojo/kyoshi/.eve/history.json", ".dojo/kyoshi-app/agent.ts", ".dojo/kyoshi-harness/course", ".dojo/kyoshi.json", ".dojo/evaluations/report.json", "node_modules/code.js"]) expect(include(path), path).toBe(false);
   }
 });
 

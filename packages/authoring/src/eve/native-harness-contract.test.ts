@@ -46,7 +46,7 @@ it.skipIf(process.env.DOJO_HARNESS_LIFECYCLE !== "1").each(["grok", "fx", "codex
     } : {}),
   }) });
   const adapters = {
-    fx: createFx({ port: 0, auth: {
+    fx: createFx({ auth: {
       AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: endpoint.baseURL.replace(/\/v1$/, ""),
     } }),
     grok: createGrokBuild({ port: 0, auth: {
@@ -115,7 +115,7 @@ it.skipIf(process.env.DOJO_HARNESS_LIFECYCLE !== "1").each(["grok", "fx", "codex
     } else if (harness !== "pi") {
       await expect(resumed.compact()).rejects.toMatchObject({
         name: "AI_HarnessCapabilityUnsupportedError",
-        message: expect.stringMatching(/does not support manual compaction|ACP v1 does not define manual session compaction/),
+        message: expect.stringMatching(/does not support manual compaction|ACP v1 does not define manual session compaction|Stable libfx does not expose manual context compaction/),
       });
     }
     const held = endpoint.holdNextResponse((request: unknown) => JSON.stringify(request).includes("Wait for the model before answering."));

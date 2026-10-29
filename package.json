@@ -6,8 +6,10 @@
   "type": "module",
   "license": "FSL-1.1-ALv2",
   "scripts": {
-    "assets:logo": "node scripts/assets/apply-svg-perspective.mjs --fills-only assets/brand/dojofoo-flat.svg assets/brand/dojofoo-perspective.af packages/ui/public/brand/dojofoo.svg apps/web/public/dojofoo.svg packages/uix/src/assets/brand/dojofoo.svg",
+    "assets:logo": "node scripts/assets/build-logo.mjs",
     "build": "turbo build",
+    "ui": "pnpm --filter dojofoo exec node dist/index.js ui",
+    "ui:build": "pnpm --filter dojofoo build",
     "containers:prune": "node scripts/vercel/prune-container-images.mjs",
     "e2e:up": "docker compose up -d --wait --build",
     "e2e:down": "docker compose down -v --remove-orphans",
@@ -22,7 +24,7 @@
       "esbuild"
     ],
     "patchedDependencies": {
-      "@ai-sdk/harness-opencode@1.0.155": "patches/@ai-sdk__harness-opencode@1.0.155.patch",
+      "@ai-sdk/harness-opencode@1.0.169": "patches/@ai-sdk__harness-opencode@1.0.169.patch",
       "@tanstack/ai-client@0.39.3": "patches/@tanstack__ai-client@0.39.3.patch",
       "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch"
     }

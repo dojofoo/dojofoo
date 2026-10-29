@@ -18,6 +18,8 @@ import { resolveWorkspaceId } from "../control/workspace";
 import type { AcpStreamPart } from "./codex-client";
 import { streamAcpAsAgUi } from "./agui-stream";
 import { dojofooHarness } from "../harness/registry";
+import { readCourseManifest } from "@dojofoo/config";
+import { advanceInteractiveLesson, getInteractiveLesson } from "../interactive/service";
 
 const app = new Hono();
 
@@ -35,7 +37,7 @@ function assertCourse(actual: string, requested: string): void {
 
 app.get("/:workspaceId/courses/:courseId/lessons/:lessonId", async (c) => {
   const { root, courseId, lessonId } = context(c);
-  const lesson = await getLesson(root, lessonId);
+  const lesson = await getLesson(root, lessonId, { prepareSession: c.req.query("prepare") !== "false" });
   if (!lesson) return c.json({ error: "Lesson not found" }, 404);
   assertCourse(lesson.dojo, courseId);
   return c.json(lesson);
@@ -126,6 +128,11 @@ app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/checks", async (c) =
 app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/progressions", async (c) => {
   try {
     const { root, courseId, lessonId } = context(c);
+    if (readCourseManifest(root, courseId).mode === "interactive") {
+      const current = getInteractiveLesson(root, courseId);
+      if (current.current?.id !== lessonId) return c.json({ error: "This is not the current interactive step." }, 409);
+      return c.json(advanceInteractiveLesson(root, courseId));
+    }
     const lesson = await getLesson(root, lessonId);
     if (!lesson) return c.json({ error: "Lesson not found" }, 404);
     assertCourse(lesson.dojo, courseId);

@@ -1,11 +1,37 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { Icon } from "./app-shell";
-import { ArrowUp02Icon, Cancel01Icon } from "../lib/icons";
+import { Dropdown, Icon, type MenuItem } from "./app-shell";
+import { ArrowDown01Icon, ArrowUp02Icon, Cancel01Icon, type IconGlyph } from "../lib/icons";
 import { composerCss } from "../lib/composer-styles";
 
+/** The composer's spinner, for what waits on the host; its styles come with the composer. */
+export const ComposerSpinner = ({ size = 14 }: { size?: number }) => (
+  <svg className="ui-as-spinner" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="8.5" opacity={0.2} />
+    <path d="M12 3.5a8.5 8.5 0 0 1 8.5 8.5" />
+  </svg>
+);
+
+/** The same picker frame used by the Storybook composer and runtime controls. */
+export function ComposerPicker({ title, children, items, icon, model, active, disabled, loading, className }: {
+  title: string; children: ReactNode; items: MenuItem[]; icon?: IconGlyph; model?: boolean; active?: boolean; disabled?: boolean;
+  /** The host is still loading what the picker offers: a spinner in place of the icon, and it waits */
+  loading?: boolean;
+  className?: string;
+}) {
+  return <Dropdown title={title} align={model ? "end" : "start"} items={items} trigger={({ open, toggle }) => (
+    <button type="button" className={["ui-as-ghost", model && "ui-as-ghost--model", className].filter(Boolean).join(" ")}
+      aria-label={title} aria-haspopup="menu" aria-expanded={open} data-active={active || undefined} aria-busy={loading || undefined}
+      disabled={disabled || loading} onClick={toggle}>
+      {loading ? <ComposerSpinner /> : icon && <Icon icon={icon} size={14} />}
+      <span className="min-w-0 truncate">{children}</span>
+      {model && <Icon icon={ArrowDown01Icon} size={12} />}
+    </button>
+  )} />;
+}
+
 /** Shared presentation; the caller owns the draft, requests and supported controls. */
-export function ComposerSurface({ value, onValueChange, onSend, busy = false, disabled = false, onStop,
-  history = [], placeholder = "Message…", label = "Message", id, leading, controls, attachments, tray, className, fieldRef,
+export function ComposerSurface({ value, onValueChange, onSend, busy = false, disabled = false, onStop, queueing = false,
+  history = [], placeholder = "Message…", label = "Message", id, leading, controls, attachments, hasAttachments = false, tray, className, fieldRef,
 }: {
   value: string;
   onValueChange: (value: string) => void;
@@ -13,6 +39,9 @@ export function ComposerSurface({ value, onValueChange, onSend, busy = false, di
   busy?: boolean;
   disabled?: boolean;
   onStop?: () => void;
+  /** The host accepts another request into its existing queue during this turn. */
+  queueing?: boolean;
+  hasAttachments?: boolean;
   history?: string[];
   placeholder?: string;
   label?: string;
@@ -39,7 +68,7 @@ export function ComposerSurface({ value, onValueChange, onSend, busy = false, di
     if (node) node.setSelectionRange(node.value.length, node.value.length);
   });
   const submit = () => {
-    if (disabled || busy || !value.trim()) return;
+    if (disabled || (busy && !queueing) || (!value.trim() && !hasAttachments)) return;
     setHistoryIndex(null);
     onSend(value.trim());
   };
@@ -82,9 +111,9 @@ export function ComposerSurface({ value, onValueChange, onSend, busy = false, di
         {leading}
         <span className="ui-as-composer__end">
           {controls}
-          {busy && onStop
+          {busy && onStop && !(queueing && (value.trim() || hasAttachments))
             ? <button type="button" className="ui-as-send" aria-label="Stop" onClick={onStop}><Icon icon={Cancel01Icon} size={15} /></button>
-            : <button type="submit" className="ui-as-send" aria-label="Send" disabled={disabled || busy || !value.trim()}><Icon icon={ArrowUp02Icon} size={15} /></button>}
+            : <button type="submit" className="ui-as-send" aria-label={busy && queueing ? "Queue message" : "Send"} disabled={disabled || (busy && !queueing) || (!value.trim() && !hasAttachments)}><Icon icon={ArrowUp02Icon} size={15} /></button>}
         </span>
       </div>
     </div>

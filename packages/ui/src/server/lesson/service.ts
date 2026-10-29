@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import {
+  type DojoManifest,
   findCurrentKata,
   dojoDir,
   findKataByIdOrName,
@@ -22,7 +23,7 @@ import { retainLearnerEvidence, lessonEvidence } from "./learner-evidence";
 import { recordLearnerObservation } from "./learner-observations";
 import { senseiInstructions, senseiTurn } from "./instructions";
 import type { HarnessKind } from "../harness/adapter";
-import { dojofooHarness } from "../harness/registry";
+import { dojofooHarness, lessonHarnesses } from "../harness/registry";
 import { acpClient, type AcpStreamPart, type SessionModelConfiguration, type TranscriptMessage } from "./codex-client";
 import { parseSenseiContent } from "./sensei-content";
 
@@ -72,6 +73,7 @@ export type CheckObservation = {
 
 export type LessonSnapshot = {
   dojo: string;
+  course?: Pick<DojoManifest, "name" | "version" | "description" | "author" | "repository" | "language"> & { lessons: number };
   kata: string;
   title: string;
   briefing: string;
@@ -86,6 +88,8 @@ export type LessonSnapshot = {
   checkpointed: boolean;
   sessionId: string | null;
   model: SessionModelConfiguration | null;
+  harness?: string;
+  harnesses?: HarnessKind[];
   state: "completed" | "ongoing" | "not-started";
   isCurrent: boolean;
   result: TestReport | null;
@@ -151,7 +155,7 @@ function dojoContextResource(snapshot: LessonSnapshot) {
 /** Older transcripts began hidden evidence with this sentence; keep hiding them. */
 const legacyEvidencePrefix = "Preserve ownership of the kata.";
 
-export async function getLesson(root: string, requestedKata?: string): Promise<LessonSnapshot | null> {
+export async function getLesson(root: string, requestedKata?: string, { prepareSession = true }: { prepareSession?: boolean } = {}): Promise<LessonSnapshot | null> {
   const rc = readDojoRc(root);
   if (!rc.currentDojo) return null;
   const catalog = readCatalog(root, rc.currentDojo);
@@ -173,7 +177,7 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
   const contractHash = lessonContractHash(instructions);
   const senseiContent = parseSenseiContent(sensei);
   let messages: UIMessage[] = [];
-  if (threadId && harness) {
+  if (threadId && harness && prepareSession) {
     // A provider outage is not a new lesson. Let the route expose the error;
     // an explicit retry resumes the same durable conversation.
     await acpClient.resumeThread(threadId, {
@@ -196,9 +200,11 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
       };
       writeWebState(root, webState);
     }
-  } else if (threadId) threadId = undefined;
+  } else if (threadId && !harness) threadId = undefined;
 
-  if (threadId) {
+  if (threadId && !prepareSession) messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
+
+  if (threadId && prepareSession) {
     webState.learnerEvidence = rememberLearnerEvidence(root, key, selected.name, threadId, messages);
   }
   const priorLesson = katas.slice(0, katas.indexOf(selected)).reverse().find(kata => kataState(kata, progress) === "completed");
@@ -210,7 +216,7 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
   const starterCode = existsSync(scaffoldPath) ? readFileSync(scaffoldPath, "utf8") : "";
   let result: TestReport | null = webState.results[key] ?? null;
   let resultChanged = false;
-  if (selectedState === "completed" && catalog.runner?.coverage === true && !result?.coverage) {
+  if (prepareSession && selectedState === "completed" && catalog.runner?.coverage === true && !result?.coverage) {
     try {
       result = parseTestReport(runDojo(root, ["kata", selected.name, "--check", "--reporter=json"]));
       resultChanged = true;
@@ -220,7 +226,7 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
         resultChanged = true;
       }
     }
-  } else if (!result && selectedState === "completed") {
+  } else if (prepareSession && !result && selectedState === "completed") {
     result = completedTestReport(sensei);
     resultChanged = true;
   }
@@ -230,6 +236,8 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
   }
   return {
     dojo: rc.currentDojo,
+    course: { name: catalog.name, version: catalog.version, description: catalog.description, author: catalog.author,
+      repository: catalog.repository, language: catalog.language, lessons: katas.length },
     kata: selected.name,
     title: humanTitle(selected.name),
     briefing: senpaiBriefing(sensei),
@@ -243,6 +251,8 @@ export async function getLesson(root: string, requestedKata?: string): Promise<L
     checkpointed: Boolean(webState.checkpoints[key]),
     sessionId: threadId ?? null,
     model: threadId ? acpClient.modelConfiguration(threadId) : null,
+    harness: harness ?? webState.defaultHarness ?? resolveRuntimeHarness("lesson", root),
+    harnesses: lessonHarnesses,
     state: selectedState,
     isCurrent: selected.name === current?.name,
     result,
@@ -267,7 +277,7 @@ export async function readLessonFile(
   fileId: string,
 ): Promise<LessonFileResource> {
   if (fileId !== "solution") throw new Error(`Lesson file not found: ${fileId}`);
-  const lesson = await getLesson(root, lessonId);
+  const lesson = await getLesson(root, lessonId, { prepareSession: false });
   if (!lesson || lesson.dojo !== courseId) throw new Error(`Lesson not found: ${lessonId}`);
   return {
     type: "lesson-files",

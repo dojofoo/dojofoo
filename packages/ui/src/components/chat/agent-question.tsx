@@ -1,6 +1,6 @@
 import type { ToolCallPart } from "@tanstack/ai-client";
 import { eveQuestion } from "@dojofoo/authoring/eve/messages";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import {
   AskUserQuestions,
   type AskUserAnswer,
@@ -72,7 +72,9 @@ export function AgentQuestion({
     <>
     <AskUserQuestions
       answers={answers ?? submitted ?? undefined}
-      className={className}
+      className={["max-sm:[&_.ui-button__icon]:hidden", className].filter(Boolean).join(" ")}
+      shape="rounded"
+      style={{ borderRadius: "var(--box-radius)", background: "var(--surface-3)", border: 0, boxShadow: "var(--shadow-3)", "--focus-ring": "var(--brand)" } as CSSProperties}
       disabled={disabled || submitted !== null}
       onComplete={async (answers) => {
         if (disabled || submitted) return;

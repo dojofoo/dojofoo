@@ -313,12 +313,12 @@ const css = /* css */ `
 @media (min-width: 761px) { .ui-docs-pages-control { display: none; } }
 /* The tabs: the sections, under the header, the open one underlined in the brand's color, over a solid rule (the page
    scrolls under it, so a dotted one would flicker) */
-.ui-docs-tabs { position: relative; display: flex; max-width: 1180px; margin: 0 auto; align-items: center; gap: 22px; padding: 0 8px; }
+.ui-docs-tabs { position: relative; display: flex; max-width: 1280px; margin: 0 auto; align-items: center; gap: 22px; padding: 0 8px; }
 .ui-docs-tabs::before { position: absolute; right: 8px; bottom: 0; left: 8px; height: 1px; background: var(--line); content: ""; }
 /* On the header's edge: its logo, the first tab and the tree share a line */
 .ui-docs-tabs__row { display: flex; flex: 1; align-items: center; gap: 22px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 @media (max-width: 760px) { .ui-docs-tools { display: none; } }
-@media (max-width: 1203px) { .ui-docs-tabs { padding: 0 20px; } .ui-docs-tabs::before { right: 20px; left: 20px; } }
+@media (max-width: 1303px) { .ui-docs-tabs { padding: 0 20px; } .ui-docs-tabs::before { right: 20px; left: 20px; } }
 .ui-docs-tabs a { position: relative; flex: none; padding: 14px 0 13px; white-space: nowrap; color: var(--muted); font-size: var(--fs-subtitle); font-weight: 500; text-decoration: none; }
 .ui-docs-tabs a:hover { color: var(--ink); }
 .ui-docs-tabs a[aria-current="page"] { color: var(--accent); }
@@ -327,7 +327,7 @@ const css = /* css */ `
 /* Three columns: the tree, the page, what's on it */
 .ui-docs-layout { display: grid; grid-template-columns: 14rem minmax(0, 1fr) 14rem; gap: 44px; padding: 0 8px; }
 .ui-docs-layout[data-api] { grid-template-columns: 14rem minmax(0, 1fr); gap: 28px; }
-@media (max-width: 1203px) { .ui-docs-layout { padding: 0 20px; } }
+@media (max-width: 1303px) { .ui-docs-layout { padding: 0 20px; } }
 @media (max-width: 1100px) { .ui-docs-layout { grid-template-columns: 14rem minmax(0, 1fr); } }
 
 /* A rail and the marker gliding along it to the item that's open */

@@ -34,7 +34,7 @@ describe("TanStack AI UIMessage renderer", () => {
     const html = renderToStaticMarkup(<StreamedChatMessage fragments={{}} message={message} onToolAnswer={async () => undefined} workspaceId="fixture" />);
     expect(html).toContain("Where should we focus?");
     expect(html).toContain('data-disabled="true"');
-    expect(html).toContain("text-blue-600");
+    expect(html).toContain("text-[var(--brand)]");
     if (freeText) expect(html).toContain("Explain the prerequisites");
     else {
       expect(html).toContain("Review");
@@ -179,4 +179,23 @@ describe("TanStack AI UIMessage renderer", () => {
     expect(html).not.toContain("dojo_ui_show");
     expect(html).not.toContain("data-slot=\"tool-call\"");
   });
+});
+
+it.each([["complete", "success"], ["error", "error"]] as const)("keeps failed check details visible with tool state %s", (state, status) => {
+  const message = { id: "checked", role: "assistant", parts: [{ type: "tool-call", id: "check", name: "dojo_lesson_verify", arguments: "{}", state, output: {
+    passed: 1, failed: 1, total: 2, tests: [{ name: "keeps values", status: "passed", suite: [], failureMessages: [] }, { name: "handles empty input", status: "failed", suite: [], failureMessages: ["Expected [] but received undefined"] }],
+  } }] } as UIMessage;
+  const html = renderToStaticMarkup(<StreamedChatMessage message={message} fragments={{}} workspaceId="fixture" />);
+  expect(html).toContain(`class="ui-tc" data-status="${status}"`);
+  expect(html).toContain("1/2 lesson checks passed");
+  expect(html).toContain("Expected [] but received undefined");
+});
+
+it("keeps a preliminary Eve tool result visibly running until Eve finishes it", () => {
+  const [message] = eveChatMessages([{ id: "partial", role: "assistant", parts: [{
+    type: "dynamic-tool", toolCallId: "read", toolName: "read_file", input: {}, state: "output-available", output: "Preview", partial: true,
+  }] }]);
+  message!.parts = message!.parts.map(part => part.type === "tool-call" ? { ...part, state: "complete" } : part);
+  const html = renderToStaticMarkup(<StreamedChatMessage message={message!} fragments={{}} workspaceId="fixture" streaming />);
+  expect(html).toContain('class="ui-tc" data-status="running"');
 });

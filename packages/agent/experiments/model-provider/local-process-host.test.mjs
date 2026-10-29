@@ -8,6 +8,28 @@ import { test } from "node:test";
 import { createLocalSandbox } from "../../dist/local-sandbox.js";
 import { exposeLocalProcessHost, connectLocalProcessHost, registerLocalProcessHost, requestLocalProcessHost } from "../../dist/local-process-host.js";
 
+test("writable process input preserves bytes and EOF locally and through the worker connection", { timeout: 10000 }, async t => {
+  const root = await mkdtemp(join(tmpdir(), "dojo-process-input-"));
+  const session = await createLocalSandbox(root);
+  const { port1, port2 } = new MessageChannel();
+  t.after(async () => { await session.stop(); port1.close(); port2.close(); await rm(root, { recursive: true, force: true }); });
+  exposeLocalProcessHost(session, port1);
+  for (const [name, host] of [["local", session], ["worker connection", connectLocalProcessHost(port2)]]) {
+    await t.test(name, async () => {
+      const child = await host.spawn({ command: "cat", stdin: true });
+      const output = new Response(child.stdout).arrayBuffer();
+      const errors = new Response(child.stderr).text();
+      const writer = child.stdin.getWriter();
+      const bytes = Uint8Array.from([0, 128, 255, 10]);
+      await writer.write(bytes);
+      await writer.close();
+      assert.deepEqual(new Uint8Array(await output), bytes);
+      assert.equal(await errors, "");
+      assert.deepEqual(await child.wait(), { exitCode: 0 });
+    });
+  }
+});
+
 test("parent process host survives worker death and reaps its native process on shutdown", { timeout: 10000 }, async t => {
   const root = await mkdtemp(join(tmpdir(), "dojo-process-host-"));
   const session = await createLocalSandbox(root);

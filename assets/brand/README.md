@@ -1,21 +1,31 @@
 # Dojofoo logo sources
 
-`dojofoo-flat.svg` is the editable flat artwork. `dojofoo-perspective.af`
-contains the Affinity `Pers` live filter used to distort it. Rebuild the SVG
-served by the shared UI after changing either source:
+`dojofoo-wordmark.svg` is the wordmark: DOJO over FOO, exported from Affinity.
+The logo is built from it:
 
 ```sh
 pnpm assets:logo
 ```
 
-The command extracts the filter's source and destination quadrilaterals and
-bakes their projective transform into the SVG path coordinates. It updates the
-shared local UI and marketplace assets together. The generated SVG remains
-vector-only; do not edit either generated copy by hand.
+`scripts/assets/build-logo.mjs` turns the FOO line into the slanted ribbon
+(stripes thickening into a block that carries FOO, orange fading into the
+brand colour) and writes:
 
-The transformer is JavaScript. It uses the pinned InkAF utility through `uv`
-only to decode Affinity's proprietary file container.
+- `dojofoo.svg` and its copies in `packages/ui/public/brand/`,
+  `apps/web/public/` and `packages/uix/src/assets/brand/`, inlined by the
+  BrandLogo components. They color the paths with `currentColor`; in light
+  mode FOO is cut out of the block, in dark mode (`.dark` on an ancestor) it
+  is drawn in the logo colour.
+- `dojofoo-light.svg` and `dojofoo-dark.svg`, standalone builds with fixed
+  colours for places without that CSS, such as the README.
+- `dojofoo-mono.svg` (also in `packages/uix/src/assets/brand/`), one colour
+  with FOO always cut out, for single-colour uses such as certificates: every
+  path is white, to recolour like the wordmark (the certificate seal draws it
+  in `currentColor`).
 
-The logo build uses `--fills-only` to omit Affinity's separate outline paths;
-the shared inline SVG component colors the remaining face paths with
-`currentColor`.
+Do not edit the generated files by hand. The ribbon's proportions are the
+constants at the top of the script.
+
+`dojofoo-flat.svg` and `dojofoo-perspective.af` are the earlier flat artwork
+and its Affinity `Pers` live filter; `scripts/assets/apply-svg-perspective.mjs`
+bakes that filter into SVG paths.

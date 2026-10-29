@@ -42,6 +42,12 @@
       "headers": {
         "Authorization": "Bearer ${ARC_PRO_TOKEN}"
       }
+    },
+    "@tailark": {
+      "url": "https://tailark.com/r/radix/{name}.json",
+      "headers": {
+        "x-api-key": "${TAILARK_API_KEY}"
+      }
     }
   }
 }

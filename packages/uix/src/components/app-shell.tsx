@@ -68,6 +68,10 @@ export type ShellEntry = {
   /** Says why, in the row's tooltip and to screen readers – e.g. what unlocks it */
   note?: string;
   children?: ShellEntry[];
+  /** Host-owned status and row actions; actions stay outside the navigation button. */
+  status?: ReactNode;
+  actions?: ReactNode;
+  disabled?: boolean;
   /** A real destination; ordinary clicks delegate to the host, modified clicks remain native. */
   href?: string;
   /** Expandable context without granting navigation, including an upcoming lesson's goal. */
@@ -75,7 +79,7 @@ export type ShellEntry = {
 };
 /** A block of rows, with an optional heading. Rows in one `layout` share a highlight that glides between them, so two
     sections with layouts of their own each keep one lit – a chapter and its lesson, say */
-export type ShellSection = { id: string; heading?: string; items: ShellEntry[]; layout?: string; empty?: string; /** Above the heading, e.g. the course card above its chapters */ before?: ReactNode };
+export type ShellSection = { id: string; heading?: string; actions?: ReactNode; items: ShellEntry[]; layout?: string; empty?: string; /** Above the heading, e.g. the course card above its chapters */ before?: ReactNode };
 
 export const defaultNav: ShellNavItem[] = [
   { label: "New chat", icon: PencilEdit02Icon },
@@ -141,8 +145,15 @@ export type AppShellProps = {
   setupPinned?: boolean;
   /** The account menu at the sidebar's foot – none yet before onboarding */
   showUser?: boolean;
+  /** Native account routes; omitted callbacks retain the Pages preview behavior. */
+  onProfile?: () => void;
+  onSettings?: () => void;
+  /** Host account sections, opened inside the workspace so its content stays mounted. */
+  loadAccountPage?: () => Promise<typeof import("./settings-billing").SettingsContent>;
+  onLogin?: () => void;
+  onLogout?: () => void;
   /** Names the menu that's showing (e.g. "dashboard", a course's id); when it changes, the old rows swipe out to the right
-      and the new ones in from the left */
+      and the new ones in from the left. Pages that name the same menu share it: moving between them, it stays put */
   navigationKey?: string;
   /** Project-specific navigation below the main menu. */
   sidebar?: ReactNode;
@@ -150,10 +161,15 @@ export type AppShellProps = {
   showOnboarding?: boolean;
   brand?: ReactNode;
   sidebarWidth?: string;
+  /** Folded to the icon rail: the host's, when its pages share one sidebar (else the shell keeps its own, open at first) */
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
   /** The sidebar's search button, e.g. to open a command menu */
   onSearch?: () => void;
   /** The sidebar's rows by section – replaces nav, groups and projects. Rows report their id to onNavigate */
   navigation?: ShellSection[];
+  expandedGroups?: Record<string, boolean>;
+  onExpandedGroupsChange?: (groups: Record<string, boolean>) => void;
   /** The "New in …" cards above Getting started */
   showNews?: boolean;
   /** A column right of the main panel, on the page surface instead of inside the panel */
@@ -212,22 +228,26 @@ type ShellRowProps = {
 const stateText = { done: "done", active: "in progress", locked: "locked" } as const;
 
 function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expanded, turned, controls, onClick }: ShellRowProps) {
-  const locked = entry.state === "locked" && !entry.preview;
+  const locked = Boolean(entry.disabled) || (entry.state === "locked" && !entry.preview);
   const link = Boolean(entry.href && !locked && !entry.preview && !entry.children);
   const Control = link ? "a" : "button";
-  return (
+  const row = (
     <RailTip enabled={rail || !!entry.note} label={rail ? entry.label : entry.note ?? entry.label} note={rail ? (entry.note ?? (entry.count ? String(entry.count) : undefined)) : undefined}>
       <Control
         type={link ? undefined : "button"}
         href={link ? entry.href : undefined}
         className="ui-as-side__item rounded-lg"
+        style={entry.actions ? { paddingRight: 44 } : undefined}
         data-nested={nested || undefined}
         data-lit={lit || undefined}
         data-state={entry.state}
         aria-current={current ? "page" : undefined}
+        aria-label={entry.status ? entry.label : undefined}
+        aria-description={entry.status ? entry.note : undefined}
         aria-expanded={expanded}
         aria-controls={controls}
         aria-disabled={locked || undefined}
+        disabled={!link && entry.disabled || undefined}
         onClick={locked ? undefined : event => { if (link) followLink(event, onClick); else onClick(); }}
       >
         {lit && <motion.span layoutId={layoutId} className="ui-as-side__lit rounded-[inherit]" transition={reduce ? { duration: 0 } : spring.moderate} />}
@@ -244,6 +264,7 @@ function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expande
             <Icon icon={ArrowRight01Icon} size={14} />
           </span>
         )}
+        {entry.status}
         {entry.state && (
           <span className="ui-as-side__state" data-state={entry.state}>
             {entry.state === "done" ? <Icon icon={DoneIcon} size={14} /> : entry.state === "locked" ? <Icon icon={LockedIcon} size={14} /> : <i />}
@@ -253,6 +274,7 @@ function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expande
       </Control>
     </RailTip>
   );
+  return entry.actions ? <div className="ui-as-side__row">{row}<span className="ui-as-side__row-actions">{entry.actions}</span></div> : row;
 }
 
 const ShellNarrow = createContext(false);
@@ -275,11 +297,15 @@ export function AppShell({
   showFooter = true,
   showOnboarding = true,
   showUser = true,
-  navigationKey = "menu",
+  onProfile, onSettings, onLogin, onLogout, loadAccountPage,
+  navigationKey: namedMenu,
   brand,
   sidebarWidth = "220px",
+  collapsed: collapsedProp,
+  onCollapsedChange,
   onSearch,
   navigation,
+  expandedGroups, onExpandedGroupsChange,
   showNews = true,
   aside,
   asideColumns = "minmax(0, 1fr) minmax(20rem, 26rem)",
@@ -292,27 +318,39 @@ export function AppShell({
   onDrawerOpenChange,
   className,
 }: AppShellProps) {
+  const navigationKey = namedMenu ?? "menu";
   const [news, setNews] = useState(2);
-  const [collapsed, setCollapsed] = useState(false);
+  const [ownCollapsed, setOwnCollapsed] = useState(false);
+  const collapsed = collapsedProp ?? ownCollapsed;
+  const collapsedNow = useRef(collapsed);
+  collapsedNow.current = collapsed;
+  const setCollapsed = (next: boolean | ((value: boolean) => boolean)) => {
+    const value = typeof next === "function" ? next(collapsedNow.current) : next;
+    collapsedNow.current = value;
+    setOwnCollapsed(value);
+    onCollapsedChange?.(value);
+  };
   // Narrow (tablet, phone): the sidebar waits off screen and slides in as a drawer over the main area
   const root = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
   const [initialLayout, setInitialLayout] = useState<number[]>();
   const [drawer, setDrawer] = useState(false);
   const [AccountPage, setAccountPage] = useState<typeof import("./settings-billing").SettingsContent>();
+  const [accountTab, setAccountTab] = useState<import("./settings-billing").SettingsTab>("Appearance");
   const accountOpen = Boolean(AccountPage);
   const settingsRequest = useRef(0);
   const rightSettings = asideCovered && !accountOpen;
   const endOpen = Boolean(endDrawer) && endDrawerOpen && !accountOpen;
   const closeAccount = () => fadeViewTransition(() => setAccountPage(undefined));
-  const openAccount = async () => {
+  const openAccount = async (tab: import("./settings-billing").SettingsTab = "Appearance") => {
     const request = ++settingsRequest.current;
-    const { SettingsContent } = await import("./settings-billing");
+    const AccountContent = loadAccountPage ? await loadAccountPage() : (await import("./settings-billing")).SettingsContent;
     if (request !== settingsRequest.current) return;
     fadeViewTransition(() => {
       setDrawer(false);
       onAsideOpenChange?.(false);
-      setAccountPage(() => SettingsContent);
+      setAccountTab(tab);
+      setAccountPage(() => AccountContent);
       requestAnimationFrame(() => root.current?.querySelector<HTMLElement>(".ui-as-account-page h1")?.focus({ preventScroll: true }));
     });
   };
@@ -347,9 +385,22 @@ export function AppShell({
       : [{ id: "projects", heading: "Projects", items: projects.map((name) => ({ id: name, label: name, icon: FolderOpenIcon })) }]),
   ];
   // Groups holding the current row start open
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(
-    sections.flatMap((section) => section.items).filter((entry) => entry.children?.some((child) => actives.includes(child.id)) || entry.preview && actives.includes(entry.id)).map((entry) => [entry.id, true]),
-  ));
+  const holdsActive = (entry: ShellEntry): boolean => actives.includes(entry.id) || Boolean(entry.children?.some(holdsActive));
+  const [ownGroups, setOwnGroups] = useState<Record<string, boolean>>(() => {
+    const groups: Record<string, boolean> = {};
+    const visit = (entry: ShellEntry) => {
+      if ((entry.children || entry.preview) && holdsActive(entry)) groups[entry.id] = true;
+      entry.children?.forEach(visit);
+    };
+    sections.forEach(section => section.items.forEach(visit));
+    return groups;
+  });
+  const openGroups = expandedGroups ?? ownGroups;
+  const setOpenGroups = (update: Record<string, boolean> | ((current: Record<string, boolean>) => Record<string, boolean>)) => {
+    const next = typeof update === "function" ? update(openGroups) : update;
+    setOwnGroups(next);
+    onExpandedGroupsChange?.(next);
+  };
   const previewIds = sections.flatMap(section => section.items).filter(entry => entry.preview).map(entry => entry.id);
   const previewKey = JSON.stringify(previewIds);
   const selectedPreview = previewIds.find(id => actives.includes(id));
@@ -500,44 +551,36 @@ export function AppShell({
         <LayoutGroup id={baseId}>
         <nav className="ui-as-side__nav scroll-fade" aria-label="Main menu">
           {/* Page changes use the native fade; individual rows keep their own selection feedback. */}
-          <div key={navigationKey} className="ui-as-side__menu">
+          <div key={navigationKey} className="ui-as-side__menu" style={namedMenu ? { "--ui-as-menu-name": `ui-menu-${namedMenu.replace(/[^\w-]/g, "-")}` } as CSSProperties : undefined}>
           {sections.map((section, index) => {
             const headingId = `${baseId}-${section.id}`;
             const layoutId = `${baseId}-${section.layout ?? "nav"}-lit`;
             const shared = { layoutId, rail, reduce };
+            const renderEntry = (entry: ShellEntry, nested = false): ReactNode => {
+              const on = actives.includes(entry.id);
+              if (!entry.children && !entry.preview) return <ShellRow key={entry.id} entry={entry} nested={nested} current={on} lit={on} onClick={() => go(entry.id)} {...shared} />;
+              const listId = `${baseId}-${entry.id}-list`;
+              const shown = !!openGroups[entry.id] && !rail;
+              return <div key={entry.id} className="ui-as-side__branch">
+                <ShellRow entry={entry} nested={nested} current={!!entry.preview && on} lit={entry.preview ? on : holdsActive(entry) && !shown}
+                  expanded={shown} turned={!!openGroups[entry.id]} controls={listId} onClick={() => toggleGroup(entry.id)} {...shared} />
+                <div id={listId} className="ui-as-side__children" data-open={shown || undefined} inert={!shown}><div>
+                  {entry.preview && <div className="px-3 py-2 text-xs leading-relaxed text-[var(--muted)]">{entry.preview}</div>}
+                  {entry.children?.map(child => renderEntry(child, true))}
+                </div></div>
+              </div>;
+            };
             return (
               <div key={section.id} className="ui-as-side__group" role={section.heading ? "group" : undefined} aria-labelledby={section.heading ? headingId : undefined}>
                 {section.before && <div className="ui-as-side__before">{section.before}</div>}
                 {section.heading && (
                   <span className="ui-as-side__label">
                     <span id={headingId} className="ui-as-side__label-text">{section.heading}</span>
+                    {section.actions && <span className="ui-as-side__heading-actions">{section.actions}</span>}
                   </span>
                 )}
                 {section.items.length === 0 && section.empty && <span className="ui-as-side__empty">{section.empty}</span>}
-                {section.items.map((entry) => {
-                  if (!entry.children && !entry.preview) {
-                    const on = actives.includes(entry.id);
-                    return <ShellRow key={entry.id} entry={entry} current={on} lit={on} onClick={() => go(entry.id)} {...shared} />;
-                  }
-                  const listId = `${baseId}-${entry.id}-list`;
-                  const shown = !!openGroups[entry.id] && !rail;
-                  const on = actives.includes(entry.id);
-                  const holdsActive = entry.children?.some((child) => actives.includes(child.id)) ?? on;
-                  return (
-                    <div key={entry.id} className="ui-as-side__branch">
-                      <ShellRow entry={entry} current={!!entry.preview && on} lit={entry.preview ? on : holdsActive && !shown} expanded={shown} turned={!!openGroups[entry.id]} controls={listId} onClick={() => toggleGroup(entry.id)} {...shared} />
-                      <div id={listId} className="ui-as-side__children" data-open={shown || undefined} inert={!shown}>
-                        <div>
-                          {entry.preview && <div className="px-3 py-2 text-xs leading-relaxed text-[var(--muted)]">{entry.preview}</div>}
-                          {entry.children?.map((child) => {
-                            const on = actives.includes(child.id);
-                            return <ShellRow key={child.id} entry={child} nested current={on} lit={shown && on} onClick={() => go(child.id)} {...shared} />;
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {section.items.map(entry => renderEntry(entry))}
                 {/* A screen's own sidebar content follows the main menu; the rail has no room for it */}
                 {index === 0 && sidebar && !navigation && <div className="ui-as-side__custom">{sidebar}</div>}
               </div>
@@ -615,8 +658,8 @@ export function AppShell({
               <span className="ui-as-menu__who"><b>{user.name}</b><small>{user.email ?? workspace}</small></span>
             </div>}
             items={[
-              { label: "Profile", icon: UserIcon },
-              { label: "Settings", icon: SettingsFillIcon, onSelect: () => { void openAccount(); } },
+              { label: "Profile", icon: UserIcon, onSelect: onProfile ?? (() => { void openAccount("General"); }) },
+              { label: "Settings", icon: SettingsFillIcon, onSelect: onSettings ?? (() => { void openAccount(); }) },
               // What changed lately – reported to onNavigate as "changelog"
               { label: "Changelog", icon: Megaphone01Icon, onSelect: () => go("changelog") },
               { label: "Help & feedback", icon: HelpCircleIcon },
@@ -624,7 +667,8 @@ export function AppShell({
             // Light or dark, right above logging out; choosing keeps the menu open
             footer={(close) => <>
               <ThemeRow />
-              <MenuList items={[{ label: "Log out", icon: Logout01Icon, danger: true }]} onPick={close} />
+              <MenuList items={[...(onLogin ? [{ label: "Log in", icon: UserIcon, onSelect: onLogin }] : []),
+                { label: "Log out", icon: Logout01Icon, danger: true, onSelect: onLogout }]} onPick={close} />
             </>}
             trigger={({ open, toggle }) => (
               <RailTip enabled={rail} label={user.name}>
@@ -642,7 +686,7 @@ export function AppShell({
     <div className="ui-as-main__scroll scroll-fade" inert={accountOpen} aria-hidden={accountOpen || undefined}>
       <ShellNarrow.Provider value={narrow}>{children}</ShellNarrow.Provider>
     </div>
-    {AccountPage && <div className="ui-as-main__scroll ui-as-account-page scroll-fade"><AccountPage workspace={workspace} userName={user.name} onClose={closeAccount} /></div>}
+    {AccountPage && <div className="ui-as-main__scroll ui-as-account-page scroll-fade"><AccountPage key={accountTab} defaultTab={accountTab} workspace={workspace} userName={user.name} onClose={closeAccount} /></div>}
   </main>;
 
   return (
@@ -1056,7 +1100,7 @@ export function FilterButton({
 }
 
 /** Plain menu of choices in a popover, e.g. a period picker */
-export function MenuButton<T extends string>({ value, options, onChange, icon, align = "end", className, label }: {
+export function MenuButton<T extends string>({ value, options, onChange, icon, align = "end", className, label, disabled }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
@@ -1064,10 +1108,11 @@ export function MenuButton<T extends string>({ value, options, onChange, icon, a
   align?: "start" | "end";
   className?: string;
   label?: string;
+  disabled?: boolean;
 }) {
   const current = options.find(option => option.value === value);
   return <Dropdown align={align} items={options.map(option => ({ label: option.label, checked: option.value === value, onSelect: () => onChange(option.value) }))}
-    trigger={({ open, toggle }) => <button type="button" className={["ui-as-tool ui-as-tool--label", className].filter(Boolean).join(" ")} aria-label={label ? `${label}: ${current?.label ?? ""}` : undefined} aria-expanded={open} aria-haspopup="menu" onClick={toggle}>
+    trigger={({ open, toggle }) => <button type="button" className={["ui-as-tool ui-as-tool--label", className].filter(Boolean).join(" ")} aria-label={label ? `${label}: ${current?.label ?? ""}` : undefined} aria-expanded={open} aria-haspopup="menu" disabled={disabled} onClick={toggle}>
       {icon && <Icon icon={icon} size={15} />}{current?.label}<Icon icon={ArrowDown01Icon} size={13} />
     </button>} />;
 }
@@ -1509,6 +1554,13 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-side__item[data-state="locked"]:hover { background: none; color: var(--faint); }
 .ui-as-app[data-collapsed] .ui-as-side__state { opacity: 0; transition: opacity var(--motion-moderate-exit) var(--ease-exit); }
 /* What a section puts above its heading – the course card above its chapters */
+.ui-as-side__row { position: relative; }
+.ui-as-side__row-actions { position: absolute; right: 4px; top: 0; bottom: 0; display: flex; align-items: center; opacity: 0; }
+.ui-as-side__row-actions:has(button[aria-expanded="true"]) { z-index: 50; opacity: 1; }
+.ui-as-side__row:hover > .ui-as-side__row-actions, .ui-as-side__row:focus-within > .ui-as-side__row-actions { opacity: 1; }
+.ui-as-side__heading-actions { margin-left: auto; }
+.ui-as-app[data-collapsed] :is(.ui-as-side__row-actions, .ui-as-side__heading-actions) { display: none; }
+.ui-as-side__children .ui-as-side__children { margin-left: 12px; }
 .ui-as-side__before { margin: 4px 0 6px; }
 /* The menu's rows, as one block that swipes when the menu changes */
 .ui-as-side__menu { display: flex; flex-direction: column; }

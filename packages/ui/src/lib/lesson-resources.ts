@@ -5,7 +5,7 @@ import { courseAssetUrl } from "./course-asset-url";
 const markdown = createMarkdownExit({ html: false });
 
 /** Authored links only; the source directory comes from the lesson service. */
-export function lessonResources(source: string, basePath: string | null, workspaceId: string): LessonResource[] {
+export function lessonResources(source: string, basePath: string | null, workspaceId: string, courseId?: string): LessonResource[] {
   const resources = new Map<string, LessonResource>();
   function visit(tokens: Token[]) {
     for (const [index, token] of tokens.entries()) {
@@ -13,7 +13,7 @@ export function lessonResources(source: string, basePath: string | null, workspa
       if (token.type !== "link_open") continue;
       const source = token.attrGet("href");
       if (!source || /^(?:#|mailto:|data:)/i.test(source)) continue;
-      const href = courseAssetUrl(source, basePath, workspaceId);
+      const href = courseAssetUrl(source, basePath, workspaceId, courseId);
       if (href === "#" || resources.has(href)) continue;
       const end = tokens.findIndex((candidate, next) => next > index && candidate.type === "link_close");
       const title = tokens.slice(index + 1, end).map(part => part.content).join("").trim() || source;

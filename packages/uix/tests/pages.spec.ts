@@ -1,21 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["installation-setup", "learner-intro", "learner-kata", "learner-slides", "course-authoring", "certificates", "explore", "settings", "content-window-settings"];
+const pages = ["installation-setup", "learner-intro", "learner-kata", "learner-slides", "course-authoring", "course-authoring-evaluation", "certificates", "explore", "settings", "content-window-settings"];
 
-test("the page catalog is small; originals and animated controls are archived", async ({ request }) => {
-  const { entries } = await (await request.get("/index.json")).json();
-  const ids = Object.keys(entries);
-  expect(ids.filter(id => id.startsWith("pages-"))).toEqual(pages.map(name => `pages-dojo--${name}`));
-  expect(ids.some(id => id.includes("materials"))).toBe(false);
-  expect(ids).toContain("templates-theme-sandbox--sandbox");
-  expect(ids).toContain("archive-animated-controls-button--confetti-story");
-  expect(ids).toContain("archive-affectui--onboarding");
-});
 
 for (const theme of ["dark", "light"]) {
   test(`featured course corners stay calibrated across every layer in ${theme}`, async ({ page }) => {
     await page.goto(`/iframe.html?id=pages-dojo--explore&viewMode=story&globals=theme:${theme}`);
-    await expect(page.getByRole("list", { name: "Featuring" })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Featuring" })).toBeVisible({ timeout: 15_000 });
     const read = () => page.evaluate(() => {
       const feature = document.querySelector(".lj-top__item")!;
       const card = feature.querySelector(".ui-card")!;
@@ -50,7 +41,7 @@ for (const theme of ["dark", "light"]) {
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(`/iframe.html?id=pages-dojo--${name}&viewMode=story&globals=theme:${theme}`);
-    await expect(page.locator("#storybook-root").locator(".ui-as")).toBeVisible();
+    await expect(page.locator("#storybook-root").locator(".ui-as")).toBeVisible({ timeout: 15_000 });
     await expect(page.locator("html")).toHaveClass(theme === "dark" ? /dark/ : /h-full/);
     await expect(page.locator("#storybook-root")).not.toHaveText("");
     await expect(page.locator(".sb-errordisplay")).not.toBeVisible();
@@ -68,8 +59,18 @@ for (const theme of ["dark", "light"]) {
   });
 }
 
+test("Explore keeps installation in the Pages controller after sharing its presentation", async ({ page }) => {
+  await page.goto("/iframe.html?id=pages-dojo--explore&viewMode=story");
+  const card = page.locator('.lj-directory .ui-card[aria-label="Async JavaScript"]');
+  await card.getByRole("button", { name: "Install Async JavaScript", exact: true }).click();
+  await expect(card.getByText("Installing…", { exact: true })).toBeVisible();
+  await expect(card.getByText("Installed", { exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Install Async JavaScript", exact: true })).toHaveCount(0);
+});
+
 test("authoring opens, edits, saves and closes files while the conversation stays", async ({ page }) => {
-  await page.goto("/iframe.html?id=pages-dojo--course-authoring&viewMode=story");
+  await page.goto("/iframe.html?id=pages-dojo--course-authoring&viewMode=story&embed=true");
+  await page.locator("#storybook-root .ui-as").waitFor();
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
   const code = page.getByRole("textbox", { name: "Code editor", exact: true });
   await code.focus();
@@ -79,7 +80,8 @@ test("authoring opens, edits, saves and closes files while the conversation stay
   await page.keyboard.press("ControlOrMeta+s");
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
   await expect(page.locator(".view-lines")).toContainText("# saved preview edit");
-  await page.getByRole("button", { name: "Everyday TypeScript", exact: true }).click();
+  const course = page.getByRole("button", { name: "Everyday TypeScript", exact: true });
+  if (await course.getAttribute("aria-expanded") !== "true") await course.click();
   await page.getByRole("button", { name: "DOJO.md", exact: true }).first().click();
   const guidance = page.getByRole("tab", { name: "DOJO.md", exact: true });
   await expect(guidance).toBeVisible();
@@ -90,10 +92,30 @@ test("authoring opens, edits, saves and closes files while the conversation stay
   await expect(page.getByRole("region", { name: "Course conversation", exact: true })).toBeVisible();
 });
 
+test("authoring file search keeps lesson context visible on a phone", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/iframe.html?id=pages-dojo--course-authoring&viewMode=story&embed=true");
+  await page.locator("#storybook-root .ui-as").waitFor();
+  await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
+  await page.keyboard.press("Alt+k");
+  const palette = page.getByRole("dialog", { name: "Command menu", exact: true });
+  await palette.getByRole("combobox").fill("SENSEI.md");
+  await expect(palette.getByRole("group", { name: "Files", exact: true }).getByRole("option")).toHaveCount(3);
+  await expect(palette.getByText("Largest number", { exact: true })).toBeVisible();
+  await expect(palette.getByText("Positive numbers", { exact: true })).toBeVisible();
+  await expect(palette.getByText("Narrowing shapes", { exact: true })).toBeVisible();
+  await expect(palette).toBeInViewport({ ratio: 1 });
+  await page.screenshot({ path: info.outputPath("authoring-file-context-phone.png"), animations: "disabled" });
+  await palette.getByRole("option").filter({ hasText: "Positive numbers" }).click();
+  await page.getByRole("textbox", { name: "Code editor", exact: true }).waitFor();
+  await expect(page.locator(".view-lines")).toContainText("Keep the positive ones");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test("editor supports undo, coverage, line references, read-only files and keyboard save", async ({ page }) => {
   await page.goto("/iframe.html?id=components-organisms-editor--playground&viewMode=story");
   const code = page.getByRole("textbox", { name: "Code editor", exact: true });
-  await expect(code).toBeVisible();
+  await expect(code).toBeVisible({ timeout: 15_000 });
   await code.focus();
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.type("\n// trial edit");

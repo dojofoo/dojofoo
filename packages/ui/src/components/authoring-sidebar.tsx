@@ -7,6 +7,9 @@ import {
   ContextMenuItem,
 } from "@dojofoo/uix/components/context-menu";
 import { useState } from "react";
+import { Icon, Popover } from "@dojofoo/uix/components/app-shell";
+import { Button as UIXButton } from "@dojofoo/uix/components/button";
+import { MoreHorizontalIcon } from "@dojofoo/uix/icons";
 import { cn } from "@/lib/utils";
 import type { SidebarResource } from "./agents/ai-sidebar";
 import { TreeView } from "./ui/tree-view";
@@ -207,60 +210,25 @@ export function AuthoringSidebar({
   );
 }
 
-function TreeTitleMenu({
-  title,
-  onRename,
-  disabled,
-}: {
-  title: string;
-  onRename: (title: string) => void;
-  disabled: boolean;
-}) {
+export function TreeTitleMenu({ title, onRename, disabled }: { title: string; onRename: (title: string) => void; disabled: boolean }) {
   const [open, setOpen] = useState(false);
-  return (
-    <MorphPopover open={open} onOpenChange={setOpen}>
-      <MorphPopoverTrigger>
-        <button
-          type="button"
-          aria-label={`Rename ${title}`}
-          disabled={disabled}
-          className="grid size-7 place-items-center text-muted-foreground opacity-0 group-hover/tree-row:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring hover:bg-muted"
-        >
-          <MoreHorizontal aria-hidden="true" className="size-4" />
-        </button>
-      </MorphPopoverTrigger>
-      <MorphPopoverContent align="end" radius={0} className="w-56 p-3">
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const value = String(
-              new FormData(event.currentTarget).get("title") ?? "",
-            ).trim();
-            if (value) {
-              onRename(value);
-              setOpen(false);
-            }
-          }}
-        >
-          <label className="grid gap-2 text-xs">
-            Title
-            <input
-              name="title"
-              defaultValue={title}
-              required
-              className="min-w-0 border border-border bg-background p-2 focus-visible:outline-2 focus-visible:outline-ring"
-            />
-          </label>
-          <button
-            type="submit"
-            className="mt-2 px-2 py-1 text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            Rename
-          </button>
-        </form>
-      </MorphPopoverContent>
-    </MorphPopover>
-  );
+  return <span className="ui-as-anchor">
+    <button type="button" className="ui-as-icon-btn" aria-label={`Rename ${title}`} aria-expanded={open} disabled={disabled} onClick={() => setOpen(value => !value)}>
+      <Icon icon={MoreHorizontalIcon} size={15} />
+    </button>
+    <Popover open={open} onClose={() => setOpen(false)} align="end" className="ui-as-menu w-56 p-3">
+      <form onSubmit={event => {
+        event.preventDefault();
+        const value = String(new FormData(event.currentTarget).get("title") ?? "").trim();
+        if (value) { onRename(value); setOpen(false); }
+      }}>
+        <label className="grid gap-2 text-xs">Title
+          <input name="title" defaultValue={title} required autoFocus className="min-w-0 rounded-lg border border-[var(--line)] bg-[var(--surface-3)] p-2 text-[var(--ink)]" />
+        </label>
+        <UIXButton type="submit" size="sm" className="mt-2">Rename</UIXButton>
+      </form>
+    </Popover>
+  </span>;
 }
 
 function SidebarHeading({
@@ -467,3 +435,5 @@ const lessonStatuses: Record<string, { label: string; tone: string }> = {
 function lessonStatus(status = "draft") {
   return lessonStatuses[status] ?? lessonStatuses.draft!;
 }
+
+export { lessonStatus as authoringEvaluationStatus };

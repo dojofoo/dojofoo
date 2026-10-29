@@ -11,6 +11,28 @@ it("serves compiled authored content", async () => {
   expect(await response.json()).toEqual({ blocks: [{ type: "html", html: "<h1>Lesson</h1>\n" }] });
 });
 
+it("renders same-origin material through the local HTTPS reverse proxy", async () => {
+  const response = await teachingRoutes.request("http://127.0.0.1:4567/preview", {
+    method: "POST", headers: {
+      "content-type": "application/json", Origin: "https://dojo.localhost",
+      "x-forwarded-host": "dojo.localhost", "x-forwarded-proto": "https",
+    }, body: JSON.stringify({ source: "# Proxied lesson" }),
+  });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ blocks: [{ type: "html", html: "<h1>Proxied lesson</h1>\n" }] });
+});
+
+it.each([
+  { Origin: "https://untrusted.example", "x-forwarded-host": "dojo.localhost", "x-forwarded-proto": "https" },
+  { Origin: "https://dojo.localhost", "x-forwarded-host": "other.localhost", "x-forwarded-proto": "https" },
+  { Origin: "https://dojo.localhost", "x-forwarded-host": "dojo.localhost/private", "x-forwarded-proto": "https" },
+])("retains origin rejection with forwarded headers: $Origin", async headers => {
+  const response = await teachingRoutes.request("http://127.0.0.1:4567/preview", {
+    method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ source: "# Private material" }),
+  });
+  expect(response.status).toBe(403);
+});
+
 it("rejects invalid requests, cross-origin access, and oversized documents", async () => {
   expect((await request({})).status).toBe(400);
   expect((await request({ source: "test", basePath: {} })).status).toBe(400);

@@ -438,11 +438,13 @@ const css = /* css */ `
   --ui-btn-dark-shadow: rgba(0, 0, 0, 0.4);
   --ui-btn-shine-on-ink: rgba(255, 255, 255, 0.9);
 
-  --ui-btn-ink: #ededed;
-  --ui-btn-surface: #232326;
-  --ui-btn-surface-hover: #2a2a2d;
+  /* secondary: a new surface on the theme's ladder (styles/fluid.css) – two levels above a card, as the pills sit, one
+     more on hover – its ink and hairline; the hex values where no theme is loaded */
+  --ui-btn-ink: var(--fluid-foreground, #ededed);
+  --ui-btn-surface: var(--surface-5, #232326);
+  --ui-btn-surface-hover: var(--surface-6, #2a2a2d);
   --ui-btn-surface-shadow: rgba(0, 0, 0, 0.4);
-  --ui-btn-line: rgba(255, 255, 255, 0.1);
+  --ui-btn-line: var(--fluid-hairline, rgba(255, 255, 255, 0.1));
   --ui-btn-muted: #8f8f8f;
   --ui-btn-hover: #ededed;
   --ui-btn-fill: rgba(255, 255, 255, 0.06);

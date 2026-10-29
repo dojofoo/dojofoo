@@ -8,7 +8,7 @@
  * the library, icons from the Hugeicons free set.
  */
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   Analytics01Icon,
   ArrowDown01Icon,
@@ -342,6 +342,71 @@ export function EvalsPanel() {
   );
 }
 
+export type EvalsFinding = {
+  key: string;
+  criterion: string;
+  judge: string;
+  stage: string;
+  status: "pass" | "revise" | "disputed";
+  evidence: string;
+  improvement?: string;
+};
+
+export type EvalsReportPanelProps = {
+  title: string;
+  subtitle: string;
+  notice?: string;
+  error?: string;
+  findings: EvalsFinding[];
+  limitations: Array<{ key: string; label: string; text: string }>;
+  note: string;
+  actions?: ReactNode;
+};
+
+/** The Pages evaluation surface with host-owned findings; no simulated runs or metrics. */
+export function EvalsReportPanel({ title, subtitle, notice, error, findings, limitations, note, actions }: EvalsReportPanelProps) {
+  const [filter, setFilter] = useState("All");
+  const labels = { pass: "Pass", revise: "Revise", disputed: "Disputed" };
+  const shown = findings.filter(finding => filter === "All" || labels[finding.status] === filter);
+  return <>
+    <style href="ui-evals" precedence="default">{css}</style>
+    <section aria-label="Teaching evaluation report" className="ui-ev ui-ev--report">
+      <header className="ui-ev__head">
+        <div className="ui-ev__report-heading"><h2 className="ui-ev__report-title">{title}</h2>
+          <p className="ui-ev__report-sub">{subtitle}</p></div>
+        {actions ? <div className="ui-ev__actions">{actions}</div> : null}
+      </header>
+      <div className="ui-ev__report-body">
+        {notice ? <p className="ui-ev__report-note">{notice}</p> : null}
+        {error ? <p role="alert" className="ui-ev__report-error">{error}</p> : null}
+        <section className="ui-ev__cases">
+          <div className="ui-ev__cases-head">
+            <h3>Findings <span>{findings.length}</span></h3>
+            {findings.length > 0 ? <SegmentedControl size="compact" fill label="Filter findings" value={filter} onChange={setFilter} options={["All", "Pass", "Revise", "Disputed"]} /> : null}
+          </div>
+          <Table className="ui-ev__table">
+            <colgroup><col style={{ width: "35%" }} /><col /></colgroup>
+            <TableHeader><TableRow><TableHead>Criterion</TableHead><TableHead>Evidence and next steps</TableHead></TableRow></TableHeader>
+            <TableBody>{shown.map((finding, index) => <TableRow key={finding.key} index={index}>
+              <TableCell><div className="ui-ev__finding">
+                <span className="ui-ev__finding-name">{finding.criterion}</span>
+                <span className="ui-ev__report-note">{finding.stage} · {finding.judge}</span>
+                <Pill status={finding.status === "pass" ? "pass" : finding.status === "disputed" ? "partial" : "fail"} label={finding.status === "disputed" ? "disputed (one judge)" : labels[finding.status]} />
+              </div></TableCell>
+              <TableCell><div className="ui-ev__evidence"><p>{finding.evidence}</p>
+                {finding.improvement ? <p><strong>Next step</strong><br />{finding.improvement}</p> : null}
+              </div></TableCell>
+            </TableRow>)}</TableBody>
+          </Table>
+          {!shown.length ? <p className="ui-ev__report-note">{findings.length ? "No findings match this filter." : "No criterion results are available in this report."}</p> : null}
+        </section>
+        {limitations.map(limitation => <p className="ui-ev__report-note" key={limitation.key}><strong>{limitation.label}</strong><br />{limitation.text}</p>)}
+        <p className="ui-ev__report-note">{note}</p>
+      </div>
+    </section>
+  </>;
+}
+
 export function EvalsScreen(props: EvalsScreenProps) {
   return (
     <AppShell active="Evals" nav={nav} groups={groups} {...props}>
@@ -350,7 +415,7 @@ export function EvalsScreen(props: EvalsScreenProps) {
   );
 }
 
-function Pill({ status, score }: { status: Status; score: number }) {
+function Pill({ status, score, label }: { status: Status; score?: number; label?: string }) {
   if (status === "queued") return <span className="ui-ev__pill" data-v="queued">Queued</span>;
   if (status === "running")
     return (
@@ -362,8 +427,8 @@ function Pill({ status, score }: { status: Status; score: number }) {
   return (
     <span className="ui-ev__pill" data-v={status} key={status + score}>
       <i aria-hidden="true" />
-      {verdictLabel[status]}
-      <span>{score}/5</span>
+      {label ?? verdictLabel[status]}
+      {score !== undefined ? <span>{score}/5</span> : null}
     </span>
   );
 }
@@ -569,4 +634,25 @@ const css = /* css */ `
   .ui-ev { --ui-ev-pad: 8px; }
   .ui-ev__content { gap: 8px; }
 }
+.ui-ev--report { min-width: 0; }
+.ui-ev--report .ui-ev__head { align-items: flex-start; }
+.ui-ev__report-heading { flex: 1; min-width: 0; }
+.ui-ev__report-title { margin: 0; font-size: var(--fs-title); line-height: var(--lh-title); font-weight: 550; color: var(--ink); }
+.ui-ev__report-sub { margin: 6px 0 0; font-size: var(--fs-body); color: var(--muted); overflow-wrap: anywhere; }
+.ui-ev__report-body { display: grid; gap: 16px; min-width: 0; padding: 0 var(--ui-ev-pad) var(--ui-ev-pad); }
+.ui-ev__report-note { margin: 0; font-size: var(--fs-caption); line-height: 1.6; color: var(--muted); overflow-wrap: anywhere; }
+.ui-ev__report-error { margin: 0; font-size: var(--fs-body); color: var(--ev-fail); overflow-wrap: anywhere; }
+.ui-ev--report .ui-ev__cases { height: auto; margin: 0; overflow: visible; }
+.ui-ev--report .ui-ev__cases-head h3 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--fs-title); line-height: var(--lh-title); font-weight: 550; color: var(--ink); }
+.ui-ev--report .ui-ev__cases-head h3 span { font-weight: 400; color: var(--faint); }
+.ui-ev--report .ui-ev__table :is(th, td):nth-child(2) { display: table-cell; }
+.ui-ev--report .ui-ev__table tbody tr { cursor: default; }
+.ui-ev--report .ui-ev__table td { vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
+.ui-ev__finding { display: grid; justify-items: start; gap: 6px; }
+.ui-ev__finding-name { font-family: var(--font-mono); font-size: var(--fs-caption); }
+.ui-ev--report .ui-ev__pill { height: auto; min-height: 22px; max-width: 100%; padding: 3px 8px; white-space: normal; }
+.ui-ev--report .ui-ev__pill > i { flex: none; }
+.ui-ev__evidence { display: grid; gap: 10px; font-size: var(--fs-body); line-height: 1.6; color: var(--text); }
+.ui-ev__evidence p { margin: 0; }
+.ui-ev__evidence strong, .ui-ev__report-note strong { font-weight: 550; }
 `;

@@ -39,3 +39,31 @@ test("autoplay keeps advancing on hover with synchronized windows and indicators
   await expect(page.getByText("Three modes", { exact: true })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test("the active indicator fills with its slide timer and the text has horizontal edge fades", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto(landing);
+  const carousel = page.getByRole("region", { name: "Learning modes", exact: true });
+  await carousel.scrollIntoViewIfNeeded();
+  await page.mouse.click(5, 5);
+  const viewport = carousel.getByRole("group", { name: "Slides", exact: true });
+  await expect(viewport).toHaveCSS("mask-image", /linear-gradient\(to right/);
+  const active = carousel.getByRole("tab", { selected: true });
+  const fill = active.locator('[class*="dotFill"]');
+  const amount = () => fill.evaluate(node => new DOMMatrixReadOnly(getComputedStyle(node).transform).a);
+  await expect.poll(amount).toBeGreaterThan(.02);
+  const before = await amount();
+  expect(before).toBeLessThan(.8);
+  await expect.poll(amount).toBeGreaterThan(before + .1);
+  const color = await fill.evaluate(node => getComputedStyle(node).backgroundColor);
+  expect(color).toBe(await carousel.evaluate(node => {
+    const sample = document.createElement("i");
+    sample.style.color = "var(--brand)";
+    node.append(sample);
+    const color = getComputedStyle(sample).color;
+    sample.remove();
+    return color;
+  }));
+  await expect(carousel.getByRole("tab", { name: "Course Mode", exact: true })).toHaveAttribute("aria-selected", "true", { timeout: 12_000 });
+  await expect.poll(amount).toBeLessThan(.3);
+});

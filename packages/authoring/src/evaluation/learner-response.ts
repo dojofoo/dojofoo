@@ -60,7 +60,7 @@ async function runLearner({ dialogue, source, harness, model, signal }: LearnerR
   console.info(`Learner response evidence: ${directory}`);
   const agent = new HarnessAgent({
     id: "dojo-review-learner",
-    harness: authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness }),
+    harness: await authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness }),
     model, instructions, activeTools: [],
     stopWhen: ({ steps }) => steps.length >= 1,
   });

@@ -6,6 +6,8 @@
   "license": "FSL-1.1-ALv2",
   "files": [
     "dist",
+    "agents/kyoshi",
+    "scripts/build-agent.mjs",
     "skills",
     "templates",
     "src/**/*.ts",
@@ -115,6 +117,18 @@
       "import": "./dist/eve/runtime.js",
       "default": "./dist/eve/runtime.js"
     },
+    "./eve/install": {
+      "types": "./src/eve/install.ts",
+      "development": "./src/eve/install.ts",
+      "import": "./dist/eve/install.js",
+      "default": "./dist/eve/install.js"
+    },
+    "./eve/artifact": {
+      "types": "./src/eve/artifact.ts",
+      "development": "./src/eve/artifact.ts",
+      "import": "./dist/eve/artifact.js",
+      "default": "./dist/eve/artifact.js"
+    },
     "./KYOSHI.md": "./src/contracts/KYOSHI.md",
     "./NATIVE-HARNESS.md": "./src/contracts/NATIVE-HARNESS.md",
     "./prompts": {
@@ -128,6 +142,12 @@
       "development": "./src/eve/instructions.ts",
       "import": "./dist/eve/instructions.js",
       "default": "./dist/eve/instructions.js"
+    },
+    "./eve/bootstrap": {
+      "types": "./src/eve/bootstrap.ts",
+      "development": "./src/eve/bootstrap.ts",
+      "import": "./dist/eve/bootstrap.js",
+      "default": "./dist/eve/bootstrap.js"
     },
     "./eve/ask": {
       "types": "./src/eve/ask.ts",
@@ -196,23 +216,30 @@
       "default": "./dist/server/types.js"
     },
     "./skills/*": "./skills/*",
-    "./evaluation/prompts/*.md": "./src/evaluation/prompts/*.md"
+    "./evaluation/prompts/*.md": "./src/evaluation/prompts/*.md",
+    "./eve/resume": {
+      "types": "./src/eve/resume.ts",
+      "development": "./src/eve/resume.ts",
+      "import": "./dist/eve/resume.js",
+      "default": "./dist/eve/resume.js"
+    }
   },
   "scripts": {
     "test": "vitest run",
+    "test:prepared": "node scripts/verify-agent.mjs",
     "types:check": "tsc --noEmit",
-    "build": "tsup"
+    "build": "tsup && node scripts/build-agent.mjs"
   },
   "dependencies": {
-    "@ai-sdk/harness": "1.0.153",
-    "@ai-sdk/harness-codex": "1.0.155",
-    "@ai-sdk/harness-cursor": "1.0.67",
-    "@ai-sdk/harness-fx": "1.0.67",
-    "@ai-sdk/harness-grok-build": "1.0.91",
-    "@ai-sdk/harness-opencode": "1.0.155",
-    "@ai-sdk/harness-pi": "1.0.155",
-    "@ai-sdk/provider": "4.0.28",
-    "@ai-sdk/provider-utils": "5.0.61",
+    "@ai-sdk/harness": "1.0.167",
+    "@ai-sdk/harness-codex": "1.0.169",
+    "@ai-sdk/harness-cursor": "1.0.81",
+    "@ai-sdk/harness-fx": "1.0.83",
+    "@ai-sdk/harness-grok-build": "1.0.105",
+    "@ai-sdk/harness-opencode": "1.0.169",
+    "@ai-sdk/harness-pi": "1.0.170",
+    "@ai-sdk/provider": "4.0.34",
+    "@ai-sdk/provider-utils": "5.0.70",
     "@dojofoo/agent": "workspace:*",
     "@dojofoo/config": "workspace:*",
     "@earendil-works/pi-ai": "1.3.0",
@@ -221,6 +248,8 @@
     "globby": "16.2.4",
     "hono": "^4.13.1",
     "json-rpc-2.0": "1.7.0",
+    "just-bash": "3.6.0",
+    "smol-toml": "1.9.1",
     "ws": "8.21.0",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
@@ -228,7 +257,7 @@
   "devDependencies": {
     "@tanstack/ai-client": "0.39.3",
     "@types/node": "^26.6.5",
-    "pnpm": "12.14.0",
+    "pnpm": "10.28.0",
     "typescript": "6.0.3",
     "vite": "^8.3.4",
     "vitest": "^5.0.5",

@@ -7,7 +7,7 @@
 // functions do not contain the source project's public directory.
 
 import background from '../../public/og-bg.png?inline'
-import logoWordmark from '../../../../assets/brand/dojofoo.svg?raw'
+import logoWordmark from '../../../../assets/brand/dojofoo-dark.svg?raw'
 
 /** Cherry-blossom OG background. */
 export const getOgBackgroundDataUrl = () =>

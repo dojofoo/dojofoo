@@ -104,8 +104,8 @@ function FilterList({ label, value, onChange, options }: { label: string; value:
 
 const css = /* css */ `
 /* On the page: the head, then the sidebar beside the results */
-.ui-crs { max-width: 1180px; margin: 0 auto; padding: 40px 8px 32px; }
-@media (max-width: 1203px) { .ui-crs { padding-inline: 20px; } }
+.ui-crs { max-width: 1280px; margin: 0 auto; padding: 40px 8px 32px; }
+@media (max-width: 1303px) { .ui-crs { padding-inline: 20px; } }
 .ui-crs-layout { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 40px; margin-top: 36px; }
 @media (max-width: 760px) { .ui-crs-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
 

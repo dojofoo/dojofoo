@@ -1,25 +1,27 @@
 import { fadeViewTransition } from "../lib/view-transition";
 import { SettingsContent } from "../components/settings-billing";
 import { SlideDeck } from "../components/slide-deck";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { prepareEditor } from "../lib/preload-editor";
 import { AgentChatWorkspace } from "../containers/agent-chat";
 import { LearningLibrary } from "../containers/learning-library";
+import { CourseExplore } from "../containers/course-explore";
 import { AgentSetup, setupSteps } from "../containers/agent-setup";
-import { AppDirectory, categoryIcons, type App, type AppCategory } from "../components/app-directory";
+import { categoryIcons, type AppCategory } from "../components/app-directory";
 import { AppShell, EmptyState, Icon, useToast, type AppShellProps, type ShellEntry, type ShellSection } from "../components/app-shell";
-import { ChatMessages, Composer, useChatThread } from "../containers/assistant-home";
+import { ChatMessages, useChatThread } from "../containers/assistant-home";
+import { CourseComposer } from "./course-composer";
 import { Button } from "../components/button";
-import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardButton, ColorCardTag } from "../components/color-card";
+import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard } from "../components/color-card";
 import { CertificateCard, CourseArt, CourseCard, type CourseArtwork, type CourseInfo } from "../components/course-card";
 import { ChangelogFeed, type ChangelogEntry, type ChangelogMonth } from "../components/arc/blocks/changelog-feed/changelog-feed";
 import { EditorTestResults } from "../components/editor-test-results";
 import { CodeEditor, Editor, EditorStatus, EditorTabs } from "../containers/editor";
 import { LessonBrief } from "../components/lesson-brief";
 import type { SetupGroup } from "../components/setup-guide";
-import { TestimonialHighlight, type Testimonial } from "../components/testimonial-highlight";
+import type { Testimonial } from "../components/testimonial-highlight";
 import { VideoStage } from "../containers/video-stage";
-import { BackIcon, BookOpen01Icon, CertificateIcon, CommentsIcon, CoursesIcon, DoneIcon, ExploreIcon, LearnersIcon, LikesIcon, PlusSignIcon } from "../lib/icons";
+import { BackIcon, BookOpen01Icon, CertificateIcon, CoursesIcon, ExploreIcon, PlusSignIcon } from "../lib/icons";
 import { BrandLogo } from "../components/brand-logo";
 
 /*
@@ -154,7 +156,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /** A course's color, for the cards drawn from one */
 const colorOf = (item: { art: CourseArtwork }) => `oklch(0.58 0.2 ${item.art.hue})`;
 /** Our own courses carry our logo, at the author name's size; others their author's name */
-const markOf = (item: Course) => (item.author === "Dojo.foo" ? <BrandLogo /> : undefined);
+const markOf = (item: Course) => (item.author === "Dojo.foo" ? <BrandLogo mono /> : undefined);
 const lockNote = (items: Array<{ title: string; state: Progress }>, index: number, what: string) =>
   items[index].state === "locked" && index > 0 ? `Finish “${items[index - 1].title}” to unlock this ${what}` : undefined;
 
@@ -190,7 +192,7 @@ function Journey({ start, slideSource, documentationUrl, settings }: { start: Le
   const shell: Partial<AppShellProps> = {
     workspace: "Dojo",
     user: { name: "Sam Rivera", email: "sam.rivera@example.com" },
-    brand: <a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={(event) => event.preventDefault()}><BrandLogo className="w-11" /></a>,
+    brand: <a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={(event) => event.preventDefault()}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>,
     sidebarWidth: "18rem",
     showNews: false,
     setup,
@@ -325,7 +327,7 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource, docum
         </LessonBrief>
       )}
       header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
-      composer={<Composer tray={false} placeholder="Ask your Sensei…" busy={chat.busy} onSend={chat.send} />}
+      composer={<CourseComposer tray={false} placeholder="Ask your Sensei…" busy={chat.busy} onSend={chat.send} />}
       scroller={scroller}>
       <p className="text-sm leading-relaxed">{open ? `${open.title}: ${open.lead} Tell me what you expect the first test to check.` : `${chapter.title} starts with a short video – watch it, then open the first lesson.`}</p>
       <ChatMessages messages={chat.messages} name="Sensei" scroller={scroller} onDone={chat.finish} />
@@ -376,70 +378,12 @@ function Courses({ installed, onOpen, onAuthor, onExplore }: { installed: string
     })} />;
 }
 
-function Stars({ value }: { value: number }) {
-  return <span className="lj-stars" role="img" aria-label={`Rated ${value} out of 5`}><i style={{ "--rating": value } as CSSProperties} /></span>;
-}
-
 function Explore({ installed, onInstall }: { installed: string[]; onInstall: (id: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const install = (id: string) => { setBusy(id); window.setTimeout(() => { setBusy(null); onInstall(id); }, 700); };
-  const top = [...library].sort((a, b) => b.rating - a.rating).slice(0, 1);
-  const action = (item: Course) => {
-    const has = installed.includes(item.id);
-    // Installed reads as the cards say it – a check and the word – at the Install button's height
-    return has
-      ? <span className="lj-installed rounded-lg"><Icon icon={DoneIcon} size={13} />Installed</span>
-      : <Button size="sm" loading={busy === item.id} onClick={() => install(item.id)}>Install</Button>;
-  };
-  return (
-    <Page kicker="Explore" title="Find your next course" sub="Courses from Dojo and the community. Install one and it joins your courses, ready to start.">
-      <h2 className="ui-ob-step__title lj-heading">Featuring</h2>
-      <ol className="lj-top" aria-label="Featuring">
-        {top.map((item) => (
-          <li key={item.id} className="lj-top__item">
-            <CourseCard course={item} mark={markOf(item)} showVersion />
-            {/* The quote sits beside the card – its mark and the numbers share the top line, its speaker sits
-                on the card's bottom line, the rating after the quote's own controls */}
-            <div className="lj-top__side">
-              <div className="lj-top__line">
-                <span className="lj-top__counts">
-                  <span title="Likes"><Icon icon={LikesIcon} size={14} />{item.likes}<span className="sr-only"> likes</span></span>
-                  <span title="Comments"><Icon icon={CommentsIcon} size={14} />{(item.reviews ?? 0).toLocaleString("en")}<span className="sr-only"> comments</span></span>
-                  <span title="Learners"><Icon icon={LearnersIcon} size={14} />{item.learners}<span className="sr-only"> learners</span></span>
-                </span>
-                <span className="lj-top__rating"><Stars value={item.rating} /><b>{item.rating.toFixed(1)}</b></span>
-              </div>
-              <TestimonialHighlight className="lj-top__voice w-full rounded-none bg-transparent p-0 shadow-none sm:p-0" testimonials={voices[item.id] ?? voices.everyday}
-                controlsEnd={action(item)} />
-            </div>
-          </li>
-        ))}
-      </ol>
-      {/* Every course: the app directory's search, filter and categories, our course cards in its grid */}
-      <div className="lj-browse">
-        <h2 className="ui-ob-step__title">Browse courses</h2>
-        <p className="ui-ob-step__text">Search by name or topic, show only what you haven't installed, or pick a category on the left.</p>
-      </div>
-      <AppDirectory className="lj-directory" title="All courses" defaultCategory="all" categories={courseCategories}
-        labels={{ bar: "Courses", connectedCount: (n) => `${n} installed`, search: "Search courses", all: "All courses", connected: "Installed", available: "Not installed", empty: "No courses match." }}
-        apps={library.map((item): App => ({ id: item.id, name: item.title, vendor: item.author, description: `${item.blurb} ${item.repo} ${item.language}`, categories: topics[item.id] ?? [], logo: <CourseArt art={item.art} size={24} />, essential: item.rating >= 4.7, connected: installed.includes(item.id) }))}
-        onToggle={(app, on) => on && onInstall(app.id)}
-        renderApps={(apps, state) => (
-          <div className="lj-grid lj-grid--cards">
-            {apps.map((app) => {
-              const item = byId(app.id);
-              const busy = state.busy.has(app.id);
-              // Still: only the featured card above moves
-              return <ColorCard key={app.id} color={colorOf(item)} aria-label={item.title}
-                header={<><CardMark>{markOf(item) ?? item.author}</CardMark><CardFigure>★ {item.rating.toFixed(1)}</CardFigure></>} main={<CardTitle>{item.title}</CardTitle>}
-                footer={<><CardText label="Updated" value={item.updated} />{state.connected.has(app.id)
-                  ? <ColorCardTag><Icon icon={DoneIcon} size={13} />Installed</ColorCardTag>
-                  : <ColorCardButton disabled={busy} aria-label={`Install ${item.title}`} onClick={() => state.toggle(app)}>{busy ? "Installing…" : "Install"}</ColorCardButton>}</>} />;
-            })}
-          </div>
-        )} />
-    </Page>
-  );
+  return <CourseExplore courses={library.map(item => ({ ...item, mark: markOf(item), categories: topics[item.id] ?? [],
+    reviews: item.reviews ?? 0, testimonials: voices[item.id] ?? voices.everyday }))}
+    categories={courseCategories} installed={installed} busy={busy} onInstall={install} />;
 }
 
 /** What changed in Dojo lately – from the account menu's Changelog */

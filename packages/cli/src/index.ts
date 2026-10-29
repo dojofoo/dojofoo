@@ -4,7 +4,7 @@ import { prepareWorkspace } from "@dojofoo/config/project-preparation";
 import { root } from "./commands/root";
 import { kata } from "./commands/kata";
 import { intro } from "./commands/intro";
-import { setup } from "./commands/setup";
+import { configuredAgents, setup } from "./commands/setup";
 import { add } from "./commands/add";
 import { remove } from "./commands/remove";
 import { status } from "./commands/status";
@@ -15,6 +15,7 @@ import { kyoshi } from "./commands/kyoshi";
 import { flushCourseEvents } from "./telemetry";
 import { bootstrapMise } from "./mise-bootstrap";
 import { miseConfigPath } from "@dojofoo/config/project-preparation";
+import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
 
 const [command, ...args] = process.argv.slice(2);
 
@@ -44,6 +45,20 @@ async function main() {
   } else if (command === "install" || command === "setup") {
     if (!args.includes("--skills")) await bootstrapMise();
     await setup(process.cwd(), args);
+    if (!args.includes("--skills")) {
+      const { prepareAuthoringHarness } = await import("@dojofoo/authoring/eve/install");
+      const selected = new Set([
+        ...configuredAgents(process.cwd()),
+        resolveRuntimeHarness("authoring", process.cwd()),
+        resolveRuntimeHarness("lesson", process.cwd()),
+      ]);
+      for (const agent of selected) {
+        if (agent !== "codex" && agent !== "opencode" && agent !== "pi"
+          && agent !== "cursor" && agent !== "grok" && agent !== "fx") continue;
+        console.log(`Preparing ${agent} for the course UI…`);
+        await prepareAuthoringHarness(agent);
+      }
+    }
   } else if (command === "add") {
     await add(process.cwd(), args);
     const root = findProjectRoot();

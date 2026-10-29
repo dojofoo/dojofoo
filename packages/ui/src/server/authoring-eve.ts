@@ -1,5 +1,5 @@
 import { realpathSync } from "node:fs";
-import { Client } from "@dojofoo/agent/client";
+import { Client, type ClientOptions } from "@dojofoo/agent/client";
 import { createEveAuthoringRoutes } from "@dojofoo/authoring/eve/server";
 import { readLegacyLocalHistory } from "@dojofoo/agent/local-history";
 import { join } from "node:path";
@@ -9,7 +9,7 @@ import type { Hono, MiddlewareHandler } from "hono";
 export function mountEveAuthoring(app: Hono, options: {
   host?: string;
   historyRoot?: string;
-  runtime?: () => Promise<{ start(): Promise<{ url: string }>; close(): Promise<void> }>;
+  runtime?: () => Promise<{ start(): Promise<{ url: string; auth?: ClientOptions["auth"] }>; close(): Promise<void> }>;
   root(): string;
   resolveWorkspace(request: Request): string;
 }) {
@@ -27,8 +27,8 @@ export function mountEveAuthoring(app: Hono, options: {
     return client ??= (async () => {
       if (options.host) return new Client({ host: options.host });
       runtime = await options.runtime!();
-      const { url } = await runtime.start();
-      return new Client({ host: url });
+      const { url, auth } = await runtime.start();
+      return new Client({ host: url, auth });
     })().catch(async error => {
       // Failed infrastructure is not a durable conversation. Release it so
       // an explicit reload can acquire a repaired host; never retry a turn.

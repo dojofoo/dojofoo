@@ -1,6 +1,9 @@
 import { ShikiMagicMovePrecompiled } from "@shikijs/magic-move/react";
 import { mermaid } from "@streamdown/mermaid";
 import { useEffect, useMemo, useState } from "react";
+import { Button } from "@dojofoo/uix/components/button";
+import { Icon } from "@dojofoo/uix/components/app-shell";
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@dojofoo/uix/icons";
 import parse, { domToReact, Element, type DOMNode, type HTMLReactParserOptions } from "html-react-parser";
 import { Streamdown } from "streamdown";
 import type { TeachingBlock } from "../lib/teaching-document";
@@ -10,8 +13,8 @@ import "@shikijs/twoslash/style-rich.css";
 import "katex/dist/katex.min.css";
 import "./teaching-markdown.css";
 
-export function TeachingMarkdown({ source, basePath = null, workspaceId = "" }: { source: string; basePath?: string | null; workspaceId?: string }) {
-  const request = JSON.stringify({ source, basePath, workspaceId });
+export function TeachingMarkdown({ source, basePath = null, workspaceId = "", courseId, diagrams = true }: { source: string; basePath?: string | null; workspaceId?: string; courseId?: string; diagrams?: boolean }) {
+  const request = JSON.stringify({ source, basePath, workspaceId, courseId });
   const [result, setResult] = useState<{ request: string; blocks?: TeachingBlock[]; error?: string }>();
   useEffect(() => {
     const controller = new AbortController();
@@ -29,7 +32,7 @@ export function TeachingMarkdown({ source, basePath = null, workspaceId = "" }: 
   }, [request]);
   if (result?.request !== request) return <p role="status">Preparing preview…</p>;
   if (result.error) return <p role="alert">{result.error}</p>;
-  return <TeachingDocument key={request} blocks={result.blocks ?? []} />;
+  return <TeachingDocument key={request} blocks={diagrams ? result.blocks ?? [] : (result.blocks ?? []).filter(block => block.type !== "diagram")} />;
 }
 
 export function TeachingDocument({ blocks }: { blocks: TeachingBlock[] }) {
@@ -69,12 +72,12 @@ function CodeSteps({ steps }: { steps: Extract<TeachingBlock, { type: "code-step
   }, []);
   const current = Math.min(step, steps.length - 1);
   if (!steps.length) return null;
-  return <figure aria-label="Animated code example" className="min-w-0" style={{ background: steps[current].bg, color: steps[current].fg }}>
+  return <figure aria-label="Animated code example" className="min-w-0 overflow-hidden rounded-[var(--box-radius)] shadow-[var(--box-shadow)]" style={{ background: steps[current].bg, color: steps[current].fg }}>
     <div className="overflow-x-auto p-4"><ShikiMagicMovePrecompiled steps={steps} step={current} animate={!reducedMotion} options={{ duration: 450 }} /></div>
-    <figcaption className="flex items-center justify-between border-t border-border p-3 text-sm">
-      <button type="button" disabled={current === 0} onClick={() => setStep(current - 1)}>Previous</button>
-      <span aria-live="polite">Step {current + 1} of {steps.length}</span>
-      <button type="button" disabled={current === steps.length - 1} onClick={() => setStep(current + 1)}>Next</button>
+    <figcaption className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-t border-[var(--fluid-hairline)] bg-[var(--surface-3)] px-2 py-1.5 text-[var(--fluid-muted)]">
+      <Button size="sm" variant="secondary" className="justify-self-start" disabled={current === 0} onClick={() => setStep(current - 1)} icon={<Icon icon={ArrowLeft01Icon} size={14} />}>Previous</Button>
+      <span className="text-[length:var(--fs-caption)] tabular-nums" aria-live="polite">Step {current + 1} of {steps.length}</span>
+      <Button size="sm" variant="secondary" className="justify-self-end" disabled={current === steps.length - 1} onClick={() => setStep(current + 1)} iconRight={<Icon icon={ArrowRight01Icon} size={14} />}>Next</Button>
     </figcaption>
   </figure>;
 }

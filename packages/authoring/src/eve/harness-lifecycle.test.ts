@@ -7,6 +7,7 @@ import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
 import { expect, it } from "vitest";
 import { authoringHarness } from "./harness";
 import { authoringEnvironment } from "./environment";
+import { prepareAuthoringHarness } from "./install";
 
 // No prompts or inference. Opt-in because official adapters may bootstrap their
 // native binaries and discover the user's existing authentication configuration.
@@ -14,6 +15,9 @@ const enabled = process.env.DOJO_HARNESS_LIFECYCLE === "1";
 it.skipIf(!enabled).each(["codex", "opencode", "pi", "cursor", "grok", "fx"])(
   "%s boots and reports its unprompted-session recovery capability",
   async name => {
+    const preparation = performance.now();
+    await prepareAuthoringHarness(name as Parameters<typeof prepareAuthoringHarness>[0]);
+    const preparedAt = performance.now();
     const environment = await authoringEnvironment(name as Parameters<typeof authoringEnvironment>[0], {
       ...process.env,
       PATH: `${fileURLToPath(new URL("../../node_modules/.bin", import.meta.url))}:${process.env.PATH}`,
@@ -21,16 +25,17 @@ it.skipIf(!enabled).each(["codex", "opencode", "pi", "cursor", "grok", "fx"])(
     const root = await realpath(await mkdtemp(join(tmpdir(), `dojo-${name}-lifecycle-`)));
     const sandbox = await createLocalSandbox(root, { environment });
     const agent = new HarnessAgent({
-      harness: authoringHarness({ DOJOFOO_HARNESS: name }),
+      harness: await authoringHarness({ DOJOFOO_HARNESS: name }),
       sandboxConfig: { workDir: "course" },
     });
     try {
       const session = await agent.createSession({ sandboxSession: sandbox, abortSignal: AbortSignal.timeout(60_000) });
+      console.info(`${name}: install preparation ${Math.round(preparedAt - preparation)}ms; prepared session ${Math.round(performance.now() - preparedAt)}ms (no prompt).`);
       expect(session.sessionId).toEqual(expect.any(String));
       if (["codex", "cursor", "grok", "fx"].includes(name)) {
         await expect(session.compact()).rejects.toMatchObject({
           name: "AI_HarnessCapabilityUnsupportedError",
-          message: expect.stringMatching(/does not support manual compaction|ACP v1 does not define manual session compaction/),
+          message: expect.stringMatching(/does not support manual compaction|ACP v1 does not define manual session compaction|Stable libfx does not expose manual context compaction/),
         });
       }
       const checkpoint = await session.stop();
@@ -43,7 +48,7 @@ it.skipIf(!enabled).each(["codex", "opencode", "pi", "cursor", "grok", "fx"])(
       // ACP adapters start the native conversation on the first prompt. Their
       // empty checkpoints intentionally lack the native ID/cold configuration.
       // This is not evidence about recovery after a real turn.
-      if (["cursor", "grok", "fx"].includes(name)) {
+      if (["cursor", "grok"].includes(name)) {
         await expect(resume).rejects.toMatchObject({
           name: "AI_HarnessCapabilityUnsupportedError",
           message: "Cold ACP session restoration requires persisted cold-session configuration and an ACP session identifier.",

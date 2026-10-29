@@ -20,26 +20,36 @@
   .ui-api-operation { grid-template-columns: minmax(0, 1fr) 24rem; align-items: start; }
   .ui-api-operation__examples { position: sticky; top: 7rem; }
 }
-.ui-api-reference [data-api-request] code { white-space: nowrap; font-size: .8125rem; line-height: 1.5; }
-/* The request line and the examples: boxes, as the landing page's command (fluid.css' --box-*; the site's surface and
-   shadow where it has no box). Their code is CodeBlock's (components/code-block), the box's own here: no box of its own,
-   its copy button where the docs' code blocks have theirs */
-.ui-api-reference :is([data-api-request] > div, .ui-api-operation__examples > div > div) {
+/* The request line: a code window (components/api-reference), its method in Fumadocs' colors (Tailwind's 600s, its 400s
+   on a dark scheme); where its path can't be read, Fumadocs' own line, in a box as the landing page's command (fluid.css'
+   --box-*; the site's surface and shadow where it has no box) */
+.ui-api-reference [data-api-request] .ui-cw { margin: 0; }
+.ui-api-method { font-weight: 600; color: var(--ui-api-method); --ui-api-method: #16a34a; }
+.ui-api-method[data-method="POST"] { --ui-api-method: #2563eb; }
+.ui-api-method[data-method="PUT"] { --ui-api-method: #ca8a04; }
+.ui-api-method[data-method="PATCH"] { --ui-api-method: #ea580c; }
+.ui-api-method[data-method="DELETE"] { --ui-api-method: #dc2626; }
+.ui-ed__scheme.dark .ui-api-method { --ui-api-method: #4ade80; }
+.ui-ed__scheme.dark .ui-api-method[data-method="POST"] { --ui-api-method: #60a5fa; }
+.ui-ed__scheme.dark .ui-api-method[data-method="PUT"] { --ui-api-method: #facc15; }
+.ui-ed__scheme.dark .ui-api-method[data-method="PATCH"] { --ui-api-method: #fb923c; }
+.ui-ed__scheme.dark .ui-api-method[data-method="DELETE"] { --ui-api-method: #f87171; }
+.ui-api-reference [data-api-request] > div code { white-space: nowrap; font-size: .8125rem; line-height: 1.5; }
+.ui-api-reference [data-api-request] > div {
   border: 0;
   border-radius: var(--box-radius, calc(10px * var(--squircle-factor, 1)));
   background: var(--box-surface, var(--surface-3));
   box-shadow: var(--box-shadow, var(--shadow-2));
 }
 .ui-api-reference [data-api-request] > div { min-height: 40px; padding: 0 14px; }
-.ui-api-operation__examples [role="tabpanel"] { padding: 0; border: 0; background: none; }
-.ui-api-operation__examples pre.ui-code { margin: 0; border-radius: 0; background-color: transparent !important; box-shadow: none; }
-/* Its copy button in Fumadocs' text colors: the site's --muted is a surface */
-.ui-api-reference .ui-code__copy { color: var(--color-fd-muted-foreground); }
-@media (hover: hover) { .ui-api-reference .ui-code__copy:hover { color: var(--color-fd-foreground); } }
-.ui-api-reference .ui-code__copy[data-copied] { color: var(--color-fd-foreground); }
-/* Both panels' tabs alike: a row over the code, the open one underlined */
-.ui-api-operation__examples [role="tablist"] { gap: 14px; padding: 0 14px; border-bottom: 1px solid var(--color-fd-border); }
-.ui-api-operation__examples [role="tab"] { padding: 9px 0; }
+/* The examples: editor windows (components/code-window), the request's and the responses', one under the other. The
+   request's own tabs (Fumadocs', a single cURL) give way to the window's */
+.ui-api-operation__examples .ui-cw { margin: 0; }
+.ui-api-operation__examples .ui-cw + .ui-cw { margin-top: 16px; }
+.ui-api-operation__examples .ui-cw__body > div { margin: 0; border: 0; border-radius: 0; background: none; }
+.ui-api-operation__examples .ui-cw__body [role="tablist"] { display: none; }
+.ui-api-operation__examples .ui-cw__body [role="tabpanel"] { padding: 0; border: 0; background: none; }
+.ui-api-empty { margin: 0; padding: 4px 16px; color: var(--fluid-muted); font-family: var(--font-mono); font-size: var(--ui-cw-size, 16.5px); line-height: var(--ui-cw-line, 26px); }
 /* A parameter's default and its values: small chips in a row, the values inline rather than a list */
 .ui-api-reference .not-prose > .bg-fd-secondary.border.rounded-lg { flex-direction: row; flex-wrap: wrap; align-items: baseline; width: auto; gap: 4px 6px; padding: 3px 8px; border: 0; border-radius: calc(6px * var(--squircle-factor, 1)); background: var(--chip, var(--color-fd-secondary)); box-shadow: none; font-size: .75rem; }
 .ui-api-reference .not-prose > .bg-fd-secondary.border.rounded-lg > p { font-size: .75rem; }

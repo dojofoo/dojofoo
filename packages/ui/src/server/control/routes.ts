@@ -8,7 +8,7 @@ import {
 } from "@dojofoo/config/local-state";
 import { courseMode, readCourseManifest, readDojoRc, type KataProgress } from "@dojofoo/config";
 import { Hono } from "hono";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import {
@@ -16,12 +16,17 @@ import {
   SessionAdoptionError,
   type SessionAdoptionResult,
 } from "./session-adoption";
+import { createDraft, isManagedDraft } from "./drafts";
+import { requestOrigin } from "../request-origin";
+import { resolveWorkspaceId } from "./workspace";
+import { installStarter, starterCourseIds } from "./starters";
 
 const DEFAULT_ACTIVE_WINDOW_MS = 5 * 60 * 1000;
 
 type ControlRouteOptions = LocalStateOptions & {
   activeWindowMs?: number;
   adoptSession?: (sessionId: string, options: LocalStateOptions) => Promise<SessionAdoptionResult>;
+  installStarter?: typeof installStarter;
 };
 
 export function buildControlRoutes(options: ControlRouteOptions = {}) {
@@ -34,6 +39,33 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
   const adopt = options.adoptSession ?? adoptLocalSession;
 
   return new Hono()
+    .get("/starters", c => c.json(listWorkspaces(stateOptions()).flatMap(workspace =>
+      starterCourseIds.flatMap(courseId => {
+        try {
+          readCourseManifest(workspace.path, courseId);
+          return [{ workspaceId: workspace.id, courseId }];
+        } catch { return []; }
+      }),
+    )))
+    .post("/starters/:courseId/install", async c => {
+      const origin = c.req.header("Origin");
+      if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
+      const courseId = c.req.param("courseId");
+      if (!starterCourseIds.some(id => id === courseId)) return c.json({ error: "Unknown starter course." }, 404);
+      const body = await c.req.json().catch(() => null);
+      if (!body || typeof body.workspaceId !== "string" || !body.workspaceId || Object.keys(body).some(key => key !== "workspaceId")) {
+        return c.json({ error: "Choose a workspace for this course." }, 422);
+      }
+      let root: string;
+      try { root = resolveWorkspaceId(body.workspaceId, stateOptions()); }
+      catch { return c.json({ error: "The selected dojo workspace is no longer available." }, 404); }
+      try {
+        await (options.installStarter ?? installStarter)(root, courseId);
+        return c.json({ workspaceId: body.workspaceId, courseId }, 201);
+      } catch (error) {
+        return c.json({ error: error instanceof Error ? error.message : "The course could not be installed." }, 500);
+      }
+    })
     .get("/overview", (c) => {
       const cutoff = now() - activeWindowMs;
       const { workspaces, runs, sessions, events } = readLocalSnapshot(stateOptions());
@@ -106,9 +138,26 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       return c.json(courses);
     })
     .get("/workspaces", (c) => c.json(listWorkspaces(stateOptions())))
+    .post("/authoring", async (c) => {
+      const origin = c.req.header("Origin");
+      if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
+      let body: unknown;
+      try { body = await c.req.json(); }
+      catch { return c.json({ error: "Invalid draft request." }, 400); }
+      if (!body || typeof body !== "object" || Array.isArray(body)
+        || Object.keys(body).some(key => key !== "name" && key !== "style")
+        || !("name" in body) || typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 120
+        || /[\u0000-\u001f\u007f]/u.test(body.name) || ("style" in body && body.style !== "katas")) {
+        return c.json({ error: "Choose a course name of 1–120 characters. Only kata drafts are supported." }, 422);
+      }
+      try { return c.json(createDraft(body.name.trim(), stateOptions()), 201); }
+      catch (error) { return c.json({ error: error instanceof Error ? error.message : "Could not create the draft." }, 500); }
+    })
     .get("/authoring", (c) => c.json(listWorkspaces(stateOptions()).flatMap((workspace) => {
       try {
-        const thread = JSON.parse(readFileSync(resolve(workspace.path, ".dojo", "kyoshi.json"), "utf8")) as { sessionId?: string };
+        const threadPath = resolve(workspace.path, ".dojo", "kyoshi.json");
+        if (!existsSync(threadPath) && !isManagedDraft(workspace.path, stateOptions())) return [];
+        const thread = existsSync(threadPath) ? JSON.parse(readFileSync(threadPath, "utf8")) as { sessionId?: string } : null;
         const manifest = readCourseManifestSource(workspace.path);
         return [{
           workspaceId: workspace.id,
@@ -116,7 +165,7 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
           name: String(manifest.name ?? basename(workspace.path)),
           description: String(manifest.description ?? "Course draft"),
           mode: String(manifest.mode ?? "katas"),
-          sessionId: thread.sessionId ?? null,
+          sessionId: thread?.sessionId ?? null,
           lastSeenAt: workspace.lastSeenAt,
         }];
       } catch {

@@ -7,7 +7,7 @@ import { ApprovalCard, type ApprovalDecision } from "./ui/ApprovalCard";
 import { InlineDiff } from "./ui/InlineDiff";
 import { ThinkingIndicator } from "./ui/thinking-indicator";
 import { activityLabels, type ActivityKind } from "@/lib/chat-activity-labels";
-import { StreamedChatMessage } from "@/routes/index";
+import { StreamedChatMessage } from "@/components/chat/streamed-message";
 
 function StreamedActivity() {
   const [stage, setStage] = useState(0);

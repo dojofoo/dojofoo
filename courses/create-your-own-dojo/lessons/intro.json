@@ -1,0 +1,54 @@
+{
+  "id": "create-your-own-dojo",
+  "title": "Create your own dojo",
+  "steps": [
+    {
+      "id": "audience-and-outcome",
+      "type": "present",
+      "title": "Start with one useful outcome",
+      "content": "lessons/audience-and-outcome.mdx"
+    },
+    {
+      "id": "choose-an-experience",
+      "type": "present",
+      "title": "Choose what the learner will practise",
+      "content": "lessons/choose-an-experience.mdx"
+    },
+    {
+      "id": "independent-draft",
+      "type": "present",
+      "title": "Give your draft its own home",
+      "content": "lessons/independent-draft.mdx"
+    },
+    {
+      "id": "first-lesson",
+      "type": "present",
+      "title": "Build one small lesson with Kyoshi",
+      "content": "lessons/first-lesson.mdx"
+    },
+    {
+      "id": "learner-trial",
+      "type": "present",
+      "title": "Try it as a learner",
+      "content": "lessons/learner-trial.mdx"
+    },
+    {
+      "id": "review-and-iterate",
+      "type": "present",
+      "title": "Review before you share",
+      "content": "lessons/review-and-iterate.mdx"
+    },
+    {
+      "id": "draft-isolation-check",
+      "type": "question",
+      "title": "Keep the tutorial separate",
+      "prompt": "Where should you create your own course: in a separate empty folder, or inside this installed tutorial? Answer \u201cseparate folder\u201d or \u201cinside the tutorial\u201d.",
+      "answers": [
+        "separate folder",
+        "a separate folder",
+        "separate empty folder"
+      ],
+      "explanation": "Use a separate folder with its own course identity. The installed tutorial remains a reference; your authoring draft is the course you create, edit, trial, and later choose to share."
+    }
+  ]
+}

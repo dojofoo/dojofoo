@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useLocation } from "@tanstack/react-router";
 import { LessonPage } from "./index";
 
 export const Route = createFileRoute("/session/$sessionId")({
@@ -6,6 +6,11 @@ export const Route = createFileRoute("/session/$sessionId")({
 });
 
 function SessionPage() {
-  const { sessionId } = Route.useParams();
-  return <LessonPage requestedSessionId={sessionId} />;
+  const { sessionId: routeSessionId } = Route.useParams();
+  const location = useLocation();
+  const context = (location.maskedLocation ?? location).state.lesson;
+  const sessionId = location.maskedLocation && context ? context.sessionId : routeSessionId;
+  const lesson = context?.sessionId === sessionId ? context : undefined;
+  return <LessonPage requestedSessionId={sessionId} requestedWorkspaceId={lesson?.workspaceId}
+    requestedCourseId={lesson?.courseId} requestedLessonId={lesson?.lessonId} />;
 }

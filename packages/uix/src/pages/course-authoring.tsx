@@ -4,19 +4,20 @@ import { CodeEditor, Editor, EditorStatus, EditorTabs, type EditorLanguage } fro
 import { BrandLogo } from "../components/brand-logo";
 import { useAuthoringFiles } from "../hooks/use-authoring-files";
 import { AgentChatWorkspace } from "../containers/agent-chat";
-import { ChatMessages, Composer as OriginalComposer, useChatThread } from "../containers/assistant-home";
+import { ChatMessages, useChatThread } from "../containers/assistant-home";
 import { Icon } from "../components/app-shell";
 import { Button } from "../components/button";
+import { MessageQueue } from "../components/message-queue";
 import { ToolCallCard, ToolCallGroup } from "../components/tool-call-card";
-import { EvalsPanel } from "../components/evals";
+import { EvalsPanel, EvalsReportPanel, type EvalsReportPanelProps } from "../components/evals";
 import { VideoStage, type VideoCue, type VideoCueEvent } from "../containers/video-stage";
-import { CodexIcon, PiIcon } from "../components/harness-icons";
+import { CourseComposer } from "./course-composer";
 import { BookOpen01Icon, File01Icon, Globe02Icon, PencilEdit02Icon, CheckListIcon, PlayIcon, PlusSignIcon } from "../lib/icons";
-import { LessonBrief, type LessonResource } from "../components/lesson-brief";
+import { LessonBrief, LessonChecklist, type LessonCheck, type LessonResource } from "../components/lesson-brief";
 
 type DraftFile = { path: string; label: string; content: string };
-type DraftLesson = { id: string; title: string; description: string; senseiPath: string; templatePath: string; hasSensei: boolean; sensei: string; evalPaths: string[]; checks: unknown[]; files: DraftFile[] };
-type AuthoringDraft = { root: string; style: string; name: string; description: string; language: string; manifestSource: string; courseGuidance: string; rootFiles: DraftFile[]; lessons: DraftLesson[]; issues: unknown[]; courseChecks: unknown[] };
+type DraftLesson = { id: string; title: string; description: string; senseiPath: string; templatePath: string; hasSensei: boolean; sensei: string; evalPaths: string[]; checks: LessonCheck[]; files: DraftFile[] };
+type AuthoringDraft = { root: string; style: string; name: string; description: string; language: string; manifestSource: string; courseGuidance: string; rootFiles: DraftFile[]; lessons: DraftLesson[]; issues: unknown[]; courseChecks: LessonCheck[] };
 
 const rootFiles = [
   { path: "dojo.yaml", label: "dojo.yaml", content: "name: Everyday TypeScript\nmode: katas\nlanguage: typescript\nkatas:\n  - name: 001-largest-number\n    template: src/001-largest-number/kata.ts\n" },
@@ -24,7 +25,10 @@ const rootFiles = [
 ];
 const lessons = ["001-largest-number", "002-filter-positive"].map((id, index) => ({
   id, title: index === 0 ? "Largest number" : "Positive numbers", description: "Explore one array operation at a time.",
-  senseiPath: `src/${id}/SENSEI.md`, templatePath: `src/${id}/kata.ts`, hasSensei: true, sensei: "", evalPaths: [], checks: [],
+  senseiPath: `src/${id}/SENSEI.md`, templatePath: `src/${id}/kata.ts`, hasSensei: true, sensei: "", evalPaths: [], checks: [
+    { id: "sensei", label: "Lesson briefing and Sensei guidance", ready: true },
+    { id: "scaffold", label: "Learner scaffold and checks", ready: true },
+  ],
   files: [
     { path: `src/${id}/SENSEI.md`, label: "SENSEI.md", content: index === 0
       ? "# Find the best day\n\n## Start\n\nYour fitness tracker has a week of step counts. Which day was your best?\n\nAsk the learner to predict what they would remember after each value.\n\n## Teach\n\nUse a different problem to explore a running value. Let the learner choose the edit.\n\n## Orientation\n\n### How the learner gets there\n\n1. **Predict:** read `4, 9, 2` aloud and say what you’d remember after each number.\n2. Turn that memory into a **running value** and update it in a [`for...of`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of) loop.\n3. Handle the edge cases the checks name: an empty list, all negative numbers, equal values.\n\n### Watch for\n\n- Starting the running value at `0` – it fails on `[-3, -7, -1]`.\n- Sorting the list to take the last item: correct, but it changes the input and hides the idea.\n"
@@ -37,7 +41,11 @@ const lessons = ["001-largest-number", "002-filter-positive"].map((id, index) =>
       : "import { expect, it } from 'vitest';\nimport { positive } from './kata';\n\nit('keeps an empty list empty', () => {\n  expect(positive([])).toEqual([]);\n});\n" },
   ],
 }));
-const everyday: AuthoringDraft = { root: "/preview", style: "katas", name: "Everyday TypeScript", description: "Practice with arrays.", language: "TypeScript", manifestSource: rootFiles[0].content, courseGuidance: rootFiles[1].content, rootFiles, lessons, issues: [], courseChecks: [] };
+const everyday: AuthoringDraft = { root: "/preview", style: "katas", name: "Everyday TypeScript", description: "Practice with arrays.", language: "TypeScript", manifestSource: rootFiles[0].content, courseGuidance: rootFiles[1].content, rootFiles, lessons, issues: [], courseChecks: [
+  { id: "manifest", label: "Course metadata", ready: true },
+  { id: "intent", label: "Course intent and teaching rules", ready: true },
+  { id: "curriculum", label: "At least one lesson", ready: true },
+] };
 /** A second course, one lesson so far – its files live under advanced/ */
 const advancedFiles = [
   { path: "advanced/dojo.yaml", label: "dojo.yaml", content: "name: Advanced TypeScript\nmode: katas\nlanguage: typescript\nkatas:\n  - name: 001-narrow-shapes\n    template: src/001-narrow-shapes/kata.ts\n" },
@@ -45,7 +53,7 @@ const advancedFiles = [
 ];
 const advanced: AuthoringDraft = { ...everyday, root: "/preview/advanced", name: "Advanced TypeScript", description: "Let the types carry the logic.", manifestSource: advancedFiles[0].content, courseGuidance: advancedFiles[1].content, rootFiles: advancedFiles, lessons: [{
   id: "001-narrow-shapes", title: "Narrowing shapes", description: "Narrow a union by its tag.",
-  senseiPath: "advanced/src/001-narrow-shapes/SENSEI.md", templatePath: "advanced/src/001-narrow-shapes/kata.ts", hasSensei: true, sensei: "", evalPaths: [], checks: [],
+  senseiPath: "advanced/src/001-narrow-shapes/SENSEI.md", templatePath: "advanced/src/001-narrow-shapes/kata.ts", hasSensei: true, sensei: "", evalPaths: [], checks: lessons[0].checks,
   files: [
     { path: "advanced/src/001-narrow-shapes/SENSEI.md", label: "SENSEI.md", content: "# Narrowing shapes\n\n## Start\n\nA drawing app stores circles, squares and rectangles. How big is each one?\n\nAsk the learner which properties they can read before they know the shape.\n\n## Orientation\n\n### How the learner gets there\n\n1. **Predict:** before you know the kind, can you read `shape.radius`? Why not?\n2. Switch on `shape.kind` and watch TypeScript [narrow the union](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions) in each `case`.\n3. End with a `default` that assigns the shape to `never`, so a new kind of shape stops the build: [exhaustiveness checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#exhaustiveness-checking).\n\n### Watch for\n\n- Testing `\"radius\" in shape` instead of the tag – it narrows too, but it hides the idea of a shared tag.\n- Casting with `as` to silence an error – that turns the checker off exactly where it should help.\n" },
     { path: "advanced/src/001-narrow-shapes/kata.ts", label: "kata.ts", content: "export type Shape =\n  | { kind: \"circle\"; radius: number }\n  | { kind: \"square\"; size: number }\n  | { kind: \"rect\"; width: number; height: number };\n\n/** The area of any shape – TypeScript should flag a shape you forgot. */\nexport function area(shape: Shape): number {\n  // Your first step goes here.\n  return 0;\n}\n" },
@@ -134,15 +142,9 @@ function LessonDetails({ course, lesson }: { course: AuthoringDraft; /** The ope
   return <LessonBrief title={lesson?.title ?? course.name} lead={brief?.lead ?? lesson?.description ?? course.description}
     resources={brief?.resources}>
     {brief?.body}
+    <LessonChecklist checks={lesson?.checks ?? course.courseChecks} />
   </LessonBrief>;
 }
-
-/** The models the harnesses offer, each with its harness's mark from the website */
-const harnessModels = [
-  { id: "pi/deepseek", name: "DeepSeek V4 Pro", description: "Pi · your local login", harness: PiIcon },
-  { id: "codex/sol", name: "GPT-6.1-Sol", description: "Codex · your local login", harness: CodexIcon },
-];
-const composerModels = harnessModels.map(({ name, description, harness }) => ({ name, description, icon: harness }));
 
 /** The course's intro video: Blender's open movie Big Buck Bunny as a plain file served without CORS (a 10-second 720p
     clip from test-videos.co.uk) – the light still glows, since the SVG filter never reads the frames */
@@ -157,7 +159,7 @@ const videoCues = (src: string): VideoCue[] => src === sampleYoutube
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 /** How a cue reads where the agent hears about it */
 const cueSummary = ({ cue, time }: VideoCueEvent) => cue.kind === "skip" ? `Skipped ${cue.label} · ${clock(cue.from)}–${clock(cue.to)}` : `${cue.kind === "done" ? cue.label ?? "Watched" : cue.label} · ${clock(time)}`;
-export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Everyday TypeScript", question = false, settings = false, evals = false, video = sampleVideo, documentationUrl }: { mode?: "Authoring" | "Evaluation" | "Trial"; initialCourse?: string; question?: boolean; settings?: boolean; evals?: boolean; video?: string; documentationUrl?: string }) {
+export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Everyday TypeScript", question = false, settings = false, evals = false, evaluationReport, video = sampleVideo, documentationUrl }: { mode?: "Authoring" | "Evaluation" | "Trial"; initialCourse?: string; question?: boolean; settings?: boolean; evals?: boolean; evaluationReport?: EvalsReportPanelProps; video?: string; documentationUrl?: string }) {
   const [courses, setCourses] = useState(() => {
     const selected = initialCourses.find(course => course.name === initialCourse) ?? initialCourses[0];
     return [selected, ...initialCourses.filter(course => course !== selected)];
@@ -211,8 +213,8 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
   const chapter = lesson?.title;
   const language: EditorLanguage = file.endsWith(".md") ? "markdown" : file.endsWith(".yaml") ? "yaml" : "typescript";
   return <div className="h-dvh w-full overflow-hidden">
-    <AgentChatWorkspace contentKind={page ? course === courses[0] ? "video" : "material" : "code"} key={`${settings}:${evals}`} defaultSettingsOpen={settings} defaultEvalsOpen={evals} evals={view === "Trial" ? undefined : <EvalsPanel />} workspace={course.name} user={{ name: "You" }} active={[view, `course:${course.name}`, ...(page ? [] : [`file:${file}`])]} showOnboarding showNews={false} sidebarWidth="18rem"
-      brand={<a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={event => event.preventDefault()}><BrandLogo className="w-11" /></a>}
+    <AgentChatWorkspace contentKind={page ? course === courses[0] ? "video" : "material" : "code"} key={`${settings}:${evals}`} defaultSettingsOpen={settings} defaultEvalsOpen={evals} evals={view === "Trial" ? undefined : evaluationReport ? <EvalsReportPanel {...evaluationReport} /> : <EvalsPanel />} workspace={course.name} user={{ name: "You" }} active={[view, `course:${course.name}`, ...(page ? [] : [`file:${file}`])]} showOnboarding showNews={false} sidebarWidth="18rem"
+      brand={<a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={event => event.preventDefault()}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
       navigation={[
         { id: "views", layout: "views", items: [
           { id: "Authoring", label: "Authoring", icon: PencilEdit02Icon },
@@ -263,8 +265,8 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
         <span className="ui-as-chat__speaker-note">{view === "Trial" ? "Teaches this lesson" : "Master of Senseis and course shaper"}</span>
       </span>}
       composer={<>
-        {queue.length > 0 && <div className="mb-2 text-sm" aria-label="Queued messages">{waiting ? "Waiting for your choice" : "Queued"}{queue.map(item => <div key={item.id} className="flex items-center justify-between gap-2"><span>{item.text}</span><Button variant="ghost" size="sm" onClick={() => setQueue(items => items.filter(entry => entry.id !== item.id))}>Remove</Button></div>)}</div>}
-        <OriginalComposer tray={false} models={composerModels} placeholder={waiting ? "Add a note while the question waits…" : "Shape this lesson with Kyoshi…"} onSend={text => setQueue(items => [...items, { id: crypto.randomUUID(), text }])} />
+        <MessageQueue queued={queue} running={waiting ? "Waiting for your choice" : "Queued"} onCancel={id => setQueue(items => items.filter(entry => entry.id !== id))} />
+        <CourseComposer authoring tray={false} placeholder={waiting ? "Add a note while the question waits…" : "Shape this lesson with Kyoshi…"} onSend={text => setQueue(items => [...items, { id: crypto.randomUUID(), text }])} />
       </>}>
       <p className="text-sm leading-relaxed">{view === "Trial" ? "Your tracker holds a week of step counts. Before editing, what would you remember after reading 4, then 9, then 2?" : "Let's build a lesson that makes the first step inviting and gives the learner room to work things out. Open a file on the left, or tell me what you'd change."}</p>
       <ToolCalls view={view} />
