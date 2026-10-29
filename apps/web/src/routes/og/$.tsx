@@ -52,7 +52,8 @@ export const Route = createFileRoute('/og/$')({
         const { source } = await import('@/lib/source')
         const page = source.getPages().find((item) => item.url === path)
         if (!page) return missing()
-        return ogImage(<DojoOg {...frame} title={page.data.title} description={page.data.description} />)
+        // A docs page names where it belongs at the foot, as the site's footer does
+        return ogImage(<DojoOg {...frame} title={page.data.title} description={page.data.description} foot="Help & Support" />)
       },
     },
   },

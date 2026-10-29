@@ -9,11 +9,13 @@ import type { ReactNode } from "react";
 
 export const OG = { width: 1200, height: 630 } as const;
 
-export function DojoOg({ title, description, author, logo, ground, groundColor, card }: {
+export function DojoOg({ title, description, author, foot, logo, ground, groundColor, card }: {
   title: string;
   description?: string;
-  /** Who made it (a course's author), at the bottom left */
+  /** Who made it (a course's author), at the bottom left, "by" over it */
   author?: string;
+  /** Or a line of its own there, e.g. the docs' "Help & Support" */
+  foot?: string;
   /** The wordmark, as a data URL */
   logo: string;
   /** The contour map with its shade worked out and dithered (scripts/og-ground.mjs) – the glass fade behind the words, and
@@ -30,16 +32,17 @@ export function DojoOg({ title, description, author, logo, ground, groundColor, 
 
       {/* One column on the card's frame (105px above and below, the course card's own edges): the logo at the top, the
           title and its description as one group in the middle, the byline as another at the foot – each group's lines
-          close, the groups apart (better-typography: display text at 1.1 and -0.02em, body at 1.5, short text balanced) */}
-      <div style={{ position: "absolute", top: 105, bottom: 105, left: 96, width: narrow ? 532 : 928, display: "flex", flexDirection: "column", fontFamily: "Inter" }}>
+          close, the groups apart (better-typography: display text at 1.1 and -0.02em, body at 1.5, short text balanced).
+          One scale on every card; without a card the column still keeps a reading measure, the map showing beside it */}
+      <div style={{ position: "absolute", top: 105, bottom: 105, left: 96, width: narrow ? 532 : 640, display: "flex", flexDirection: "column", fontFamily: "Inter" }}>
         <img alt="" src={logo} height={56} width={198} style={{ objectFit: "contain", objectPosition: "left" }} />
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center", paddingBlock: 32 }}>
-          <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontWeight: 650, fontSize: narrow ? 56 : title.length > 24 ? 64 : 72, lineHeight: 1.1, letterSpacing: "-0.02em", textWrap: "balance" }}>{title}</div>
-          {description && <div style={{ display: "flex", marginTop: narrow ? 16 : 20, color: "oklch(0.7155 0 0)", fontWeight: 400, fontSize: narrow ? 26 : 30, lineHeight: 1.5, textWrap: "balance", lineClamp: 3 }}>{description}</div>}
+          <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontWeight: 650, fontSize: 56, lineHeight: 1.1, letterSpacing: "-0.02em", textWrap: "balance" }}>{title}</div>
+          {description && <div style={{ display: "flex", marginTop: 16, color: "oklch(0.7155 0 0)", fontWeight: 400, fontSize: 26, lineHeight: 1.5, textWrap: "balance", lineClamp: 3 }}>{description}</div>}
         </div>
-        {author && <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <div style={{ display: "flex", color: "oklch(0.7155 0 0)", fontSize: 22, fontWeight: 400, lineHeight: 1.3 }}>by</div>
-          <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontSize: 26, fontWeight: 550, lineHeight: 1.3, letterSpacing: "-0.01em" }}>{author}</div>
+        {(author || foot) && <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {author && <div style={{ display: "flex", color: "oklch(0.7155 0 0)", fontSize: 22, fontWeight: 400, lineHeight: 1.3 }}>by</div>}
+          <div style={{ display: "flex", color: "oklch(0.9702 0 0)", fontSize: 26, fontWeight: 550, lineHeight: 1.3, letterSpacing: "-0.01em" }}>{author ?? foot}</div>
         </div>}
       </div>
 
