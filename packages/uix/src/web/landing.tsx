@@ -175,6 +175,9 @@ const css = /* css */ `
   .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; }
   .ui-land-note--card { left: 40px; }
   .ui-land-note--sensei { right: 40px; top: -14px; text-align: right; }
+  /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
+  .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 3px 10px; color: #fff; }
+  .ui-land-note > span:first-child::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg); border-radius: 2px; }
 }
 /* Match the main-to-composer gap: its 12px inset plus the 1px pane divider. */
 .ui-land-app .ui-as-app { --frame-gap: 13px; }
