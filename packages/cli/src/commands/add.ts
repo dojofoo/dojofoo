@@ -32,6 +32,7 @@ import {
   type InstalledSource,
 } from "../source";
 import { acquireRemoteDojo, type RemoteDojoSource } from "../source-acquisition";
+import { checkCourseAudits } from "../course-audit";
 
 export async function add(root: string, args: string[]): Promise<void> {
   ensureProject(root);
@@ -41,6 +42,7 @@ export async function add(root: string, args: string[]): Promise<void> {
   const source = positionalArgs(args)[0];
   const force = args.includes("--force");
   const authoring = args.includes("--master");
+  const yes = args.includes("--yes");
   if (!source) {
     throw new Error(`Usage: ${CLI} add <source>
 
@@ -52,6 +54,7 @@ Source can be:
 
 Flags:
   --force                  Overwrite existing dojo
+  --yes                    Install despite security warnings (a failed check still stops it)
   --master                 Include editable source and Kyoshi definitions; respect the course license when forking
   --agent <name[,name]>    Install support for codex, opencode, claude, gemini, or pi`);
   }
@@ -60,9 +63,9 @@ Flags:
   switch (sourceType) {
     case "local":    addLocal(root, source, force, authoring); break;
     case "npm":      throw deprecatedNpmSource(source);
-    case "github":   await addRemote(root, source, "github", force, authoring); break;
-    case "url":      await addRemote(root, source, "url", force, authoring); break;
-    case "registry": await addFromRegistry(root, source, force, authoring); break;
+    case "github":   await addRemote(root, source, "github", force, authoring, yes); break;
+    case "url":      await addRemote(root, source, "url", force, authoring, yes); break;
+    case "registry": await addFromRegistry(root, source, force, authoring, yes); break;
   }
 }
 
@@ -233,7 +236,7 @@ function installExtracted(
   finalize(root, name, targetPath, installedSource);
 }
 
-async function addRemote(root: string, source: string, type: RemoteDojoSource, force: boolean, authoring: boolean): Promise<void> {
+async function addRemote(root: string, source: string, type: RemoteDojoSource, force: boolean, authoring: boolean, yes: boolean): Promise<void> {
   const locator = type === "github" ? parseGithubSource(source)?.repository : source;
   if (!locator) throw new Error(`Invalid GitHub repository: ${source}`);
   const tmpDir = mkdtempSync(resolve(tmpdir(), "dojofoo-giget-"));
@@ -244,6 +247,8 @@ async function addRemote(root: string, source: string, type: RemoteDojoSource, f
     const downloaded = await acquireRemoteDojo(locator, type, staged);
     const extracted = findDownloadedDojo(downloaded);
     if (!extracted) throw new Error(`${source} is not a dojo — missing dojo.yaml, dojo.yml, or dojo.json`);
+    // Downloaded without credentials, so public: what the course API's checks found
+    if (type === "github") await checkCourseAudits(locator, { yes });
     const published = resolve(tmpDir, "published");
     const include = courseFileFilter(extracted, authoring);
     cpSync(extracted, published, {
@@ -283,7 +288,7 @@ function validateRegistryItem(data: unknown): RegistryItem {
   throw new Error(`Invalid registry item: source must be github or tarball`);
 }
 
-async function addFromRegistry(root: string, name: string, force: boolean, authoring: boolean): Promise<void> {
+async function addFromRegistry(root: string, name: string, force: boolean, authoring: boolean, yes: boolean): Promise<void> {
   const config = loadConfig(root, { command: "add" });
 
   for (const [registryName, urlTemplate] of Object.entries(config.registries)) {
@@ -293,9 +298,9 @@ async function addFromRegistry(root: string, name: string, force: boolean, autho
       if (!res.ok) continue;
       const item = validateRegistryItem(await res.json());
       if (item.source.type === "github") {
-        return addRemote(root, item.source.repository, "github", force, authoring);
+        return addRemote(root, item.source.repository, "github", force, authoring, yes);
       }
-      return addRemote(root, item.source.url, "url", force, authoring);
+      return addRemote(root, item.source.url, "url", force, authoring, yes);
     } catch (err) {
       if (err instanceof Error && err.message.startsWith("Invalid registry")) throw err;
       console.log(`Registry "${registryName}" unreachable: ${url}`);

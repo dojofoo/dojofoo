@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { createClient } from "@libsql/client/sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  LibsqlCourseAuditStore,
   LibsqlCourseStore,
   LibsqlCourseEventStore,
   libsqlConnectionFromEnv,
@@ -88,10 +89,10 @@ describe("LibsqlCourseStore", () => {
       files: [{ path: "dojo.json", contents: "{}" }],
     };
 
-    await first.upsert(externalCourse);
+    expect(await first.upsert(externalCourse)).toBe("trial");
     const reopened = await LibsqlCourseStore.fromClient(createClient(config));
 
-    expect(await reopened.list()).toEqual([externalCourse]);
+    expect(await reopened.list()).toEqual([{ ...externalCourse, status: "trial" }]);
     await reopened.remove(externalCourse.id);
     expect(await reopened.list()).toEqual([]);
   });
@@ -131,5 +132,65 @@ describe("LibsqlCourseStore", () => {
         tags: [],
       }),
     ]);
+  });
+
+  it("keeps an enabled course enabled when its snapshot is refreshed", async () => {
+    const directory = mkdtempSync(resolve(tmpdir(), "dojofoo-course-status-"));
+    temporaryDirectories.push(directory);
+    const client = createClient({ url: `file:${resolve(directory, "courses.db")}` });
+    const store = await LibsqlCourseStore.fromClient(client);
+    const course = { id: "acme/basics", version: "0.0.1", files: null } as never;
+
+    await store.upsert(course);
+    await client.execute("UPDATE external_courses SET status = 'enabled' WHERE id = 'acme/basics'");
+
+    expect(await store.upsert({ ...(course as object), version: "0.0.2" } as never)).toBe("enabled");
+    expect(await store.list()).toEqual([expect.objectContaining({ version: "0.0.2", status: "enabled" })]);
+  });
+
+  it("keeps courses listed before trials existed enabled", async () => {
+    const directory = mkdtempSync(resolve(tmpdir(), "dojofoo-course-migration-"));
+    temporaryDirectories.push(directory);
+    const client = createClient({ url: `file:${resolve(directory, "courses.db")}` });
+    await client.execute("CREATE TABLE external_courses (id TEXT PRIMARY KEY, snapshot TEXT NOT NULL)");
+    await client.execute({ sql: "INSERT INTO external_courses VALUES (?, ?)", args: ["acme/listed", JSON.stringify({ id: "acme/listed" })] });
+
+    const store = await LibsqlCourseStore.fromClient(client);
+    await store.upsert({ id: "acme/new" } as never);
+
+    expect(await store.list()).toEqual([
+      expect.objectContaining({ id: "acme/listed", status: "enabled" }),
+      expect.objectContaining({ id: "acme/new", status: "trial" }),
+    ]);
+  });
+});
+
+describe("LibsqlCourseAuditStore", () => {
+  it("keeps the latest audit per provider", async () => {
+    const directory = mkdtempSync(resolve(tmpdir(), "dojofoo-audits-"));
+    temporaryDirectories.push(directory);
+    const config = { url: `file:${resolve(directory, "audits.db")}` };
+    const store = await LibsqlCourseAuditStore.fromClient(createClient(config));
+    const audit = {
+      courseId: "acme/basics",
+      provider: "dojo" as const,
+      hash: "tree-1",
+      status: "fail" as const,
+      riskLevel: "HIGH" as const,
+      summary: "1 finding: runs a postinstall script on install",
+      findings: [{ rule: "install_script", riskLevel: "HIGH" as const, message: "runs a postinstall script on install", path: "package.json" }],
+      auditedAt: "2026-10-26T10:00:00.000Z",
+    };
+
+    await store.save(audit);
+    await store.save({ ...audit, hash: "tree-2", status: "pass", riskLevel: "NONE", summary: "No risks detected", findings: [] });
+    await store.save({ ...audit, provider: "cisco" });
+    const reopened = await LibsqlCourseAuditStore.fromClient(createClient(config));
+
+    expect(await reopened.list("acme/basics")).toEqual([
+      { ...audit, provider: "cisco" },
+      { ...audit, hash: "tree-2", status: "pass", riskLevel: "NONE", summary: "No risks detected", findings: [] },
+    ]);
+    expect(await reopened.list("acme/other")).toEqual([]);
   });
 });

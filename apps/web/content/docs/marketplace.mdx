@@ -19,7 +19,7 @@ reports its repository; the marketplace then fetches the course's manifest from 
 validates it. Authors can opt out – see [Publish a course](/authoring/publish).
 
 A new course starts in trial: anyone can install it by its repository, but it isn't listed yet.
-It's listed once enough learners use it and its security checks pass.
+It's listed once it's reviewed and its security checks pass.
 
 ## Security checks
 
@@ -28,9 +28,10 @@ Each new version of a course is checked for what installing and running it could
 - Dojo's own checks, as soon as the course is reported: scripts that run on install, scripts
   piped from the internet, encoded code, hidden characters, credentials it reads or contains, and
   instructions that tell your agent to ignore its rules or keep things from you.
-- [Snyk Agent Scan](https://github.com/snyk/agent-scan), shortly after – the scanner behind
-  [skills.sh](https://skills.sh)'s audits – for prompt injection, malicious code and unsafe
-  dependencies in the course's instructions and code.
+- [Cisco's skill-scanner](https://github.com/cisco-ai-defense/skill-scanner), shortly after, over the
+  whole repository: prompt injection and dangerous code in the course's instructions and code,
+  and its pinned npm and PyPI dependencies against the [OSV](https://osv.dev) vulnerability
+  database.
 
 `add` reads the results before it installs a course. A failed check stops the install; a warning
 lists what was found and asks first (`--yes` answers for you). A course that hasn't been checked
