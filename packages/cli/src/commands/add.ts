@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, cpSync, renameSync, unlinkSync, symlinkSync, readdirSync, readFileSync, writeFileSync, rmSync, lstatSync, mkdtempSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
-import { resolve, relative } from "node:path";
+import { basename, dirname, resolve, relative } from "node:path";
 import { parseDocument } from "yaml";
 import { tmpdir } from "node:os";
 import {
@@ -397,7 +397,8 @@ function finalize(root: string, name: string, targetPath: string, source?: Insta
     if ("katas" in catalog) {
       const starters = createStateDirectory(root, name, "starters");
       for (const lesson of catalog.katas) {
-        const id = lesson.name;
+        // The name lesson state uses everywhere else (resolveKata): its own, or its folder's
+        const id = lesson.name ?? basename(dirname(lesson.template));
         if (!id || !/^[a-zA-Z0-9_-][a-zA-Z0-9._-]*$/u.test(id)) throw new Error("Each installed lesson needs a stable ID");
         const template = resolve(targetPath, lesson.template);
         const initial = resolve(starters, id);
