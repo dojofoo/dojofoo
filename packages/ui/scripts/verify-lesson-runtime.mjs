@@ -456,6 +456,12 @@ try {
       await writeFile(artifact("results-failure.html"), await page.content());
       await writeFile(artifact("results-failure-frames.json"), JSON.stringify(frames, null, 2));
       await writeFile(artifact("results-failure-browser.log"), browserLog.join("\n"));
+      await writeFile(artifact("results-failure-editor.json"), JSON.stringify(await page.evaluate(async () => {
+        const { editor, languages } = await import("modern-monaco/editor-core");
+        return { mode: document.documentElement.className, languages: languages.getLanguages().map(language => language.id),
+          models: editor.getModels().map(model => ({ uri: model.uri.toString(), language: model.getLanguageId(),
+            tokens: editor.tokenize(model.getLineContent(Math.min(6, model.getLineCount())), model.getLanguageId()) })) };
+      }).catch(error => String(error)), null, 2));
     }
     throw error;
   } finally { await browser.close(); }
