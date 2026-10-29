@@ -17,7 +17,7 @@ test("browses, filters, sorts, and opens courses from the catalog", async ({ pag
   }
 
   await page.goto("/dojos", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "Find a dojo to practice in", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Find your dojo", level: 1 })).toBeVisible();
   const cards = page.locator(".ui-crs-grid > a");
   await expect(cards).toHaveCount(3);
   await expect(cards.first()).toHaveAttribute("href", "/courses/dojofoo/effect-ts");
