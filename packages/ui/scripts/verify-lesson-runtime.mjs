@@ -136,6 +136,7 @@ try {
   const browser = await chromium.launch({ headless: true });
   let page;
   const frames = [];
+  const browserLog = [];
   const settleTool = async card => {
     await expect.poll(() => card.evaluate(element => [element, element.querySelector(".ui-tc__body"), element.closest(".ui-as-msg"), element.closest(".ui-think")?.querySelector(".ui-think__body")]
       .some(node => node?.getAnimations().some(animation => animation.playState === "running"))), { timeout: 5_000 }).toBe(false);
@@ -148,6 +149,9 @@ try {
       if (request.method() === "POST" && request.url().endsWith("/messages") && request.postDataJSON()?.forwardedProps?.kind === "introduction") introductions.push(request.url());
     });
     page.on("pageerror", error => errors.push(error.message));
+    page.on("console", message => browserLog.push(`${message.type()}: ${message.text()}`));
+    page.on("requestfailed", request => browserLog.push(`request failed: ${request.url()} ${request.failure()?.errorText ?? ""}`));
+    page.on("response", response => { if (response.status() >= 400) browserLog.push(`HTTP ${response.status()}: ${response.url()}`); });
     page.on("websocket", socket => socket.on("framereceived", frame => { try { frames.push(JSON.parse(String(frame.payload))); } catch {} }));
     await page.goto(`${origin}/session/${after.sessionId}`);
     await expect(page.locator(".monaco-editor textarea")).toBeVisible();
@@ -451,6 +455,7 @@ try {
       await page.screenshot({ path: artifact("results-failure.png") });
       await writeFile(artifact("results-failure.html"), await page.content());
       await writeFile(artifact("results-failure-frames.json"), JSON.stringify(frames, null, 2));
+      await writeFile(artifact("results-failure-browser.log"), browserLog.join("\n"));
     }
     throw error;
   } finally { await browser.close(); }
