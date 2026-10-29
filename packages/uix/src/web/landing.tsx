@@ -64,7 +64,7 @@ export function LandingPage({ learning, courses, preview }: {
             heading?.closest("section")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
             heading?.focus({ preventScroll: true });
           })}>Start</ButtonLink>
-          <ButtonLink variant="secondary" href={links.sectionHref("courses")} onClick={event => followLink(event, () => links.navigate("courses"))}>Browse courses</ButtonLink>
+          <ButtonLink variant="secondary" href={links.sectionHref("courses")} onClick={event => followLink(event, () => links.navigate("courses"))}>Browse dojos</ButtonLink>
         </div>
       </section>
 
