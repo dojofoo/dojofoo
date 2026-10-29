@@ -51,10 +51,11 @@ export function LandingPage({ learning, courses, preview }: {
           <h1 className="ui-land-hero__title">You can only fight the way you practice</h1>
           <figcaption className="ui-land-hero__cite">Miyamoto Musashi</figcaption>
         </figure>
-        {/* The callouts over the window show the sensei and the courses; the lead names what the dojo is for. It breaks
-            between its phrases, never inside one */}
+        {/* The callouts over the window show the sensei and the courses; the lead names what the dojo is for, one sentence
+            per line, breaking between phrases, never inside one */}
         <p className="ui-land-hero__lead">
-          <span><span>Deliberate practice for what comes next:</span> <span>take any course,</span> <span>rehearse for your next interview,</span> <span>or turn what you know into a dojo anyone can install.</span></span>
+          <span><span>Take any course,</span> <span>rehearse for your next interview,</span> <span>or build a dojo of your own.</span></span>{" "}
+          <span>Any dojo you can install, you can master.</span>
         </p>
         <div className="ui-land-hero__actions">
           {/* Getting started is the one command: down to it */}
