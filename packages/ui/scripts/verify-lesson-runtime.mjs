@@ -148,7 +148,7 @@ try {
     page.on("request", request => {
       if (request.method() === "POST" && request.url().endsWith("/messages") && request.postDataJSON()?.forwardedProps?.kind === "introduction") introductions.push(request.url());
     });
-    page.on("pageerror", error => errors.push(error.message));
+    page.on("pageerror", error => { errors.push(error.message); browserLog.push(`page error: ${error.stack ?? error.message}`); });
     page.on("console", message => browserLog.push(`${message.type()}: ${message.text()}`));
     page.on("requestfailed", request => browserLog.push(`request failed: ${request.url()} ${request.failure()?.errorText ?? ""}`));
     page.on("response", response => { if (response.status() >= 400) browserLog.push(`HTTP ${response.status()}: ${response.url()}`); });
@@ -463,7 +463,10 @@ try {
             tokens: editor.tokenize(model.getLineContent(Math.min(6, model.getLineCount())), model.getLanguageId()),
             lineTokens: (() => { const line = model.tokenization.getLineTokens(Math.min(6, model.getLineCount()));
               return Array.from({ length: line.getCount() }, (_, index) => line.getClassName(index)); })(),
-            backgroundTokenizationState: model.tokenization.backgroundTokenizationState })),
+            backgroundTokenizationState: model.tokenization.backgroundTokenizationState,
+            accurate: model.tokenization.hasAccurateTokensForLine(Math.min(6, model.getLineCount())),
+            forced: (() => { model.tokenization.forceTokenization(model.getLineCount()); const line = model.tokenization.getLineTokens(Math.min(6, model.getLineCount()));
+              return Array.from({ length: line.getCount() }, (_, index) => line.getClassName(index)); })() })),
           editors: editor.getEditors().map(instance => ({ model: instance.getModel()?.uri.toString(), theme: instance.getRawOptions().theme,
             rendered: (instance.render(true), [...instance.getDomNode().querySelectorAll(".view-line span[class^=mtk]")].map(node => node.className)) })) };
       }).catch(error => String(error)), null, 2));
