@@ -3,7 +3,7 @@ import { CoursesPage } from "@dojofoo/uix/web/courses";
 import { loadMarketplaceCourses } from "@/lib/courses.functions";
 import { toUIXCourse } from "@/lib/uix-course";
 import { SITE_URL } from "@/lib/site";
-import { canonicalLink, socialMetadata } from "@/lib/social-metadata";
+import { canonicalLink, pageImage, socialMetadata } from "@/lib/social-metadata";
 import { collection, jsonLd } from "@/lib/structured-data";
 
 const title = "Find your dojo – Free coding courses with an AI sensei";
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/dojos")({
   loader: () => loadMarketplaceCourses(),
   staleTime: 60_000,
   head: ({ loaderData: courses }) => ({
-    meta: [{ title }, ...socialMetadata({ title, description, url: `${SITE_URL}/dojos` })],
+    meta: [{ title }, ...socialMetadata({ title, description, url: `${SITE_URL}/dojos`, image: pageImage("/dojos") })],
     links: [canonicalLink("/dojos")],
     scripts: [jsonLd(collection({ name: "Find your dojo", description, path: "/dojos", items: (courses ?? []).map(course => ({ name: course.name, path: `/courses/${course.source}/${course.slug}` })) }))],
   }),

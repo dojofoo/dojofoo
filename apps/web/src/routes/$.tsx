@@ -5,7 +5,7 @@ import { createDocsContent } from '@dojofoo/uix/docs/content'
 import browserCollections from 'collections/browser'
 import { Suspense, useMemo } from 'react'
 import { SITE_URL } from '@/lib/site'
-import { canonicalLink, DEFAULT_SOCIAL_DESCRIPTION, socialMetadata } from '@/lib/social-metadata'
+import { canonicalLink, DEFAULT_SOCIAL_DESCRIPTION, pageImage, socialMetadata } from '@/lib/social-metadata'
 import { breadcrumbs, jsonLd, techArticle } from '@/lib/structured-data'
 import { useMDXComponents } from '@/components/mdx'
 import { APIPage as OpenAPIPage, type APIPageProps } from '@dojofoo/uix/components/api-reference'
@@ -26,7 +26,7 @@ export const Route = createFileRoute('/$')({
       meta: [
         // A command's page is named by the command, as it's typed: "dojofoo install"
         { title: loaderData.pageUrl.startsWith('/docs/commands/') ? `dojofoo ${title}` : title },
-        ...socialMetadata({ title, description, url: ogUrl, type: 'article' }),
+        ...socialMetadata({ title, description, url: ogUrl, type: 'article', image: pageImage(loaderData.pageUrl) }),
       ],
       links: [canonicalLink(loaderData.pageUrl)],
       scripts: [jsonLd(

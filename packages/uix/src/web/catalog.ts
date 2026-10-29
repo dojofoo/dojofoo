@@ -3,7 +3,7 @@ import type { CourseArtwork, CourseInfo } from "../components/course-card";
 
 /** Course presentation contracts and helpers. Applications supply catalog data. */
 
-export type TeachingMode = "katas" | "interactive" | "explorative" | "mentor";
+export type TeachingMode = "katas" | "interactive" | "explorative" | "mentor" | "interview";
 
 /** A security audit of a course's files, as the Courses API's audit route serves it (the skills.sh shape) */
 export type CourseAudit = { provider: string; slug: string; status: "pass" | "warn" | "fail"; summary: string; auditedAt: string; riskLevel?: string };
@@ -57,6 +57,7 @@ export const teachingModes: Array<{ value: TeachingMode; label: string; descript
   { value: "interactive", label: "Interactive", description: "Guided steps in your own project" },
   { value: "explorative", label: "Explorative", description: "Open questions, your own answers" },
   { value: "mentor", label: "Mentor", description: "Reviews and conversation" },
+  { value: "interview", label: "Interview", description: "A take-home from the team you're meeting" },
 ];
 
 const shortDate = (iso: string) => new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });

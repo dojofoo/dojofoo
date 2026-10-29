@@ -2,15 +2,15 @@ import { expect, test } from "@playwright/test";
 
 const imageUrl = "https://dojo.foo/og.webp";
 
-async function expectSocialImage(page: import("@playwright/test").Page) {
-  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", imageUrl);
+async function expectSocialImage(page: import("@playwright/test").Page, url = imageUrl, alt: string | RegExp = /Dojo\.foo/) {
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", url);
   await expect(page.locator('meta[property="og:image:type"]')).toHaveAttribute("content", "image/webp");
   await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
   await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute("content", "630");
-  await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute("content", /Dojo\.foo/);
+  await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute("content", alt);
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
-  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute("content", imageUrl);
-  await expect(page.locator('meta[name="twitter:image:alt"]')).toHaveAttribute("content", /Dojo\.foo/);
+  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute("content", url);
+  await expect(page.locator('meta[name="twitter:image:alt"]')).toHaveAttribute("content", alt);
 }
 
 test("uses the Dojo.foo social card on the main website", async ({ page }) => {
@@ -28,7 +28,8 @@ test("uses the Dojo.foo social card on the main website", async ({ page }) => {
 
 test("uses the Dojo.foo social card with page metadata in the docs", async ({ page }) => {
   await page.goto("/docs");
-  await expectSocialImage(page);
+  // Its own card, at its path
+  await expectSocialImage(page, "https://dojo.foo/og/docs/og.webp", "Usage");
   await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "article");
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Usage");
   await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute("content", "Usage");
@@ -73,6 +74,17 @@ test("serves the social card as WebP", async ({ request }) => {
   const bytes = await response.body();
   expect(bytes.subarray(0, 4).toString()).toBe("RIFF");
   expect(bytes.subarray(8, 12).toString()).toBe("WEBP");
+});
+
+test("draws each page's own card at /og/<path>/og.webp", async ({ request }) => {
+  for (const path of ["/og/docs/quickstart/og.webp", "/og/dojos/og.webp", "/og/courses/dojofoo/effect-ts/og.webp"]) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBe(200);
+    expect(response.headers()["content-type"]).toContain("image/webp");
+  }
+  for (const path of ["/og/docs/quickstart/image.webp", "/og/no-such-page/og.webp", "/og/courses/nobody/nothing/og.webp"]) {
+    expect((await request.get(path)).status(), path).toBe(404);
+  }
 });
 
 test("keeps the old OG URL pointing at the dynamic renderer", async ({ request }) => {

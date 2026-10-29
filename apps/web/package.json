@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@dojofoo/ui": "workspace:*",
+    "@dojofoo/uix": "workspace:*",
+    "@fontsource-variable/inter": "5.3.0",
     "@fontsource/hind": "5.3.0",
     "@fontsource/iosevka": "5.3.0",
     "@fontsource/khand": "5.3.0",
@@ -49,8 +51,7 @@
     "takumi-js": "^2.7.1",
     "tslib": "^2.8.1",
     "vgpu": "0.3.1",
-    "zod": "^4.4.3",
-    "@dojofoo/uix": "workspace:*"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

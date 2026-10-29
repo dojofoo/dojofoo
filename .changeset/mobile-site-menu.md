@@ -11,6 +11,7 @@ On phones the website works like a phone site:
 - The modes carousel takes Fluid's CarouselDots: 6px dots, a 24px pill filling from the left, 18px round hit areas and a gliding hover highlight. It sits closer to its windows.
 - The dojos page keeps each filter's name in place while its choices scroll, and sorts from an icon-only button.
 - The footer's quote is right-aligned.
+- Interview joins the teaching styles the dojos can be filtered by.
 
 Dojo.foo's pages now carry their own SEO, with a sitemap and robots.txt:
 - Their own titles, with the site's name only on the home page.

@@ -6,18 +6,38 @@
 // entirely by embedding assets at build time as `data:` URIs. Deployed
 // functions do not contain the source project's public directory.
 
-import background from '../../public/og-bg.png?inline'
 import ground from '../../public/og-ground.png?inline'
+import topography from '../../public/og-cards/topography.jpg?inline'
+import network from '../../public/og-cards/network.jpg?inline'
+import waves from '../../public/og-cards/waves.jpg?inline'
+import opal from '../../public/og-cards/opal.jpg?inline'
 import logoWordmark from '../../../../assets/brand/dojofoo-dark.svg?raw'
-
-/** Cherry-blossom OG background. */
-export const getOgBackgroundDataUrl = () =>
-  Promise.resolve(background)
+import khand from '@fontsource/khand/files/khand-latin-500-normal.woff2?inline'
+import hind from '@fontsource/hind/files/hind-latin-400-normal.woff2?inline'
+import iosevka from '@fontsource/iosevka/files/iosevka-latin-400-normal.woff2?inline'
+import inter from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?inline'
 
 /** The footer's contour map, blurred and fading up (scripts/og-ground.mjs), and its color */
 export const getOgGroundDataUrl = () => Promise.resolve(ground)
 export const OG_GROUND_COLOR = '#171717'
 
+/** What drifts over a course card, white on black (scripts/og-textures.mjs), at the strength ColorCard screens it */
+export const cardLines = {
+  // The capture's soft contour lines need full strength to read as the live card's
+  topography: { src: topography, opacity: 1 },
+  network: { src: network, opacity: 0.45 },
+  waves: { src: waves, opacity: 0.4 },
+  opal: { src: opal, opacity: 0.6 },
+} as const
+
 /** Wide "DOJO.FOO" wordmark — the single brand mark. */
 export const getLogoWordmarkDataUrl = () =>
   Promise.resolve(`data:image/svg+xml;base64,${Buffer.from(logoWordmark).toString('base64')}`)
+
+/** The cards' fonts: Khand and Hind for the words (the grid template's), Inter and Iosevka for a course card (UIX's) */
+export const ogFonts = [
+  { name: 'Khand', weight: 500, data: khand },
+  { name: 'Hind', weight: 400, data: hind },
+  { name: 'Inter', data: inter },
+  { name: 'Iosevka', weight: 400, data: iosevka },
+].map(({ data, ...font }) => ({ ...font, data: Buffer.from(data.split(',')[1], 'base64') }))

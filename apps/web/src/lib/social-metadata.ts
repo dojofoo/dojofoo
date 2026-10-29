@@ -10,6 +10,8 @@ interface SocialMetadataOptions {
   title: string;
   description: string;
   url: string;
+  /** The page's own card (/og/<path>/og.webp); the site's otherwise */
+  image?: string;
   type?: "article" | "website";
 }
 
@@ -18,8 +20,10 @@ export function socialMetadata({
   description,
   url,
   type = "website",
+  image = SOCIAL_IMAGE_URL,
 }: SocialMetadataOptions) {
-  const imageAlt = DEFAULT_TITLE;
+  // The site's card shows its line; a page's own shows the page's title
+  const imageAlt = image === SOCIAL_IMAGE_URL ? DEFAULT_TITLE : title;
 
   return [
     { name: "description", content: description },
@@ -29,8 +33,8 @@ export function socialMetadata({
     { property: "og:locale", content: "en_US" },
     { property: "og:title", content: title },
     { property: "og:description", content: description },
-    { property: "og:image", content: SOCIAL_IMAGE_URL },
-    { property: "og:image:secure_url", content: SOCIAL_IMAGE_URL },
+    { property: "og:image", content: image },
+    { property: "og:image:secure_url", content: image },
     { property: "og:image:type", content: "image/webp" },
     { property: "og:image:width", content: "1200" },
     { property: "og:image:height", content: "630" },
@@ -39,12 +43,15 @@ export function socialMetadata({
     { name: "twitter:site", content: "@tomhacks" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
-    { name: "twitter:image", content: SOCIAL_IMAGE_URL },
+    { name: "twitter:image", content: image },
     { name: "twitter:image:alt", content: imageAlt },
   ];
 }
 
 /** The page's one address for search engines: the site's origin and its path, without a trailing slash */
+/** A page's own social card: /og/<its path>/og.webp */
+export const pageImage = (path: string) => `${SITE_URL}/og${path === "/" ? "" : path.replace(/\/$/, "")}/og.webp`;
+
 export function canonicalLink(path: string) {
   return { rel: "canonical", href: SITE_URL + (path === "/" ? "/" : path.replace(/\/$/, "")) };
 }

@@ -3,11 +3,11 @@ import { CoursePage } from "@dojofoo/uix/web/course";
 import { loadMarketplaceCourses } from "@/lib/courses.functions";
 import { toUIXCourse } from "@/lib/uix-course";
 import { SITE_URL } from "@/lib/site";
-import { canonicalLink, socialMetadata } from "@/lib/social-metadata";
+import { canonicalLink, pageImage, socialMetadata } from "@/lib/social-metadata";
 import { breadcrumbs, course as courseNode, jsonLd } from "@/lib/structured-data";
 
 // What a course is, by how it teaches, for its title: "Effect TS – Free TypeScript katas"
-const kinds = { katas: "katas", interactive: "course", explorative: "course", mentor: "mentoring" } as const;
+const kinds = { katas: "katas", interactive: "course", explorative: "course", mentor: "mentoring", interview: "interview practice" } as const;
 
 export const Route = createFileRoute("/courses/$source/$slug")({
   loader: async ({ params }) => {
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/courses/$source/$slug")({
     const title = `${course.name} – Free ${course.language ? `${course.language} ` : ""}${kinds[course.mode] ?? "course"}`;
     const path = `/courses/${course.source}/${course.slug}`;
     return {
-      meta: [{ title }, ...socialMetadata({ title, description: course.description, url: SITE_URL + path, type: "article" })],
+      meta: [{ title }, ...socialMetadata({ title, description: course.description, url: SITE_URL + path, type: "article", image: pageImage(path) })],
       links: [canonicalLink(path)],
       scripts: [jsonLd(
         courseNode({ ...course, path }),
