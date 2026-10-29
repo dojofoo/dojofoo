@@ -20,7 +20,7 @@ const TIP_GAP = 8;
 const PAD = 6;
 
 // The curve lives in the note's own coordinates: (0,0) is the note's top left.
-function geometry(note: Box, target: Box, flip = false, shape: ArrowShape = "arc", bend = 1) {
+function geometry(note: Box, target: Box, flip = false, shape: ArrowShape = "arc", bend = 1, weight = 1.6) {
   const tc = {
     x: target.left + target.width / 2 - note.left,
     y: target.top + target.height / 2 - note.top,
@@ -74,8 +74,10 @@ function geometry(note: Box, target: Box, flip = false, shape: ArrowShape = "arc
     x: e.x - Math.cos(angle + spread) * length,
     y: e.y - Math.sin(angle + spread) * length,
   });
-  const b1 = barb(0.5, 9);
-  const b2 = barb(-0.45, 7.5);
+  // The head grows with the stroke, so a heavy line still ends in an arrow, not a blob
+  const head = 1 + (weight - 1.6) * 0.45;
+  const b1 = barb(0.5, 9 * head);
+  const b2 = barb(-0.45, 7.5 * head);
 
   const xs = [s.x, c1.x, c2.x, e.x, b1.x, b2.x];
   const ys = [s.y, c1.y, c2.y, e.y, b1.y, b2.y];
@@ -99,6 +101,7 @@ export function ArrowCallout({
   flip = false,
   shape = "arc",
   bend = 1,
+  weight = 1.6,
   children,
   className,
 }: {
@@ -112,6 +115,8 @@ export function ArrowCallout({
   shape?: ArrowShape;
   /** How far an arc bulges, as a share of its usual flick: 0.25 is a slight curve */
   bend?: number;
+  /** The stroke's width in pixels; a heavier line reads as marker or spray paint */
+  weight?: number;
   children: ReactNode;
   className?: string;
 }) {
@@ -145,6 +150,7 @@ export function ArrowCallout({
         flip,
         shape,
         bend,
+        weight,
       );
       art.style.left = `${round(g.box.x)}px`;
       art.style.top = `${round(g.box.y)}px`;
@@ -217,12 +223,12 @@ export function ArrowCallout({
       window.removeEventListener("pointercancel", up);
       to.removeEventListener("transitionrun", wake);
     };
-  }, [target, follow, flip, shape, bend]);
+  }, [target, follow, flip, shape, bend, weight]);
 
   const ink = {
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.6,
+    strokeWidth: weight,
     strokeLinecap: "round",
     strokeLinejoin: "round",
     pathLength: 1,

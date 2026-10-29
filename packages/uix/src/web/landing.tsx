@@ -72,8 +72,8 @@ export function LandingPage({ learning, courses, preview }: {
           Getting started card */}
       <div className="ui-land-app" ref={app}>
         {/* What the window shows, called out instead of explained: notes above it, their arrows drawn into the app */}
-        <ArrowCallout target={card} flip bend={0.25} className="ui-land-note ui-land-note--card">Install any course</ArrowCallout>
-        <ArrowCallout target={sensei} shape="elbow" className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
+        <ArrowCallout target={card} flip bend={0.25} weight={3} className="ui-land-note ui-land-note--card">Install any course</ArrowCallout>
+        <ArrowCallout target={sensei} shape="elbow" weight={3} className="ui-land-note ui-land-note--sensei">Every course has its own sensei,<br />mentoring you through each kata</ArrowCallout>
         <AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview>
       </div>
 
@@ -176,10 +176,12 @@ const css = /* css */ `
 .ui-land-note { display: none; }
 @media (min-width: 1200px) {
   .ui-land-app { padding-top: 64px; }
-  .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; }
+  .ui-land-note { display: inline-block; position: absolute; top: 4px; z-index: 1; color: #fff; }
+  /* White arrows with a hard brand shadow, like a marker tag over a red underpaint */
+  .ui-land-note svg { filter: drop-shadow(2px 2px 0 var(--brand)); }
   .ui-land-note--card { left: 40px; }
   /* The Sensei's dot sits at about 73% across the window: the note starts a little right of it, so its arrow runs left first */
-  .ui-land-note--sensei { left: calc(73% + 56px); top: -14px; text-align: left; }
+  .ui-land-note--sensei { left: calc(73% + 34px); top: 2px; text-align: left; }
   /* The note on a slanted brand plate, like the logo's FOO: white type on a marker stroke leaning with the italics */
   .ui-land-note > span:first-child { position: relative; isolation: isolate; padding: 3px 10px; color: #fff; }
   .ui-land-note > span:first-child::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); transform: skewX(-14deg); border-radius: 2px; }
