@@ -103,7 +103,7 @@ try {
   const port = await availablePort();
   const executable = resolve(installRoot, "node_modules/.bin/dojofoo");
   const help = execFileSync(executable, ["--help"], { encoding: "utf8", env: { ...process.env, DOJOFOO_HOME: resolve(scratch, "home") } });
-  if (!help.includes("Usage: npx dojofoo") || !help.includes("install [--agent]") || !help.includes("ui [--background]") || !help.includes("https://dojo.localhost")) {
+  if (!help.includes("Usage: npx dojofoo") || !help.includes("install [--agent]") || !help.includes("then open the lesson UI") || !help.includes("https://dojo.localhost")) {
     throw new Error("Packed dojofoo executable does not advertise its install command and default UI URL.");
   }
   child = spawn(executable, ["ui", "--no-open"], {
