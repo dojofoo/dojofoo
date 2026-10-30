@@ -10,9 +10,9 @@ export const SITE = {
   /** Other names people search for: the CLI's */
   alternateNames: ["dojofoo", "Dojo foo"],
   url: "https://dojo.foo",
-  title: "Dojo.foo – Free courses with agentic tutors",
+  title: "AI mentors, teachers and personas you can install",
   description:
-    "Free courses with an agentic sensei who mentors you through every challenge. Take any course, rehearse for your next interview, or build a dojo of your own.",
+    "Free courses with an agentic sensei who mentors you through every challenge. Take a course, rehearse an interview, or build your own agentic premium dojo.",
   twitter: "@tomhacks",
   repository: "https://github.com/dojofoo/dojofoo",
   github: "https://github.com/dojofoo",
@@ -30,8 +30,8 @@ export function socialMetadata({ siteUrl = SITE.url, title, description, url, ty
   image?: string;
   type?: "article" | "website";
 }) {
-  // The site's card shows its line; a page's own shows the page's title
-  const imageAlt = image === `${siteUrl}/og.webp` ? SITE.title : title;
+  // The site's card shows its logo and line; a page's own shows the page's title
+  const imageAlt = image === `${siteUrl}/og.webp` ? `${SITE.name}: ${SITE.title}` : title;
   return [
     { name: "description", content: description },
     { property: "og:type", content: type },
@@ -193,9 +193,9 @@ export const searchPages: SearchPage[] = [
   },
   {
     path: "/dojos",
-    label: "Dojo.foo Courses",
+    label: "Courses / Dojos",
     title: "Find your dojo – Free coding courses with an AI sensei",
-    description: "A dojo is an installable package with its own sensei. It learns how you learn, then guides you through coding katas, interactive lessons, capstone projects or even interviews.",
+    description: "Check out our free or premium-hosted packages (dojos) with their own senseis.",
     status: "live",
   },
   {
@@ -226,7 +226,7 @@ export const searchPages: SearchPage[] = [
     path: "/docs",
     label: "Help & Support",
     title: "Usage",
-    description: "Courses your coding agent teaches. You write the code; the agent asks questions and runs the tests.",
+    description: "Documentation for using, authoring and understanding how dojos work.",
     status: "live",
   },
 ];
@@ -244,31 +244,31 @@ export type Question = { question: string; answer: string; status: "confirmed" |
 export const questions: Question[] = [
   {
     question: "What is Dojo.foo?",
-    answer: "Dojo.foo turns your coding agent into a teacher. You install a course into a project, and the agent works through it with you as your sensei: it explains, asks questions and runs the tests, but leaves the code to you.",
+    answer: "Dojo.foo is an open-source platform for AI mentors: courses, interview preps and any other teachable subject, packaged with an agent that teaches it. Run it locally, or use its cloud features to take your courses with you.",
     status: "confirmed",
     source: "/docs",
   },
   {
-    question: "Is Dojo.foo really free?",
-    answer: "Yes. The courses are free to install and take, and the dojofoo CLI is free, its source on GitHub. You bring your own coding agent; what its model costs is between you and its provider.",
+    question: "Is Dojo.foo free?",
+    answer: "Yes. Besides premium courses for paying customers, most courses are free to install and take, and the full source code is available on GitHub. You bring your own coding agent or connect to your AI provider (ChatGPT).",
     status: "confirmed",
     source: "/docs/installation",
   },
   {
-    question: "Which coding agents does Dojo.foo work with?",
-    answer: "The lesson UI runs the sensei on OpenCode (the default), Codex, Cursor, Grok or FX. npx dojofoo install sets the course up for the agent you're running, such as Claude Code or Codex.",
+    question: "Which coding agents and platforms does Dojo.foo support?",
+    answer: "Claude Code, Codex, Copilot, Epicat, OpenCode, Pi, Grok, Antigravity and FX, along with agents that support the Agent Client Protocol (ACP). Use your ChatGPT account directly, without a coding agent.",
     status: "confirmed",
     source: "/docs/installation",
   },
   {
     question: "How do I start a course?",
-    answer: "Run npx dojofoo install in a project, add a course with npx dojofoo add dojofoo/effect-ts, then run npx dojofoo to open the first lesson in your browser. You need Node.js 24 or newer.",
+    answer: "The easiest way is a Dojo.foo cloud subscription. To run courses locally, run npx dojofoo – it opens an onboarding dialog that guides you through the setup and courses.",
     status: "confirmed",
     source: "/docs/quickstart",
   },
   {
-    question: "Does the sensei give me the answers?",
-    answer: "No. The sensei follows the course's teaching notes: it hints and asks questions, and runs the tests, but it doesn't hand out solutions.",
+    question: "What does the sensei do?",
+    answer: "The sensei is tailored to the dojo you install. A dojo can be a course that needs a patient teacher, a kata that needs coding guidance, or an interview that challenges you as a candidate. If you can imagine learning something in a conversation with someone, that's what the sensei does best.",
     status: "confirmed",
     source: "/docs",
   },

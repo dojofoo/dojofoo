@@ -24,7 +24,7 @@ export function GoogleResult({ theme = "dark", whatIf = true }: { theme?: "dark"
         <span><b>{SITE.name}</b><small>{SITE.url}</small></span>
       </div>
       <a className="ui-seo-serp__title" href={SITE.url}>{SITE.title}</a>
-      <p className="ui-seo-serp__snippet"><b>{SITE.name}</b> {SITE.description.replace(/^Free/, "offers free").replace(/\.$/, "")}.</p>
+      <p className="ui-seo-serp__snippet">{SITE.description}</p>
       <ul className="ui-seo-serp__links">
         {links.map((page) => (
           <li key={page.path} data-status={page.status}>

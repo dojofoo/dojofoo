@@ -22,8 +22,8 @@ const frame = async (path: string, map: OgMap = 'topography', withShadow = false
 })
 
 export const siteCard = async () => ogImage(
-  <DojoOg {...await frame('/')} title="Free courses with agentic tutors"
-    description="Take any course, rehearse for your next interview, or build a dojo of your own." />,
+  <DojoOg {...await frame('/')} title="AI mentors, teachers and personas you can install"
+    description="Take a course, rehearse an interview, or build your own agentic premium dojo." />,
 )
 
 export const dojosCard = async () => ogImage(

@@ -21,6 +21,6 @@ export const Overview: Story = {
     const canvas = within(canvasElement);
     // A question opens to its answer
     await userEvent.click(canvas.getByRole("button", { name: "What is Dojo.foo?" }));
-    await expect(canvas.getByText(/turns your coding agent into a teacher/, { selector: ".ui-seo-serp__questions p" })).toBeVisible();
+    await expect(canvas.getByText(/open-source platform for AI mentors/, { selector: ".ui-seo-serp__questions p" })).toBeVisible();
   },
 };

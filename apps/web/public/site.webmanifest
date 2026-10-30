@@ -1,7 +1,7 @@
 {
   "name": "Dojo.foo",
   "short_name": "Dojo.foo",
-  "description": "Free courses with agentic tutors",
+  "description": "AI mentors, teachers and personas you can install",
   "start_url": "/",
   "display": "browser",
   "background_color": "#171717",

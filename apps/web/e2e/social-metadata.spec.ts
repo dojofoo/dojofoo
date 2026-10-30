@@ -16,7 +16,7 @@ async function expectSocialImage(page: import("@playwright/test").Page, url = im
 test("uses the Dojo.foo social card on the main website", async ({ page }) => {
   await page.goto("/");
   await expectSocialImage(page);
-  await expect(page).toHaveTitle("Dojo.foo – Free courses with agentic tutors");
+  await expect(page).toHaveTitle("AI mentors, teachers and personas you can install");
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Dojo.foo");
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", "https://dojo.foo");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://dojo.foo/");
