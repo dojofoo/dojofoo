@@ -3,8 +3,8 @@ import { Icon, ShellStyles } from "../components/app-shell";
 import { Avatar } from "../components/arc/avatar/avatar";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
-import { Copy01Icon, CopyrightIcon, Menu01Icon, Search01Icon, Tick02Icon } from "../lib/icons";
-import { Drawer, DrawerContent, DrawerTrigger } from "../components/arc/drawer/drawer";
+import { Cancel01Icon, Copy01Icon, CopyrightIcon, Menu01Icon, Search01Icon, Tick02Icon } from "../lib/icons";
+import { SidebarDrawer, SidebarProvider, SidebarTrigger, useSidebar } from "../components/epicat/sidebar";
 import { cn } from "../lib/utils";
 import makerPhoto from "../assets/tomhaxxx.jpg?url";
 import type { WebCourse } from "./catalog";
@@ -125,25 +125,34 @@ export function SiteHeader({ current, as: Component = "header", mobileAction, me
   );
 }
 
-/** The phone's menu: Arc's drawer from the right (drag its head or tap beside it to close), closed too by a link in it */
+/** The phone's menu: epicat's sidebar drawer (components/epicat), closed by a link in it, beside it, by Escape, and by
+    going wide; its close where the burger was */
 function SiteMenu({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+  return <SidebarProvider query="(width < 761px)"><SiteMenuDrawer>{children}</SiteMenuDrawer></SidebarProvider>;
+}
+
+function SiteMenuDrawer({ children }: { children: ReactNode }) {
+  const { open, setOpen, mode } = useSidebar();
   // Wider than a phone it has nothing to hold (the header shows it all): it goes
+  useEffect(() => { if (mode === "full") setOpen(false); }, [mode, setOpen]);
   useEffect(() => {
-    const wide = window.matchMedia("(min-width: 761px)");
-    const away = () => { if (wide.matches) setOpen(false); };
-    wide.addEventListener("change", away);
-    return () => wide.removeEventListener("change", away);
-  }, []);
+    if (!open) return;
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [open, setOpen]);
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger className="ui-web-head__menu" aria-label="Menu">
+    <>
+      <SidebarTrigger className="ui-web-head__menu" aria-label="Menu" aria-expanded={open} aria-controls="nd-sidebar-mobile">
         <Icon icon={Menu01Icon} size={18} />
-      </DrawerTrigger>
-      <DrawerContent title="Menu" hideTitle closeLabel="Close menu" className="ui-as ui-web-menu" aria-describedby={undefined}>
-        <div className="ui-web-menu__body" onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>{children}</div>
-      </DrawerContent>
-    </Drawer>
+      </SidebarTrigger>
+      <SidebarDrawer className="ui-web-menu" aria-label="Menu" onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>
+        <SidebarTrigger className="ui-web-head__menu ui-web-menu__close" aria-label="Close menu">
+          <Icon icon={Cancel01Icon} size={18} />
+        </SidebarTrigger>
+        <div className="ui-web-menu__body">{children}</div>
+      </SidebarDrawer>
+    </>
   );
 }
 
@@ -277,16 +286,13 @@ const css = /* css */ `
   .ui-web-head__search { background: none; box-shadow: none; border-radius: calc(10px * var(--squircle-factor, 1)); }
   .ui-web-head__menu:active, .ui-web-head__search:active { background: var(--hover); }
 }
-/* The menu: Arc's drawer (components/arc/drawer) on the page's tokens (it renders on the body, so it takes the shell's
-   own, .ui-as, and the site's rule), as wide as Fumadocs' (85%, at most 380px) */
-.ui-web-menu { --ui-web-rule: linear-gradient(to right, color-mix(in oklab, var(--ink) 30%, transparent) 0 1px, transparent 1px); --ui-web-rule-size: 10px 1px; 
-  --drawer-size: min(380px, 85vw); --border: var(--line); --surface-raised: var(--page); --foreground: var(--ink); --shadow-floating: var(--shadow-6);
-  --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 40px; --text-sm: var(--fs-body); --text-lg: 17px; --leading-body: 1.5;
-  --radius-control: calc(10px * var(--squircle-factor, 1)); --surface-muted: var(--hover); --text-secondary: var(--muted); }
-.ui-web-menu > :first-child { padding: 10px 10px 0 20px; border-bottom: 0; }
-.ui-web-menu > :first-child button { border: 0; background: none; }
-.ui-web-menu > :last-child { padding: 0; }
-.ui-web-menu__body { display: flex; flex-direction: column; gap: 6px; padding: 6px 20px 32px; }
+/* The menu: epicat's drawer (components/epicat/sidebar: 85%, at most 380px, from the right) on the page's color; its
+   close in the burger's place, the same button */
+.ui-web-menu { --ui-web-rule: linear-gradient(to right, color-mix(in oklab, var(--ink) 30%, transparent) 0 1px, transparent 1px); --ui-web-rule-size: 10px 1px;
+  background: var(--page); border-color: var(--line); box-shadow: var(--shadow-6); }
+.ui-web-menu__close { position: absolute; top: 10px; right: 10px; display: grid; }
+.ui-web-menu__close:active { background: var(--hover); }
+.ui-web-menu__body { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 6px; padding: 60px 20px 32px; overflow-y: auto; overscroll-behavior: contain; }
 .ui-web-menu__body > * { flex: none; }
 .ui-web-menu__start { justify-content: center; }
 .ui-web-menu__nav { display: grid; padding: 10px 0 14px; }

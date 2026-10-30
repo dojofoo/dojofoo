@@ -63,7 +63,7 @@ test("native documentation uses UIX while the host keeps URLs, content and brows
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("uix-docs-mobile.png"), animations: "disabled" });
   await page.getByRole("button", { name: "Menu", exact: true }).click();
-  await page.getByRole("dialog", { name: "Menu", exact: true }).getByRole("link", { name: "Quickstart", exact: true }).click();
+  await page.getByRole("complementary", { name: "Menu", exact: true }).getByRole("link", { name: "Quickstart", exact: true }).click();
   await expect(page).toHaveURL(/\/docs\/quickstart$/);
   await expect(page.getByRole("heading", { name: "Quickstart", exact: true })).toBeInViewport();
   expect(errors).toEqual([]);
@@ -145,12 +145,21 @@ test("mobile documentation keeps its page navigation and outline within reach", 
   const menu = page.getByRole("button", { name: "Menu", exact: true });
   await expect(menu).toBeInViewport();
   await menu.click();
-  const navigation = page.getByRole("dialog", { name: "Menu", exact: true });
+  const navigation = page.getByRole("complementary", { name: "Menu", exact: true });
   await expect(navigation).toBeVisible();
+  // Its close in the burger's place
+  const burger = await menu.boundingBox();
+  await expect.poll(() => navigation.getByRole("button", { name: "Close menu", exact: true }).boundingBox()).toEqual(burger);
   await page.keyboard.press("Escape");
   await expect(navigation).toBeHidden();
   await menu.click();
-  await expect(navigation.getByRole("navigation", { name: "Documentation", exact: true }).getByRole("link", { name: "Authoring", exact: true })).toBeVisible();
+  // The sections in a dropdown; picking one leaves the menu open on its pages
+  await navigation.getByRole("button", { name: "Section: Usage", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "Authoring", exact: true }).click();
+  await expect(page).toHaveURL(/\/authoring$/);
+  await expect(navigation.getByRole("button", { name: "Section: Authoring", exact: true })).toBeVisible();
+  await navigation.getByRole("button", { name: "Section: Authoring", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "Usage", exact: true }).click();
   await navigation.getByRole("link", { name: "Quickstart", exact: true }).click();
   await expect(page).toHaveURL(/\/docs\/quickstart$/);
   await expect(navigation).toBeHidden();

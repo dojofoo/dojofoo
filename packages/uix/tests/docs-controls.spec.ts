@@ -32,7 +32,7 @@ test("mobile documentation stories fold the pages into the menu and the outline 
   await page.goto("/iframe.html?id=docs-documentation--cli&viewMode=story");
   await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Menu", exact: true }).click();
-  const navigation = page.getByRole("dialog", { name: "Menu", exact: true });
+  const navigation = page.getByRole("complementary", { name: "Menu", exact: true });
   await navigation.getByRole("link", { name: "Quickstart", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Quickstart", exact: true })).toBeVisible();
   await expect(navigation).toBeHidden();

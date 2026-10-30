@@ -4,8 +4,8 @@
 
 On phones the website works like a phone site:
 - The header folds its sections into a menu beside the search. The search and menu buttons are plain icons whose hit areas touch.
-- The menu is Arc's drawer, timed on Fluid Functionalism's moderate tier (in 0.16s, out 0.12s). Drag its head to close it.
-- The docs move their sections and pages into that menu. What's on the page becomes a bar under the header that names the part being read and folds open into the outline over the page.
+- The menu is epicat's sidebar drawer: it slides in on CSS keyframes, and its close sits where the burger was.
+- The docs move their sections and pages into that menu: the sections in a dropdown like the user menu, then the open section's pages in taller rows. What's on the page becomes a bar under the header that names the part being read and folds open into the outline over the page, also with taller rows.
 - The landing's app preview is the app's own narrow layout, with only its sidebar and Sensei toggles live.
 - "Works with" shows three agents at a time, in five quicker turns.
 - The modes carousel takes Fluid's CarouselDots: 6px dots, a 24px pill filling from the left, 18px round hit areas and a gliding hover highlight. It sits closer to its windows.

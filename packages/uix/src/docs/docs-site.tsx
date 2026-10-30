@@ -1,7 +1,7 @@
 import { followLink } from "../lib/link-event";
 import { useEditorScheme, usePageMode } from "../lib/ui-preferences";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import { Icon, MenuList, Popover, type MenuItem } from "../components/app-shell";
+import { Dropdown, Icon, MenuList, Popover, type MenuItem } from "../components/app-shell";
 import { Markdown } from "../components/markdown";
 import { codeCss } from "../components/code-block";
 import { ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ChatAiIcon, Copy01Icon, File01Icon, LeftToRightListBulletIcon, PencilEdit02Icon, SparklesIcon, Tick02Icon } from "../lib/icons";
@@ -98,15 +98,18 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
     </nav>
   );
 
-  // On a phone the tabs and the tree move into the site's menu, as in Fumadocs: the sections, then the open one's pages
+  // On a phone the tabs and the tree move into the site's menu, as in epicat: the sections in a dropdown (the user
+  // menu's), then the open one's pages; picking a section leaves the menu open, for its pages
   const menu = (
     <div className="ui-docs-menu">
-      <nav className="ui-docs-menu__sections" aria-label="Documentation">
-        {docsSections.map((item) => (
-          <a key={item.id} href={item.groups[0].entries[0].path} aria-current={item.id === section.id ? "page" : undefined}
-            onClick={follow(item.groups[0].entries[0].path)}>{item.title}</a>
-        ))}
-      </nav>
+      <Dropdown className="ui-as-user-menu ui-docs-menu__sections"
+        items={docsSections.map((item) => ({ label: item.title, checked: item.id === section.id, onSelect: () => open(item.groups[0].entries[0].path) }))}
+        trigger={({ open: shown, toggle }) => (
+          <button type="button" className="ui-as-user" aria-label={`Section: ${section.title}`} aria-expanded={shown} onClick={toggle}>
+            <span className="ui-as-user__name">{section.title}</span>
+            <Icon icon={ArrowDown01Icon} size={13} />
+          </button>
+        )} />
       <Tree key={section.id} active={page.path}>{treeEntries}</Tree>
     </div>
   );
@@ -380,12 +383,12 @@ const css = /* css */ `
 .ui-docs-tocbar__outline .ui-docs-toc { padding: 4px 0 16px; }
 @media (prefers-reduced-motion: reduce) { .ui-docs-tocbar__outline, .ui-docs-tocbar__label > span { transition: none; } }
 .ui-docs-tocbar__outline .ui-docs-toc__title { display: none; }
-/* The phone's menu: the sections as a list, the open one's pages under them */
-.ui-docs-menu { display: grid; gap: 4px; padding-top: 14px; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; }
-.ui-docs-menu__sections { display: flex; flex-wrap: wrap; gap: 6px; }
-.ui-docs-menu__sections a { padding: 6px 12px; border-radius: 999px; background: var(--surface-3); box-shadow: var(--shadow-1); color: var(--muted); font-size: var(--fs-body); font-weight: 500; text-decoration: none; }
-.ui-docs-menu__sections a[aria-current="page"] { background: var(--accent-soft); box-shadow: none; color: var(--accent); }
+/* Rows a thumb can hit, as epicat's */
+.ui-docs-tocbar__outline .ui-docs-toc a { padding-block: 11px; font-size: 15px; }
+/* The phone's menu: the sections in the user menu's dropdown, the open one's pages under it, each a row a thumb can hit */
+.ui-docs-menu { display: grid; gap: 4px; padding-top: 18px; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; }
 .ui-docs-menu .ui-docs-tree { position: relative; top: auto; display: block; max-height: none; overflow: visible; padding: 18px 0 0; }
+.ui-docs-menu .ui-docs-tree a { padding-block: 9px; font-size: 15px; }
 /* The tabs: the sections, under the header, the open one underlined in the brand's color, over a solid rule (the page
    scrolls under it, so a dotted one would flicker) */
 .ui-docs-tabs { position: relative; display: flex; max-width: 1280px; margin: 0 auto; align-items: center; gap: 22px; padding: 0 8px; }
