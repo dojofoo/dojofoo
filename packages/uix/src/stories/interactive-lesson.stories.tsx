@@ -3,8 +3,16 @@ import { useState } from "react";
 import { InteractiveLesson } from "../components/interactive-lesson";
 import { AgentChatWorkspace } from "../containers/learning-workspace";
 import { BrandLogo } from "../components/brand-logo";
-import { ChatMessage } from "../components/chat-message";
-import { ComposerSurface } from "../components/composer";
+import { ChatTranscript } from "../components/chat-transcript";
+import { StreamedChatMessage } from "../components/streamed-message";
+import { sensei, text, user } from "./fixtures/sensei-chat";
+import { Composer } from "../containers/assistant-home";
+import { OpenCodeIcon } from "../components/harness-icons";
+
+const conversation = [
+  user("u1", "Where do I find the lesson's references?"),
+  sensei("a1", text("Open **Resources** below the material. It contains the links supplied by the author.")),
+];
 
 function InteractiveExample({ initialStep = 0 }: { initialStep?: number }) {
   const [step, setStep] = useState(initialStep);
@@ -21,10 +29,12 @@ function InteractiveExample({ initialStep = 0 }: { initialStep?: number }) {
       onNext={() => setStep(value => value + 1)}>
       <p>{step === 0 ? "Read the material here, and ask Sensei whenever you need a hand." : "Which view contains the lesson's authored links?"}</p>
     </InteractiveLesson>}
-    header={<span className="ui-as-chat__route">Sensei</span>}
-    composer={<ComposerSurface id="example-composer" label="Message the sensei" value={message} onValueChange={setMessage} onSend={() => undefined} disabled placeholder="Preview conversation" />}>
-    <ChatMessage role="user">Where do I find the lesson's references?</ChatMessage>
-    <ChatMessage role="assistant">Open Resources below the material. It contains the links supplied by the author.</ChatMessage>
+    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
+    composer={<Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={{ value: "opencode", name: "OpenCode", icon: OpenCodeIcon }}
+      id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={message} onValueChange={setMessage} onSend={() => setMessage("")} />}>
+    <div className="ui-as-chat__turns">
+      <ChatTranscript streaming={false} messages={conversation} renderMessage={(message, streaming) => <StreamedChatMessage key={message.id} message={message} streaming={streaming} />} />
+    </div>
   </AgentChatWorkspace></div>;
 }
 

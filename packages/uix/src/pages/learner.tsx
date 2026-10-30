@@ -10,6 +10,7 @@ import { AgentSetup, setupSteps } from "../containers/agent-setup";
 import { categoryIcons, type AppCategory } from "../components/app-directory";
 import { AppShell, EmptyState, Icon, useToast, type AppShellProps, type ShellEntry, type ShellSection } from "../components/app-shell";
 import { ChatMessages, useChatThread } from "../containers/assistant-home";
+import { StreamedChatMessage } from "../components/streamed-message";
 import { CourseComposer } from "./course-composer";
 import { Button } from "../components/button";
 import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard } from "../components/color-card";
@@ -329,7 +330,7 @@ function CourseWorkspace({ shell, item, onClose, initialView, slideSource, docum
       header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
       composer={<CourseComposer tray={false} placeholder="Ask your Sensei…" busy={chat.busy} onSend={chat.send} />}
       scroller={scroller}>
-      <p className="text-sm leading-relaxed">{open ? `${open.title}: ${open.lead} Tell me what you expect the first test to check.` : `${chapter.title} starts with a short video – watch it, then open the first lesson.`}</p>
+      <StreamedChatMessage message={{ id: "intro", role: "assistant", parts: [{ type: "text", content: open ? `${open.title}: ${open.lead} Tell me what you expect the first test to check.` : `${chapter.title} starts with a short video – watch it, then open the first lesson.` }] }} />
       <ChatMessages messages={chat.messages} name="Sensei" scroller={scroller} onDone={chat.finish} />
     </AgentChatWorkspace>
   );

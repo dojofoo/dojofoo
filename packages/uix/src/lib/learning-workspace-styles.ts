@@ -28,6 +28,8 @@ export const learningWorkspaceCss = /* css */ `
 
 .ui-as-chat__thread { flex: 1; min-height: 0; overflow-y: auto; padding: 40px 32px 16px; }
 .ui-as-chat__column { display: flex; flex-direction: column; gap: 22px; max-width: 680px; margin: 0 auto; }
+/* The host's transcript in one box (its pane): its turns keep the column's rhythm */
+.ui-as-chat__turns { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
 .ui-as-chat__user {
   align-self: flex-end;
   margin: 0;

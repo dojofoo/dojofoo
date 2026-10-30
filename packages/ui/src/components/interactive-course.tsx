@@ -213,7 +213,7 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
       history={messages.filter(message => message.role === "user").map(message => message.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
       model={model?.currentValue} models={model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging} onModelChange={value => { void changeModel(value); }}
     />}>
-    <div data-testid="chat-pane" data-chat-status={status} data-chat-error={chatError?.message} aria-busy={sessionLoading || agentChanging || undefined}>
+    <div data-testid="chat-pane" className="ui-as-chat__turns" data-chat-status={status} data-chat-error={chatError?.message} aria-busy={sessionLoading || agentChanging || undefined}>
       {(sessionLoading || agentChanging) && <p role="status" className="flex items-center gap-2 text-sm text-[var(--muted)]">
         <Spinner className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden />Loading the {codingAgents.find(agent => agent.value === conversation?.harness)?.name ?? "coding agent"} session…
       </p>}
