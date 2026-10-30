@@ -28,7 +28,7 @@ export const siteCard = async () => ogImage(
 
 export const dojosCard = async () => ogImage(
   <DojoOg {...await frame('/dojos')} title="Find your dojo"
-    description="Free coding courses, each with its own sensei: katas, interactive lessons, projects and interviews." />,
+    description="Free coding courses, each with its own sensei: katas, interactive lessons, projects and interviews." foot="Explore Marketplace" />,
 )
 
 /** A docs page by its path, e.g. "/docs/quickstart": on the waves, naming where it belongs at the foot as the footer does */
