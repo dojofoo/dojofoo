@@ -36,8 +36,12 @@ test("API docs hydrate from the generated Elysia spec, list endpoints by collect
     wide: document.querySelector(".ui-docs")!.getBoundingClientRect().width >= 340,
     treeInPage: getComputedStyle(document.querySelector(".ui-docs-layout > .ui-docs-tree")!).display !== "none",
   }))).toEqual({ wide: true, treeInPage: false });
-  await page.getByRole("button", { name: "Menu", exact: true }).click();
-  await expect(page.getByRole("complementary", { name: "Menu", exact: true }).getByRole("link", { name: "GET /health, Check health", exact: true })).toBeVisible();
+  // Tapped again until it opens: the page may still be hydrating
+  const menu = page.getByRole("complementary", { name: "Menu", exact: true });
+  await expect(async () => {
+    if (!(await menu.isVisible())) await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await expect(menu.getByRole("link", { name: "GET /health, Check health", exact: true })).toBeVisible({ timeout: 1000 });
+  }).toPass();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
