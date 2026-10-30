@@ -50,8 +50,14 @@ test("the active indicator fills with its slide timer and the text has horizonta
   await expect(viewport).toHaveCSS("mask-image", /linear-gradient\(to right/);
   const active = carousel.getByRole("tab", { selected: true });
   const fill = active.locator('[class*="dotFill"]');
-  const amount = () => fill.evaluate(node => new DOMMatrixReadOnly(getComputedStyle(node).transform).a);
-  await expect.poll(amount).toBeGreaterThan(.02);
+  // How much of its pill the fill covers: it slides in from the left (never scaled), a full dot at the start
+  const amount = () => fill.evaluate(node => {
+    const pill = node.parentElement!.getBoundingClientRect(), own = node.getBoundingClientRect();
+    // Until the dot has stretched into its pill there's nothing to read
+    if (pill.width < 20) return 0;
+    return (Math.min(own.right, pill.right) - pill.left) / pill.width;
+  });
+  await expect.poll(amount).toBeGreaterThan(.3);
   const before = await amount();
   expect(before).toBeLessThan(.8);
   await expect.poll(amount).toBeGreaterThan(before + .1);
@@ -65,5 +71,5 @@ test("the active indicator fills with its slide timer and the text has horizonta
     return color;
   }));
   await expect(carousel.getByRole("tab", { name: "Course Mode", exact: true })).toHaveAttribute("aria-selected", "true", { timeout: 12_000 });
-  await expect.poll(amount).toBeLessThan(.3);
+  await expect.poll(amount).toBeLessThan(.45);
 });

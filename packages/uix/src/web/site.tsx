@@ -1,9 +1,10 @@
-import { createContext, useContext, useState, type MouseEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { Icon, ShellStyles } from "../components/app-shell";
 import { Avatar } from "../components/arc/avatar/avatar";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
-import { Copy01Icon, CopyrightIcon, Search01Icon, Tick02Icon } from "../lib/icons";
+import { Cancel01Icon, Copy01Icon, CopyrightIcon, Menu01Icon, Search01Icon, Tick02Icon } from "../lib/icons";
+import { SidebarDrawer, SidebarProvider, SidebarTrigger, useSidebar } from "../components/epicat/sidebar";
 import { cn } from "../lib/utils";
 import makerPhoto from "../assets/tomhaxxx.jpg?url";
 import type { WebCourse } from "./catalog";
@@ -47,7 +48,7 @@ const sections: Array<{ id: SiteSection; label: string }> = [
   { id: "help", label: "Help" },
 ];
 
-export function SitePage({ current, children, window = true, full = false, backdrop, subnav }: {
+export function SitePage({ current, children, window = true, full = false, backdrop, subnav, menu }: {
   current?: SiteSection;
   children: ReactNode;
   /** Off: the content sits on the page itself (the landing's hero), not in the window */
@@ -58,13 +59,15 @@ export function SitePage({ current, children, window = true, full = false, backd
   backdrop?: ReactNode;
   /** A second row under the header (the docs' tabs): the two stay at the top as one bar, the page sliding under it */
   subnav?: ReactNode;
+  /** More for the phone's menu, under the site's sections (the docs: their sections and pages) */
+  menu?: ReactNode;
   /** @deprecated Links come from SiteContext */
   onNavigate?: (section: SiteSection) => void;
 }) {
   return (
     <div className={cn("ui-as ui-web", backdrop && "ui-web--ground")}>
       <SiteStyles />
-      {subnav ? <div className="ui-web-bar"><SiteHeader current={current} />{subnav}</div> : <SiteHeader current={current} />}
+      {subnav ? <div className="ui-web-bar"><SiteHeader current={current} menu={menu} />{subnav}</div> : <SiteHeader current={current} menu={menu} />}
       <main className={cn("ui-web__main", window && "ui-web__window", full && "ui-web__main--full")}>{children}</main>
       {backdrop}
       <SiteFooter current={current} />
@@ -76,7 +79,7 @@ export function SiteStyles() {
   return <><ShellStyles /><style href="ui-web" precedence="default">{css}</style></>;
 }
 
-export function SiteHeader({ current, as: Component = "header", mobileAction }: { current?: SiteSection; as?: "header" | "div"; mobileAction?: ReactNode }) {
+export function SiteHeader({ current, as: Component = "header", mobileAction, menu }: { current?: SiteSection; as?: "header" | "div"; mobileAction?: ReactNode; menu?: ReactNode }) {
   const links = useSite();
   // In the docs the search looks in the docs; anywhere else in the courses (the dialog switches either way)
   const scope: SearchScope = current === "help" || current === "docs" ? "docs" : "courses";
@@ -84,6 +87,11 @@ export function SiteHeader({ current, as: Component = "header", mobileAction }: 
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
     event.preventDefault();
     links.navigate(section);
+  };
+  const getStarted = (event: MouseEvent) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+    event.preventDefault();
+    links.openDoc("/docs/quickstart");
   };
   return (
     <Component className="ui-web-head" data-site-navigation="">
@@ -101,13 +109,50 @@ export function SiteHeader({ current, as: Component = "header", mobileAction }: 
           ))}
         </nav>
         {mobileAction}
-        <ButtonLink size="sm" href="/docs/quickstart" onClick={event => {
-          if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-          event.preventDefault();
-          links.openDoc("/docs/quickstart");
-        }}>Get started</ButtonLink>
+        <ButtonLink size="sm" className="ui-web-head__start" href="/docs/quickstart" onClick={getStarted}>Get started</ButtonLink>
+        {/* On a phone the sections and the way in fold into a menu beside the search (as Fumadocs' docs do) */}
+        <SiteMenu>
+          <ButtonLink href="/docs/quickstart" className="ui-web-menu__start" onClick={getStarted}>Get started</ButtonLink>
+          <nav className="ui-web-menu__nav" aria-label="Site">
+            {sections.map((section) => (
+              <a key={section.id} href={links.sectionHref(section.id)} aria-current={current === section.id ? "page" : undefined} onClick={go(section.id)}>{section.label}</a>
+            ))}
+          </nav>
+          {menu}
+        </SiteMenu>
       </div>
     </Component>
+  );
+}
+
+/** The phone's menu: epicat's sidebar drawer (components/epicat), closed by a link in it, beside it, by Escape, and by
+    going wide; its close where the burger was */
+function SiteMenu({ children }: { children: ReactNode }) {
+  return <SidebarProvider query="(width < 761px)"><SiteMenuDrawer>{children}</SiteMenuDrawer></SidebarProvider>;
+}
+
+function SiteMenuDrawer({ children }: { children: ReactNode }) {
+  const { open, setOpen, mode } = useSidebar();
+  // Wider than a phone it has nothing to hold (the header shows it all): it goes
+  useEffect(() => { if (mode === "full") setOpen(false); }, [mode, setOpen]);
+  useEffect(() => {
+    if (!open) return;
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [open, setOpen]);
+  return (
+    <>
+      <SidebarTrigger className="ui-web-head__menu" aria-label="Menu" aria-expanded={open} aria-controls="nd-sidebar-mobile">
+        <Icon icon={Menu01Icon} size={18} />
+      </SidebarTrigger>
+      <SidebarDrawer className="ui-web-menu" aria-label="Menu" onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>
+        <SidebarTrigger className="ui-web-head__menu ui-web-menu__close" aria-label="Close menu">
+          <Icon icon={Cancel01Icon} size={18} />
+        </SidebarTrigger>
+        <div className="ui-web-menu__body">{children}</div>
+      </SidebarDrawer>
+    </>
   );
 }
 
@@ -141,10 +186,10 @@ export function SiteFooter({ current }: { current?: SiteSection }) {
         <span className="ui-web-foot__copy"><Icon icon={CopyrightIcon} size={15} /><span className="sr-only">Copyright</span>Dojo.foo{links.footerControls && <span className="ml-2">{links.footerControls}</span>}</span>
         {/* The maker's line as a small quote (the testimonials' mark), his avatar after it, online */}
         <a className="ui-web-foot__maker" href="https://x.com/tomhaxxx" target="_blank" rel="noreferrer" aria-label={`${line} – Tom Siwik on X`}>
-          <svg aria-hidden="true" viewBox="0 0 32 24" className="ui-web-foot__mark">
+          {/* The mark inside the quote, so it opens its first line however the line wraps */}
+          <q><svg aria-hidden="true" viewBox="0 0 32 24" className="ui-web-foot__mark">
             <path d="M0 24V14.4C0 6.6 4.2 1.8 12.4 0l1.4 3.4C9.4 4.8 7.3 7.6 7 11.2h6.2V24H0Zm18.2 0V14.4C18.2 6.6 22.4 1.8 30.6 0L32 3.4c-4.4 1.4-6.5 4.2-6.8 7.8h6.2V24H18.2Z" />
-          </svg>
-          <q>{line}</q>
+          </svg>{line}</q>
           <Avatar name="Tom Siwik" src={makerPhoto} size="md" status="online" />
         </a>
       </div>
@@ -228,7 +273,31 @@ const css = /* css */ `
   .ui-web-head__nav { display: none; }
   .ui-web-head__search { justify-self: end; justify-content: center; width: 40px; padding: 0; }
   .ui-web-head__search :is(span, kbd) { display: none; }
+  .ui-web-head .ui-web-head__start { display: none; }
 }
+/* The menu's button beside the search: on a phone both are plain icons, their hit areas touching, the last one's icon
+   on the page's edge (as Fumadocs' header) */
+.ui-web-head__menu { display: none; place-items: center; width: 40px; height: 40px; border-radius: calc(10px * var(--squircle-factor, 1)); color: var(--muted); transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
+.ui-web-head__menu:hover, .ui-web-head__search:hover { color: var(--ink); }
+@media (max-width: 760px) {
+  .ui-web-head { column-gap: 0; }
+  .ui-web-head__end { gap: 0; margin-right: -10px; }
+  .ui-web-head__menu { display: grid; }
+  .ui-web-head__search { background: none; box-shadow: none; border-radius: calc(10px * var(--squircle-factor, 1)); }
+  .ui-web-head__menu:active, .ui-web-head__search:active { background: var(--hover); }
+}
+/* The menu: epicat's drawer (components/epicat/sidebar: 85%, at most 380px, from the right) on the page's color; its
+   close in the burger's place, the same button */
+.ui-web-menu { --ui-web-rule: linear-gradient(to right, color-mix(in oklab, var(--ink) 30%, transparent) 0 1px, transparent 1px); --ui-web-rule-size: 10px 1px;
+  background: var(--page); border-color: var(--line); box-shadow: var(--shadow-6); }
+.ui-web-menu__close { position: absolute; top: 10px; right: 10px; display: grid; }
+.ui-web-menu__close:active { background: var(--hover); }
+.ui-web-menu__body { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 6px; padding: 60px 20px 32px; overflow-y: auto; overscroll-behavior: contain; }
+.ui-web-menu__body > * { flex: none; }
+.ui-web-menu__start { justify-content: center; }
+.ui-web-menu__nav { display: grid; padding: 10px 0 14px; }
+.ui-web-menu__nav a { padding: 10px 2px; color: var(--ink); font-size: 17px; font-weight: 550; text-decoration: none; }
+.ui-web-menu__nav a[aria-current="page"] { color: var(--accent); }
 
 /* Footer: back on the page, under the window */
 .ui-web-foot { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 32px; max-width: 1280px; margin: 0 auto; padding: 56px 8px 28px; }
@@ -247,8 +316,8 @@ const css = /* css */ `
 .ui-web-foot__maker { display: inline-flex; align-items: center; gap: 10px; }
 /* The avatar (its tokens in styles/arc.css) and its status dot stay circles under the corners' squircle */
 .ui-web-foot__maker [role="img"], .ui-web-foot__maker [role="img"] * { corner-shape: round; }
-.ui-web-foot__mark { align-self: flex-start; width: 14px; height: 11px; margin-top: 2px; fill: currentColor; opacity: 0.35; }
-.ui-web-foot__maker q { color: var(--ink); font-size: 15px; font-weight: 550; letter-spacing: -0.01em; quotes: none; }
+.ui-web-foot__mark { display: inline-block; width: 14px; height: 11px; margin-right: 10px; vertical-align: 0.45em; fill: var(--muted); opacity: 0.35; }
+.ui-web-foot__maker q { color: var(--ink); font-size: 15px; font-weight: 550; letter-spacing: -0.01em; quotes: none; text-align: right; text-wrap: balance; }
 .ui-web-foot__maker:hover q { color: var(--accent); }
 .ui-web-foot__base a:hover { color: var(--ink); }
 

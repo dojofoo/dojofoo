@@ -31,13 +31,17 @@ test("API docs hydrate from the generated Elysia spec, list endpoints by collect
   }).toBeGreaterThanOrEqual(20);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(api.locator("pre").first()).toBeVisible();
-  // Measure both boxes in one frame: hydration can still resize or scroll the
-  // article between two separate boundingBox calls.
-  await expect.poll(() => page.evaluate(() => {
-    const article = document.querySelector(".ui-docs")!.getBoundingClientRect();
-    const tree = document.querySelector(".ui-docs-layout > .ui-docs-tree")!.getBoundingClientRect();
-    return { wide: article.width >= 340, treeBelowArticle: tree.top >= article.bottom };
-  })).toEqual({ wide: true, treeBelowArticle: true });
+  // The article takes the width; the endpoints fold into the header's menu
+  await expect.poll(() => page.evaluate(() => ({
+    wide: document.querySelector(".ui-docs")!.getBoundingClientRect().width >= 340,
+    treeInPage: getComputedStyle(document.querySelector(".ui-docs-layout > .ui-docs-tree")!).display !== "none",
+  }))).toEqual({ wide: true, treeInPage: false });
+  // Tapped again until it opens: the page may still be hydrating
+  const menu = page.getByRole("complementary", { name: "Menu", exact: true });
+  await expect(async () => {
+    if (!(await menu.isVisible())) await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await expect(menu.getByRole("link", { name: "GET /health, Check health", exact: true })).toBeVisible({ timeout: 1000 });
+  }).toPass();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });

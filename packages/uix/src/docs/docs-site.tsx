@@ -1,7 +1,7 @@
 import { followLink } from "../lib/link-event";
 import { useEditorScheme, usePageMode } from "../lib/ui-preferences";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import { Icon, MenuList, Popover, type MenuItem } from "../components/app-shell";
+import { Dropdown, Icon, MenuList, Popover, type MenuItem } from "../components/app-shell";
 import { Markdown } from "../components/markdown";
 import { codeCss } from "../components/code-block";
 import { ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ChatAiIcon, Copy01Icon, File01Icon, LeftToRightListBulletIcon, PencilEdit02Icon, SparklesIcon, Tick02Icon } from "../lib/icons";
@@ -98,8 +98,24 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
     </nav>
   );
 
+  // On a phone the tabs and the tree move into the site's menu, as in epicat: the sections in a dropdown (the user
+  // menu's), then the open one's pages; picking a section leaves the menu open, for its pages
+  const menu = (
+    <div className="ui-docs-menu">
+      <Dropdown className="ui-as-user-menu ui-docs-menu__sections"
+        items={docsSections.map((item) => ({ label: item.title, checked: item.id === section.id, onSelect: () => open(item.groups[0].entries[0].path) }))}
+        trigger={({ open: shown, toggle }) => (
+          <button type="button" className="ui-as-user" aria-label={`Section: ${section.title}`} aria-expanded={shown} onClick={toggle}>
+            <span className="ui-as-user__name">{section.title}</span>
+            <Icon icon={ArrowDown01Icon} size={13} />
+          </button>
+        )} />
+      <Tree key={section.id} active={page.path}>{treeEntries}</Tree>
+    </div>
+  );
+
   return (
-    <SitePage current="help" window={false} subnav={tabs}>
+    <SitePage current="help" window={false} menu={menu} subnav={<>{tabs}{!page.apiPage && toc.length > 1 && <TocBar key={page.path} toc={toc} onOpen={open} />}</>}>
       <style href="ui-docs" precedence="default">{css}</style>
       <div className="ui-docs-layout" data-api={page.apiPage ? "" : undefined}>
         <Tree key={section.id} active={page.path}>{treeEntries}</Tree>
@@ -107,14 +123,6 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
         <article className="ui-docs">
           <h1 ref={title} tabIndex={-1} className="ui-docs__title">{page.title}</h1>
           {page.description && <p className="ui-docs__lead">{page.description}</p>}
-          <div className="ui-docs-mobile-tools">
-            <DocsMenu key={`pages:${page.path}`} label="Pages" dialogLabel="Documentation pages" className="ui-docs-pages-control" icon={<Icon icon={File01Icon} size={13} />}>
-              <Tree active={page.path}>{treeEntries}</Tree>
-            </DocsMenu>
-            {!page.apiPage && toc.length > 1 && <DocsMenu key={`outline:${page.path}`} label="On this page" dialogLabel="Page outline" icon={<Icon icon={LeftToRightListBulletIcon} size={13} />}>
-              <OnThisPage toc={toc} onOpen={open} />
-            </DocsMenu>}
-          </div>
           {renderPage ? <Fragment key={page.path}>{renderPage(page)}</Fragment>
             : page.apiPage ? <Fragment key={page.path}>{renderApiPage?.(page.apiPage)}</Fragment> : <Prose body={page.body} boxed={boxed} onLink={open} />}
           <nav className="ui-docs__pager" aria-label="More pages">
@@ -133,17 +141,43 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
   );
 }
 
-/** Compact access to the same page tree and outline when their desktop rails move away. */
-function DocsMenu({ label, dialogLabel, icon, children, className = "" }: { label: string; dialogLabel: string; icon: ReactNode; children: ReactNode; className?: string }) {
+/** What's on the page when its column is hidden (Fumadocs' TOC popover): a bar in the sticky header naming the part
+    being read, a ring filling as the page goes by; tapped, it opens into the outline */
+function TocBar({ toc, onOpen }: { toc: Toc; onOpen: (href: string) => void }) {
+  const [active, , started] = useReading(toc);
   const [open, setOpen] = useState(false);
-  return <span className={`ui-as-anchor ${className}`}>
-    <button type="button" className="ui-docs-tools__btn" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)}>{icon}{label}<Icon icon={ArrowDown01Icon} size={13} /></button>
-    <Popover open={open} onClose={() => setOpen(false)} align="start">
-      <div role="dialog" aria-label={dialogLabel} className="ui-as-menu ui-docs-mobile-menu scroll-fade" onClick={event => {
-        if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.button === 0 && event.target instanceof Element && event.target.closest("a")) setOpen(false);
-      }}>{children}</div>
-    </Popover>
-  </span>;
+  const at = Math.max(0, toc.findIndex((item) => item.id === active));
+  const progress = started ? (at + 1) / toc.length : 0;
+  const bar = useRef<HTMLDivElement>(null);
+  // A tap outside closes it, as does Escape
+  useEffect(() => {
+    if (!open) return;
+    const away = (event: PointerEvent) => { if (!bar.current?.contains(event.target as Node)) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", escape); };
+  }, [open]);
+  return (
+    <div ref={bar} className="ui-docs-tocbar" data-open={open || undefined}>
+      <button type="button" className="ui-docs-tocbar__toggle" aria-expanded={open} aria-controls="ui-docs-tocbar-outline" onClick={() => setOpen((value) => !value)}>
+        <svg className="ui-docs-tocbar__ring" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          {progress > 0 && <circle cx="12" cy="12" r="9" pathLength="1" strokeDasharray={`${progress} 1`} transform="rotate(-90 12 12)" />}
+        </svg>
+        {/* "On this page" and the part being read in one place, one sliding up out of it as the other comes in */}
+        <span className="ui-docs-tocbar__label" data-reading={started && !open || undefined}>
+          <span>On this page</span>
+          <span aria-hidden={!started || open || undefined}>{toc[at]?.text}</span>
+        </span>
+        <Icon icon={ArrowDown01Icon} size={15} />
+      </button>
+      {/* Folds open to its height (rows 0fr to 1fr) and shut again, its links out of reach while shut */}
+      <div id="ui-docs-tocbar-outline" className="ui-docs-tocbar__outline" inert={!open} onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>
+        <div className="scroll-fade"><OnThisPage toc={toc} onOpen={onOpen} /></div>
+      </div>
+    </div>
+  );
 }
 
 /** The page's source on GitHub, to edit: under what's on the page, or at the page's end when that column is hidden */
@@ -264,26 +298,38 @@ function Prose({ body, boxed, onLink }: { body: string; /** Its code on the box'
   </div>;
 }
 
-/** What's on the page, the part being read marked on its rail */
-function OnThisPage({ toc, onOpen }: { toc: Array<{ depth: number; text: ReactNode; id: string }>; onOpen: (href: string) => void }) {
+type Toc = Array<{ depth: number; text: ReactNode; id: string }>;
+
+/** The part being read: the last heading above a third of the window */
+function useReading(toc: Toc) {
   const [active, setActive] = useState(toc[0]?.id);
-  const box = useRef<HTMLElement>(null);
-  const glide = useGlide(box, active);
+  // Whether the first heading has been reached: before it, the page's lead is being read
+  const [started, setStarted] = useState(false);
   useEffect(() => {
     const update = () => {
       // The last heading above a third of the window is the part being read; at the very end, the last one
       let at = toc[0]?.id;
+      let reached = false;
       for (const item of toc) {
         const heading = document.getElementById(item.id);
-        if (heading && heading.getBoundingClientRect().top < window.innerHeight / 3) at = item.id;
+        if (heading && heading.getBoundingClientRect().top < window.innerHeight / 3) { at = item.id; reached = true; }
       }
-      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) at = toc.at(-1)?.id ?? at;
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) { at = toc.at(-1)?.id ?? at; reached = true; }
       setActive(at);
+      setStarted(reached);
     };
     update();
     window.addEventListener("scroll", update, { passive: true });
     return () => window.removeEventListener("scroll", update);
   }, [toc]);
+  return [active, setActive, started] as const;
+}
+
+/** What's on the page, the part being read marked on its rail */
+function OnThisPage({ toc, onOpen }: { toc: Toc; onOpen: (href: string) => void }) {
+  const [active, setActive] = useReading(toc);
+  const box = useRef<HTMLElement>(null);
+  const glide = useGlide(box, active);
   if (toc.length < 2) return null;
   return (
     <nav ref={box} className="ui-docs-toc" aria-label="On this page">
@@ -306,18 +352,50 @@ function OnThisPage({ toc, onOpen }: { toc: Array<{ depth: number; text: ReactNo
 const css = /* css */ `
 /* The header and the tabs are one bar at the top (SitePage's subnav): what stays in view starts under it */
 .ui-web:has(.ui-docs-tabs) { --ui-docs-bar: 108px; }
-.ui-docs-mobile-tools { display: none; gap: 8px; }
-.ui-docs-mobile-menu { width: 18rem; max-width: calc(100vw - 40px); max-height: min(60dvh, 24rem); overflow-y: auto; padding: 12px; }
-.ui-docs-mobile-menu .ui-docs-tree { position: relative; top: auto; max-height: none; padding: 4px 0; background: none; }
-@media (max-width: 1100px) { .ui-docs-mobile-tools { display: flex; } .ui-docs-mobile-tools > .ui-as-anchor { margin-top: 16px; } }
-@media (min-width: 761px) { .ui-docs-pages-control { display: none; } }
+/* With its column hidden, what's on the page is a bar under the tabs; on a phone the tabs go to the menu */
+@media (max-width: 1100px) { .ui-web:has(.ui-docs-tocbar) { --ui-docs-bar: 152px; } }
+@media (max-width: 760px) { .ui-web:has(.ui-docs-tabs) { --ui-docs-bar: 60px; } .ui-web:has(.ui-docs-tocbar) { --ui-docs-bar: 104px; } }
+.ui-docs-tocbar { position: relative; display: none; max-width: 1280px; margin: 0 auto; padding: 0 8px; }
+@media (max-width: 1303px) { .ui-docs-tocbar { padding: 0 20px; } }
+@media (max-width: 1100px) { .ui-docs-tocbar { display: block; } }
+.ui-docs-tocbar::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; background: var(--line); content: ""; }
+.ui-docs-tocbar__toggle { display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; color: var(--muted); font-size: var(--fs-subtitle); text-align: left; }
+.ui-docs-tocbar__toggle:hover, .ui-docs-tocbar[data-open] .ui-docs-tocbar__toggle { color: var(--ink); }
+.ui-docs-tocbar__toggle > svg:last-child { flex: none; transition: rotate var(--motion-fast) var(--ease-standard); }
+.ui-docs-tocbar[data-open] .ui-docs-tocbar__toggle > svg:last-child { rotate: 180deg; }
+.ui-docs-tocbar__label { display: grid; flex: 1; min-width: 0; overflow: hidden; }
+.ui-docs-tocbar__label > span { grid-area: 1 / 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; transition: opacity var(--motion-moderate) var(--ease-standard), translate var(--motion-moderate) var(--ease-standard); }
+.ui-docs-tocbar__label > span + span, .ui-docs-tocbar__label[data-reading] > span:first-child { opacity: 0; translate: 0 100%; pointer-events: none; }
+.ui-docs-tocbar__label[data-reading] > span:first-child { translate: 0 -100%; }
+.ui-docs-tocbar__label[data-reading] > span + span { opacity: 1; translate: 0 0; }
+.ui-docs-tocbar[data-open] .ui-docs-tocbar__label > span:first-child { color: var(--ink); }
+.ui-docs-tocbar__ring { flex: none; width: 18px; height: 18px; fill: none; stroke-width: 2.5; transition: color var(--motion-fast) var(--ease-standard); }
+.ui-docs-tocbar__ring circle:only-child, .ui-docs-tocbar__ring circle:first-child { stroke: var(--line); }
+.ui-docs-tocbar__ring circle + circle { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray var(--motion-moderate) var(--ease-standard); }
+/* The outline drops over the page from under the bar, on the page's color (the bar's own is see-through) */
+.ui-docs-tocbar__outline { position: absolute; top: 100%; right: 0; left: 0; display: grid; grid-template-rows: 0fr; opacity: 0; background: var(--page);
+  /* Fluid's moderate tier: it folds shut a tier quicker than it opens */
+  transition: grid-template-rows var(--motion-moderate-exit) var(--ease-exit), opacity var(--motion-moderate-exit) var(--ease-exit), box-shadow var(--motion-moderate-exit) var(--ease-exit); }
+@media (max-width: 1303px) { .ui-docs-tocbar__outline { padding: 0 20px; } }
+.ui-docs-tocbar[data-open] .ui-docs-tocbar__outline { box-shadow: 0 1px 0 var(--line), var(--shadow-5); }
+.ui-docs-tocbar[data-open] .ui-docs-tocbar__outline { grid-template-rows: 1fr; opacity: 1; transition-duration: var(--motion-moderate); transition-timing-function: var(--ease-moderate); }
+.ui-docs-tocbar__outline > div { min-height: 0; max-height: min(50dvh, 28rem); overflow-y: auto; overscroll-behavior: contain; }
+.ui-docs-tocbar__outline .ui-docs-toc { padding: 4px 0 16px; }
+@media (prefers-reduced-motion: reduce) { .ui-docs-tocbar__outline, .ui-docs-tocbar__label > span { transition: none; } }
+.ui-docs-tocbar__outline .ui-docs-toc__title { display: none; }
+/* Rows a thumb can hit, as epicat's */
+.ui-docs-tocbar__outline .ui-docs-toc a { padding-block: 11px; font-size: 15px; }
+/* The phone's menu: the sections in the user menu's dropdown, the open one's pages under it, each a row a thumb can hit */
+.ui-docs-menu { display: grid; gap: 4px; padding-top: 18px; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; }
+.ui-docs-menu .ui-docs-tree { position: relative; top: auto; display: block; max-height: none; overflow: visible; padding: 18px 0 0; }
+.ui-docs-menu .ui-docs-tree a { padding-block: 9px; font-size: 15px; }
 /* The tabs: the sections, under the header, the open one underlined in the brand's color, over a solid rule (the page
    scrolls under it, so a dotted one would flicker) */
 .ui-docs-tabs { position: relative; display: flex; max-width: 1280px; margin: 0 auto; align-items: center; gap: 22px; padding: 0 8px; }
 .ui-docs-tabs::before { position: absolute; right: 8px; bottom: 0; left: 8px; height: 1px; background: var(--line); content: ""; }
 /* On the header's edge: its logo, the first tab and the tree share a line */
 .ui-docs-tabs__row { display: flex; flex: 1; align-items: center; gap: 22px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-@media (max-width: 760px) { .ui-docs-tools { display: none; } }
+@media (max-width: 760px) { .ui-docs-tools, .ui-docs-tabs { display: none; } }
 @media (max-width: 1303px) { .ui-docs-tabs { padding: 0 20px; } .ui-docs-tabs::before { right: 20px; left: 20px; } }
 .ui-docs-tabs a { position: relative; flex: none; padding: 14px 0 13px; white-space: nowrap; color: var(--muted); font-size: var(--fs-subtitle); font-weight: 500; text-decoration: none; }
 .ui-docs-tabs a:hover { color: var(--ink); }
@@ -410,9 +488,9 @@ const css = /* css */ `
 
 /* The right column, sticky: the tools, then on this page – on its own rail, the part being read marked */
 .ui-docs-side { position: sticky; top: var(--ui-docs-bar); align-self: start; display: grid; gap: 28px; padding: 40px 0 24px; }
-/* Narrower: "On this page" goes; on a phone the tree follows the article, unstuck (relative: its marker's frame) */
+/* Narrower: "On this page" goes to the bar under the tabs; on a phone the tree goes to the menu */
 @media (max-width: 1100px) { .ui-docs-side { display: none; } }
-@media (max-width: 760px) { .ui-docs-layout, .ui-docs-layout[data-api] { grid-template-columns: minmax(0, 1fr); } .ui-docs-tree { position: relative; order: 1; max-height: none; padding: 32px 0 0; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; } }
+@media (max-width: 760px) { .ui-docs-layout, .ui-docs-layout[data-api] { grid-template-columns: minmax(0, 1fr); } .ui-docs-layout > .ui-docs-tree { display: none; } }
 .ui-docs-toc { position: relative; }
 .ui-docs-toc__title { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--muted); font-size: var(--fs-caption); font-weight: 550; }
 .ui-docs-toc a { display: block; padding: 5px 0 5px 12px; color: var(--muted); font-size: var(--fs-body); text-decoration: none; transition: color var(--motion-fast) var(--ease-standard); }

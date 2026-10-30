@@ -4,6 +4,6 @@ import { authRobots, loadAuthFlags } from "@/lib/feature-flags.functions";
 
 export const Route = createFileRoute("/sign-up")({
   loader: () => loadAuthFlags(),
-  head: ({ loaderData }) => ({ meta: [{ title: "Sign up · dojofoo" }, ...authRobots(loaderData)] }),
+  head: ({ loaderData }) => ({ meta: [{ title: "Sign up" }, ...authRobots(loaderData)] }),
   component: () => <Login mode="sign-up" {...Route.useLoaderData()} />,
 });

@@ -4,7 +4,6 @@ import { Icon } from "../components/app-shell";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
 import { CourseCard } from "../components/course-card";
-import { KpiChart } from "../components/kpi-chart";
 import { SegmentedControl } from "../components/segmented-control";
 import { ArrowLeft01Icon, BookOpen01Icon } from "../lib/icons";
 import { cardInfo, compactNumber, installCommand, installPrompt, teachingModes, type CourseAudit, type WebCourse } from "./catalog";
@@ -13,13 +12,12 @@ import { CommandCopy, SitePage, useSite } from "./site";
 /*
  * A course's page, as skills.sh lays out a skill's: its course card beside what it is, how to
  * install it – the command, or a prompt that has your agent install and start it – and its numbers as the site shows
- * them today (apps/web/src/routes/courses.$source.$slug.tsx): started against finished, how many projects reach each
- * chapter, and the weekly installs, starts and finishes. Beside it all, what you'd check before installing: installs,
+ * them today (apps/web/src/routes/courses.$source.$slug.tsx): started against finished, then one bar chart of how many
+ * projects reach – or finish – each lesson or chapter (the weekly installs are the sparkline beside it). Beside it all, what you'd check before installing: installs,
  * the repository, its stars, when the marketplace first saw it, and the security audits of its files. The charts are
  * Dojofoo's: its pink and its neutrals.
  */
 
-const weekLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const longDate = (iso: string) => new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 const installWays = ["Command", "Prompt"] as const;
@@ -32,7 +30,6 @@ export function CoursePage({ course }: { course: WebCourse }) {
   const prompt = installPrompt(course);
   const mode = teachingModes.find((item) => item.value === course.mode);
   const reach = metrics.kataProgress;
-  const most = Math.max(...reach.map((chapter) => chapter.started), 1);
   const weeks = metrics.weeklyActivity;
   return (
     <SitePage current="courses" window={false}>
@@ -84,36 +81,7 @@ export function CoursePage({ course }: { course: WebCourse }) {
                 <Stat label="Finished" value={compactNumber(metrics.finished)} note={`${metrics.completionRate}% of starts`} />
               </section>
 
-              <div className="ui-crp-grid">
-                {weeks.length > 0 ? <KpiChart className="ui-crp-chart" title="Weekly activity" value={compactNumber(weeks.reduce((n, week) => n + week.installs, 0))}
-                  delta={weeks.length > 1 ? weeks.at(-1)!.installs - weeks.at(-2)!.installs : undefined}
-                  labels={weeks.map((week) => weekLabel(week.week))} tooltipLabels={weeks.map((week) => `Week of ${weekLabel(week.week)}`)}
-                  series={[
-                    { label: "Installs", color: "var(--brand)", values: weeks.map((week) => week.installs) },
-                    { label: "Started", color: "var(--ui-crp-brand-soft)", values: weeks.map((week) => week.started) },
-                    { label: "Finished", color: "var(--fluid-foreground)", values: weeks.map((week) => week.finished) },
-                  ]}
-                  footer="Installs over the last twelve weeks" defaultIndex={weeks.length - 1} />
-                  : <section className="ui-crp-panel"><h2>Weekly activity</h2><p>No activity recorded yet.</p></section>}
-
-                <section className="ui-crp-panel" aria-labelledby="ui-crp-reach">
-                  <h2 id="ui-crp-reach">Reaching each {course.chapters ? "chapter" : "lesson"}</h2>
-                  <p>Projects that started a {course.chapters ? "chapter" : "lesson"}, and how many of them finished it.</p>
-                  <ol className="ui-crp-reach">
-                    {reach.map((chapter, index) => (
-                      <li key={chapter.kata}>
-                        <span className="ui-crp-reach__name"><span>{String(index + 1).padStart(2, "0")}</span>{chapter.kata}</span>
-                        <span className="ui-crp-reach__bar" role="img" aria-label={`${chapter.started} started, ${chapter.finished} finished`}>
-                          <i style={{ width: `${(chapter.started / most) * 100}%` }} />
-                          <b style={{ width: `${(chapter.finished / most) * 100}%` }} />
-                        </span>
-                        <span className="ui-crp-reach__n">{compactNumber(chapter.finished)}<small> / {compactNumber(chapter.started)}</small></span>
-                      </li>
-                    ))}
-                  </ol>
-                  <p className="ui-crp-legend"><span className="ui-crp-legend__finished" />Finished<span className="ui-crp-legend__started" />Started</p>
-                </section>
-              </div>
+              <ReachChart unit={course.chapters ? "chapter" : "lesson"} reach={reach} />
             </div>
           </div>
 
@@ -144,6 +112,55 @@ export function CoursePage({ course }: { course: WebCourse }) {
         </div>
       </article>
     </SitePage>
+  );
+}
+
+const reachSeries = ["Reached", "Finished"] as const;
+
+/** One bar chart for the lessons (or chapters): how many projects reached each, or switched, how many finished it –
+    each bar on its track, rounded, in the brand's pink; the axis names every fifth; past what fits, it scrolls */
+function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<{ kata: string; started: number; finished: number }> }) {
+  const [series, setSeries] = useState<(typeof reachSeries)[number]>("Reached");
+  const [hover, setHover] = useState<number | null>(null);
+  const value = (item: (typeof reach)[number]) => (series === "Reached" ? item.started : item.finished);
+  // The axis's top rounded up to a value that halves cleanly, as the KPI chart's
+  const top = (() => {
+    // At least 2, so an empty chart's axis still counts in whole projects (2, 1, 0)
+    const half = Math.max(...reach.map(value), 2) / 2;
+    const pow = 10 ** Math.floor(Math.log10(half || 1));
+    return ([1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((step) => step * pow >= half) ?? 10) * pow * 2;
+  })();
+  const shown = hover ?? null;
+  const verb = series === "Reached" ? "reached" : "finished";
+  const total = reach.reduce((sum, item) => sum + value(item), 0);
+  return (
+    <section className="ui-crp-panel ui-crp-reach" aria-labelledby="ui-crp-reach">
+      <div className="ui-crp-reach__head">
+        <div>
+          <h2 id="ui-crp-reach">{series === "Reached" ? `Reaching each ${unit}` : `Finishing each ${unit}`}</h2>
+          {/* What a bar says, as you point at it */}
+          <p aria-live="polite">{shown === null
+            ? total === 0 ? "No projects yet." : `Projects that ${verb} each ${unit}.`
+            : `${unit === "lesson" ? "Lesson" : "Chapter"} ${shown + 1} · ${reach[shown].kata}: ${compactNumber(value(reach[shown]))} ${verb}`}</p>
+        </div>
+        <SegmentedControl size="compact" kind="tabs" label="Show" options={reachSeries} value={series} onChange={(next) => setSeries(next as typeof series)} />
+      </div>
+      <div className="ui-crp-reach__chart">
+        <div className="ui-crp-reach__y" aria-hidden="true"><span>{compactNumber(top)}</span><span>{compactNumber(top / 2)}</span><span>0</span></div>
+        <div className="ui-crp-reach__scroll scroll-fade-x">
+          <ol className="ui-crp-reach__bars" style={{ ["--count" as string]: reach.length }} onPointerLeave={() => setHover(null)}>
+            {reach.map((item, index) => (
+              <li key={item.kata} aria-label={`${unit === "lesson" ? "Lesson" : "Chapter"} ${index + 1}, ${item.kata}: ${value(item)} ${verb}`}
+                data-active={hover === index || undefined} onPointerEnter={() => setHover(index)}>
+                <span className="ui-crp-reach__track"><b style={{ height: `${(value(item) / top) * 100}%` }} /></span>
+                {/* The axis names the first and every fifth */}
+                <span className="ui-crp-reach__x" aria-hidden="true">{index === 0 || (index + 1) % 5 === 0 ? index + 1 : ""}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -223,33 +240,24 @@ const css = /* css */ `
 .ui-crp-stat b { font-size: 26px; line-height: 1.1; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .ui-crp-stat small { color: var(--muted); font-size: var(--fs-caption); }
 
-.ui-crp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 16px; }
-@container ui-web (max-width: 1240px) { .ui-crp-grid { grid-template-columns: minmax(0, 1fr); } }
 .ui-crp-panel { padding: 20px 20px 18px; border-radius: calc(20px * var(--squircle-factor, 1)); background: var(--surface-3); box-shadow: var(--shadow-3); }
 .ui-crp-panel > p { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-body); }
 
-/* Each chapter: who started it (the pink, light) and who finished it (full), with a gap of the panel between */
-.ui-crp-reach { display: grid; gap: 10px; margin: 20px 0 0; padding: 0; list-style: none; }
-.ui-crp-reach li { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) 5.5rem; align-items: center; gap: 12px; font-size: var(--fs-body); }
-@container ui-web (max-width: 420px) {
-  .ui-crp-reach li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
-  .ui-crp-reach__bar { grid-column: 1 / -1; grid-row: 2; }
-}
-.ui-crp-reach__name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ui-crp-reach__name span { margin-right: 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.ui-crp-reach__bar { position: relative; height: 8px; border-radius: 999px; corner-shape: round; background: var(--chip); }
-.ui-crp-reach__bar i, .ui-crp-reach__bar b { position: absolute; inset: 0 auto 0 0; border-radius: inherit; }
-.ui-crp-reach__bar i { background: var(--ui-crp-brand-soft); }
-.ui-crp-reach__bar b { background: var(--brand); box-shadow: 2px 0 0 var(--surface-3); }
-.ui-crp-reach__n { text-align: right; font-variant-numeric: tabular-nums; }
-.ui-crp-reach__n small { color: var(--muted); font-size: inherit; }
-.ui-crp-legend { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; color: var(--muted); font-size: var(--fs-caption); }
-.ui-crp-legend span { width: 8px; height: 8px; border-radius: 50%; corner-shape: round; }
-.ui-crp-legend__finished { background: var(--brand); }
-.ui-crp-legend__started { margin-left: 10px; background: var(--ui-crp-brand-soft); }
-@media (forced-colors: active) { .ui-crp-reach__bar, .ui-crp-reach__bar i, .ui-crp-reach__bar b, .ui-crp-legend span { forced-color-adjust: none; } }
-/* The chart fills its column (it's 460px at most on its own) */
-.ui-crp-grid .ui-crp-chart { min-width: 0; max-width: none; }
+/* Reaching each lesson: a bar per lesson on its own rounded track, the axis every fifth, scrolling past what fits */
+.ui-crp-reach__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ui-crp-reach__head p { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-body); font-variant-numeric: tabular-nums; }
+.ui-crp-reach__chart { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; margin-top: 20px; }
+.ui-crp-reach__y { display: flex; flex-direction: column; justify-content: space-between; height: 160px; color: var(--muted); font-size: var(--fs-caption); font-variant-numeric: tabular-nums; text-align: right; }
+.ui-crp-reach__y span { line-height: 1; }
+.ui-crp-reach__scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.ui-crp-reach__bars { display: grid; grid-template-columns: repeat(var(--count), minmax(12px, 1fr)); gap: 5px; min-width: calc(var(--count) * 17px); margin: 0; padding: 0; list-style: none; }
+.ui-crp-reach__bars li { display: grid; grid-template-rows: 160px auto; gap: 8px; }
+.ui-crp-reach__track { position: relative; display: block; overflow: hidden; border-radius: 6px; corner-shape: round; background: var(--chip); transition: background-color var(--motion-fast) var(--ease-standard); }
+.ui-crp-reach__track b { position: absolute; right: 0; bottom: 0; left: 0; border-radius: inherit; background: var(--brand); transition: height var(--motion-moderate) var(--ease-moderate); }
+.ui-crp-reach__bars li[data-active] .ui-crp-reach__track { background: var(--ui-crp-brand-soft); }
+.ui-crp-reach__x { height: 1em; color: var(--muted); font-size: var(--fs-caption); line-height: 1; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .ui-crp-reach__track b { transition: none; } }
+@media (forced-colors: active) { .ui-crp-reach__track, .ui-crp-reach__track b { forced-color-adjust: none; } }
 
 /* The side column, skills.sh's: small caps labels over plain values, rules between */
 .ui-crp-side { position: sticky; top: 88px; display: grid; }

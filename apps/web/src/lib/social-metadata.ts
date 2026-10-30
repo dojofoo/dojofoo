@@ -1,13 +1,17 @@
 import { SITE_URL } from "./site";
 
 export const SOCIAL_IMAGE_URL = `${SITE_URL}/og.webp`;
+export const SITE_NAME = "Dojo.foo";
+export const DEFAULT_TITLE = "Dojo.foo – Free courses with agentic tutors";
 export const DEFAULT_SOCIAL_DESCRIPTION =
-  "Agentic teaching built around your learning. Practice with katas, save your progress, and author your own course with your coding agent.";
+  "Free courses with an agentic sensei who mentors you through every challenge. Take any course, rehearse for your next interview, or build a dojo of your own.";
 
 interface SocialMetadataOptions {
   title: string;
   description: string;
   url: string;
+  /** The page's own card (its address + /og.webp); the site's otherwise */
+  image?: string;
   type?: "article" | "website";
 }
 
@@ -16,19 +20,21 @@ export function socialMetadata({
   description,
   url,
   type = "website",
+  image = SOCIAL_IMAGE_URL,
 }: SocialMetadataOptions) {
-  const imageAlt = "dojofoo — Agentic teaching built around your learning";
+  // The site's card shows its line; a page's own shows the page's title
+  const imageAlt = image === SOCIAL_IMAGE_URL ? DEFAULT_TITLE : title;
 
   return [
     { name: "description", content: description },
     { property: "og:type", content: type },
     { property: "og:url", content: url },
-    { property: "og:site_name", content: "dojofoo" },
+    { property: "og:site_name", content: SITE_NAME },
     { property: "og:locale", content: "en_US" },
     { property: "og:title", content: title },
     { property: "og:description", content: description },
-    { property: "og:image", content: SOCIAL_IMAGE_URL },
-    { property: "og:image:secure_url", content: SOCIAL_IMAGE_URL },
+    { property: "og:image", content: image },
+    { property: "og:image:secure_url", content: image },
     { property: "og:image:type", content: "image/webp" },
     { property: "og:image:width", content: "1200" },
     { property: "og:image:height", content: "630" },
@@ -37,7 +43,15 @@ export function socialMetadata({
     { name: "twitter:site", content: "@tomhacks" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
-    { name: "twitter:image", content: SOCIAL_IMAGE_URL },
+    { name: "twitter:image", content: image },
     { name: "twitter:image:alt", content: imageAlt },
   ];
+}
+
+/** The page's one address for search engines: the site's origin and its path, without a trailing slash */
+/** A page's own social card: its address + /og.webp */
+export const pageImage = (path: string) => `${SITE_URL}${path.replace(/\/$/, "")}/og.webp`;
+
+export function canonicalLink(path: string) {
+  return { rel: "canonical", href: SITE_URL + (path === "/" ? "/" : path.replace(/\/$/, "")) };
 }

@@ -57,6 +57,7 @@ export const ArrowUpDownIcon = glyph(Huge.ArrowUpDownIcon, Iconoir.ArrowSeparate
 export const BookOpen01Icon = glyph(Huge.BookOpen01Icon, Iconoir.Book, Mingcute.BookRegular, "book", "book-open");
 export const BubbleChatIcon = glyph(Huge.BubbleChatIcon, Iconoir.ChatBubble, Mingcute.Chat1Regular, "chat-round-dots", "chat");
 export const Calendar03Icon = glyph(Huge.Calendar03Icon, Iconoir.Calendar, Mingcute.CalendarRegular, "calendar", "calendar-ltr");
+export const Menu01Icon = glyph(Huge.Menu01Icon, Iconoir.Menu, Mingcute.MenuRegular, "hamburger-menu", "navigation");
 export const Cancel01Icon = glyph(Huge.Cancel01Icon, Iconoir.Xmark, Mingcute.CloseRegular, "close", "dismiss");
 export const ChartColumnIcon = glyph(Huge.ChartColumnIcon, Iconoir.ReportColumns, Mingcute.ChartBarRegular, "chart", "data-bar-vertical");
 export const CheckListIcon = glyph(Huge.CheckListIcon, Iconoir.TaskList, Mingcute.ListCheckRegular, "checklist", "task-list-ltr");

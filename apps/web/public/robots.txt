@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /device
+Disallow: /forgot-password
+Disallow: /pricing
+Disallow: /sign-in
+Disallow: /sign-out
+Disallow: /sign-up
+
+Sitemap: https://dojo.foo/sitemap.xml
