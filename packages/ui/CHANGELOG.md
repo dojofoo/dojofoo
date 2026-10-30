@@ -1,5 +1,12 @@
 # @dojofoo/ui
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [d093333]
+  - @dojofoo/uix@0.0.3
+
 ## 0.0.3
 
 ### Patch Changes
