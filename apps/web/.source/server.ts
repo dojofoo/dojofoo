@@ -8,6 +8,14 @@ const create = server<typeof Config, import("fumadocs-mdx/runtime/types").Intern
   }
 }>();
 
+export const comparisons = await create.doc("comparisons", "comparisons", import.meta.glob(["./**/*.{mdx,md}"], {
+  "base": "./../comparisons",
+  "query": {
+    "collection": "comparisons"
+  },
+  "eager": true
+}));
+
 export const docs = await create.docs("docs", "content", import.meta.glob(["./**/*.{json,yaml}"], {
   "base": "./../content",
   "query": {

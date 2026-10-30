@@ -7,7 +7,8 @@ import { cn } from "../lib/utils";
  * ShaderCanvas – a full-size canvas running one fragment shader (WebGL 1), for the cards' drifting backgrounds. It hands
  * the shader u_time (seconds × speed), u_resolution (pixels) and u_seed (a vec2 from `seed`), plus any number uniforms
  * given; it pauses off screen, in a hidden tab and for reduced motion (then draws one still frame), and redraws on
- * resize. `extensions` turns on what the shader asks for (e.g. OES_standard_derivatives for fwidth).
+ * resize. `extensions` turns on what the shader asks for (e.g. OES_standard_derivatives for fwidth). The canvas is
+ * `data-ready` once its first frame is drawn, to fade it in by.
  *
  *   <ShaderCanvas fragment={FRAG} uniforms={{ u_scale: 4 }} speed={0.5} seed={42} className="absolute inset-0" />
  */
@@ -83,6 +84,7 @@ export function ShaderCanvas({ fragment, uniforms = {}, speed = 1, seed = 0, ext
       gl.uniform1f(uTime, ((performance.now() - start) / 1000) * speed);
       gl.uniform2f(uRes, canvas.width, canvas.height);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      canvas.dataset.ready = "";
     };
     const loop = () => { draw(); raf = requestAnimationFrame(loop); };
     const sync = () => {
@@ -109,6 +111,7 @@ export function ShaderCanvas({ fragment, uniforms = {}, speed = 1, seed = 0, ext
     return () => {
       running = false;
       cancelAnimationFrame(raf);
+      delete canvas.dataset.ready;
       ro.disconnect();
       io.disconnect();
       document.removeEventListener("visibilitychange", sync);
