@@ -3,7 +3,7 @@ import { ComparePage, rivals } from "../web/compare";
 import { SiteContext, type SiteLinks } from "../web/site";
 
 /**
- * Dojo.foo next to another way to learn (src/web/compare.tsx) – on the site at /compare/<rival>, hidden: not linked
+ * Dojo.foo next to another way to learn (src/web/compare.tsx) – on the site at /vs/<rival>, hidden: not linked
  * and out of search until the other side's column is confirmed from its own site.
  */
 const links: SiteLinks = {

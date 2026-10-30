@@ -1,9 +1,9 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { ComparePage, rivals } from "@dojofoo/uix/web/compare";
 
-// Dojo.foo next to another way to learn, e.g. /compare/masterclass. Not linked from anywhere and kept out of search
+// Dojo.foo next to another way to learn, e.g. /vs/masterclass. Not linked from anywhere and kept out of search
 // (noindex, not in the sitemap) until the other side's column is confirmed
-export const Route = createFileRoute("/compare/$rival")({
+export const Route = createFileRoute("/vs/$rival")({
   loader: ({ params }) => {
     if (!rivals.some((rival) => rival.id === params.rival)) throw notFound();
     return params.rival;

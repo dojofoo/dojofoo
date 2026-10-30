@@ -132,12 +132,12 @@ const crawlers: Array<[agent: string, owner: string, purpose: string]> = [
 /** What stands between the site and the index, as probed on CHECKED */
 const checks: Array<[state: "ok" | "fixed" | "todo" | "note", what: string, detail: string]> = [
   ["ok", "Crawlable", "robots.txt allows / (not /api, the auth pages or /pricing) and names the sitemap; pages answer 200, server-rendered, to Googlebot"],
-  ["ok", "Sitemap", "/sitemap.xml lists the home page, the dojos, each listed course and every docs page"],
+  ["ok", "Sitemap", "/sitemap.xml lists the home page, the dojos, each listed course (with its last update) and every docs page. Google ignores priority, change frequency and order; it reads lastmod when it's accurate"],
   ["ok", "One address per page", "Canonical links; http:// redirects (308) to https://; www.dojo.foo has no DNS record, so nothing competes"],
   ["ok", "Site name", "WebSite JSON-LD on the home page (name, alternateName, url) and og:site_name"],
   ["fixed", "Favicon in results", "Google takes ICO, PNG and others but not SVG – the site had only favicon.svg. Now also favicon.ico, a 96px PNG and the Apple touch icon"],
   ["todo", "Search Console", "No google-site-verification record in DNS: verify the domain (a DNS TXT record), submit the sitemap, and request indexing for the home page and /dojos"],
-  ["todo", "Social image format", "og.webp: X documents WebP; Facebook, LinkedIn, Slack, Discord and iMessage don't. A PNG or JPEG would be safe everywhere"],
+  ["note", "Social image format", "og.webp, kept: X documents WebP; Facebook, LinkedIn, Slack, Discord and iMessage don't say either way"],
   ["note", "Sitelinks", "Google picks them – no markup. Clear titles, a header that links the main pages, and pages worth listing (Membership, Interviews, Sell aren't pages yet)"],
   ["note", "People also ask", "Not set by markup. Answering the questions in the page's own text (an FAQ on the landing) is what can feed it, and AI answers"],
   ["note", "llms.txt", "Served, with llms-full.txt. Google says it neither helps nor hurts Search; other assistants may read it"],
