@@ -11,5 +11,5 @@
     "version": true,
     "tag": true
   },
-  "ignore": ["@dojofoo/web"]
+  "ignore": []
 }
