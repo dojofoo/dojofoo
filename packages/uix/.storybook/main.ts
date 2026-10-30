@@ -10,7 +10,7 @@ const proxy = process.env.PORTLESS_URL ? new URL(process.env.PORTLESS_URL) : und
 const web = process.env.UIX_STORIES === "web";
 
 const config: StorybookConfig = {
-  stories: web ? ["../src/stories/web.stories.tsx", "../src/stories/docs.stories.tsx"] : ["../src/**/*.stories.@(ts|tsx)"],
+  stories: web ? ["../src/stories/web.stories.tsx", "../src/stories/docs.stories.tsx", "../src/stories/seo.stories.tsx", "../src/stories/compare.stories.tsx"] : ["../src/**/*.stories.@(ts|tsx)"],
   addons: ["@storybook/addon-a11y"],
   staticDirs: ["../public"],
   framework: "@storybook/react-vite",

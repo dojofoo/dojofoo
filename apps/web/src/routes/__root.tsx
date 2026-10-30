@@ -32,7 +32,13 @@ export const Route = createRootRoute({
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: uixCss },
       { rel: "stylesheet", href: uixFonts },
+      // The SVG where it's taken; PNG and ICO for the rest (Safari, Google Search, fetchers asking for /favicon.ico):
+      // scripts/favicons.mjs draws them from it
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/png", sizes: "96x96", href: "/favicon-96x96.png" },
+      { rel: "shortcut icon", href: "/favicon.ico" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/site.webmanifest" },
     ],
   }),
   component: RootLayout,

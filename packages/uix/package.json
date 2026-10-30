@@ -33,6 +33,8 @@
     "./web/pricing": "./src/web/pricing.tsx",
     "./web/course": "./src/web/course.tsx",
     "./web/catalog": "./src/web/catalog.ts",
+    "./web/seo": "./src/web/seo.ts",
+    "./web/compare": "./src/web/compare.tsx",
     "./docs/layout": "./src/docs/docs-site.tsx",
     "./docs/content": "./src/docs/content.ts"
   },
