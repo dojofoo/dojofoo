@@ -1,52 +1,14 @@
+import { SITE, socialMetadata as metadata } from "@dojofoo/uix/web/seo";
 import { SITE_URL } from "./site";
 
+/* The site's name, line and tags – from UIX (web/seo), which the Search story previews */
+
 export const SOCIAL_IMAGE_URL = `${SITE_URL}/og.webp`;
-export const SITE_NAME = "Dojo.foo";
-export const DEFAULT_TITLE = "Dojo.foo – Free courses with agentic tutors";
-export const DEFAULT_SOCIAL_DESCRIPTION =
-  "Free courses with an agentic sensei who mentors you through every challenge. Take any course, rehearse for your next interview, or build a dojo of your own.";
+export const SITE_NAME = SITE.name;
+export const DEFAULT_TITLE = SITE.title;
+export const DEFAULT_SOCIAL_DESCRIPTION = SITE.description;
 
-interface SocialMetadataOptions {
-  title: string;
-  description: string;
-  url: string;
-  /** The page's own card (its address + /og.webp); the site's otherwise */
-  image?: string;
-  type?: "article" | "website";
-}
-
-export function socialMetadata({
-  title,
-  description,
-  url,
-  type = "website",
-  image = SOCIAL_IMAGE_URL,
-}: SocialMetadataOptions) {
-  // The site's card shows its line; a page's own shows the page's title
-  const imageAlt = image === SOCIAL_IMAGE_URL ? DEFAULT_TITLE : title;
-
-  return [
-    { name: "description", content: description },
-    { property: "og:type", content: type },
-    { property: "og:url", content: url },
-    { property: "og:site_name", content: SITE_NAME },
-    { property: "og:locale", content: "en_US" },
-    { property: "og:title", content: title },
-    { property: "og:description", content: description },
-    { property: "og:image", content: image },
-    { property: "og:image:secure_url", content: image },
-    { property: "og:image:type", content: "image/webp" },
-    { property: "og:image:width", content: "1200" },
-    { property: "og:image:height", content: "630" },
-    { property: "og:image:alt", content: imageAlt },
-    { name: "twitter:card", content: "summary_large_image" },
-    { name: "twitter:site", content: "@tomhacks" },
-    { name: "twitter:title", content: title },
-    { name: "twitter:description", content: description },
-    { name: "twitter:image", content: image },
-    { name: "twitter:image:alt", content: imageAlt },
-  ];
-}
+export const socialMetadata = (options: Omit<Parameters<typeof metadata>[0], "siteUrl">) => metadata({ siteUrl: SITE_URL, ...options });
 
 /** The page's one address for search engines: the site's origin and its path, without a trailing slash */
 /** A page's own social card: its address + /og.webp */

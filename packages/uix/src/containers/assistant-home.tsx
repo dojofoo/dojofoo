@@ -1,4 +1,6 @@
-import { ChatMessage as Message, ChatStyles } from "../components/chat-message";
+import type { UIMessage } from "@tanstack/ai-client";
+import { ChatTranscript } from "../components/chat-transcript";
+import { StreamedChatMessage } from "../components/streamed-message";
 export { ChatStyles } from "../components/chat-message";
 /*
  * Assistant Home – the start screen of an AI workspace, in a single file.
@@ -8,7 +10,7 @@ export { ChatStyles } from "../components/chat-message";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { ComposerPicker, ComposerSurface } from "../components/composer";
-import { ThinkingState, type ThinkingStep } from "../components/thinking-state";
+import type { ThinkingStep } from "../components/thinking-state";
 import type { IconGlyph } from "../lib/icons";
 import {
   AiBrain01Icon,
@@ -210,15 +212,18 @@ export function useChatThread(replyFor: (prompt: string) => ChatReply) {
   return { messages, busy, send, finish: () => setBusy(false) };
 }
 
-/** The thread: user bubbles on the right, answers with the library's Thinking State and streamed text */
+/**
+ * The thread, as the app's chat renders it (StreamedChatMessage): the person's messages, and each answer as a
+ * thinking panel – its steps inside – then its text streaming in as Markdown, a few words at a time
+ */
 export function ChatMessages({
   messages,
-  name,
   scroller,
   onDone,
 }: {
   messages: ChatMessage[];
-  name: string;
+  /** Who answers (unused: the thinking panel names the activity, as in the app) */
+  name?: string;
   /** Scroll container that follows the newest text */
   scroller: RefObject<HTMLElement | null>;
   onDone: () => void;
@@ -228,59 +233,35 @@ export function ChatMessages({
     const el = scroller.current;
     if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 160) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   };
-  useEffect(follow, [messages.length]);
-
-  return (
-    <>
-      <ChatStyles />
-      {messages.map((m) =>
-        m.role === "user" ? (
-          <Message key={m.id} role="user">{m.text}</Message>
-        ) : (
-          <Answer key={m.id} name={name} reply={m.reply} onGrow={follow} onDone={onDone} />
-        ),
-      )}
-    </>
-  );
-}
-
-function Answer({ name, reply, onGrow, onDone }: { name: string; reply: ChatReply; onGrow: () => void; onDone: () => void }) {
-  const [writing, setWriting] = useState(false);
-  const [count, setCount] = useState(0);
-  const words = reply.paragraphs.map((p) => p.split(" "));
-  const total = words.reduce((n, w) => n + w.length, 0);
-
-  // Writes the answer out a few words at a time, like a model streaming
+  // The newest answer thinks for a moment per step, then writes; how many of its words are out
+  const live = messages.at(-1)?.role === "assistant" ? messages.at(-1) as Extract<ChatMessage, { role: "assistant" }> : undefined;
+  const [written, setWritten] = useState<{ id: number; words: number }>();
+  const words = live ? live.reply.paragraphs.join("\n\n").split(" ") : [];
+  const writing = live && written?.id === live.id ? written.words : undefined;
   useEffect(() => {
-    if (!writing) return;
-    const t = window.setInterval(() => setCount((c) => Math.min(c + 2, total)), 45);
-    return () => window.clearInterval(t);
-  }, [writing, total]);
+    if (!live) return;
+    const start = window.setTimeout(() => setWritten({ id: live.id, words: 0 }), 700 * Math.max(1, live.reply.steps.length));
+    return () => window.clearTimeout(start);
+  }, [live?.id]);
   useEffect(() => {
-    if (!writing) return;
-    onGrow();
-    if (count >= total) onDone();
+    follow();
+    if (!live || writing === undefined) return;
+    if (writing >= words.length) { onDone(); return; }
+    const next = window.setTimeout(() => setWritten({ id: live.id, words: writing + 2 }), 45);
+    return () => window.clearTimeout(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count, writing]);
+  }, [messages.length, writing]);
 
-  let left = count;
-  return (
-    <Message role="assistant">
-      <ThinkingState className="ui-as-msg__thinking" who={name} steps={reply.steps} stepMs={700} doneLabel="Ready" onDone={() => (setWriting(true), onGrow())} />
-      {writing &&
-        words.map((w, i) => {
-          const shown = Math.max(0, Math.min(w.length, left));
-          left -= w.length;
-          return shown > 0 ? (
-            <p key={i} className="ui-as-msg__p">
-              {w.slice(0, shown).join(" ")}
-            </p>
-          ) : null;
-        })}
-    </Message>
-  );
+  const thread: UIMessage[] = messages.map((m) => m.role === "user"
+    ? { id: `m${m.id}`, role: "user", parts: [{ type: "text", content: m.text }] }
+    : { id: `m${m.id}`, role: "assistant", parts: [
+      { type: "thinking", content: m.reply.steps.map((step) => step.label).join("\n") },
+      ...(m !== live ? [{ type: "text" as const, content: m.reply.paragraphs.join("\n\n") }]
+        : writing ? [{ type: "text" as const, content: words.slice(0, writing).join(" ") }] : []),
+    ] });
+  return <ChatTranscript messages={thread} streaming={Boolean(live) && (writing === undefined || writing < words.length)}
+    renderMessage={(message, streaming) => <StreamedChatMessage key={message.id} message={message} streaming={streaming} />} />;
 }
-
 
 /** Models in the composer's picker – the first one is selected */
 export type ComposerModel = { value?: string; name: string; effort?: string; description: string; icon: IconGlyph };

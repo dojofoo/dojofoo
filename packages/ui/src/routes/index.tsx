@@ -981,7 +981,7 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
         onModelChange={value => { void changeModel(value); }} />
       {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}
     </div>}>
-    <div data-chat-error={chatError?.message} data-chat-status={chatStatus} data-host-event-count={hostChatEvents.length} data-testid="chat-pane">
+    <div data-chat-error={chatError?.message} data-chat-status={chatStatus} data-host-event-count={hostChatEvents.length} data-testid="chat-pane" className="ui-as-chat__turns">
       {conversationError && <div role="alert" className="space-y-3 p-3 text-sm text-destructive"><p>{conversationError}</p>
         <UIXButton variant="secondary" onClick={() => setConversationAttempt(attempt => attempt + 1)}>Reload conversation</UIXButton></div>}
       <ChatTranscript messages={timelineMessages} streaming={chatIsWorking} renderMessage={(message, streaming) => (
