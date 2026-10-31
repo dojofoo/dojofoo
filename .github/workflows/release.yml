@@ -39,21 +39,21 @@ jobs:
       - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         id: changesets
         with:
-          publish: pnpm release
-          version: pnpm run version
+          publish-script: pnpm release
+          version-script: pnpm run version
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Emits Sigstore provenance attestation on every npm publish from CI.
           # Existing packages use their npm Trusted Publisher configuration.
           NPM_CONFIG_PROVENANCE: "true"
 
       - name: Verify published CLI
-        if: steps.changesets.outputs.published == 'true'
+        if: contains(fromJSON(steps.changesets.outputs.published-packages).*.name, 'dojofoo')
         run: |
           release_version=$(node -p 'require("./packages/cli/package.json").version')
           npm exec --yes --package="dojofoo@$release_version" -- dojofoo --help
 
-      # A version tag is production: the tagged commit's staged deployment takes dojo.foo
+      # A version tag is production: the tagged commit's staged deployment takes dojo.foo. A release of the private
+      # packages alone (the website, uix, ui) counts: Changesets tags them, and the action reports their tags as published
       - name: Promote the release to production
         if: steps.changesets.outputs.published == 'true'
         env:
