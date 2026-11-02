@@ -164,7 +164,7 @@ describe("setupAgents", () => {
 
     // Per-agent directories
     expect(existsSync(resolve(root, cfg.dir, cfg.commandsDir))).toBe(true);
-    expect(existsSync(resolve(root, cfg.dir, "skills"))).toBe(false);
+    expect(existsSync(resolve(root, cfg.dir, "skills"))).toBe(cfg.dir === ".agents");
     expect(existsSync(resolve(root, ".agents/skills/dojofoo/SKILL.md"))).toBe(true);
 
     // settings.json presence tracks hasSettings
@@ -175,8 +175,8 @@ describe("setupAgents", () => {
       const link = resolve(root, cfg.dir, cfg.commandsDir, `${name}.md`);
       const canonical = resolve(root, ".agents/commands", `${name}.md`);
 
-      expect(lstatSync(link).isSymbolicLink()).toBe(true);
-      expect(resolve(resolve(root, cfg.dir, cfg.commandsDir), readlinkSync(link))).toBe(canonical);
+      expect(lstatSync(link).isSymbolicLink()).toBe(link !== canonical);
+      if (link !== canonical) expect(resolve(resolve(root, cfg.dir, cfg.commandsDir), readlinkSync(link))).toBe(canonical);
       expect(existsSync(canonical)).toBe(true);
     }
   });

@@ -1,3 +1,4 @@
+import { mountAgentChat } from "./agent-chat.fixture";
 import { agentDefinitions } from "@dojofoo/config/agents";
 import { expect, test } from "@playwright/test";
 import { execFileSync, spawn } from "node:child_process";
@@ -301,6 +302,28 @@ test("the UIX library separates installed sessions from course previews and pres
     // CLI commands may observe the calling agent's external session. Browsing
     // must never start or adopt a managed/owned teaching conversation.
     expect(sessions.filter(session => session.ownership !== "external")).toEqual([]);
+    const draftResponse = await page.request.post(`${origin}/api/control/authoring`, { data: { name: "Collapse test" } });
+    expect(draftResponse.status()).toBe(201);
+    const draft = await draftResponse.json();
+    await mountAgentChat(page, { root: draft.path, workspaceId: draft.workspaceId, files: false });
+    await page.goto(`${origin}/authoring?workspace=${draft.workspaceId}&session=saved`);
+    const authoringTree = page.getByRole("tree", { name: "Course files and chapters", exact: true });
+    await expect(authoringTree).toBeVisible();
+    await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
+    await expect(authoringTree).toBeHidden();
+    await expect(page.getByLabel("Course card preview", { exact: true })).toBeHidden();
+    await expect(page.locator("aside.ui-as-side")).toHaveCSS("width", "64px");
+    await expect(page.locator("aside.ui-as-side").getByRole("button", { name: "Evals", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Expand sidebar", exact: true })).toBeVisible();
+    await expect(authoringTree).toBeHidden();
+    await page.getByRole("button", { name: "Expand sidebar", exact: true }).click();
+    await expect(authoringTree.getByRole("treeitem", { name: "Default", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Dashboard", exact: true }).click();
+    await page.getByRole("button", { name: "Actions for Collapse test", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Actions for Collapse test", exact: true })).toHaveCount(0);
     expect(errors).toEqual([]);
   } catch (error) {
     await page.screenshot({ path: info.outputPath("library-failure.png") });
