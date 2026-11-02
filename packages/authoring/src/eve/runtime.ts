@@ -20,6 +20,13 @@ export async function closeKyoshiRuntimes(): Promise<void> {
   if (failures.length) throw new AggregateError(failures, "Failed to close authoring runtimes.");
 }
 
+/** Close only this course's owned runtime before its files are removed. */
+export async function closeKyoshiRuntime(courseRoot: string): Promise<void> {
+  const root = await realpath(courseRoot);
+  const owner = runtimes.get(root);
+  if (owner) await (await owner).close();
+}
+
 export async function acquireKyoshiRuntime(courseRoot: string) {
   const root = await realpath(courseRoot);
   let runtime = runtimes.get(root);

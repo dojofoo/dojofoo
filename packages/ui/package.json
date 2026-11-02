@@ -27,7 +27,7 @@
   },
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "node ../uix/scripts/build-course-slides.mjs && vite build",
     "start": "vite preview",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build -o node_modules/.cache/storybook-static",
@@ -62,6 +62,7 @@
   },
   "dependencies": {
     "@a2a-js/sdk": "0.3.14",
+    "@agentclientprotocol/claude-agent-acp": "0.99.1",
     "@agentclientprotocol/codex-acp": "2.2.2",
     "@agentclientprotocol/sdk": "1.9.0",
     "@ai-sdk/harness": "1.0.167",

@@ -30,6 +30,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dojofoo/config build
       - run: pnpm exec changeset status --since=origin/main
       - run: pnpm --filter @dojofoo/api openapi:check
       - run: pnpm --filter @dojofoo/api test

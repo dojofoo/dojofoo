@@ -14,11 +14,11 @@ import {
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { parse as parseYaml, parseDocument, stringify as stringifyYaml } from "yaml";
 import {
   observeLocalContext,
 } from "@dojofoo/config/local-state";
-import { chapterCurriculum, courseFileFilter, courseRelativePath, createStateDirectory, kataTestTemplate, validateManifest, writeDojoRc } from "@dojofoo/config";
+import { courseContent, ensureCourseContent, readIntroduction, type CourseIntroduction, courseAppearanceErrors, type CourseAppearance, type ChapterReference, chapterCurriculum, courseChapters, courseFileFilter, courseRelativePath, createStateDirectory, kataTestTemplate, validateManifest, writeDojoRc } from "@dojofoo/config";
 import { checkSensei, checkTests } from "../evaluation/preflight.ts";
 import { readPrompt } from "../prompts.ts";
 import {
@@ -46,6 +46,8 @@ type AuthoringThreadState = {
 };
 
 export type AuthoringLesson = {
+  chapter?: ChapterReference;
+  intro?: CourseIntroduction | null;
   id: string;
   title: string;
   description: string;
@@ -61,6 +63,8 @@ export type AuthoringLesson = {
 
 export type AuthoringSourceFile = {
   content: string;
+  /** File ownership comes from the authoring service, not UI extension guesses. */
+  courseFile?: boolean;
   label: string;
   path: string;
 };
@@ -74,6 +78,13 @@ export type AuthoringReadinessCheck = {
 };
 
 export type AuthoringWorkspace = {
+  title?: string;
+  author?: string;
+  repository?: string;
+  version?: string;
+  appearance?: CourseAppearance;
+  intro?: CourseIntroduction | null;
+  chapters?: Array<ChapterReference & { intro?: CourseIntroduction | null; files?: AuthoringSourceFile[] }>;
   root: string;
   style: string;
   name: string;
@@ -94,17 +105,27 @@ export type AuthoringDraft = Omit<AuthoringWorkspace, "sessionId" | "messages">;
 
 export function readAuthoringDraft(root: string): AuthoringDraft {
   const manifest = readDraftManifest(root);
-  const lessons = draftLessons(root, manifest);
+  const content = courseContent(root, manifest);
+  const lessons = draftLessons(root, manifest).map(lesson => ({ ...lesson, chapter: lesson.chapter ?? courseChapters(manifest)[0] }));
   return {
     root,
+    title: typeof manifest.title === "string" ? manifest.title : undefined,
+    author: typeof manifest.author === "string" ? manifest.author : undefined,
+    repository: typeof manifest.repository === "string" ? manifest.repository : undefined,
+    version: typeof manifest.version === "string" ? manifest.version : undefined,
+    appearance: manifest.appearance && !courseAppearanceErrors(manifest.appearance).length ? manifest.appearance as CourseAppearance : undefined,
+    intro: content.intro,
+    chapters: content.chapters.map(chapter => ({ ...chapter, files: readAuthoringDirectory(root, resolve(root, chapter.path)).filter(file =>
+      !lessons.some(lesson => file.path.startsWith(`${dirname(lesson.templatePath ?? lesson.senseiPath).replaceAll("\\", "/")}/`))
+      && !content.chapters.some(other => other.id !== chapter.id && other.path.startsWith(`${chapter.path}/`) && file.path.startsWith(`${other.path}/`))) })),
     style: String(manifest.mode ?? "katas"),
-    name: String(manifest.name ?? basename(root)),
+    name: String(manifest.title ?? manifest.name ?? basename(root)),
     description: String(manifest.description ?? ""),
     manifestSource: readOptionalFile(resolve(root, "dojo.yaml")),
     courseGuidance: readOptionalFile(resolve(root, "DOJO.md")),
-    rootFiles: readRootAuthoringFiles(root),
+    rootFiles: readRootAuthoringFiles(root).filter(file => !content.chapters.some(chapter => file.path.startsWith(`${chapter.path}/`))),
     language: String(manifest.language ?? ""),
-    issues: validateManifest(manifest),
+    issues: [...validateManifest(manifest), ...content.issues],
     courseChecks: courseReadiness(root, manifest, lessons),
     lessons,
   };
@@ -267,37 +288,78 @@ export function authoringEvalReadiness(root: string): AuthoringReadinessCheck[] 
   ];
 }
 
-export function createAuthoringLesson(root: string, requestedTitle: string): string {
+/** Materialize the Default chapter without moving lessons or changing their IDs. */
+function chapterDocument(root: string) {
+  const document = parseDocument(readOptionalFile(resolve(root, "dojo.yaml")));
+  const manifest = readDraftManifest(root);
+  if (!Array.isArray(manifest.chapters) || !manifest.chapters.length) {
+    const lessons = Array.isArray(manifest.katas) ? manifest.katas.filter(isRecord).map(({ name, ...lesson }) => ({ ...lesson, id: String(name) })) : [];
+    const chapter = { ...courseChapters(manifest)[0], lessons };
+    const errors = chapterCurriculum({ chapters: [chapter] }).errors;
+    if (errors.length) throw new Error(errors.join("; "));
+    document.delete("katas");
+    document.set("chapters", document.createNode([chapter]));
+  }
+  return document;
+}
+
+export function createAuthoringChapter(root: string, requestedTitle = "New chapter"): string {
+  const title = requestedTitle.trim() || "New chapter";
+  const document = chapterDocument(root);
+  const chapters = (document.toJS() as { chapters: Array<ChapterReference> }).chapters;
+  const base = slugify(title) || "chapter";
+  let id = base;
+  for (let suffix = 2; chapters.some(chapter => chapter.id === id) || existsSync(resolve(root, "src", id)); suffix++) id = `${base}-${suffix}`;
+  document.addIn(["chapters"], document.createNode({ id, title, path: `src/${id}`, lessons: [] }));
+  writeAuthoringFile(root, "dojo.yaml", document.toString());
+  ensureCourseContent(root, document.toJS() as Record<string, unknown>);
+  return id;
+}
+
+export function renameAuthoringChapter(root: string, chapterId: string, requestedTitle: string): void {
+  const title = requestedTitle.trim();
+  if (!title) throw new Error("Chapter title is required");
+  const document = chapterDocument(root);
+  const chapters = (document.toJS() as { chapters: Array<ChapterReference> }).chapters;
+  const index = chapters.findIndex(chapter => chapter.id === chapterId);
+  if (index < 0) throw new Error(`Chapter not found: ${chapterId}`);
+  document.setIn(["chapters", index, "title"], title);
+  writeAuthoringFile(root, "dojo.yaml", document.toString());
+}
+
+export function createAuthoringLesson(root: string, requestedTitle: string, chapterId?: string): string {
   const title = requestedTitle.trim() || "Untitled lesson";
   const manifest = readDraftManifest(root);
-  const entries = Array.isArray(manifest.katas)
-    ? manifest.katas.filter(isRecord)
-    : [];
+  const chapters = Array.isArray(manifest.chapters) ? manifest.chapters.filter(isRecord) : undefined;
+  if (chapterId && chapterId !== "default" && !chapters) throw new Error("Select an existing chapter for the new lesson");
+  const chapter = chapters?.find(entry => chapterId ? entry.id === chapterId : true);
+  if (chapters && (!chapter || !courseRelativePath(chapter.path))) throw new Error("Select an existing chapter for the new lesson");
+  const entries = chapters ? chapterCurriculum(manifest).katas : Array.isArray(manifest.katas) ? manifest.katas.filter(isRecord) : [];
   const prefix = String(entries.length + 1).padStart(3, "0");
   const base = slugify(title) || "lesson";
   let id = `${prefix}-${base}`;
   let suffix = 2;
-  while (entries.some((entry) => entry.name === id) || existsSync(resolve(root, "src", id))) {
+  while (entries.some((entry) => entry.name === id) || existsSync(resolve(root, chapter ? String(chapter.path) : "src", id))) {
     id = `${prefix}-${base}-${suffix}`;
     suffix += 1;
   }
-  manifest.katas = [
-    ...entries,
-    {
-      name: id,
+  const directory = `${chapter ? chapter.path : "src"}/${id}`;
+  const entry = {
+      ...(chapter ? { id } : { name: id }),
       title,
-      template: `src/${id}/kata.ts`,
+      template: `${directory}/kata.ts`,
       description: "",
       difficulty: 1,
-    },
-  ];
+  };
+  if (chapter) chapter.lessons = [...(Array.isArray(chapter.lessons) ? chapter.lessons : []), entry];
+  else manifest.katas = [...entries, entry];
   writeAuthoringFile(root, "dojo.yaml", stringifyYaml(manifest));
   // Every new lesson starts with its evals in place: the SENSEI template the
   // preflight checks against, and a staircase of todo checks to fill in.
-  writeAuthoringFile(root, `src/${id}/SENSEI.md`, readPrompt("skills/kata-lessons/SENSEI.tmpl").replace("{Lesson title}", title));
-  mkdirSync(resolve(root, "src", id), { recursive: true });
-  writeFileSync(resolve(root, "src", id, "kata.ts"), "");
-  writeFileSync(resolve(root, "src", id, "kata.test.ts"), [
+  writeAuthoringFile(root, `${directory}/SENSEI.md`, readPrompt("skills/kata-lessons/SENSEI.tmpl").replace("{Lesson title}", title));
+  mkdirSync(resolve(root, chapter ? String(chapter.path) : "src", id), { recursive: true });
+  writeFileSync(resolve(root, directory, "kata.ts"), "");
+  writeFileSync(resolve(root, directory, "kata.test.ts"), [
     `import { describe, it } from "vitest";`,
     ``,
     `// A staircase of checks: the easiest win first, then one test per stumbling point.`,
@@ -307,14 +369,27 @@ export function createAuthoringLesson(root: string, requestedTitle: string): str
     `});`,
     ``,
   ].join("\n"));
+  ensureCourseContent(root, manifest);
   return id;
+}
+
+export function updateAuthoringAppearance(root: string, input: unknown): void {
+  const manifest = readDraftManifest(root);
+  const appearance = { ...(isRecord(manifest.appearance) ? manifest.appearance : {}), ...(isRecord(input) ? input : {}) };
+  const errors = !isRecord(input) ? ['"appearance" must be an object'] : courseAppearanceErrors(appearance);
+  if (errors.length) throw new Error(errors.join("; "));
+  const document = parseDocument(readOptionalFile(resolve(root, "dojo.yaml")));
+  if (!isRecord(manifest.appearance)) document.set("appearance", document.createNode({}));
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) document.setIn(["appearance", key], value);
+  writeAuthoringFile(root, "dojo.yaml", document.toString());
 }
 
 export function renameAuthoringCourse(root: string, requestedTitle: string): void {
   const title = requestedTitle.trim();
   if (!title) throw new Error("Course title is required");
   const manifest = readDraftManifest(root);
-  manifest.name = title;
+  if (typeof manifest.title === "string") manifest.title = title;
+  else manifest.name = title;
   writeAuthoringFile(root, "dojo.yaml", stringifyYaml(manifest));
 }
 
@@ -326,13 +401,13 @@ export function renameAuthoringLesson(
   const title = requestedTitle.trim();
   if (!title) throw new Error("Lesson title is required");
   const manifest = readDraftManifest(root);
-  const entries = Array.isArray(manifest.katas)
-    ? manifest.katas.filter(isRecord)
-    : [];
-  const lesson = entries.find((entry) => String(entry.name ?? "") === lessonId);
+  const entries = Array.isArray(manifest.chapters)
+    ? manifest.chapters.filter(isRecord).flatMap(chapter => Array.isArray(chapter.lessons) ? chapter.lessons.filter(isRecord) : [])
+    : Array.isArray(manifest.katas) ? manifest.katas.filter(isRecord) : [];
+  const lesson = entries.find((entry) => String(entry.id ?? entry.name ?? "") === lessonId);
   if (!lesson) throw new Error(`Lesson not found: ${lessonId}`);
   lesson.title = title;
-  manifest.katas = entries;
+  if (!Array.isArray(manifest.chapters)) manifest.katas = entries;
   writeAuthoringFile(root, "dojo.yaml", stringifyYaml(manifest));
 }
 
@@ -356,6 +431,7 @@ function draftLessons(root: string, manifest: Record<string, unknown>): Authorin
       .find(existsSync);
     const relativeSenseiPath = relative(root, resolve(directory, senseiPath?.endsWith(".mdx") ? "SENSEI.mdx" : "SENSEI.md"));
     const sensei = senseiPath ? readFileSync(senseiPath, "utf8") : "";
+    const intro = readIntroduction(root, directory);
     const files = readAuthoringDirectory(root, directory);
     // A manifest's `test` is an executable command, not a filename. Match the
     // production resolver: tests are named after the actual scaffold.
@@ -372,23 +448,29 @@ function draftLessons(root: string, manifest: Record<string, unknown>): Authorin
       ? [`Add the learner scaffold ${templatePath}.`]
       : tests ? checkTests(tests.content) : [`Add the lesson's checks in ${testPath}.`];
     const checks: AuthoringReadinessCheck[] = [
+      { id: "intro", label: "Learner introduction in INTRO.md or INTRO.mdx", ready: Boolean(intro?.content.trim()) },
       { id: "sensei", label: "Lesson briefing and Sensei guidance", ready: !senseiFindings.length, findings: senseiFindings },
       { id: "scaffold", label: "Learner scaffold and checks", ready: !scaffoldFindings.length, findings: scaffoldFindings },
     ];
     return {
-      id,
+      ...(isRecord(entry.chapter) ? { chapter: entry.chapter as unknown as ChapterReference } : {}),
+      id, intro,
       title: String(entry.title ?? humanTitle(id)),
       description: String(entry.description ?? ""),
       senseiPath: relativeSenseiPath,
       templatePath,
       testPath,
       sensei,
-      files,
+      files: files.map(file => ({ ...file, courseFile: file.courseFile || file.path === templatePath || file.path === testPath || evalPaths.includes(file.path) })),
       hasSensei: Boolean(senseiPath && substantiveMarkdown(readFileSync(senseiPath, "utf8"))),
       evalPaths,
       checks,
     };
   });
+}
+
+function primaryCourseFile(name: string): boolean {
+  return /^(README\.md|INTRO\.mdx?|DOJO\.md|SENSEI\.mdx?|dojo\.(?:ya?ml|json))$/i.test(name);
 }
 
 function readAuthoringDirectory(root: string, directory: string, include = authoringFileFilter(root)): AuthoringSourceFile[] {
@@ -400,7 +482,7 @@ function readAuthoringDirectory(root: string, directory: string, include = autho
       const path = resolve(directory, entry.name);
       if (entry.isDirectory()) return readAuthoringDirectory(root, path, include);
       if (!entry.isFile()) return [];
-      return [{ content: readOptionalFile(path), label: entry.name, path: relative(root, path) }];
+      return [{ content: readOptionalFile(path), label: entry.name, path: relative(root, path), courseFile: primaryCourseFile(entry.name) }];
     });
 }
 
@@ -414,7 +496,7 @@ function readRootAuthoringFiles(root: string): AuthoringSourceFile[] {
       const path = resolve(root, entry.name);
       if (entry.isDirectory()) return readAuthoringDirectory(root, path, include);
       if (!entry.isFile()) return [];
-      return [{ content: readOptionalFile(path), label: entry.name, path: relative(root, path) }];
+      return [{ content: readOptionalFile(path), label: entry.name, path: relative(root, path), courseFile: primaryCourseFile(entry.name) }];
     });
 }
 
@@ -423,7 +505,9 @@ function courseReadiness(
   manifest: Record<string, unknown>,
   lessons: AuthoringLesson[]
 ): AuthoringReadinessCheck[] {
+  const content = courseContent(root, manifest);
   return [
+    { id: "introduction", label: "Course README.md and chapter introductions", ready: Boolean(content.intro?.content.trim()) && content.chapters.every(chapter => Boolean(chapter.intro?.content.trim())), findings: content.issues.filter(issue => !issue.includes(" lesson introduction")) },
     { id: "manifest", label: "Course metadata", ready: validateManifest(manifest).length === 0 },
     { id: "intent", label: "Course intent and teaching rules", ready: substantiveMarkdown(readOptionalFile(resolve(root, "DOJO.md"))) },
     { id: "curriculum", label: "At least one lesson", ready: lessons.length > 0 },

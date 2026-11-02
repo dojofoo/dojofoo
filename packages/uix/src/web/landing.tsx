@@ -62,7 +62,7 @@ export function LandingPage({ learning, courses, preview }: {
             heading?.closest("section")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
             heading?.focus({ preventScroll: true });
           })}>Start</ButtonLink>
-          <ButtonLink variant="secondary" href={links.sectionHref("courses")} onClick={event => followLink(event, () => links.navigate("courses"))}>Browse dojos</ButtonLink>
+          <ButtonLink variant="secondary" href={links.sectionHref("courses")} onNavigate={() => links.navigate("courses")}>Browse dojos</ButtonLink>
         </div>
       </section>
 
@@ -97,7 +97,7 @@ export function LandingPage({ learning, courses, preview }: {
           <h2 id="ui-land-start" tabIndex={-1} className="ui-land-h2">One command to start</h2>
           <p className="ui-land-lead">It opens the dojo in your browser.<br />Pick your agent and install your first course from there.</p>
           <CommandCopy command={START} className="ui-land-start__cmd" />
-          <ButtonLink variant="ghost" href="/docs/quickstart" iconRight={<Icon icon={ArrowRight01Icon} size={14} />} onClick={event => followLink(event, () => links.openDoc("/docs/quickstart"))}>Read the quickstart</ButtonLink>
+          <ButtonLink variant="ghost" href="/docs/quickstart" iconRight={<Icon icon={ArrowRight01Icon} size={14} />} onNavigate={() => links.openDoc("/docs/quickstart")}>Read the quickstart</ButtonLink>
         </section>
 
         <section className="ui-land-section">
@@ -106,7 +106,7 @@ export function LandingPage({ learning, courses, preview }: {
               <p className="ui-land-eyebrow">Most installed right now</p>
               <h2 className="ui-land-h2">Top courses</h2>
             </div>
-            <ButtonLink variant="secondary" size="sm" href={links.sectionHref("courses")} onClick={event => followLink(event, () => links.navigate("courses"))}>All courses</ButtonLink>
+            <ButtonLink variant="secondary" size="sm" href={links.sectionHref("courses")} onNavigate={() => links.navigate("courses")}>All courses</ButtonLink>
           </div>
           {top.length > 0 ? <div className="ui-land-courses">
             {top.map((course) => <CourseTile key={course.id} course={course} href={links.courseHref(course)} onOpen={links.openCourse} shader />)}

@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import type { HarnessAdapter } from "./adapter";
 
 const require = createRequire(import.meta.url);
@@ -20,7 +21,7 @@ export function codexRuntimeEnvironment(
     ...baseEnvironment,
     // Use the learner's installed CLI, as model discovery and native login do.
     // ACP otherwise launches its separately pinned, potentially older Codex.
-    CODEX_PATH: baseEnvironment.CODEX_PATH ?? "codex",
+    CODEX_PATH: baseEnvironment.CODEX_PATH ?? resolveAgentExecutable("codex", { environment: baseEnvironment }) ?? "codex",
     INITIAL_AGENT_MODE: "agent-full-access",
     CODEX_CONFIG: JSON.stringify({
       ...configured,

@@ -1,3 +1,4 @@
+import { AuthoringCourseCard } from "../components/authoring-course-card";
 import { fadeViewTransition } from "../lib/view-transition";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CodeEditor, Editor, EditorStatus, EditorTabs, type EditorLanguage } from "../containers/editor";
@@ -160,6 +161,10 @@ const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.fl
 /** How a cue reads where the agent hears about it */
 const cueSummary = ({ cue, time }: VideoCueEvent) => cue.kind === "skip" ? `Skipped ${cue.label} · ${clock(cue.from)}–${clock(cue.to)}` : `${cue.kind === "done" ? cue.label ?? "Watched" : cue.label} · ${clock(time)}`;
 export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Everyday TypeScript", question = false, settings = false, evals = false, evaluationReport, video = sampleVideo, documentationUrl }: { mode?: "Authoring" | "Evaluation" | "Trial"; initialCourse?: string; question?: boolean; settings?: boolean; evals?: boolean; evaluationReport?: EvalsReportPanelProps; video?: string; documentationUrl?: string }) {
+  const [chapterTitles, setChapterTitles] = useState<Record<string, string>>({});
+  const [cardColor, setCardColor] = useState<string>();
+  const [evalsOpen, setEvalsOpen] = useState(evals);
+  useEffect(() => setEvalsOpen(evals), [evals]);
   const [courses, setCourses] = useState(() => {
     const selected = initialCourses.find(course => course.name === initialCourse) ?? initialCourses[0];
     return [selected, ...initialCourses.filter(course => course !== selected)];
@@ -203,36 +208,47 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
   const lesson = page ? undefined : course.lessons.find(item => item.files.some(entry => entry.path === file));
   // Where you are: the course, then the open lesson. The mode needs no crumb; the sidebar shows it
   const openCourse = (target: AuthoringDraft) => fadeViewTransition(() => setPage(target.name));
-  const openFile = (path: string) => fadeViewTransition(() => { setPage(null); setFile(path); });
-  const addLesson = () => {
-    const base = course.rootFiles[0].path.replace(/dojo\.yaml$/, "");
+  const openFile = (path: string) => { setPage(null); setFile(path); };
+  const addLesson = (target = course) => {
+    const base = target.rootFiles[0]?.path.replace(/dojo\.yaml$/, "") ?? `${target.name.toLowerCase().replace(/\W+/g, "-")}/`;
     const next = { ...lessons[1], id: `${base}003-new-lesson`, title: "New lesson", files: [{ path: `${base}src/003-new-lesson/SENSEI.md`, label: "SENSEI.md", content: "# New lesson\n" }] };
-    setCourses(previous => previous.map(item => item === course ? { ...item, lessons: [...item.lessons.filter(entry => entry.id !== next.id), next] } : item));
+    setCourses(previous => previous.map(item => item === target ? { ...item, lessons: [...item.lessons.filter(entry => entry.id !== next.id), next] } : item));
     openFile(next.files[0].path);
   };
   const chapter = lesson?.title;
+  const rootCourse = courses[0];
   const language: EditorLanguage = file.endsWith(".md") ? "markdown" : file.endsWith(".yaml") ? "yaml" : "typescript";
   return <div className="h-dvh w-full overflow-hidden">
-    <AgentChatWorkspace contentKind={page ? course === courses[0] ? "video" : "material" : "code"} key={`${settings}:${evals}`} defaultSettingsOpen={settings} defaultEvalsOpen={evals} evals={view === "Trial" ? undefined : evaluationReport ? <EvalsReportPanel {...evaluationReport} /> : <EvalsPanel />} workspace={course.name} user={{ name: "You" }} active={[view, `course:${course.name}`, ...(page ? [] : [`file:${file}`])]} showOnboarding showNews={false} sidebarWidth="18rem"
+    <AgentChatWorkspace navigationTransition={false} contentKind={page ? course === courses[0] ? "video" : "material" : "code"} key={`${settings}:${evals}`} defaultSettingsOpen={settings} evalsOpen={evalsOpen} onEvalsOpenChange={setEvalsOpen} evals={view === "Trial" ? undefined : evaluationReport ? <EvalsReportPanel {...evaluationReport} /> : <EvalsPanel />} workspace={rootCourse.name} user={{ name: "You" }} active={[evalsOpen ? "Evaluation" : view, `chapter:${course.name}`, `course:${rootCourse.name}`, ...(page ? [] : [`file:${file}`])]} showOnboarding showNews={false} sidebarWidth="18rem"
       brand={<a href="#" aria-label="Dojo dashboard" className="flex items-center" onClick={event => event.preventDefault()}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
       navigation={[
         { id: "views", layout: "views", items: [
           { id: "Authoring", label: "Authoring", icon: PencilEdit02Icon },
-          { id: "Evaluation", label: "Evaluation", icon: CheckListIcon },
+          { id: "Evaluation", label: "Evals", icon: CheckListIcon },
           { id: "Trial", label: "Trial", icon: PlayIcon },
         ] },
-        // Courses, numbered: each opens its page; the one you're in stays lit while you work in its lessons
-        { id: "courses", heading: "Courses", layout: "files", items: courses.map((item, index) => ({ id: `course:${item.name}`, label: item.name, marker: String(index + 1).padStart(2, "0"), children: item.rootFiles.map(entry => ({ id: `file:${entry.path}`, label: entry.label })) })) },
-        { id: "lessons", heading: "Lessons", layout: "files", items: [
-          ...course.lessons.map((item, index) => ({ id: `lesson:${item.id}`, label: item.title, marker: String(index + 1).padStart(2, "0"), children: item.files.map(entry => ({ id: `file:${entry.path}`, label: entry.label })) })),
-          { id: "add-lesson", label: "New lesson", icon: PlusSignIcon },
-        ] },
+        { id: "course", heading: "Course", layout: "files", before: <div className="lj-course"><AuthoringCourseCard
+          course={{ title: rootCourse.name, language: rootCourse.language, chapters: courses.length, lessons: courses.reduce((n, item) => n + item.lessons.length, 0), art: { hue: 350, color: cardColor, glyph: "" } }} onColorChange={setCardColor} /></div>,
+          items: [{ id: `course:${rootCourse.name}`, label: rootCourse.name, children: rootCourse.rootFiles.map(entry => ({ id: `file:${entry.path}`, label: entry.label })) }] },
+        { id: "chapters", heading: "Chapters", layout: "files", items: [...courses.map((item, index) => ({
+          id: `chapter:${item.name}`, label: chapterTitles[item.name] ?? (index === 0 ? "Default" : "Advanced patterns"), marker: String(index + 1).padStart(2, "0"),
+          children: [...item.lessons.map((lesson, lessonIndex) => ({ id: `lesson:${lesson.id}`, label: lesson.title, marker: String(lessonIndex + 1).padStart(2, "0"), children: lesson.files.map(entry => ({ id: `file:${entry.path}`, label: entry.label })) })),
+            { id: `add-lesson:${item.name}`, label: "New lesson", icon: PlusSignIcon }],
+        })), { id: "add-chapter", label: "New chapter", icon: PlusSignIcon }] },
       ]}
       onNavigate={id => {
+        if (id === "Evaluation") { setEvalsOpen(true); setView("Evaluation"); return; }
+        setEvalsOpen(false);
         if (id.startsWith("file:")) return openFile(id.slice(5));
-        if (id === "add-lesson") return addLesson();
-        if (id.startsWith("lesson:")) { const lesson = course.lessons.find(item => `lesson:${item.id}` === id); if (lesson) return openFile(lesson.senseiPath); }
-        const picked = courses.find(item => `course:${item.name}` === id);
+        if (id.startsWith("add-lesson:")) { const target = courses.find(item => item.name === id.slice(11)); if (target) addLesson(target); return; }
+        if (id === "add-chapter") {
+          const name = `Chapter ${courses.length + 1}`;
+          const next = { ...rootCourse, name, description: "", lessons: [], rootFiles: [] };
+          setChapterTitles(previous => ({ ...previous, [name]: "New chapter" }));
+          setCourses(previous => [...previous, next]); return;
+        }
+        if (id.startsWith("lesson:")) { const lesson = courses.flatMap(item => item.lessons).find(item => `lesson:${item.id}` === id); if (lesson) return openFile(lesson.senseiPath); }
+        const picked = courses.find(item => `chapter:${item.name}` === id || `course:${item.name}` === id);
         if (picked) return openCourse(picked);
         setView(id as typeof view);
       }} scroller={scroller} details={<LessonDetails course={course} lesson={lesson} />}
@@ -249,7 +265,7 @@ export function CourseAuthoringPage({ mode = "Authoring", initialCourse = "Every
         else if (id === "trial") fadeViewTransition(() => setView("Trial"));
         else if (id === "ask" && query) setQueue(items => [...items, { id: crypto.randomUUID(), text: query }]);
       }}
-      crumbs={chapter ? [{ label: course.name, onClick: () => openCourse(course) }, { label: chapter }] : [{ label: course.name }]}
+      crumbs={[{ label: rootCourse.name, onClick: () => openCourse(rootCourse) }, { label: courses.indexOf(course) === 0 ? "Foundations" : "Advanced patterns", onClick: () => openCourse(course) }, ...(chapter ? [{ label: chapter }] : [])]}
       editor={page ? (course === courses[0] ? <VideoStage key={video} src={video} title="Intro video" cues={cues} onCue={event => setVideoEvents(events => [...events, event])} /> : null) : <Editor flush
         tabs={<EditorTabs mode="authoring" label="Open files" active={file}
           tabs={editor.tabs.paths.filter(path => courseFiles(course).some(entry => entry.path === path)).map(path => ({ path, label: files.find(item => item.path === path)?.label ?? path, dirty: files.some(item => item.path === path && editor.dirty(item)) }))}

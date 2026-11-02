@@ -201,7 +201,7 @@ const help: Record<SettingsTab, { about: string; tip: string }> = {
   },
   Appearance: {
     about: "Make Dojo comfortable to work in. Choose a light or dark interface, then the theme and syntax colours that suit you.",
-    tip: "Match theme pairs the editor with your interface. Pick a separate colour scheme to keep your preferred syntax colours.",
+    tip: "Auto pairs the editor with your interface. Pick a separate colour scheme to keep your preferred syntax colours.",
   },
   "API keys": {
     about: "API keys let scripts, integrations and developer tools authenticate with Dojo without signing in through the interface each time.",

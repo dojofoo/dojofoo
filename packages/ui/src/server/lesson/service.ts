@@ -1,11 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
+import { courseTitle } from "@dojofoo/config/course-installations";
 import { prepareWorkspace } from "@dojofoo/config/project-preparation";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import {
   type DojoManifest,
+  type ChapterReference,
+  courseContent,
+  type CourseIntroduction,
   findCurrentKata,
   dojoDir,
   findKataByIdOrName,
@@ -73,10 +77,13 @@ export type CheckObservation = {
 
 export type LessonSnapshot = {
   dojo: string;
-  course?: Pick<DojoManifest, "name" | "version" | "description" | "author" | "repository" | "language"> & { lessons: number };
+  course?: Pick<DojoManifest, "appearance" | "name" | "title" | "version" | "description" | "author" | "repository" | "language"> & { lessons: number; chapters?: ChapterReference[]; intro?: CourseIntroduction | null };
   kata: string;
   title: string;
   briefing: string;
+  intro?: CourseIntroduction | null;
+  chapter?: ChapterReference & { intro?: CourseIntroduction | null };
+  contentIssues?: string[];
   /** Course-relative authored material location, which can differ from the learner's file directory. */
   briefingBasePath?: string;
   code: string;
@@ -97,7 +104,7 @@ export type LessonSnapshot = {
   learnerEvidence?: LearnerEvidenceExcerpt[];
   learnerObservations?: LearnerObservation[];
   fragments: Record<string, string>;
-  lessons: Array<{ name: string; title: string; summary: string; state: string; isCurrent: boolean }>;
+  lessons: Array<{ name: string; title: string; summary: string; state: string; isCurrent: boolean; chapter?: ChapterReference }>;
 };
 
 export type LessonFileResource = {
@@ -155,8 +162,12 @@ function dojoContextResource(snapshot: LessonSnapshot) {
 /** Older transcripts began hidden evidence with this sentence; keep hiding them. */
 const legacyEvidencePrefix = "Preserve ownership of the kata.";
 
-export async function getLesson(root: string, requestedKata?: string, { prepareSession = true }: { prepareSession?: boolean } = {}): Promise<LessonSnapshot | null> {
-  const rc = readDojoRc(root);
+export async function getLesson(root: string, requestedKata?: string, { prepareSession = true, courseId }: { prepareSession?: boolean; courseId?: string } = {}): Promise<LessonSnapshot | null> {
+  const stored = readDojoRc(root);
+  // Resource reads are scoped by their course URL, independent of the CLI's active course.
+  const rc = courseId && stored.currentDojo !== courseId
+    ? { ...stored, currentDojo: courseId, currentKata: stored.progress?.[courseId]?.lastActive ?? null }
+    : stored;
   if (!rc.currentDojo) return null;
   const catalog = readCatalog(root, rc.currentDojo);
   const katas = resolveAllKatas(root, rc, catalog);
@@ -234,14 +245,18 @@ export async function getLesson(root: string, requestedKata?: string, { prepareS
     webState.results[key] = result;
     writeWebState(root, webState);
   }
+  const content = courseContent(dojoDir(root, rc.currentDojo), catalog as unknown as Record<string, unknown>);
+  const intro = content.lessons.find(lesson => lesson.id === selected.name)?.intro;
+  const chapter = content.chapters.find(chapter => chapter.id === (selected.chapter?.id ?? "default"));
   return {
     dojo: rc.currentDojo,
-    course: { name: catalog.name, version: catalog.version, description: catalog.description, author: catalog.author,
-      repository: catalog.repository, language: catalog.language, lessons: katas.length },
+    course: { appearance: catalog.appearance, name: catalog.name, title: courseTitle(root, rc.currentDojo, catalog), version: catalog.version, description: catalog.description, author: catalog.author,
+      repository: catalog.repository, language: catalog.language, chapters: content.chapters, intro: content.intro, lessons: katas.length },
     kata: selected.name,
-    title: humanTitle(selected.name),
-    briefing: senpaiBriefing(sensei),
-    briefingBasePath: relative(dojoDir(root, rc.currentDojo), dirname(selected.senseiPath)),
+    title: selected.title ?? humanTitle(selected.name),
+    intro, chapter, contentIssues: content.issues,
+    briefing: intro?.content ?? senpaiBriefing(sensei),
+    briefingBasePath: intro ? dirname(intro.path) : relative(dojoDir(root, rc.currentDojo), dirname(selected.senseiPath)),
     code: existsSync(selected.workspacePath) ? readFileSync(selected.workspacePath, "utf8") : starterCode,
     starterCode,
     fileId: "solution",
@@ -261,9 +276,10 @@ export async function getLesson(root: string, requestedKata?: string, { prepareS
     learnerObservations: webState.learnerObservations[rc.currentDojo] ?? [],
     fragments: senseiContent.fragments,
     lessons: katas.map((kata) => ({
+      chapter: kata.chapter,
       name: kata.name,
-      title: humanTitle(kata.name),
-      summary: lessonSummary(readFileSync(kata.senseiPath, "utf8")),
+      title: kata.title ?? humanTitle(kata.name),
+      summary: content.lessons.find(lesson => lesson.id === kata.name)?.intro?.content.split("\n").map(line => line.trim()).find(line => line && !line.startsWith("#")) ?? lessonSummary(readFileSync(kata.senseiPath, "utf8")),
       state: kataState(kata, progress),
       isCurrent: kata.name === current?.name,
     })),

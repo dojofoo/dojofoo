@@ -270,7 +270,6 @@ const defaultModels: ComposerModel[] = [
   { name: "Auto", description: "Picks the best model for each task", icon: AiMagicIcon },
   { name: "Claude", description: "Thoughtful writing and code", icon: AiBrain01Icon },
   { name: "ChatGPT", description: "Quick answers for everyday tasks", icon: SparklesIcon },
-  { name: "Gemini", description: "Long documents and research", icon: Telescope01Icon },
 ];
 const pluginList = [
   { label: "Web search", description: "Look things up while answering", icon: Globe02Icon },
@@ -290,7 +289,7 @@ export function Composer({
   models = defaultModels,
   agent, agents, onAgentChange, agentChanging, loading,
   className, value, onValueChange, history, disabled, onStop, id, label, queueing,
-  model: controlledModel, onModelChange, modelChanging,
+  model: controlledModel, onModelChange, modelChanging, onModelPrepare,
   attachments = true, files: controlledFiles, onFilesChange, dictation = true, plugins: pluginsEnabled = true,
 }: {
   value?: string;
@@ -303,6 +302,7 @@ export function Composer({
   label?: string;
   model?: string;
   onModelChange?: (value: string) => void;
+  onModelPrepare?: () => Promise<boolean | void>;
   modelChanging?: boolean;
   /** Keep the + control visible but disabled when this connection cannot accept files. */
   attachments?: boolean | "unavailable";
@@ -417,7 +417,7 @@ export function Composer({
             {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
           </ComposerPicker>}</>}
     controls={<><ComposerPicker title="Model" model loading={loading || agentChanging || modelChanging}
-              disabled={!models.length || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
+              onPrepare={onModelPrepare} disabled={(!models.length && !onModelPrepare) || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
               items={models.map(m => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon,
                 checked: (m.value ?? m.name) === model, onSelect: () => { const next = m.value ?? m.name; if (onModelChange) onModelChange(next); else setSelected(next); } }))}>
               {selectedModel?.name ?? model ?? (loading || agentChanging ? "Loading…" : "Model")}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}

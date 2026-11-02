@@ -1,7 +1,7 @@
-import type { MouseEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { ShellStyles } from './app-shell'
 import { BrandLogo } from './brand-logo'
-import { followLink } from '../lib/link-event'
+import { NavigationLink } from './navigation-link'
 import { useSite } from '../web/site'
 
 /*
@@ -24,21 +24,24 @@ const footLinks = [
 export function AuthLink({ href, className, children }: { href: string; className?: string; children: ReactNode }) {
     const links = useSite()
     return (
-        <a
+        <NavigationLink
             href={href}
             className={className}
-            onClick={(event: MouseEvent<HTMLAnchorElement>) => followLink(event, () => {
+            onClick={event => {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                 // Between two of these pages, the shared parts get their names for the transition
                 if (authPages.includes(href)) {
                     const root = document.documentElement
                     root.dataset.authSwap = ''
                     window.setTimeout(() => delete root.dataset.authSwap, 800)
                 }
+            }}
+            onNavigate={() => {
                 if (href === '/') links.navigate('home')
                 else links.openDoc(href)
-            })}>
+            }}>
             {children}
-        </a>
+        </NavigationLink>
     )
 }
 

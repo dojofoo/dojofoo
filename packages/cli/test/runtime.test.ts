@@ -30,7 +30,7 @@ describe("agent runtime identity", () => {
   it.each([
     ["claude", { CLAUDECODE: "1", CLAUDE_SESSION_ID: "session" }],
     ["pi", { PI_CODING_AGENT: "1", PI_SESSION_ID: "session" }],
-    ["gemini", { GEMINI_CLI: "1", GEMINI_SESSION_ID: "session" }],
+    ["agy", { DOJOFOO_HARNESS: "agy", DOJOFOO_SESSION_ID: "session" }],
     ["codex", { CODEX_THREAD_ID: "session" }],
   ] as const)("detects the %s runtime", (name, environment) => {
     expect(runtimeIdentity(environment)).toEqual({ name, sessionId: "session" });

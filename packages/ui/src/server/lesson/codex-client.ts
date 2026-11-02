@@ -137,6 +137,26 @@ export class AcpClient {
     this.inactivityTimeoutMs = inactivityTimeoutMs;
   }
 
+  stopCourse(root: string, course: string): void {
+    const canonical = resolve(root);
+    for (const [key, runtime] of this.runtimes) {
+      const [, workspace, lesson] = key.split("\0");
+      if (!(workspace === canonical && lesson?.startsWith(`${course}/`))
+        && !key.startsWith(`interactive:${canonical}:${course}:`)) continue;
+      runCoordinator.detach(runtime.capability);
+      runtime.child?.kill();
+      this.runtimes.delete(key);
+      for (const [id, binding] of this.sessions) if (binding.runtimeKey === key) {
+        this.sessions.delete(id);
+        this.transcripts.delete(id);
+        this.sessionConfigOptions.delete(id);
+        this.contextualizedSessions.delete(id);
+        this.callbacks.delete(id);
+        this.permissions.delete(id);
+      }
+    }
+  }
+
   shutdown(): void {
     for (const runtime of this.runtimes.values()) {
       runCoordinator.detach(runtime.capability);

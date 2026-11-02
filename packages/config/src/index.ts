@@ -1,10 +1,11 @@
+export { courseContent, ensureCourseContent, ensureIntroduction, readIntroduction, type CourseIntroduction } from "./course-content";
 import { readFileSync, writeFileSync, existsSync, readdirSync, lstatSync, mkdirSync } from "node:fs";
 import { resolve, basename, dirname, join } from "node:path";
 import { createJiti } from "jiti";
 import { parse as parseYaml, parseDocument } from "yaml";
 import { chapterCurriculum, type ChapterReference } from "./curriculum";
 
-export { chapterCurriculum, courseRelativePath, type ChapterReference } from "./curriculum";
+export { chapterCurriculum, courseChapters, courseRelativePath, type ChapterReference } from "./curriculum";
 export { courseFileFilter } from "./publication";
 
 export const CLI = "npx dojofoo";
@@ -155,7 +156,22 @@ export interface KataEntry {
   prerequisites?: string[];
 }
 
+export type CourseAppearance = { color?: string; hue?: number; shader?: "topography" | "network" | "waves" | "opal" };
+
+export function courseAppearanceErrors(value: unknown): string[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return ['"appearance" must be an object'];
+  const appearance = value as Record<string, unknown>;
+  const errors: string[] = [];
+  if (appearance.color !== undefined && (typeof appearance.color !== "string" || !/^#(?:[a-f\d]{3}|[a-f\d]{4}|[a-f\d]{6}|[a-f\d]{8})$/i.test(appearance.color))) errors.push('"appearance.color" must be a hex color');
+  if (Object.keys(appearance).some(key => key !== "color" && key !== "hue" && key !== "shader")) errors.push('Unknown course appearance field');
+  if (appearance.hue !== undefined && (typeof appearance.hue !== "number" || !Number.isFinite(appearance.hue) || appearance.hue < 0 || appearance.hue > 360)) errors.push('"appearance.hue" must be between 0 and 360');
+  if (appearance.shader !== undefined && !["topography", "network", "waves", "opal"].includes(String(appearance.shader))) errors.push('Invalid "appearance.shader"');
+  return errors;
+}
+
 export interface DojoManifest {
+  appearance?: CourseAppearance;
+  title?: string;
   /** Installable from GitHub but never listed in the marketplace – as package.json's `private` keeps a package off the registry */
   private?: boolean;
   /** @deprecated `false` is the older spelling of `private: true` */
@@ -177,6 +193,8 @@ export interface DojoManifest {
 }
 
 export interface InteractiveDojoManifest {
+  appearance?: CourseAppearance;
+  title?: string;
   /** Installable from GitHub but never listed in the marketplace – as package.json's `private` keeps a package off the registry */
   private?: boolean;
   /** @deprecated `false` is the older spelling of `private: true` */
@@ -240,7 +258,9 @@ export function validateManifest(data: unknown): string[] {
     }
   }
 
+  if ("appearance" in obj) errors.push(...courseAppearanceErrors(obj.appearance));
   const mode = obj.mode ?? "katas";
+  if ("title" in obj && (typeof obj.title !== "string" || !obj.title.trim())) errors.push('"title" must be a non-empty string');
   if (mode !== "katas" && mode !== "interactive") {
     errors.push('"mode" must be "katas" or "interactive"');
   }

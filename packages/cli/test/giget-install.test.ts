@@ -45,6 +45,18 @@ import { readInstalledSource } from "../src/source";
 
 const roots: string[] = [];
 
+it("requires removing a course before installing it in a different workspace", async () => {
+  const first = workspace();
+  const home = process.env.DOJOFOO_HOME;
+  const second = workspace();
+  process.env.DOJOFOO_HOME = home;
+  await add(first, ["example/remote-dojo"]);
+  await expect(add(second, ["example/remote-dojo"])).rejects.toThrow("Remove the existing installation first");
+  remove(first, ["remote-dojo"]);
+  await add(second, ["example/remote-dojo"]);
+  expect(readInstalledSource(resolve(second, "courses/remote-dojo"))?.locator).toBe("example/remote-dojo");
+});
+
 // The course API's checks: none by default, so installs go ahead as they did before them
 const audits = vi.hoisted(() => ({ response: null as unknown, requests: [] as string[] }));
 beforeEach(() => {

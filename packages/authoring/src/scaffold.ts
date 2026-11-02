@@ -6,6 +6,7 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
+import { ensureCourseContent } from "@dojofoo/config";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
@@ -33,6 +34,7 @@ export function scaffoldAuthoringWorkspace(input: {
   mkdirSync(resolve(input.root, "src"), { recursive: true });
   if (createdManifest) configureManifest(input.root, input.name);
   if (createdPackage) configurePackage(input.root, input.name);
+  ensureCourseContent(input.root, parseYaml(readFileSync(resolve(input.root, "dojo.yaml"), "utf8")) as Record<string, unknown>);
 }
 
 function configurePackage(root: string, name: string): void {

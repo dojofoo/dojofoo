@@ -16,7 +16,7 @@ export type UiEditorScheme = "match" | EditorSchemeId;
 export type UiPreferences = { theme: UiThemeName; editorScheme: UiEditorScheme; density: UiDensity; editorSize: number };
 
 export const uiThemes: { id: UiThemeName; label: string; note: string; swatches: [string, string, string] }[] = [
-  { id: "dojofoo", label: "Dojofoo", note: "Neutrals with the brand pink", swatches: ["oklch(0.2046 0 0)", "oklch(0.2645 0 0)", "oklch(0.6321 0.2554 13.98)"] },
+  { id: "dojofoo", label: "Default", note: "Neutrals with the brand pink", swatches: ["oklch(0.2046 0 0)", "oklch(0.2645 0 0)", "oklch(0.6321 0.2554 13.98)"] },
   ...(catalog as { id: string; label: string; note: string; swatches: string[] }[]).map(({ id, label, note, swatches }) => ({ id, label, note, swatches: swatches as [string, string, string] })),
 ];
 /** Imported themes set shadcn's colors only; data-ui-derive turns on styles/themes/derive.css for them */
@@ -25,7 +25,7 @@ const imported = new Set((catalog as { id: string }[]).map((theme) => theme.id))
 export const editorSizes = [13, 14, 15, 16.5] as const;
 export const editorLineHeight = (size: number) => ({ 13: 20, 14: 22, 15: 24, 16.5: 26 } as Record<number, number>)[size] ?? Math.round(size * 1.6);
 
-/** The scheme each theme pairs with for "Match theme": Japan Blues' warm grays take Material's neutral Darker, OpenClaw's
+/** The scheme each theme pairs with for "Auto": Japan Blues' warm grays take Material's neutral Darker, OpenClaw's
     blue-black Material's Ocean, T3 Chat its app's own Pierre Dark (T3 Code); every other theme takes Vercel, which
     has a light variant. The dark-only schemes stay a dark island in a light page */
 const matched: Partial<Record<string, EditorSchemeId>> = { "japan-blues": "material-darker", openclaw: "material-ocean", "t3-chat": "pierre-dark" };

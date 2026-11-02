@@ -1,5 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { chapterCurriculum, courseContent } from "@dojofoo/config";
 import { parse } from "yaml";
 
 /** Free, deterministic lesson checks: the "unit tests" of a lesson that run on
@@ -35,19 +36,27 @@ export function checkTests(text: string): string[] {
 
 /** Preflight the named lessons, or every lesson in `dojo.yaml`. */
 export async function preflightLessons(root: string, lessonIds?: string[]): Promise<LessonPreflight[]> {
-  const manifest = parse(await readFile(resolve(root, "dojo.yaml"), "utf8")) as { katas?: Array<{ name?: string; template?: string }> } | null;
-  const katas = (manifest?.katas ?? []).filter(entry => entry?.name && (!lessonIds || lessonIds.includes(entry.name)));
+  const manifest = parse(await readFile(resolve(root, "dojo.yaml"), "utf8")) as Record<string, unknown>;
+  const entries = Array.isArray(manifest.chapters) ? chapterCurriculum(manifest).katas : (manifest.katas ?? []) as Array<{ name: string; template: string; chapter?: { id: string } }>;
+  const katas = entries.filter(entry => entry?.name && (!lessonIds || lessonIds.includes(String(entry.name))));
+  const content = courseContent(root, manifest);
   return Promise.all(katas.map(async ({ name, template }) => {
     const findings: string[] = [];
-    if (!template) return { lessonId: name!, pass: false, findings: ["Add a template path in dojo.yaml."] };
-    const folder = resolve(root, dirname(template));
+    if (!content.intro?.content.trim()) findings.push("Add learner-facing course content in README.md.");
+    const entry = entries.find(entry => entry.name === name);
+    const chapterId = entry && "chapter" in entry ? (entry.chapter as { id: string }).id : "default";
+    const chapter = content.chapters.find(chapter => chapter.id === chapterId);
+    if (!chapter?.intro?.content.trim()) findings.push(`Add the chapter introduction in ${chapter?.path ?? "src"}/INTRO.md or INTRO.mdx.`);
+    if (!content.lessons.find(lesson => lesson.id === name)?.intro?.content.trim()) findings.push(`Add the lesson introduction beside ${template} in INTRO.md or INTRO.mdx.`);
+    if (!template) return { lessonId: String(name), pass: false, findings: ["Add a template path in dojo.yaml."] };
+    const folder = resolve(root, dirname(String(template)));
     const files = await readdir(folder).catch(() => [] as string[]);
     const tests = files.filter(file => /\.(test|spec)\.[cm]?[jt]sx?$/u.test(file));
     if (!tests.length) findings.push(`Add the lesson's checks (a *.test.ts) beside ${template}.`);
     else findings.push(...checkTests((await Promise.all(tests.map(file => readFile(resolve(folder, file), "utf8")))).join("\n")));
     const sensei = ["SENSEI.mdx", "SENSEI.md"].find(file => files.includes(file));
-    if (!sensei) findings.push(`Fill SENSEI.tmpl into ${dirname(template)}/SENSEI.md.`);
+    if (!sensei) findings.push(`Fill SENSEI.tmpl into ${dirname(String(template))}/SENSEI.md.`);
     else findings.push(...checkSensei(await readFile(resolve(folder, sensei), "utf8"), { mdx: sensei.endsWith(".mdx") }));
-    return { lessonId: name!, pass: !findings.length, findings };
+    return { lessonId: String(name), pass: !findings.length, findings };
   }));
 }

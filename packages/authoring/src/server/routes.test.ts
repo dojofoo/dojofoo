@@ -8,6 +8,8 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import { ensureCourseContent } from "@dojofoo/config";
+import { parse as parseYaml } from "yaml";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
@@ -44,6 +46,41 @@ const authoringRoutes = createAuthoringRoutes({
 const repository = resolve(import.meta.dirname, "../../../..");
 
 describe("authoring routes", () => {
+  it("adds and renames chapters in the same course and scopes new lessons to their chapter", async () => {
+    const created = await authoringRoutes.request("/chapters", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Advanced" }) });
+    expect(created.status, await created.clone().text()).toBe(201);
+    const body = await created.json();
+    expect(body.workspace.chapters.map((chapter: { title: string }) => chapter.title)).toEqual(["Default", "Advanced"]);
+    const renamed = await authoringRoutes.request("/chapters/default", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Foundations" }) });
+    expect(renamed.status).toBe(200);
+    expect((await renamed.json()).chapters[0].title).toBe("Foundations");
+    const lesson = await authoringRoutes.request("/lessons", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Advanced lesson", chapterId: body.chapterId }) });
+    expect(lesson.status).toBe(201);
+    const result = await lesson.json();
+    expect(result.workspace.lessons.find((item: { id: string }) => item.id === result.lessonId).chapter.id).toBe(body.chapterId);
+    const invalid = await authoringRoutes.request("/chapters/missing", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Missing" }) });
+    expect(invalid.status).toBe(422);
+  });
+
+  it("requires the course README and chapter/lesson introductions before evaluation", async () => {
+    authorLesson();
+    rmSync(resolve(context.root, "src/001-draw-a-boundary/INTRO.md"));
+    const draft = await (await authoringRoutes.request("/draft")).json();
+    expect(draft.lessons[0].checks.find((check: { id: string }) => check.id === "intro").ready).toBe(false);
+    expect(draft.issues.join("\n")).toContain("lesson introduction");
+    const run = await authoringRoutes.request("/evals", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ lessonIds: ["001-draw-a-boundary"], callId: "missing-intro" }) });
+    expect(run.status).toBe(409);
+    expect(evaluate).not.toHaveBeenCalled();
+  });
+
+  it("updates card color through the course API and rejects invalid colors", async () => {
+    const response = await authoringRoutes.request("/course", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ appearance: { color: "#3677C980" } }) });
+    expect(response.status, await response.clone().text()).toBe(200);
+    expect(await response.json()).toMatchObject({ appearance: { color: "#3677C980" } });
+    const invalid = await authoringRoutes.request("/course", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ appearance: { color: "not-a-color" } }) });
+    expect(invalid.status).toBe(422);
+  });
+
   it("reports the exact missing manifest after a workspace disappears without replacing its session", async () => {
     expect((await authoringRoutes.request("/session", { method: "POST" })).status).toBe(201);
     const pointerPath = resolve(context.root, ".dojo/kyoshi.json");
@@ -564,5 +601,6 @@ katas:
       - type: includes
         value: inside and outside
 `);
+    ensureCourseContent(context.root, parseYaml(readFileSync(resolve(context.root, "dojo.yaml"), "utf8")));
   }
 });

@@ -8,9 +8,11 @@
     "**/*.css"
   ],
   "exports": {
+    "./hooks/*": "./src/hooks/*.tsx",
     "./components/*": "./src/components/*.tsx",
     "./components/context-menu": "./src/components/context-menu.tsx",
     "./styles.css": "./src/styles.css",
+    "./styles/slides.css": "./src/styles/slides.css",
     "./styles/view-transitions.css": "./src/styles/view-transitions.css",
     "./styles/api-reference.css": "./src/styles/api-reference.css",
     "./containers/*": "./src/containers/*.tsx",
@@ -57,6 +59,7 @@
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@fontsource-variable/inter": "^5.3.0",
+    "@dojofoo/config": "workspace:*",
     "@fontsource/iosevka": "5.3.0",
     "@hugeicons/core-free-icons": "^4.3.5",
     "@hugeicons/react": "^1.1.10",

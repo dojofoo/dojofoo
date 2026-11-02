@@ -260,11 +260,11 @@ describe("configuredAgents", () => {
 
   it("detects agents whose directories exist", () => {
     mkdirSync(resolve(root, ".claude"), { recursive: true });
-    mkdirSync(resolve(root, ".gemini"), { recursive: true });
+    mkdirSync(resolve(root, ".agents"), { recursive: true });
 
     const agents = configuredAgents(root);
     expect(agents).toContain("claude");
-    expect(agents).toContain("gemini");
+    expect(agents).toContain("agy");
     expect(agents).not.toContain("opencode");
     expect(agents).not.toContain("codex");
   });

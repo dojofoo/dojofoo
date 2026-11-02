@@ -7,6 +7,7 @@ import {
   type ComponentPropsWithRef,
   type ReactNode,
 } from "react";
+import { NavigationLink, type NavigationLinkProps } from "./navigation-link";
 
 /*
  * Button – a single self-contained file.
@@ -126,18 +127,18 @@ export function Button({
 }
 
 /** A navigation link with the same presentation as Button and native anchor behavior. */
-export type ButtonLinkProps = ComponentPropsWithRef<"a"> &
+export type ButtonLinkProps = NavigationLinkProps &
   Pick<ButtonProps, "variant" | "size" | "icon" | "iconRight"> & { href: string };
 
 export function ButtonLink({ variant = "primary", size = "md", icon, iconRight, children, className, ...rest }: ButtonLinkProps) {
   return <>
     <style href="ui-button" precedence="default">{css}</style>
-    <a className={["ui-button", className].filter(Boolean).join(" ")}
+    <NavigationLink className={["ui-button", className].filter(Boolean).join(" ")}
       data-variant={variant} data-size={size} data-icon-only={!children && Boolean(icon || iconRight) || undefined} {...rest}>
       {icon && <span className="ui-button__icon" aria-hidden="true">{icon}</span>}
       {children != null && <span className="ui-button__label">{children}</span>}
       {iconRight && <span className="ui-button__icon" aria-hidden="true">{iconRight}</span>}
-    </a>
+    </NavigationLink>
   </>;
 }
 

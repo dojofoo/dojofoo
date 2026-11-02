@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { EmptyState, Icon } from "../components/app-shell";
+import { Dropdown, EmptyState, Icon } from "../components/app-shell";
 import { Button } from "../components/button";
 import { AddCard, CardFigure, CardMark, CardText, CardTitle, ColorCard } from "../components/color-card";
-import { PlusSignIcon } from "../lib/icons";
-import { followLink } from "../lib/link-event";
+import { MoreHorizontalIcon, PlusSignIcon } from "../lib/icons";
 
 export type LearningLibraryEntry = {
   id: string;
@@ -18,6 +17,7 @@ export type LearningLibraryEntry = {
   href?: string;
   onOpen?: () => void;
   onPrepare?: () => void;
+  onDelete?: () => void;
 };
 
 export type LearningLibraryProps = {
@@ -34,19 +34,21 @@ export type LearningLibraryProps = {
 
 /** The learner's library; discovery, progress and navigation belong to its host. */
 export function LearningLibrary({ courses, drafts = [], controls, loading, error, onExplore, onNewCourse, newCoursePending, authoringError }: LearningLibraryProps) {
-  const card = (entry: LearningLibraryEntry) => <ColorCard key={entry.id} color={entry.color ?? "var(--brand)"} href={entry.href}
+  const card = (entry: LearningLibraryEntry) => <div key={entry.id} className="relative"><ColorCard className={entry.onDelete ? "[&_.ui-card__head]:pr-8" : undefined} color={entry.color ?? "var(--brand)"} href={entry.href}
     aria-label={entry.progress === undefined ? entry.title : `${entry.title}, ${entry.progress}% done`}
     onPointerEnter={entry.onPrepare} onFocus={entry.onPrepare}
-    onClick={entry.onOpen ? event => {
-      if (entry.href) followLink(event, entry.onOpen!);
-      else entry.onOpen?.();
-    } : undefined}
+    onNavigate={entry.onOpen} onClick={!entry.href && entry.onOpen ? () => entry.onOpen?.() : undefined}
     header={entry.mark || entry.status ? <><CardMark>{entry.mark}</CardMark>{entry.status && <CardFigure>{entry.status}</CardFigure>}</> : undefined}
     main={<CardTitle>{entry.title}</CardTitle>}
     footer={entry.caption || entry.detail || entry.progress !== undefined ? <>
       <CardText label={entry.caption} value={entry.detail} />
       {entry.progress !== undefined && <CardFigure>{entry.progress}%</CardFigure>}
-    </> : undefined} progress={entry.progress} />;
+    </> : undefined} progress={entry.progress} />
+    {entry.onDelete && <div className="absolute top-3 right-3" onClick={event => event.stopPropagation()}>
+      <Dropdown align="end" items={[{ label: "Delete", onSelect: entry.onDelete }]}
+        trigger={({ open, toggle }) => <button type="button" className="ui-as-icon-btn text-white!" aria-label={`Actions for ${entry.title}`} aria-expanded={open} onClick={toggle}><Icon icon={MoreHorizontalIcon} size={16} /></button>} />
+    </div>}
+  </div>;
 
   return <div className="lj-page" aria-busy={loading || undefined}>
     <header className="lj-page__head">

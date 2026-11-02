@@ -68,8 +68,8 @@ try {
   const ready = () => expect.poll(async () => { try { return (await fetch(`${origin}/api/control/courses`)).status; } catch { return 0; } }, { timeout: 30_000 }).toBe(200);
   await ready();
   const courses = await fetch(`${origin}/api/control/courses`).then(response => response.json());
-  assert.equal(courses.length, 1, "the existing library lists the workspace's active course");
-  const workspaceId = courses[0].workspaceId;
+  assert.equal(courses.length, 2, "the library lists both installed courses");
+  const workspaceId = courses.find(course => course.dojo === "first").workspaceId;
   const base = `${origin}/api/workspaces/${encodeURIComponent(workspaceId)}/courses/first/interactive`;
   assert.equal((await fetch(base).then(response => response.json())).dojo, "first");
   if (process.argv.includes("--context-only")) {
@@ -98,7 +98,7 @@ try {
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
-  const route = `${origin}/interactive?workspace=${encodeURIComponent(workspaceId)}&course=first`;
+  const route = `${origin}/session/${courses.find(course => course.dojo === "first").runId}`;
   await page.goto(route);
   const material = page.getByTestId("interactive-material");
   await expect(material).toContainText("Material from first");
@@ -177,7 +177,7 @@ try {
   await page.screenshot({ path: artifact("interactive-mobile.png") });
   const secondBase = base.replace("/first/", "/second/");
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto(route.replace("course=first", "course=second"));
+  await page.goto(`${origin}/session/${courses.find(course => course.dojo === "second").runId}`);
   await expect(material).toContainText("Material from second");
   assert.equal((await fetch(`${secondBase}/conversation`).then(response => response.json())).sessionId, null);
   await page.getByRole("button", { name: "Next", exact: true }).click();
@@ -185,7 +185,7 @@ try {
   await page.getByRole("button", { name: "Check answer", exact: true }).click();
   await expect(material).toContainText("Correct: resources");
   assert.equal((await fetch(base).then(response => response.json())).current.id, "finish");
-  await page.goto(`${origin}/interactive?course=first`);
+  await page.goto(route);
   await expect(material).toContainText("You practiced the first course.");
   await expect(composer).toBeEnabled();
   await expect(page.getByTestId("chat-pane")).toContainText("Help me understand the first material");

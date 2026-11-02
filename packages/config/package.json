@@ -18,9 +18,24 @@
   },
   "files": [
     "dist",
+    "templates",
     "README.md"
   ],
   "exports": {
+    "./templates/*": "./templates/*",
+    "./chapters": { "types": "./dist/chapters.d.ts", "import": "./dist/chapters.js" },
+    "./course-installations": {
+      "import": "./dist/course-installations.js",
+      "types": "./dist/course-installations.d.ts"
+    },
+    "./agents": {
+      "import": "./dist/agents.js",
+      "types": "./dist/agents.d.ts"
+    },
+    "./agent-installations": {
+      "import": "./dist/agent-installations.js",
+      "types": "./dist/agent-installations.d.ts"
+    },
     "./runtime": {
       "import": "./dist/runtime.js",
       "types": "./dist/runtime.d.ts"

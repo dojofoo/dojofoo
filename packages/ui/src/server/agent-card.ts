@@ -4,7 +4,7 @@ import type { AgentCard } from "@a2a-js/sdk";
  * Agent Card for the dojo daemon. Served at /.well-known/agent-card.json.
  *
  * For v1 we advertise one skill. As we wire each harness adapter
- * (opencode, gemini, codex, …) we add a skill per harness with its own
+ * (opencode, agy, codex, …) we add a skill per harness with its own
  * `id` so clients can target a specific agent.
  */
 export function buildAgentCard(opts: { baseUrl: string }): AgentCard {
@@ -29,7 +29,7 @@ export function buildAgentCard(opts: { baseUrl: string }): AgentCard {
         id: "echo",
         name: "Echo (POC)",
         description:
-          "Stub skill that echoes the user's message. Replaced by per-harness skills (opencode, gemini, codex, …) as adapters land.",
+          "Stub skill that echoes the user's message. Replaced by per-harness skills (opencode, agy, codex, …) as adapters land.",
         tags: ["dojo", "poc"],
         examples: ["hello", "what is a kata?"],
       },

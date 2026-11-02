@@ -33,6 +33,7 @@ import {
 } from "../source";
 import { acquireRemoteDojo, type RemoteDojoSource } from "../source-acquisition";
 import { checkCourseAudits } from "../course-audit";
+import { assertCourseWorkspace } from "@dojofoo/config/course-installations";
 
 export async function add(root: string, args: string[]): Promise<void> {
   ensureProject(root);
@@ -56,7 +57,7 @@ Flags:
   --force                  Overwrite existing dojo
   --yes                    Install despite security warnings (a failed check still stops it)
   --master                 Include editable source and Kyoshi definitions; respect the course license when forking
-  --agent <name[,name]>    Install support for codex, opencode, claude, gemini, or pi`);
+  --agent <name[,name]>    Install support for codex, opencode, claude, agy, or pi`);
   }
 
   const sourceType = classifySource(source);
@@ -179,6 +180,7 @@ function installExtracted(
     writeFileSync(manifestPath, document.toString());
   }
   const name = manifest.name.includes("/") ? manifest.name.split("/").pop()! : manifest.name;
+  assertCourseWorkspace(root, name);
   const targetPath = dojoDir(root, name);
   const currentSource = readInstalledSource(targetPath);
   if (force && installedSource?.integrity && currentSource?.integrity === installedSource.integrity

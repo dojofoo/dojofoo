@@ -1,0 +1,7 @@
+/* Shared Slidev typography: Inter, a consistent hierarchy, and readable measures. */
+.slidev-layout { padding: 32px 48px; font-family: "Inter Variable", Inter, sans-serif !important; font-size: 1.375rem; line-height: 1.55; font-weight: 400; text-align: start; overflow-wrap: break-word; }
+.slidev-layout.slidev-layout h1 { font-family: inherit; font-size: 2.25rem !important; line-height: 1.2 !important; letter-spacing: -.02em; margin: 0 0 24px; font-weight: 600; text-wrap: balance; }
+.slidev-layout.slidev-layout h2 { font-size: 1.75rem; line-height: 1.25; letter-spacing: -.015em; font-weight: 600; text-wrap: balance; }
+.slidev-layout.slidev-layout h3 { font-size: 1.5rem; line-height: 1.3; font-weight: 600; text-wrap: balance; }
+.slidev-layout p, .slidev-layout ul, .slidev-layout ol { max-width: 65ch; margin: 0 0 16px; text-wrap: pretty; }
+.slidev-layout p { opacity: 1 !important; }

@@ -22,11 +22,11 @@ function InteractiveExample({ initialStep = 0 }: { initialStep?: number }) {
   return <div style={{ height: "100dvh" }}><AgentChatWorkspace brand={<BrandLogo />} workspace="Dojo" navigation={[]}
     showUser={false} showNews={false} showFooter={false} showOnboarding={false}
     crumbs={[{ label: "Courses" }, { label: "How to run a dojo" }]} contentKind="material" editor={null} askAssistant={false}
-    details={<InteractiveLesson title={step === 0 ? "Find your way around" : step === 1 ? "Find resources" : "Course complete"}
+    details={<InteractiveLesson title="How to run a dojo" slideId={String(step)} slideTitle={step === 0 ? "Find your way around" : "Find resources"}
       step={step} totalSteps={2} complete={step === 2} question={step === 1} answer={answer} onAnswerChange={setAnswer}
       response={response} explanation={<p>The Resources section contains the lesson's authored links.</p>}
       onAnswer={() => setResponse({ answer, correct: answer.trim().toLowerCase() === "resources" })}
-      onNext={() => setStep(value => value + 1)}>
+      onPrevious={() => setStep(value => Math.max(0, value - 1))} onNext={() => setStep(value => value + 1)}>
       <p>{step === 0 ? "Read the material here, and ask Sensei whenever you need a hand." : "Which view contains the lesson's authored links?"}</p>
     </InteractiveLesson>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}

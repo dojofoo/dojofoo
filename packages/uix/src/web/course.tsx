@@ -1,5 +1,5 @@
-import { followLink } from "../lib/link-event";
-import { useState } from "react";
+import { NavigationLink } from "../components/navigation-link";
+import { useState, type ReactNode, type ComponentProps } from "react";
 import { Icon } from "../components/app-shell";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
@@ -35,27 +35,11 @@ export function CoursePage({ course }: { course: WebCourse }) {
     <SitePage current="courses" window={false}>
       <style href="ui-web-course" precedence="default">{css}</style>
       <article className="ui-crp">
-        <ButtonLink variant="ghost" size="sm" className="ui-crp__back" href={links.sectionHref("courses")} icon={<Icon icon={ArrowLeft01Icon} size={14} />} onClick={event => followLink(event, () => links.navigate("courses"))}>All courses</ButtonLink>
+        <ButtonLink variant="ghost" size="sm" className="ui-crp__back" href={links.sectionHref("courses")} icon={<Icon icon={ArrowLeft01Icon} size={14} />} onNavigate={() => links.navigate("courses")}>All courses</ButtonLink>
 
         <div className="ui-crp-layout">
           <div className="ui-crp-main">
-            <header className="ui-crp-head">
-              <div className="ui-crp-head__card"><CourseCard flip={false} course={cardInfo(course)} mark={course.author === "Dojo.foo" ? <BrandLogo mono /> : undefined} showVersion /></div>
-              <div className="ui-crp-head__text">
-                <p className="ui-crp-head__repo">{course.repository}</p>
-                <h1>{course.name}</h1>
-                <p className="ui-crp-head__lead">{course.description}</p>
-                <dl className="ui-crp-facts">
-                  <div><dt>Author</dt><dd>{course.author}</dd></div>
-                  <div><dt>Language</dt><dd>{course.language}</dd></div>
-                  <div><dt>Framework</dt><dd>{course.framework ?? "None"}</dd></div>
-                  <div><dt>Teaching</dt><dd title={mode?.description}>{mode?.label}</dd></div>
-                  <div><dt>Lessons</dt><dd>{course.kataCount}</dd></div>
-                  <div><dt>Version</dt><dd>v{course.version}</dd></div>
-                </dl>
-                <ul className="ui-crp-tags" aria-label="Topics">{course.tags.map((tag) => <li key={tag}>{tag}</li>)}</ul>
-              </div>
-            </header>
+            <CourseHeader course={course} card={cardInfo(course)} />
 
             <section className="ui-crp-install" aria-labelledby="ui-crp-install">
               <div className="ui-crp-install__head">
@@ -70,7 +54,7 @@ export function CoursePage({ course }: { course: WebCourse }) {
                 {way === "Command"
                   ? "Run it in your project, then npx dojofoo to open its first lesson in your browser."
                   : "Paste it into your agent. It installs the course and opens its first lesson in your browser."}
-                <a href="/docs/quickstart" onClick={event => followLink(event, () => links.openDoc("/docs/quickstart"))}><Icon icon={BookOpen01Icon} size={13} />Quickstart</a>
+                <NavigationLink href="/docs/quickstart" onNavigate={() => links.openDoc("/docs/quickstart")}><Icon icon={BookOpen01Icon} size={13} />Quickstart</NavigationLink>
               </p>}
             </section>
 
@@ -162,6 +146,48 @@ function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<
       </div>
     </section>
   );
+}
+
+type PreviewCard = ComponentProps<typeof CourseCard>["course"];
+
+type CourseSummary = Pick<WebCourse, "name" | "description" | "repository" | "author" | "language" | "framework" | "mode" | "kataCount" | "version" | "tags">;
+
+function CourseHeader({ course, card }: { course: CourseSummary; card: PreviewCard }) {
+  const mode = teachingModes.find(item => item.value === course.mode);
+  return (            <header className="ui-crp-head">
+              <div className="ui-crp-head__card"><CourseCard flip={false} course={card} mark={course.author === "Dojo.foo" ? <BrandLogo mono /> : undefined} showVersion /></div>
+              <div className="ui-crp-head__text">
+                <p className="ui-crp-head__repo">{course.repository}</p>
+                <h1>{course.name}</h1>
+                <p className="ui-crp-head__lead">{course.description}</p>
+                <dl className="ui-crp-facts">
+                  <div><dt>Author</dt><dd>{course.author}</dd></div>
+                  <div><dt>Language</dt><dd>{course.language}</dd></div>
+                  <div><dt>Framework</dt><dd>{course.framework ?? "None"}</dd></div>
+                  <div><dt>Teaching</dt><dd title={mode?.description}>{mode?.label}</dd></div>
+                  <div><dt>Lessons</dt><dd>{course.kataCount}</dd></div>
+                  <div><dt>Version</dt><dd>v{course.version}</dd></div>
+                </dl>
+                <ul className="ui-crp-tags" aria-label="Topics">{course.tags.map((tag) => <li key={tag}>{tag}</li>)}</ul>
+              </div>
+            </header>);
+}
+
+/** The website's course presentation, embedded in a local shell without fabricated activity metrics. */
+export function CoursePreview({ course, card, lessons, children }: {
+  course: CourseSummary; card: PreviewCard; lessons: string[]; children: ReactNode;
+}) {
+  return <article className="ui-crp">
+    <style href="ui-web-course" precedence="default">{css}</style>
+    <div className="ui-crp-main">
+      <CourseHeader course={course} card={card} />
+      <section className="ui-crp-install" aria-label="Course installation">{children}</section>
+      <section className="ui-crp-panel" aria-label="Course content">
+        <h2>Course content</h2>
+        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed">{lessons.map((title, index) => <li key={`${index}:${title}`}>{title}</li>)}</ol>
+      </section>
+    </div>
+  </article>;
 }
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {

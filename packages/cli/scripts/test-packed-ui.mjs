@@ -102,11 +102,15 @@ try {
 
   const port = await availablePort();
   const executable = resolve(installRoot, "node_modules/.bin/dojofoo");
+  const portlessManifest = JSON.parse(readFileSync(resolve(installRoot, "node_modules/portless/package.json"), "utf8"));
+  if (portlessManifest.version !== expectedPackage.dependencies.portless) {
+    throw new Error("Packed CLI is missing its declared Portless runtime dependency.");
+  }
   const help = execFileSync(executable, ["--help"], { encoding: "utf8", env: { ...process.env, DOJOFOO_HOME: resolve(scratch, "home") } });
-  if (!help.includes("Usage: npx dojofoo") || !help.includes("install [--agent]") || !help.includes("then open the lesson UI") || !help.includes("https://dojo.localhost")) {
+  if (!help.includes("Usage: npx dojofoo") || !help.includes("install [--agent]") || !help.includes("Open Dojo at https://dojo.localhost")) {
     throw new Error("Packed dojofoo executable does not advertise its install command and default UI URL.");
   }
-  child = spawn(executable, ["ui", "--no-open"], {
+  child = spawn(executable, [], {
     cwd: projectRoot,
     detached: process.platform !== "win32",
     env: {
@@ -115,8 +119,10 @@ try {
       CI: "",
       TEST: "",
       DOJO_PROJECT_ROOT: projectRoot,
-      DOJOFOO_HOME: resolve(scratch, "home"),
+      DOJOFOO_HOME: resolve(scratch, "ui-home"),
+      DO_NOT_TRACK: "1",
       DOJO_UI_DISABLE_PORTLESS: "1",
+      DOJO_UI_NO_OPEN: "1",
       PORT: String(port),
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -137,16 +143,32 @@ try {
   if (!workspace) throw new Error("The packed CLI did not register its workspace.");
   for (const courseId of ["create-your-own-dojo", "how-to-run-a-dojo"]) {
     const installed = await fetch(`${base}/api/control/starters/${courseId}/install`, {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workspaceId: workspace.id }),
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}",
     });
     if (installed.status !== 201) throw new Error(`Packed starter installation failed (${installed.status}): ${await installed.text()}`);
     const resource = `${base}/api/workspaces/${workspace.id}/courses/${courseId}/interactive`;
     const material = await (await fetch(resource)).json();
     if (material.dojo !== courseId || material.current?.type !== "present") throw new Error(`Packed ${courseId} has no first learning material.`);
+    if (material.deck) {
+      const deck = await fetch(`${resource}/asset?path=${encodeURIComponent(material.deck)}`);
+      const html = await deck.text();
+      if (deck.status !== 200 || !html.includes('dojo:course-action') || /<script[^>]+src=|<link[^>]+rel="stylesheet"/i.test(html)) {
+        throw new Error(`Packed ${courseId} is missing its self-contained Slidev deck.`);
+      }
+      console.log(`Packed starter ${courseId}: self-contained Slidev deck served with HTTP ${deck.status}.`);
+    }
     const conversation = await (await fetch(`${resource}/conversation`)).json();
     if (conversation.sessionId !== null) throw new Error("Opening a starter unexpectedly created an agent session.");
     console.log(`Packed starter ${courseId}: installed, first material available, no agent session.`);
   }
+  const setup = await fetch(`http://127.0.0.1:${port}/api/local/setup`).then(response => response.json());
+  if (setup.completed !== false || setup.workspace !== realpathSync(projectRoot) || setup.user.name !== "Anonymous") {
+    throw new Error("Packed CLI did not expose first-run setup for its launch workspace.");
+  }
+  if (output.trim() !== `Go to http://localhost:${port}`) {
+    throw new Error(`Unexpected CLI startup output: ${output}`);
+  }
+  console.log("Packed no-argument CLI exposes anonymous setup and prints one URL line.");
 } catch (error) {
   if (output) process.stderr.write(output);
   throw error;
