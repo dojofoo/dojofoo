@@ -49,6 +49,9 @@ const harness = {
           : turn.prompt === "Write lesson note" ? { type: "tool-call", toolCallId: "host-write", toolName: "write_file", input: JSON.stringify({ filePath: "/workspace/note.md", content: "Learner progress saved.\n" }) }
           : undefined;
         if (pendingCall) {
+          // Native adapters issue a fresh call id per call. Eve 1.0 renames a
+          // repeated id, so a fixed id would no longer match the native call.
+          pendingCall = { ...pendingCall, toolCallId: `${pendingCall.toolCallId}-${history.length}` };
           if (!tools.includes(pendingCall.toolName)) throw new Error(`Fixture requested unavailable tool ${pendingCall.toolName}; available: ${tools.join(", ")}`);
           turn.emit(pendingCall);
         }
@@ -77,14 +80,12 @@ const harness = {
 const sandbox = createJustBashSandbox();
 // This fixture stores its history only in the native handle, never in the FS.
 export default defineAgent({
-  model: defineDynamic({ events: {
-    "step.started": async (_event, context) => ({
-      model: experimental_createHarnessModel({
-        harness,
-        model: `host:${context.session.id}`,
-        sandbox: { ...sandbox, resumeSession: options => sandbox.createSession(options) },
-      }).model,
-      modelContextWindowTokens: 32_000,
-    }),
-  } }),
+  model: defineDynamic(async context => ({
+    model: experimental_createHarnessModel({
+      harness,
+      model: `host:${context.session.id}`,
+      sandbox: { ...sandbox, resumeSession: options => sandbox.createSession(options) },
+    }).model,
+    modelContextWindowTokens: 32_000,
+  })),
 });

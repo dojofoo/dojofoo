@@ -78,7 +78,7 @@ it("uses production Kyoshi for old bindings without stored auth", async () => {
   try {
     const ready = await runtime.start();
     expect((await fetch(new URL("eve/v1/info", ready.url))).status).toBe(401);
-    expect(await new Client({ host: ready.url, auth: ready.auth }).info()).toBeDefined();
+    expect(await new Client({ baseUrl: ready.url, auth: ready.auth }).info()).toBeDefined();
   } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
 }, 20_000);
 
@@ -120,7 +120,7 @@ it("owns a real packaged Eve server and releases it without launching a model", 
     expect(state.courseRoot).toBe(root);
     // Eve owns generation paths: verify through its manifest-loading API,
     // not an assumed .eve/compile location.
-    const info = await new Client({ host: first.url, auth: first.auth }).info();
+    const info = await new Client({ baseUrl: first.url, auth: first.auth }).info();
     expect(info.skills.static.map((skill: { name: string }) => skill.name).sort())
       .toEqual(["kata-lessons", "lesson-design", "teaching-evals"]);
     await Promise.all([runtime.close(), runtime.close()]);
@@ -131,7 +131,7 @@ it("owns a real packaged Eve server and releases it without launching a model", 
     const restarted = await createKyoshiRuntime(root);
     try {
       const ready = await restarted.start();
-      expect(await new Client({ host: ready.url, auth: ready.auth }).info()).toBeDefined();
+      expect(await new Client({ baseUrl: ready.url, auth: ready.auth }).info()).toBeDefined();
     } finally {
       await restarted.close();
     }

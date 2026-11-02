@@ -1,60 +1,37 @@
-import { ClientError, conversationReducer, defaultMessageReducer, type Client, type MessageStreamEvent } from "@dojofoo/agent/client";
-import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
-import { eveQuestionInterrupts } from "@dojofoo/authoring/eve/stream";
-import { toServerSentEventsResponse } from "@tanstack/ai";
+import { Client, ClientError } from "@dojofoo/agent/client";
 import { Elysia } from "elysia";
-import { runInput } from "./input";
 import { AgentApiError, type AgentRuntime, type Persona, type SessionRecord } from "./runtime";
 import { routes } from "./schema";
-import { followTurn, streamEveRun } from "./stream";
 
 /**
  * The workspace agent API: coding agents, sessions and runs under `/api/v1`. Mount
  * its `fetch` in any host (Hono's `app.mount`, Elysia's `.mount`, a Worker's
- * `fetch`); the runtime decides where agents actually run.
+ * `fetch`); the runtime decides where agents actually run. A session's conversation
+ * is Eve's own: `useEveAgent` (or `eve/client`) talks to it under the session's URL.
  */
 export function createAgentApi(runtime: AgentRuntime) {
-  const reducer = defaultMessageReducer();
-
   const record = async (workspaceId: string, sessionId: string): Promise<SessionRecord> => {
     const session = await runtime.sessions.get(workspaceId, sessionId);
     if (!session) throw new AgentApiError(404, "session_not_found", "Session not found.");
     return session;
   };
-  /** Eve's durable state for a session, read once from its tail */
-  const read = async (client: Client, sessionId: string, signal: AbortSignal) => {
-    const snapshot = await client.sessions.attach(sessionId).snapshot({ signal });
-    return {
-      session: client.sessions.attach(snapshot.session.sessionId, { streamIndex: snapshot.session.streamIndex }),
-      position: snapshot.session.streamIndex,
-      projection: snapshot.events.reduce(reducer.reduce, reducer.initial()),
-      events: snapshot.events,
-    };
-  };
-  const connect = (workspaceId: string, session: SessionRecord) =>
-    runtime.connect(workspaceId, { agent: session.agent, persona: session.persona });
 
   return new Elysia({ name: "@dojofoo/agent-api", prefix: "/api/v1" })
     .error({ AgentApiError })
-    .onError(({ code, error, set }) => {
-      if (error instanceof AgentApiError) {
-        set.status = error.status;
-        return { error: error.code, message: error.message };
-      }
+    .onError(({ code, error, set, request }) => {
+      // On a session's Eve routes, in the shape Eve's client reads
+      const eve = new URL(request.url).pathname.includes("/eve/");
+      const failure = (status: number, code: string, message: string) => {
+        set.status = status;
+        return eve ? { error: message, code } : { error: code, message };
+      };
+      if (error instanceof AgentApiError) return failure(error.status, error.code, error.message);
       if (error instanceof ClientError) {
-        set.status = error.status >= 400 && error.status < 500 ? error.status : 502;
-        return { error: error.code ?? "agent_error", message: error.message };
+        return failure(error.status >= 400 && error.status < 500 ? error.status : 502, error.code ?? "agent_error", error.message);
       }
-      if (code === "VALIDATION") {
-        set.status = 400;
-        return { error: "invalid_request", message: "The request does not match this operation's schema." };
-      }
-      if (code === "NOT_FOUND") {
-        set.status = 404;
-        return { error: "not_found", message: "Not found." };
-      }
-      set.status = 500;
-      return { error: "internal_error", message: error instanceof Error ? error.message : String(error) };
+      if (code === "VALIDATION") return failure(400, "invalid_request", "The request does not match this operation's schema.");
+      if (code === "NOT_FOUND") return failure(404, "not_found", "Not found.");
+      return failure(eve ? 502 : 500, eve ? "agent_unreachable" : "internal_error", error instanceof Error ? error.message : String(error));
     })
 
     // Coding agents
@@ -86,62 +63,47 @@ export function createAgentApi(runtime: AgentRuntime) {
       const agents = await runtime.agents(params.workspaceId);
       const agent = body.agent ?? agents.find(item => item.selected)?.id;
       if (!agent || !agents.some(item => item.id === agent)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
-      const client = await runtime.connect(params.workspaceId, { agent, persona });
-      // Eve starts the first run on acceptance; the client follows it through `listEvents`.
+      const client = new Client(await runtime.connect(params.workspaceId, { agent, persona }));
+      // Eve starts the first turn on acceptance; the client follows it on the session's stream.
       const { session } = await client.sessions.create({
         message: body.message ?? runtime.greeting(persona),
-        clientContext: await runtime.context?.(params.workspaceId, request, body.forwardedProps),
+        ...(body.clientContext ? { clientContext: body.clientContext } : {}),
         signal: request.signal,
       });
       const saved: SessionRecord = { id: session.state.sessionId, agent, persona, createdAt: new Date().toISOString() };
       await runtime.sessions.save(params.workspaceId, saved);
       set.status = 201;
-      return { ...saved, status: "running" as const, position: session.state.streamIndex };
+      return saved;
     }, routes.createSession)
-    .get("/workspaces/:workspaceId/sessions/:sessionId", async ({ params, request }) => {
-      const saved = await record(params.workspaceId, params.sessionId);
-      const { position, projection, events } = await read(await connect(params.workspaceId, saved), saved.id, request.signal);
-      const runId = `${saved.id}:${position}`;
-      const pendingInterrupts = eveQuestionInterrupts(projection, runId);
-      const conversation = events.reduce(conversationReducer.reduce, conversationReducer.initial());
-      const running = Boolean(conversation.activeTurnId && conversation.turns[conversation.activeTurnId]?.status === "active");
-      const status = pendingInterrupts.length ? "awaiting-input" as const : running || !events.length ? "running" as const : "idle" as const;
-      return {
-        ...saved, status, position,
-        ...(status === "idle" ? {} : { resume: { threadId: saved.id, runId, pendingInterrupts } }),
-      };
-    }, routes.getSession)
-    .get("/workspaces/:workspaceId/sessions/:sessionId/messages", async ({ params, query, request }) => {
-      const saved = await record(params.workspaceId, params.sessionId);
-      const { projection } = await read(await connect(params.workspaceId, saved), saved.id, request.signal);
-      return paginate(eveChatMessages(projection.messages), query);
-    }, routes.listMessages)
+    .get("/workspaces/:workspaceId/sessions/:sessionId", async ({ params }) =>
+      record(params.workspaceId, params.sessionId), routes.getSession)
 
-    // Runs
-    .post("/workspaces/:workspaceId/sessions/:sessionId/runs", async ({ params, body, request }) => {
+    // The session's own Eve routes, for this session only
+    .all("/workspaces/:workspaceId/sessions/:sessionId/eve/*", async ({ params, request }) => {
       const saved = await record(params.workspaceId, params.sessionId);
-      const input = await runInput(body);
-      const { session, projection } = await read(await connect(params.workspaceId, saved), saved.id, request.signal);
-      const options = { signal: request.signal, clientContext: await runtime.context?.(params.workspaceId, request, input.forwardedProps) };
-      const events: AsyncIterable<MessageStreamEvent> = input.answers
-        ? await session.respond(input.answers, options)
-        : await session.send(input.message!, options);
-      return toServerSentEventsResponse(streamEveRun({ events, initial: projection, threadId: saved.id, runId: input.runId ?? crypto.randomUUID() }));
-    }, routes.createRun)
-    .get("/workspaces/:workspaceId/sessions/:sessionId/events", async ({ params, query, request }) => {
-      const saved = await record(params.workspaceId, params.sessionId);
-      const { session, position, projection, events } = await read(await connect(params.workspaceId, saved), saved.id, request.signal);
-      return toServerSentEventsResponse(streamEveRun({
-        events: followTurn(session, request.signal, events), initial: projection, attach: true,
-        threadId: saved.id, runId: query.runId || `${saved.id}:${position}`,
-      }));
-    }, routes.listEvents)
-    .patch("/workspaces/:workspaceId/sessions/:sessionId/runs/:runId", async ({ params, request, set }) => {
-      const saved = await record(params.workspaceId, params.sessionId);
-      await (await connect(params.workspaceId, saved)).sessions.attach(saved.id).cancel({ signal: request.signal });
-      set.status = 202;
-      return { id: params.runId, status: "cancelling" as const };
-    }, routes.updateRun);
+      const path = `/eve/${params["*"]}`;
+      const own = `/eve/v1/session/${encodeURIComponent(saved.id)}`;
+      // Encoded separators or dot segments could address another route once the host decodes them
+      if ((path !== own && !path.startsWith(`${own}/`)) || /%2f|%5c|\\|(^|\/)\.\.?(\/|$)|%2e/iu.test(params["*"])) {
+        throw new AgentApiError(404, "not_found", "Not found.");
+      }
+      const endpoint = await runtime.connect(params.workspaceId, { agent: saved.agent, persona: saved.persona });
+      const target = new URL(`${endpoint.baseUrl.replace(/\/$/u, "")}${path}`);
+      target.search = new URL(request.url).search;
+      const headers = new Headers(endpoint.headers);
+      for (const [name, value] of request.headers) {
+        if (name === "content-type" || name === "accept" || name.startsWith("x-eve-")) headers.set(name, value);
+      }
+      const upstream = await fetch(target, {
+        method: request.method, headers, signal: request.signal, redirect: "manual",
+        ...(request.method === "GET" || request.method === "HEAD" ? {} : { body: await request.arrayBuffer() }),
+      });
+      const returned = new Headers();
+      for (const [name, value] of upstream.headers) {
+        if (name === "content-type" || name === "cache-control" || name.startsWith("x-eve-")) returned.set(name, value);
+      }
+      return new Response(upstream.body, { status: upstream.status, headers: returned });
+    }, routes.eve);
 }
 
 function paginate<T>(items: readonly T[], query: { page?: number; per_page?: number }) {

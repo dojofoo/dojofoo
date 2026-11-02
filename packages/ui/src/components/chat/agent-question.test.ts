@@ -45,18 +45,20 @@ describe("agent questions", () => {
     expect(isAgentQuestion({ ...choice, name: "dojo_lesson_verify" })).toBe(false);
   });
 
-  it("renders Eve's authoritative request and restores its chosen answer", () => {
-    const request = { requestId: "request-42", kind: "question" as const, prompt: "Review this lesson?", display: "select" as const, options: [{ id: "review", label: "Review" }], allowFreeform: true };
+  it("renders Eve's own question and restores its chosen answer", () => {
+    const request = { kind: "question" as const, prompt: "Review this lesson?", display: "select" as const, options: [{ id: "review", label: "Review" }], allowFreeform: true };
     const part = eveChatMessages([{ id: "assistant-1", role: "assistant", parts: [{
-      type: "dynamic-tool", toolName: "dojo_ui_ask", toolCallId: "native-call-1", input: { prompt: "Raw arguments are not the UI request" },
-      state: "approval-responded", approval: { id: request.requestId },
-      toolMetadata: { eve: { kind: "tool-call", name: "dojo_ui_ask", inputRequest: request, inputResponse: { requestId: request.requestId, optionId: "review" } } },
-    }] }])[0].parts[0] as ToolCallPart;
+      type: "tool", name: "ask_question", label: "Ask a question", kind: "tool", callId: "native-call-1", stepIndex: 0,
+      input: { question: "Raw arguments are not the UI request" }, state: "completed", output: { answer: "Review" },
+      interaction: { interactionId: "request-42", turnId: "turn-1", stepIndex: 0, request, status: "settled", outcome: "accepted",
+        answer: { interactionId: "request-42", optionId: "review" } },
+    }] }])[0]!.parts[0] as ToolCallPart;
     expect(isAgentQuestion(part)).toBe(true);
     expect(agentQuestionState(part)).toEqual({
       questions: [{ id: "request-42", title: "Review this lesson?", options: [{ id: "review", title: "Review", description: undefined }], allowOther: true, freeText: false }],
       answers: { "request-42": { questionId: "request-42", selectedIds: ["review"], otherText: undefined } },
       disabled: true,
+      failure: undefined,
     });
   });
 });

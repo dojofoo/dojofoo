@@ -7,7 +7,7 @@ pnpm test
 ```
 
 The runner installs the packed `@dojofoo/agent`, pinned AI SDK and official
-HarnessAgent adapters into a fresh temporary consumer. Eve 0.81.1 and its four
+HarnessAgent adapters into a fresh temporary consumer. Eve 1.0.0-rc.1 and its four
 audited patches are already assembled in that package; consumers install no
 separate Eve and run no patch scripts. The runner verifies registry URLs,
 integrity and production/eval version alignment, then tests that exact runtime.
@@ -28,8 +28,8 @@ with a loopback Responses API fixture. It verifies native journal recovery,
 stable session identity, and retained system instructions across two provider
 calls. It also suspends a real Pi host-tool call and restores it with one answer.
 The removed pre-0.80 internal request-input behavior is not emulated: Eve's
-current workflow question is exercised by `cli-host.test.mjs` (real Pi, CLI
-and browser restart) and `native-host.test.mjs` (real OpenCode and host restart).
+current workflow question is exercised by `cli-host.test.mjs` (real Pi and CLI
+restart) and `native-host.test.mjs` (real OpenCode and host restart).
 Only inference is canned; Pi's adapter/session implementation is real.
 Non-loopback fetches are rejected, credentials are fixture-only, and no personal
 Pi agent directory is supplied. The fixture event sequence follows the
@@ -96,106 +96,29 @@ reject inherited parent instructions, the parent's private tool, recursive root
 delegation, inherited conversation, or reading the parent's file contents.
 Both variants use the same provider model configuration; isolation belongs to
 Eve's authored-agent boundaries and each official native harness session.
-The second conversation uses Eve's official `EveAgentStore` and
-`defaultMessageReducer`, the same state machinery exposed by `useEveAgent`.
-The test observes submitted/streaming/ready states, serializes its event prefix
-and session cursor, reconstructs it after a host restart, and answers the pending
-question. Replay must not duplicate user messages, and the answer must reach the
-same native session exactly once. Native questions settle with `input.resolved`:
-their projected part remains `approval-responded` with the submitted choice in
-`toolMetadata.eve.inputResponse`; they do not emit an ordinary `action.result`.
-This verifies the client state contract, not browser rendering. Authoring's
-existing UI and AG-UI transport have not yet been connected to this backend.
+The second conversation uses Eve's official `SessionStore`, the store behind
+`useEveAgent`. The test serializes its events and session cursor, reconstructs it
+after a host restart, and answers the pending question. Replay must not duplicate
+user messages, and the answer must reach the same native session exactly once; the
+question settles with `interaction.settled`, accepted, on its tool part.
 
-The authoring package's `eveChatMessages` export at
-`@dojofoo/authoring/eve/messages` provides a render-only projection of the public
-`defaultMessageReducer()` output into TanStack UI messages. It does not process
-or persist events itself. Stable identities, incremental argument text, request
-IDs, submitted answers, denial/failure states and preliminary results survive
-the projection; an incomplete result stays active. Its tests compare streamed
-reduction and full replay. Eve-specific control data remains under part metadata
-for dedicated UI controls. Authorization currently projects its public description
-and structured metadata, not an interactive authorization control. This helper
-is not yet connected to the live authoring route. The shared chat renderer now
-recognizes Eve questions from their authoritative request metadata, not raw
-model arguments. Saved choice/free-text responses render in the same question
-component with controls disabled; renderer tests cover both forms after replay.
-`@dojofoo/authoring/eve/stream` consumes a public Eve response iterator and emits
-standard AG-UI run events and message snapshots using TanStack's own wire
-serializer. It seeds the official Eve reducer from the projection matching the
-client cursor; there is no new persistent transcript. Actual TanStack ChatClient
-tests verify partial text, retained prior history, optimistic-message replacement,
-question-response metadata, explicit backend/truncated-stream errors, and iterator
-cleanup on downstream disconnect. Snapshots currently resend the projected
-history when it changes; this prioritizes faithful state transfer, not minimal
-bandwidth. Native cancellation remains the public Eve response's `cancel()`
-operation, distinct from disconnecting a view. Live authoring route wiring is
-still pending.
-
-`createEveAuthoringRoutes(client)` at `@dojofoo/authoring/eve/server` is the
-mountable Hono boundary for an already configured Eve host. It exposes session
-creation, snapshot hydration, messages, answers and explicit cancellation through
-the public Eve client. Message/answer routes read the authoritative snapshot and
-resume from its tail, avoiding stale cursor-zero responses. Answers return an
-AG-UI continuation stream, not an acknowledgement followed by polling. No local
-session registry or transcript file is added. Route tests use the actual Eve
-client against HTTP fixtures, including upstream error codes and invalid input;
-they are not yet a live CLI-to-authoring-UI end-to-end test. Mount behind existing
-workspace authorization and inject the configured host rather than accepting a
-host URL from request bodies. The local UI server now mounts these routes at
-`/api/authoring/eve` when the upstream-standard `EVE_BASE_URL` environment setting
-is supplied. The configured host is bound to the startup workspace; a different
-requested workspace is rejected before contacting Eve. `/api/authoring/backend`
-reports the explicitly configured backend. With no setting, the existing ACP
-path remains unchanged. `/api/authoring/draft` reads files/readiness without
-resuming ACP or modifying a session pointer. File saves, course/lesson renames,
-lesson creation and the page's file refresh also return/read only this draft;
-they no longer resume ACP or fetch conversation history. Regression tests cover
-all four mutations with an unavailable ACP runtime and an unchanged session
-pointer. The page now consumes backend discovery and the Eve session routes.
-It shares the ACP chat presentation, saves Eve's session ID in the router search,
-and hydrates messages and pending interrupt bindings from Eve's snapshot.
-Playwright exercises creation, URL replacement without creating twice, question
-recovery after reload, answering and missing-session errors using recorded Eve
-events. Startup waits for React's mount-effect cleanup/replay cycle before sending,
-so the initial request is neither cancelled nor duplicated. Automatic host startup
-and live native-harness browser verification remain unfinished.
-
-Reopening an existing session supplies TanStack's `initialResumeSnapshot`. For
-pending questions it restores bound controls; otherwise its official `joinRun`
-uses read-only GET `/sessions/:sessionId/messages`. That route delegates replay
-and live following to public `EveAgentStore.resume()`, seeded with the authoritative
-snapshot/cursor. The full initial projection is emitted before new events so
-history is not rebuilt on screen from the first message. An already-settled
-session closes immediately after Eve's own catch-up check; an active turn remains
-attached. Observer teardown uses local store reset, never `session.cancel()` or
-native reset. Tests verify cursor-based follow, seeded replay, abort cleanup and
-browser rejoin without any POST request.
-
-Eve questions now end the projected AG-UI run with an interrupt outcome, using
-TanStack's public `withInterruptBinding` helper and Eve's original request ID.
-The client can resolve the bound generic interrupt; `/messages` maps its standard
-`resume` entries to Eve's public `parseInputResponses` and `session.respond`.
-The submitted run ID is echoed so TanStack can correlate the pause and
-continuation. Eve still validates pending requests and owns native execution.
-Unsupported cancelled entries are rejected explicitly; stopping the session
-uses the cancellation endpoint. The transport regression exercises the actual
-TanStack ChatClient and SSE serializer/parser, verifies one continuation, and
-retains the authoritative answer receipt without an invented chat message or
-browser tool result. The authoring page uses these bound controls directly.
+The browser talks to these sessions through Eve's own client as well: the agent
+API forwards each session's Eve routes (`packages/agent-api`), and the authoring
+chat uses `useEveAgent`. `@dojofoo/authoring/eve/messages` only maps Eve's messages
+into the chat's render model.
 
 `cli-host.test.mjs` additionally uses the supported `eve dev --no-ui --host
 127.0.0.1 --port 0` executable, not the private server constructor. A packed
 package consumer authors a Pi-backed agent, parks an actual Eve question, stops
-the CLI process, starts a new CLI process, and answers through the saved public
-client session/cursor. The native Pi journal retains the introduction, authored
+the CLI process, starts a new CLI process, and answers through Eve's own client,
+attached after the restart. The native Pi journal retains the introduction, authored
 instructions and exactly one answer; a subsequent turn sees that history.
 Only inference uses the loopback fixture. The agent stores its journal outside
 the watched source directory using the exported local filesystem helper.
 Eve's CLI requires the application package to explicitly declare an `eve`
 dependency: a transitive dependency through `@dojofoo/agent` is not sufficient
-for project discovery. This proves a public CLI hosting path for Pi, not an
-AG-UI integration or cold recovery of OpenCode's live native bridge.
+for project discovery. This proves a public CLI hosting path for Pi, not cold
+recovery of OpenCode's live native bridge.
 
 Authoring now exports `createAuthoringSandbox(courseRoot)` from
 `@dojofoo/authoring/sandbox`. Use it as an authored Eve sandbox definition. It

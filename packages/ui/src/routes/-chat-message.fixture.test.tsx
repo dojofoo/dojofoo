@@ -20,16 +20,13 @@ const fixture = JSON.parse(
 describe("TanStack AI UIMessage renderer", () => {
   for (const freeText of [false, true]) it(`renders a replayed Eve answer in its locked question component (freeText=${freeText})`, () => {
     const [message] = eveChatMessages([{ id: "eve-assistant", role: "assistant", parts: [{
-      type: "dynamic-tool", toolName: "dojo_ui_ask", toolCallId: "call-question", input: {},
-      state: "approval-responded", approval: { id: "request-question" },
-      toolMetadata: { eve: { kind: "tool-call", name: "dojo_ui_ask", inputRequest: {
-        requestId: "request-question", kind: "question", prompt: "Where should we focus?",
-        display: freeText ? "text" : "select",
+      type: "tool", name: "ask_question", label: "Ask a question", kind: "tool", callId: "call-question", stepIndex: 0, input: {}, state: "completed",
+      interaction: { interactionId: "request-question", turnId: "turn-1", stepIndex: 0, status: "settled", outcome: "accepted", request: {
+        kind: "question", prompt: "Where should we focus?", display: freeText ? "text" : "select",
         options: freeText ? undefined : [{ id: "review", label: "Review" }, { id: "next", label: "Continue" }],
-      }, inputResponse: freeText
-        ? { requestId: "request-question", text: "Explain the prerequisites" }
-        : { requestId: "request-question", optionId: "review" },
-      } },
+      }, answer: freeText
+        ? { interactionId: "request-question", text: "Explain the prerequisites" }
+        : { interactionId: "request-question", optionId: "review" } },
     }] }]);
     const html = renderToStaticMarkup(<StreamedChatMessage fragments={{}} message={message} onToolAnswer={async () => undefined} workspaceId="fixture" />);
     expect(html).toContain("Where should we focus?");
@@ -191,11 +188,10 @@ it.each([["complete", "success"], ["error", "error"]] as const)("keeps failed ch
   expect(html).toContain("Expected [] but received undefined");
 });
 
-it("keeps a preliminary Eve tool result visibly running until Eve finishes it", () => {
+it("keeps a running Eve call visibly running until Eve finishes it", () => {
   const [message] = eveChatMessages([{ id: "partial", role: "assistant", parts: [{
-    type: "dynamic-tool", toolCallId: "read", toolName: "read_file", input: {}, state: "output-available", output: "Preview", partial: true,
+    type: "tool", name: "read_file", label: "Read file", kind: "tool", callId: "read", stepIndex: 0, input: {}, state: "running", output: "Preview",
   }] }]);
-  message!.parts = message!.parts.map(part => part.type === "tool-call" ? { ...part, state: "complete" } : part);
   const html = renderToStaticMarkup(<StreamedChatMessage message={message!} fragments={{}} workspaceId="fixture" streaming />);
   expect(html).toContain('class="ui-tc" data-status="running"');
 });

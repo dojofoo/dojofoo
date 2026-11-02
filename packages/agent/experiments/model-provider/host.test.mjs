@@ -2,18 +2,47 @@ import assert from "node:assert/strict";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
-import { Client, EveAgentStore, defaultMessageReducer } from "@dojofoo/agent/client";
+import { Client, SessionStore } from "@dojofoo/agent/client";
 import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox";
 
 import { createDevelopmentServer } from "@dojofoo/agent/server";
 
+// The fixture sandboxes are just-bash. Do not wait on an installed Docker CLI
+// whose daemon is down when the development server closes.
+process.env.EVE_DOCKER_PATH ??= join(process.cwd(), "no-docker");
+
 function projectedJson(store) {
-  const projectedReply = store.snapshot.data.messages.at(-1).parts.filter(part => part.type === "text").map(part => part.text).join("");
+  const { messages, events } = store.snapshot;
+  const projectedReply = messages.filter(message => message.role === "assistant").at(-1)?.parts
+    .filter(part => part.type === "text").map(part => part.text).join("");
   try { return JSON.parse(projectedReply); }
   catch (cause) {
-    throw new Error(JSON.stringify({ projectedReply, messages: store.snapshot.data.messages, events: store.snapshot.events }), { cause });
+    throw new Error(JSON.stringify({ projectedReply, messages, events }), { cause });
   }
 }
+
+// A delivery settles on the server before the store has necessarily read its
+// last commit; wait for the store's own view to come to rest.
+function idle(store) {
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      if (store.snapshot.error) { unsubscribe(); reject(store.snapshot.error); }
+      else if (store.snapshot.status === "idle") { unsubscribe(); resolve(store.snapshot); }
+    };
+    const unsubscribe = store.subscribe(check);
+    check();
+  });
+}
+
+async function sendAndSettle(store, payload) {
+  const result = await (await store.send(payload)).result({ signal: AbortSignal.timeout(60_000) });
+  await idle(store);
+  return result;
+}
+
+const reply = result => JSON.parse(result.reply);
+const toolParts = (store, name) => store.snapshot.messages.flatMap(message => message.parts)
+  .filter(part => part.type === "tool" && part.name === name);
 
 test("authoring rejects ambiguous or filesystem-root mounts", () => {
   for (const path of [".", "relative/course", "/", "/tmp/.."])
@@ -22,6 +51,8 @@ test("authoring rejects ambiguous or filesystem-root mounts", () => {
 
 for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates conversations, recovers, and delegates (specialist=${specialist})`, { timeout: 180_000 }, async () => {
   const root = await mkdtemp(join(process.cwd(), "hosted-provider-"));
+  // 1.0 resolves the agent directory inside its package.
+  const agent = join(root, "agent");
   // Match production: editable course material lives outside the Eve app,
   // so saving it must not race a rebuild of the authored agent itself.
   const course = await mkdtemp(join(process.cwd(), "hosted-course-"));
@@ -30,45 +61,44 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
   let stage = "prepare host";
   try {
     await writeFile(join(root, "package.json"), JSON.stringify({ name: "hosted-provider-fixture", private: true, type: "module" }));
-    await copyFile(new URL("host-agent.fixture.ts", import.meta.url), join(root, "agent.ts"));
-    await writeFile(join(root, "instructions.md"), "HOST_INSTRUCTIONS_LOADED: Teach one concept at a time.\n");
-    await mkdir(join(root, "tools"));
-    await writeFile(join(root, "tools/ask_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
-    await writeFile(join(root, "tools/read_file.ts"), 'export { default } from "@dojofoo/agent/tools/read_file";\n');
-    await writeFile(join(root, "tools/root_only.ts"), 'import { defineTool } from "@dojofoo/agent/tools"; import read from "@dojofoo/agent/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
-    await writeFile(join(root, "tools/write_file.ts"), 'export { default } from "@dojofoo/agent/tools/write_file";\n');
-    await mkdir(join(root, "sandbox/workspace"), { recursive: true });
+    await mkdir(join(agent, "tools"), { recursive: true });
+    await copyFile(new URL("host-agent.fixture.ts", import.meta.url), join(agent, "agent.ts"));
+    await writeFile(join(agent, "instructions.md"), "HOST_INSTRUCTIONS_LOADED: Teach one concept at a time.\n");
+    await writeFile(join(agent, "tools/ask_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
+    await writeFile(join(agent, "tools/read_file.ts"), 'export { default } from "@dojofoo/agent/tools/read_file";\n');
+    await writeFile(join(agent, "tools/root_only.ts"), 'import { defineTool } from "@dojofoo/agent/tools"; import read from "@dojofoo/agent/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
+    await writeFile(join(agent, "tools/write_file.ts"), 'export { default } from "@dojofoo/agent/tools/write_file";\n');
+    await mkdir(join(agent, "sandbox/workspace"), { recursive: true });
     await writeFile(join(course, "note.md"), "Authored in the editor.\n");
-    await writeFile(join(root, "sandbox/sandbox.ts"), `import { defineSandbox } from "@dojofoo/agent/sandbox"; import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox"; export const environment = createAuthoringSandbox(${JSON.stringify(course)}); export default defineSandbox(() => environment.open());\n`);
-    await writeFile(join(root, "sandbox/workspace/note.md"), "Original lesson note.\n");
+    await writeFile(join(agent, "sandbox/sandbox.ts"), `import { defineSandbox } from "@dojofoo/agent/sandbox"; import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox"; export const environment = createAuthoringSandbox(${JSON.stringify(course)}); export default defineSandbox(() => environment.open());\n`);
+    await writeFile(join(agent, "sandbox/workspace/note.md"), "Original lesson note.\n");
     if (specialist) {
-      await mkdir(join(root, "subagents/reviewer/tools"), { recursive: true });
-      await mkdir(join(root, "subagents/reviewer/sandbox/workspace"), { recursive: true });
-      await writeFile(join(root, "subagents/reviewer/agent.ts"), 'import { defineAgent } from "@dojofoo/agent"; import root from "../../agent"; export default defineAgent({ ...root, description: "Review lesson evidence independently." });\n');
-      await writeFile(join(root, "subagents/reviewer/instructions.md"), "SPECIALIST_INSTRUCTIONS_LOADED: Read your own lesson evidence before reviewing.\n");
-      await copyFile(join(root, "tools/read_file.ts"), join(root, "subagents/reviewer/tools/read_file.ts"));
-      await writeFile(join(root, "subagents/reviewer/sandbox/sandbox.ts"), 'import { defineSandbox } from "@dojofoo/agent/sandbox"; import { JustBashSandbox } from "@dojofoo/agent/sandbox/just-bash"; export const environment = JustBashSandbox.environment({ autoInstall: false }); export default defineSandbox(() => environment.open());\n');
-      await writeFile(join(root, "subagents/reviewer/sandbox/workspace/note.md"), "Specialist-only evidence.\n");
+      await mkdir(join(agent, "subagents/reviewer/tools"), { recursive: true });
+      await mkdir(join(agent, "subagents/reviewer/sandbox/workspace"), { recursive: true });
+      await writeFile(join(agent, "subagents/reviewer/agent.ts"), 'import { defineAgent } from "@dojofoo/agent"; import root from "../../agent"; export default defineAgent({ ...root, description: "Review lesson evidence independently." });\n');
+      await writeFile(join(agent, "subagents/reviewer/instructions.md"), "SPECIALIST_INSTRUCTIONS_LOADED: Read your own lesson evidence before reviewing.\n");
+      await copyFile(join(agent, "tools/read_file.ts"), join(agent, "subagents/reviewer/tools/read_file.ts"));
+      await writeFile(join(agent, "subagents/reviewer/sandbox/sandbox.ts"), 'import { defineSandbox } from "@dojofoo/agent/sandbox"; import { JustBashSandbox } from "@dojofoo/agent/sandbox/just-bash"; export const environment = JustBashSandbox.environment({ autoInstall: false }); export default defineSandbox(() => environment.open());\n');
+      await writeFile(join(agent, "subagents/reviewer/sandbox/workspace/note.md"), "Specialist-only evidence.\n");
     }
     server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
     const { url } = await server.start();
-    const client = new Client({ host: url });
+    const client = new Client({ baseUrl: url });
     const signal = AbortSignal.timeout(60_000);
-    const other = new EveAgentStore({ host: url, reducer: defaultMessageReducer() });
+    const other = new SessionStore({ baseUrl: url });
     const statuses = new Set();
     const unsubscribe = other.subscribe(() => statuses.add(other.snapshot.status));
     const [first] = await Promise.all([
       client.sessions.create({ message: "Lesson A", signal }),
-      other.send({ message: "Lesson B", signal }),
+      sendAndSettle(other, { message: "Lesson B", signal }),
     ]);
-    const a = await first.response.result();
+    const a = await first.delivery.result({ signal });
     stage = "concurrent projections";
-    assert.equal(a.status, "waiting");
-    assert.equal(other.snapshot.status, "ready");
+    assert.equal(a.status, "completed");
+    assert.equal(other.snapshot.status, "idle");
     assert.equal(other.snapshot.error, undefined);
-    assert.ok(statuses.has("submitted"));
-    assert.ok(statuses.has("streaming"));
-    const aText = JSON.parse(a.message);
+    assert.ok(statuses.has("busy"));
+    const aText = reply(a);
     const bText = projectedJson(other);
     assert.deepEqual(aText.history, ["Lesson A"]);
     assert.deepEqual(bText.history, ["Lesson B"]);
@@ -77,105 +107,105 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     assert.notEqual(aText.selectedModel, bText.selectedModel, "Dynamic selection must use each Eve session's context");
     // Exercise stream attachment timing instead of relying on one lucky startup.
     await Promise.all(Array.from({ length: 6 }, async (_, index) => {
-      const probe = new EveAgentStore({ host: url, reducer: defaultMessageReducer() });
+      const probe = new SessionStore({ baseUrl: url });
       const message = `Projection probe ${index}`;
-      await probe.send({ message, signal });
+      await sendAndSettle(probe, { message, signal });
       assert.equal(probe.snapshot.error, undefined);
       assert.deepEqual(projectedJson(probe).history, [message]);
     }));
-    const continued = await (await first.session.send("Continue A", { signal })).result();
+    const continued = await (await first.session.send("Continue A", { signal })).result({ signal });
     stage = "park questions";
-    const continuedText = JSON.parse(continued.message);
+    const continuedText = reply(continued);
     assert.equal(continuedText.sessionId, aText.sessionId);
     assert.equal(continuedText.selectedModel, aText.selectedModel);
     assert.deepEqual(continuedText.history, ["Lesson A", "Continue A"]);
-    const waiting = await (await first.session.send("Ask before continuing", { signal })).result();
-    assert.equal(waiting.inputRequests.length, 1);
-    assert.equal(waiting.inputRequests[0].prompt, "Review or continue?");
-    await other.send({ message: "Ask before continuing", signal });
-    const questionPart = other.snapshot.data.messages.flatMap(message => message.parts)
-      .find(part => part.type === "dynamic-tool" && part.toolName === "ask_question");
-    assert.equal(questionPart.state, "approval-requested");
-    assert.equal(questionPart.toolMetadata.eve.inputRequest.prompt, "Review or continue?");
+    const waiting = await (await first.session.send("Ask before continuing", { signal })).result({ signal });
+    assert.equal(waiting.status, "awaiting-input");
+    assert.equal(waiting.interactions.length, 1);
+    assert.equal(waiting.interactions[0].request.prompt, "Review or continue?");
+    const parked = await sendAndSettle(other, { message: "Ask before continuing", signal });
+    assert.equal(parked.status, "awaiting-input");
+    const [questionPart] = toolParts(other, "ask_question");
+    assert.ok(questionPart, JSON.stringify(other.snapshot.messages));
+    const question = parked.interactions[0];
+    assert.equal(question.request.prompt, "Review or continue?");
+    assert.equal(question.status, "open");
     const savedUi = JSON.parse(JSON.stringify({ initialEvents: other.snapshot.events, initialSession: other.snapshot.session }));
     unsubscribe();
     await server.close();
     server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
     const restarted = await server.start();
-    const rehydrated = new EveAgentStore({ host: restarted.url, reducer: defaultMessageReducer(), ...savedUi });
+    const rehydrated = new SessionStore({ baseUrl: restarted.url, ...savedUi });
     stage = "restore UI question";
     await rehydrated.resume();
+    await idle(rehydrated);
     assert.equal(rehydrated.snapshot.error, undefined);
-    assert.equal(rehydrated.snapshot.data.messages.filter(message => message.role === "user").length, 2, "Optimistic and persisted messages must not duplicate on replay");
-    await rehydrated.send({ inputResponses: [{ requestId: questionPart.toolMetadata.eve.inputRequest.requestId, optionId: "Review" }], signal: AbortSignal.timeout(60_000) });
-    assert.equal(rehydrated.snapshot.status, "ready");
+    assert.equal(rehydrated.snapshot.messages.filter(message => message.role === "user").length, 2, "Optimistic and persisted messages must not duplicate on replay");
+    await sendAndSettle(rehydrated, { answers: [{ interactionId: question.interactionId, optionId: "Review" }], signal: AbortSignal.timeout(60_000) });
+    assert.equal(rehydrated.snapshot.status, "idle");
     assert.equal(rehydrated.snapshot.error, undefined);
-    const answeredPart = rehydrated.snapshot.data.messages.flatMap(message => message.parts)
-      .find(part => part.type === "dynamic-tool" && part.toolName === "ask_question");
-    // The question is now a workflow tool: its result completes the outer tool
-    // while the retained inputResponse still locks the selected answer.
-    assert.equal(answeredPart.state, "output-available");
-    assert.equal(answeredPart.toolMetadata.eve.inputResponse.optionId, "Review");
-    assert.ok(rehydrated.snapshot.events.some(event => event.type === "input.resolved"
-      && event.data.resolutions.some(resolution => resolution.requestId === questionPart.toolMetadata.eve.inputRequest.requestId && resolution.outcome === "answered")));
-    const uiAnswer = JSON.parse(rehydrated.snapshot.data.messages.at(-1).parts.filter(part => part.type === "text").map(part => part.text).join(""));
+    // The question is a workflow tool: its result completes the outer tool call.
+    const [answeredPart] = toolParts(rehydrated, "ask_question");
+    assert.equal(answeredPart.state, "completed", JSON.stringify(answeredPart));
+    assert.deepEqual(answeredPart.output, { answer: "Review", status: "answered" });
+    assert.ok(rehydrated.snapshot.events.some(event => event.type === "interaction.settled"
+      && event.data.interactionId === question.interactionId && event.data.outcome === "accepted"
+      && event.data.response?.optionId === "Review"), JSON.stringify(rehydrated.snapshot.events.filter(event => event.type.startsWith("interaction."))));
+    const uiAnswer = projectedJson(rehydrated);
     assert.equal(uiAnswer.sessionId, bText.sessionId);
     assert.deepEqual(uiAnswer.history.filter(entry => typeof entry === "object"), [{ answer: { status: "answered", answer: "Review" } }]);
-    // Respond has no new message delivery ID; preserve the client's durable
-    // cursor so it does not mistake an earlier turn boundary for this answer.
-    const restored = new Client({ host: restarted.url }).sessions.attach(first.session.state.sessionId, { streamIndex: first.session.state.streamIndex });
+    // Reattach with the client's complete saved state, as 1.0 requires.
+    const restored = new Client({ baseUrl: restarted.url }).sessions.attach(first.session.state.sessionId, structuredClone(first.session.state));
     stage = "restore client question";
-    const answered = await (await restored.respond([{ requestId: waiting.inputRequests[0].requestId, optionId: "Review" }], { signal: AbortSignal.timeout(60_000) })).result();
-    const answerText = JSON.parse(answered.message);
+    const answered = await (await restored.respond([{ interactionId: waiting.interactions[0].interactionId, optionId: "Review" }], { signal: AbortSignal.timeout(60_000) })).result();
+    assert.equal(answered.status, "completed", JSON.stringify(answered));
+    const answerText = reply(answered);
     assert.equal(answerText.sessionId, aText.sessionId);
     assert.equal(answerText.selectedModel, aText.selectedModel);
     const answers = answerText.history.filter(item => typeof item === "object");
-    assert.deepEqual(answers, [{ answer: { answer: "Review", status: "answered" } }], JSON.stringify({ answerText, events: answered.events }));
-    const afterRestart = await (await restored.send("After restart", { signal: AbortSignal.timeout(60_000) })).result();
-    const recoveredText = JSON.parse(afterRestart.message);
+    assert.deepEqual(answers, [{ answer: { answer: "Review", status: "answered" } }], JSON.stringify(answerText));
+    const send = async (session, message) => {
+      const result = await (await session.send(message, { signal: AbortSignal.timeout(60_000) })).result();
+      assert.equal(result.status, "completed", JSON.stringify(result));
+      return reply(result);
+    };
+    const recoveredText = await send(restored, "After restart");
     assert.equal(recoveredText.sessionId, aText.sessionId);
     assert.equal(recoveredText.selectedModel, aText.selectedModel);
     assert.deepEqual(recoveredText.history, ["Lesson A", "Continue A", "Ask before continuing", ...answers, "After restart"]);
-    const read = await (await restored.send("Read lesson note", { signal: AbortSignal.timeout(60_000) })).result();
     stage = "filesystem tools";
-    assert.match(JSON.parse(read.message).history.at(-1).output.content, /Original lesson note/);
-    const written = await (await restored.send("Write lesson note", { signal: AbortSignal.timeout(60_000) })).result();
-    assert.equal(JSON.parse(written.message).history.at(-1).output.existed, true);
-    const courseRead = await (await restored.send("Read authoring note", { signal: AbortSignal.timeout(60_000) })).result();
-    assert.match(JSON.parse(courseRead.message).history.at(-1).output.content, /Authored in the editor/);
-    await (await restored.send("Write authoring note", { signal: AbortSignal.timeout(60_000) })).result();
+    assert.match((await send(restored, "Read lesson note")).history.at(-1).output.content, /Original lesson note/);
+    assert.equal((await send(restored, "Write lesson note")).history.at(-1).output.existed, true);
+    assert.match((await send(restored, "Read authoring note")).history.at(-1).output.content, /Authored in the editor/);
+    await send(restored, "Write authoring note");
     assert.equal(await readFile(join(course, "note.md"), "utf8"), "Edited by Kyoshi.\n");
     await writeFile(join(course, "note.md"), "Edited again by the human.\n");
     await server.close();
     server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
     const finalHost = await server.start();
-    const finalSession = new Client({ host: finalHost.url }).sessions.attach(restored.state.sessionId, { streamIndex: restored.state.streamIndex });
+    const finalSession = new Client({ baseUrl: finalHost.url }).sessions.attach(restored.state.sessionId, structuredClone(restored.state));
     observedSession = finalSession;
     stage = "restore filesystem";
-    const courseAfterRestart = await (await finalSession.send("Read authoring note", { signal: AbortSignal.timeout(60_000) })).result();
-    assert.match(JSON.parse(courseAfterRestart.message).history.at(-1).output.content, /Edited again by the human/);
-    const reread = await (await finalSession.send("Read lesson note", { signal: AbortSignal.timeout(60_000) })).result();
-    assert.match(JSON.parse(reread.message).history.at(-1).output.content, /Learner progress saved/);
+    assert.match((await send(finalSession, "Read authoring note")).history.at(-1).output.content, /Edited again by the human/);
+    assert.match((await send(finalSession, "Read lesson note")).history.at(-1).output.content, /Learner progress saved/);
     stage = "dispatch child";
-    const delegation = await (await finalSession.send(specialist ? "Delegate specialist review" : "Delegate lesson review", { signal: AbortSignal.timeout(60_000) })).result();
+    const delegation = await finalSession.send(specialist ? "Delegate specialist review" : "Delegate lesson review", { signal: AbortSignal.timeout(60_000) });
     stage = "observe delegation admission";
-    assert.equal(delegation.status, "waiting", JSON.stringify(delegation));
-    let called = delegation.events.find(event => event.type === "agent.started");
-    // Background admission can arrive after the initiating response boundary.
-    if (!called) {
-      for await (const event of finalSession.stream({ signal: AbortSignal.timeout(60_000) })) {
-        assert.notEqual(event.type, "session.failed", JSON.stringify(event));
-        if (event.type === "agent.started") { called = event; break; }
-      }
+    let opened;
+    for await (const event of delegation.stream({ signal: AbortSignal.timeout(60_000) })) {
+      assert.notEqual(event.type === "turn.settled" && event.data.outcome, "failed", JSON.stringify(event));
+      if (event.type === "child.opened") { opened = event; break; }
     }
-    assert.ok(called);
-    const child = finalSession.agent(called);
+    assert.ok(opened);
+    const child = finalSession.agent(opened);
     stage = "observe child completion";
     let childReply;
     for await (const event of child.stream({ signal: AbortSignal.timeout(60_000) })) {
-      assert.notEqual(event.type, "turn.failed", JSON.stringify(event));
-      if (event.type === "message.completed" && event.data.message) childReply = JSON.parse(event.data.message);
-      if (event.type === "turn.completed") break;
+      if (event.type === "content.completed" && event.data.phase === "reply") childReply = JSON.parse(event.data.value);
+      if (event.type === "turn.settled") {
+        assert.equal(event.data.outcome, "completed", JSON.stringify(event));
+        break;
+      }
     }
     assert.ok(childReply);
     assert.notEqual(childReply.sessionId, aText.sessionId);
@@ -187,19 +217,12 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
       assert.match(childReply.history[1].output.content, /Specialist-only evidence/);
       assert.ok(!JSON.stringify(childReply.history).includes("Learner progress saved"));
     }
-    // Eve must wake the parent with the actual child answer, not just return a
+    // Eve must continue the parent with the actual child answer, not just a
     // dispatch receipt. No user message is sent to manufacture that wake-up.
-    let parentReceivedAnswer = delegation.events.some(event => event.type === "message.completed" && event.data.message?.includes(childReply.sessionId));
-    stage = "observe automatic parent wake-up";
-    for await (const event of parentReceivedAnswer ? [] : finalSession.stream({ signal: AbortSignal.timeout(60_000) })) {
-      assert.notEqual(event.type, "session.failed", JSON.stringify(event));
-      assert.notEqual(event.type, "turn.failed", JSON.stringify(event));
-      if (event.type === "message.completed" && event.data.message?.includes(childReply.sessionId)) {
-        parentReceivedAnswer = true;
-        break;
-      }
-    }
-    assert.ok(parentReceivedAnswer);
+    stage = "observe parent continuation";
+    const delegated = await delegation.result({ signal: AbortSignal.timeout(60_000) });
+    assert.equal(delegated.status, "completed", JSON.stringify(delegated));
+    assert.ok(delegated.reply?.includes(childReply.sessionId), delegated.reply);
   } catch (cause) {
     if (observedSession) {
       const snapshot = await observedSession.snapshot({ signal: AbortSignal.timeout(2000) }).catch(() => null);

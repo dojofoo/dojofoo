@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
-import { preserveLegacyLocalHistory, readLegacyLocalHistory } from "@dojofoo/agent/local-history";
+import { preserveLegacyLocalHistory } from "@dojofoo/agent/local-history";
 
 const fixture = JSON.parse(await readFile(new URL("./fixtures/legacy-world-v25.json", import.meta.url), "utf8"));
 async function workspace(run) {
@@ -28,17 +28,14 @@ async function hashes(directory) {
   return result;
 }
 
-test("archives the real 0.53 store unchanged and reads its 24 events without starting Workflow", async () => {
+test("archives the real 0.53 store unchanged without starting Workflow", async () => {
   await workspace(async root => {
     const before = await hashes(join(root, ".eve/.workflow-data"));
     await preserveLegacyLocalHistory(root);
     assert.deepEqual(await hashes(join(root, ".eve/legacy-workflow-data")), before);
     await assert.rejects(readFile(join(root, ".eve/.workflow-data/version.txt")), { code: "ENOENT" });
-    assert.deepEqual(await readLegacyLocalHistory(root, fixture.sessionId), fixture.events);
     assert.deepEqual(await hashes(join(root, ".eve/legacy-workflow-data")), before);
     await preserveLegacyLocalHistory(root); // Idempotent on later starts.
-    assert.equal(await readLegacyLocalHistory(root, "../../outside"), null);
-    assert.equal(await readLegacyLocalHistory(root, "wrun_missing"), null);
   });
 });
 

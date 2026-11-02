@@ -13,12 +13,14 @@ export function createAuthoringSandbox(courseRoot: string | (() => Promise<strin
   if (typeof courseRoot === "string") validateRoot(courseRoot);
   return JustBashSandbox.environment({
       autoInstall: false,
-      filesystem: async ({ defaultFilesystem, justBash }) => new justBash.MountableFs({
-        base: defaultFilesystem,
-        mounts: [{
-          mountPoint: "/course",
-          filesystem: new justBash.ReadWriteFs({ root: validateRoot(typeof courseRoot === "string" ? courseRoot : await courseRoot()) }),
-        }],
-      }),
+      experimental: {
+        filesystem: async ({ defaultFilesystem, justBash }) => new justBash.MountableFs({
+          base: defaultFilesystem,
+          mounts: [{
+            mountPoint: "/course",
+            filesystem: new justBash.ReadWriteFs({ root: validateRoot(typeof courseRoot === "string" ? courseRoot : await courseRoot()) }),
+          }],
+        }),
+      },
   });
 }

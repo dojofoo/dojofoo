@@ -59,7 +59,7 @@ const environment = { ...process.env, DOJOFOO_HOME: stateHome, DO_NOT_TRACK: "1"
   XDG_CONFIG_HOME: join(scratch, "config"), XDG_DATA_HOME: join(scratch, "data"), XDG_CACHE_HOME: join(scratch, "cache"),
   OPENCODE_CONFIG_CONTENT: JSON.stringify({ agents: { dojofoo: { permissions: [{ action: "dojofoo_dojo_context", resource: "*", effect: "ask" }] } }, model: "openai/gpt-4o", small_model: "openai/gpt-4o", enabled_providers: ["openai"],
     provider: { openai: { options: { baseURL: endpoint.baseURL, apiKey: "fixture-only" } } } }),
-  DOJOFOO_MODEL: "", DOJOFOO_AUTHORING_MODEL: "", DOJOFOO_LESSON_MODEL: "", EVE_BASE_URL: "", DOJO_EVE_ROOT: "",
+  DOJOFOO_MODEL: "", DOJOFOO_AUTHORING_MODEL: "", DOJOFOO_LESSON_MODEL: "", EVE_BASE_URL: "",
   OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "",
   NODE_PATH: undefined, CI: "", TEST: "" };
 let server;

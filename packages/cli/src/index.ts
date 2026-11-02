@@ -93,7 +93,7 @@ async function install(installArgs: string[]): Promise<void> {
     resolveRuntimeHarness("lesson", process.cwd()),
   ]);
   for (const agent of selected) {
-    if (agent !== "codex" && agent !== "opencode" && agent !== "pi"
+    if (agent !== "claude" && agent !== "codex" && agent !== "opencode" && agent !== "pi"
       && agent !== "cursor" && agent !== "grok" && agent !== "fx") continue;
     console.log(`Preparing ${agent} for the course UI…`);
     await prepareAuthoringHarness(agent);

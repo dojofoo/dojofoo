@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { mountAgentChat } from "./agent-chat.fixture";
+import { expect, test } from "./agent-chat.fixture";
 
 test("starting a learner session retains workspace choices through failure and retry", async ({ page }) => {
   test.setTimeout(60_000);
@@ -65,7 +64,7 @@ test("starting a learner session retains workspace choices through failure and r
   } finally { pending.resolve(); accepted.resolve(); }
 });
 
-test("New course retries failed creation and reopens the accepted native session from the dashboard", async ({ page }) => {
+test("New course retries failed creation and reopens the accepted native session from the dashboard", async ({ page, mountAgentChat }) => {
   const pending = Promise.withResolvers<void>();
   const names: string[] = [];
   let created = false;
@@ -86,7 +85,7 @@ test("New course retries failed creation and reopens the accepted native session
     if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { root: "/draft", style: "katas", name: "New course", description: "", language: "", manifestSource: "name: New course\n", courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: New course\n" }], lessons: [], issues: [], courseChecks: [] } });
     return route.fulfill({ status: 404 });
   });
-  const agent = await mountAgentChat(page, { workspaceId: "created-draft", files: false });
+  const agent = await mountAgentChat(page, { workspaceId: "created-draft", files: false, existingSession: false });
   await page.goto("/");
   const button = page.getByRole("button", { name: /^New course/ });
   await expect(button).toBeVisible();
@@ -96,12 +95,14 @@ test("New course retries failed creation and reopens the accepted native session
   await expect(page.getByRole("alert")).toContainText("Draft disk is full");
   await expect(button).toBeEnabled();
   await button.click();
-  await expect(page).toHaveURL(/\/authoring\?workspace=created-draft&session=session-1/);
+  await expect.poll(() => agent.runtime.records.length).toBe(1);
+  const sessionId = agent.runtime.records[0]!.id;
+  await expect(page).toHaveURL(new RegExp(`/authoring\\?workspace=created-draft&session=${sessionId}`));
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
   expect(agent.calls.filter(call => call === "POST /api/v1/workspaces/created-draft/sessions")).toHaveLength(1);
   await page.getByRole("link", { name: "Dojo dashboard", exact: true }).click();
   const entry = page.getByRole("region", { name: "Authoring", exact: true }).getByRole("link", { name: /New course/i });
-  await expect(entry).toHaveAttribute("href", /session=session-1/);
+  await expect(entry).toHaveAttribute("href", new RegExp(`session=${sessionId}`));
   await entry.click();
   await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
   expect(agent.calls.filter(call => call === "POST /api/v1/workspaces/created-draft/sessions")).toHaveLength(1);

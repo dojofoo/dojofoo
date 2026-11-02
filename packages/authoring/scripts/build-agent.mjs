@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { access, cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -20,6 +21,8 @@ const label = {
   eve: `eve@${eve.version}`,
   source: `dojofoo/kyoshi@${release.version}`,
   sourceHash: hash,
+  // The prepared server is deployed from this lockfile, which also pins dependency patches
+  lockfile: createHash("sha256").update(await readFile(resolve(packageRoot, "../../pnpm-lock.yaml"))).digest("hex"),
 };
 
 try {

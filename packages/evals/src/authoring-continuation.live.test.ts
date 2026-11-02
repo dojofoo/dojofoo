@@ -23,10 +23,10 @@ it.runIf(process.env.DOJOFOO_EVAL_CONTINUATION === "1" || handoffOnly)(handoffOn
   if (!source || !model || !cli) throw new Error("Select an accepted material.json snapshot, authoring model and bundled CLI");
   const previous: Record<string, string> = JSON.parse(await readFile(source, "utf8"));
   const recorded: Array<{ prompt?: string; material?: Record<string, string>; events?: Array<{
-    type: string; data?: { finishReason?: string; message?: string };
+    type: string; data?: { phase?: string; value?: string };
   }> }> = JSON.parse(await readFile(resolve(dirname(source), "../../workflow-evidence.json"), "utf8"));
   const prior = [...recorded].reverse().find(turn => turn.prompt && turn.material?.["dojo.yaml"] === previous["dojo.yaml"]);
-  const handover = prior?.events?.filter(event => event.type === "message.completed" && event.data?.finishReason === "stop").at(-1)?.data?.message;
+  const handover = prior?.events?.filter(event => event.type === "content.completed" && event.data?.phase === "reply").at(-1)?.data?.value;
   if (!handover) throw new Error("The snapshot needs its recorded authoring handover for a faithful continuation replay");
   const manifest = parse(previous["dojo.yaml"]!);
   const lessonIds: string[] = manifest.katas.map((entry: { name: string }) => entry.name);
@@ -40,7 +40,7 @@ it.runIf(process.env.DOJOFOO_EVAL_CONTINUATION === "1" || handoffOnly)(handoffOn
     : `Continue this authoring conversation in the copied course.\n\nPrevious author request:\n${prior!.prompt}\n\nPrevious Kyoshi handover:\n${handover}\n\nCurrent author request:\nNow create the next lesson on filtering positive numbers, including zero and negative values. Same learner. Create this lesson and its checks now.\n\nThis is a draft-only rehearsal: don't run a paid teaching trial. Finish after writing and checking the new lesson.`;
   await writeFile(join(root, ".dojo/replay-input.json"), JSON.stringify({ source, model, harness: process.env.DOJOFOO_HARNESS, instructions, prompt }, null, 2));
   const agent = new HarnessAgent({
-    harness: authoringHarness(), model, instructions, sandboxConfig: { workDir: "course" },
+    harness: await authoringHarness(), model, instructions, sandboxConfig: { workDir: "course" },
     sandbox: createLocalHarnessSandbox(harnessRoot, { environment: { ...process.env, PATH: `${commands}${delimiter}${process.env.PATH}` } }),
   });
   const abortSignal = AbortSignal.timeout(360_000);

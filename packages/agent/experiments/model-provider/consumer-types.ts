@@ -3,7 +3,7 @@ import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
 import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
 import { defineAgent } from "@dojofoo/agent";
 import { createDevelopmentServer } from "@dojofoo/agent/server";
-import { createLocalSandbox, registerLocalProcessHost, requestLocalProcessHost } from "@dojofoo/agent/experimental/local";
+import { createLocalHarnessSandbox, createLocalSandbox } from "@dojofoo/agent/experimental/local";
 
 // Compile against the packed public declarations, not workspace source aliases.
 declare const harness: HarnessAgentAdapter;
@@ -14,11 +14,10 @@ declare const courseDirectory: string;
 const server = createDevelopmentServer(courseDirectory, { host: "127.0.0.1", port: 0 });
 void server.start;
 void server.close;
-const coordinator = registerLocalProcessHost(await createLocalSandbox(courseDirectory));
-const processHost = await requestLocalProcessHost(coordinator.connection);
-const localSession = await createLocalSandbox(courseDirectory, { processHost });
+const localSession = await createLocalSandbox(courseDirectory);
 experimental_createHarnessModel({ harness }, { sandboxSession: localSession });
-await coordinator.close();
+await localSession.stop();
+experimental_createHarnessModel({ harness, sandbox: createLocalHarnessSandbox(courseDirectory, { environment: { CI: "1" } }) });
 experimental_createHarnessModel({
   harness,
   prepareCall: input => ({ ...input, model: "selected-model", instructions: "Teach carefully." }),

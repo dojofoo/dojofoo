@@ -1,7 +1,6 @@
-import { expect, test } from "@playwright/test";
-import { mountAgentChat } from "./agent-chat.fixture";
+import { expect, test } from "./agent-chat.fixture";
 
-for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mode} account settings preserve the unsent workspace and return to it`, async ({ page }) => {
+for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mode} account settings preserve the unsent workspace and return to it`, async ({ page, mountAgentChat }) => {
   const writes: string[] = [];
   const reads: string[] = [];
   const initial = mode === "authoring" ? "name: Settings course\n" : "export const answer = 0;\n";
@@ -23,7 +22,6 @@ for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mod
     if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (path.endsWith("/draft")) return route.fulfill({ json: { root: "/tmp/settings-course", style: "katas", name: "Settings course", description: "One focused outcome", language: "TypeScript",
       manifestSource: initial, courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: initial }], lessons: [], issues: [], courseChecks: [] } });
-    if (path.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages } });
     if (path === "/api/control/courses") return route.fulfill({ json: [{ workspaceId: "settings-workspace", dojo: "settings-course", kata: "first", mode: "katas", workspaceName: "Settings", selected: true, sessionId: "saved", sessions: [{ lessonId: "first", sessionId: "saved" }] }] });
     if (path.endsWith("/lessons/first")) return route.fulfill({ json: { dojo: "settings-course", kata: "first", title: "First lesson", briefing: "One focused outcome", code: initial, starterCode: initial,
       fileId: "solution", filePath: "first.ts", language: "typescript", introduced: true, checkpointed: false, sessionId: "saved", harness: "codex", harnesses: ["codex"], model: null,
@@ -33,9 +31,9 @@ for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mod
       current: { id: "first", type: "present", title: "First step", content: "One focused outcome", contentBase: null } } });
     return route.fulfill({ status: 404 });
   });
-  const url = mode === "authoring" ? "/authoring?session=saved" : mode === "learner"
+  const agent = mode === "authoring" ? await mountAgentChat(page, { root: "/tmp/settings-course", files: false }) : undefined;
+  const url = agent ? `/authoring?session=${agent.sessionId}` : mode === "learner"
     ? "/course/settings-workspace/settings-course/lesson/first" : "/interactive?workspace=settings-workspace&course=settings-course";
-  if (mode === "authoring") await mountAgentChat(page, { root: "/tmp/settings-course", files: false });
   await page.goto(url);
   const editor = mode === "interactive" ? null : page.locator(".ui-ed__monaco");
   const input = page.getByRole("textbox", { name: mode === "interactive" ? "Message the sensei" : "Code editor", exact: true });

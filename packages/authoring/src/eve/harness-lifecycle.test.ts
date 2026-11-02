@@ -6,7 +6,6 @@ import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
 import { expect, it } from "vitest";
 import { authoringHarness } from "./harness";
-import { authoringEnvironment } from "./environment";
 import { prepareAuthoringHarness } from "./install";
 
 // No prompts or inference. Opt-in because official adapters may bootstrap their
@@ -18,10 +17,10 @@ it.skipIf(!enabled).each(["codex", "opencode", "pi", "cursor", "grok", "fx"])(
     const preparation = performance.now();
     await prepareAuthoringHarness(name as Parameters<typeof prepareAuthoringHarness>[0]);
     const preparedAt = performance.now();
-    const environment = await authoringEnvironment(name as Parameters<typeof authoringEnvironment>[0], {
+    const environment = {
       ...process.env,
       PATH: `${fileURLToPath(new URL("../../node_modules/.bin", import.meta.url))}:${process.env.PATH}`,
-    });
+    };
     const root = await realpath(await mkdtemp(join(tmpdir(), `dojo-${name}-lifecycle-`)));
     const sandbox = await createLocalSandbox(root, { environment });
     const agent = new HarnessAgent({

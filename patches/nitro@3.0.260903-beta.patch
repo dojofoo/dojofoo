@@ -174,6 +174,18 @@ index 3a33199e0b3579aa0dd77059932f32325123fce9..6994f218db91d1c15607e1cc357567b7
  	server.node.server.on("upgrade", (req, socket, head) => {
  		handleUpgrade(
  			req,
+diff --git a/dist/runtime/internal/error/hooks.mjs b/dist/runtime/internal/error/hooks.mjs
+index cb8ac534cfaa958ceaab2886063437b2aff2194f..5e7c824ff681419b5d668010db5f35b9df25e148 100644
+--- a/dist/runtime/internal/error/hooks.mjs
++++ b/dist/runtime/internal/error/hooks.mjs
+@@ -1,5 +1,7 @@
+ import { useNitroApp } from "../app.mjs";
+ function _captureError(error, type) {
++	// Reporting a write to a closed stdout or stderr fails again and comes back here forever
++	if (error?.code === "EPIPE" || error?.code === "ERR_STREAM_DESTROYED") return;
+ 	console.error(`[${type}]`, error);
+ 	useNitroApp().captureError?.(error, { tags: [type] });
+ }
 diff --git a/dist/runtime/internal/vite/dev-entry.mjs b/dist/runtime/internal/vite/dev-entry.mjs
 index cb1176ee093ecfc362080044279eae86abd82f9a..a7d6f758421ca468ecbd57e89afc74d2231d8dd4 100644
 --- a/dist/runtime/internal/vite/dev-entry.mjs

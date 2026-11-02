@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   cpSync,
   existsSync,
@@ -13,7 +12,6 @@ import {
 } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
-import { createRequire } from "node:module";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import {
   observeLocalContext,
@@ -22,28 +20,9 @@ import { chapterCurriculum, courseFileFilter, courseRelativePath, createStateDir
 import { checkSensei, checkTests } from "../evaluation/preflight.ts";
 import { readPrompt } from "../prompts.ts";
 import {
-  AUTHORING_BOOTSTRAP_MARKER,
-  AUTHORING_BOOTSTRAP_PROMPT,
-  messageWithAuthoringEdits,
-  type AuthoringAgent,
-  type AuthoringStreamPart,
-  type AuthoringTranscriptMessage,
-} from "./types";
-import {
-  acknowledgeAuthoringEdits,
-  pendingAuthoringEdits,
   writeAuthoringFile,
   authoringFileFilter,
 } from "./files";
-
-const kyoshiContract = readFileSync(createRequire(import.meta.url).resolve("@dojofoo/authoring/KYOSHI.md"), "utf8");
-
-type AuthoringThreadState = {
-  version: 1;
-  sessionId: string;
-  harness: string;
-  aliases: string[];
-};
 
 export type AuthoringLesson = {
   id: string;
@@ -73,7 +52,8 @@ export type AuthoringReadinessCheck = {
   findings?: string[];
 };
 
-export type AuthoringWorkspace = {
+/** Course files and readiness are independent of a chat runtime. */
+export type AuthoringDraft = {
   root: string;
   style: string;
   name: string;
@@ -85,12 +65,7 @@ export type AuthoringWorkspace = {
   issues: string[];
   courseChecks: AuthoringReadinessCheck[];
   lessons: AuthoringLesson[];
-  sessionId: string | null;
-  messages: AuthoringTranscriptMessage[];
 };
-
-/** Course files and readiness are independent of a chat runtime. */
-export type AuthoringDraft = Omit<AuthoringWorkspace, "sessionId" | "messages">;
 
 export function readAuthoringDraft(root: string): AuthoringDraft {
   const manifest = readDraftManifest(root);
@@ -107,70 +82,6 @@ export function readAuthoringDraft(root: string): AuthoringDraft {
     issues: validateManifest(manifest),
     courseChecks: courseReadiness(root, manifest, lessons),
     lessons,
-  };
-}
-
-export function createAuthoringService(agent: AuthoringAgent) {
-  const getWorkspace = async (root: string): Promise<AuthoringWorkspace> => {
-    const draft = readAuthoringDraft(root);
-    const thread = readThreadState(root);
-    let messages: AuthoringTranscriptMessage[] = [];
-    let sessionId: string | null = null;
-    if (thread) {
-      await resumeThread(agent, root, thread);
-      messages = await agent.history(thread.sessionId);
-      sessionId = thread.sessionId;
-    }
-    return {
-      ...draft,
-      sessionId,
-      messages,
-    };
-  };
-
-  return {
-    getWorkspace,
-    startSession: async (root: string) => {
-      await authoringThread(agent, root);
-      return getWorkspace(root);
-    },
-    streamIntroduction: async (
-      root: string,
-      onPart: (part: AuthoringStreamPart) => void,
-      signal?: AbortSignal
-    ) => {
-      const { threadId } = await authoringThread(agent, root);
-      const history = await agent.history(threadId);
-      if (history.some((entry) =>
-        entry.role === "assistant" && entry.kind === "message")) return;
-      await agent.send(
-        threadId,
-        `${AUTHORING_BOOTSTRAP_MARKER}\n${AUTHORING_BOOTSTRAP_PROMPT}`,
-        onPart,
-        { visible: false, signal }
-      );
-    },
-    streamMessage: async (
-      root: string,
-      message: string,
-      onPart: (part: AuthoringStreamPart) => void,
-      signal?: AbortSignal
-    ) => {
-      const { threadId } = await authoringThread(agent, root);
-      const edits = pendingAuthoringEdits(root);
-      await agent.send(
-        threadId,
-        messageWithAuthoringEdits(message, edits),
-        onPart,
-        { signal }
-      );
-      acknowledgeAuthoringEdits(root, edits);
-    },
-    answer: (root: string, answers: Record<string, string[]>) => {
-      const thread = readThreadState(root);
-      if (!thread) throw new Error("No Kyoshi session is active");
-      return agent.answer(thread.sessionId, answers);
-    },
   };
 }
 
@@ -436,65 +347,6 @@ function readOptionalFile(path: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function authoringThread(
-  agent: AuthoringAgent,
-  root: string
-): Promise<{ threadId: string; created: boolean }> {
-  const existing = readThreadState(root);
-  if (existing) {
-    await resumeThread(agent, root, existing);
-    return { threadId: existing.sessionId, created: false };
-  }
-  const harness = agent.currentHarness();
-  const threadId = await agent.start({
-    root,
-    runtimeKey: runtimeKey(root, harness),
-    harness,
-    instructions: kyoshiContract,
-  });
-  writeThreadState(root, {
-    version: 1,
-    sessionId: threadId,
-    harness,
-    aliases: [],
-  });
-  return { threadId, created: true };
-}
-
-async function resumeThread(
-  agent: AuthoringAgent,
-  root: string,
-  state: AuthoringThreadState
-): Promise<void> {
-  await agent.resume(state.sessionId, {
-    root,
-    runtimeKey: runtimeKey(root, state.harness),
-    harness: state.harness,
-    instructions: kyoshiContract,
-  });
-}
-
-function runtimeKey(root: string, harness: string): string {
-  const contract = createHash("sha256").update(kyoshiContract).digest("hex");
-  return `${harness}\0${resolve(root)}\0kyoshi\0${contract}`;
-}
-
-function statePath(root: string): string {
-  return resolve(root, ".dojo", "kyoshi.json");
-}
-
-function readThreadState(root: string): AuthoringThreadState | null {
-  const path = statePath(root);
-  if (!existsSync(path)) return null;
-  return JSON.parse(readFileSync(path, "utf8")) as AuthoringThreadState;
-}
-
-function writeThreadState(root: string, state: AuthoringThreadState): void {
-  const path = statePath(root);
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
 }
 
 function slugify(value: string): string {

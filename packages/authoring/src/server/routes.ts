@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { Hono } from "hono";
 import {
-  createAuthoringService,
   createAuthoringLesson,
   createLessonTrial,
   authoringEvalReadiness,
@@ -12,7 +11,6 @@ import {
   readAuthoringDraft,
 } from "./service";
 import { readAuthoringFile, saveAuthoringFile } from "./files";
-import type { AuthoringAgent, AuthoringStreamPart } from "./types";
 import { evaluateFromAuthoring } from "../evaluation/host.ts";
 import { configuredEvaluation, readEvaluationSettings, writeEvaluationSettings } from "../evaluation/settings.ts";
 import { materialHash, readLessonMaterial } from "../evaluation/material.ts";
@@ -23,19 +21,12 @@ import { harnessModels } from "../eve/models.ts";
 export type AuthoringEvalReport = EvaluationReport;
 
 export type AuthoringRouteDependencies = {
-  agent: AuthoringAgent;
   evaluate?: typeof evaluateFromAuthoring;
   teachingPolicy(mode: string): string;
   resolveWorkspace(request: Request): string;
-  stream(input: {
-    execute(onPart: (part: AuthoringStreamPart) => void): Promise<void>;
-    runId: string;
-    threadId: string;
-  }): Response;
 };
 
 export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) {
-  const service = createAuthoringService(dependencies.agent);
   return new Hono()
   .onError((error, c) => c.json({ error: errorMessage(error) }, 500))
   .get("/draft", (c) => c.json(readAuthoringDraft(dependencies.resolveWorkspace(c.req.raw))))
@@ -50,52 +41,6 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
   .put("/evaluation-settings", async c => {
     try { return c.json(await writeEvaluationSettings(dependencies.resolveWorkspace(c.req.raw), await c.req.json())); }
     catch (error) { return c.json({ error: errorMessage(error) }, 422); }
-  })
-  .get("/workspace", async (c) =>
-    c.json(await service.getWorkspace(dependencies.resolveWorkspace(c.req.raw))))
-  .post("/session", async (c) =>
-    c.json(await service.startSession(dependencies.resolveWorkspace(c.req.raw)), 201))
-  .post("/introduction", (c) => {
-    const root = dependencies.resolveWorkspace(c.req.raw);
-    const runId = crypto.randomUUID();
-    return dependencies.stream({
-      runId,
-      threadId: `kyoshi:${runId}`,
-      execute: (onPart) => service.streamIntroduction(
-        root,
-        onPart,
-        c.req.raw.signal
-      ),
-    });
-  })
-  .post("/messages", async (c) => {
-    const input = await c.req.json<Record<string, unknown>>();
-    const message = authorMessage(input);
-    if (!message) return c.json({ error: "Message is required" }, 422);
-    const root = dependencies.resolveWorkspace(c.req.raw);
-    const runId = crypto.randomUUID();
-    return dependencies.stream({
-      runId,
-      threadId: `kyoshi:${runId}`,
-      execute: (onPart) => service.streamMessage(
-        root,
-        message,
-        onPart,
-        c.req.raw.signal
-      ),
-    });
-  })
-  .post("/answers", async (c) => {
-    try {
-      const input = await c.req.json<{ answers?: Record<string, string[]> }>();
-      if (!input.answers || typeof input.answers !== "object") {
-        return c.json({ error: "Answers are required" }, 422);
-      }
-      await service.answer(dependencies.resolveWorkspace(c.req.raw), input.answers);
-      return c.json({ ok: true });
-    } catch (cause) {
-      return c.json({ error: errorMessage(cause) }, 409);
-    }
   })
   .post("/lessons", async (c) => {
     try {
@@ -205,27 +150,6 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
     });
     return c.json({ root, ...result });
   });
-}
-
-function authorMessage(input: Record<string, unknown>): string | null {
-  if (typeof input.message === "string" && input.message.trim()) return input.message.trim();
-  const forwarded = input.forwardedProps;
-  if (forwarded && typeof forwarded === "object") {
-    const message = (forwarded as Record<string, unknown>).message;
-    if (typeof message === "string" && message.trim()) return message.trim();
-  }
-  const messages = Array.isArray(input.messages) ? input.messages : [];
-  const latest = messages.at(-1);
-  if (!latest || typeof latest !== "object") return null;
-  const parts = Array.isArray((latest as Record<string, unknown>).parts)
-    ? (latest as { parts: unknown[] }).parts
-    : [];
-  const text = parts.flatMap((part) => {
-    if (!part || typeof part !== "object") return [];
-    const value = part as Record<string, unknown>;
-    return value.type === "text" && typeof value.content === "string" ? [value.content] : [];
-  }).join("").trim();
-  return text || null;
 }
 
 function errorMessage(cause: unknown): string {

@@ -1,5 +1,5 @@
 import type { HarnessV1NetworkSandboxSession } from "@ai-sdk/harness";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
@@ -12,13 +12,47 @@ type ProcessHandle = Awaited<ReturnType<Files["spawn"]>>;
 type WritableProcessHandle = ProcessHandle & { stdin: WritableStream<Uint8Array> };
 type SpawnOptions = Parameters<Files["spawn"]>[0];
 
+// Each command leads its own process group, which outlives this process unless
+// it kills them on the way out. Eve's server exits on SIGTERM; detached
+// harness sessions are still running then.
+const groups = new Set<number>();
+process.once("exit", () => {
+  for (const pid of groups) {
+    try { killTree(pid); } catch {}
+  }
+});
+
+/** SIGKILL a command's group and any group its processes started. OpenCode's
+ * bridge runs its server in a group of its own, which it stops only gracefully. */
+function killTree(pid: number): void {
+  let rows: number[][] = [];
+  try {
+    rows = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" })
+      .trim().split("\n").map(line => line.trim().split(/\s+/u).map(Number));
+  } catch {}
+  const tree = new Set(rows.filter(([, , group]) => group === pid).map(([member]) => member!));
+  for (let grown = true; grown;) {
+    grown = false;
+    for (const [member, parent] of rows) {
+      if (!tree.has(member!) && tree.has(parent!)) { tree.add(member!); grown = true; }
+    }
+  }
+  const own = rows.find(([member]) => member === process.pid)?.[2];
+  const targets = new Set([pid, ...rows.filter(([member]) => tree.has(member!)).map(([, , group]) => group!)]);
+  for (const group of targets) {
+    if (group <= 1 || group === own) continue;
+    try { process.kill(-group, "SIGKILL"); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
+  }
+}
+
 /** Host execution, NOT isolation. Caller owns this session and its lifetime.
  * Course files are never deleted. Absolute paths retain their host meaning.
  * Internal until bridge authentication and native-adapter tests are complete.
  */
 export async function createLocalSandbox(
   directory: string,
-  options: { id?: string; environment?: NodeJS.ProcessEnv; processHost?: Pick<Files, "spawn"> } = {},
+  options: { id?: string; environment?: NodeJS.ProcessEnv } = {},
 ): Promise<Session> {
   if (options.id !== undefined && !options.id.trim()) throw new Error("Local sandbox identity must be non-empty.");
   if (process.platform === "win32") throw new Error("Local harness execution currently requires POSIX process groups.");
@@ -27,7 +61,6 @@ export async function createLocalSandbox(
   if (root === dirname(root) || !(await stat(root)).isDirectory()) throw new Error("Local workspace must be a non-root directory.");
   const processes = new Set<ProcessHandle>();
   const environment = { ...(options.environment ?? process.env) };
-  const processHost = options.processHost;
   let stopping: Promise<void> | undefined;
   const assertRunning = () => {
     if (stopping) throw new Error("Local sandbox has stopped.");
@@ -54,13 +87,13 @@ export async function createLocalSandbox(
   async function spawnProcess(options: SpawnOptions): Promise<ProcessHandle> {
     assertRunning();
     options.abortSignal?.throwIfAborted();
-    if (processHost) return processHost.spawn({
-      ...options,
-      workingDirectory: options.workingDirectory ? path(options.workingDirectory) : root,
-    });
+    const cwd = options.workingDirectory ? path(options.workingDirectory) : root;
     const child = spawn("/bin/sh", ["-c", options.command], {
-      cwd: options.workingDirectory ? path(options.workingDirectory) : root,
-      env: { ...environment, ...options.env },
+      cwd,
+      // Harness adapters install themselves with pnpm into one folder per machine.
+      // pnpm asks before replacing modules another pnpm version built, and a
+      // command without a terminal can't answer, so the install fails for good.
+      env: { ...environment, ...(cwd.includes("/.ai-sdk-harness/.harness-bootstrap/") ? { CI: "true" } : {}), ...options.env },
       detached: true,
       stdio: [options.stdin ? "pipe" : "ignore", "pipe", "pipe"],
     });
@@ -78,6 +111,7 @@ export async function createLocalSandbox(
     // A process may fail before the caller asks for wait(). Keep that rejection
     // handled without changing the promise returned to the caller.
     void completion.catch(() => {});
+    if (child.pid) groups.add(child.pid);
     let killing: Promise<void> | undefined;
     const handle: ProcessHandle = {
       pid: child.pid,
@@ -86,8 +120,7 @@ export async function createLocalSandbox(
       wait: () => completion,
       kill: () => killing ??= (async () => {
         if (!child.pid) return;
-        try { process.kill(-child.pid, "SIGKILL"); }
-        catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
+        killTree(child.pid);
         // Wait for the process/stdio handles to close, even on cancellation.
         await completion.catch(() => {});
       })(),
@@ -98,6 +131,7 @@ export async function createLocalSandbox(
     void completion.finally(() => {
       options.abortSignal?.removeEventListener("abort", abort);
       processes.delete(handle);
+      if (child.pid) groups.delete(child.pid);
     }).catch(() => {});
     return options.stdin ? { ...handle, stdin: Writable.toWeb(child.stdin!) } : handle;
   }

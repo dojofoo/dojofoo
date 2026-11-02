@@ -167,18 +167,6 @@
       "import": "./dist/eve/messages.js",
       "default": "./dist/eve/messages.js"
     },
-    "./eve/stream": {
-      "types": "./src/eve/stream.ts",
-      "development": "./src/eve/stream.ts",
-      "import": "./dist/eve/stream.js",
-      "default": "./dist/eve/stream.js"
-    },
-    "./eve/server": {
-      "types": "./src/eve/routes.ts",
-      "development": "./src/eve/routes.ts",
-      "import": "./dist/eve/routes.js",
-      "default": "./dist/eve/routes.js"
-    },
     "./sandbox": {
       "types": "./src/sandbox.ts",
       "development": "./src/sandbox.ts",
@@ -209,20 +197,8 @@
       "import": "./dist/server/service.js",
       "default": "./dist/server/service.js"
     },
-    "./types": {
-      "types": "./src/server/types.ts",
-      "development": "./src/server/types.ts",
-      "import": "./dist/server/types.js",
-      "default": "./dist/server/types.js"
-    },
     "./skills/*": "./skills/*",
-    "./evaluation/prompts/*.md": "./src/evaluation/prompts/*.md",
-    "./eve/resume": {
-      "types": "./src/eve/resume.ts",
-      "development": "./src/eve/resume.ts",
-      "import": "./dist/eve/resume.js",
-      "default": "./dist/eve/resume.js"
-    }
+    "./evaluation/prompts/*.md": "./src/evaluation/prompts/*.md"
   },
   "scripts": {
     "test": "vitest run",
@@ -232,6 +208,7 @@
   },
   "dependencies": {
     "@ai-sdk/harness": "1.0.167",
+    "@ai-sdk/harness-claude-code": "1.0.171",
     "@ai-sdk/harness-codex": "1.0.169",
     "@ai-sdk/harness-cursor": "1.0.81",
     "@ai-sdk/harness-fx": "1.0.83",
@@ -255,12 +232,11 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@tanstack/ai-client": "0.39.3",
     "@types/node": "^26.6.5",
     "pnpm": "10.28.0",
+    "tsup": "9.0.0",
     "typescript": "6.0.3",
     "vite": "^8.3.4",
-    "vitest": "^5.0.5",
-    "tsup": "9.0.0"
+    "vitest": "^5.0.5"
   }
 }

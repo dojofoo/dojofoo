@@ -125,12 +125,17 @@ describe("local control-plane API", () => {
     expect(readdirSync(stateHome)).toEqual([]);
   });
 
-  it("lists resumable Kyoshi drafts without requiring an installed dojo", async () => {
+  it("lists resumable Kyoshi drafts with their newest Kyoshi session without requiring an installed dojo", async () => {
     const root = mkdtempSync(join(tmpdir(), "dojofoo-authoring-workspace-"));
     const stateHome = mkdtempSync(join(tmpdir(), "dojofoo-authoring-home-"));
     temporaryPaths.push(root, stateHome);
     mkdirSync(resolve(root, ".dojo"), { recursive: true });
-    writeFileSync(resolve(root, ".dojo", "kyoshi.json"), JSON.stringify({ sessionId: "kyoshi-1" }));
+    writeFileSync(resolve(root, ".dojo", "agent-sessions.json"), JSON.stringify({ sessions: [
+      { id: "kyoshi-old", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T10:00:00.000Z" },
+      { id: "kyoshi-new", agent: "codex", persona: "kyoshi", createdAt: "2026-10-02T10:00:00.000Z" },
+      { id: "kyoshi-mid", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T12:00:00.000Z" },
+      { id: "sensei-newest", agent: "codex", persona: "sensei", createdAt: "2026-10-03T10:00:00.000Z" },
+    ] }));
     writeFileSync(resolve(root, "dojo.yaml"), "mode: katas\nname: typescript-patterns\ndescription: Practice TS patterns.\n");
     const workspaceId = observeWorkspacePath(root, { stateHome, now: 100 });
 
@@ -139,8 +144,38 @@ describe("local control-plane API", () => {
     expect(await response.json()).toEqual([expect.objectContaining({
       workspaceId,
       name: "typescript-patterns",
-      sessionId: "kyoshi-1",
+      sessionId: "kyoshi-new",
     })]);
+  });
+
+  it("does not list a workspace whose only agent sessions are Sensei's", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dojofoo-authoring-workspace-"));
+    const stateHome = mkdtempSync(join(tmpdir(), "dojofoo-authoring-home-"));
+    temporaryPaths.push(root, stateHome);
+    mkdirSync(resolve(root, ".dojo"), { recursive: true });
+    writeFileSync(resolve(root, ".dojo", "agent-sessions.json"), JSON.stringify({ sessions: [
+      { id: "sensei-1", agent: "codex", persona: "sensei", createdAt: "2026-10-01T10:00:00.000Z" },
+    ] }));
+    writeFileSync(resolve(root, "dojo.yaml"), "mode: katas\nname: lessons\ndescription: Learn.\n");
+    observeWorkspacePath(root, { stateHome, now: 100 });
+
+    const response = await buildControlRoutes({ stateHome, now: 200 }).request("/authoring");
+
+    expect(await response.json()).toEqual([]);
+  });
+
+  it("still lists a legacy Kyoshi draft without offering its non-Eve session", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dojofoo-authoring-workspace-"));
+    const stateHome = mkdtempSync(join(tmpdir(), "dojofoo-authoring-home-"));
+    temporaryPaths.push(root, stateHome);
+    mkdirSync(resolve(root, ".dojo"), { recursive: true });
+    writeFileSync(resolve(root, ".dojo", "kyoshi.json"), JSON.stringify({ sessionId: "acp-1" }));
+    writeFileSync(resolve(root, "dojo.yaml"), "mode: katas\nname: legacy-draft\ndescription: Older draft.\n");
+    const workspaceId = observeWorkspacePath(root, { stateHome, now: 100 });
+
+    const response = await buildControlRoutes({ stateHome, now: 200 }).request("/authoring");
+
+    expect(await response.json()).toEqual([expect.objectContaining({ workspaceId, name: "legacy-draft", sessionId: null })]);
   });
   it("lists a freshly installed kata course before its first attempt", async () => {
     const { root, stateHome } = fixture();

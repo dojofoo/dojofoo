@@ -29,10 +29,6 @@ try {
     }
   }
   dependencies.pnpm = "10.34.5";
-  dependencies["@tanstack/ai"] = authoringVersions.dependencies["@tanstack/ai"];
-  dependencies["@tanstack/ai-client"] = authoringVersions.devDependencies["@tanstack/ai-client"];
-  dependencies.hono = "4.13.1";
-  dependencies.tsx = "4.21.0";
   // Use production adapter pins for the clean consumer too, rather than a
   // second, independently maintained version matrix.
   for (const [name, version] of Object.entries(authoringVersions.dependencies)) {
@@ -42,8 +38,8 @@ try {
   }
   // Additional compile-only adapters; these are never started or authenticated.
   for (const [adapter, version] of Object.entries({
-    "claude-code": "1.0.157", cline: "1.0.80", deepagents: "1.0.153",
-    "github-copilot": "1.0.49",
+    "claude-code": "1.0.171", cline: "1.0.95", deepagents: "1.0.167",
+    "github-copilot": "1.0.63",
   })) {
     dependencies[`@ai-sdk/harness-${adapter}`] = version;
   }
@@ -112,10 +108,7 @@ try {
     await run(process.execPath, ["--test", "--test-timeout=60000", "skills-host.test.mjs"]);
     await run(process.execPath, ["--test", "--test-timeout=180000", "native-host.test.mjs"]);
   }
-  // The native provider still comes from the packed consumer; render the actual
-  // workspace UI against that consumer's Eve host, without browser route mocks.
-  process.env.DOJO_AGENT_UI_ROOT = fileURLToPath(new URL("../../../ui", import.meta.url));
-  if (!hostOnly) await run(process.execPath, ["--import", "tsx", "--test", "--test-timeout=180000", "cli-host.test.mjs"]);
+  if (!hostOnly) await run(process.execPath, ["--test", "--test-timeout=180000", "cli-host.test.mjs"]);
 } finally {
   await rm(root, { recursive: true, force: true });
 }

@@ -1,5 +1,6 @@
 import {
   HarnessAgent,
+  HarnessCapabilityUnsupportedError,
   type HarnessAgentAdapter,
   type HarnessAgentResumeSessionState,
   type HarnessAgentSettings,
@@ -14,6 +15,10 @@ import type {
   SharedV4Warning,
 } from "@ai-sdk/provider";
 import { convertDataContentToBase64String, jsonSchema, Output, tool, type ModelMessage, type OutputInterface, type LanguageModelUsage, type ToolSet } from "ai";
+
+// Harnesses that only compact on their own (Codex, ACP agents, FX). Adapters
+// declare no capabilities; one refusal is the evidence.
+const selfCompacting = new Set<string>();
 
 /** Opt-in Eve extension; no dependency on Eve's execution internals. */
 export interface HarnessModel extends LanguageModelV4 {
@@ -46,7 +51,7 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
     modelId: runtime.model ?? runtime.harness.harnessId,
     supportedUrls: {},
     experimental_canCompact({ messages }) {
-      return !readCheckpoint(messages)?.resumeFrom.continueFrom;
+      return !selfCompacting.has(runtime.harness.harnessId) && !readCheckpoint(messages)?.resumeFrom.continueFrom;
     },
     async experimental_compact({ messages, abortSignal }) {
       abortSignal?.throwIfAborted();
@@ -67,6 +72,11 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
       } catch (error) {
         try { await session.stop(); }
         catch (cleanupError) { throw new AggregateError([error, cleanupError], "Native compaction and cleanup failed."); }
+        // The native harness keeps its own context within bounds; Eve's history stays as it is
+        if (HarnessCapabilityUnsupportedError.isInstance(error)) {
+          selfCompacting.add(runtime.harness.harnessId);
+          return messages;
+        }
         throw error;
       }
       const resumeFrom = JSON.parse(JSON.stringify(await session.stop()));

@@ -3,12 +3,25 @@ import { createLocalSandbox } from "./local-sandbox.js";
 type Session = Awaited<ReturnType<typeof createLocalSandbox>>;
 type Options = NonNullable<Parameters<typeof createLocalSandbox>[1]>;
 
+// A detached harness session leaves its sandbox running for the next call to
+// resume. Hand that call the same sandbox, which owns the running processes.
+const live = new Map<string, Session>();
+
 /** Official harness sandbox lifecycle over a caller-owned local process host.
  * This is execution plumbing, not a filesystem security boundary.
  */
 export function createLocalHarnessSandbox(directory: string, options: Omit<Options, "id"> & { providerId?: string } = {}) {
   const { providerId = "dojo-local", ...local } = options;
-  const acquire = (sessionId?: string) => createLocalSandbox(directory, { ...local, id: sessionId });
+  const acquire = async (sessionId?: string) => {
+    const session = await createLocalSandbox(directory, { ...local, id: sessionId });
+    const stop = () => {
+      if (live.get(session.id) === owned) live.delete(session.id);
+      return session.stop();
+    };
+    const owned: Session = { ...session, stop, destroy: stop };
+    live.set(owned.id, owned);
+    return owned;
+  };
   return {
     specificationVersion: "harness-sandbox-v1" as const,
     providerId,
@@ -29,7 +42,7 @@ export function createLocalHarnessSandbox(directory: string, options: Omit<Optio
     },
     resumeSession: ({ sessionId, abortSignal }: { sessionId: string; abortSignal?: AbortSignal }) => {
       abortSignal?.throwIfAborted();
-      return acquire(sessionId);
+      return Promise.resolve(live.get(sessionId) ?? acquire(sessionId));
     },
   };
 }

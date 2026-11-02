@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { Client } from "@dojofoo/agent/client";
 import { execFileSync, fork } from "node:child_process";
 import { once } from "node:events";
 import { readFile, readdir, realpath, writeFile } from "node:fs/promises";
@@ -69,9 +70,10 @@ test("the starter tutorial creates an independent draft, trials it and returns a
     const sessionApi = `${url}api/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions/${encodeURIComponent(sessionId)}`;
     const snapshot = await page.request.get(sessionApi);
     expect(snapshot.ok()).toBe(true);
-    const saved = await snapshot.json();
-    expect(saved.position).toBeGreaterThan(0);
-    expect((await (await page.request.get(`${sessionApi}/messages`)).json()).data.length).toBeGreaterThan(0);
+    expect((await snapshot.json()).id).toBe(sessionId);
+    // The conversation is Eve's own, read through the session's Eve routes
+    const eve = () => new Client({ baseUrl: sessionApi }).sessions.attach(sessionId).snapshot();
+    expect((await eve()).events.length).toBeGreaterThan(0);
     await page.reload();
     await expect(page.getByRole("radio", { name: /^Beginners/ })).toBeVisible();
     await expect(page.getByText(/Eve stream ended|no saved events/)).toHaveCount(0);
@@ -129,26 +131,21 @@ test("the starter tutorial creates an independent draft, trials it and returns a
     await page.goto(sessionUrl);
     const answer = page.getByRole("radio", { name: /^Beginners/ });
     await expect(answer).toBeVisible({ timeout: 60_000 });
-    // The existing client holds normal messages behind an unanswered form.
-    // They must not be silently converted into free-form question answers.
+    // The question survives the restart; a new message would withdraw it, so answer it first
     const composer = page.getByTestId("authoring-chat-composer").getByRole("textbox");
-    for (const message of queued) {
-      await composer.fill(message);
-      await composer.press("Enter");
-      await expect(page.locator('[data-slot="message-queue"]')).toContainText(message);
-    }
     await expect(answer).toBeEnabled();
     await answer.click();
     await expect(page.getByText("Ready to teach.", { exact: true }).first()).toBeVisible({ timeout: 120_000 });
-    for (const message of queued) await expect(page.getByText(message, { exact: true })).toBeVisible();
-    await expect(page.locator('[data-slot="message-queue"]')).toHaveCount(0);
-    // An empty optimistic queue means accepted, not durably processed. Verify
-    // the actual saved transcript before disconnecting and testing recovery.
-    await expect.poll(async () => {
-      const settled = await (await page.request.get(`${sessionApi}/messages?per_page=500`)).json();
-      return settled.data.filter((message: { role: string }) => message.role === "user")
-        .map((message: { parts: Array<{ content?: string }> }) => message.parts.map(part => part.content ?? "").join(""));
-    }).toEqual(queued);
+    for (const message of queued) {
+      await composer.fill(message);
+      await composer.press("Enter");
+      await expect(page.getByText(message, { exact: true })).toBeVisible();
+    }
+    // Shown means sent; verify Eve took each one into the saved transcript before recovery
+    // A note sent while the first runs steers that turn, so one delivery can carry both
+    await expect.poll(async () => (await eve()).events.flatMap(event => event.type === "delivery.consumed"
+      ? event.data.parts.flatMap(part => part.kind === "text" ? [part.text] : []) : [])
+      .filter(text => queued.includes(text)), { timeout: 120_000 }).toEqual(queued);
     await expect(answer).toHaveAttribute("aria-checked", "true");
     await expect(page).toHaveURL(sessionUrl);
     await page.reload();
@@ -158,10 +155,7 @@ test("the starter tutorial creates an independent draft, trials it and returns a
     await selectFirstLesson();
     await composer.fill("Continue authoring");
     await composer.press("Enter");
-    await expect.poll(async () => {
-      const settled = await (await page.request.get(`${sessionApi}/messages?per_page=500`)).json();
-      return JSON.stringify(settled.data);
-    }).toContain("Continue authoring");
+    await expect.poll(async () => JSON.stringify((await eve()).events)).toContain("Continue authoring");
     const opened = context.waitForEvent("page");
     const launched = page.waitForResponse(response => response.request().method() === "POST"
       && new URL(response.url()).pathname.endsWith("/lessons/001-untitled-lesson/trials"));

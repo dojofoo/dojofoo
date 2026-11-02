@@ -1,4 +1,4 @@
-import type { AuthoringWorkspace } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/authoring/service";
 import { describe, expect, it } from "vitest";
 import {
   authoringFiles,
@@ -8,7 +8,7 @@ import {
 import { authoringSidebarSelection, authoringCourseSidebarResources, authoringLessonSidebarResources } from "@/components/authoring-sidebar";
 import { authoringNavigation } from "@/lib/authoring-navigation";
 
-const workspace: AuthoringWorkspace = {
+const workspace: AuthoringDraft = {
   root: "/tmp/course",
   style: "katas",
   name: "Course",
@@ -22,8 +22,6 @@ const workspace: AuthoringWorkspace = {
   language: "TypeScript",
   issues: [],
   courseChecks: [],
-  sessionId: "session",
-  messages: [],
   lessons: [{
     id: "001-first",
     title: "First",

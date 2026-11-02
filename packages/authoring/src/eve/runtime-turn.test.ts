@@ -17,7 +17,7 @@ const question = { question: "Which learner?", options: [
 ] };
 
 it("uses the shipped question schema before starting a harness", async () => {
-  const schema = askQuestion().inputSchema["~standard"];
+  const schema = askQuestion.inputSchema["~standard"];
   if (!schema || typeof schema !== "object" || !("validate" in schema) || typeof schema.validate !== "function") {
     throw new Error("The question tool must expose a Standard Schema validator.");
   }
@@ -98,26 +98,26 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
     const configuration = JSON.parse(await readFile(join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json"), "utf8"));
     expect(configuration.model).toBe(selection === "runtime" ? "openai/gpt-4o" : selection === "codex" ? "fixture-codex" : undefined);
     expect(JSON.stringify(configuration)).not.toContain("fixture-only");
-    const created = await new Client({ host: url, auth }).sessions.create({
+    const created = await new Client({ baseUrl: url, auth }).sessions.create({
       message: "Help me author a course.", signal: AbortSignal.timeout(120_000),
     });
-    const parked = await created.response.result();
-    expect(parked.inputRequests, JSON.stringify({ parked, requestedTools: endpoint.requestedTools,
+    const parked = await created.delivery!.result();
+    expect(parked.interactions, JSON.stringify({ parked, requestedTools: endpoint.requestedTools,
       searchResults: endpoint.requests.map((request: { input?: Array<{ type?: string }> }) => Array.isArray(request.input) ? request.input.filter(item => item.type === "tool_search_output" || item.type === "function_call_output") : []),
       tools: endpoint.requests.map((request: { tools?: Array<{ name?: string; function?: { name?: string } }> }) => request.tools?.map(tool => tool.name ?? tool.function?.name)),
       unnamedTools: endpoint.requests.map((request: { tools?: Array<{ name?: string; function?: { name?: string } }> }) => request.tools?.filter(tool => !tool.name && !tool.function?.name)),
       toolResults: endpoint.requests.map((request: { messages?: Array<{ role: string }> }) => request.messages?.filter(message => message.role === "tool")), paths: endpoint.paths })).toHaveLength(1);
-    expect(parked.inputRequests[0].prompt).toBe("Which learner?");
+    expect(parked.interactions[0]!.request.prompt).toBe("Which learner?");
     const state = created.session.state;
     await runtime.close();
     // A normal UI restart supplies no model; keep the author's previous choice.
     runtime = await createKyoshiRuntime(root);
     const restarted = await runtime.start();
-    const session = new Client({ host: restarted.url, auth: restarted.auth }).sessions.attach(state.sessionId, { streamIndex: state.streamIndex });
+    const session = new Client({ baseUrl: restarted.url, auth: restarted.auth }).sessions.attach(state.sessionId, state);
     const result = await (await session.respond([{
-      requestId: parked.inputRequests[0].requestId, optionId: "Beginner",
+      interactionId: parked.interactions[0]!.interactionId, optionId: "Beginner",
     }], { signal: AbortSignal.timeout(60_000) })).result();
-    expect(result.message, JSON.stringify(result)).toBe("Ready to teach.");
+    expect(result.reply, JSON.stringify(result)).toBe("Ready to teach.");
     if (selection === "grok") expect(endpoint.requestedTools.filter((name: string) => name === "use_tool")).toHaveLength(1);
     else if (selection === "fx") expect(endpoint.requestedTools.filter((name: string) => name.endsWith("dojo_ui_ask"))).toHaveLength(1);
     else if (selection === "codex") {
@@ -139,7 +139,7 @@ it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes
       const continued = await (await session.send("Continue with the selected model.", {
         signal: AbortSignal.timeout(60_000),
       })).result();
-      expect(continued.message).toBe("Ready to teach.");
+      expect(continued.reply).toBe("Ready to teach.");
       const switched = endpoint.requests.find((request: { model?: string }) => request.model === "gpt-4.1");
       expect(switched, "The native harness must actually request the newly selected model").toBeDefined();
       expect(JSON.stringify(switched)).toContain("Help me author a course.");

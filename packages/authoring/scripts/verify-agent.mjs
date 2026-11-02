@@ -44,17 +44,20 @@ try {
     try {
       const ready = await runtime.start();
       const infoAt = performance.now();
-      const client = new Client({ host: ready.url, auth: ready.auth });
+      const client = new Client({ baseUrl: ready.url, auth: ready.auth });
       const session = sessionId ? client.sessions.attach(sessionId) : (await client.sessions.create({ signal: AbortSignal.timeout(10_000) })).session;
       sessionId ??= session.state.sessionId;
       assert.equal(session.state.sessionId, sessionId);
-      const snapshot = await session.snapshot({ signal: AbortSignal.timeout(10_000) });
+      // The history and its cursor; the session's opaque inbox hint isn't part of it
+      const { events, session: { sessionId: id, streamIndex } } = await session.snapshot({ signal: AbortSignal.timeout(10_000) });
+      const snapshot = { events, sessionId: id, streamIndex };
       if (saved) assert.deepEqual(snapshot, saved);
       else saved = snapshot;
       timings.push({ operation: label, readyMs: Math.round(infoAt - began), attachedMs: Math.round(performance.now() - began) });
       if (label === "cold resume") {
         const warmAt = performance.now();
-        assert.deepEqual(await client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(10_000) }), saved);
+        const warm = await client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(10_000) });
+        assert.deepEqual({ events: warm.events, sessionId: warm.session.sessionId, streamIndex: warm.session.streamIndex }, saved);
         timings.push({ operation: "warm resume", readyMs: 0, attachedMs: Math.round(performance.now() - warmAt) });
       }
     } finally { await runtime.close(); }
@@ -76,7 +79,7 @@ try {
   await writeFile(join(copy, "runtime.json"), JSON.stringify({ ...binding, courseRoot: copy }), { mode: 0o600 });
   const relocated = await startProductionServer(copy, { host: "127.0.0.1", port: 0 });
   try {
-    const info = await new Client({ host: relocated.url, auth: { basic: binding.auth } }).info({ signal: AbortSignal.timeout(10_000) });
+    const info = await new Client({ baseUrl: relocated.url, auth: { basic: binding.auth } }).info({ signal: AbortSignal.timeout(10_000) });
     assert.ok(info);
   } finally { await relocated.close(); }
   const builds = commands.filter(args => args.some(arg => /(?:^|\/)(?:vite|rolldown|tsup|tsc|nft)(?:\.|$)|^build$|dev-server/u.test(String(arg))));

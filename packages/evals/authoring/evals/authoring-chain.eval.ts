@@ -45,25 +45,25 @@ export default defineEval({
       }
       // Preserve completed dialogue/tool evidence, not token deltas or private reasoning.
       evidence[`turn-${index + 1}/events`] = JSON.stringify(turn.events.filter(event =>
-        ["message.completed", "actions.requested", "action.result", "input.requested", "turn.completed", "turn.failed", "error"].includes(event.type)));
+        ["content.completed", "call.requested", "call.settled", "interaction.opened", "turn.settled", "session.ended"].includes(event.type)));
       const files = await readMaterial(root);
       evidence[`turn-${index + 1}/files`] = JSON.stringify(files);
       await writeFile(join(root, ".dojo/chain-evidence.json"), JSON.stringify(evidence, null, 2));
       turn.expectOk();
       t.succeeded();
-      await t.require(turn.events.some(event => event.type === "turn.completed"), satisfies((done: boolean) => done, "turn must complete before continuing"));
+      await t.require(turn.events.some(event => event.type === "turn.settled" && event.data.outcome === "completed"), satisfies((done: boolean) => done, "turn must complete before continuing"));
       const count = Object.keys(files).filter(path => /\/SENSEI\.md$/u.test(path)).length;
       await t.require(count === expectedLessons, satisfies((valid: boolean) => valid, `author exactly ${expectedLessons} lessons before continuing or paying judges (found ${count})`));
     }
     for (const [index, prompt] of chainPrompts.entries()) await author(prompt, index + 1);
     async function review(round: number) {
-      const checks = await verifyCourse(root, t.signal);
+      const checks = await verifyCourse(root, t.abortSignal);
       evidence[`review-${round}/productionChecks`] = JSON.stringify(checks);
       evidence["handoff/files"] = JSON.stringify(await readMaterial(root));
       await writeFile(join(root, ".dojo/chain-evidence.json"), JSON.stringify(evidence, null, 2));
       await t.require(checks.every(({ report }) => !report.error && report.total > 0 && report.failed > 0), satisfies((valid: boolean) => valid, "Production checks must run and fail against unsolved scaffolds"));
       await t.require(checks.every(({ learnerFileObserved }) => learnerFileObserved), satisfies((valid: boolean) => valid, "Tests must load the learner's editable file, not the bundled stub"));
-      const results = requireJudgeResults(await judgeMaterial(evidence, t.signal, chainJudgePrompt));
+      const results = requireJudgeResults(await judgeMaterial(evidence, t.abortSignal, chainJudgePrompt));
       await writeFile(join(root, `.dojo/chain-judge-round-${round}.json`), JSON.stringify(results, null, 2));
       await writeFile(join(root, ".dojo/chain-judge-results.json"), JSON.stringify(results, null, 2));
       return results;

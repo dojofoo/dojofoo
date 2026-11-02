@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -56,6 +56,30 @@ it("prepares private host state without generating agent files or editing the co
   await expect(readFile(join(app, "agent.ts"))).rejects.toMatchObject({ code: "ENOENT" });
   expect(await readFile(join(app, "../../package.json"), "utf8")).not.toContain('"eve"');
   expect(await readFile(join(app, "../../node_modules/@dojofoo/agent/package.json"), "utf8")).toContain('"@dojofoo/agent"');
+});
+
+it("moves a course's app to this installation when another dojofoo prepared it", async () => {
+  const root = await course();
+  const other = await course();
+  await mkdir(join(other, "agent"), { recursive: true });
+  await writeFile(join(other, "agent/package.json"), '{"name":"@dojofoo/agent","version":"0.0.0-other"}');
+  const app = await prepareKyoshiApp(root);
+  const link = join(app, "../../node_modules/@dojofoo/agent");
+  await rm(link);
+  await symlink(join(other, "agent"), link, "dir");
+  await prepareKyoshiApp(root);
+  expect(await readFile(join(link, "package.json"), "utf8")).not.toContain("0.0.0-other");
+});
+
+it("refuses to replace a dependency that is not a link", async () => {
+  const root = await course();
+  const app = await prepareKyoshiApp(root);
+  const link = join(app, "../../node_modules/@dojofoo/agent");
+  await rm(link);
+  await mkdir(link);
+  await writeFile(join(link, "package.json"), '{"name":"mine"}');
+  await expect(prepareKyoshiApp(root)).rejects.toThrow("not a link");
+  expect(await readFile(join(link, "package.json"), "utf8")).toBe('{"name":"mine"}');
 });
 
 it("refuses to overwrite an unrelated app", async () => {

@@ -7,6 +7,7 @@ const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.js
 const { compileAgent } = await import(new URL("dist/src/compiler/compile-agent.js", eveRoot));
 const { loadCompiledModuleMap } = await import(new URL("dist/src/runtime/loaders/module-map.js", eveRoot));
 const { resolveRuntimeModelReference } = await import(new URL("dist/src/runtime/agent/resolve-model.js", eveRoot));
+const { AI_GATEWAY_MODELS_CATALOG_URL } = await import(new URL("dist/src/internal/gateway.js", eveRoot));
 
 test("Kyoshi instructions and question tool compile with an independently supplied harness model", async () => {
   const root = await mkdtemp(join(process.cwd(), "authored-kyoshi-"));
@@ -36,8 +37,8 @@ test("disk-authored provider survives Eve discovery, compilation and runtime mod
   const root = await mkdtemp(join(process.cwd(), "authored-"));
   const originalFetch = globalThis.fetch;
   const networkAttempts = [];
-  globalThis.fetch = () => {
-    networkAttempts.push("fetch");
+  globalThis.fetch = input => {
+    networkAttempts.push(String(input instanceof Request ? input.url : input));
     throw new Error("Network is forbidden while loading authored configuration");
   };
   try {
@@ -47,6 +48,10 @@ test("disk-authored provider survives Eve discovery, compilation and runtime mod
     const compiled = await compileAgent({ startPath: root });
     assert.equal(compiled.metadata.status, "ready");
     assert.deepEqual(compiled.diagnostics.filter(item => item.severity === "error"), []);
+    // 1.0 compilation snapshots the Gateway catalog as optional build metadata and
+    // degrades without it; nothing else, and nothing in the authored model, reaches out.
+    assert.ok(networkAttempts.every(url => url === AI_GATEWAY_MODELS_CATALOG_URL), JSON.stringify(networkAttempts));
+    networkAttempts.length = 0;
     const moduleMap = await loadCompiledModuleMap({ compiledArtifactsSource: { kind: "disk", appRoot: root } });
     const reference = compiled.manifest.config.model;
     const first = await resolveRuntimeModelReference(reference, { moduleMap });

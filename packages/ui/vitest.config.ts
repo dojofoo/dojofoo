@@ -9,5 +9,7 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+    // Eve's React binding (in @dojofoo/agent) uses the app's React
+    dedupe: ["react", "react-dom"],
   },
 });

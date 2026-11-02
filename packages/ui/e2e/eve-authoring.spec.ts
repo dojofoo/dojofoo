@@ -1,27 +1,23 @@
-import { expect, test } from "@playwright/test";
-import type { MessageStreamEvent } from "@dojofoo/agent/client";
-import { mountAgentChat } from "./agent-chat.fixture";
-import { turn } from "../../agent-api/src/fixtures";
+import { expect, savedMessage, startConversation, test } from "./agent-chat.fixture";
+import type { MountedAgentChat } from "./agent-chat.fixture";
 
 const draft = { root: "/tmp/eve-course", style: "katas", name: "Eve course", description: "Author a course together", language: "TypeScript", manifestSource: "name: Eve course\n", courseGuidance: "# Course", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: Eve course\n" }], lessons: [], issues: [], courseChecks: [] };
-const data = { sequence: 1, turnId: "turn-1", stepIndex: 0 };
-const meta = { id: "fixture", at: "2026-09-13T00:00:00Z" };
-const wait: MessageStreamEvent = { type: "session.waiting", data: { continuationToken: "saved", wait: "next-user-message" }, meta };
-let agent: Awaited<ReturnType<typeof mountAgentChat>>;
+let agent: MountedAgentChat;
 let historyUnavailable = false;
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, mountAgentChat }) => {
   historyUnavailable = false;
   agent = await mountAgentChat(page, { root: draft.root, files: false, failRead: () => historyUnavailable });
 });
 
-test("restored authoring conversations show their original attachments", async ({ page }) => {
-  agent.eve.histories.set("saved", [{ type: "message.received", data: { ...data, message: "Use this outline and recording.", parts: [
+test("restored authoring conversations show their original attachments", async ({ page, eve, baseURL }) => {
+  // Eve keeps a browser-resolvable URL for each saved attachment
+  const saved = await startConversation(eve, agent.runtime, [
     { type: "text", text: "Use this outline and recording." },
-    { type: "file", mediaType: "image/svg+xml", filename: "outline.svg", url: "/saved-outline.svg" },
-    { type: "file", mediaType: "application/pdf", filename: "brief.pdf", url: "/saved-brief.pdf" },
-    { type: "file", mediaType: "audio/wav", filename: "notes.wav", url: "/saved-notes.wav" },
-    { type: "file", mediaType: "video/webm", filename: "demo.webm", url: "/saved-demo.webm" },
-  ] }, meta }, wait]);
+    { type: "file", mediaType: "image/svg+xml", filename: "outline.svg", data: `${baseURL}/saved-outline.svg` },
+    { type: "file", mediaType: "application/pdf", filename: "brief.pdf", data: `${baseURL}/saved-brief.pdf` },
+    { type: "file", mediaType: "audio/wav", filename: "notes.wav", data: `${baseURL}/saved-notes.wav` },
+    { type: "file", mediaType: "video/webm", filename: "demo.webm", data: `${baseURL}/saved-demo.webm` },
+  ]);
   await page.route("**/saved-outline.svg", route => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"><rect width="160" height="90" fill="teal"/></svg>' }));
   await page.route("**/saved-notes.wav", route => route.fulfill({ contentType: "audio/wav", body: Buffer.from("UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==", "base64") }));
   await page.route("**/saved-demo.webm", route => route.fulfill({ contentType: "video/webm", path: new URL("../../uix/public/fixtures/lesson-video.webm", import.meta.url).pathname }));
@@ -32,11 +28,11 @@ test("restored authoring conversations show their original attachments", async (
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
     return route.fulfill({ status: 404 });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${saved.id}`);
   await expect(page.getByText("Use this outline and recording.", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "outline.svg", exact: true })).toBeVisible({ timeout: 5000 });
   await expect.poll(() => page.getByRole("img", { name: "outline.svg", exact: true }).evaluate((node: HTMLImageElement) => node.naturalWidth)).toBe(160);
-  await expect(page.getByRole("link", { name: "brief.pdf", exact: true })).toHaveAttribute("href", "/saved-brief.pdf");
+  await expect(page.getByRole("link", { name: "brief.pdf", exact: true })).toHaveAttribute("href", `${baseURL}/saved-brief.pdf`);
   await expect(page.locator('audio[aria-label="notes.wav"]')).toHaveAttribute("controls", "");
   await expect(page.locator('video[aria-label="demo.webm"]')).toHaveAttribute("controls", "");
   for (const media of ["audio", "video"]) {
@@ -71,7 +67,7 @@ test("Pages navigation filters nested authoring files and preserves selection ac
     }
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Main menu" });
   await expect(navigation.getByRole("tree")).toHaveCount(0);
@@ -130,7 +126,7 @@ test("the Pages brief shows scoped readiness findings without an empty box", asy
     if (path.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report: null } });
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   const readiness = page.getByRole("region", { name: "Readiness", exact: true });
   await expect(readiness).toContainText("Course intent and teaching rules");
   const nav = page.getByRole("navigation", { name: "Main menu" });
@@ -172,7 +168,7 @@ test("the Pages evaluation view keeps real findings and the unsaved editor model
     if (path.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report } });
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   await page.getByRole("navigation", { name: "Main menu" }).getByRole("button", { name: "SENSEI.md", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Code editor" });
   await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Teach");
@@ -228,7 +224,7 @@ test("reloading conversation history preserves editor text and undo", async ({ p
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   await expect(page.getByRole("button", { name: "Reload conversation" })).toBeVisible();
   const editor = page.getByRole("textbox", { name: "Code editor" });
   await editor.focus();
@@ -246,7 +242,6 @@ test("reloading conversation history preserves editor text and undo", async ({ p
 
 test("course files can be retried without replacing the conversation", async ({ page }) => {
   let repaired = false;
-  agent.eve.histories.set("saved", turn("prior", "Keep my existing course conversation", ["Your saved guidance."]));
   let changed: () => void = () => {};
   await page.routeWebSocket("**/api/authoring/changes*", socket => {
     changed = () => socket.send(JSON.stringify({ method: "workspace.changed" }));
@@ -258,22 +253,23 @@ test("course files can be retried without replacing the conversation", async ({ 
       : route.fulfill({ status: 503, json: { error: "Course files unavailable" } });
     return route.fulfill({ status: 404, json: { error: "Unexpected route" } });
   });
-  await page.goto("/authoring?workspace=ws-1&session=saved");
+  await page.goto(`/authoring?workspace=ws-1&session=${agent.sessionId}`);
   await expect(page.getByRole("alert").filter({ hasText: "Course files unavailable" })).toBeVisible();
   // Saved guidance and draft input remain available while startup is repaired.
   const refreshed = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/draft"));
   changed();
   await refreshed;
-  await expect(page.getByText("Keep my existing course conversation", { exact: true })).toBeVisible();
+  await expect(page.getByText(savedMessage, { exact: true })).toBeVisible();
   const question = page.getByTestId("authoring-chat-composer").getByRole("textbox");
   await question.fill("Keep this unsent note");
   repaired = true;
   await expect(page.getByRole("button", { name: "Reload workspace", exact: true })).toBeVisible({ timeout: 2000 });
   await page.getByRole("button", { name: "Reload workspace", exact: true }).click();
   await expect(question).toHaveValue("Keep this unsent note");
-  await expect(page.getByText("Keep my existing course conversation", { exact: true })).toBeVisible();
-  await expect(page).toHaveURL(/session=saved/);
-  expect([...agent.eve.histories.keys()]).toEqual(["saved"]);
+  await expect(page.getByText(savedMessage, { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`session=${agent.sessionId}`));
+  expect(agent.calls.filter(call => call.startsWith("POST ") && call.endsWith("/sessions"))).toEqual([]);
+  expect(agent.runtime.records.map(record => record.id)).toEqual([agent.sessionId]);
 });
 
 test("a failed save stays with its file and preserves the unsaved content", async ({ page }) => {
@@ -286,7 +282,7 @@ test("a failed save stays with its file and preserves the unsaved content", asyn
     if (path.includes("/files/")) return route.fulfill({ status: 422, json: { error: "Fixture save rejected" } });
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   await page.getByRole("textbox", { name: "Code editor" }).focus();
   await page.keyboard.press("Meta+End");
   await page.keyboard.type("# unsaved");
@@ -316,7 +312,6 @@ test("report loading errors stay with their lesson and clear after watcher recov
     const url = new URL(route.request().url());
     if (url.pathname.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { ...draft, lessons } });
-    if (url.pathname.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
     if (url.pathname.endsWith("/evaluation-settings")) return route.fulfill({ json: { enabled: true } });
     if (url.pathname.endsWith("/evals")) return route.fulfill({ status: 503, json: { error: "Judge unavailable" } });
     if (url.pathname.endsWith("/report")) {
@@ -329,7 +324,7 @@ test("report loading errors stay with their lesson and clear after watcher recov
     }
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   const selectLesson = async (name: string) => {
     const button = page.getByRole("button", { name, exact: true });
     if (await button.getAttribute("aria-expanded") !== "true") await button.click();
@@ -372,7 +367,6 @@ test("a late evaluation cannot replace another lesson's report", async ({ page }
     const url = new URL(route.request().url());
     if (url.pathname.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { ...draft, lessons } });
-    if (url.pathname.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
     if (url.pathname.endsWith("/evaluation-settings")) return route.fulfill({ json: { enabled: true } });
     if (url.pathname.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report: report(url.searchParams.get("lessonId")!) } });
     if (url.pathname.endsWith("/evals")) {
@@ -382,7 +376,7 @@ test("a late evaluation cannot replace another lesson's report", async ({ page }
     }
     return route.fulfill({ status: 404 });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   const selectLesson = async (name: string) => {
     const button = page.getByRole("button", { name, exact: true });
     if (await button.getAttribute("aria-expanded") !== "true") await button.click();
@@ -424,13 +418,13 @@ test("a course without lessons has no empty report button", async ({ page }) => 
     } } });
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   await expect(page.getByRole("region", { name: "Course conversation", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Report|Evaluation results/ })).toHaveCount(0);
   expect(posts).toEqual([]);
 });
 
-test("evaluation settings save model choices, not secrets or worker paths, without starting an evaluation", async ({ page }) => {
+test("evaluation settings save model choices, not secrets or worker paths, without starting an evaluation", async ({ page, mountAgentChat }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const writes: unknown[] = [];
   const evaluations: string[] = [];
@@ -457,8 +451,8 @@ test("evaluation settings save model choices, not secrets or worker paths, witho
     if (path.endsWith("/evals")) evaluations.push(path);
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await mountAgentChat(page, { root: draft.root, workspaceId: "isolated-course", files: false });
-  await page.goto("/authoring?session=saved&workspace=isolated-course");
+  const isolated = await mountAgentChat(page, { root: draft.root, workspaceId: "isolated-course", files: false });
+  await page.goto(`/authoring?session=${isolated.sessionId}&workspace=isolated-course`);
   const composer = page.getByTestId("authoring-chat-composer");
   await expect(composer.getByRole("button", { name: "Add file", exact: true })).toBeEnabled();
   await expect(composer.getByRole("button", { name: "Agent", exact: true })).toContainText("Codex");
@@ -528,7 +522,7 @@ test("evaluation settings cannot overwrite saved choices after a failed reload",
     }
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toHaveValue("teacher");
@@ -567,7 +561,7 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
     }
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   const lessonButton = page.getByRole("button", { name: "first", exact: true });
   if (await lessonButton.getAttribute("aria-expanded") !== "true") await lessonButton.click();
   const lessonItem = page.locator(".ui-as-side__branch").filter({ has: lessonButton });
@@ -587,7 +581,7 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
     await expect(tab.getByRole("heading", { name: "Prepared lesson" })).toBeVisible();
     await expect(tab).toHaveURL(/\/first\?harness=codex$/);
     expect(sessionStarts).toEqual([]);
-    await expect(page).toHaveURL(/authoring\?session=saved/);
+    await expect(page).toHaveURL(new RegExp(`authoring\\?session=${agent.sessionId}`));
     await tab.close();
     return;
   }

@@ -3,7 +3,7 @@
 Eve plus an experimental model provider backed by the official AI SDK
 HarnessAgent. No maintained Eve source fork, custom execution backend, workflow
 runner or per-adapter provider implementations. The build embeds a pinned Eve
-release with a five-file patch for native compaction and external model routing.
+release (1.0.0-rc.1) with a patch for native compaction.
 The separate distribution patch redirects the generated module-map loader import
 to `@dojofoo/agent`, recognizes that dependency during CLI project discovery,
 and preserves Eve package identity for workflow steps in linked workspaces.
@@ -28,10 +28,10 @@ reopens private workspace files after shutdown.
 The managed authoring host prepares adapter bootstrap tools through mise:
 `prepareHarnessEnvironment()` from `@dojofoo/agent/experimental/local` installs
 and selects `pnpm@10.34.5` with `--no-config`. Only the resulting PATH is passed
-to the local process host. Course/global mise configuration, credentials, and
+to the local sandbox. Course/global mise configuration, credentials, and
 global pnpm are not changed. Mise is prepared by `dojofoo install`; the first
 tool download requires network access. Standalone local hosts can use the same
-helper before creating their process coordinator.
+helper before creating their local sandbox.
 
 Run the real toolchain regression (no model calls) with:
 `DOJO_MISE_BOOTSTRAP=1 node --test packages/agent/experiments/model-provider/runtime-toolchain.test.mjs`.
@@ -59,6 +59,18 @@ DOJO_HARNESS_LIFECYCLE=1 pnpm --filter @dojofoo/authoring exec vitest run src/ev
 It sends no prompts, but may bootstrap native binaries and read existing login
 configuration. It checks start/checkpoint/resume for each advertised adapter;
 passing it does not establish tool, inference or compaction compatibility.
+
+## Eve 1.0
+
+- An ordinary project keeps its agent in `<package>/agent/` (`agent/agent.ts`); the
+  managed `.dojo/<role>/` roots still compile flat.
+- `write_file` refuses a file the agent hasn't read in the session.
+- Compiling fetches the AI Gateway model catalog, best effort, as build metadata.
+- Under `NODE_ENV=test` Eve replaces authored models with its own mock; test hosts
+  that need their own model run with `development`.
+- With the Docker CLI installed but its daemon down, a development server's shutdown
+  waits a minute on `docker ps`; hosts without Docker sandboxes set `EVE_DOCKER_PATH`
+  to a missing path.
 
 ## Boundaries
 
@@ -183,12 +195,10 @@ through a suspended tool continuation. Changes take effect on the next user turn
 not the next Eve tool-loop step. Restarting the local process does not remove
 this constraint because the settings are part of the continuation handle.
 
-For session-aware Eve configuration, its existing
-`defineDynamic({ events: { "step.started": async (_event, context) => ... } })`
-API exposes `context.session.id`. The handler can select the harness/workspace and
-return `{ model: experimental_createHarnessModel(runtime, sessionOptions).model,
-modelContextWindowTokens }`. Return live provider objects at `step.started`,
-not `session.started` or `turn.started` (those scopes serialize model IDs).
+For session-aware Eve configuration, `defineDynamic(async ctx => ...)` runs before
+every model call and its context exposes the session. It can select the
+harness/workspace and return `{ model: experimental_createHarnessModel(runtime,
+sessionOptions).model, modelContextWindowTokens }`.
 For adapters with package-relative bridge assets, retain their package boundary
 using Eve's existing `build.externalDependencies` configuration. The hosted
 OpenCode fixture externalizes `@ai-sdk/harness-opencode` and `@dojofoo/agent`;
@@ -196,7 +206,7 @@ bundling the adapter relocates `import.meta.url` without copying its bridge
 assets. Keep native runtime state outside the authored source directory, so
 database and journal writes do not trigger Eve's development watcher.
 This does not override HarnessAgent's suspended-turn settings. The pinned Eve
-0.81.1 uses its upstream model profiles for web-search routing. The selected
+uses its upstream model profiles for web-search routing. The selected
 model object retains its provider; no model-reference metadata patch is needed. Regression coverage
 includes external, OpenAI, Anthropic, Google and Gateway selections. No tools are
 silently discarded and no provider-specific session registry is introduced.
@@ -253,7 +263,7 @@ failures identify the workflow stage without changing runtime behavior.
 | Unsupported options | Explicit warnings for sampling/token limits, non-default reasoning/tool choice, provider options and raw-chunk requests. Configure adapter-specific behavior through runtime settings. |
 | Sources/generated files | Unsupported by the installed HarnessAgent adapter event union. Provider has standard output mappings, but no end-to-end capability is claimed. |
 | Full workflow host | Conversation/isolation, pending-question recovery, persistent filesystem tools, root-copy and declared-specialist delegation with automatic parent wake-up pass through real Nitro and local workflow storage. Specialist instructions, tools, files and conversation are isolated. Real inference through that host remains unverified. |
-| Authoring UI | Automatic managed runtime by default, bound to the startup workspace. `EVE_BASE_URL` and `DOJO_EVE_ROOT` remain explicit overrides. The real OpenCode browser test verifies course-file saves, restart with a pending question, answer recovery and an isolated learner trial response, without route mocks. Other browser fixtures cover failed-answer retry, read-only reconnect and unavailable-session errors. |
+| Authoring UI | Automatic managed runtime by default, bound to the startup workspace. `EVE_BASE_URL` remains an explicit override. The real OpenCode browser test verifies course-file saves, restart with a pending question, answer recovery and an isolated learner trial response, without route mocks. Other browser fixtures cover failed-answer retry, read-only reconnect and unavailable-session errors. |
 
 Approval checkpoints stay on their associated tool call because AI SDK does not
 retain approval-request metadata. When HarnessAgent suppresses a resumed call's
@@ -271,33 +281,18 @@ The full HTTP-host regression uses real OpenCode with loopback inference.
 An Eve-authored question parks, the Eve host restarts, and its public client
 restores the saved session/cursor and delivers the answer exactly once. The
 following native turn retains the answer and original lesson instructions.
-The coordinator owns native processes across Eve worker restarts and explicitly
-reaps them at final shutdown; the test checks that none remain.
+The authored agent builds its sandbox with `createLocalHarnessSandbox` inside
+its dynamic model, as Kyoshi does. The development server ends its worker
+without running process exit handlers, so OpenCode keeps running across the
+restart and the answer reaches that live process; the test reaps it afterwards.
 OpenCode's suspended-turn handle references its live bridge. Killing that native
 process is not equivalent to restarting Eve or freezing a cloud sandbox:
 pending-question recovery after native-process termination remains unsupported
 by this local integration.
 
-The internal `local-process-host.ts` now forwards the existing sandbox
-`spawn` contract over [Comlink](https://github.com/GoogleChromeLabs/comlink)
-and private Node message ports. The coordinator retains real process handles;
-workers receive transferable streams and remote wait/kill controls. Tests
-terminate the worker, confirm the native process survives, and then verify
-explicit coordinator shutdown reaps it. Cancellation preserves the caller's
-abort reason. No PID database or conversation registry is added.
-The coordinator registers a process host once; Eve workers acquire a private
-port using Node's thread messaging and inject the resulting `processHost` into
-their local sandbox. All commands execute under the coordinator-owned sandbox's
-environment. The full host test exercises this wiring without patching Eve's
-worker startup or any harness adapter. The authoring application has not yet
-adopted this integration.
-
-The Node-only entry point is `@dojofoo/agent/experimental/local`. In the
-coordinator, create a local sandbox and pass it to `registerLocalProcessHost`.
-Supply its serializable `connection` to the authored agent configuration.
-In the Eve worker, call `requestLocalProcessHost(connection)` and inject the
-returned `processHost` into `createLocalSandbox`. Keep the coordinator alive
-across Eve restarts and await `coordinator.close()` on final application shutdown.
+The Node-only entry point is `@dojofoo/agent/experimental/local`. Build the
+sandbox where the model runs: call `createLocalHarnessSandbox(root, { environment })`
+inside the agent's model definition and pass it to `experimental_createHarnessModel`.
 The native package-consumer tests use these exports exclusively, including
 separate-process history recovery; no implementation files are copied beside
 the consumer. This API executes with host permissions and is not a security
@@ -313,40 +308,30 @@ restarts; it does not rewrite native checkpoints or maintain another registry.
 For Pi, the package-consumer test also verifies the public `eve dev --no-ui`
 hosting path: a complete CLI-process restart restores a pending question from
 the native journal, accepts its answer once, and retains the lesson history.
-The restored question is hydrated through the production authoring routes and
-answered by the real TanStack `ChatClient` over its SSE adapter. Assertions cover
-the AG-UI interrupt, accepted-answer metadata, one native tool receipt, and no
-synthetic learner message. Only inference is mocked; Eve, Pi, the provider,
-authoring routes, and TanStack's stream/interrupt handling execute normally.
-The same scenario also runs through the actual authoring page in Chromium. Its
-temporary Vite server uses `DOJO_EVE_ROOT` (the authored agent directory) and
-`DOJO_PROJECT_ROOT` (the course directory), without `EVE_BASE_URL`. Requests are
-not intercepted or mocked. The test clicks Review, observes the response,
-reloads, and confirms the accepted choice and native history. It checks for
-browser errors and unexpected POSTs, then closes the browser and servers.
+After the restart, Eve's own client attaches to the session, its snapshot shows the
+open question, and `respond()` settles it once, accepted, with no new turn and no
+synthetic learner message; Pi receives the answer once and the history carries into
+the next turn. Only inference is mocked; Eve, Pi and the provider execute normally.
 Run just these public-CLI cases with
 `node experiments/model-provider/run.mjs --cli-only` after building this package.
 The authored application declares `@dojofoo/agent` in `package.json`;
 our distribution recognizes it during Eve project discovery.
-This test requires no private Eve server imports or process coordinator. It
+This test requires no private Eve server imports. It
 does not establish the same cold-restart behavior for bridge-based adapters.
 
 Without overrides, the authoring UI prepares a private Eve application under
-the course's `.dojo/kyoshi-app` and manages its server and process coordinator.
+the course's `.dojo/kyoshi-app` and manages its server.
 Official harness bootstrap files live in `.dojo/kyoshi-harness`; its `course`
 working directory links to the live authored files, rather than a copied draft.
-The runtime keeps the selected model across restarts for the same harness and
-refreshes the process connection. Credentials remain with the native harness.
+The runtime keeps the selected model across restarts for the same harness.
+Credentials remain with the native harness.
 The generated-app OpenCode integration test covers a pending question across
 server restart using a loopback model endpoint, without paid inference.
 
-The UI accepts `EVE_BASE_URL` for an externally owned host. Alternatively, set
-`DOJO_EVE_ROOT` to an authored application: the UI lazily starts that application's
-installed runtime through `/server` and closes it through Nitro's shutdown hook.
-Concurrent requests share one startup; startup failures reach the frontend without
-automatic retries or fallback. The UI never closes externally owned hosts.
-This path is server-owned, not a Vite-only plugin. Without either setting, the UI
-automatically prepares and starts the managed application described above.
+The UI accepts `EVE_BASE_URL` for an externally owned host, which it never closes.
+Without it, the UI prepares and starts the managed application described above;
+concurrent requests share one startup, and startup failures reach the frontend
+without automatic retries or fallback.
 `DOJOFOO_HARNESS` selects its official adapter (OpenCode by default); there is no
 `--execution-backend` mode. Learning/trial sessions retain their existing ACP path.
 
@@ -362,7 +347,7 @@ authentication strategy. Missing CLI installation is an explicit error.
 
 ## Native compaction
 
-`patches/eve@0.81.1.patch` adds `experimental_compact` dispatch at Eve's
+`patches/eve@1.0.0-rc.1.patch` adds `experimental_compact` dispatch at Eve's
 compaction step. The capability is already typed by our `HarnessModel`; Eve's
 declarations are not modified. Models without the method
 follow the unchanged Eve path. This is an experimental Eve extension, not an

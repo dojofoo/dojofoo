@@ -10,6 +10,9 @@ import { createDevelopmentServer } from "@dojofoo/agent/server";
 
 const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
 const { compileAgent } = await import(new URL("dist/src/compiler/compile-agent.js", eveRoot));
+// These roles use just-bash only. Eve 1.0 probes Docker on server close, which
+// waits on an installed CLI whose daemon is down.
+process.env.EVE_DOCKER_PATH ??= join(tmpdir(), "dojo-no-docker");
 
 async function sharedHome(t) {
   const home = await mkdtemp(join(tmpdir(), "dojo-manifest-free-shared-"));
@@ -55,6 +58,7 @@ test("manifest-free Kyoshi and Sensei compile against the installed runtime with
       assert.ok(compiled.manifest.instructions.some(item => item.content.includes(`You are ${role}.`)));
       await assertSourceOnly(project);
     }
+    // 1.0 bundles the evaluated role as an entry graph; it lands in the shared cache, not the course.
     assert.ok((await readdir(join(home, "cache/authored-modules"))).some(name => name.endsWith(".mjs")));
   } finally {
     await rm(project, { recursive: true, force: true });
@@ -101,10 +105,12 @@ import { defineSandbox } from "@dojofoo/agent/sandbox";
 import { JustBashSandbox } from "@dojofoo/agent/sandbox/just-bash";
 export const environment = JustBashSandbox.environment({
   autoInstall: false,
-  filesystem: ({ defaultFilesystem, justBash }) => new justBash.MountableFs({
-    base: defaultFilesystem,
-    mounts: [{ mountPoint: "/course", filesystem: new justBash.ReadWriteFs({ root: ${JSON.stringify(workspace)} }) }],
-  }),
+  experimental: {
+    filesystem: ({ defaultFilesystem, justBash }) => new justBash.MountableFs({
+      base: defaultFilesystem,
+      mounts: [{ mountPoint: "/course", filesystem: new justBash.ReadWriteFs({ root: ${JSON.stringify(workspace)} }) }],
+    }),
+  },
 });
 export default defineSandbox(() => environment.open());
 `);
@@ -113,24 +119,26 @@ export default defineSandbox(() => environment.open());
       if (role === "sensei") assert.ok(compiled.manifest.instructions.some(item => item.content.includes("DOJO_GUIDANCE")));
       server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
       const { url } = await server.start();
-      const client = new Client({ host: url });
+      const client = new Client({ baseUrl: url });
       const created = await client.sessions.create({ message: "Read authoring note", signal: AbortSignal.timeout(30_000) });
-      const first = JSON.parse((await created.response.result()).message);
+      const first = JSON.parse((await created.delivery.result({ signal: AbortSignal.timeout(30_000) })).reply);
       assert.match(JSON.stringify(first.history), role === "kyoshi" ? /Author's original course/ : /Edited by Kyoshi/);
       assert.deepEqual(first.history.filter(item => typeof item === "string"), ["Read authoring note"]);
       sessions.push(first.sessionId);
       if (role === "sensei") await writeFile(join(trial, "note.md"), "Learner's isolated attempt.\n");
-      else await (await created.session.send("Write authoring note", { signal: AbortSignal.timeout(30_000) })).result();
+      else assert.equal((await (await created.session.send("Write authoring note", { signal: AbortSignal.timeout(30_000) })).result()).status, "completed");
       assert.equal(await readFile(join(project, "note.md"), "utf8"), "Edited by Kyoshi.\n");
       const waiting = await (await created.session.send("Ask before continuing", { signal: AbortSignal.timeout(30_000) })).result();
-      assert.equal(waiting.inputRequests.length, 1);
-      const saved = { sessionId: created.session.state.sessionId, streamIndex: created.session.state.streamIndex };
+      assert.equal(waiting.status, "awaiting-input");
+      assert.equal(waiting.interactions.length, 1);
+      const saved = structuredClone(created.session.state);
       await server.close();
       server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
       const restarted = await server.start();
-      const restored = new Client({ host: restarted.url }).sessions.attach(saved.sessionId, { streamIndex: saved.streamIndex });
-      const answer = await (await restored.respond([{ requestId: waiting.inputRequests[0].requestId, optionId: "Review" }], { signal: AbortSignal.timeout(30_000) })).result();
-      const resumed = JSON.parse(answer.message);
+      const restored = new Client({ baseUrl: restarted.url }).sessions.attach(saved.sessionId, saved);
+      const answer = await (await restored.respond([{ interactionId: waiting.interactions[0].interactionId, optionId: "Review" }], { signal: AbortSignal.timeout(30_000) })).result();
+      assert.equal(answer.status, "completed", JSON.stringify(answer));
+      const resumed = JSON.parse(answer.reply);
       assert.equal(resumed.sessionId, first.sessionId);
       assert.equal(resumed.history.filter(item => item?.answer).length, 1);
       await server.close();

@@ -1,6 +1,7 @@
-import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
-import type { ChatClientOptions, ConnectionAdapter } from "@tanstack/ai-client";
+import { useEveAgent } from "@dojofoo/agent/react";
+import { ClientError, SessionNotActiveError, type SendTurnOptions } from "@dojofoo/agent/client";
 import type { Persona } from "@dojofoo/agent-api";
+import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AuthoringChat } from "./authoring-chat";
@@ -9,8 +10,10 @@ import { chatMessageContent } from "@/lib/chat-files";
 import { codingAgents } from "@/lib/coding-agents";
 import { AiBrain01Icon } from "@dojofoo/uix/icons";
 
-type Snapshot = { sessionId: string; agent: string; messages: UIMessage[]; initialResumeSnapshot?: ChatClientOptions["initialResumeSnapshot"] };
-type Session = { id: string; agent: string; resume?: { threadId: string; runId: string; pendingInterrupts: unknown[] } };
+type Session = { id: string; agent: string };
+type Agent = { id: string; selected: boolean };
+/** What the page shows, as Eve's `clientContext` takes it */
+type PageContext = Exclude<NonNullable<SendTurnOptions["clientContext"]>, string | readonly string[]>;
 type Page<T> = { data: T[]; pagination: { hasMore: boolean } };
 const agentApi = (workspaceId: string, path = "") => `/api/v1/workspaces/${encodeURIComponent(workspaceId)}${path}`;
 
@@ -20,146 +23,125 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function readSession(workspaceId: string, sessionId: string, signal: AbortSignal): Promise<Snapshot> {
-  const path = agentApi(workspaceId, `/sessions/${encodeURIComponent(sessionId)}`);
-  const [session, first] = await Promise.all([
-    json<Session>(path, { signal }),
-    json<Page<UIMessage>>(`${path}/messages?page=0&per_page=500`, { signal }),
-  ]);
-  const messages = [...first.data];
-  for (let page = 1, hasMore = first.pagination.hasMore; hasMore; page++) {
-    const result = await json<Page<UIMessage>>(`${path}/messages?page=${page}&per_page=500`, { signal });
-    messages.push(...result.data);
-    hasMore = result.pagination.hasMore;
-  }
-  return {
-    sessionId: session.id, agent: session.agent, messages,
-    initialResumeSnapshot: session.resume ? {
-      resumeState: { threadId: session.resume.threadId, runId: session.resume.runId },
-      pendingInterrupts: session.resume.pendingInterrupts,
-    } as ChatClientOptions["initialResumeSnapshot"] : undefined,
-  };
-}
-
 /** Every persona uses the same conversation, uploads and session lifecycle. */
-export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded, forwardedProps }: {
+export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded, clientContext }: {
   embedded?: boolean;
   workspaceId: string;
   persona: Persona;
   sessionId?: string;
   onSession(id: string): void;
-  forwardedProps?: Record<string, unknown>;
+  /** What the page shows, for every turn: the agent sees it, the conversation doesn't keep it */
+  clientContext?: PageContext;
 }) {
   const current = useRef(sessionId);
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string>();
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const placeholder = persona === "kyoshi" ? "Shape this lesson with Kyoshi…" : "Ask your Sensei…";
+  const context: PageContext = { ...clientContext, workspaceId };
+  const create = (signal: AbortSignal) => json<Session>(agentApi(workspaceId, "/sessions"), {
+    method: "POST", signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ persona, clientContext: context }),
+  });
+  /** Open a conversation, as the URL's or the newest on the selected agent, or a new one */
+  const open = (selected: Session) => {
+    // Bookmark acceptance before reading history so retries reuse this session.
+    current.current = selected.id;
+    setSession(selected);
+    onSession(selected.id);
+  };
   useEffect(() => {
-    if (snapshot && current.current === sessionId) return;
+    if (session && current.current === sessionId) return;
     if (current.current !== sessionId) { setValue(""); setFiles([]); }
     current.current = sessionId;
-    setSnapshot(null);
+    setSession(null);
     setError(undefined);
     const controller = new AbortController();
     // React's mount replay must settle before creating a durable conversation.
     queueMicrotask(() => {
       if (controller.signal.aborted) return;
       void (async () => {
-        if (!sessionId) {
-          const existing = await json<Page<Session>>(agentApi(workspaceId, `/sessions?persona=${persona}&per_page=1`), { signal: controller.signal });
+        // A session runs on the coding agent it started with
+        const agents = await json<Page<Agent>>(agentApi(workspaceId, "/agents"), { signal: controller.signal });
+        const agent = agents.data.find(item => item.selected)?.id ?? "";
+        if (sessionId) {
+          const saved = await json<Session>(agentApi(workspaceId, `/sessions/${encodeURIComponent(sessionId)}`), { signal: controller.signal });
           if (controller.signal.aborted) return;
-          const selected = existing.data[0] ?? await json<Session>(agentApi(workspaceId, "/sessions"), {
-            method: "POST", signal: controller.signal,
-            headers: { "content-type": "application/json" }, body: JSON.stringify({ persona, forwardedProps }),
-          });
-          if (controller.signal.aborted) return;
-          // Bookmark acceptance before reading history so retries reuse this session.
-          current.current = selected.id;
-          onSession(selected.id);
-          return;
+          if (saved.agent === agent) { setSession(saved); return; }
+          // One on another agent can't continue here: open the selected agent's conversation instead
         }
-        const saved = await readSession(workspaceId, sessionId, controller.signal);
-        if (!controller.signal.aborted) setSnapshot(saved);
+        const existing = await json<Page<Session>>(agentApi(workspaceId, `/sessions?persona=${persona}&agent=${encodeURIComponent(agent)}&per_page=1`), { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        const selected = existing.data[0] ?? await create(controller.signal);
+        if (!controller.signal.aborted) open(selected);
       })().catch(cause => { if (!controller.signal.aborted) setError(String(cause)); });
     });
     return () => controller.abort();
   }, [sessionId, workspaceId, persona, loadAttempt]);
-  if (!snapshot) return <AuthoringChat embedded={embedded} placeholder={placeholder} messages={[]} status="ready" busy={!error} inputDisabled
+  if (!session) return <AuthoringChat embedded={embedded} placeholder={placeholder} messages={[]} status="ready" busy={!error} inputDisabled
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles} onSend={() => {}} onAnswer={() => {}} error={error}
     onRetryLoad={error ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
-  return <AgentConversation key={snapshot.sessionId} embedded={embedded} workspaceId={workspaceId} snapshot={snapshot} placeholder={placeholder}
-    forwardedProps={forwardedProps}
+  return <AgentConversation key={session.id} embedded={embedded} workspaceId={workspaceId} session={session} placeholder={placeholder}
+    clientContext={context}
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles}
-    queueLabel={persona === "kyoshi" ? "Kyoshi is responding" : "Sensei is responding"}
-    onReload={() => { setSnapshot(null); setLoadAttempt(attempt => attempt + 1); }} />;
+    onReload={() => { setSession(null); setLoadAttempt(attempt => attempt + 1); }}
+    onEnded={() => { void create(new AbortController().signal).then(open, cause => setError(String(cause))); }} />;
 }
 
-function AgentConversation({ workspaceId, snapshot, onReload, embedded, value, onValueChange, files, onFilesChange, placeholder, queueLabel, forwardedProps }: {
-  embedded?: boolean; workspaceId: string; snapshot: Snapshot; onReload(): void;
+/** The session is Eve's: its own client resumes it, streams it, and takes messages and answers. */
+function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext }: {
+  embedded?: boolean; workspaceId: string; session: Session; onReload(): void;
+  /** Eve can't continue this session: an older Eve built it, it ended, or its coding agent isn't selected */
+  onEnded(): void;
   value: string; onValueChange(value: string): void; files: File[]; onFilesChange(files: File[]): void;
-  placeholder: string; queueLabel: string;
-  forwardedProps?: Record<string, unknown>;
+  placeholder: string;
+  clientContext: PageContext;
 }) {
-  const [error, setError] = useState<string>();
-  const path = agentApi(workspaceId, `/sessions/${encodeURIComponent(snapshot.sessionId)}`);
-  const reportError = (cause: unknown) => {
-    const detail = cause instanceof Error && cause.name === "StreamReadError" && cause.cause instanceof Error ? cause.cause : cause;
-    setError(detail instanceof Error ? detail.message : String(detail));
-  };
-  const connection = useMemo((): ConnectionAdapter => {
-    const fetchClient = (async (input, init) => {
-      const response = await fetch(input, init);
-      if (!response.ok) throw await httpError(response);
-      return response;
-    }) as typeof fetch;
-    const runs = fetchServerSentEvents(`${path}/runs`, { fetchClient });
-    const events = fetchServerSentEvents(`${path}/events`, { fetchClient });
-    return { connect: runs.connect, joinRun: events.joinRun };
-  }, [path]);
-  const chat = useChat({
-    connection, persistence: false, threadId: snapshot.sessionId, forwardedProps,
-    initialMessages: snapshot.messages, initialResumeSnapshot: snapshot.initialResumeSnapshot,
-    onError: reportError,
+  const context = useRef(clientContext);
+  context.current = clientContext;
+  const agent = useEveAgent({
+    baseUrl: agentApi(workspaceId, `/sessions/${encodeURIComponent(session.id)}`),
+    initialSession: { sessionId: session.id, streamIndex: 0 },
+    resume: true,
+    prepareSend: input => ({ ...input, clientContext: context.current }),
   });
+  const [error, setError] = useState<string>();
+  const messages = useMemo(() => eveChatMessages(agent.messages), [agent.messages]);
   async function send(message: string, selected: File[]) {
     if (!message.trim() && !selected.length) return;
-    const content = await chatMessageContent(message, selected);
     setError(undefined);
-    void chat.sendMessage(content).catch(reportError);
+    // Eve shows the message at once and marks it failed if it isn't accepted; the composer needn't wait
+    void agent.send(await chatMessageContent(message, selected))
+      .catch(cause => setError(cause instanceof Error ? cause.message : String(cause)));
   }
-  async function cancel() {
-    const runId = chat.runId;
-    if (!runId) return;
+  async function answer(answers: Record<string, AskUserAnswer>) {
     setError(undefined);
     try {
-      await json(`${path}/runs/${encodeURIComponent(runId)}`, {
-        method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "cancelled" }),
-      });
-      chat.stop();
-    } catch (cause) { setError(String(cause)); }
+      await agent.respond(Object.values(answers).map(item => ({
+        interactionId: item.questionId,
+        ...(item.selectedIds[0] ? { optionId: item.selectedIds[0] } : {}),
+        ...(item.otherText ? { text: item.otherText } : {}),
+      })));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   }
-  function answer(answers: Record<string, AskUserAnswer>) {
-    const entries = Object.values(answers).map(value => {
-      const interrupt = chat.interrupts.find(item => item.id === value.questionId);
-      if (interrupt?.kind !== "generic" || !interrupt.canResolve) throw new Error("This question is no longer available. Reload its session to recover the current state.");
-      return { interrupt, payload: { ...(value.selectedIds[0] ? { optionId: value.selectedIds[0] } : {}), ...(value.otherText ? { text: value.otherText } : {}) } };
-    });
-    for (const { interrupt, payload } of entries) interrupt.resolveInterrupt(payload);
-  }
-  const active = chat.resuming || chat.status === "submitted" || chat.status === "streaming";
-  const selectedAgent = codingAgents.find(choice => choice.value === snapshot.agent)
-    ?? { value: snapshot.agent, name: snapshot.agent, icon: AiBrain01Icon };
-  return <AuthoringChat embedded={embedded} agent={selectedAgent} placeholder={placeholder} messages={chat.messages} status={chat.status} busy={chat.resuming}
+  const selectedAgent = codingAgents.find(choice => choice.value === session.agent)
+    ?? { value: session.agent, name: session.agent, icon: AiBrain01Icon };
+  const ended = (SessionNotActiveError.is(agent.error) && !agent.error.retryable)
+    || (ClientError.is(agent.error) && agent.error.status === 409
+      && ["session_stranded", "session_expired", "session_version_unsupported", "agent_unavailable"].includes(agent.error.code));
+  const replaced = useRef(false);
+  useEffect(() => {
+    if (!ended || replaced.current) return;
+    replaced.current = true;
+    onEnded();
+  }, [ended]);
+  const failure = error ?? agent.error?.message;
+  return <AuthoringChat embedded={embedded} agent={selectedAgent} placeholder={placeholder} messages={messages}
+    status={agent.status === "busy" ? "streaming" : "ready"} busy={agent.status === "resuming"}
+    // Eve takes no input until the session has caught up
+    inputDisabled={agent.status === "resuming"}
     value={value} onValueChange={onValueChange} attachments files={files} onFilesChange={onFilesChange}
-    queueLabel={chat.interrupts.length > 0 && !chat.resuming ? "Waiting for your answer" : queueLabel}
-    queue={chat.queue.map(item => {
-      const content = typeof item.content === "string" ? item.content : item.content.content;
-      return { id: item.id, text: typeof content === "string" ? content : content.map(part => part.type === "text" ? part.content : (part.metadata as { filename?: string } | undefined)?.filename ?? "Attachment").join("\n") };
-    })} onCancelQueued={chat.cancelQueued}
-    onSend={send} onStop={() => { void cancel(); }} onAnswer={answer} error={error ?? (active ? undefined : chat.interruptErrors[0]?.message)}
-    onRetryLoad={error ? onReload : undefined}
-    onRetryAnswer={chat.interruptErrors.some(item => item.retryable) ? () => { setError(undefined); chat.retryInterrupts(); } : undefined} />;
+    onSend={send} onStop={() => { setError(undefined); void agent.cancel().catch(cause => setError(String(cause))); }} onAnswer={answer} error={failure}
+    onRetryLoad={failure ? onReload : undefined} />;
 }

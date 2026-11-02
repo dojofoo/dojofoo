@@ -17,7 +17,7 @@ try {
     "--ignore-scripts", "--json", "--registry=https://registry.npmjs.org"], {
     cwd: staging, encoding: "utf8",
   }));
-  assert.equal(packed.integrity, "sha512-kOjykogXDocRtz65OJtxFvkvoSXai/sWDonzTVXA2NKkJr4/Nnxt1RAuwQo2haf614CX54oQy1eY4y9pHbc1Iw==",
+  assert.equal(packed.integrity, "sha512-yg1zd3Wwi0OY+ue6NP8IV3gPa+Kth9jIB6Af0/sqVElySXWKxL9j0lNkTAddTI38SbyEu0Z11YCZhIlaOQTZLQ==",
     "Re-audit the upstream artifact and patch before updating Eve");
   execFileSync("tar", ["-xzf", packed.filename], { cwd: staging });
   const upstream = join(staging, "package");

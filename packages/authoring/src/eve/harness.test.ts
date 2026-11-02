@@ -1,3 +1,4 @@
+import { claudeCode } from "@ai-sdk/harness-claude-code";
 import { codex } from "@ai-sdk/harness-codex";
 import { cursor } from "@ai-sdk/harness-cursor";
 import { fx } from "@ai-sdk/harness-fx";
@@ -22,6 +23,7 @@ describe("authoring harness selection", () => {
     expect(createPi).toHaveBeenLastCalledWith({ agentDir: "/tmp/custom-pi" });
   });
   it.each([
+    ["claude", claudeCode],
     ["codex", codex],
     ["cursor", cursor],
     ["fx", fx],
@@ -42,7 +44,7 @@ describe("authoring harness selection", () => {
     expect(await authoringHarness({ DOJOFOO_HARNESS: "" })).toBe(selected);
   });
 
-  it.each(["unknown", "claude", "constructor", "__proto__", "toString"])(
+  it.each(["unknown", "constructor", "__proto__", "toString"])(
     "rejects %s rather than silently switching harnesses",
     async (name) => {
       await expect(authoringHarness({ DOJOFOO_HARNESS: name }))

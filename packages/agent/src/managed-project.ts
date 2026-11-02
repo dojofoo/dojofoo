@@ -7,7 +7,7 @@ const installation = createRequire(import.meta.url);
 
 export function managedModuleCache(path: string): string | undefined {
   if (managedAgentRoot(path)) {
-    return join(process.env.DOJOFOO_HOME || join(homedir(), ".dojo"), "cache", "authored-modules");
+    return join(process.env.DOJOFOO_HOME || join(homedir(), ".dojofoo"), "cache", "authored-modules");
   }
 }
 

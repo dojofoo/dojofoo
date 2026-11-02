@@ -39,7 +39,7 @@ async function runCase({ callsTool = true, passes = true, disputed = false, held
     await writeFile(join(directory, "material.json"), JSON.stringify(await readMaterial(root)));
     await writeFile(join(directory, "report.json"), JSON.stringify({ directory, material: missingPanel ? undefined : panel(), teaching: panel(disputed), teachingPolicyHash: acceptedPolicy, materialHash: "accepted", startedAt: String(count), status: passes ? "passed" : "teaching-failed", lessonIds: count === 2 && continuity ? ["1", "2"] : [String(count)] }));
     if (editsAfterEvaluation) await writeFile(join(root, "src", String(count), "SENSEI.md"), "Changed without another trial");
-    return { expectOk() {}, events: callsTool ? [{ type: "actions.requested", data: { toolName: "dojo_authoring_evaluate" } }] : [] };
+    return { expectOk() {}, events: callsTool ? [{ type: "call.requested", data: { capability: { kind: "tool", name: "dojo_authoring_evaluate" } } }] : [] };
   });
   const context = { send, succeeded: vi.fn(), require: async (valid: boolean) => { if (!valid) throw new Error("Acceptance gate failed"); } };
   await workflow.test(context as unknown as Parameters<typeof workflow.test>[0]);

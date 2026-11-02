@@ -10,7 +10,6 @@ import { createPi } from "@ai-sdk/harness-pi";
 import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
 import { expect, it } from "vitest";
-import { authoringEnvironment } from "./environment";
 // Real native ACP agents, with only model inference replaced by a local fixture.
 // @ts-expect-error Shared JavaScript inference fixture has no declarations.
 import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";
@@ -34,7 +33,7 @@ it.skipIf(process.env.DOJO_HARNESS_LIFECYCLE !== "1").each(["grok", "fx", "codex
       ]),
     ].join("\n"));
   }
-  const sandbox = await createLocalSandbox(root, { environment: await authoringEnvironment(harness, {
+  const sandbox = await createLocalSandbox(root, { environment: {
     PATH: `${fileURLToPath(new URL("../../node_modules/.bin", import.meta.url))}:${process.env.PATH}`,
     HOME: home, CI: "1", GROK_HOME: join(home, ".grok"), CODEX_HOME: join(home, ".codex"),
     ...(harness === "fx" ? {
@@ -44,7 +43,7 @@ it.skipIf(process.env.DOJO_HARNESS_LIFECYCLE !== "1").each(["grok", "fx", "codex
       FX_GATEWAY_CHAT_URL: `${endpoint.baseURL.replace(/\/v1$/, "")}/v4/ai/language-model`,
       FX_DISABLE_KEYCHAIN: "1", FX_E2E_DISABLE_DOTENV: "1", FX_AUTO_UPGRADE: "0",
     } : {}),
-  }) });
+  } });
   const adapters = {
     fx: createFx({ auth: {
       AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: endpoint.baseURL.replace(/\/v1$/, ""),

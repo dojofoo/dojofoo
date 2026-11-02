@@ -21,7 +21,7 @@ const { resolveWebSearchBackend } = await import(new URL("dist/src/harness/provi
 const { resolveModelProfile } = await import(new URL("dist/src/harness/model-profile.js", eveRoot));
 const { createUserMessage } = await import(new URL("dist/src/harness/messages.js", eveRoot));
 const { requestAuthorization } = await import(new URL("dist/src/harness/authorization.js", eveRoot));
-const { ensureSessionProjection, recordPublishedEvent } = await import(new URL("dist/src/harness/session-machine/current.js", eveRoot));
+const { stepProjection } = await import(new URL("dist/src/harness/session-machine/current.js", eveRoot));
 const { suspendedSteps } = await import(new URL("dist/src/harness/session-machine/view.js", eveRoot));
 
 // Drive the current compaction step rather than the removed 0.53 engine API.
@@ -33,6 +33,10 @@ async function compactMessages(messages, model, config, _providerOptions, _telem
   const result = await maybeCompact({
     abortSignal, auth: null, force: true, messages: history, model,
     emissionState: { sequence: 1, stepIndex: 0, turnId: "compaction-test" },
+    // 1.0 folds compaction into the session projection; an already announced
+    // change with no projected work keeps this a pure step invocation.
+    change: { announced: true, changeId: "compaction-test", summaryRunId: "compaction-test-run" },
+    view: () => ({ changes: {} }),
     publish: async () => {}, resolveModel: async () => model,
     session: { sessionId: "compaction-test", continuationToken: "compaction-test", history,
       agent: { system: "", modelReference: { id: model.modelId }, tools: [] }, compaction: config },
@@ -672,13 +676,13 @@ for (const failure of [false, true]) test(`unmodified Eve settles the tool once 
 });
 
 test("Eve's question workflow waits for ctx.ask and returns its actual answer", async () => {
-  // 0.80 uses durable workflow tools, not the removed request-input behavior.
+  // 1.0 exports the durable workflow tool as a value, not a factory.
   // The CLI/host suites cover persistence and provider continuation.
   const { askQuestion } = await import("@dojofoo/agent/tools/ask_question");
   const answer = Promise.withResolvers();
   const requests = [];
   let completed = false;
-  const pending = askQuestion().execute({ question: "How would you like to continue?", options: [
+  const pending = askQuestion.execute({ question: "How would you like to continue?", options: [
     { label: "Review", description: "Review the lesson" },
     { label: "Move on", description: "Start the next lesson" },
   ] }, { ask: request => { requests.push(request); return answer.promise; } }).then(result => {
@@ -723,12 +727,10 @@ test("Eve parks the original sign-in tool call intact across serialization", asy
     finishReason: { unified: "tool-calls", raw: "tool-calls" }, usage,
   } });
   const config = { mode: "conversation", resolveModel: async () => model,
-    // Fold publication as the real Eve host does, preserving the parked step.
+    // Fold publication as the real Eve host's sink does, preserving the parked step.
     handleEvent: async event => {
-      const ctx = contextStorage.getStore();
-      ensureSessionProjection(ctx, undefined);
-      recordPublishedEvent(ctx, event);
-      events.push(event);
+      stepProjection(contextStorage.getStore()).record(event);
+      events.push(...[event].flat());
     },
     tools: new Map([[definition.name, { ...definition, inputSchema: jsonSchema(schema),
       execute: async () => { executions++; return requestAuthorization([challenge]); } }]]),
@@ -741,12 +743,13 @@ test("Eve parks the original sign-in tool call intact across serialization", asy
   assert.equal(parked.next, null);
   assert.equal(parked.settledTurn, undefined);
   assert.equal(model.doStreamCalls.length, 1);
-  assert.equal(events.filter(event => event.type === "authorization.required").length, 1);
-  assert.equal(events.filter(event => event.type === "action.result").length, 0);
+  const signIns = events.filter(event => event.type === "interaction.opened" && event.data.request.kind === "sign-in");
+  assert.equal(signIns.length, 1, JSON.stringify(events));
+  assert.equal(events.filter(event => event.type === "call.settled").length, 0);
   assert.equal(executions, 1);
   const [step] = suspendedSteps(JSON.parse(JSON.stringify(parked.session)).state);
   assert.equal(step.approved.length, 1);
-  assert.deepEqual(step.approved[0].action, { callId: "protected-read", input: { lesson: "chapter-one" }, kind: "tool-call", toolName: definition.name });
+  assert.deepEqual(step.approved[0].call, { callId: "protected-read", input: { lesson: "chapter-one" }, toolName: definition.name });
   assert.deepEqual(step.approved[0].signIns, [challenge]);
   assert.equal(step.messages[0].content[0].toolCallId, "protected-read");
 });
@@ -756,28 +759,44 @@ for (const decision of ["approve", "deny"]) test(`Eve authorizes its host tool a
   const events = [];
   let executions = 0;
   const definition = { name: "echo", description: "Write the lesson", inputSchema: { type: "object", properties: { value: { type: "string" } }, required: ["value"] } };
-  const config = { mode: "conversation", capabilities: { requestInput: true },
-    handleEvent: async event => { events.push(event); },
+  const config = { mode: "conversation",
+    // Fold publication as the real Eve host's sink does.
+    handleEvent: async event => {
+      stepProjection(contextStorage.getStore()).record(event);
+      events.push(...[event].flat());
+    },
     resolveModel: async () => createHarnessModel({ harness: native.harness, sandbox: fixtureSandbox() }).model,
     tools: new Map([["echo", { ...definition, inputSchema: jsonSchema(definition.inputSchema), approval: () => "user-approval", execute: async ({ value }) => { executions++; return value; } }]]),
   };
   const session = { agent: { modelReference: { id: "local" }, system: "Teach", tools: [definition] }, compaction: { recentWindowSize: 10, threshold: 100000 }, continuationToken: "approval-test", sessionId: randomUUID(), history: [] };
-  const context = new ContextContainer();
-  context.set(SessionKey, { sessionId: session.sessionId, auth: { current: null, initiator: null }, turn: { id: "turn_0", sequence: 0 } });
-  const run = (state, input) => contextStorage.run(context, () => createToolLoopHarness(config)(state, input));
-  let parked = await run(session, { message: "Use the tool." });
-  for (let i = 0; typeof parked.next === "function" && i < 4; i++) parked = await contextStorage.run(context, () => parked.next(parked.session));
+  // Each step gets a fresh context, so the projection is read back from the serialized session.
+  const inContext = fn => {
+    const context = new ContextContainer();
+    context.set(SessionKey, { sessionId: session.sessionId, auth: { current: null, initiator: null }, turn: { id: "turn_0", sequence: 0 } });
+    return contextStorage.run(context, fn);
+  };
+  const settle = async result => {
+    for (let i = 0; typeof result.next === "function" && i < 4; i++) {
+      const { next, session: state } = result;
+      result = await inContext(() => next(state));
+    }
+    return result;
+  };
+  const parked = await settle(await inContext(() => createToolLoopHarness(config)(session, { message: "Use the tool." })));
   assert.equal(executions, 0);
-  const request = events.find(event => event.type === "input.requested")?.data.requests[0];
-  assert.ok(request, JSON.stringify({ events, parked }));
-  assert.equal(request.kind, "tool-approval");
-  let result = await run(JSON.parse(JSON.stringify(parked.session)), { inputResponses: [{ requestId: request.requestId, optionId: decision }] });
-  for (let i = 0; typeof result.next === "function" && i < 4; i++) result = await contextStorage.run(context, () => result.next(result.session));
-  assert.ok(result.settledTurn);
+  const opened = events.find(event => event.type === "interaction.opened");
+  assert.ok(opened, JSON.stringify({ events, parked }));
+  assert.equal(opened.data.request.kind, "approval");
+  const answer = { interactionId: opened.data.interactionId, optionId: decision, responseId: "approval-response", deliveryId: "approval-delivery" };
+  const result = await settle(await inContext(() => createToolLoopHarness(config)(JSON.parse(JSON.stringify(parked.session)), { answers: [answer] })));
+  assert.equal(events.at(-1).type, "turn.settled", JSON.stringify(events.map(event => event.type)));
   assert.equal(executions, decision === "approve" ? 1 : 0);
   assert.equal(native.results.length, 1);
   assert.equal(native.active, 0);
-  assert.ok(events.some(event => event.type === "input.resolved"));
+  const settled = events.find(event => event.type === "interaction.settled");
+  assert.equal(settled?.data.interactionId, answer.interactionId);
+  assert.equal(settled.data.outcome, decision === "approve" ? "accepted" : "declined");
+  assert.equal(result.next, null);
 });
 
 test("authored skill bundles reach the official adapter unchanged", async () => {
@@ -1205,4 +1224,20 @@ test("Eve returns tool-call metadata beside the externally executed tool result"
   assert.deepEqual(call.providerOptions, marker);
   assert.equal(prompt.at(-1).role, "tool");
   assert.equal(prompt.at(-1).content[0].toolCallId, "echo-metadata");
+});
+
+// Last: the refusal is remembered for this harness id for the rest of the process
+test("a harness that only compacts on its own keeps Eve's history and isn't asked again", async () => {
+  const { HarnessCapabilityUnsupportedError } = await import("@ai-sdk/harness/agent");
+  const adapter = fixture();
+  const { model } = createHarnessModel({ harness: adapter.harness, sandbox: fixtureSandbox() });
+  const first = await generateText({ model, prompt: "Start lesson." });
+  const history = structuredClone(first.response.messages);
+  const originalStart = adapter.harness.doStart;
+  adapter.harness.doStart = async options => ({ ...await originalStart(options),
+    async doCompact() { throw new HarnessCapabilityUnsupportedError({ message: "Compacts on its own", harnessId: "provider-fixture" }); },
+  });
+  assert.deepEqual(await compactMessages(history, model, { threshold: 1000, recentWindowSize: 1 }), history);
+  assert.equal(adapter.active, 0);
+  assert.equal(model.experimental_canCompact({ messages: history }), false);
 });

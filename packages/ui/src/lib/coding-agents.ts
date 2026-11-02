@@ -1,5 +1,6 @@
 import { CodexIcon, CursorIcon, FxIcon, GrokIcon, OpenCodeIcon, PiIcon } from "@dojofoo/uix/components/harness-icons";
 import type { ComposerAgent } from "@dojofoo/uix/containers/assistant-home";
+import { AiBrain01Icon } from "@dojofoo/uix/icons";
 
 /** Names and marks only; runtime owners decide which choices are supported. */
 export const codingAgents: ComposerAgent[] = [
@@ -9,4 +10,5 @@ export const codingAgents: ComposerAgent[] = [
   { value: "grok", name: "Grok", icon: GrokIcon },
   { value: "fx", name: "FX", icon: FxIcon },
   { value: "pi", name: "Pi", icon: PiIcon },
+  { value: "claude", name: "Claude Code", icon: AiBrain01Icon },
 ];

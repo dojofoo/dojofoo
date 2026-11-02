@@ -30,6 +30,29 @@ test("shared harness factory preserves native identity and initialization", asyn
   assert.equal(initialized, 1);
 });
 
+test("a detached session resumes in the sandbox that owns its processes", async t => {
+  const { root } = await workspace(t);
+  const parked = await createLocalHarnessSandbox(root).createSession({ sessionId: "parked-lesson" });
+  t.after(() => parked.stop());
+  const child = await parked.spawn({ command: "sleep 30" });
+  // Each model call builds its own provider; the live sandbox is shared
+  const resumed = await createLocalHarnessSandbox(root).resumeSession({ sessionId: "parked-lesson" });
+  assert.equal(resumed, parked);
+  await resumed.stop();
+  assert.throws(() => process.kill(-child.pid, 0), { code: "ESRCH" });
+});
+
+test("killing a command stops the process groups it started", async t => {
+  const { session } = await workspace(t);
+  // OpenCode's bridge starts its server this way
+  const child = await session.spawn({ command: `node -e "const c = require('child_process').spawn('sleep', ['30'], { detached: true, stdio: 'ignore' }); console.log(c.pid); setInterval(() => {}, 1000)"` });
+  const reader = child.stdout.getReader();
+  const grandchild = Number(new TextDecoder().decode((await reader.read()).value).trim());
+  assert.ok(Number.isSafeInteger(grandchild) && grandchild > 1);
+  await child.kill();
+  await assert.rejects(async () => { for (;;) { process.kill(grandchild, 0); await new Promise(resolve => setTimeout(resolve, 20)); } }, { code: "ESRCH" });
+});
+
 test("shared harness factory rejects cancellation before acquiring a workspace", async () => {
   const factory = createLocalHarnessSandbox("/nonexistent-dojo-fixture");
   const abortSignal = AbortSignal.abort(new Error("Cancelled lesson"));
@@ -164,6 +187,17 @@ test("explicit subprocess environment replaces inherited values and is snapshott
   environment.DOJO_TEST_VALUE = "changed";
   const result = await session.run({ command: 'printf "%s:%s" "$DOJO_TEST_VALUE" "${HOME-unset}"' });
   assert.equal(result.stdout, "original:unset");
+});
+
+test("a harness installs itself without a terminal, and the agent's commands keep theirs", async t => {
+  const { root } = await workspace(t);
+  const session = await createLocalSandbox(root, { environment: {} });
+  t.after(() => session.stop());
+  const bootstrap = join(root, ".ai-sdk-harness/.harness-bootstrap/opencode");
+  await session.writeTextFile({ path: join(bootstrap, "marker"), content: "" });
+  const ci = 'printf "%s" "${CI-unset}"';
+  assert.equal((await session.run({ command: ci, workingDirectory: bootstrap })).stdout, "true");
+  assert.equal((await session.run({ command: ci })).stdout, "unset");
 });
 
 test("official bridge authenticates local clients and shuts down through its protocol", { timeout: 10000 }, async t => {

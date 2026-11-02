@@ -109,7 +109,7 @@ Changes required with either set:
 
 - `@tanstack/ai` 0.69.0, `ai-client` 0.39.3, `ai-react` 0.30.4 together.
 - Rewrite the queue patch for 0.39; keep the browser regression (`eve-authoring.spec.ts`, "keeps a pending question while queuing messages…") as the gate; open the upstream issue/PR.
-- Check hand-built AG-UI events in `agui-stream.ts` and `authoring/src/eve/stream.ts`: since 0.26, extras live under `metadata.tanstack` and the wire format is spec-only. `StructuredOutputPart.data` is required once complete (0.38). `withInterruptBinding` and `uiMessagesToWire` remain exported.
+- Check hand-built AG-UI events in `agui-stream.ts` (Kyoshi has no AG-UI stream any more; its browser chat reads Eve sessions directly with `useEveAgent`): since 0.26, extras live under `metadata.tanstack` and the wire format is spec-only. `StructuredOutputPart.data` is required once complete (0.38). `withInterruptBinding` and `uiMessagesToWire` remain exported.
 - Docs: [TanStack AI](https://tanstack.com/ai).
 
 ### Stage 4 — Learning runtime (ACP), as one change
@@ -132,8 +132,8 @@ The largest change; do it after stages 1–4 so it is the only moving part.
 Required changes:
 
 - Rebase all three Eve patches onto the restructured files; drop the web-search part of `eve@0.53.0.patch`.
-- Pass `resume: true` to `createDevelopmentServer` in `packages/authoring/src/eve/runtime.ts:56` and `packages/ui/src/server/authoring.ts:64`. Since 0.68 a restart otherwise leaves earlier sessions dormant.
-- Client/stream API: the default store returns `ConversationState` (0.70), affecting `authoring/src/eve/stream.ts` and `resume.ts`; stream protocol 26 rejects older clients.
+- Pass `resume: true` to `createDevelopmentServer` in `packages/authoring/src/eve/runtime.ts:56`. Since 0.68 a restart otherwise leaves earlier sessions dormant.
+- Client/stream API: the default store returns `ConversationState` (0.70); stream protocol 26 rejects older clients. Kyoshi has no stream or resume adapter of its own: the browser's `useEveAgent` reaches the per-course Eve production server through the agent-api session proxy (`/api/v1/workspaces/:ws/sessions/:id/eve/*`).
 - Tool renames: `load_skill` → `eve__skill`, `final_output` → `eve__reply`, `task_*` → `eve__task_*`; the `eve__` prefix is reserved (`host-agent.fixture.ts:41`, a comment in `prepare.ts`).
 - `defineAgent` lost `outputSchema` (0.67); request structured output per turn.
 - Packaging: Eve now exports its own `./server` (clashes with ours); `build-runtime.mjs` requires our manifest to mirror Eve's exports — add ~25 subpaths, drop 5 (`todo`, `load_skill`, `task_cancel`, `task_update`, `connection_search`).

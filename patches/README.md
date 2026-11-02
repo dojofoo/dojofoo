@@ -38,7 +38,29 @@ Remove it when
 the upstream adapter consistently uses a compatible session/model API. The
 published 1.0.169 bridge still mixes these APIs, so the compatibility patch remains.
 
-## Bundled Eve patches (0.81.1)
+## FX state folder on macOS
+
+`@ai-sdk/harness-fx@1.0.83` creates its private state folder with
+`chmod 700 -- <folder>`. GNU `chmod` accepts that; macOS `chmod` reads the `--`
+after the mode as a file name and fails, so FX could not start a turn on a Mac
+without GNU coreutils. The patch writes `chmod -- 700 <folder>`, which both
+accept. Regression: `packages/authoring/src/eve/runtime-turn.test.ts`, the FX
+case, run on macOS without coreutils. Remove it when upstream reorders the call.
+
+## Nitro error reporting on closed output
+
+`nitro@3.0.260903-beta` reports uncaught errors with `console.error`. When a
+server's stdout and stderr are gone (the terminal that started the UI closed, or
+the UI died while a Kyoshi server it started was still running), that write fails
+with `EPIPE`, which is reported again, without end: the server runs at full CPU
+and never handles SIGTERM. The patch drops `EPIPE` and destroyed-stream errors in
+that reporter. The UI and every prepared Kyoshi server use this Nitro.
+
+Regression: `packages/ui/src/server/nitro-close.integration.test.ts`, “stops a
+production server whose stdout and stderr are gone”. Remove the hunk when
+upstream stops re-reporting failed writes to closed output.
+
+## Bundled Eve patches (1.0.0-rc.1)
 
 Consumers do not apply these patches. `packages/agent/scripts/build-runtime.mjs`
 checks the upstream tarball integrity, applies them while assembling the package,
@@ -46,16 +68,16 @@ and ships the resulting runtime with Eve's notices.
 
 | Patch in `packages/agent/patches` | Purpose | Offline regression |
 | --- | --- | --- |
-| `eve@0.81.1.patch` | Delegate compaction to ready providers instead of summarizing harness-owned history | `experiments/model-provider/provider.test.mjs` and host fixtures |
-| `eve-native-turn@0.81.1.patch` | Honor a native provider's completed turn and context-token accounting; preserve upstream sign-in parking | Provider/host continuation, sign-in parking and compaction fixtures |
-| `eve-distribution@0.81.1.patch` | Resolve packaged modules, project root and workflow identity; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
-| `eve-managed-project@0.81.1.patch` | Compile manifest-free `.dojo/kyoshi` and `.dojo/sensei` using the installed runtime, without project dependencies or symlinks | `experiments/model-provider/manifest-free-project.test.mjs` |
+| `eve@1.0.0-rc.1.patch` | Delegate compaction to ready providers instead of summarizing harness-owned history | `experiments/model-provider/provider.test.mjs` and host fixtures |
+| `eve-native-turn@1.0.0-rc.1.patch` | Honor a native provider's completed turn and context-token accounting; preserve upstream sign-in parking | Provider/host continuation, sign-in parking and compaction fixtures |
+| `eve-distribution@1.0.0-rc.1.patch` | Resolve packaged modules, project root and workflow identity; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
+| `eve-managed-project@1.0.0-rc.1.patch` | Compile manifest-free `.dojo/kyoshi` and `.dojo/sensei` using the installed runtime, without project dependencies or symlinks | `experiments/model-provider/manifest-free-project.test.mjs` |
 
 The upgrade audit removed redundant model-reference metadata and capability-type
 patches. Eve's own model profiles handle provider routing; our `HarnessModel`
 already declares compaction capabilities. `createDevelopmentServer` is re-exported
 by our generated server facade instead of editing Eve's public modules. The
-remaining patches touch 11 Eve files rather than 16. These include intentional
+remaining patches touch 12 Eve files rather than 16. These include intentional
 integration extensions, not only upstream bugs; see the dated upgrade ledger.
 
 Web-search routing now uses Eve's upstream model-profile implementation. Its

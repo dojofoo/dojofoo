@@ -30,24 +30,12 @@ function runtime(start = async () => ({ url: "http://127.0.0.1:9" })) {
 }
 
 describe("local agent runtime", () => {
-  it("forwards the current page state without starting the agent or accepting a different workspace identity", async () => {
-    const { local, workspaceId, owned } = runtime();
-    const view = { scope: "lesson", lessonId: "first", file: "src/first/SENSEI.md", unsavedChanges: true };
-    const request = new Request("http://localhost/api/v1/sessions", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ forwardedProps: { view, workspaceId: "another-workspace" } }),
-    });
-    const body = await request.json();
-    expect(await local.context?.(workspaceId, request, body.forwardedProps)).toEqual({ view, workspaceId });
-    expect(owned.start).not.toHaveBeenCalled();
-  });
-
   it("lists the workspace's selected coding agent first and the others it supports", async () => {
     vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
     const { local, workspaceId } = runtime();
     const agents = await local.agents(workspaceId);
     expect(agents[0]).toEqual({ id: "codex", name: "Codex", selected: true, status: "stopped" });
-    expect(agents.map(agent => agent.id)).toEqual(["codex", "opencode", "pi", "cursor", "grok", "fx"]);
+    expect(agents.map(agent => agent.id)).toEqual(["codex", "claude", "opencode", "pi", "cursor", "grok", "fx"]);
   });
 
   it("accepts registered standalone authoring courses without learner workspace configuration", async () => {
@@ -105,8 +93,33 @@ describe("local agent runtime", () => {
     await Promise.all([local.sessions.save(workspaceId, session), local.sessions.save(workspaceId, { ...session, id: "s2" })]);
     expect(await local.sessions.list(workspaceId)).toEqual([session, { ...session, id: "s2" }]);
     expect(JSON.parse(readFileSync(resolve(root, ".dojo", "agent-sessions.json"), "utf8")).sessions).toHaveLength(2);
-    // Sessions from the legacy authoring routes are Kyoshi's on the selected agent.
-    expect(await local.sessions.get(workspaceId, "legacy")).toMatchObject({ id: "legacy", agent: "codex", persona: "kyoshi" });
+  });
+
+  it("finds only the sessions it keeps", async () => {
+    const { local, workspaceId } = runtime();
+    expect(await local.sessions.get(workspaceId, "wrun_unknown")).toBeUndefined();
+  });
+
+  it("restarts the host when the workspace selects another coding agent", async () => {
+    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
+    const { local, workspaceId, owned } = runtime();
+    await local.connect(workspaceId, { agent: "codex", persona: "kyoshi" });
+    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "opencode");
+    await local.connect(workspaceId, { agent: "opencode", persona: "kyoshi" });
+    expect(owned.close).toHaveBeenCalledTimes(1);
+    expect(owned.start).toHaveBeenCalledTimes(2);
+    await expect(local.connect(workspaceId, { agent: "codex", persona: "kyoshi" })).rejects.toMatchObject({ code: "agent_unavailable" });
+  });
+
+  it("starts a host that exited on its own again", async () => {
+    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
+    let exit!: () => void;
+    const { local, workspaceId, owned } = runtime(async () => ({ url: "http://127.0.0.1:9", exited: new Promise<void>(resolve => { exit = resolve; }) }));
+    await local.connect(workspaceId, { agent: "codex", persona: "kyoshi" });
+    exit();
+    await vi.waitFor(async () => expect((await local.agents(workspaceId))[0].status).toBe("stopped"));
+    await local.connect(workspaceId, { agent: "codex", persona: "kyoshi" });
+    expect(owned.start).toHaveBeenCalledTimes(2);
   });
 });
 

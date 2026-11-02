@@ -1,3 +1,4 @@
+import { createClaudeCode } from "@ai-sdk/harness-claude-code";
 import { createCodex } from "@ai-sdk/harness-codex";
 import { createLocalCursor } from "./local-cursor.ts";
 import { createFx } from "@ai-sdk/harness-fx";
@@ -7,6 +8,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
 const harnesses = {
+  claude: createClaudeCode({ port: 0 }),
   codex: createCodex({ port: 0 }),
   cursor: createLocalCursor(),
   fx: createFx(),

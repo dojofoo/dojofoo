@@ -22,12 +22,11 @@ export default defineEval({
     const authored = await t.send(authorBrief);
     t.succeeded();
     authored.expectOk();
-    // Conversation sessions wait for the next user after a completed turn.
-    // A parked error or unanswered tool has no durable turn.completed event.
-    await t.require(authored.events.some((event) => event.type === "turn.completed"), satisfies((completed: boolean) => completed, "authoring must finish before paid grading"));
+    // A parked error or unanswered question has no completed turn.
+    await t.require(authored.events.some((event) => event.type === "turn.settled" && event.data.outcome === "completed"), satisfies((completed: boolean) => completed, "authoring must finish before paid grading"));
     const material = await readMaterial(root);
     await writeFile(join(root, ".dojo", "authored-material.json"), JSON.stringify(material, null, 2));
-    const results = await judgeMaterial(material, t.signal);
+    const results = await judgeMaterial(material, t.abortSignal);
     await writeFile(join(root, ".dojo", "judge-results.json"), JSON.stringify({ authorBrief, results }, null, 2));
     const decision = decidePanel(results);
     await writeFile(join(root, ".dojo", "panel-decision.json"), JSON.stringify(decision, null, 2));

@@ -23,50 +23,30 @@ vi.mock("@dojofoo/config/local-state", () => ({
 }));
 
 const { createAuthoringRoutes } = await import("./routes");
-const answer = vi.fn<(sessionId: string, answers: Record<string, string[]>) => void | Promise<void>>();
-const resume = vi.fn(async () => {});
 const evaluate = vi.fn<typeof import("../evaluation/host").evaluateFromAuthoring>();
 const teachingPolicy = vi.fn((mode: string) => `Teach ${mode}`);
 const authoringRoutes = createAuthoringRoutes({
   evaluate,
   teachingPolicy,
-  agent: {
-    currentHarness: () => "test",
-    start: async () => "test-session",
-    resume,
-    history: async () => [],
-    send: async () => "",
-    answer,
-  },
   resolveWorkspace: () => context.root,
-  stream: () => new Response(null),
 });
 const repository = resolve(import.meta.dirname, "../../../..");
 
 describe("authoring routes", () => {
-  it("reports the exact missing manifest after a workspace disappears without replacing its session", async () => {
-    expect((await authoringRoutes.request("/session", { method: "POST" })).status).toBe(201);
-    const pointerPath = resolve(context.root, ".dojo/kyoshi.json");
-    const pointer = readFileSync(pointerPath, "utf8");
+  it("reports the exact missing manifest after a workspace disappears", async () => {
     const manifestPath = resolve(context.root, "dojo.yaml");
     const manifest = readFileSync(manifestPath, "utf8");
     rmSync(manifestPath);
-    resume.mockClear();
 
-    for (const path of ["/workspace", "/draft"]) {
-      const response = await authoringRoutes.request(path);
-      expect(response.status).toBe(500);
-      expect((await response.json()).error).toContain(manifestPath);
-    }
+    const response = await authoringRoutes.request("/draft");
+    expect(response.status).toBe(500);
+    expect((await response.json()).error).toContain(manifestPath);
     expect(existsSync(manifestPath)).toBe(false);
-    expect(readFileSync(pointerPath, "utf8")).toBe(pointer);
-    expect(resume).not.toHaveBeenCalled();
 
     writeFileSync(manifestPath, manifest);
-    const recovered = await authoringRoutes.request("/workspace");
+    const recovered = await authoringRoutes.request("/draft");
     expect(recovered.status).toBe(200);
     expect((await recovered.json()).root).toBe(context.root);
-    expect(readFileSync(pointerPath, "utf8")).toBe(pointer);
   });
 
   it.each([
@@ -74,11 +54,8 @@ describe("authoring routes", () => {
     ["/course", "PATCH", { title: "Updated course" }, 200],
     ["/lessons", "POST", { title: "Another lesson" }, 201],
     ["/lessons/001-draw-a-boundary", "PATCH", { title: "Updated lesson" }, 200],
-  ])("edits %s independently of the chat runtime", async (path, method, body, status) => {
+  ])("edits %s and returns the draft", async (path, method, body, status) => {
     authorLesson();
-    await authoringRoutes.request("/session", { method: "POST" });
-    const pointer = readFileSync(resolve(context.root, ".dojo/kyoshi.json"), "utf8");
-    resume.mockClear().mockRejectedValue(new Error("Runtime unavailable"));
     const response = await authoringRoutes.request(path, {
       method,
       headers: { "content-type": "application/json" },
@@ -88,31 +65,19 @@ describe("authoring routes", () => {
     const result = await response.json();
     const draft = result.workspace ?? result;
     expect(draft.root).toBe(context.root);
-    expect(draft).not.toHaveProperty("messages");
-    expect(draft).not.toHaveProperty("sessionId");
-    expect(resume).not.toHaveBeenCalled();
-    expect(readFileSync(resolve(context.root, ".dojo/kyoshi.json"), "utf8")).toBe(pointer);
   });
 
-  it("reads draft files without resuming an unavailable chat runtime", async () => {
-    expect((await authoringRoutes.request("/session", { method: "POST" })).status).toBe(201);
-    const pointer = readFileSync(resolve(context.root, ".dojo/kyoshi.json"), "utf8");
-    resume.mockClear().mockRejectedValue(new Error("Runtime unavailable"));
+  it("reads draft files", async () => {
     const response = await authoringRoutes.request("/draft");
     expect(response.status).toBe(200);
     const draft = await response.json();
     expect(draft.root).toBe(context.root);
     expect(draft.rootFiles.length).toBeGreaterThan(0);
-    expect(draft).not.toHaveProperty("messages");
-    expect(resume).not.toHaveBeenCalled();
-    expect(readFileSync(resolve(context.root, ".dojo/kyoshi.json"), "utf8")).toBe(pointer);
   });
 
   beforeEach(() => {
     teachingPolicy.mockReset().mockImplementation(mode => `Teach ${mode}`);
-    answer.mockReset();
     evaluate.mockReset();
-    resume.mockReset().mockResolvedValue(undefined);
     const root = mkdtempSync(resolve(tmpdir(), "dojofoo-authoring-"));
     context.root = root;
     context.trialRoots = [];
@@ -132,79 +97,10 @@ describe("authoring routes", () => {
     }
   });
 
-  it("returns a JSON error for failed session resume without clearing its pointer", async () => {
-    await authoringRoutes.request("/session", { method: "POST" });
-    const path = resolve(context.root, ".dojo/kyoshi.json");
-    const pointer = readFileSync(path, "utf8");
-    resume.mockRejectedValueOnce(new Error("Harness temporarily unavailable"));
-    const response = await authoringRoutes.request("/workspace");
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({ error: "Harness temporarily unavailable" });
-    expect(readFileSync(path, "utf8")).toBe(pointer);
-    const recovered = await authoringRoutes.request("/workspace");
-    expect(recovered.status).toBe(200);
-    await expect(recovered.json()).resolves.toMatchObject({ sessionId: "test-session" });
-  });
-
-  it("acknowledges an answer only after the backend accepts it", async () => {
-    await authoringRoutes.request("/session", { method: "POST" });
-    let enter!: () => void;
-    let accept!: () => void;
-    const entered = new Promise<void>((resolve) => { enter = resolve; });
-    const accepted = new Promise<void>((resolve) => { accept = resolve; });
-    answer.mockImplementation(async () => {
-      enter();
-      await accepted;
-    });
-    let settled = false;
-    const pending = Promise.resolve(authoringRoutes.request("/answers", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ answers: { choice: ["review"] } }),
-    })).then((response) => { settled = true; return response; });
-    try {
-      await entered;
-      await new Promise<void>((resolve) => setImmediate(resolve));
-      expect(settled).toBe(false);
-      expect(answer).toHaveBeenCalledExactlyOnceWith("test-session", { choice: ["review"] });
-    } finally {
-      accept();
-      await pending;
-    }
-    const response = await pending;
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ok: true });
-  });
-
-  it("returns backend answer rejection instead of false success", async () => {
-    await authoringRoutes.request("/session", { method: "POST" });
-    answer.mockRejectedValueOnce(new Error("Question is no longer pending"));
-    const response = await authoringRoutes.request("/answers", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ answers: { choice: ["review"] } }),
-    });
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({ error: "Question is no longer pending" });
-    expect(answer).toHaveBeenCalledTimes(1);
-  });
-
-  it("still accepts synchronous backend answers", async () => {
-    await authoringRoutes.request("/session", { method: "POST" });
-    const response = await authoringRoutes.request("/answers", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ answers: { choice: ["review"] } }),
-    });
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ok: true });
-    expect(answer).toHaveBeenCalledExactlyOnceWith("test-session", { choice: ["review"] });
-  });
-
   it("projects an empty folder without inventing course material", async () => {
     mkdirSync(resolve(context.root, "evals/lessons"), { recursive: true });
     writeFileSync(resolve(context.root, "evals/lessons/legacy.json"), "{}\n");
-    const initial = await authoringRoutes.request("/workspace");
+    const initial = await authoringRoutes.request("/draft");
     expect(initial.status).toBe(200);
     const projected = await initial.json();
     expect(projected).toMatchObject({
@@ -221,7 +117,7 @@ describe("authoring routes", () => {
     ]));
 
     authorLesson();
-    const authored = await authoringRoutes.request("/workspace");
+    const authored = await authoringRoutes.request("/draft");
     await expect(authored.json()).resolves.toMatchObject({
       lessons: [{
         id: "001-draw-a-boundary",
@@ -523,17 +419,6 @@ describe("authoring routes", () => {
     await expect(renamed.json()).resolves.toMatchObject({ name: "Reliable Systems" });
     expect(readFileSync(resolve(context.root, "dojo.yaml"), "utf8"))
       .toContain("name: Reliable Systems");
-  });
-
-  it("accepts the standard AG-UI message envelope", async () => {
-    const response = await authoringRoutes.request("/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        messages: [{ role: "user", parts: [{ type: "text", content: "Shape one lesson." }] }],
-      }),
-    });
-    expect(response.status).toBe(200);
   });
 
   function authorLesson() {

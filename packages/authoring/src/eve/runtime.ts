@@ -43,8 +43,9 @@ export async function acquireKyoshiRuntime(courseRoot: string) {
 
 /** Owns infrastructure, never the course files or the harness credentials. */
 export async function createKyoshiRuntime(courseRoot: string, options: { model?: string } = {}) {
-  const harnessId = (await authoringHarness({ ...process.env, DOJOFOO_HARNESS: resolveRuntimeHarness("authoring", courseRoot) })).harnessId;
-  const harness = (harnessId === "grok-build" ? "grok" : harnessId) as AuthoringHarness;
+  const harness = resolveRuntimeHarness("authoring", courseRoot) as AuthoringHarness;
+  // An unsupported agent fails here, before anything is prepared
+  await authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness });
   const app = await prepareKyoshiApp(courseRoot);
   const harnessRoot = await prepareKyoshiHarness(courseRoot);
   const runtimePath = join(app, "runtime.json");
@@ -73,7 +74,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
       },
       async close() { await production?.close(); },
     };
-  let starting: Promise<{ url: string; auth: typeof auth }> | undefined;
+  let starting: Promise<{ url: string; auth: typeof auth; exited: Promise<void> }> | undefined;
   let closing: Promise<void> | undefined;
   const cleanup = async () => {
     await server.close();
@@ -99,10 +100,13 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
           const started = await server.start();
           // A bound port is not proof that Eve can load the authored agent.
           // This endpoint resolves the active compiled generation without a model turn.
-          await new Client({ host: started.url, auth }).info({
+          await new Client({ baseUrl: started.url, auth }).info({
             signal: AbortSignal.timeout(10_000),
           });
-          return { url: started.url, auth };
+          // A server that exits on its own leaves this runtime to start a new one
+          const exited = started.wait().finally(() => { if (!closing) starting = undefined; });
+          exited.catch(() => {});
+          return { url: started.url, auth, exited };
         } catch (error) {
           await cleanup();
           throw error;

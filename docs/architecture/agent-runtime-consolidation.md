@@ -56,7 +56,7 @@ The previous suggestion to give trial its own durable job lifecycle was too broa
 | Trial | Copies the course beneath its own `.dojo/trials`, then uses lesson services | Correct reuse intent, but cleanup, symlinks, secrets and preparation require work |
 | Evaluation | Preflight, material review, production teaching trial, teaching review, report/receipt files | Useful evidence and cost safeguards, but tightly coupled policy and execution |
 | Preparation | Shared mise preparation functions with an in-process cache | Reuse these functions; do not invent an environment installer |
-| Chat | Eve-to-AG-UI and ACP-to-AG-UI projections | Two paths to maintain for broadly similar interactions |
+| Chat | Kyoshi: browser `useEveAgent` → agent-api session proxy → per-course Eve production server. Learning: ACP-to-AG-UI projection | Two chat clients to maintain for broadly similar interactions |
 
 Important source locations:
 
@@ -206,9 +206,9 @@ Before these options become functional, each needs an explicit route:
 
 **Reason for change.** Authoring translates Eve events while learning translates ACP events. The UI should not have to understand different answer/retry semantics for the same question component.
 
-**Approach.** Reuse the current Eve reducer and a single thin projection to the existing AG-UI/TanStack chat. Preserve tool IDs, question IDs, answers, errors, and event order. Keep editor and navigation events separate from conversation text.
+**Approach.** Kyoshi already has no server-side projection: the browser's `useEveAgent` reads Eve sessions through the agent-api session proxy from the per-course Eve production server. Move learning onto the same client rather than adding a projection. Preserve tool IDs, question IDs, answers, errors, and event order. Keep editor and navigation events separate from conversation text.
 
-The current Eve bridge sends a whole message snapshot after each changing event. First measure bytes, reducer work, and UI commits on a long fixture. If costly, retain snapshots for attachment/recovery and emit standard incremental events during live delivery. Do not rewrite it solely to make it look more sophisticated.
+Before optimizing delivery, measure bytes, reducer work, and UI commits of the Eve client on a long fixture.
 
 **Benefits.** Fewer duplicate-message and pending-question edge cases; one cassette format can exercise both screens; less repeated serialization if measurements justify incremental delivery.
 
@@ -388,7 +388,7 @@ Session identity, workflow-run identity, native-harness identity, and lesson ide
 ### 6. Later: measured cleanup and optional durability
 
 - Delete only ACP/projection branches actually replaced with passing equivalents.
-- Measure the snapshot bridge before optimizing it.
+- Measure the Eve client on a long fixture before optimizing it.
 - Improve preparation freshness using mise's task semantics.
 - Consider durable evaluation recovery only when needed, with paid-side-effect safety tests.
 - Upgrade Eve separately and remove a patch only after the corresponding regressions pass.

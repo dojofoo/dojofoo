@@ -67,7 +67,7 @@ type RuntimeConfiguration = {
   lessonFragment?: (fragmentId: string) => Promise<{ fragmentId: string }> | { fragmentId: string };
   learnerObservation?: (input: unknown) => Promise<unknown> | unknown;
   lessonTools?: boolean;
-  toolProfile?: "lesson" | "authoring" | "none";
+  toolProfile?: "lesson" | "none";
 };
 
 interface AcpRuntime {
@@ -841,12 +841,12 @@ function findTestReport(value: unknown): unknown | null {
   return null;
 }
 
-function toolProfile(configuration: RuntimeConfiguration): "lesson" | "authoring" | "none" {
+function toolProfile(configuration: RuntimeConfiguration): "lesson" | "none" {
   if (configuration.toolProfile) return configuration.toolProfile;
   return configuration.lessonTools === false ? "none" : "lesson";
 }
 
-function dojoMcpServers(root: string, capability: string, profile: "lesson" | "authoring" | "none"): acp.McpServer[] {
+function dojoMcpServers(root: string, capability: string, profile: "lesson" | "none"): acp.McpServer[] {
   if (profile === "none") return [];
   const serverEntry = process.argv[1];
   const bundledCli = serverEntry ? resolve(dirname(serverEntry), "..", "..", "index.js") : "";

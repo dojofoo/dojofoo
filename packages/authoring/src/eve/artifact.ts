@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { globby } from "globby";
@@ -14,7 +14,9 @@ export async function agentSourceHash(agentRoot: string): Promise<string> {
   hash.update(JSON.stringify({ name, version, dependencies }));
   const own = JSON.parse(await readFile(join(authoringPackageRoot, "package.json"), "utf8"));
   hash.update(JSON.stringify(Object.entries(own.dependencies).filter(([name]) => name.startsWith("@ai-sdk/") || name === "ai")));
-  hash.update(await readFile(require.resolve("@dojofoo/agent/experimental")));
+  // The agent's own modules (local sandbox, harness model, …) change without a version bump during development
+  const agentDist = dirname(require.resolve("@dojofoo/agent/experimental"));
+  for (const file of (await readdir(agentDist)).filter(name => name.endsWith(".js")).sort()) hash.update(await readFile(join(agentDist, file)));
   const { createOpenCode } = await import(require.resolve("@ai-sdk/harness-opencode"));
   for (const file of (await createOpenCode().getBootstrap()).files) {
     hash.update(JSON.stringify([file.path, file.content.length]));

@@ -24,22 +24,11 @@ const sessionSummary = {
   persona,
   createdAt: t.String(),
 };
-const session = t.Object({
-  ...sessionSummary,
-  status: t.Union([t.Literal("idle"), t.Literal("running"), t.Literal("awaiting-input")]),
-  position: count(),
-  resume: t.Optional(t.Object({
-    threadId: t.String(), runId: t.String(),
-    pendingInterrupts: t.Array(t.Unknown(), { description: "TanStack AI interrupts for the questions the agent is waiting on." }),
-  }, { description: "Present while a run is in progress or waiting on questions: map threadId and runId into `resumeState` alongside pendingInterrupts for `useChat({ initialResumeSnapshot })`." })),
-});
-
 const details = (operationId: string, summary: string, description: string, tag: string) => ({ operationId, summary, description, tags: [tag] });
 const page = {
   page: t.Optional(t.Numeric({ minimum: 0, default: 0, description: "Zero-based page number." })),
   per_page: t.Optional(t.Numeric({ minimum: 1, maximum: 500, default: 100, description: "Items per page." })),
 };
-const stream = { description: "AG-UI events as Server-Sent Events (`text/event-stream`)." };
 
 export const routes = {
   listAgents: {
@@ -72,33 +61,18 @@ export const routes = {
     detail: details("createSession", "Create a session", "Starts a conversation with a persona on a coding agent (the workspace's selected one by default). Its first run starts with `message`, or the persona's greeting.", "Sessions"),
     params: t.Object(workspace),
     body: t.Object({ persona, agent: t.Optional(t.String()), message: t.Optional(t.String({ minLength: 1 })),
-      forwardedProps: t.Optional(t.Record(t.String(), t.Unknown(), { description: "Client-controlled page state supplied to the runtime context hook, as in AG-UI run requests." })),
+      clientContext: t.Optional(t.Record(t.String(), t.Unknown(), { description: "Page context for the first turn, as Eve's `clientContext`: the agent sees it, the conversation doesn't keep it." })),
     }),
-    response: { 201: session, 404: error, 409: error },
+    response: { 201: t.Object(sessionSummary), 404: error, 409: error },
   },
   getSession: {
-    detail: details("getSession", "Get a session", "A conversation's state, and what to resume while a run is in progress or waiting on questions.", "Sessions"),
+    detail: details("getSession", "Get a session", "A conversation's coding agent and persona.", "Sessions"),
     params: t.Object({ ...workspace, sessionId: t.String() }),
-    response: { 200: session, 404: error },
+    response: { 200: t.Object(sessionSummary), 404: error },
   },
-  listMessages: {
-    detail: details("listMessages", "List messages", "A conversation's messages, oldest first, as TanStack AI `UIMessage`s.", "Sessions"),
-    params: t.Object({ ...workspace, sessionId: t.String() }), query: t.Object(page),
-    response: { 200: t.Object({ data: t.Array(t.Unknown()), pagination }), 404: error },
-  },
-  createRun: {
-    detail: { ...details("createRun", "Start a run", "Sends a message, or answers the agent's questions (`resume`), and streams the run. The body is an AG-UI `RunAgentInput`, as `useChat` sends it.", "Runs"), responses: { 200: stream } },
-    params: t.Object({ ...workspace, sessionId: t.String() }),
-  },
-  listEvents: {
-    detail: { ...details("listEvents", "Follow the current run", "Rejoins the conversation's current run from its durable position, as `useChat` does after a reload.", "Runs"), responses: { 200: stream } },
-    params: t.Object({ ...workspace, sessionId: t.String() }),
-    query: t.Object({ runId: t.Optional(t.String()), offset: t.Optional(t.String()) }),
-  },
-  updateRun: {
-    detail: details("updateRun", "Cancel a run", "Asks the agent to stop the conversation's current run. The stream confirms when it has stopped.", "Runs"),
-    params: t.Object({ ...workspace, sessionId: t.String(), runId: t.String() }),
-    body: t.Object({ status: t.Literal("cancelled") }),
-    response: { 202: t.Object({ id: t.String(), status: t.Literal("cancelling") }), 404: error },
+  eve: {
+    detail: details("eve", "Talk to the session", "The session's own Eve routes (`/eve/v1/session/{sessionId}/…`: its stream, messages, answers, cancel), as Eve's client calls them. Pass this session's URL as `baseUrl` to `useEveAgent` or `eve/client`.", "Sessions"),
+    params: t.Object({ ...workspace, sessionId: t.String(), "*": t.String() }),
+    parse: "none" as const,
   },
 };

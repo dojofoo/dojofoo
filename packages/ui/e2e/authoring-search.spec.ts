@@ -1,7 +1,6 @@
-import { expect, test } from "@playwright/test";
-import { mountAgentChat } from "./agent-chat.fixture";
+import { expect, test } from "./agent-chat.fixture";
 
-test("authoring search opens the chosen course or lesson file and preserves editor and chat drafts", async ({ page }) => {
+test("authoring search opens the chosen course or lesson file and preserves editor and chat drafts", async ({ page, mountAgentChat }) => {
   const writes: string[] = [];
   const workspace = { root: "/tmp/search-course", style: "katas", name: "Search course", description: "One outcome", language: "TypeScript",
     manifestSource: "name: Search course\n", courseGuidance: "# Course guidance", issues: [], courseChecks: [],
@@ -22,7 +21,7 @@ test("authoring search opens the chosen course or lesson file and preserves edit
     return route.fulfill({ status: 404 });
   });
   const agent = await mountAgentChat(page, { root: workspace.root, files: false });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring?session=${agent.sessionId}`);
   const input = page.getByRole("textbox", { name: "Code editor", exact: true });
   const lines = page.locator(".monaco-editor .view-lines");
   await expect(lines).toContainText("name: Search course");
@@ -72,6 +71,6 @@ test("authoring search opens the chosen course or lesson file and preserves edit
   await search.press("Enter");
   await expect(lines).toContainText("# Course guidance");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect(agent.calls.filter(call => call.endsWith("/sessions/saved"))).toHaveLength(1);
+  expect(agent.calls.filter(call => call.endsWith(`/sessions/${agent.sessionId}`))).toHaveLength(1);
   expect(writes).toEqual([]);
 });

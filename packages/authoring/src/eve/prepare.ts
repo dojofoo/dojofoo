@@ -53,8 +53,11 @@ export async function prepareKyoshiApp(courseRoot: string): Promise<string> {
     try { await symlink(target, link, "dir"); }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      if (await realpath(link) !== await realpath(target)) {
-        throw new Error(`Kyoshi dependency points to a different installation: ${link}`);
+      if (!(await lstat(link)).isSymbolicLink()) throw new Error(`Refusing to replace a Kyoshi dependency that is not a link: ${link}`);
+      // Another dojofoo (an upgrade, another checkout) prepared this course: its links are ours to move
+      if (await realpath(link).catch(() => "") !== await realpath(target)) {
+        await unlink(link);
+        await symlink(target, link, "dir");
       }
     }
   }

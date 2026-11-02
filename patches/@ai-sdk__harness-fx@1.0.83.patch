@@ -1,0 +1,13 @@
+diff --git a/dist/index.js b/dist/index.js
+index 0dd610b8dfc879025a7ce9b722c77dac093a4d31..b76d19638538144bd7bd486dd4be57512b6c62d2 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -89,7 +89,7 @@ async function createFxStateStore(options) {
+ 	if (relative === "" || !relative.startsWith("../") && !path.posix.isAbsolute(relative)) throw new Error("fx private state must be outside sessionWorkDir.");
+ 	const fileName = stateFileNameSchema.parse(options.stateFileName ?? "state.json");
+ 	const filePath = path.posix.join(directory, fileName);
+-	if ((await options.sandbox.run({ command: `mkdir -p -- ${shellQuote(directory)} && chmod 700 -- ${shellQuote(directory)}` })).exitCode !== 0) throw new Error("Unable to create private fx state directory.");
++	if ((await options.sandbox.run({ command: `mkdir -p -- ${shellQuote(directory)} && chmod -- 700 ${shellQuote(directory)}` })).exitCode !== 0) throw new Error("Unable to create private fx state directory.");
+ 	let writes = Promise.resolve();
+ 	return {
+ 		fileName,

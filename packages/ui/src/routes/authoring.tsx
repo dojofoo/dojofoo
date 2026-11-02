@@ -1,7 +1,7 @@
 import { Eye, Code } from "@mynaui/icons-react";
 import type { AuthoringEvalReport } from "@dojofoo/authoring/server";
 import { httpError } from "@/lib/http-error";
-import type { AuthoringDraft, AuthoringWorkspace } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/authoring/service";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ExternalLink,
@@ -174,7 +174,7 @@ function AuthoringPage() {
       : next.lessons[0]?.id ?? null);
   }
 
-  function selectLessonFile(lesson: AuthoringWorkspace["lessons"][number], path: string) {
+  function selectLessonFile(lesson: AuthoringDraft["lessons"][number], path: string) {
     const file = lesson.files.find((entry) => entry.path === path);
     if (!file) return;
     setSelectedLessonId(lesson.id);
@@ -325,7 +325,7 @@ function AuthoringPage() {
   const brand = <a href="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>;
   const shell = { ...account, brand, workspace: "Dojo", sidebarWidth: "18rem", showNews: false, showOnboarding: false };
   const conversation = agentWorkspace.id ? <AgentChat key={agentWorkspace.id} embedded workspaceId={agentWorkspace.id} persona="kyoshi" sessionId={search.session}
-    forwardedProps={{ view: { scope, ...(scope === "lesson" && selectedLessonId ? { lessonId: selectedLessonId } : {}),
+    clientContext={{ view: { scope, ...(scope === "lesson" && selectedLessonId ? { lessonId: selectedLessonId } : {}),
       ...(activeFilePath ? { file: activeFilePath, unsavedChanges: dirty } : {}),
     } }} onSession={id => {
       rememberAuthoringSession(agentWorkspace.id!, id);
@@ -568,7 +568,7 @@ function errorMessage(cause: unknown): string { return cause instanceof Error ? 
 
 export function authoringFiles(
   workspace: AuthoringDraft,
-  lesson: AuthoringWorkspace["lessons"][number] | null
+  lesson: AuthoringDraft["lessons"][number] | null
 ): AuthoringFile[] {
   if (!lesson) return workspace.rootFiles;
   return lesson.files;

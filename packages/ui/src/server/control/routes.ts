@@ -155,9 +155,9 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
     })
     .get("/authoring", (c) => c.json(listWorkspaces(stateOptions()).flatMap((workspace) => {
       try {
-        const threadPath = resolve(workspace.path, ".dojo", "kyoshi.json");
-        if (!existsSync(threadPath) && !isManagedDraft(workspace.path, stateOptions())) return [];
-        const thread = existsSync(threadPath) ? JSON.parse(readFileSync(threadPath, "utf8")) as { sessionId?: string } : null;
+        const session = newestKyoshiSession(workspace.path);
+        // A legacy ACP pointer still marks a draft, but its session cannot resume in Eve.
+        if (!session && !existsSync(resolve(workspace.path, ".dojo", "kyoshi.json")) && !isManagedDraft(workspace.path, stateOptions())) return [];
         const manifest = readCourseManifestSource(workspace.path);
         return [{
           workspaceId: workspace.id,
@@ -165,7 +165,7 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
           name: String(manifest.name ?? basename(workspace.path)),
           description: String(manifest.description ?? "Course draft"),
           mode: String(manifest.mode ?? "katas"),
-          sessionId: thread?.sessionId ?? null,
+          sessionId: session?.id ?? null,
           lastSeenAt: workspace.lastSeenAt,
         }];
       } catch {
@@ -213,6 +213,15 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
 }
 
 export const controlRoutes = buildControlRoutes();
+
+/** The newest Kyoshi session in the course's agent-api session list. */
+function newestKyoshiSession(root: string): { id: string } | undefined {
+  const path = resolve(root, ".dojo", "agent-sessions.json");
+  if (!existsSync(path)) return undefined;
+  const { sessions } = JSON.parse(readFileSync(path, "utf8")) as { sessions?: { id: string; persona: string; createdAt: string }[] };
+  return (sessions ?? []).filter(session => session.persona === "kyoshi")
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+}
 
 function readCourseManifestSource(root: string): Record<string, unknown> {
   return parseYaml(readFileSync(resolve(root, "dojo.yaml"), "utf8")) as Record<string, unknown>;

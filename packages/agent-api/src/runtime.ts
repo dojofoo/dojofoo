@@ -1,5 +1,3 @@
-import type { Client, SendTurnOptions } from "@dojofoo/agent/client";
-
 /** Who the conversation is with: the same chat, with that persona's prompts and tools. */
 export const personas = ["sensei", "kyoshi"] as const;
 export type Persona = (typeof personas)[number];
@@ -27,6 +25,12 @@ export interface SessionRecord {
   createdAt: string;
 }
 
+/** Where an Eve host serves its routes (`/eve/v1/*`), and the credentials it takes. */
+export interface AgentEndpoint {
+  baseUrl: string;
+  headers?: Record<string, string>;
+}
+
 /**
  * Where agents run. `dojofoo ui` implements it with local Eve processes; a hosted
  * server implements the same contract with cloud sandboxes. Errors meant for the
@@ -38,12 +42,10 @@ export interface AgentRuntime {
   /** Starts (or keeps) the coding agent without waiting for it to be ready */
   start(workspaceId: string, agentId: string): Promise<Agent>;
   stop(workspaceId: string, agentId: string): Promise<Agent>;
-  /** The Eve client serving this persona on this coding agent; starts it when needed */
-  connect(workspaceId: string, target: { agent: string; persona: Persona }): Promise<Client>;
+  /** The Eve host serving this persona on this coding agent; starts it when needed */
+  connect(workspaceId: string, target: { agent: string; persona: Persona }): Promise<AgentEndpoint>;
   /** The persona's first message when a session starts without one */
   greeting(persona: Persona): string;
-  /** Course context passed with every message; forwardedProps is already parsed page state. */
-  context?(workspaceId: string, request: Request, forwardedProps?: unknown): Promise<SendTurnOptions["clientContext"]>;
   sessions: {
     list(workspaceId: string): Promise<SessionRecord[]>;
     get(workspaceId: string, sessionId: string): Promise<SessionRecord | undefined>;
