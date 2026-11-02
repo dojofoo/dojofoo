@@ -7,11 +7,12 @@ import {
 } from "@tanstack/react-router";
 import stylesUrl from "../app.css?url";
 import { ShapeProvider } from "@dojofoo/ui";
-import { Button } from "@dojofoo/uix/components/button";
+import { LocalErrorPage } from "@dojofoo/uix/pages/local-error";
 import { UIXProvider } from "@dojofoo/uix/provider";
 import { SidebarStateProvider } from "@/hooks/sidebar-state";
 import { documentTransitionScript } from "@dojofoo/uix/lib/view-transition";
 import type { ReactNode } from "react";
+import { RouterLink } from "@/components/router-link";
 
 // Apply the native preference before styles/hydration; UIX continues to own the actual theme transition.
 const themeScript = `(() => {
@@ -59,7 +60,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         suppressHydrationWarning
         className="m-0 min-h-screen bg-background font-sans text-foreground antialiased"
       >
-        <UIXProvider>
+        <UIXProvider link={RouterLink}>
           <ShapeProvider defaultShape="square">
             <SidebarStateProvider>{children}</SidebarStateProvider>
           </ShapeProvider>
@@ -78,28 +79,5 @@ export function RouteErrorPanel({ error, reset }: ErrorComponentProps) {
   const trace = error instanceof Error
     ? error.stack ?? `${error.name}: ${error.message}`
     : String(error);
-  return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-[var(--surface-1)] px-6 py-12 text-[var(--fluid-foreground)]" style={{ fontFamily: "var(--ui-font, 'Inter Variable', sans-serif)" }}>
-        <section className="w-full min-w-0 max-w-2xl bg-[var(--surface-2)] p-6" style={{ borderRadius: "var(--box-radius)", boxShadow: "var(--shadow-3)" }}>
-          <header className="mb-5">
-            <p className="text-xs text-destructive">Local UI error</p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight">Something went wrong</h1>
-            <p className="mt-3 text-sm leading-relaxed text-[var(--fluid-muted)]">
-              Dojofoo kept the full local trace below so this failure can be diagnosed instead of hidden.
-            </p>
-          </header>
-          <div>
-            <pre className="scroll-fade max-h-[55vh] overflow-auto bg-[var(--surface-1)] p-4 font-mono text-xs leading-5 whitespace-pre-wrap break-words" style={{ borderRadius: "var(--box-radius)" }}>{trace}</pre>
-            <div className="mt-5 flex flex-wrap items-center gap-4">
-              <Button onClick={reset} type="button">
-                Try again
-              </Button>
-              <a className="text-sm text-[var(--fluid-muted)] underline underline-offset-4 hover:text-[var(--fluid-foreground)]" href="/">
-                Back to courses
-              </a>
-            </div>
-          </div>
-        </section>
-    </main>
-  );
+  return <LocalErrorPage trace={trace} onRetry={reset} />;
 }

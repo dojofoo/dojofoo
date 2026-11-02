@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,4 +28,8 @@ for (const id of ["create-your-own-dojo", "how-to-run-a-dojo"]) {
   const starterDestination = resolve(packageRoot, "dist/starters", id);
   rmSync(starterDestination, { recursive: true, force: true });
   cpSync(resolve(packageRoot, "../../courses", id), starterDestination, { recursive: true });
+  const curriculum = resolve(starterDestination, "lessons/intro.json");
+  if (existsSync(curriculum) && JSON.parse(readFileSync(curriculum, "utf8")).deck) {
+    cpSync(resolve(packageRoot, "../uix/node_modules/.cache/course-slides", id, "slides.html"), resolve(starterDestination, "slides.html"));
+  }
 }

@@ -1,0 +1,20 @@
+@import '@dojofoo/uix/styles.css';
+@import '@dojofoo/uix/styles/slides.css';
+@import '@fontsource-variable/inter/opsz.css';
+
+:root { color-scheme: dark; font-family: 'Inter Variable', sans-serif; --font-sans: 'Inter Variable', sans-serif; --ui-font: var(--font-sans); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+html, body, .slidev-slide-content { background: #171717 !important; }
+.slidev-layout { background: #171717; color: var(--fluid-foreground); }
+.slidev-layout a { color: #f79abb; text-underline-position: from-font; text-underline-offset: .15em; }
+.slidev-layout code { font-size: .85em; color: #f2f2f2 !important; background: #303030 !important; border: 0; padding: .1em .35em; border-radius: 4px; }
+[data-slidev-no][aria-hidden="true"] { pointer-events: none !important; }
+[data-slidev-no][aria-hidden="true"]:not(.fade-leave-active) { visibility: hidden !important; }
+.dojo-interaction { margin-top: 24px; }
+.dojo-interaction .ui-as { font-size: inherit; line-height: inherit; }
+.dojo-interaction .dojo-question__label { font-size: 1.125rem; line-height: 1.4; }
+.dojo-interaction input.ui-ob-input { font-size: 1.375rem; min-width: 0; height: 44px; }
+.dojo-interaction .ui-button { --fs: 1.125rem; --h: 44px; }
+.dojo-answer-row { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+.dojo-feedback { padding-bottom: 8px; }
+nav:has(.slidev-icon-btn), .slidev-drawing-controls { display: none !important; }
+html[data-dojo-reduced-motion] *, html[data-dojo-reduced-motion] ::before, html[data-dojo-reduced-motion] ::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }

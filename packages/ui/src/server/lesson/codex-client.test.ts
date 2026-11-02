@@ -27,6 +27,19 @@ async function visibleHistory(client: AcpClient, sessionId: string) {
 }
 
 describe("AcpClient projection", () => {
+  it("stops only the deleted course's runtimes, leaving other courses and workspaces running", () => {
+    const client = new AcpClient();
+    const internal = client as unknown as { runtimes: Map<string, unknown> };
+    const keys = ["codex\0/tmp/one\0first/lesson", "interactive:/tmp/one:first:codex", "codex\0/tmp/one\0second/lesson", "codex\0/tmp/two\0first/lesson"];
+    const kills = keys.map(() => vi.fn());
+    keys.forEach((key, index) => internal.runtimes.set(key, { capability: key, child: { kill: kills[index] }, loadedSessions: new Set(), loadingSessions: new Map() }));
+    try {
+      client.stopCourse("/tmp/one", "first");
+      expect(kills.map(kill => kill.mock.calls.length)).toEqual([1, 1, 0, 0]);
+      expect([...internal.runtimes.keys()]).toEqual(keys.slice(2));
+    } finally { client.shutdown(); }
+  });
+
   it("targets the public UI coordinator rather than Nitro's private worker port", async () => {
     const directory = mkdtempSync(join(tmpdir(), "dojo-mcp-address-"));
     writeFileSync(join(directory, "lesson-mcp.js"), "// fixture");

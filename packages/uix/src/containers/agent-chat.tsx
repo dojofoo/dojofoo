@@ -481,7 +481,7 @@ export function ColorSchemeChoices({ notes = true }: { notes?: boolean }) {
 function ColorSchemes({ notes = true }: { notes?: boolean }) {
   const preferences = useUiPreferences();
   const current = useEditorScheme();
-  const options = [{ id: "match", label: "Match theme", note: `Now ${current.label}`, swatches: [] as string[] }, ...editorSchemes.map((scheme) => ({ id: scheme.id, label: scheme.label, note: scheme.light ? "Light and dark, with the page" : scheme.type === "dark" ? "Dark" : "Light", swatches: schemeSwatches(scheme.theme) }))];
+  const options = [{ id: "match", label: "Auto", note: `Now ${current.label}`, swatches: [] as string[] }, ...editorSchemes.map((scheme) => ({ id: scheme.id, label: scheme.label, note: scheme.light ? "Light and dark, with the page" : scheme.type === "dark" ? "Dark" : "Light", swatches: schemeSwatches(scheme.theme) }))];
   return (
     <section className="ui-as-brief__section" role="radiogroup" aria-label="Color scheme">
       <span className="ui-as-brief__label">Color scheme</span>

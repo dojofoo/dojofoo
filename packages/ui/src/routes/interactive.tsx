@@ -1,14 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { InteractiveCourse } from "@/components/interactive-course";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/interactive")({
   validateSearch: (search: Record<string, unknown>) => ({
-    workspace: typeof search.workspace === "string" ? search.workspace : undefined,
     course: typeof search.course === "string" ? search.course : undefined,
   }),
-  component: InteractiveRoute,
+  beforeLoad: ({ search }) => { throw redirect(search.course ? { to: "/course/$courseId", params: { courseId: search.course } } : { to: "/" }); },
 });
-
-function InteractiveRoute() {
-  return <InteractiveCourse {...Route.useSearch()} />;
-}

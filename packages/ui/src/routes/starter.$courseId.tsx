@@ -5,6 +5,6 @@ import { starterCourses } from "@/lib/starter-courses";
 export const Route = createFileRoute("/starter/$courseId")({
   beforeLoad: ({ params }) => {
     if (!starterCourses.some(item => item.id === params.courseId)) throw notFound();
-    throw redirect({ to: "/explore", search: { course: params.courseId } });
+    throw redirect({ to: "/course/$courseId", params: { courseId: params.courseId } });
   },
 });

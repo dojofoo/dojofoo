@@ -4,6 +4,7 @@ import { observeWorkspacePath, type LocalStateOptions } from "@dojofoo/config/lo
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
 function draftsDirectory(options: LocalStateOptions): string {
@@ -31,4 +32,10 @@ export function createDraft(name: string, options: LocalStateOptions) {
     rmSync(root, { recursive: true, force: true });
     throw error;
   }
+}
+
+export async function closeDraftRuntime(root: string): Promise<void> {
+  const load = createRequire(import.meta.url);
+  const { closeKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
+  await closeKyoshiRuntime(root);
 }

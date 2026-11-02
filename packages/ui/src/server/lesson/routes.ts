@@ -37,7 +37,7 @@ function assertCourse(actual: string, requested: string): void {
 
 app.get("/:workspaceId/courses/:courseId/lessons/:lessonId", async (c) => {
   const { root, courseId, lessonId } = context(c);
-  const lesson = await getLesson(root, lessonId, { prepareSession: c.req.query("prepare") !== "false" });
+  const lesson = await getLesson(root, lessonId, { prepareSession: c.req.query("prepare") !== "false", courseId });
   if (!lesson) return c.json({ error: "Lesson not found" }, 404);
   assertCourse(lesson.dojo, courseId);
   return c.json(lesson);

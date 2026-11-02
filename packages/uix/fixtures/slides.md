@@ -1,9 +1,10 @@
 ---
 theme: default
 title: One pass, one useful value
-routerMode: hash
+routerMode: memory
 monaco: true
 wakeLock: false
+transition: fade
 colorSchema: dark
 fonts:
   sans: Inter Variable

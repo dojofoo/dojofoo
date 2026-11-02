@@ -210,10 +210,10 @@ export function AuthoringSidebar({
   );
 }
 
-export function TreeTitleMenu({ title, onRename, disabled }: { title: string; onRename: (title: string) => void; disabled: boolean }) {
+export function TreeTitleMenu({ title, onRename, disabled, option }: { title: string; onRename: (title: string) => void; disabled: boolean; option?: { label: string; onSelect: () => void } }) {
   const [open, setOpen] = useState(false);
   return <span className="ui-as-anchor">
-    <button type="button" className="ui-as-icon-btn" aria-label={`Rename ${title}`} aria-expanded={open} disabled={disabled} onClick={() => setOpen(value => !value)}>
+    <button type="button" className="ui-as-icon-btn" aria-label={option ? "Course actions" : `Rename ${title}`} aria-expanded={open} disabled={disabled} onClick={() => setOpen(value => !value)}>
       <Icon icon={MoreHorizontalIcon} size={15} />
     </button>
     <Popover open={open} onClose={() => setOpen(false)} align="end" className="ui-as-menu w-56 p-3">
@@ -227,6 +227,7 @@ export function TreeTitleMenu({ title, onRename, disabled }: { title: string; on
         </label>
         <UIXButton type="submit" size="sm" className="mt-2">Rename</UIXButton>
       </form>
+      {option && <UIXButton variant="ghost" size="sm" className="mt-2 w-full" onClick={() => { option.onSelect(); setOpen(false); }}>{option.label}</UIXButton>}
     </Popover>
   </span>;
 }

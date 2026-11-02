@@ -48,15 +48,17 @@ describe("authoring workspace files", () => {
       { path: ".agents/skills/course/SKILL.md", label: "SKILL.md", content: "# Real guidance" },
     ] };
     const essential = authoringNavigation(draft);
-    expect(essential[0]?.items[0]?.children?.map(file => file.label)).toEqual(["dojo.yaml", "DOJO.md"]);
+    expect(essential.find(section => section.id === "authoring-course")?.items[0]?.children?.map(file => file.label)).toEqual(["dojo.yaml", "DOJO.md"]);
     const all = authoringNavigation(draft, false);
-    const folder = all[0]?.items[0]?.children?.find(file => file.label === ".agents");
+    const folder = all.find(section => section.id === "authoring-course")?.items[0]?.children?.find(file => file.label === ".agents");
     const leaf = folder?.children?.[0]?.children?.[0]?.children?.[0];
     expect(leaf?.label).toBe("SKILL.md");
     expect(authoringSidebarSelection(draft, leaf!.id)).toEqual({ scope: "course", path: ".agents/skills/course/SKILL.md" });
-    expect(all[1]?.items[0]).toMatchObject({ label: "First", marker: "01" });
-    expect(all[1]?.items[0]?.state).toBeUndefined();
-    expect(all[1]?.items.at(-1)?.id).toBe("authoring:add-lesson");
+    const chapter = all.find(section => section.id === "authoring-chapters")?.items[0];
+    expect(chapter).toMatchObject({ label: "Default", marker: "01" });
+    expect(chapter?.children?.[0]).toMatchObject({ label: "First", marker: "01" });
+    expect(chapter?.children?.[0]?.state).toBeUndefined();
+    expect(chapter?.children?.at(-1)?.id).toBe("authoring:add-lesson:default");
     expect(draft.rootFiles.at(-1)?.content).toBe("# Real guidance");
   });
   it("filters essentials without losing full-tree files or duplicating lesson directories", () => {

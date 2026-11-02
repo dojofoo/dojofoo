@@ -164,7 +164,7 @@ describe("setupAgents", () => {
 
     // Per-agent directories
     expect(existsSync(resolve(root, cfg.dir, cfg.commandsDir))).toBe(true);
-    expect(existsSync(resolve(root, cfg.dir, "skills"))).toBe(false);
+    expect(existsSync(resolve(root, cfg.dir, "skills"))).toBe(cfg.dir === ".agents");
     expect(existsSync(resolve(root, ".agents/skills/dojofoo/SKILL.md"))).toBe(true);
 
     // settings.json presence tracks hasSettings
@@ -175,8 +175,8 @@ describe("setupAgents", () => {
       const link = resolve(root, cfg.dir, cfg.commandsDir, `${name}.md`);
       const canonical = resolve(root, ".agents/commands", `${name}.md`);
 
-      expect(lstatSync(link).isSymbolicLink()).toBe(true);
-      expect(resolve(resolve(root, cfg.dir, cfg.commandsDir), readlinkSync(link))).toBe(canonical);
+      expect(lstatSync(link).isSymbolicLink()).toBe(link !== canonical);
+      if (link !== canonical) expect(resolve(resolve(root, cfg.dir, cfg.commandsDir), readlinkSync(link))).toBe(canonical);
       expect(existsSync(canonical)).toBe(true);
     }
   });
@@ -260,11 +260,11 @@ describe("configuredAgents", () => {
 
   it("detects agents whose directories exist", () => {
     mkdirSync(resolve(root, ".claude"), { recursive: true });
-    mkdirSync(resolve(root, ".gemini"), { recursive: true });
+    mkdirSync(resolve(root, ".agents"), { recursive: true });
 
     const agents = configuredAgents(root);
     expect(agents).toContain("claude");
-    expect(agents).toContain("gemini");
+    expect(agents).toContain("agy");
     expect(agents).not.toContain("opencode");
     expect(agents).not.toContain("codex");
   });

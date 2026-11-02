@@ -12,16 +12,18 @@ export const ComposerSpinner = ({ size = 14 }: { size?: number }) => (
 );
 
 /** The same picker frame used by the Storybook composer and runtime controls. */
-export function ComposerPicker({ title, children, items, icon, model, active, disabled, loading, className }: {
+export function ComposerPicker({ title, children, items, icon, model, active, disabled, loading, className, onPrepare }: {
   title: string; children: ReactNode; items: MenuItem[]; icon?: IconGlyph; model?: boolean; active?: boolean; disabled?: boolean;
   /** The host is still loading what the picker offers: a spinner in place of the icon, and it waits */
   loading?: boolean;
   className?: string;
+  /** Load native choices on demand without submitting a conversation turn. */
+  onPrepare?: () => Promise<boolean | void>;
 }) {
   return <Dropdown title={title} align={model ? "end" : "start"} items={items} trigger={({ open, toggle }) => (
     <button type="button" className={["ui-as-ghost", model && "ui-as-ghost--model", className].filter(Boolean).join(" ")}
       aria-label={title} aria-haspopup="menu" aria-expanded={open} data-active={active || undefined} aria-busy={loading || undefined}
-      disabled={disabled || loading} onClick={toggle}>
+      disabled={disabled || loading} onClick={async () => { if (!items.length && onPrepare && await onPrepare() === false) return; toggle(); }}>
       {loading ? <ComposerSpinner /> : icon && <Icon icon={icon} size={14} />}
       <span className="min-w-0 truncate">{children}</span>
       {model && <Icon icon={ArrowDown01Icon} size={12} />}

@@ -1,14 +1,17 @@
 import {
+  forgetLocalCourse,
   listDojoRuns,
   listEvents,
   listSessions,
   listWorkspaces,
+  observeWorkspacePath,
+  observeCourseRun,
   readLocalSnapshot,
   type LocalStateOptions,
 } from "@dojofoo/config/local-state";
-import { courseMode, readCourseManifest, readDojoRc, type KataProgress } from "@dojofoo/config";
+import { courseMode, dojoDir, findProjectRoot, listDojos, readCourseManifest, readDojoRc, writeDojoRc, type KataProgress } from "@dojofoo/config";
 import { Hono } from "hono";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import {
@@ -16,17 +19,43 @@ import {
   SessionAdoptionError,
   type SessionAdoptionResult,
 } from "./session-adoption";
-import { createDraft, isManagedDraft } from "./drafts";
+import { closeDraftRuntime, createDraft, isManagedDraft } from "./drafts";
 import { requestOrigin } from "../request-origin";
 import { resolveWorkspaceId } from "./workspace";
-import { installStarter, starterCourseIds } from "./starters";
+import { installStarter, starterCourseIds, uninstallCourse } from "./starters";
+import { courseTitle, findInstalledCourse } from "@dojofoo/config/course-installations";
+
+import { acpClient } from "../lesson/codex-client";
+import { getInteractiveLesson } from "../interactive/service";
+
+export type CoursePosition = { lessonId: string; lessonTitle: string; lessonIndex: number; totalLessons: number; completedLessons: number; complete: boolean; slide?: number; totalSlides?: number };
 
 const DEFAULT_ACTIVE_WINDOW_MS = 5 * 60 * 1000;
+
+function courseLessonTitles(root: string, id: string): string[] {
+  const manifest = readCourseManifest(root, id);
+  if (manifest.mode === "interactive") {
+    const curriculum = JSON.parse(readFileSync(resolve(dojoDir(root, id), manifest.lessons), "utf8"));
+    return curriculum.lessons?.map((lesson: { title: string }) => lesson.title) ?? [curriculum.title];
+  }
+  return manifest.katas.map(kata => (kata.name ?? kata.template).replace(/[-_]/g, " "));
+}
+
+function installedCourseDescriptor(courseId: string, options: LocalStateOptions) {
+  const course = findInstalledCourse(courseId, options);
+  const rc = readDojoRc(course.root);
+  const metadata = courseMetadata(course.root, course.id, rc.currentDojo === course.id ? rc.currentKata : null, rc.progress?.[course.id]);
+  return { id: course.id, title: course.title, workspaceId: course.workspaceId, runId: observeCourseRun(course.root, course.id, options).runId,
+    mode: courseMode(course.manifest), kata: metadata?.lessonId ?? null, description: course.manifest.description, version: course.manifest.version,
+    author: course.manifest.author, repository: course.manifest.repository, language: metadata?.language ?? "Other", framework: metadata?.framework,
+    appearance: metadata?.appearance, position: metadata?.position, tags: metadata?.tags ?? [], lessons: courseLessonTitles(course.root, course.id) };
+}
 
 type ControlRouteOptions = LocalStateOptions & {
   activeWindowMs?: number;
   adoptSession?: (sessionId: string, options: LocalStateOptions) => Promise<SessionAdoptionResult>;
   installStarter?: typeof installStarter;
+  uninstallCourse?: typeof uninstallCourse;
 };
 
 export function buildControlRoutes(options: ControlRouteOptions = {}) {
@@ -53,15 +82,13 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       const courseId = c.req.param("courseId");
       if (!starterCourseIds.some(id => id === courseId)) return c.json({ error: "Unknown starter course." }, 404);
       const body = await c.req.json().catch(() => null);
-      if (!body || typeof body.workspaceId !== "string" || !body.workspaceId || Object.keys(body).some(key => key !== "workspaceId")) {
-        return c.json({ error: "Choose a workspace for this course." }, 422);
+      if (!body || Object.keys(body).length) {
+        return c.json({ error: "Courses install in the workspace where Dojo was started." }, 422);
       }
-      let root: string;
-      try { root = resolveWorkspaceId(body.workspaceId, stateOptions()); }
-      catch { return c.json({ error: "The selected dojo workspace is no longer available." }, 404); }
+      const root = resolve(process.env.DOJO_PROJECT_ROOT ?? findProjectRoot());
       try {
         await (options.installStarter ?? installStarter)(root, courseId);
-        return c.json({ workspaceId: body.workspaceId, courseId }, 201);
+        return c.json({ workspaceId: observeWorkspacePath(root, stateOptions()), courseId }, 201);
       } catch (error) {
         return c.json({ error: error instanceof Error ? error.message : "The course could not be installed." }, 500);
       }
@@ -101,41 +128,99 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
         .flatMap((workspace) => {
           try {
             const rc = readDojoRc(workspace.path);
-            if (!rc.currentDojo) return [];
-            const run = runs.find((candidate) =>
-              candidate.workspaceId === workspace.id
-              && candidate.dojo === rc.currentDojo
-              && candidate.completedAt === null
-            );
-            const progress = rc.progress?.[rc.currentDojo];
-            const catalog = courseMetadata(workspace.path, rc.currentDojo, rc.currentKata, progress);
-            if (!catalog) return [];
-            const lessonId = catalog.lessonId;
-            const sessions = lessonSessions(workspace.path, rc.currentDojo);
-            const sessionId = sessions.find((session) => session.lessonId === lessonId)?.sessionId ?? null;
-            return [{
-              workspaceId: workspace.id,
-              runId: run?.id ?? null,
-              dojo: rc.currentDojo,
-              description: catalog.description,
-              language: catalog.language ?? "Other",
-              framework: catalog.framework ?? null,
-              tags: catalog.tags ?? [],
-              mode: catalog.mode,
-              kata: lessonId,
-              path: workspace.path,
-              workspaceName: basename(workspace.path),
-              sessionId,
-              sessions,
-              lastSeenAt: run?.lastSeenAt ?? workspace.lastSeenAt,
-              selected: resolve(workspace.path) === defaultRoot,
-            }];
+            return listDojos(workspace.path).flatMap(dojo => {
+              const run = runs.find((candidate) =>
+                candidate.workspaceId === workspace.id
+                && candidate.dojo === dojo
+                && candidate.completedAt === null
+              );
+              const progress = rc.progress?.[dojo];
+              const catalog = courseMetadata(workspace.path, dojo, dojo === rc.currentDojo ? rc.currentKata : null, progress);
+              if (!catalog) return [];
+              const lessonId = catalog.lessonId;
+              const sessions = lessonSessions(workspace.path, dojo);
+              const sessionId = sessions.find((session) => session.lessonId === lessonId)?.sessionId ?? null;
+              return [{
+                workspaceId: workspace.id,
+                runId: run?.id ?? observeCourseRun(workspace.path, dojo, stateOptions()).runId,
+                dojo,
+              title: courseTitle(workspace.path, dojo),
+                description: catalog.description,
+                language: catalog.language ?? "Other",
+                framework: catalog.framework ?? null,
+                tags: catalog.tags ?? [],
+                mode: catalog.mode,
+                kata: lessonId,
+                position: catalog.position,
+                appearance: catalog.appearance,
+                path: workspace.path,
+                workspaceName: basename(workspace.path),
+                sessionId,
+                sessions,
+                lastSeenAt: run?.lastSeenAt ?? workspace.lastSeenAt,
+                selected: resolve(workspace.path) === defaultRoot,
+              }];
+            });
           } catch {
             return [];
           }
         })
         .sort((left, right) => right.lastSeenAt - left.lastSeenAt);
+      const ids = new Set<string>();
+      for (const course of courses) {
+        if (ids.has(course.dojo)) return c.json({ error: `Course ${course.title} has multiple installations. Remove the extra installation before opening it.` }, 409);
+        ids.add(course.dojo);
+      }
       return c.json(courses);
+    })
+    .delete("/courses/:courseId", async c => {
+      const origin = c.req.header("Origin");
+      if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
+      let course;
+      try { course = findInstalledCourse(c.req.param("courseId"), stateOptions()); }
+      catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
+      acpClient.stopCourse(course.root, course.id);
+      await (options.uninstallCourse ?? uninstallCourse)(course.root, course.id);
+      const rc = readDojoRc(course.root);
+      if (rc.progress) delete rc.progress[course.id];
+      writeDojoRc(course.root, rc);
+      for (const name of ["web.json", "interactive.json"]) {
+        const path = resolve(course.root, ".dojo", name);
+        if (!existsSync(path)) continue;
+        const state = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+        for (const section of Object.values(state)) if (section && typeof section === "object" && !Array.isArray(section)) {
+          for (const key of Object.keys(section)) if (key === course.id || key.startsWith(`${course.id}/`)) delete (section as Record<string, unknown>)[key];
+        }
+        writeFileSync(path, JSON.stringify(state, null, 2) + "\n");
+      }
+      forgetLocalCourse(course.workspaceId, course.id, stateOptions());
+      return c.body(null, 204);
+    })
+    .delete("/authoring/:workspaceId", async c => {
+      const origin = c.req.header("Origin");
+      if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
+      const workspace = listWorkspaces(stateOptions()).find(item => item.id === c.req.param("workspaceId"));
+      if (!workspace) return c.json({ error: "This authoring course does not exist." }, 404);
+      const managed = isManagedDraft(workspace.path, stateOptions());
+      if (!managed && !existsSync(resolve(workspace.path, ".dojo", "kyoshi.json"))) return c.json({ error: "This workspace is not an authoring course." }, 422);
+      await closeDraftRuntime(workspace.path);
+      if (managed) rmSync(workspace.path, { recursive: true });
+      forgetLocalCourse(workspace.id, null, stateOptions());
+      return c.body(null, 204);
+    })
+    .get("/courses/:courseId", c => {
+      try {
+        return c.json(installedCourseDescriptor(c.req.param("courseId"), stateOptions()));
+      } catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
+    })
+    .get("/learning-sessions/:sessionId", c => {
+      const run = listDojoRuns(stateOptions()).find(item => item.id === c.req.param("sessionId"));
+      if (!run) return c.json({ error: "This learning session does not exist." }, 404);
+      try {
+        const course = findInstalledCourse(run.dojo, stateOptions());
+        if (course.workspaceId !== run.workspaceId) throw new Error("This course installation has been removed.");
+        return c.json(installedCourseDescriptor(run.dojo, stateOptions()));
+      } catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
     })
     .get("/workspaces", (c) => c.json(listWorkspaces(stateOptions())))
     .post("/authoring", async (c) => {
@@ -162,7 +247,8 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
         return [{
           workspaceId: workspace.id,
           path: workspace.path,
-          name: String(manifest.name ?? basename(workspace.path)),
+          name: String(manifest.title ?? manifest.name ?? basename(workspace.path)),
+          appearance: manifest.appearance,
           description: String(manifest.description ?? "Course draft"),
           mode: String(manifest.mode ?? "katas"),
           sessionId: thread?.sessionId ?? null,
@@ -227,15 +313,26 @@ function courseMetadata(
   try {
     const catalog = readCourseManifest(root, dojo);
     const mode = courseMode(catalog);
+    const lessonId = "katas" in catalog ? continuationLesson(catalog.katas, currentLesson, progress) : null;
+    let position: CoursePosition | undefined;
+    if (catalog.mode === "interactive") {
+      const saved = getInteractiveLesson(root, dojo);
+      position = { lessonId: saved.lessonId, lessonTitle: saved.lessonTitle, lessonIndex: saved.lessonIndex,
+        totalLessons: saved.lessons.length, completedLessons: saved.completedLessons, complete: saved.complete,
+        slide: Math.min(saved.step + 1, saved.totalSteps), totalSlides: saved.totalSteps };
+    } else if (lessonId && "katas" in catalog) {
+      const lessonIndex = catalog.katas.findIndex(item => (item.name ?? basename(dirname(item.template))) === lessonId);
+      const completedLessons = catalog.katas.filter(item => progress?.completed?.includes(item.name ?? basename(dirname(item.template)))).length;
+      position = { lessonId, lessonTitle: (catalog.katas[lessonIndex]?.name ?? lessonId).replace(/[-_]/g, " "), lessonIndex,
+        totalLessons: catalog.katas.length, completedLessons, complete: completedLessons === catalog.katas.length };
+    }
     return {
-      mode,
+      mode, appearance: catalog.appearance,
       description: catalog.description,
       language: catalog.language ?? "Other",
       framework: catalog.framework ?? null,
       tags: catalog.tags ?? [],
-      lessonId: "katas" in catalog
-        ? continuationLesson(catalog.katas, currentLesson, progress)
-        : null,
+      lessonId, position,
     };
   } catch {
     return null;

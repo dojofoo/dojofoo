@@ -1,10 +1,7 @@
 import { isAbsolute } from "node:path";
 
-export interface ChapterReference {
-  id: string;
-  title: string;
-  path: string;
-}
+import type { ChapterReference } from "./chapters";
+export { courseChapters, type ChapterReference } from "./chapters";
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);

@@ -1,8 +1,7 @@
 import type * as acp from "@agentclientprotocol/sdk";
-import { existsSync } from "node:fs";
+import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
-import { resolve } from "node:path";
 import type { HarnessAdapter } from "./adapter";
 
 export function opencodeRuntimeEnvironment(
@@ -101,8 +100,7 @@ export function opencodeExecutable(
   userHome = homedir(),
 ): string {
   if (environment.OPENCODE_BIN) return environment.OPENCODE_BIN;
-  const installed = resolve(userHome, ".opencode", "bin", "opencode");
-  return existsSync(installed) ? installed : "opencode";
+  return resolveAgentExecutable("opencode", { environment, home: userHome }) ?? "opencode";
 }
 
 function encodePromptResource(resource: { uri: string; text: string }): string {

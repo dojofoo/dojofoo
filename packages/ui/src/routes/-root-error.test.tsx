@@ -12,5 +12,8 @@ describe("root route error screen", () => {
     expect(html).toContain("ACP session exploded");
     expect(html).toContain("loadSession (runtime.ts:42:7)");
     expect(html).toContain("Back to courses");
+    expect(html).toContain('class="ui-code"');
+    expect(html).toContain('aria-label="Copy code"');
+    expect(html).toContain('aria-label="Dojo dashboard"');
   });
 });

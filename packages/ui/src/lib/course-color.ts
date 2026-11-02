@@ -1,3 +1,4 @@
+import type { CourseAppearance } from "@dojofoo/config";
 import type { CourseArtwork } from "@dojofoo/uix/components/course-card";
 import { starterCourses } from "./starter-courses";
 
@@ -13,4 +14,4 @@ export function courseHue(id: string): number {
   return Math.round((hash * 0.618033988749895 % 1) * 360);
 }
 
-export const courseArt = (id: string): CourseArtwork => ({ hue: courseHue(id), glyph: "" });
+export const courseArt = (id: string, appearance?: CourseAppearance): CourseArtwork => ({ color: appearance?.color, hue: appearance?.hue ?? courseHue(id), glyph: "" });

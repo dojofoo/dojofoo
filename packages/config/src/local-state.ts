@@ -90,7 +90,6 @@ const SESSION_ENVIRONMENTS = [
   ["claude", "CLAUDE_SESSION_ID"],
   ["claude", "CLAUDE_CONVERSATION_ID"],
   ["opencode", "OPENCODE_SESSION_ID"],
-  ["gemini", "GEMINI_SESSION_ID"],
   ["pi", "PI_SESSION_ID"],
   ["pi", "PI_THREAD_ID"],
 ] as const;
@@ -169,11 +168,40 @@ export function recordDojoLifecycle(
   }
 }
 
+/** Remove a course's local run history, or an entire authoring workspace registration. */
+export function forgetLocalCourse(workspaceId: string, dojo: string | null, options: LocalStateOptions = {}): void {
+  const db = openDatabase(options);
+  try {
+    db.exec("BEGIN");
+    if (dojo === null) {
+      db.prepare("DELETE FROM events WHERE workspace_id = ?").run(workspaceId);
+      db.prepare("DELETE FROM dojo_runs WHERE workspace_id = ?").run(workspaceId);
+      db.prepare("DELETE FROM workspaces WHERE id = ?").run(workspaceId);
+    } else {
+      db.prepare("DELETE FROM events WHERE dojo_run_id IN (SELECT id FROM dojo_runs WHERE workspace_id = ? AND dojo = ?)").run(workspaceId, dojo);
+      db.prepare("DELETE FROM dojo_runs WHERE workspace_id = ? AND dojo = ?").run(workspaceId, dojo);
+    }
+    db.exec("COMMIT");
+  } catch (error) { db.exec("ROLLBACK"); throw error; }
+  finally { db.close(); }
+}
+
 export function listWorkspaces(options: LocalStateOptions = {}): LocalWorkspace[] {
   return readRows<LocalWorkspace>(options, `
     SELECT id, path, first_seen_at AS firstSeenAt, last_seen_at AS lastSeenAt
     FROM workspaces ORDER BY first_seen_at
   `);
+}
+
+/** An installed course's durable learning session, independent of agent conversations. */
+export function observeCourseRun(root: string, dojo: string, options: LocalStateOptions = {}): { workspaceId: string; runId: string } {
+  readCourseManifest(root, dojo);
+  const db = openDatabase(options);
+  try {
+    const now = options.now ?? Date.now();
+    const workspaceId = observeWorkspace(db, root, now);
+    return { workspaceId, runId: currentDojoRun(db, workspaceId, dojo, now) };
+  } finally { db.close(); }
 }
 
 /** Register a filesystem workspace without requiring an installed dojo. */

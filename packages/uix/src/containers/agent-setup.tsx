@@ -1,4 +1,4 @@
-import { ProfileFields, useHandleCheck } from "./profile-fields";
+import { agentDefinitions, type AgentDefinition, type AgentId, type AgentInstallation } from "@dojofoo/config/agents";
 import { Switch } from "../components/switch";
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { AppearanceSettings } from "./appearance-settings";
@@ -7,9 +7,8 @@ import { Button } from "../components/button";
 import { ChatGPTButton, ChatGPTLogo } from "../components/chatgpt-button";
 import { OpenRouterButton, OpenRouterLogo } from "../components/openrouter-button";
 import { CardFigure, CardMark, CardText, CardTitle, ColorCard, ColorCardCheck, type CardShaderKind } from "../components/color-card";
-import { CodexIcon, CursorIcon, GrokIcon, OpenCodeIcon, PiIcon } from "../components/harness-icons";
-import { SegmentedControl } from "../components/segmented-control";
-import { ArrowLeft01Icon, ArrowRight01Icon, ClaudeIcon, DoneIcon, GitHubCopilotIcon, Tick02Icon, type IconGlyph } from "../lib/icons";
+import { agentIcons } from "../components/harness-icons";
+import { ArrowLeft01Icon, ArrowRight01Icon, DoneIcon, Tick02Icon, type IconGlyph } from "../lib/icons";
 import { editorSchemes, setPageMode, uiThemes, usePageMode, useUiPreferences } from "../lib/ui-preferences";
 
 /*
@@ -19,11 +18,11 @@ import { editorSchemes, setPageMode, uiThemes, usePageMode, useUiPreferences } f
  *
  *   Agent      the coding agent Dojo teaches through – one found on this machine, or Continue with ChatGPT (the user's
  *              ChatGPT plan, via Sign in with ChatGPT) or with OpenRouter (their OpenRouter credits). Required: no
- *              skipping. How to install one is below the card.
+ *              skipping. Missing installations appear automatically once installed.
  *   Courses    the top courses as cards, ticked to install – or none, to pick later in Explore
- *   Profile    name and handle (dojo.foo/u/…, checked as it's typed)
+ *   Account    connect to dojo.foo or continue anonymously
  *   Style      light or dark, the theme and the color scheme side by side, the code below them
- *   Overview   the root folder (~/.dojo) and everything chosen; Start saves it all
+ *   Overview   the launch workspace and everything chosen; Start saves it all
  *
  * The parent holds which step is open and which are done (setupSteps), so the sidebar's Getting started can follow.
  *
@@ -32,29 +31,19 @@ import { editorSchemes, setPageMode, uiThemes, usePageMode, useUiPreferences } f
 export const setupSteps = [
   { id: "agent", title: "Agent" },
   { id: "courses", title: "Courses" },
-  { id: "profile", title: "Profile" },
+  { id: "account", title: "Account" },
   { id: "style", title: "Style" },
   { id: "overview", title: "Overview" },
 ] as const;
 
-export type SetupValues = { agent: string; courses: string[]; name: string; handle: string; folder: string };
+export type SetupValues = { agents: string[]; courses: string[]; name: string; folder: string };
 /** A course to offer: shown as its card – its color, its effect, who made it and its rating */
 export type SetupCourse = { id: string; title: string; color: string; shader?: CardShaderKind; mark?: ReactNode; author: string; rating?: number; lessons?: number; hours?: number };
 
-type Agent = { id: string; name: string; /** For the install help's switch */ short: string; icon: IconGlyph; found: boolean; install: string; docs: string };
-/** Design fixtures, not a machine scan or a list of enabled Dojo runtimes.
-    Production currently enables Codex, OpenCode, Pi, Cursor, Grok and FX. */
-const agents: Agent[] = [
-  { id: "claude", name: "Claude Code", short: "Claude", icon: ClaudeIcon, found: true, install: "npm install -g @anthropic-ai/claude-code", docs: "docs.anthropic.com/claude-code" },
-  { id: "codex", name: "Codex", short: "Codex", icon: CodexIcon, found: true, install: "npm install -g @openai/codex", docs: "developers.openai.com/codex" },
-  { id: "cursor", name: "Cursor", short: "Cursor", icon: CursorIcon, found: false, install: "curl https://cursor.com/install -fsS | bash", docs: "cursor.com/cli" },
-  { id: "copilot", name: "GitHub Copilot", short: "Copilot", icon: GitHubCopilotIcon, found: false, install: "npm install -g @github/copilot", docs: "github.com/github/copilot-cli" },
-  { id: "grok", name: "Grok Build", short: "Grok", icon: GrokIcon, found: false, install: "npm install -g @xai-official/grok", docs: "x.ai/cli" },
-  { id: "opencode", name: "OpenCode", short: "OpenCode", icon: OpenCodeIcon, found: false, install: "brew install sst/tap/opencode", docs: "opencode.ai" },
-  { id: "pi", name: "Pi", short: "Pi", icon: PiIcon, found: false, install: "curl -fsSL https://pi.dev/install.sh | sh", docs: "pi.dev" },
-];
-/** Proposed API-backed choices for this setup prototype. Not enabled runtimes. */
-const builtInAgents = ["Cline", "Deep Agents", "fx"];
+type Agent = AgentDefinition & { icon: IconGlyph; found: boolean };
+// The standalone Storybook preview supplies example availability. Production
+// receives the core inventory from the local API.
+const agents: Agent[] = agentDefinitions.map(agent => ({ ...agent, icon: agentIcons[agent.id], found: agent.id === "claude" || agent.id === "codex" }));
 
 /** The other ways in: an account whose plan or credits pay for the agent's requests. ChatGPT – Sign in with ChatGPT,
     OAuth with PKCE to a loopback listener, a token that spends the user's plan; OpenRouter – its OAuth with PKCE to a
@@ -67,15 +56,16 @@ type AccountId = (typeof accounts)[number]["id"];
 
 
 const copy: Record<(typeof setupSteps)[number]["id"], { heading: string; text: string; about: string; tip: string }> = {
-  agent: { heading: "Pick your agent", text: "Dojo teaches through a coding agent – one already on this machine, your ChatGPT plan or your OpenRouter credits.", about: "Lessons run on your machine. Your agent reads the kata, runs the tests and coaches you in the chat – Dojo talks to it, never to a model of its own.", tip: "None installed? The steps below get one going in a minute." },
-  courses: { heading: "Pick your first courses", text: "The most loved ones to start with – tick any, or leave it for later.", about: "Each course is a git repository of chapters and lessons. Installing clones it into your workspace, so it works offline and updates like any repo.", tip: "Explore has every course, whenever you want more." },
-  profile: { heading: "About you", text: "Your name and your handle on dojo.foo.", about: "Your handle is your page on dojo.foo – it signs your certificates and the courses you publish.", tip: "Everything stays on this machine until you publish something." },
+  agent: { heading: "Pick your agents", text: "Dojo teaches through a coding agent – one already on this machine, your ChatGPT plan or your OpenRouter credits.", about: "Lessons run on your machine. Your agent reads the kata, runs the tests and coaches you in the chat – Dojo talks to it, never to a model of its own.", tip: "Installed agents appear here automatically." },
+  courses: { heading: "Pick your first courses", text: "Choose a starter course, or leave it for later.", about: "Courses contain chapters and lessons. Installing places them in your workspace, where you can learn offline and keep your work.", tip: "Explore has every course, whenever you want more." },
+  account: { heading: "Connect your account", text: "Would you like to connect your account or run anonymously?", about: "Connect to dojo.foo to sync your name, email, avatar and course progress across devices.", tip: "You can start as Anonymous and connect your account later." },
   style: { heading: "Make it yours", text: "The theme around you and the colors of your code – it changes as you pick.", about: "Pick what's easy on your eyes for a long session. The theme colors the app, the color scheme your code – the editor shows both.", tip: "Settings has the same choices any time." },
-  overview: { heading: "Overview", text: "Everything you chose, saved to your Dojo folder.", about: "Your Dojo folder holds it all as plain files – courses, progress, certificates and these settings. Back it up or sync it like any other folder.", tip: "Point it at an existing folder to pick up where you left off on another machine." },
+  overview: { heading: "Overview", text: "Your choices and the workspace where courses will be installed.", about: "Courses and their files stay in the folder where you started Dojo. Your account and setup settings stay on this machine in ~/.dojofoo.", tip: "Start Dojo in another folder to use a different workspace." },
 };
 
 
-export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFinish }: {
+export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFinish, local }: {
+  local?: { workspace: string; agents: AgentInstallation[]; user: { name: string }; onConnect?: () => void; busy?: boolean; loadingAgents?: boolean };
   /** The open step, an index into setupSteps */
   step: number;
   /** Steps finished, by index */
@@ -89,18 +79,22 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
   onSkip: () => void;
   onFinish: (values: SetupValues) => void;
 }) {
-  const installed = agents.filter((item) => item.found);
-  const [agent, setAgent] = useState<string>(installed[0]?.id ?? "");
+  const choices: Agent[] = local ? local.agents.map(agent => ({ ...agent, icon: agentIcons[agent.id] })) : agents;
+  const installed = choices.filter((item) => item.found);
+  const [chosenAgents, setAgents] = useState<string[] | null>(null);
+  const defaults = installed.slice(0, 1).map(item => item.id);
+  const selectedAgents = chosenAgents ?? defaults;
+  const toggleAgent = (id: string) => setAgents(current => {
+    const selected = current ?? defaults;
+    return selected.includes(id) ? selected.filter(agent => agent !== id) : [...selected, id];
+  });
   const [connections, setConnections] = useState<Partial<Record<AccountId, "connecting" | "connected">>>({});
-  const [scanning, setScanning] = useState(false);
   const [picked, setPicked] = useState<string[]>(() => courses.slice(0, 1).map((item) => item.id));
-  const [name, setName] = useState("Sam Rivera");
-  const [handle, setHandle] = useState("samrivera");
-  const [folder, setFolder] = useState("~/.dojo");
+  const name = local?.user.name ?? "Anonymous";
+  const folder = local?.workspace ?? "~/.dojofoo";
   // Dark by default: setup starts dark, the Style step's switch turns it light
   const preferences = useUiPreferences();
   const mode = usePageMode();
-  const handleState = useHandleCheck(handle);
   // Which way the card's content slides: forward or back, set as the step changes
   const [shown, setShown] = useState(step);
   const [dir, setDir] = useState<"next" | "back">("next");
@@ -112,20 +106,20 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
   const first = step === 0;
   const final = step === setupSteps.length - 1;
   const firstName = name.trim().split(" ")[0] || "there";
-  // The agent is required; the profile needs a name and a handle that is free
-  const blocked = (id === "agent" && !agent) || (id === "profile" && (!name.trim() || handleState !== "available"));
-  const agentName = accounts.find((item) => item.id === agent)?.name ?? agents.find((item) => item.id === agent)?.name ?? "None";
+  // An agent is required before setup can finish.
+  const blocked = Boolean(local?.busy) || (id === "agent" && selectedAgents.length === 0);
+  const agentName = selectedAgents.map(id => accounts.find(item => item.id === id)?.name ?? agents.find(item => item.id === id)?.name ?? id).join(", ") || "None";
 
   // Prototype interaction only. No OAuth exchange or credential handling occurs.
   const connect = (id: AccountId) => {
     setConnections((all) => ({ ...all, [id]: "connecting" }));
-    window.setTimeout(() => { setConnections((all) => ({ ...all, [id]: "connected" })); setAgent(id); }, 1200);
+    window.setTimeout(() => { setConnections((all) => ({ ...all, [id]: "connected" })); setAgents(current => [...new Set([...(current ?? defaults), id])]); }, 1200);
   };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (blocked) return;
-    if (final) onFinish({ agent, courses: picked, name: name.trim(), handle, folder });
+    if (final) onFinish({ agents: selectedAgents, courses: picked, name: name.trim(), folder });
     else onNext();
   };
 
@@ -136,7 +130,7 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
         <span className="ui-ob-kicker">Step {step + 1} of {setupSteps.length}</span>
         <h1 className="ui-ob-title">Welcome to Dojo, {firstName}</h1>
         <p className="ui-ob-sub">A few quick steps and your agent is ready to teach – about two minutes.</p>
-        {id === "agent" && <p className="ui-ob-sub" role="note">Setup preview: installations and sign-ins below are examples, not live detection or authentication. Some shown adapters are not enabled in Dojo yet.</p>}
+        {!local && id === "agent" && <p className="ui-ob-sub" role="note">Setup preview: installations and sign-ins below are examples, not live detection or authentication. Some shown adapters are not enabled in Dojo yet.</p>}
         <ol className="ui-ob-steps" aria-label="Setup progress">
           {setupSteps.map((item, index) => {
             const state = done.includes(index) ? "done" : index === step ? "current" : "next";
@@ -156,7 +150,7 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
             <div className="ui-ob-step__head ui-setup__head">
               <span>
                 <h2 className="ui-ob-step__title">{copy[id].heading}</h2>
-                <p className="ui-ob-step__text">{copy[id].text}</p>
+                <p className="ui-ob-step__text" role={id === "agent" ? "note" : undefined}>{local && id === "agent" ? installed.length ? "Choose one or more agents found on this machine." : "Dojo automatically detects agents installed on this machine." : copy[id].text}</p>
               </span>
               {id === "style" && (
                 // Light on the left, Dark on the right: a plain switch, on for dark (the default)
@@ -171,35 +165,36 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
             {id === "agent" && (
               <>
                 {installed.length > 0 && (
-                  <div className="ui-ob-templates ui-setup__agents" role="radiogroup" aria-label="Agent">
+                  <div className="ui-ob-templates ui-setup__agents" role="group" aria-label="Agents">
                     {installed.map((item, index) => (
-                      <button key={item.id} type="button" role="radio" aria-checked={agent === item.id} className="ui-ob-template" style={{ "--i": index } as CSSProperties} onClick={() => setAgent(item.id)}>
-                        <span className="ui-ob-template__top">
-                          <span className="ui-setup__agent-icon"><Icon icon={item.icon} size={36} /></span>
-                          <span className="ui-ob-template__check rounded-sm" aria-hidden="true"><Icon icon={Tick02Icon} size={12} stroke={2.4} /></span>
-                        </span>
+                      <button key={item.id} type="button" role="checkbox" aria-checked={selectedAgents.includes(item.id)} className="ui-ob-template" style={{ "--i": index } as CSSProperties} onClick={() => toggleAgent(item.id)}>
+                        <span className="ui-setup__agent-icon"><Icon icon={item.icon} size={20} /></span>
                         <b className="ui-ob-template__name">{item.name}</b>
-                        <span className="ui-setup__installed">Installed · example</span>
+                        <span className="ui-ob-template__check rounded-sm" aria-hidden="true"><Icon icon={Tick02Icon} size={12} stroke={2.4} /></span>
                       </button>
                     ))}
                   </div>
                 )}
+                {!local && <>
                 <div className="ui-setup__or"><span>or</span></div>
                 {/* Side by side until connected; a connected one becomes a row to pick, the full width */}
                 <div className="ui-setup__accounts">
                   {accounts.map(({ id: account, Logo, Button: Continue, title, note }) => connections[account] === "connected" ? (
-                    <button key={account} type="button" role="radio" aria-checked={agent === account} className="ui-setup__plan" onClick={() => setAgent(account)}>
+                    <button key={account} type="button" role="checkbox" aria-checked={selectedAgents.includes(account)} className="ui-setup__plan" onClick={() => toggleAgent(account)}>
                       <Logo size={22} />
                       <span>
                         <b>{title}</b>
                         <small>{note}</small>
                       </span>
-                      {agent === account && <Icon icon={DoneIcon} size={16} />}
+                      {selectedAgents.includes(account) && <Icon icon={DoneIcon} size={16} />}
                     </button>
                   ) : (
                     <Continue key={account} className="ui-setup__continue" disabled={connections[account] === "connecting"} onClick={() => connect(account)} />
                   ))}
                 </div>
+                </>}
+                {local && !installed.length && <p role="status">{local.loadingAgents ? "Loading agents…" : "No coding agents found. Install an agent to continue; it will appear here automatically."}</p>}
+
               </>
             )}
 
@@ -226,8 +221,12 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
               </>
             )}
 
-            {id === "profile" && (
-              <ProfileFields name={name} handle={handle} handleState={handleState} onNameChange={setName} onHandleChange={setHandle} />
+            {id === "account" && (
+              <div className="ui-ob-fields">
+                <Button type="button" disabled={!local?.onConnect} onClick={() => local?.onConnect?.()}>Connect your account</Button>
+                {local && !local.onConnect && <p>Account connection is not available yet. You can connect later.</p>}
+                <Button type="button" variant="secondary" onClick={onNext}>Continue anonymously</Button>
+              </div>
             )}
 
             {id === "style" && (
@@ -238,17 +237,16 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
               <div className="ui-ob-fields">
                 <label className="ui-ob-field">
                   <span className="ui-ob-label">Dojo folder</span>
-                  <input className="ui-ob-input" value={folder} spellCheck={false} onChange={(event) => setFolder(event.target.value)} />
-                  <span className="ui-ob-hint">Where everything lives – courses, progress, certificates and these settings</span>
+                  <input className="ui-ob-input" value={folder} readOnly spellCheck={false} />
+                  <span className="ui-ob-hint">Courses install in this workspace. Machine settings stay in ~/.dojofoo.</span>
                 </label>
                 <dl className="ui-setup__summary">
-                  <div><dt>Agent</dt><dd>{agentName}</dd></div>
+                  <div><dt>Agents</dt><dd>{agentName}</dd></div>
                   <div><dt>Courses</dt><dd>{courses.filter((item) => picked.includes(item.id)).map((item) => item.title).join(", ") || "Later, in Explore"}</dd></div>
                   <div><dt>Name</dt><dd>{name.trim() || "–"}</dd></div>
-                  <div><dt>Handle</dt><dd>dojo.foo/u/{handle}</dd></div>
                   <div><dt>Appearance</dt><dd>{mode === "dark" ? "Dark" : "Light"}</dd></div>
                   <div><dt>Theme</dt><dd>{uiThemes.find((theme) => theme.id === preferences.theme)?.label}</dd></div>
-                  <div><dt>Color scheme</dt><dd>{preferences.editorScheme === "match" ? "Match theme" : editorSchemes.find((scheme) => scheme.id === preferences.editorScheme)?.label}</dd></div>
+                  <div><dt>Color scheme</dt><dd>{preferences.editorScheme === "match" ? "Auto" : editorSchemes.find((scheme) => scheme.id === preferences.editorScheme)?.label}</dd></div>
                 </dl>
               </div>
             )}
@@ -259,13 +257,11 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
             {first || final ? <span /> : <button type="button" className="ui-ob-skip" onClick={onSkip}>Skip for now</button>}
             <span className="ui-ob-foot__actions">
               {step > 0 && <Button size="sm" variant="secondary" icon={<Icon icon={ArrowLeft01Icon} size={14} />} onClick={onBack}>Back</Button>}
-              <Button size="sm" type="submit" disabled={blocked} iconRight={final ? undefined : <Icon icon={ArrowRight01Icon} size={14} />}>{final ? "Start" : "Continue"}</Button>
+              <Button size="sm" type="submit" disabled={blocked} iconRight={final ? undefined : <Icon icon={ArrowRight01Icon} size={14} />}>{local?.busy ? "Setting up…" : final ? "Start" : "Continue"}</Button>
             </span>
           </footer>
         </form>
 
-        {/* The agent step only: how to get one, below the card */}
-        {first && <InstallHelp scanning={scanning} onRescan={() => { setScanning(true); window.setTimeout(() => setScanning(false), 900); }} />}
       </div>
 
       {/* What the step is for, in larger type */}
@@ -277,47 +273,21 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
   );
 }
 
-/** How to install an agent: pick one, copy its command, then rescan */
-function InstallHelp({ scanning, onRescan }: { scanning: boolean; onRescan: () => void }) {
-  const [which, setWhich] = useState(agents[0].short);
-  const [copied, setCopied] = useState(false);
-  const item = agents.find((entry) => entry.short === which)!;
-  const copy = () => { navigator.clipboard?.writeText(item.install).catch(() => {}); setCopied(true); window.setTimeout(() => setCopied(false), 1400); };
-  return (
-    <section className="ui-setup__install rounded-2xl" aria-labelledby="ui-setup-install">
-      <div className="ui-setup__install-head">
-        <h3 id="ui-setup-install">How to install an agent</h3>
-        <Button size="sm" variant="ghost" loading={scanning} onClick={onRescan}>Rescan</Button>
-      </div>
-      <SegmentedControl size="compact" fill label="Agent to install" options={agents.map((entry) => entry.short)} value={which} onChange={setWhich} />
-      <ol>
-        <li>Run this in a terminal:
-          <span className="ui-setup__cmd"><code className="scroll-fade-x">{item.install}</code><button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button></span>
-        </li>
-        <li>Sign in when it asks – see <a href={`https://${item.docs}`} target="_blank" rel="noreferrer">{item.docs}</a>.</li>
-        <li>Press Rescan, and it shows up above.</li>
-      </ol>
-      <p className="ui-setup__builtin">{builtInAgents.join(", ").replace(/, ([^,]*)$/, " and $1")} are additional adapter examples. This preview does not install or authenticate them. FX's supported runtime retains native sign-in.</p>
-    </section>
-  );
-}
-
-
 const css = /* css */ `
 /* Only what the onboarding doesn't have */
 .ui-setup__about { padding-top: 4px; }
 .ui-setup__about p { margin: 0; color: var(--text); font-size: 17px; line-height: 1.55; text-wrap: pretty; animation: ui-ob-rise 380ms var(--ease) both; }
 .ui-setup__about small { color: var(--muted); font-size: var(--fs-body); line-height: 1.5; }
 .ui-setup__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ui-setup__head:has([role="note"]) { margin-block-end: 24px; }
+.ui-setup__head [role="note"] { margin-block-start: 6px; font-size: 0.875rem; line-height: 1.5; text-wrap: pretty; }
 
-/* Agent: the found ones large, no box around their mark; then the accounts – ChatGPT, OpenRouter */
+/* Agent: compact choices with a mark, name and checkbox. */
 .ui-setup__agents { grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); }
 /* The agents sit one surface up from the step card they're on (surface 3, in the app) */
-.ui-setup__agents .ui-ob-template { background: var(--surface-4, var(--card)); }
-.ui-setup__builtin { margin: 10px 0 0; color: var(--muted); font-size: var(--fs-caption); text-wrap: pretty; }
-.ui-setup__agent-icon { display: grid; place-items: center; width: 40px; height: 40px; color: var(--ink); }
-.ui-setup__installed { color: var(--ev-pass, #16a34a); font-size: 12.5px; font-weight: 550; }
-:where(.dark, [data-theme="dark"]) .ui-setup__installed { color: #4ade80; }
+.ui-setup__agents .ui-ob-template { flex-direction: row; align-items: center; gap: 10px; padding: 14px; background: var(--surface-4, var(--card)); }
+.ui-setup__agents .ui-ob-template__check { margin-inline-start: auto; flex-shrink: 0; }
+.ui-setup__agent-icon { display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; color: var(--ink); }
 .ui-setup__or { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; color: var(--muted); font-size: 12px; }
 .ui-setup__or::before, .ui-setup__or::after { content: ""; flex: 1; height: 1px; background: var(--fluid-hairline); }
 .ui-setup__accounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 10px; }
@@ -329,16 +299,6 @@ const css = /* css */ `
 .ui-setup__plan b { font-size: 13.5px; font-weight: 550; }
 .ui-setup__plan small { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
 
-/* How to install one, below the card */
-.ui-setup__install { display: grid; gap: 12px; margin-top: 16px; padding: 16px 18px; background: var(--subtle); }
-.ui-setup__install-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.ui-setup__install h3 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--ink); }
-.ui-setup__install ol { display: grid; gap: 8px; margin: 0; padding-left: 18px; color: var(--text); font-size: 13px; line-height: 1.5; }
-.ui-setup__install a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
-.ui-setup__cmd { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 6px 6px 6px 12px; border-radius: calc(9px * var(--squircle-factor, 1)); background: var(--card); box-shadow: var(--shadow-2); }
-.ui-setup__cmd code { flex: 1; min-width: 0; overflow-x: auto; font-family: var(--font-mono); font-size: 12px; white-space: nowrap; color: var(--ink); }
-.ui-setup__cmd button { flex: none; height: 26px; padding: 0 10px; border-radius: calc(7px * var(--squircle-factor, 1)); background: var(--fluid-hover); color: var(--ink); font-size: 12px; font-weight: 550; }
-
 /* Courses: the cards, ticked to install */
 .ui-setup__courses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ui-setup__course { position: relative; display: grid; border-radius: calc(12px * var(--squircle-factor, 1)); cursor: pointer; }
@@ -347,7 +307,6 @@ const css = /* css */ `
 .ui-setup__later { margin: 14px 0 0; color: var(--muted); font-size: 13px; }
 .ui-setup__later button { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 
-/* Profile: whether the handle is free */
 
 /* Style: light or dark as a switch between its two words, the chosen one in ink; theme and color scheme side by side –
    far enough apart that their rows' highlights (which reach past the column) keep a clear gap – the code below */

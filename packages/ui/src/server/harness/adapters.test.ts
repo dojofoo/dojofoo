@@ -8,6 +8,13 @@ import { dojofooHarness, harnessAdapter } from "./registry";
 import { promptContextBlock } from "../lesson/codex-client";
 
 describe("ACP harness adapters", () => {
+  it("accepts Claude Code as a native course harness", () => {
+    expect(dojofooHarness({ DOJOFOO_HARNESS: "claude" })).toBe("claude");
+    expect(harnessAdapter("claude").process({ root: "/tmp", developerInstructions: "Teach" })).toMatchObject({
+      command: process.execPath,
+      environment: expect.objectContaining({ CLAUDE_CODE_EXECUTABLE: expect.any(String) }),
+    });
+  });
   it("negotiates Codex's existing typed failures without classifying ordinary text or retry warnings", () => {
     const adapter = createCodexHarnessAdapter();
     expect(adapter.clientCapabilities).toEqual({
@@ -27,7 +34,7 @@ describe("ACP harness adapters", () => {
       const home = join(root, "user");
       const binary = join(home, ".opencode/bin/opencode");
       mkdirSync(join(home, ".opencode/bin"), { recursive: true });
-      writeFileSync(binary, "fixture executable");
+      writeFileSync(binary, "fixture executable", { mode: 0o755 });
       const selected = opencodeExecutable({}, home);
       expect(selected).toBe(binary);
       const adapter = createOpenCodeHarnessAdapter({ OPENCODE_BIN: selected }, join(root, "isolated"));
@@ -37,7 +44,7 @@ describe("ACP harness adapters", () => {
     }
   });
   it("encapsulates Codex process configuration", () => {
-    const adapter = createCodexHarnessAdapter({ PATH: "/bin", CODEX_CONFIG: JSON.stringify({ model: "gpt-5" }) });
+    const adapter = createCodexHarnessAdapter({ PATH: "/bin", CODEX_PATH: "codex", CODEX_CONFIG: JSON.stringify({ model: "gpt-5" }) });
     const process = adapter.process({ root: "/tmp/lesson", developerInstructions: "Teach this lesson" });
 
     expect(adapter.kind).toBe("codex");

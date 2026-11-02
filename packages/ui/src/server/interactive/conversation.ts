@@ -126,7 +126,7 @@ export async function streamInteractiveSensei(
   if (selecting.has(key) || activeOperations.has(key)) throw new Error("The conversation is busy. Wait for the current operation to finish.");
   activeOperations.add(key);
   try {
-    const lesson = getInteractiveLesson(root, dojo);
+    const { references: _references, ...lesson } = getInteractiveLesson(root, dojo);
     const guidance = readDojoMd(root, dojo);
     const binding = await session(root, dojo);
     if (binding.pendingRuntime) {

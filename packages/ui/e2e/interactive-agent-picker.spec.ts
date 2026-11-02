@@ -16,6 +16,7 @@ test("interactive agent selection preserves the question and restores the select
   await page.route("**/api/**", route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/control/learning-sessions/")) return route.fulfill({ json: { id: path.split("/").at(-1), title: "Course", workspaceId: "agent-workspace", mode: "interactive", kata: null } });
     if (request.method() !== "GET") writes.push(path);
     if (path.endsWith("/configuration/harness")) {
       attempts += 1;
@@ -30,12 +31,16 @@ test("interactive agent selection preserves the question and restores the select
     if (path.endsWith("/conversation")) return route.fulfill({ json: saved[selected] });
     if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [{ type: "html", html: "<p>Read and think.</p>" }] } });
     if (path.endsWith("/interactive")) return route.fulfill({ json: {
-      dojo: "interactive", title: "Interactive course", lessonTitle: "First lesson", step: 0, totalSteps: 2, complete: false, response: null,
+      dojo: "interactive", title: "Interactive course", lessonTitle: "First lesson", lessonId: "intro", lessonIndex: 0, completedLessons: 0, lessons: [{ id: "intro", title: "First lesson", state: "active" }], slides: [{ id: "first", title: "First slide", locked: false }], references: [], unlockedStep: 0, step: 0, totalSteps: 2, complete: false, response: null,
       current: { id: "first", type: "present", title: "First step", content: "Read and think.", contentBase: null },
     } });
     return route.fulfill({ status: 404 });
   });
-  await page.goto("/interactive?workspace=agent-workspace&course=interactive");
+  await page.goto("/session/interactive");
+  // Pages/Learner CourseWorkspace has course sections and a return breadcrumb.
+  await expect(page.getByRole("group", { name: "Lessons", exact: true })).toBeVisible();
+  await expect(page.locator('.ui-as-side a[href="/explore"]')).toHaveCount(0);
+  await expect(page.getByRole("group", { name: "Dashboard", exact: true })).toHaveCount(0);
   const agent = page.getByRole("button", { name: "Agent", exact: true });
   const model = page.getByRole("button", { name: "Model", exact: true });
   const draft = page.getByRole("textbox", { name: "Message the sensei", exact: true });
@@ -73,24 +78,26 @@ test("an unused agent can be prepared again without submitting the typed questio
   await page.route("**/api/**", route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/control/learning-sessions/")) return route.fulfill({ json: { id: path.split("/").at(-1), title: "Course", workspaceId: "agent-workspace", mode: "interactive", kata: null } });
     if (request.method() !== "GET") operations.push(path);
     if (path.endsWith("/conversation")) return route.fulfill({ json: { sessionId: null, harness: "codex", harnesses: ["codex"], model: null, messages: [] } });
     if (path.endsWith("/configuration/harness")) return route.fulfill({ json: { sessionId: "prepared", harness: "codex", harnesses: ["codex"], messages: [],
       model: { id: "model", name: "Model", currentValue: "gpt", options: [{ value: "gpt", name: "GPT" }] } } });
     if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [] } });
-    if (path.endsWith("/interactive")) return route.fulfill({ json: { dojo: "empty", title: "Empty selection", lessonTitle: "First lesson", step: 0, totalSteps: 1,
+    if (path.endsWith("/interactive")) return route.fulfill({ json: { dojo: "empty", title: "Empty selection", lessonTitle: "First lesson", lessonId: "intro", lessonIndex: 0, completedLessons: 0, lessons: [{ id: "intro", title: "First lesson", state: "active" }], slides: [{ id: "first", title: "First slide", locked: false }], references: [], unlockedStep: 0, step: 0, totalSteps: 1,
       complete: false, response: null, current: { id: "first", type: "present", title: "First step", content: "Read.", contentBase: null } } });
     return route.fulfill({ status: 404 });
   });
-  await page.goto("/interactive?workspace=agent-workspace&course=empty");
+  await page.goto("/session/empty");
   const agent = page.getByRole("button", { name: "Agent", exact: true });
   const model = page.getByRole("button", { name: "Model", exact: true });
   await expect(agent).toContainText("Codex");
-  await expect(model).toBeDisabled();
+  await expect(model).toBeEnabled();
   const question = page.getByRole("textbox", { name: "Message the sensei", exact: true });
   await question.fill("I will send this myself");
-  await agent.click();
-  await page.getByRole("menuitemradio", { name: /^Codex/ }).click();
+  await model.click();
+  await expect(page.getByRole("menuitemradio", { name: /^GPT/ })).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(model).toBeEnabled();
   await expect(model).toContainText("GPT");
   await expect(question).toHaveValue("I will send this myself");
@@ -106,6 +113,7 @@ test("a late refresh cannot replace the selected agent's conversation", async ({
   await page.route("**/api/**", async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/control/learning-sessions/")) return route.fulfill({ json: { id: path.split("/").at(-1), title: "Course", workspaceId: "agent-workspace", mode: "interactive", kata: null } });
     if (path.endsWith("/conversation")) {
       reads += 1;
       if (reads === 2) await held;
@@ -124,11 +132,11 @@ test("a late refresh cannot replace the selected agent's conversation", async ({
       return route.fulfill({ contentType: "text/event-stream", body: events.map(event => `data: ${JSON.stringify(event)}\n\n`).join("") });
     }
     if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [] } });
-    if (path.endsWith("/interactive")) return route.fulfill({ json: { dojo: "race", title: "Race course", lessonTitle: "First lesson", step: 0, totalSteps: 1,
+    if (path.endsWith("/interactive")) return route.fulfill({ json: { dojo: "race", title: "Race course", lessonTitle: "First lesson", lessonId: "intro", lessonIndex: 0, completedLessons: 0, lessons: [{ id: "intro", title: "First lesson", state: "active" }], slides: [{ id: "first", title: "First slide", locked: false }], references: [], unlockedStep: 0, step: 0, totalSteps: 1,
       complete: false, response: null, current: { id: "read", type: "present", title: "Read", content: "Read.", contentBase: null } } });
     return route.fulfill({ status: 404 });
   });
-  await page.goto("/interactive?workspace=agent-workspace&course=race");
+  await page.goto("/session/race");
   const agent = page.getByRole("button", { name: "Agent", exact: true });
   await expect(agent).toBeEnabled();
   await page.getByRole("textbox", { name: "Message the sensei", exact: true }).fill("Explain this step");
@@ -152,6 +160,7 @@ test("initial conversation loading keeps the composer waiting until its supporte
   await page.route("**/api/**", async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/control/learning-sessions/")) return route.fulfill({ json: { id: path.split("/").at(-1), title: "Course", workspaceId: "agent-workspace", mode: "interactive", kata: null } });
     if (request.method() !== "GET" && path !== "/api/teaching/preview") writes.push(path);
     if (path.endsWith("/conversation")) {
       await ready.promise;
@@ -159,12 +168,12 @@ test("initial conversation loading keeps the composer waiting until its supporte
         model: { id: "model", name: "Model", currentValue: "supported", options: [{ value: "supported", name: "Supported model" }] }, messages: [] } });
     }
     if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [] } });
-    if (path.endsWith("/interactive")) return route.fulfill({ json: { dojo: "loading", title: "Loading course", lessonTitle: "First lesson", step: 0, totalSteps: 1,
+    if (path.endsWith("/interactive")) return route.fulfill({ json: { dojo: "loading", title: "Loading course", lessonTitle: "First lesson", lessonId: "intro", lessonIndex: 0, completedLessons: 0, lessons: [{ id: "intro", title: "First lesson", state: "active" }], slides: [{ id: "first", title: "First slide", locked: false }], references: [], unlockedStep: 0, step: 0, totalSteps: 1,
       complete: false, response: null, current: { id: "first", type: "present", title: "First step", content: "Read.", contentBase: null } } });
     return route.fulfill({ status: 404 });
   });
   try {
-    await page.goto("/interactive?workspace=agent-workspace&course=loading");
+    await page.goto("/session/loading");
     await expect(page.getByRole("heading", { name: "First step", exact: true })).toBeVisible();
     const chat = page.getByTestId("chat-pane");
     const agent = page.getByRole("button", { name: "Agent", exact: true });

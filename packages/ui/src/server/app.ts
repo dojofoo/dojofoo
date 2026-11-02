@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { localRoutes } from "./local";
 import {
   DefaultRequestHandler,
   DefaultExecutionEventBusManager,
@@ -74,8 +75,10 @@ function buildApp() {
     if (allowOrigin) c.res.headers.set("Access-Control-Allow-Origin", allowOrigin);
   });
 
+  app.route("/api/local", localRoutes);
+
   // Liveness.
-  app.get("/api/health", (c) => c.json({ ok: true, version: agentCard.version }));
+  app.get("/api/health", (c) => c.json({ ok: true, version: agentCard.version, instance: process.env.DOJO_UI_INSTANCE }));
 
   // Local senpai project API.
   app.route("/api/project", projectRoutes);

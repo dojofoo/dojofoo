@@ -8,7 +8,7 @@ export const AGENTS = {
   claude: { dir: ".claude", commandsDir: "commands", hasSettings: true, envVars: ["CLAUDECODE"] },
   opencode: { dir: ".opencode", commandsDir: "commands", hasSettings: false, envVars: ["OPENCODE"] },
   codex: { dir: ".codex", commandsDir: "commands", hasSettings: false, envVars: ["CODEX_THREAD_ID"] },
-  gemini: { dir: ".gemini", commandsDir: "commands", hasSettings: false, envVars: ["GEMINI_CLI"] },
+  agy: { dir: ".agents", commandsDir: "commands", hasSettings: false, envVars: [] },
   pi: { dir: ".pi", commandsDir: "prompts", hasSettings: false, envVars: ["PI_CODING_AGENT"] },
 } as const;
 
@@ -187,6 +187,8 @@ function symlinkCanonical(root: string, agent: AgentName, name: "dojo" | "kata")
   const targetDir = resolve(root, cfg.dir, cfg.commandsDir);
   const target = resolve(targetDir, `${name}.md`);
   const canonical = resolve(root, AGENTS_COMMANDS_DIR, `${name}.md`);
+
+  if (target === canonical) return;
 
   // Replace any existing symlink or regular file with a fresh symlink so the
   // canonical content stays the single source of truth across agents.

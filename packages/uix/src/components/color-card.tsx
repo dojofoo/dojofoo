@@ -7,6 +7,7 @@ import { Topography } from "./topography";
 import { Waves } from "./waves";
 import { Tick02Icon } from "../lib/icons";
 import { cn } from "../lib/utils";
+import { NavigationLink } from "./navigation-link";
 
 /*
  * ColorCard – every card's look: one color, its gradient drawn from that color alone (lighter at the top left, deeper
@@ -57,13 +58,14 @@ export type ColorCardProps = {
   flip?: boolean;
   children?: ReactNode;
   href?: string;
+  onNavigate?: () => void;
   onClick?: MouseEventHandler<HTMLElement>;
   /** The card's name – for a button or a card that turns, what it is and, say, how far you are */
   "aria-label"?: string;
   className?: string;
 } & Pick<HTMLAttributes<HTMLElement>, "onPointerEnter" | "onFocus">;
 
-export function ColorCard({ color, shader = false, seed, size = "small", header, main, footer, progress, centered = false, flip = false, children, href, onClick, onPointerEnter, onFocus, "aria-label": ariaLabel, className }: ColorCardProps) {
+export function ColorCard({ color, shader = false, seed, size = "small", header, main, footer, progress, centered = false, flip = false, children, href, onNavigate, onClick, onPointerEnter, onFocus, "aria-label": ariaLabel, className }: ColorCardProps) {
   const seedNumber = typeof seed === "string" ? seedOf(seed) : seed ?? seedOf(color);
   const classes = cn("ui-card", size === "big" && "ui-card--big", centered && "ui-card--centered", progress !== undefined && "ui-card--progress", flip && "ui-card--flip", className);
   const style = { "--card-color": color } as CSSProperties;
@@ -89,7 +91,7 @@ export function ColorCard({ color, shader = false, seed, size = "small", header,
       </div>
     );
   }
-  if (href) return <a href={href} className={classes} style={style} aria-label={ariaLabel} onClick={onClick} onPointerEnter={onPointerEnter} onFocus={onFocus}>{face}</a>;
+  if (href) return <NavigationLink href={href} onNavigate={onNavigate} className={classes} style={style} aria-label={ariaLabel} onClick={onClick} onPointerEnter={onPointerEnter} onFocus={onFocus}>{face}</NavigationLink>;
   return onClick
     ? <button type="button" className={classes} style={style} aria-label={ariaLabel} onClick={onClick} onPointerEnter={onPointerEnter} onFocus={onFocus}>{face}</button>
     : <article className={classes} style={style} aria-label={ariaLabel}>{face}</article>;

@@ -1,13 +1,15 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { execFileSync, spawn } from "node:child_process";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { createServer } from "node:net";
+import { RouteStore, resolveUserHome } from "portless";
+import { agentEnvironment } from "@dojofoo/config/agent-installations";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dojoDir, findManifestPath, readDojoRc } from "../config";
-import { pinPortlessAddress } from "../portless-address";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
-
-const portlessCli = fileURLToPath(new URL("./cli.js", import.meta.resolve("portless")));
 
 /** Author the requested course, not its enclosing multi-course workspace. */
 export function resolveAuthoringRoot(cwd: string, workspace: string): string {
@@ -24,93 +26,167 @@ export function resolveAuthoringRoot(cwd: string, workspace: string): string {
   return cwd;
 }
 
-export async function ui(cwd: string, args: string[]): Promise<void> {
+export async function ui(cwd: string, args: string[], moduleUrl = import.meta.url): Promise<void> {
   if (args.includes("--skill")) {
     const skill = resolveUiSkill();
     if (!skill) throw new Error("Could not locate the bundled Dojofoo UI skill.");
     process.stdout.write(readFileSync(skill, "utf8"));
     return;
   }
-  const uiEntry = resolveUiEntry();
+  const uiEntry = resolveUiEntry(moduleUrl);
   if (!uiEntry) {
     console.error("Could not locate the bundled dojo UI server.");
     process.exit(1);
   }
 
-  const name = valueAfter(args, "--name") ?? process.env.DOJO_UI_NAME ?? "dojo";
-  if (!/^[a-z0-9][a-z0-9-]*$/u.test(name)) {
-    throw new Error(`Invalid dojo UI name: ${name}`);
-  }
   const background = args.includes("--background");
-  const shouldOpen = !args.includes("--no-open");
+  const shouldOpen = !args.includes("--no-open") && process.env.DOJO_UI_NO_OPEN !== "1";
   const openPath = resolveUiOpenPath(args);
-  const tld = valueAfter(args, "--tld") ?? "localhost";
-  if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/u.test(tld) || tld.includes("..")) {
-    throw new Error(`Invalid dojo UI top-level domain: ${tld}`);
-  }
-  const port = valueAfter(args, "--port") ?? process.env.PORT ?? process.env.DOJO_UI_PORT ?? "4567";
+  if (args.includes("--authoring")) observeWorkspacePath(process.env.DOJO_PROJECT_ROOT ?? cwd);
+  const port = valueAfter(args, "--port") ?? process.env.DOJO_UI_PORT ?? process.env.PORT ?? "4567";
   if (!/^\d+$/u.test(port) || Number(port) < 1 || Number(port) > 65_535) {
     throw new Error(`Invalid dojo UI port: ${port}`);
   }
-  if (args.includes("--authoring")) observeWorkspacePath(process.env.DOJO_PROJECT_ROOT ?? cwd);
-
-  if (!args.includes("--no-portless") && process.env.DOJO_UI_DISABLE_PORTLESS !== "1" && existsSync(portlessCli)) {
-    // The UI is a disposable daemon. Always replace an existing route so a
-    // newly installed CLI cannot keep serving HTML from an older asset manifest.
-    // The managed name must not take over the website's existing dojo.td route.
-    const managedName = `dojofoo-ui-${name}`;
-    const portlessArgs = ["--name", managedName, "--force"];
-    portlessArgs.push("--", process.execPath, uiEntry);
-    const child = spawn(process.execPath, [portlessCli, ...portlessArgs], {
-      cwd,
-      env: { ...process.env, DOJO_CLI: process.argv[1] },
-      stdio: background ? "ignore" : "inherit",
-      detached: background,
-    });
-    if (background) {
-      let fellBack = false;
-      const fallback = (reason: string) => {
-        if (fellBack) return;
-        fellBack = true;
-        console.warn(`Portless ${reason}; falling back to http://localhost:${port}.`);
-        startDirectUi({ cwd, uiEntry, port, background, shouldOpen, openPath });
-      };
-      child.once("error", (error) => fallback(`could not start (${error.message})`));
-      child.once("exit", (code) => {
-        if (code && code !== 0) fallback(`exited with status ${code}`);
-      });
-      setTimeout(() => {
-        if (fellBack) return;
-        const managedUrl = activePortlessUrl(managedName);
-        const baseUrl = managedUrl ? pinPortlessAddress(managedUrl, `${name}.${tld}`) : null;
-        const url = baseUrl ? `${baseUrl}${openPath}` : null;
-        if (url) {
-          console.log(url);
-          if (shouldOpen) openBrowser(url);
-          child.unref();
-        } else {
-          child.kill();
-          fallback("did not register a route");
-        }
-      }, 2_000);
-      return;
-    }
-    setTimeout(() => {
-      const managedUrl = activePortlessUrl(managedName);
-      const baseUrl = managedUrl ? pinPortlessAddress(managedUrl, `${name}.${tld}`) : null;
-      if (!baseUrl) return;
-      const url = `${baseUrl}${openPath}`;
-      console.log(url);
-      if (shouldOpen) openBrowser(url);
-    }, 2_000);
-    relayExit(child, () => {
-      console.warn(`Portless failed; falling back to http://localhost:${port}.`);
-      startDirectUi({ cwd, uiEntry, port, background, shouldOpen, openPath });
-    });
+  const environment: NodeJS.ProcessEnv = { ...agentEnvironment(), DOJO_CLI: process.argv[1], DOJO_PROJECT_ROOT: cwd, NODE_NO_WARNINGS: "1" };
+  if (args.includes("--no-portless") || process.env.DOJO_UI_DISABLE_PORTLESS === "1") {
+    startDirectUi({ cwd, uiEntry, port, background, shouldOpen, openPath });
     return;
   }
+  const interactive = Boolean(process.stderr.isTTY);
+  if (interactive) process.stderr.write("Starting Dojo…");
+  const clearProgress = () => { if (interactive) process.stderr.write("\r\x1b[2K"); };
+  let progressVisible = true;
+  try {
+    const stateDir = process.env.PORTLESS_STATE_DIR ?? join(resolveUserHome(), ".portless");
+    let proxy = proxyConfiguration(stateDir);
+    if (!await proxyRunning(proxy)) {
+      const proxyEnvironment: NodeJS.ProcessEnv = { ...process.env, PORTLESS_STATE_DIR: stateDir };
+      delete proxyEnvironment.npm_command;
+      delete proxyEnvironment.PNPM_SCRIPT_SRC_DIR;
+      await new Promise<void>((accept, reject) => {
+        // Portless exports route/proxy primitives, but no daemon bootstrap API.
+        // Use its included CLI only when the default shared proxy is absent.
+        const bootstrap = spawn(process.execPath, [resolvePortlessEntry(), "proxy", "start"], {
+          cwd, env: proxyEnvironment, stdio: ["inherit", "pipe", "pipe"],
+        });
+        let output = "";
+        bootstrap.stdout.on("data", chunk => { output = (output + chunk).slice(-8000); });
+        bootstrap.stderr.on("data", chunk => { output = (output + chunk).slice(-8000); });
+        bootstrap.once("error", reject);
+        bootstrap.once("exit", code => code === 0 ? accept() : reject(new Error(`Could not start Portless: ${output.trim()}`)));
+      });
+      proxy = proxyConfiguration(stateDir);
+      if (!await proxyRunning(proxy)) throw new Error("Portless did not start its local proxy.");
+    }
+    const appPort = await availablePort();
+    const defaultPort = proxy.tls ? 443 : 80;
+    const baseUrl = `${proxy.tls ? "https" : "http"}://dojo.localhost${proxy.port === defaultPort ? "" : `:${proxy.port}`}`;
+    const stateHome = process.env.DOJOFOO_HOME ?? join(homedir(), ".dojofoo");
+    mkdirSync(stateHome, { recursive: true });
+    const logFile = join(stateHome, "ui.log");
+    const log = openSync(logFile, "w", 0o600);
+    const instance = crypto.randomUUID();
+    const child = spawn(process.execPath, [uiEntry], {
+      cwd, detached: true, stdio: ["ignore", log, log],
+      env: { ...environment, PORT: String(appPort), HOST: "127.0.0.1", PORTLESS_URL: baseUrl,
+        DOJO_UI_BASE_URL: baseUrl, DOJO_UI_INSTANCE: instance },
+    });
+    closeSync(log);
+    let launchError: Error | undefined;
+    child.once("error", error => { launchError = error; });
+    const store = new RouteStore(stateDir);
+    const cleanup = () => { if (child.pid) store.removeRoute("dojo.localhost", child.pid); };
+    child.once("exit", cleanup);
+    try {
+      if (!child.pid) throw new Error("Could not start the local UI process.");
+      // Exact hostname: no worktree/package-name inference or custom TLD rewrite.
+      store.addRoute("dojo.localhost", appPort, child.pid, true);
+      store.updateRoute("dojo.localhost", { childPgid: child.pid });
+      await waitForUi(`${baseUrl}/api/health`, instance, proxy.ca, () => {
+        if (launchError) throw launchError;
+        if (child.exitCode !== null || child.signalCode !== null) {
+          throw new Error(`Local UI exited before startup. See ${logFile}.`);
+        }
+      });
+    } catch (error) {
+      child.kill();
+      cleanup();
+      throw error;
+    }
+    clearProgress();
+    progressVisible = false;
+    console.log(`Go to ${baseUrl}${openPath}`);
+    if (shouldOpen) openBrowser(`${baseUrl}${openPath}`);
+    if (background) child.unref();
+    else {
+      const interrupt = () => child.kill("SIGINT");
+      const terminate = () => child.kill("SIGTERM");
+      process.once("SIGINT", interrupt);
+      process.once("SIGTERM", terminate);
+      child.once("exit", () => {
+        process.removeListener("SIGINT", interrupt);
+        process.removeListener("SIGTERM", terminate);
+      });
+      relayExit(child);
+    }
+  } finally { if (progressVisible) clearProgress(); }
+}
 
-  startDirectUi({ cwd, uiEntry, port, background, shouldOpen, openPath });
+function proxyConfiguration(stateDir: string) {
+  const portFile = join(stateDir, "proxy.port");
+  const port = existsSync(portFile) ? Number(readFileSync(portFile, "utf8").trim()) : 443;
+  const tls = existsSync(portFile) ? existsSync(join(stateDir, "proxy.tls")) : true;
+  const caFile = join(stateDir, "ca.pem");
+  return { port, tls, ca: existsSync(caFile) ? readFileSync(caFile) : undefined };
+}
+
+function proxyRunning(proxy: ReturnType<typeof proxyConfiguration>): Promise<boolean> {
+  return new Promise(accept => {
+    const request = (proxy.tls ? httpsRequest : httpRequest)({
+      hostname: "127.0.0.1", port: proxy.port, path: "/", method: "HEAD",
+      timeout: 1000, ...(proxy.tls ? { rejectUnauthorized: false } : {}),
+    }, response => { response.resume(); accept(response.headers["x-portless"] === "1"); });
+    request.on("error", () => accept(false));
+    request.on("timeout", () => { request.destroy(); accept(false); });
+    request.end();
+  });
+}
+
+async function availablePort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((accept, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", accept); });
+  const port = (server.address() as { port: number }).port;
+  await new Promise<void>((accept, reject) => server.close(error => error ? reject(error) : accept()));
+  return port;
+}
+
+async function waitForUi(url: string, instance: string, ca: Buffer | undefined, check: () => void): Promise<void> {
+  const endpoint = new URL(url);
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    check();
+    try {
+      const health = await new Promise<{ instance?: string }>((accept, reject) => {
+        const request = (endpoint.protocol === "https:" ? httpsRequest : httpRequest)({
+          hostname: "127.0.0.1", port: endpoint.port || (endpoint.protocol === "https:" ? 443 : 80),
+          path: endpoint.pathname, headers: { Host: endpoint.host }, timeout: 1000,
+          ...(endpoint.protocol === "https:" ? { servername: endpoint.hostname, ca } : {}),
+        }, response => {
+          let body = "";
+          response.on("data", chunk => { body += chunk; });
+          response.on("end", () => {
+            try { accept(response.statusCode === 200 ? JSON.parse(body) : {}); } catch { accept({}); }
+          });
+        });
+        request.on("error", reject);
+        request.on("timeout", () => request.destroy(new Error("UI readiness request timed out.")));
+        request.end();
+      });
+      if (health.instance === instance) return;
+    } catch { /* The new route is still starting. */ }
+    await new Promise(accept => setTimeout(accept, 100));
+  }
+  throw new Error(`Timed out starting ${endpoint.origin}.`);
 }
 
 function startDirectUi(input: {
@@ -125,11 +201,11 @@ function startDirectUi(input: {
   const url = `http://localhost:${port}${openPath}`;
   const pidFile = directUiPidFile(port);
   replaceDirectDaemon(pidFile, uiEntry);
-  console.log(url);
+  console.log(`Go to ${url}`);
   const child = spawn(process.execPath, [uiEntry], {
     cwd,
-    env: { ...process.env, DOJO_CLI: process.argv[1], PORT: port },
-    stdio: background ? "ignore" : "inherit",
+    env: { ...agentEnvironment(), DOJO_CLI: process.argv[1], DOJO_PROJECT_ROOT: cwd, NODE_NO_WARNINGS: "1", PORT: port },
+    stdio: "ignore",
     detached: background,
   });
   mkdirSync(dirname(pidFile), { recursive: true });
@@ -167,16 +243,6 @@ function replaceDirectDaemon(pidFile: string, uiEntry: string): void {
   }
 }
 
-function activePortlessUrl(name: string): string | null {
-  try {
-    const output = execFileSync(process.execPath, [portlessCli, "list"], { encoding: "utf8" });
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-    return output.match(new RegExp(`https?://${escaped}\\.[^\\s]+`))?.[0] ?? null;
-  } catch {
-    return null;
-  }
-}
-
 function openBrowser(url: string): void {
   const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
   const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
@@ -211,6 +277,10 @@ function valueAfter(args: string[], flag: string): string | undefined {
 
 export function resolveUiOpenPath(args: string[]): string {
   return args.includes("--authoring") ? "/authoring" : "";
+}
+
+export function resolvePortlessEntry(): string {
+  return join(dirname(fileURLToPath(import.meta.resolve("portless"))), "cli.js");
 }
 
 export function resolveUiEntry(moduleUrl = import.meta.url): string | null {
