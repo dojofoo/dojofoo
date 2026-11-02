@@ -575,7 +575,7 @@ export function AppShell({
             };
             return (
               <div key={section.id} className="ui-as-side__group" role={section.heading ? "group" : undefined} aria-labelledby={section.heading ? headingId : undefined}>
-                {section.before && <div className="ui-as-side__before">{section.before}</div>}
+                {section.before && <div className="ui-as-side__before" hidden={rail}>{section.before}</div>}
                 {section.heading && (
                   <span className="ui-as-side__label">
                     <span id={headingId} className="ui-as-side__label-text">{section.heading}</span>
@@ -585,7 +585,7 @@ export function AppShell({
                 {section.items.length === 0 && section.empty && <span className="ui-as-side__empty">{section.empty}</span>}
                 {section.items.map(entry => renderEntry(entry))}
                 {/* A screen's own sidebar content follows the main menu; the rail has no room for it */}
-                {index === 0 && sidebar && !navigation && <div className="ui-as-side__custom">{sidebar}</div>}
+                {index === 0 && sidebar && !navigation && <div className="ui-as-side__custom" hidden={rail}>{sidebar}</div>}
               </div>
             );
           })}

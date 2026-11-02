@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { add } from "../src/commands/add";
 import { dojoDir, readCourseManifest } from "@dojofoo/config";
 import { advanceInteractiveLesson, answerInteractiveQuestion, getInteractiveLesson } from "../../ui/src/server/interactive/service";
@@ -10,7 +10,7 @@ import { compileTeachingDocument } from "../../ui/src/server/teaching-markdown";
 
 const sources = resolve(import.meta.dirname, "../../../courses");
 const temporary: string[] = [];
-afterEach(() => { for (const directory of temporary.splice(0)) rmSync(directory, { recursive: true, force: true }); });
+afterEach(() => { vi.unstubAllEnvs(); for (const directory of temporary.splice(0)) rmSync(directory, { recursive: true, force: true }); });
 
 function digest(directory: string): string {
   const hash = createHash("sha256");
@@ -34,21 +34,24 @@ for (const [id, title] of [
   const original = digest(source);
   const root = mkdtempSync(resolve(tmpdir(), "dojo-starter-content-"));
   temporary.push(root);
+  vi.stubEnv("DOJOFOO_HOME", resolve(root, "state"));
   await add(root, [source, "--master"]);
   const installed = dojoDir(root, id!);
   expect(installed).not.toBe(source);
   expect(readCourseManifest(root, id!)).toMatchObject({ name: id, mode: "interactive", marketplace: false });
   expect(readFileSync(resolve(installed, "DOJO.md"), "utf8")).toContain("Draft");
   const first = getInteractiveLesson(root, id!);
-  expect(first.lessonTitle).toBe(title);
-  expect(first.totalSteps).toBeGreaterThanOrEqual(6);
+  expect(first.title).toBe(title);
+  expect(first.lessonTitle).toBe(first.lessons[0].title);
+  expect(first.totalSteps).toBeGreaterThan(0);
   const stepIds = new Set<string>();
   let step = first;
   let questions = 0;
   while (!step.complete) {
     const current = step.current!;
-    expect(stepIds.has(current.id)).toBe(false);
-    stepIds.add(current.id);
+    const slideKey = `${step.lessonId}/${current.id}`;
+    expect(stepIds.has(slideKey)).toBe(false);
+    stepIds.add(slideKey);
     if (current.type === "present") {
       expect(current.content.trim().length).toBeGreaterThan(80);
       const blocks = await compileTeachingDocument(current.content);
@@ -59,10 +62,10 @@ for (const [id, title] of [
         expect(existsSync(resolve(sources, "../apps/web/content", `${path}.mdx`)), path).toBe(true);
       }
     }
-    else {
+    else if (current.type === "question") {
       questions += 1;
       expect(current.prompt.trim().length).toBeGreaterThan(20);
-      expect(() => advanceInteractiveLesson(root, id!)).toThrow("Answer the question before continuing");
+      expect(() => advanceInteractiveLesson(root, id!)).toThrow("Answer the question correctly before continuing");
       expect(answerInteractiveQuestion(root, "deliberately incorrect", id!).response?.correct).toBe(false);
       expect(answerInteractiveQuestion(root, current.answers[0]!, id!).response?.correct).toBe(true);
     }
@@ -70,10 +73,11 @@ for (const [id, title] of [
     expect(getInteractiveLesson(root, id!).step).toBe(step.step);
   }
   expect(questions).toBeGreaterThan(0);
+  expect(stepIds.size).toBeGreaterThanOrEqual(6);
   const reopened = resolve(root, "../", `${root.split("/").at(-1)}-reopened`);
   temporary.push(reopened);
   cpSync(root, reopened, { recursive: true });
-  expect(getInteractiveLesson(reopened, id!)).toMatchObject({ complete: true, step: first.totalSteps });
+  expect(getInteractiveLesson(reopened, id!)).toMatchObject({ complete: true, lessonId: step.lessonId, step: step.step });
   writeFileSync(resolve(installed, "learner-notes.md"), "My own changes\n");
   await expect(add(root, [source, "--master"])).rejects.toThrow("already installed");
   expect(readFileSync(resolve(installed, "learner-notes.md"), "utf8")).toBe("My own changes\n");
