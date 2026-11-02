@@ -1,3 +1,6 @@
+import type { CourseAppearance } from "@dojofoo/config";
+import type { CoursePosition } from "@/server/control/routes";
+import { Link } from "@tanstack/react-router";
 import { AiMagicIcon } from "@dojofoo/uix/icons";
 import { StreamedChatMessage } from "@/components/chat/streamed-message";
 export { StreamedChatMessage, evaluationSummary } from "@/components/chat/streamed-message";
@@ -5,7 +8,6 @@ import { AppShell, Dropdown, Icon as UIXIcon, MenuButton, type ShellSection } fr
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
 import { Composer } from "@dojofoo/uix/containers/assistant-home";
 import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
-import { followLink } from "@dojofoo/uix/lib/link-event";
 import { lessonResources } from "@/lib/lesson-resources";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { WorkspaceSkeleton } from "@dojofoo/uix/components/workspace-skeleton";
@@ -15,6 +17,7 @@ import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
 import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
 import { DashboardPalette } from "@/components/dashboard-palette";
 import { ArrowDown01Icon, BackIcon, Cancel01Icon, DoneIcon } from "@dojofoo/uix/icons";
+import { LocalDashboard, type LocalSetup } from "@/components/local-onboarding";
 import { ClientOnly, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { fetchServerSentEvents, useChat, type UIMessage } from "@tanstack/ai-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -43,7 +46,6 @@ import { useAccountMenu } from "@/hooks/use-account-menu";
 import { codingAgents } from "@/lib/coding-agents";
 import { courseArt } from "@/lib/course-color";
 import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
-import { starterCourses } from "@/lib/starter-courses";
 import { authoringSessionLink, authoringSessionSearch } from "@/lib/authoring-session-link";
 import { httpError } from "@/lib/http-error";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
@@ -57,12 +59,15 @@ const CodeEditor = lazy(() => import("@dojofoo/uix/containers/code-editor").then
 const INTRODUCTION_MESSAGE = "[dojo:begin-lesson]";
 const CHECK_OBSERVATION_MESSAGE = "[dojo:check-observation]";
 
-export const Route = createFileRoute("/")({ component: CourseIndex });
+export const Route = createFileRoute("/")({ component: () => <LocalDashboard>{setup => <CourseIndex setup={setup} />}</LocalDashboard> });
 
 type ActiveCourse = {
+  appearance?: CourseAppearance;
+  position?: CoursePosition;
   workspaceId: string;
   runId: string | null;
   dojo: string;
+  title: string;
   description: string;
   language: string;
   framework: string | null;
@@ -77,11 +82,7 @@ type ActiveCourse = {
   sessions: Array<{ lessonId: string; sessionId: string }>;
 };
 
-type CourseGroup = {
-  dojo: string;
-  workspaces: ActiveCourse[];
-};
-type AuthoringDraft = { workspaceId: string; name: string; description: string; mode: string; lastSeenAt: number };
+type AuthoringDraft = { appearance?: CourseAppearance; workspaceId: string; name: string; description: string; mode: string; lastSeenAt: number };
 
 type LessonCheckEvent = {
   lesson: LessonSnapshot;
@@ -98,7 +99,7 @@ async function assertResponse(response: Response): Promise<Response> {
   throw new Error(body || `Request failed (${response.status})`);
 }
 
-function CourseIndex() {
+function CourseIndex({ setup }: { setup: LocalSetup }) {
   const navigate = useNavigate();
   const { account, toast } = useAccountMenu();
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
@@ -110,15 +111,6 @@ function CourseIndex() {
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
-  const [courseChoice, setCourseChoice] = useState<CourseGroup | null>(null);
-  const [courseChoiceOpen, setCourseChoiceOpen] = useState(false);
-  const [choiceWorkspaceId, setChoiceWorkspaceId] = useState("");
-  const [choiceSessionId, setChoiceSessionId] = useState("current");
-  const [openingCourse, setOpeningCourse] = useState(false);
-  const [courseOpenError, setCourseOpenError] = useState<string>();
-  const courseOpenRequest = useRef<AbortController | null>(null);
-  useEffect(() => () => courseOpenRequest.current?.abort(), []);
-
   useEffect(() => {
     fetch("/api/control/courses")
       .then(async (response) => {
@@ -136,67 +128,12 @@ function CourseIndex() {
       .catch(() => setDrafts([]));
   }, []);
 
-  const groups = groupCourses(courses);
-  const starters = starterCourses.filter(item => !groups.some(group => group.dojo === item.id));
-  const languages = [...new Set(groups.flatMap((group) => group.workspaces.map((course) => course.language)))].sort();
-  const visibleCourses = groups
-    .filter((group) => language === "all" || group.workspaces.some((course) => course.language === language))
-    .sort((left, right) => {
-      const leftSeen = courseGroupLastSeen(left);
-      const rightSeen = courseGroupLastSeen(right);
-      if (sortBy === "oldest") return leftSeen - rightSeen;
-      if (sortBy === "name") return humanTitle(left.dojo).localeCompare(humanTitle(right.dojo));
-      return rightSeen - leftSeen;
-    });
-
-  async function openCourse(course: ActiveCourse, sessionId?: string | null, signal?: AbortSignal) {
-    window.localStorage.setItem("dojofoo.workspace", course.workspaceId);
-    if (course.mode === "interactive") {
-      await navigate({ to: "/interactive", search: { workspace: course.workspaceId, course: course.dojo } });
-      return;
-    }
-    if (sessionId === null && course.kata) {
-      const response = await fetch(`${lessonApi(course.workspaceId, course.dojo, course.kata)}/sessions`, { method: "POST", signal });
-      await assertResponse(response);
-      const started = await response.json() as LessonSnapshot;
-      if (signal?.aborted) return;
-      if (started.sessionId) {
-        await navigate({ to: "/session/$sessionId", params: { sessionId: started.sessionId },
-          state: { lesson: { workspaceId: course.workspaceId, courseId: course.dojo, lessonId: started.kata, sessionId: started.sessionId } } });
-        return;
-      }
-    }
-    const existingSession = sessionId === undefined ? course.sessionId : sessionId;
-    if (existingSession) {
-      const lessonId = course.sessions.find(session => session.sessionId === existingSession)?.lessonId;
-      await navigate({ to: "/session/$sessionId", params: { sessionId: existingSession },
-        state: lessonId ? { lesson: { workspaceId: course.workspaceId, courseId: course.dojo, lessonId, sessionId: existingSession } } : undefined });
-      return;
-    }
-    if (course.kata) {
-      await navigate({
-        to: "/course/$workspaceId/$courseId/lesson/$lessonId",
-        params: { workspaceId: course.workspaceId, courseId: course.dojo, lessonId: course.kata },
-      });
-      return;
-    }
-    await navigate({ to: "/course/$workspaceId", params: { workspaceId: course.workspaceId } });
-  }
-
-  function chooseCourse(group: CourseGroup) {
-    setCourseOpenError(undefined);
-    if (group.workspaces.length === 1) {
-      void openCourse(group.workspaces[0]);
-      return;
-    }
-    const workspace = preferredWorkspace(group);
-    setCourseChoice(group);
-    setCourseChoiceOpen(true);
-    setChoiceWorkspaceId(workspace.workspaceId);
-    setChoiceSessionId(workspace.sessionId ?? "current");
-  }
-
-  const choiceWorkspace = courseChoice?.workspaces.find((course) => course.workspaceId === choiceWorkspaceId) ?? null;
+  const languages = [...new Set(courses.map(course => course.language))].sort();
+  const visibleCourses = courses.filter(course => language === "all" || course.language === language).sort((left, right) => {
+    if (sortBy === "name") return left.title.localeCompare(right.title);
+    return sortBy === "oldest" ? left.lastSeenAt - right.lastSeenAt : right.lastSeenAt - left.lastSeenAt;
+  });
+  const openCourse = (courseId: string) => { const course = courses.find(item => item.dojo === courseId); if (course?.runId) void navigate({ to: "/session/$sessionId", params: { sessionId: course.runId } }); };
 
   async function createCourse() {
     if (creatingCourse) return;
@@ -212,13 +149,22 @@ function CourseIndex() {
     finally { setCreatingCourse(false); }
   }
 
+  async function deleteCourse(id: string, authoring = false) {
+    try {
+      const response = await fetch(`/api/control/${authoring ? "authoring" : "courses"}/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!response.ok) throw await httpError(response);
+      if (authoring) setDrafts(previous => previous.filter(draft => draft.workspaceId !== id));
+      else setCourses(previous => previous.filter(course => course.dojo !== id));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not delete the course."); }
+  }
+
   const explore = () => { void navigate({ to: "/explore" }); };
   const navigation = dashboardNavigation();
 
   return (
     <div style={{ height: "100dvh" }}>
-      <AppShell {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojofoo courses"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
-        navigation={navigation} navigationKey={dashboardNavigationKey} active="courses"
+      <AppShell {...account} workspace="Dojo" sidebarWidth="18rem" brand={<Link to="/" className="flex items-center" aria-label="Dojofoo courses"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>}
+        user={setup.user} navigation={navigation} navigationKey={dashboardNavigationKey} active="courses"
         showNews={false} showOnboarding={false}
         onSearch={() => setPaletteOpen(true)} onNavigate={id => { if (id === "explore") explore(); }}>
         <LearningLibrary loading={coursesLoading} error={error ?? undefined} onExplore={explore}
@@ -229,107 +175,29 @@ function CourseIndex() {
             <MenuButton label="Sort local dojos" value={sortBy} onChange={setSortBy}
               options={[{ value: "recent", label: "Most recent" }, { value: "oldest", label: "Oldest activity" }, { value: "name", label: "Course name" }]} />
           </>}
-          courses={[...visibleCourses.map(group => {
-            const course = preferredWorkspace(group);
-            const single = group.workspaces.length === 1;
-            const href = !single || course.mode === "interactive" ? undefined
-              : course.sessionId ? `/session/${encodeURIComponent(course.sessionId)}`
-              : course.kata ? `/course/${encodeURIComponent(course.workspaceId)}/${encodeURIComponent(course.dojo)}/lesson/${encodeURIComponent(course.kata)}`
-              : `/course/${encodeURIComponent(course.workspaceId)}`;
-            return { id: group.dojo, title: humanTitle(course.dojo), color: courseColor(courseArt(group.dojo)), mark: course.language, href,
-              caption: single ? course.mode === "interactive" ? "Interactive lesson" : humanTitle(course.kata ?? "Not started") : `${group.workspaces.length} workspaces`,
-              detail: single ? course.workspaceName : "Choose where to continue", onOpen: () => chooseCourse(group) };
-          }), ...(language === "all" ? starters.map(course => ({ id: `starter:${course.id}`, title: course.title, color: courseColor(course.art), mark: "Dojo",
-            caption: "Draft starter", detail: "Install to begin", href: `/starter/${encodeURIComponent(course.id)}`,
-            onOpen: () => { void navigate({ to: "/starter/$courseId", params: { courseId: course.id } }); },
-          })) : [])]}
-          drafts={drafts.map(draft => ({ id: draft.workspaceId, title: humanTitle(draft.name), color: courseColor(courseArt(draft.workspaceId)), mark: draft.mode,
-            caption: "Draft", detail: draft.description || "Open authoring", href: authoringSessionLink(draft.workspaceId) }))} />
+          courses={visibleCourses.map(course => ({ id: course.dojo, title: course.title, color: courseColor(courseArt(course.dojo, course.appearance)), mark: course.language,
+            href: `/session/${encodeURIComponent(course.runId!)}`, caption: course.position?.complete ? "Completed" : course.position ? course.position.lessonTitle : humanTitle(course.kata ?? "Not started"),
+            detail: course.position ? `Lesson ${course.position.lessonIndex + 1} of ${course.position.totalLessons}${course.position.slide ? ` · Slide ${course.position.slide} of ${course.position.totalSlides}` : ""}` : course.description,
+            progress: course.position ? Math.round(course.position.completedLessons / course.position.totalLessons * 100) : undefined,
+            onOpen: () => openCourse(course.dojo), onDelete: () => { void deleteCourse(course.dojo); } }))}
+          drafts={drafts.map(draft => ({ id: draft.workspaceId, title: draft.name, color: courseColor(courseArt(draft.workspaceId, draft.appearance)), mark: draft.mode,
+            caption: "Draft", detail: draft.description || "Open authoring", href: authoringSessionLink(draft.workspaceId), onDelete: () => { void deleteCourse(draft.workspaceId, true); } }))} />
         {toast}
       </AppShell>
       <DashboardPalette open={paletteOpen} onOpenChange={setPaletteOpen} searchLabel="Search your courses"
         placeholder="Search courses, drafts and documentation…" groups={[
-          { id: "courses", label: "Courses", commands: groups.map(group => ({ id: `course:${group.dojo}`, label: humanTitle(group.dojo), keywords: preferredWorkspace(group).language })) },
-          { id: "starters", label: "Starter courses", commands: starters.map(course => ({ id: `starter:${course.id}`, label: course.title, keywords: course.blurb })) },
-          { id: "drafts", label: "Authoring", commands: drafts.map(draft => ({ id: `draft:${draft.workspaceId}`, label: humanTitle(draft.name) })) },
+          { id: "courses", label: "Courses", commands: courses.map(course => ({ id: `course:${course.dojo}`, label: course.title, keywords: course.language })) },
+          { id: "drafts", label: "Authoring", commands: drafts.map(draft => ({ id: `draft:${draft.workspaceId}`, label: draft.name })) },
         ]} onRun={id => {
-          if (id.startsWith("course:")) { const group = groups.find(item => item.dojo === id.slice(7)); if (group) chooseCourse(group); }
+          if (id.startsWith("course:")) openCourse(id.slice(7));
           else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: authoringSessionSearch(id.slice(6)) });
-          else if (id.startsWith("starter:")) void navigate({ to: "/starter/$courseId", params: { courseId: id.slice(8) } });
         }} />
-      <Dialog open={courseChoiceOpen} onOpenChange={open => {
-        setCourseChoiceOpen(open);
-        if (!open) courseOpenRequest.current?.abort();
-      }}>
-        <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
-          <DialogHeader>
-            <DialogTitle>Continue {humanTitle(courseChoice?.dojo ?? "course")}</DialogTitle>
-            <DialogDescription>Choose the workspace first. Sessions stay attached to its files and harness transcript.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-5 py-2">
-            <label className="grid gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Workspace</span>
-              <MenuButton label="Course workspace" align="start" className="w-full justify-between" disabled={openingCourse}
-                value={choiceWorkspaceId} onChange={workspaceId => {
-                  const workspace = courseChoice?.workspaces.find(candidate => candidate.workspaceId === workspaceId);
-                  setChoiceWorkspaceId(workspaceId);
-                  setChoiceSessionId(workspace?.sessionId ?? "current");
-                }} options={courseChoice?.workspaces.map(workspace => ({ value: workspace.workspaceId,
-                  label: `${workspace.workspaceName} · ${humanTitle(workspace.kata ?? "Not started")}` })) ?? []} />
-              {choiceWorkspace && <span className="truncate font-mono text-xs text-muted-foreground">{choiceWorkspace.path}</span>}
-            </label>
-            <label className="grid gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Session</span>
-              <MenuButton label="Course session" align="start" className="w-full justify-between" disabled={openingCourse} value={choiceSessionId} onChange={setChoiceSessionId}
-                options={[{ value: "current", label: choiceWorkspace?.sessionId ? "Start a new session" : "Start current lesson" },
-                  ...(choiceWorkspace?.sessions.map(session => ({ value: session.sessionId,
-                    label: `${humanTitle(session.lessonId)} · ${middleEllipsis(session.sessionId)}` })) ?? [])]} />
-            </label>
-          </div>
-          {courseOpenError && <p role="alert" className="text-sm text-destructive">{courseOpenError}</p>}
-          <DialogFooter>
-            <DialogClose render={<UIXButton variant="ghost">Cancel</UIXButton>} />
-            <UIXButton
-              disabled={!choiceWorkspace || openingCourse}
-              onClick={async () => {
-                if (!choiceWorkspace || openingCourse) return;
-                const controller = new AbortController();
-                courseOpenRequest.current = controller;
-                setOpeningCourse(true);
-                setCourseOpenError(undefined);
-                try {
-                  await openCourse(choiceWorkspace, choiceSessionId === "current" ? null : choiceSessionId, controller.signal);
-                  if (!controller.signal.aborted) setCourseChoiceOpen(false);
-                } catch (cause) {
-                  if (!controller.signal.aborted) setCourseOpenError(cause instanceof Error ? cause.message : String(cause));
-                } finally { setOpeningCourse(false); }
-              }}
-            >
-              {openingCourse ? "Opening…" : "Continue"}
-            </UIXButton>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 
-export function groupCourses(courses: ActiveCourse[]): CourseGroup[] {
-  const groups = new Map<string, ActiveCourse[]>();
-  for (const course of courses) groups.set(course.dojo, [...(groups.get(course.dojo) ?? []), course]);
-  return [...groups].map(([dojo, workspaces]) => ({ dojo, workspaces }));
-}
-
-function courseGroupLastSeen(group: CourseGroup): number {
-  return Math.max(...group.workspaces.map((workspace) => workspace.lastSeenAt));
-}
-
-function preferredWorkspace(group: CourseGroup): ActiveCourse {
-  return group.workspaces.find((workspace) => workspace.selected)
-    ?? [...group.workspaces].sort((left, right) => right.lastSeenAt - left.lastSeenAt)[0];
-}
-
-export function LessonPage({ requestedHarness, requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
+export function LessonPage({ initialLesson, requestedHarness, requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
+  initialLesson?: LessonSnapshot;
   requestedHarness?: string;
   requestedCourseId?: string;
   requestedLessonId?: string;
@@ -338,7 +206,7 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
 }) {
   const navigate = useNavigate();
   const { account, toast } = useAccountMenu({ preserveWorkspace: true });
-  const [lesson, setLesson] = useState<LessonSnapshot | null>(null);
+  const [lesson, setLesson] = useState<LessonSnapshot | null>(initialLesson ?? null);
   const [conversationReady, setConversationReady] = useState(false);
   const [conversationError, setConversationError] = useState<string>();
   const [conversationAttempt, setConversationAttempt] = useState(0);
@@ -346,7 +214,7 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
   const [coursesReady, setCoursesReady] = useState(false);
   const [selectedWorkspaceId, setWorkspaceId] = useState("");
   const workspaceId = requestedWorkspaceId ?? selectedWorkspaceId;
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialLesson?.code ?? "");
   const [editorHighlight, setEditorHighlight] = useState<(CodeHighlight & { nonce: number }) | undefined>();
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"code" | "tests">("code");
   const [checking, setChecking] = useState(false);
@@ -371,7 +239,7 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
   const forwardedProps = useRef<Record<string, unknown>>({});
   const sessionSocket = useRef<WebSocket | null>(null);
   const undoEditor = useRef<(() => boolean) | null>(null);
-  const selectedCourse = courses.find((course) => course.workspaceId === workspaceId);
+  const selectedCourse = courses.find((course) => course.workspaceId === workspaceId && (!requestedCourseId || course.dojo === requestedCourseId));
   const selectedLessonId = requestedLessonId
     ?? selectedCourse?.sessions.find((session) => session.sessionId === requestedSessionId)?.lessonId
     ?? selectedCourse?.kata;
@@ -420,18 +288,6 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
     setBusy("");
     setError(null);
   }, []);
-  const setSessionAddress = useCallback((next: LessonSnapshot) => {
-    if (!next.sessionId) return;
-    const sessionAddress = { lesson: { workspaceId, courseId: next.dojo, lessonId: next.kata, sessionId: next.sessionId } };
-    return navigate({
-      to: ".",
-      state: sessionAddress,
-      mask: { to: "/session/$sessionId", params: { sessionId: next.sessionId }, unmaskOnReload: true, state: sessionAddress },
-      replace: true,
-      resetScroll: false,
-      viewTransition: false,
-    });
-  }, [navigate, workspaceId]);
 
   useEffect(() => {
     fetch("/api/control/courses")
@@ -441,7 +297,7 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
       })
       .then((activeCourses) => {
         const stored = window.localStorage.getItem("dojofoo.workspace");
-        const selected = activeCourses.find((course) => course.workspaceId === requestedWorkspaceId)
+        const selected = activeCourses.find((course) => course.workspaceId === requestedWorkspaceId && (!requestedCourseId || course.dojo === requestedCourseId))
           ?? activeCourses.find((course) => course.sessions.some((session) => session.sessionId === requestedSessionId))
           ?? activeCourses.find((course) => course.workspaceId === stored)
           ?? activeCourses.find((course) => course.selected)
@@ -467,6 +323,10 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
 
   useEffect(() => {
     if (!apiBase) return;
+    if (initialLesson && initialLesson.dojo === dojoId && initialLesson.kata === selectedLessonId) {
+      hydrate(initialLesson);
+      return;
+    }
     // Updating an already accepted session's address must not reload its files.
     if (requestedSessionId && lesson?.sessionId === requestedSessionId
       && lesson.dojo === dojoId && lesson.kata === selectedLessonId) return;
@@ -489,9 +349,6 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
           if (requestedSessionId && body.sessionId !== requestedSessionId) throw new Error("This exact lesson session is unavailable. Dojofoo will not substitute another session’s transcript.");
           if (controller.signal.aborted) return;
           hydrate(body);
-          if (!requestedLessonId && body.sessionId && body.sessionId !== requestedSessionId) {
-            await setSessionAddress(body);
-          }
         }
       })
       .catch((cause: Error) => {
@@ -500,7 +357,7 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
         setError(cause.message);
       });
     return () => controller.abort();
-  }, [apiBase, dojoId, hydrate, requestedCourseId, requestedLessonId, requestedSessionId, selectedLessonId, setSessionAddress]);
+  }, [apiBase, dojoId, hydrate, initialLesson, requestedCourseId, requestedLessonId, requestedSessionId, selectedLessonId]);
 
   useEffect(() => {
     if (!apiBase || !lesson) return;
@@ -639,9 +496,6 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
         setLesson(updated);
         setBusy("");
         setError(null);
-        if (updated.sessionId && updated.sessionId !== requestedSessionId) {
-          await setSessionAddress(updated);
-        }
       })
       .catch((cause: unknown) => {
         introductions.current.delete(apiBase);
@@ -649,7 +503,7 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
         setError(cause instanceof Error ? cause.message : String(cause));
       })
       .finally(() => { forwardedProps.current = {}; });
-  }, [apiBase, chatStatus, conversationReady, lesson, messages, requestedSessionId, sendMessage, setSessionAddress]);
+  }, [apiBase, chatStatus, conversationReady, lesson, messages, requestedSessionId, sendMessage]);
 
   async function sendQuestion(message = question.trim()) {
     if (!message) return;
@@ -682,7 +536,6 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
       setHostChatEvents([]);
       setConversationReady(true);
       setConversationError(undefined);
-      await setSessionAddress(next);
       setModelNotice(`Started a conversation with ${codingAgents.find(agent => agent.value === next.harness)?.name ?? next.harness}.`);
     } catch (cause) {
       setModelNotice("Agent change failed. Your conversation stays open.");
@@ -799,8 +652,8 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
     if (!targetCourseId) return setError("Course not found");
     setActiveWorkspaceTab("code");
     await navigate({
-      to: "/course/$workspaceId/$courseId/lesson/$lessonId",
-      params: { workspaceId, courseId: targetCourseId, lessonId: name },
+      to: "/session/$sessionId", params: { sessionId: courses.find(course => course.dojo === targetCourseId && course.workspaceId === workspaceId)?.runId ?? "" },
+      state: { courseLesson: { courseId: targetCourseId, lessonId: name } },
     });
   }
 
@@ -832,7 +685,7 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
 
   if (!lesson) {
     return (
-      <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} workspace="Dojo" sidebarWidth="18rem" brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
+      <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} workspace="Dojo" sidebarWidth="18rem" brand={<Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>}
         navigation={[{ id: "lessons", heading: "Lessons", items: [], before: !error && <WorkspaceSkeleton label="Loading lessons" rows={4} /> }]}
         showNews={false} showOnboarding={false} askAssistant={false}
         crumbs={[{ label: "Dashboard", icon: <UIXIcon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }]}
@@ -846,8 +699,8 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
   const thinking = chatStatus === "submitted" || chatStatus === "streaming";
   const navigation: ShellSection[] = [
     { id: "lessons", heading: "Lessons", layout: "lessons", before: <div className="lj-course"><CourseCard
-      course={{ title: lesson.course?.name ?? humanTitle(lesson.dojo), version: lesson.course?.version, author: lesson.course?.author,
-        repo: lesson.course?.repository, language: lesson.course?.language, lessons: lesson.course?.lessons ?? lesson.lessons.length, art: courseArt(lesson.dojo) }}
+      course={{ title: lesson.course?.title ?? "Course", version: lesson.course?.version, author: lesson.course?.author,
+        repo: lesson.course?.repository, language: lesson.course?.language, lessons: lesson.course?.lessons ?? lesson.lessons.length, art: courseArt(lesson.dojo, lesson.course?.appearance), shader: lesson.course?.appearance?.shader }}
       enrolled={{ version: lesson.course?.version, progress: Math.round(lesson.lessons.filter(item => item.state === "completed").length / lesson.lessons.length * 100), value: lesson.title }} />
     </div>, items: lesson.lessons.map((item, index) => ({
       id: `lesson:${item.name}`, label: item.title, marker: String(index + 1).padStart(2, "0"),
@@ -855,10 +708,18 @@ export function LessonPage({ requestedHarness, requestedCourseId, requestedLesso
       note: item.state !== "completed" && !item.isCurrent ? "Upcoming lesson; expand to preview its goal" : undefined,
       ...(item.name === lesson.kata || item.state !== "completed" && !item.isCurrent
         ? { preview: <p>{item.summary}</p> }
-        : { href: `/course/${encodeURIComponent(workspaceId)}/${encodeURIComponent(lesson.dojo)}/lesson/${encodeURIComponent(item.name)}` }),
+        : { onClick: () => { void viewLesson(item.name); } }),
     })) },
   ];
-  return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} brand={<a href="/" className="flex items-center" aria-label="Dojo dashboard" onClick={event => followLink(event, () => { void navigate({ to: "/" }); })}><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
+  if ((lesson.course?.chapters?.length ?? 0) > 1) {
+    const rows = navigation[0]!.items;
+    navigation[0]!.heading = "Chapters";
+    navigation[0]!.items = lesson.course!.chapters!.map((chapter, index) => ({
+      id: `chapter:${chapter.id}`, label: chapter.title, marker: String(index + 1).padStart(2, "0"),
+      children: rows.filter(row => (lesson.lessons.find(item => row.id === `lesson:${item.name}`)?.chapter?.id ?? "default") === chapter.id).map((row, index) => ({ ...row, marker: String(index + 1).padStart(2, "0") })),
+    }));
+  }
+  return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} brand={<Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>}
     workspace="Dojo" showNews={false} showOnboarding={false} sidebarWidth="18rem"
     navigation={navigation} navigationKey={`${workspaceId}:${lesson.dojo}`} active={`lesson:${lesson.kata}`} navigationTransition={false}
     onNavigate={id => { if (id.startsWith("lesson:")) void viewLesson(id.slice(7)); }}
@@ -1030,9 +891,19 @@ function testPercentage(report: TestReport | null): string {
 function LessonMaterial({ lesson, workspaceId }: { lesson: LessonSnapshot; workspaceId: string }) {
   const basePath = lesson.briefingBasePath ?? null;
   const resources = useMemo(() => lessonResources(lesson.briefing, basePath, workspaceId), [lesson.briefing, basePath, workspaceId]);
-  return <LessonBrief title={lesson.title} resources={resources}>
-    <CourseContent basePath={basePath} workspaceId={workspaceId} diagrams={false}>{lesson.briefing}</CourseContent>
+  const body = (content: string) => content.replace(/^# [^\n]+\n+/, "");
+  const chapterFirst = lesson.lessons.find(item => (item.chapter?.id ?? "default") === lesson.chapter?.id)?.name === lesson.kata;
+  const overview = (title: string, intro: NonNullable<LessonSnapshot["intro"]>) => <LessonBrief title={title}>
+    <CourseContent basePath={intro.path.includes("/") ? intro.path.slice(0, intro.path.lastIndexOf("/")) : null} workspaceId={workspaceId} courseId={lesson.dojo} diagrams={false}>{body(intro.content)}</CourseContent>
   </LessonBrief>;
+  return <>
+    {lesson.lessons[0]?.name === lesson.kata && lesson.course?.intro && overview(lesson.course.title ?? lesson.course.name, lesson.course.intro)}
+    {chapterFirst && lesson.chapter?.intro && overview(lesson.chapter.title, lesson.chapter.intro)}
+    <LessonBrief title={lesson.title} resources={resources}>
+      <CourseContent basePath={basePath} workspaceId={workspaceId} courseId={lesson.dojo} diagrams={false}>{lesson.intro ? body(lesson.briefing) : lesson.briefing}</CourseContent>
+    </LessonBrief>
+  </>;
+
 }
 
 function LiveCheckSummary({ tests }: { tests: TestReport["tests"] }) {

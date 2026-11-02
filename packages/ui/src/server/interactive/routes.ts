@@ -6,7 +6,7 @@ import { basename, extname, relative, resolve } from "node:path";
 import { dojoDir, readDojoRc } from "@dojofoo/config";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { resolveRequestWorkspace, resolveWorkspaceId } from "../control/workspace";
-import { answerInteractiveQuestion, getInteractiveLesson } from "./service";
+import { answerInteractiveQuestion, getInteractiveLesson, selectInteractiveMaterial } from "./service";
 import { answerInteractiveSensei, getInteractiveConversation, selectInteractiveHarness, setInteractiveModel, streamInteractiveSensei } from "./conversation";
 import { dojofooHarness, lessonHarnesses } from "../harness/registry";
 import { streamAcpAsAgUi } from "../lesson/agui-stream";
@@ -18,6 +18,15 @@ const target = (c: Context) => getInteractiveLesson(root(c), course(c)).dojo;
 
 export const interactiveRoutes = new Hono()
   .get("/", (c) => c.json({ ...getInteractiveLesson(root(c), course(c)), workspaceId: observeWorkspacePath(root(c)) }))
+  .put("/material", async c => {
+    const body = await c.req.json<{ lessonId?: string; slideId?: string }>();
+    if ((!body.lessonId && !body.slideId) || Object.keys(body).some(key => key !== "lessonId" && key !== "slideId")
+      || body.lessonId !== undefined && typeof body.lessonId !== "string" || body.slideId !== undefined && typeof body.slideId !== "string") {
+      return c.json({ error: "Choose a lesson or slide." }, 422);
+    }
+    try { return c.json(selectInteractiveMaterial(root(c), body, course(c))); }
+    catch (cause) { return c.json({ error: cause instanceof Error ? cause.message : String(cause) }, 409); }
+  })
   .post("/answer", async (c) => {
     const body = await c.req.json<{ answer?: string }>();
     if (typeof body.answer !== "string" || !body.answer.trim()) return c.json({ error: "An answer is required." }, 400);
@@ -80,7 +89,8 @@ export const interactiveRoutes = new Hono()
     };
     if (c.req.query("download") === "1") headers["content-disposition"] = `attachment; filename="${basename(path).replaceAll('"', "")}"`;
     if (extname(path).toLocaleLowerCase() === ".html") {
-      headers["content-security-policy"] = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; media-src 'none'; connect-src 'none'";
+      headers["cache-control"] = "private, no-cache";
+      headers["content-security-policy"] = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src 'none'; connect-src 'none'";
     }
     return new Response(readFileSync(path), {
       headers,

@@ -29,6 +29,15 @@ test("authoring uses shared editor preferences while retaining file models and t
   await page.goto(`/authoring?session=${agent.sessionId}`);
   const lines = page.locator(".monaco-editor .view-lines");
   await expect(lines).toContainText("name: Editor course");
+  // The authoring story has course/file sections, without dashboard navigation.
+  const sidebar = page.getByRole("navigation", { name: "Main menu", exact: true });
+  await expect(sidebar.getByRole("link", { name: "Courses", exact: true })).toHaveCount(0);
+  await expect(sidebar.getByRole("button", { name: "Courses", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Course navigation", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Lessons", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("treeitem", { name: "Default", exact: true })).toBeVisible();
+  await expect(page.getByRole("treeitem", { name: "Chapters", exact: true })).toBeVisible();
+
   await expect(lines).toHaveCSS("font-size", "13px");
   await expect(page.locator(".ui-ed__code")).toBeVisible();
   const editor = await page.locator(".ui-ed__monaco").elementHandle();
@@ -39,10 +48,18 @@ test("authoring uses shared editor preferences while retaining file models and t
   await page.keyboard.insertText("name: Editor course\n# Unsaved guidance");
   const tab = page.getByRole("tab", { name: /^dojo\.yaml\b/ });
   await expect(tab).toHaveAccessibleName(/unsaved changes/);
-  await page.getByRole("navigation", { name: "Main menu" }).getByRole("button", { name: "DOJO.md", exact: true }).click();
+  const transitions = await page.evaluate(() => {
+    const state = window as typeof window & { fileTransitions: number };
+    state.fileTransitions = 0;
+    const start = document.startViewTransition.bind(document);
+    document.startViewTransition = ((...args: Parameters<typeof start>) => { state.fileTransitions++; return start(...args); }) as typeof start;
+    return state.fileTransitions;
+  });
+  await page.getByRole("navigation", { name: "Main menu" }).getByRole("treeitem", { name: "DOJO.md", exact: true }).locator(":scope > div").click();
   await expect(lines).toContainText("# Guidance");
   await tab.click();
   await expect(lines).toContainText("# Unsaved guidance");
+  expect(await page.evaluate(() => (window as typeof window & { fileTransitions: number }).fileTransitions)).toBe(transitions);
   expect(await page.locator(".ui-ed__monaco").evaluate((node, previous) => node === previous, editor)).toBe(true);
   await expect(page.locator(".monaco-editor[data-uri]")).toHaveAttribute("data-uri", modelUri!);
   await input.focus();

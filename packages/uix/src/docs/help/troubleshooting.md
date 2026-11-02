@@ -11,7 +11,7 @@ description: Fixes for the problems learners hit most.
 npx dojofoo install --claude
 ```
 
-The options are `--claude`, `--opencode`, `--codex`, `--gemini` and `--pi`.
+The options are `--claude`, `--opencode`, `--codex`, `--agy` and `--pi`.
 
 ## `/kata` doesn't exist in my agent
 

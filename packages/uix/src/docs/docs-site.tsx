@@ -1,3 +1,4 @@
+import { NavigationLink } from "../components/navigation-link";
 import { followLink } from "../lib/link-event";
 import { useEditorScheme, usePageMode } from "../lib/ui-preferences";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
@@ -53,9 +54,6 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
     return () => window.clearTimeout(timer);
   }, [route, hash]);
   const open = (next: string) => links.openDoc(next.startsWith("#") ? `${route}${next}` : next);
-  const follow = (next: string) => (event: MouseEvent<HTMLAnchorElement>) => {
-    if (next.startsWith("/") || next.startsWith("#")) followLink(event, () => open(next));
-  };
   const order = allPages.filter((entry) => entry.section.id === section.id);
   const at = order.findIndex((entry) => entry.page.path === page.path);
   const previous = order[at - 1]?.page;
@@ -68,14 +66,14 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
               <ul className="ui-docs-rail">
                 {group.entries.map((entry) => (
                   <li key={entry.path}>
-                    <a href={entry.path} aria-current={entry.path === page.path ? "page" : undefined}
-                      onClick={follow(entry.path)}>
+                    <NavigationLink href={entry.path} aria-current={entry.path === page.path ? "page" : undefined}
+                      onNavigate={() => open(entry.path)}>
                       {entry.page?.route ? <span className="ui-docs-route" aria-label={`${entry.page.route.method} ${entry.page.route.path}, ${entry.title}`}>
                         <span className="ui-docs-route__method" data-method={entry.page.route.method}>{entry.page.route.method}</span>
                         {/* A long path wraps at its slashes */}
                         <code>{entry.page.route.path.split(/(?=\/)/).map((part, index) => <Fragment key={index}>{index > 0 && <wbr />}{part}</Fragment>)}</code>
                       </span> : entry === section.groups[0].entries[0] ? "Overview" : entry.title}
-                    </a>
+                    </NavigationLink>
                   </li>
                 ))}
               </ul>
@@ -88,8 +86,8 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
     <nav className="ui-docs-tabs" aria-label="Documentation">
       <div className="ui-docs-tabs__row scroll-fade-x">
         {docsSections.map((item) => (
-          <a key={item.id} href={item.groups[0].entries[0].path} aria-current={item.id === section.id ? "page" : undefined}
-            onClick={follow(item.groups[0].entries[0].path)}>{item.title}</a>
+          <NavigationLink key={item.id} href={item.groups[0].entries[0].path} aria-current={item.id === section.id ? "page" : undefined}
+            onNavigate={() => open(item.groups[0].entries[0].path)}>{item.title}</NavigationLink>
         ))}
       </div>
       {/* The page's tools at the bar's right end, outside the row that scrolls (its menu would be clipped in it) */}
@@ -126,8 +124,8 @@ export function DocsSite({ path = "/docs", content, renderApiPage, renderPage, t
           {renderPage ? <Fragment key={page.path}>{renderPage(page)}</Fragment>
             : page.apiPage ? <Fragment key={page.path}>{renderApiPage?.(page.apiPage)}</Fragment> : <Prose body={page.body} boxed={boxed} onLink={open} />}
           <nav className="ui-docs__pager" aria-label="More pages">
-            {previous ? <a href={previous.path} onClick={follow(previous.path)}><span><Icon icon={ArrowLeft01Icon} size={13} />Previous</span>{previous.title}</a> : <span />}
-            {next && <a href={next.path} className="ui-docs__next" onClick={follow(next.path)}><span>Next<Icon icon={ArrowRight01Icon} size={13} /></span>{next.title}</a>}
+            {previous ? <NavigationLink href={previous.path} onNavigate={() => open(previous.path)}><span><Icon icon={ArrowLeft01Icon} size={13} />Previous</span>{previous.title}</NavigationLink> : <span />}
+            {next && <NavigationLink href={next.path} className="ui-docs__next" onNavigate={() => open(next.path)}><span>Next<Icon icon={ArrowRight01Icon} size={13} /></span>{next.title}</NavigationLink>}
           </nav>
           {!page.apiPage && <EditLink page={page} />}
         </article>

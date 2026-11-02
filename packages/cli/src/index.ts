@@ -1,4 +1,4 @@
-import { dojoDir, findManifestPath, findProjectRoot, hasWorkspaceConfiguration, readDojoRc } from "./config";
+import { dojoDir, findProjectRoot, readDojoRc } from "./config";
 import { observeLocalContext, sessionFromEnvironment } from "@dojofoo/config/local-state";
 import { prepareWorkspace } from "@dojofoo/config/project-preparation";
 import { bareOpensUi, root } from "./commands/root";
@@ -16,27 +16,24 @@ import { flushCourseEvents } from "./telemetry";
 import { bootstrapMise } from "./mise-bootstrap";
 import { miseConfigPath } from "@dojofoo/config/project-preparation";
 import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
+import { agentEnvironment } from "@dojofoo/config/agent-installations";
 
 const argv = process.argv.slice(2);
 const [command, ...args] = argv;
 const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY) && !process.env.CI;
-// `ui` stays as the explicit form that scripts and agents call; bare `dojofoo` opens the UI only in a terminal.
+// Bare invocation opens onboarding; explicit project commands retain their actions.
 const opensUi = command === "ui" || bareOpensUi(argv, interactive);
 const uiArgs = command === "ui" ? args : argv;
 
 process.env.DOJO_PROJECT_ROOT ??= opensUi && uiArgs.includes("--authoring")
-  ? resolveAuthoringRoot(process.cwd(), findProjectRoot()) : findProjectRoot();
+  ? resolveAuthoringRoot(process.cwd(), findProjectRoot()) : opensUi ? process.cwd() : findProjectRoot();
 
 async function main() {
+  process.env.PATH = agentEnvironment().PATH;
   const projectRoot = process.env.DOJO_PROJECT_ROOT!;
   const isUiControlCommand = opensUi && ["prompt", "--skill"].includes(uiArgs[0] ?? "");
   const isSetupCommand = command === "install" || command === "setup" || command === "add";
   const needsPreparation = command === "kata" || (opensUi && !isUiControlCommand);
-  // A folder that isn't a workspace or course yet gets the install wizard before its UI opens.
-  if (opensUi && command !== "ui" && !isUiControlCommand
-    && !hasWorkspaceConfiguration(projectRoot) && !findManifestPath(projectRoot)) {
-    await install([]);
-  }
   if (
     !process.env.DOJO_SKIP_PREPARE
     && needsPreparation

@@ -149,7 +149,7 @@ const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
         // `is-active` lets every cell read the lit state through the row.
         className={cn(
           "group/row relative z-10 border-b transition-[border-color] duration-80",
-          hideBorder ? "border-transparent" : "border-accent/40",
+          hideBorder ? "border-transparent" : "border-(--fluid-hairline)",
           isBodyRow && activeIdx === index && "is-active",
           className
         )}

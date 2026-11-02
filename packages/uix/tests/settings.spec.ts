@@ -43,7 +43,7 @@ test("dashboard settings fits the main window on desktop and phone", async ({ pa
 test("appearance rows align with the centered settings content", async ({ page }) => {
   await page.goto("/iframe.html?id=pages-dojo--settings&viewMode=story");
   const settings = page.getByRole("region", { name: "Account settings", exact: true });
-  await expect(settings.getByRole("radio", { name: "Dojofoo", exact: true })).toBeVisible();
+  await expect(settings.getByRole("radio", { name: "Default", exact: true })).toBeVisible();
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     if (width < 900) await expect(page.locator(".ui-as-app")).toHaveAttribute("data-narrow", "true");

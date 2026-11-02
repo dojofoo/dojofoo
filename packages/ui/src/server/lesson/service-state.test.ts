@@ -50,6 +50,32 @@ function freshCourse(): string {
 }
 
 describe("fresh lesson state", () => {
+  it("carries authored chapter identities into learner navigation without opening an agent session", async () => {
+    const root = freshCourse();
+    const manifest = resolve(root, ".dojos", "starter", "dojo.yaml");
+    writeFileSync(manifest, "name: '@test/starter'\nversion: 1.0.0\ndescription: Chapter course\ntest: echo ok\nchapters:\n  - id: foundations\n    title: Foundations\n    path: katas/001-first\n    lessons:\n      - id: 001-first\n        template: katas/001-first/solution.ts\n  - id: advanced\n    title: Advanced\n    path: katas/002-second\n    lessons:\n      - id: 002-second\n        template: katas/002-second/solution.ts\n");
+    const start = vi.spyOn(acpClient, "startThread");
+    const lesson = await getLesson(root, "001-first", { prepareSession: false });
+    expect(lesson?.course?.chapters?.map(chapter => chapter.title)).toEqual(["Foundations", "Advanced"]);
+    expect(lesson?.lessons.map(lesson => lesson.chapter?.id)).toEqual(["foundations", "advanced"]);
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it("loads course README and chapter/lesson INTRO prose separately from Sensei guidance", async () => {
+    const root = freshCourse();
+    const course = resolve(root, ".dojos", "starter");
+    writeFileSync(resolve(course, "README.md"), "# Course overview\n\nLearn to make decisions.");
+    mkdirSync(resolve(course, "src"));
+    writeFileSync(resolve(course, "src/INTRO.md"), "# Default\n\nMeet the first chapter.");
+    writeFileSync(resolve(course, "katas/001-first/INTRO.mdx"), "# First lesson\n\nThis is the learner-facing goal.");
+    const lesson = await getLesson(root, "001-first", { prepareSession: false });
+    expect(lesson?.course?.intro?.content).toContain("Course overview");
+    expect(lesson?.chapter?.intro?.content).toContain("Meet the first chapter");
+    expect(lesson?.intro).toMatchObject({ path: "katas/001-first/INTRO.mdx", format: "mdx" });
+    expect(lesson?.briefing).toContain("learner-facing goal");
+    expect(lesson?.briefing).not.toContain("Begin here");
+  });
+
   it("exposes installed course details for the learner card without starting a session", async () => {
     vi.stubEnv("DOJOFOO_LESSON_HARNESS", "opencode");
     const root = freshCourse();
@@ -130,6 +156,16 @@ describe("fresh lesson state", () => {
     vi.stubEnv("DOJOFOO_HARNESS", "codex");
     expect((await startLessonSession(root, "001-first")).sessionId).toBe("trial-session");
     expect(start).toHaveBeenCalledWith(expect.objectContaining({ harness: "codex" }));
+  });
+
+  it("loads the course named by a route without changing the CLI selection or starting an agent", async () => {
+    const root = freshCourse();
+    const selection = JSON.stringify({ currentDojo: "another-course", currentKata: "another-lesson", editor: "code", progress: {} });
+    writeFileSync(resolve(root, ".dojorc"), selection);
+    const start = vi.spyOn(acpClient, "startThread");
+    await expect(getLesson(root, "001-first", { prepareSession: false, courseId: "starter" })).resolves.toMatchObject({ dojo: "starter", kata: "001-first" });
+    expect(readFileSync(resolve(root, ".dojorc"), "utf8")).toBe(selection);
+    expect(start).not.toHaveBeenCalled();
   });
 
   it("opens saved course state while its coding agent is unavailable", async () => {

@@ -15,6 +15,7 @@ import appCss from "../styles.css?url"
 import uixCss from "@dojofoo/uix/styles.css?url"
 import uixFonts from "@dojofoo/uix/fonts.css?url"
 import { UIXSiteProvider } from "@/components/uix-site"
+import { RouterLink } from "@/components/router-link"
 
 export const Route = createRootRoute({
   head: () => ({
@@ -53,7 +54,7 @@ function RootLayout() {
         <HeadContent />
       </head>
       <body className="min-h-screen antialiased flex flex-col font-sans" suppressHydrationWarning>
-        <UIXProvider>
+        <UIXProvider link={RouterLink}>
           <RootProvider
             theme={{ defaultTheme: "dark" }}
             search={{ SearchDialog }}

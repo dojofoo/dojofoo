@@ -1,4 +1,5 @@
 import type { HarnessAdapter, HarnessKind, HarnessProcess } from "./adapter";
+import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 
 type NativeAcpOptions = {
   kind: Exclude<HarnessKind, "codex" | "opencode">;
@@ -33,13 +34,13 @@ export function createNativeAcpHarnessAdapter(options: NativeAcpOptions): Harnes
 export const cursorHarnessAdapter = createNativeAcpHarnessAdapter({
   kind: "cursor",
   contextualInstructions: true,
-  process: () => ({ command: "agent", args: ["--yolo", "--trust", "acp"] }),
+  process: () => ({ command: resolveAgentExecutable("cursor") ?? "agent", args: ["--yolo", "--trust", "acp"] }),
 });
 
 export const grokHarnessAdapter = createNativeAcpHarnessAdapter({
   kind: "grok",
   process: ({ developerInstructions }) => ({
-    command: "grok",
+    command: resolveAgentExecutable("grok") ?? "grok",
     args: [
       "--rules",
       developerInstructions,
@@ -58,5 +59,5 @@ export const fxHarnessAdapter = createNativeAcpHarnessAdapter({
   // unsafe workspace targets. Preserve virtual Dojofoo context as ACP text.
   supportsVirtualResourceUris: false,
   environment: { ...process.env, FX_PERMISSION_MODE: "yolo" },
-  process: () => ({ command: "fx", args: ["acp"] }),
+  process: () => ({ command: resolveAgentExecutable("fx") ?? "fx", args: ["acp"] }),
 });

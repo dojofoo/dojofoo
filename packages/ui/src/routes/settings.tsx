@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@dojofoo/uix/components/app-shell";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
@@ -18,7 +19,7 @@ function SettingsPage() {
   const { account, toast } = useAccountMenu();
   const [paletteOpen, setPaletteOpen] = useState(false);
   return <div className="h-dvh overflow-hidden"><AppShell {...account} workspace="Dojo" sidebarWidth="18rem" showNews={false} showOnboarding={false}
-    brand={<a href="/" aria-label="Dojo dashboard" className="flex items-center"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></a>}
+    brand={<Link to="/" aria-label="Dojo dashboard" className="flex items-center"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>}
     navigation={dashboardNavigation()} navigationKey={dashboardNavigationKey} active={[]}
     onNavigate={id => { void navigate({ to: id === "explore" ? "/explore" : "/" }); }} onSearch={() => setPaletteOpen(true)}>
     <AccountSettingsContent tab={tab} name={account.user.name}

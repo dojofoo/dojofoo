@@ -19,7 +19,7 @@ export type ExploreCourse = Pick<CourseInfo, "title" | "art"> & Partial<Omit<Cou
 };
 
 /** The current Pages Explore presentation. Catalog contents and course actions belong to the host. */
-export function CourseExplore({ courses, categories = [], installed = [], busy, onInstall, onOpen, featuredId,
+export function CourseExplore({ courses, categories = [], installed = [], busy, onInstall, onOpen, onPreview, featuredId,
   description = "Courses from Dojo and the community. Install one and it joins your courses, ready to start.",
 }: {
   courses: ExploreCourse[];
@@ -28,22 +28,26 @@ export function CourseExplore({ courses, categories = [], installed = [], busy, 
   busy?: string | null;
   onInstall?: (id: string) => void;
   onOpen?: (id: string) => void;
+  onPreview?: (id: string) => void;
   featuredId?: string;
   description?: string;
 }) {
-  const top = featuredId ? courses.filter(item => item.id === featuredId) : [...courses].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 1);
-  const opens = (id: string) => !!onOpen && (!onInstall || installed.includes(id));
-  const open = (id: string) => (opens(id) ? onOpen : onInstall)?.(id);
+  const available = courses.filter(item => !installed.includes(item.id));
+  const featured = available.find(item => item.id === featuredId);
+  const top = featured ? [featured] : [...available].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 1);
+  const opens = (id: string) => !!onOpen && (installed.includes(id) || (!onInstall && !onPreview));
+  const open = (id: string) => (opens(id) ? onOpen : onPreview ?? onInstall)?.(id);
+  const label = (id: string) => opens(id) ? installed.includes(id) ? "Continue" : "Open" : onPreview ? "Details" : "Install";
   const action = (item: ExploreCourse) => installed.includes(item.id) && !onOpen
     ? <span className="lj-installed rounded-lg"><Icon icon={DoneIcon} size={13} />Installed</span>
-    : <Button size="sm" loading={busy === item.id} disabled={!onOpen && !onInstall} onClick={() => open(item.id)}>{opens(item.id) ? "Open course" : "Install"}</Button>;
+    : <Button size="sm" loading={busy === item.id} disabled={!onOpen && !onInstall && !onPreview} onClick={() => open(item.id)}>{label(item.id)}</Button>;
   return <div className="lj-page">
     <header className="lj-page__head">
       <span className="ui-ob-kicker">Explore</span>
       <h1 className="ui-ob-title">Find your next course</h1>
       <p className="ui-ob-sub">{description}</p>
     </header>
-    <h2 className="ui-ob-step__title lj-heading">Featuring</h2>
+    {top.length > 0 && <><h2 className="ui-ob-step__title lj-heading">Featuring</h2>
     <ol className="lj-top" aria-label="Featuring">
       {top.map(item => <li key={item.id} className="lj-top__item">
         <CourseCard course={item} mark={item.mark} showVersion />
@@ -60,7 +64,7 @@ export function CourseExplore({ courses, categories = [], installed = [], busy, 
             : <div className="lj-top__voice flex h-full flex-col items-start justify-between gap-6 py-4"><p className="text-lg leading-relaxed">{item.blurb}</p>{action(item)}</div>}
         </div>
       </li>)}
-    </ol>
+    </ol></>}
     <div className="lj-browse">
       <h2 className="ui-ob-step__title">Browse courses</h2>
       <p className="ui-ob-step__text">Search by name or topic, show only what you haven't installed, or pick a category on the left.</p>
@@ -76,8 +80,8 @@ export function CourseExplore({ courses, categories = [], installed = [], busy, 
           main={<CardTitle>{item.title}</CardTitle>}
           footer={<><CardText label={item.updated ? "Updated" : undefined} value={item.updated} />{installed.includes(item.id) && !onOpen
             ? <ColorCardTag><Icon icon={DoneIcon} size={13} />Installed</ColorCardTag>
-            : <ColorCardButton disabled={busy === item.id || (!onOpen && !onInstall)} aria-label={`${opens(item.id) ? "Open" : "Install"} ${item.title}`} onClick={() => open(item.id)}>
-              {opens(item.id) ? "Open" : busy === item.id ? "Installing…" : "Install"}
+            : <ColorCardButton disabled={busy === item.id || (!onPreview && !onOpen && !onInstall)} aria-label={`${label(item.id)} ${item.title}`} onClick={() => open(item.id)}>
+              {busy === item.id ? "Installing…" : label(item.id)}
             </ColorCardButton>}</>} />;
       })}</div>} />
   </div>;

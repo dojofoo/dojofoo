@@ -1,6 +1,6 @@
 import type * as acp from "@agentclientprotocol/sdk";
 
-export type HarnessKind = "codex" | "cursor" | "fx" | "grok" | "opencode";
+export type HarnessKind = "claude" | "codex" | "cursor" | "fx" | "grok" | "opencode";
 
 export type HarnessProcess = {
   command: string;

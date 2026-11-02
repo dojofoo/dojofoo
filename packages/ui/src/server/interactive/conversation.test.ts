@@ -15,6 +15,7 @@ afterEach(() => {
 function fixture() {
   const root = mkdtempSync(resolve(tmpdir(), "dojo-interactive-chat-"));
   roots.push(root);
+  vi.stubEnv("DOJOFOO_HOME", resolve(root, "state"));
   writeFileSync(resolve(root, ".dojorc"), JSON.stringify({ currentDojo: "first", currentKata: null, editor: null }));
   for (const course of ["first", "second"]) {
     const folder = resolve(root, ".dojos", course);

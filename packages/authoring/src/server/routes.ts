@@ -4,9 +4,12 @@ import { resolve } from "node:path";
 import { Hono } from "hono";
 import {
   createAuthoringLesson,
+  createAuthoringChapter,
+  renameAuthoringChapter,
   createLessonTrial,
   authoringEvalReadiness,
   renameAuthoringCourse,
+  updateAuthoringAppearance,
   renameAuthoringLesson,
   readAuthoringDraft,
 } from "./service";
@@ -42,15 +45,34 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
     try { return c.json(await writeEvaluationSettings(dependencies.resolveWorkspace(c.req.raw), await c.req.json())); }
     catch (error) { return c.json({ error: errorMessage(error) }, 422); }
   })
+  .post("/chapters", async c => {
+    try {
+      const input = await c.req.json<{ title?: unknown }>();
+      if (input.title !== undefined && (typeof input.title !== "string" || !input.title.trim())) return c.json({ error: "Chapter title is required" }, 422);
+      const root = dependencies.resolveWorkspace(c.req.raw);
+      const chapterId = createAuthoringChapter(root, typeof input.title === "string" ? input.title : "New chapter");
+      return c.json({ chapterId, workspace: readAuthoringDraft(root) }, 201);
+    } catch (cause) { return c.json({ error: errorMessage(cause) }, 422); }
+  })
+  .patch("/chapters/:chapterId", async c => {
+    try {
+      const input = await c.req.json<{ title?: unknown }>();
+      if (typeof input.title !== "string" || !input.title.trim()) return c.json({ error: "Chapter title is required" }, 422);
+      const root = dependencies.resolveWorkspace(c.req.raw);
+      renameAuthoringChapter(root, c.req.param("chapterId"), input.title);
+      return c.json(readAuthoringDraft(root));
+    } catch (cause) { return c.json({ error: errorMessage(cause) }, 422); }
+  })
   .post("/lessons", async (c) => {
     try {
-      const input: { title?: unknown } = await c.req
-        .json<{ title?: unknown }>()
+      const input: { title?: unknown; chapterId?: string } = await c.req
+        .json<{ title?: unknown; chapterId?: string }>()
         .catch(() => ({}));
       const root = dependencies.resolveWorkspace(c.req.raw);
       const lessonId = createAuthoringLesson(
         root,
-        typeof input.title === "string" ? input.title : "Untitled lesson"
+        typeof input.title === "string" ? input.title : "Untitled lesson",
+        input.chapterId,
       );
       return c.json({ lessonId, workspace: readAuthoringDraft(root) }, 201);
     } catch (cause) {
@@ -59,12 +81,13 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
   })
   .patch("/course", async (c) => {
     try {
-      const input = await c.req.json<{ title?: unknown }>();
-      if (typeof input.title !== "string" || !input.title.trim()) {
+      const input = await c.req.json<{ title?: unknown; appearance?: unknown }>();
+      if ((input.title !== undefined && (typeof input.title !== "string" || !input.title.trim())) || (input.appearance === undefined && input.title === undefined)) {
         return c.json({ error: "Course title is required" }, 422);
       }
       const root = dependencies.resolveWorkspace(c.req.raw);
-      renameAuthoringCourse(root, input.title);
+      if (input.appearance !== undefined) updateAuthoringAppearance(root, input.appearance);
+      if (typeof input.title === "string") renameAuthoringCourse(root, input.title);
       return c.json(readAuthoringDraft(root));
     } catch (cause) {
       return c.json({ error: errorMessage(cause) }, 422);

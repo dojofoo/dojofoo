@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useToast } from "@dojofoo/uix/components/app-shell";
 import { useSidebarState } from "./sidebar-state";
 
@@ -10,10 +11,17 @@ export function useAccountMenu({ preserveWorkspace = false }: { preserveWorkspac
   const navigate = useNavigate();
   const [toast] = useToast();
   const sidebar = useSidebarState();
+  const [user, setUser] = useState<{ name: string; email?: string; avatar?: string }>({ name: "Anonymous" });
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/local/setup", { signal: controller.signal }).then(response => response.ok ? response.json() : null)
+      .then(setup => { if (setup?.user?.name) setUser(setup.user); }).catch(() => {});
+    return () => controller.abort();
+  }, []);
   return {
     account: {
       ...sidebar,
-      user: { name: "You" }, showUser: true,
+      user, showUser: true,
       ...(preserveWorkspace ? { loadAccountPage } : {
         onSettings: () => { void navigate({ to: "/settings", search: { tab: "Appearance" } }); },
         onProfile: () => { void navigate({ to: "/settings", search: { tab: "General" } }); },

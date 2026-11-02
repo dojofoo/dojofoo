@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { NavigationLink } from "../components/navigation-link";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Icon, ShellStyles } from "../components/app-shell";
 import { Avatar } from "../components/arc/avatar/avatar";
 import { BrandLogo } from "../components/brand-logo";
@@ -83,19 +84,11 @@ export function SiteHeader({ current, as: Component = "header", mobileAction, me
   const links = useSite();
   // In the docs the search looks in the docs; anywhere else in the courses (the dialog switches either way)
   const scope: SearchScope = current === "help" || current === "docs" ? "docs" : "courses";
-  const go = (section: SiteSection) => (event: MouseEvent) => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-    event.preventDefault();
-    links.navigate(section);
-  };
-  const getStarted = (event: MouseEvent) => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-    event.preventDefault();
-    links.openDoc("/docs/quickstart");
-  };
+  const go = (section: SiteSection) => () => links.navigate(section);
+  const getStarted = () => links.openDoc("/docs/quickstart");
   return (
     <Component className="ui-web-head" data-site-navigation="">
-      <a href={links.sectionHref("home")} className="ui-web-head__brand" aria-label="Dojo.foo home" onClick={go("home")}><BrandLogo className="aspect-[2567/1211] h-[30px] w-auto" /></a>
+      <NavigationLink href={links.sectionHref("home")} className="ui-web-head__brand" aria-label="Dojo.foo home" onNavigate={go("home")}><BrandLogo className="aspect-[2567/1211] h-[30px] w-auto" /></NavigationLink>
       {/* The search in the middle, the sections beside the way in */}
       <button type="button" className="ui-web-head__search" aria-haspopup="dialog" aria-label={scope === "docs" ? "Search docs" : "Search courses"} onClick={() => links.openSearch(scope)}>
         <Icon icon={Search01Icon} size={15} />
@@ -105,17 +98,17 @@ export function SiteHeader({ current, as: Component = "header", mobileAction, me
       <div className="ui-web-head__end">
         <nav className="ui-web-head__nav" aria-label="Site">
           {sections.map((section) => (
-            <a key={section.id} href={links.sectionHref(section.id)} className="ui-web-head__link" aria-current={current === section.id ? "page" : undefined} onClick={go(section.id)}>{section.label}</a>
+            <NavigationLink key={section.id} href={links.sectionHref(section.id)} className="ui-web-head__link" aria-current={current === section.id ? "page" : undefined} onNavigate={go(section.id)}>{section.label}</NavigationLink>
           ))}
         </nav>
         {mobileAction}
-        <ButtonLink size="sm" className="ui-web-head__start" href="/docs/quickstart" onClick={getStarted}>Get started</ButtonLink>
+        <ButtonLink size="sm" className="ui-web-head__start" href="/docs/quickstart" onNavigate={getStarted}>Get started</ButtonLink>
         {/* On a phone the sections and the way in fold into a menu beside the search (as Fumadocs' docs do) */}
         <SiteMenu>
-          <ButtonLink href="/docs/quickstart" className="ui-web-menu__start" onClick={getStarted}>Get started</ButtonLink>
+          <ButtonLink href="/docs/quickstart" className="ui-web-menu__start" onNavigate={getStarted}>Get started</ButtonLink>
           <nav className="ui-web-menu__nav" aria-label="Site">
             {sections.map((section) => (
-              <a key={section.id} href={links.sectionHref(section.id)} aria-current={current === section.id ? "page" : undefined} onClick={go(section.id)}>{section.label}</a>
+              <NavigationLink key={section.id} href={links.sectionHref(section.id)} aria-current={current === section.id ? "page" : undefined} onNavigate={go(section.id)}>{section.label}</NavigationLink>
             ))}
           </nav>
           {menu}
@@ -178,20 +171,20 @@ export function SiteFooter({ current }: { current?: SiteSection }) {
         <nav key={column.title} className="ui-web-foot__col" aria-label={column.title}>
           <span className="ui-web-foot__title">{column.title}</span>
           {column.links.map(([label, to]) => to.startsWith("http")
-            ? <a key={label} href={to} target="_blank" rel="noreferrer">{label}</a>
-            : <a key={label} href={to.startsWith("/") ? to : links.sectionHref(to as SiteSection)} onClick={(event) => { if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return; event.preventDefault(); if (to.startsWith("/")) links.openDoc(to); else links.navigate(to as SiteSection); }}>{label}</a>)}
+            ? <NavigationLink key={label} href={to} target="_blank" rel="noreferrer">{label}</NavigationLink>
+            : <NavigationLink key={label} href={to.startsWith("/") ? to : links.sectionHref(to as SiteSection)} onNavigate={() => { if (to.startsWith("/")) links.openDoc(to); else links.navigate(to as SiteSection); }}>{label}</NavigationLink>)}
         </nav>
       ))}
       <div className="ui-web-foot__base">
         <span className="ui-web-foot__copy"><Icon icon={CopyrightIcon} size={15} /><span className="sr-only">Copyright</span>Dojo.foo{links.footerControls && <span className="ml-2">{links.footerControls}</span>}</span>
         {/* The maker's line as a small quote (the testimonials' mark), his avatar after it, online */}
-        <a className="ui-web-foot__maker" href="https://x.com/tomhaxxx" target="_blank" rel="noreferrer" aria-label={`${line} – Tom Siwik on X`}>
+        <NavigationLink className="ui-web-foot__maker" href="https://x.com/tomhaxxx" target="_blank" rel="noreferrer" aria-label={`${line} – Tom Siwik on X`}>
           {/* The mark inside the quote, so it opens its first line however the line wraps */}
           <q><svg aria-hidden="true" viewBox="0 0 32 24" className="ui-web-foot__mark">
             <path d="M0 24V14.4C0 6.6 4.2 1.8 12.4 0l1.4 3.4C9.4 4.8 7.3 7.6 7 11.2h6.2V24H0Zm18.2 0V14.4C18.2 6.6 22.4 1.8 30.6 0L32 3.4c-4.4 1.4-6.5 4.2-6.8 7.8h6.2V24H18.2Z" />
           </svg>{line}</q>
           <Avatar name="Tom Siwik" src={makerPhoto} size="md" status="online" />
-        </a>
+        </NavigationLink>
       </div>
     </footer>
   );

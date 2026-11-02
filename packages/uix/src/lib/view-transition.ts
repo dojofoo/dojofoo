@@ -1,8 +1,19 @@
 import { flushSync } from "react-dom";
 
-export type UiTransition = "ui-navigation" | "ui-theme" | "ui-pane";
+export type UiTransition = "ui-navigation" | "ui-theme" | "ui-pane" | "ui-card";
 /** The same navigation contract for TanStack Router and interactive Storybook previews. */
 export const routerViewTransition = { types: ({ pathChanged }: { pathChanged: boolean }) => pathChanged ? ["ui-navigation"] : false as const };
+
+/** TanStack awaits updateCallbackDone but not ready (upstream discussion #7733).
+ * Observe the router-owned animation before it can be superseded. Navigation
+ * failures still propagate through TanStack; only an expected visual skip is ignored. */
+export function observeRouterViewTransition() {
+  if (typeof document === "undefined") return;
+  void document.activeViewTransition?.ready.catch(error => {
+    if (error instanceof DOMException && error.name === "AbortError") return;
+    globalThis.reportError(error);
+  });
+}
 /**
  * routerViewTransition, told how deep each page sits (e.g. 0 the dashboard's pages, 1 a course's): a move deeper is also
  * ui-forward, one back up ui-back, so the sidebar's menu swipes one way into a course and the other way out of it
@@ -25,8 +36,14 @@ export function runViewTransition(update: () => void, type: UiTransition = "ui-n
     update();
     return;
   }
+  const routeTransition = document.activeViewTransition;
+  if (routeTransition && routeTransition !== active) {
+    // A router transition already covers this update. Starting a second one
+    // aborts its snapshot and leaves the router's ready promise rejected.
+    update();
+    return routeTransition;
+  }
   active?.skipTransition();
-  document.activeViewTransition?.skipTransition();
   const commit = () => {
     committing = true;
     try { flushSync(update); } finally { committing = false; }
@@ -39,6 +56,7 @@ export function runViewTransition(update: () => void, type: UiTransition = "ui-n
   return transition;
 }
 
+export const cardViewTransition = (update: () => void) => runViewTransition(update, "ui-card");
 export const fadeViewTransition = (update: () => void) => runViewTransition(update, "ui-navigation");
 export const themeViewTransition = (update: () => void) => runViewTransition(update, "ui-theme");
 export const paneViewTransition = (update: () => void) => runViewTransition(update, "ui-pane");

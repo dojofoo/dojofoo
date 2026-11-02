@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { promisify } from "node:util";
 import { createInterface } from "node:readline";
 import { homedir } from "node:os";
@@ -32,8 +32,7 @@ export async function harnessModels(harness: string, signal: AbortSignal): Promi
   if (harness === "codex") return codexModels(signal);
   if (harness === "pi") return piModels(signal);
   if (harness === "opencode") {
-    const installed = join(homedir(), ".opencode/bin/opencode");
-    const executable = process.env.OPENCODE_BIN ?? (existsSync(installed) ? installed : "opencode");
+    const executable = process.env.OPENCODE_BIN ?? resolveAgentExecutable("opencode") ?? "opencode";
     const { stdout } = await promisify(execFile)(executable, ["models"], { signal, timeout: 15_000, maxBuffer: 1024 * 1024 });
     return parseOpenCodeModels(stdout);
   }
@@ -47,7 +46,7 @@ export function parseOpenCodeModels(output: string): HarnessModelChoice[] {
 }
 
 /** Native discovery only. This does not create a conversation or run inference. */
-export async function codexModels(signal: AbortSignal, executable = "codex", args = ["app-server", "--listen", "stdio://"]): Promise<HarnessModelChoice[]> {
+export async function codexModels(signal: AbortSignal, executable = resolveAgentExecutable("codex") ?? "codex", args = ["app-server", "--listen", "stdio://"]): Promise<HarnessModelChoice[]> {
   const child = spawn(executable, args, { stdio: ["pipe", "pipe", "ignore"] });
   const rpc = new JSONRPCClient(request => new Promise<void>((resolve, reject) => {
     child.stdin.write(`${JSON.stringify(request)}\n`, error => error ? reject(error) : resolve());

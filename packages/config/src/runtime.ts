@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import { agentDefinitions } from "./agents";
 
 export type RuntimeRole = "authoring" | "lesson";
 type RuntimeConfig = Partial<Record<RuntimeRole, string>>;
@@ -17,10 +18,20 @@ function read(path: string): RuntimeConfig {
   return value;
 }
 
-/** Re-read on selection: global < project < environment < explicit UI choice. */
+function selectedRuntime(role: RuntimeRole, stateHome: string): string | undefined {
+  const path = resolve(stateHome, "settings.json");
+  if (!existsSync(path)) return undefined;
+  const settings = JSON.parse(readFileSync(path, "utf8")) as { agents?: unknown; agent?: string };
+  const selected = settings.agents ?? (settings.agent ? [settings.agent] : []);
+  if (!Array.isArray(selected) || selected.some(id => typeof id !== "string")) throw new Error(`Invalid selected agents in ${path}`);
+  return selected.find(id => agentDefinitions.some(agent => agent.id === id));
+}
+
+/** Re-read on selection: selected agents < global < project < environment < explicit UI choice. */
 export function resolveRuntimeHarness(role: RuntimeRole, root: string, environment: NodeJS.ProcessEnv = process.env): string {
-  const global = read(resolve(environment.DOJOFOO_HOME ?? resolve(homedir(), ".dojofoo"), "runtimes.json"));
+  const stateHome = environment.DOJOFOO_HOME ?? resolve(homedir(), ".dojofoo");
+  const global = read(resolve(stateHome, "runtimes.json"));
   const project = read(resolve(root, ".dojo", "runtimes.json"));
-  return environment[`DOJOFOO_${role.toUpperCase()}_HARNESS`] || environment.DOJOFOO_HARNESS || project[role] || global[role] || "opencode";
+  return environment[`DOJOFOO_${role.toUpperCase()}_HARNESS`] || environment.DOJOFOO_HARNESS || project[role] || global[role] || selectedRuntime(role, stateHome) || "opencode";
 }
 

@@ -18,7 +18,7 @@ import { prompt, invokeAsk } from "../format";
 const USAGE = `Usage: ${CLI} [command] [flags]
 
 Commands:
-  (none)              Set up this folder if needed, then open the lesson UI
+  (none)              Open Dojo at https://dojo.localhost
   kata                Kata-level actions (sensei, check, scaffold)
   intro               Show the active dojo's introduction
   status              Show current dojo/kata state
@@ -41,23 +41,16 @@ UI flags:
   --authoring         Open the current workspace in Kyoshi authoring mode
   --background        Keep the UI daemon running after this command exits
   --no-open           Print the URL without opening a browser
-  --name <name>       Set the Portless subdomain (default URL: https://dojo.localhost)
-  --tld <tld>         Set the Portless top-level domain
-  --no-portless       Use the http://localhost:4567 fallback directly
-  --port <port>       Change the direct/fallback port
-
-Agent UI controls:
-  ui prompt           Show a structured prompt in the current lesson UI
-  ui --skill          Print agent instructions for controlling the UI`;
-
-const UI_FLAGS = ["--authoring", "--background", "--no-open", "--name", "--tld", "--no-portless", "--port", "--skill"];
+  --no-portless       Use a direct localhost port (diagnostics only)
+  --port <port>       Change the direct port`;
+const UI_FLAGS = ["--authoring", "--background", "--no-open", "--no-portless", "--port", "--skill"];
 
 /**
- * Bare `dojofoo` in a terminal opens the lesson UI, setting the folder up first. Project flags keep their own
- * actions, and without a terminal (scripts, CI, pipes) it prints the help instead of starting a server.
+ * Bare `dojofoo` opens the local UI. Project flags keep their own actions.
  */
 export function bareOpensUi(argv: string[], interactive: boolean): boolean {
   const [command] = argv;
+  if (!command) return true;
   if (!interactive || (command && !command.startsWith("-"))) return false;
   return argv.every((argument) => !argument.startsWith("--") || UI_FLAGS.includes(argument));
 }

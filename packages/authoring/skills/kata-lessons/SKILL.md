@@ -55,3 +55,5 @@ Use `DOJO.tmpl` and `SENSEI.tmpl` as starting notes, not required headings. Repl
 - Publish through Git commits and version tags. Review tracked files and outgoing changes; `.gitignore` does not untrack files. Push only when the author asks.
 - Normal installs keep the learner course and Sensei definitions. `dojofoo add <source> --master` also keeps Kyoshi definitions for editing; neither mode installs runtime state. Ignore rules still apply.
 - Keep the license and attribution. Check permission before redistributing a modified course.
+
+Every new lesson also needs `INTRO.md` or `INTRO.mdx` beside its scaffold and SENSEI file. This is the learner-facing briefing; SENSEI is teaching guidance. Every chapter needs its own INTRO file, and the course root needs README.md (no MDX). Use the core content/readiness checks to verify these files exist and are nonempty.

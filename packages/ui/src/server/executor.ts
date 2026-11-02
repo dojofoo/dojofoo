@@ -12,7 +12,7 @@ import type {
  * with `"You said: <text>"`, then closes the event bus.
  *
  * The real broker will inspect the targeted skill (echo / opencode /
- * gemini / codex / …) and forward to the matching harness adapter,
+ * agy / codex / …) and forward to the matching harness adapter,
  * relaying that adapter's stream as A2A events. That work lands in a
  * follow-up.
  */

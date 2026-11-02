@@ -10,13 +10,12 @@ const ASK_TOOLS: Record<string, string> = {
   claude: "AskUserQuestion",
   opencode: "question",
   codex: "AskUserQuestion",
-  gemini: "ask_user",
   pi: "AskUserQuestion",
 };
 
 export function detectRuntime(): AgentRuntime {
   const { name } = runtimeIdentity();
-  return name === "unknown" ? FALLBACK : { name, askTool: ASK_TOOLS[name] };
+  return name === "unknown" ? FALLBACK : { name, askTool: ASK_TOOLS[name] ?? FALLBACK.askTool };
 }
 
 export function askTool(): string {

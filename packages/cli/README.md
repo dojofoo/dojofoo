@@ -8,6 +8,7 @@ Requires Node.js 24 or newer for the local agent and authoring runtime. Course
 toolchains are configured separately by each course.
 
 ```sh
+npx dojofoo               # open the dashboard and first-run setup
 npx dojofoo install       # set up your dojo (auto-detects your agent via env vars)
 npx dojofoo add dojofoo/effect-ts # install a training pack (a "dojo")
 npx dojofoo add owner/repository    # install a dojo directly from GitHub
@@ -16,6 +17,15 @@ npx dojofoo update owner/repository # update it from its recorded source
 npx dojofoo               # open the course and start practicing
 npx dojofoo track --list  # inspect locally recorded .dojo/cassettes
 ```
+
+The dashboard uses the included Portless dependency and its shared proxy. The
+terminal briefly shows `Starting Dojo…`, then `Go to https://dojo.localhost`
+when the UI is ready (or HTTP if your proxy uses it). The hostname stays
+`dojo.localhost`, including when the proxy uses a custom TLD. Portless may
+request system authorization on its first start. Setup is saved in
+`~/.dojofoo/settings.json`; courses install in the folder where you launched
+Dojo. You can start anonymously and connect an account later when device login
+is available.
 
 You write the code. The agent runs your tests, points out where you're
 stuck, and asks Socratic questions instead of solving the kata for you.

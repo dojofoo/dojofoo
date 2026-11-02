@@ -21,7 +21,7 @@ import { cn } from "../lib/utils";
  * CertificateCard is a certificate as a big, centered card that turns over: the badge at the top, what it certifies
  * from the middle line down, who earned it and when at the foot; the back its details and its hash.
  */
-export type CourseArtwork = { /** OKLCH hue of the gradient */ hue: number; /** One to three letters */ glyph: string };
+export type CourseArtwork = { color?: string; /** OKLCH hue of the gradient */ hue: number; /** One to three letters */ glyph: string };
 
 export type CourseInfo = {
   title: string;
@@ -67,7 +67,7 @@ export function CourseArt({ art, size = 44, cover = false, className }: { art: C
 }
 
 /** A course's color, for the cards drawn from one */
-export const courseColor = (art: CourseArtwork) => `oklch(0.58 0.2 ${art.hue})`;
+export const courseColor = (art: CourseArtwork) => art.color ?? `oklch(0.58 0.2 ${art.hue})`;
 
 export function CourseCard({ course, mark, enrolled, badge, className, showVersion = false, flip = true }: { course: Pick<CourseInfo, "title" | "art"> & Partial<Omit<CourseInfo, "title" | "art">>; /** In the author's name's place, e.g. our logo on our own courses */ mark?: ReactNode; /** A course you study: your version and progress */ enrolled?: CourseEnrollment; /** A format badge in place of the enrolled version label. */ badge?: ReactNode; className?: string; showVersion?: boolean; flip?: boolean }) {
   const outdated = enrolled?.version !== undefined && enrolled.latest !== undefined && enrolled.latest !== enrolled.version;

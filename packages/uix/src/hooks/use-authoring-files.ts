@@ -10,7 +10,7 @@ export function useAuthoringFiles(files: File[] | undefined) {
   useEffect(() => {
     if (!files) return;
     if (!initialized) {
-      const first = files.find((file) => /(?:^|\/)(dojo.yaml|dojo.json)$/.test(file.path)) ?? files[0];
+      const first = files.find(file => file.path === "README.md") ?? files.find((file) => /(?:^|\/)(dojo.yaml|dojo.json)$/.test(file.path)) ?? files[0];
       setTabs({ paths: first ? [first.path] : [], active: first?.path ?? null });
       setInitialized(true);
     } else setTabs((current) => current.paths.reduce((state, path) => files.some((file) => file.path === path) ? state : updateTabs(state, { type: "close", path }, "authoring"), current));

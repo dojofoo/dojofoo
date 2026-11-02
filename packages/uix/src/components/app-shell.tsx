@@ -3,7 +3,8 @@ import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { Tooltip } from "radix-ui";
 import { spring } from "../lib/springs";
 import { fadeViewTransition, paneViewTransition } from "../lib/view-transition";
-import { followLink } from "../lib/link-event";
+import { ScrollArea } from "./scroll-area";
+import { NavigationLink } from "./navigation-link";
 import { ResizablePanel, ResizablePanels } from "./arc/resizable-panels/resizable-panels";
 import { Avatar } from "./arc/avatar/avatar";
 import { SegmentedControl } from "./segmented-control";
@@ -222,15 +223,16 @@ type ShellRowProps = {
   turned?: boolean;
   controls?: string;
   onClick: () => void;
+  onLinkActivate?: () => void;
 };
 
 /** One sidebar row: icon, label, count (a dot in the rail), a chevron for groups, and the highlight when it is lit */
 const stateText = { done: "done", active: "in progress", locked: "locked" } as const;
 
-function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expanded, turned, controls, onClick }: ShellRowProps) {
+function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expanded, turned, controls, onClick, onLinkActivate }: ShellRowProps) {
   const locked = Boolean(entry.disabled) || (entry.state === "locked" && !entry.preview);
   const link = Boolean(entry.href && !locked && !entry.preview && !entry.children);
-  const Control = link ? "a" : "button";
+  const Control = link ? NavigationLink : "button";
   const row = (
     <RailTip enabled={rail || !!entry.note} label={rail ? entry.label : entry.note ?? entry.label} note={rail ? (entry.note ?? (entry.count ? String(entry.count) : undefined)) : undefined}>
       <Control
@@ -248,7 +250,8 @@ function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expande
         aria-controls={controls}
         aria-disabled={locked || undefined}
         disabled={!link && entry.disabled || undefined}
-        onClick={locked ? undefined : event => { if (link) followLink(event, onClick); else onClick(); }}
+        {...(link ? { onNavigate: onClick } : {})}
+        onClick={locked ? undefined : event => { if (link) { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) onLinkActivate?.(); } else onClick(); }}
       >
         {lit && <motion.span layoutId={layoutId} className="ui-as-side__lit rounded-[inherit]" transition={reduce ? { duration: 0 } : spring.moderate} />}
         {entry.marker ? <span className="ui-as-side__marker" aria-hidden="true">{entry.marker}</span> : entry.icon ? <Icon icon={entry.icon} size={16} /> : null}
@@ -549,13 +552,13 @@ export function AppShell({
         </header>
 
         <LayoutGroup id={baseId}>
-        <nav className="ui-as-side__nav scroll-fade" aria-label="Main menu">
+        <ScrollArea className="ui-as-side__scroll" viewportClassName="ui-as-side__nav scroll-fade" viewportProps={{ role: "navigation", "aria-label": "Main menu" }}>
           {/* Page changes use the native fade; individual rows keep their own selection feedback. */}
           <div key={navigationKey} className="ui-as-side__menu" style={namedMenu ? { "--ui-as-menu-name": `ui-menu-${namedMenu.replace(/[^\w-]/g, "-")}` } as CSSProperties : undefined}>
           {sections.map((section, index) => {
             const headingId = `${baseId}-${section.id}`;
             const layoutId = `${baseId}-${section.layout ?? "nav"}-lit`;
-            const shared = { layoutId, rail, reduce };
+            const shared = { layoutId, rail, reduce, onLinkActivate: () => { setDrawer(false); setAccountPage(undefined); } };
             const renderEntry = (entry: ShellEntry, nested = false): ReactNode => {
               const on = actives.includes(entry.id);
               if (!entry.children && !entry.preview) return <ShellRow key={entry.id} entry={entry} nested={nested} current={on} lit={on} onClick={() => go(entry.id)} {...shared} />;
@@ -587,7 +590,7 @@ export function AppShell({
             );
           })}
           </div>
-        </nav>
+        </ScrollArea>
         </LayoutGroup>
 
         {showFooter && <div className="ui-as-side__foot">
@@ -1484,16 +1487,9 @@ const css = /* css */ `
 }
 .ui-as-icon-btn:hover { background: var(--hover); color: var(--ink); }
 
-.ui-as-side__nav {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-  margin: 8px -12px 0;
-  padding: 0 12px 12px;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
+.ui-as-side__scroll { flex: 1 1 auto; min-width: 0; min-height: 0; margin: 8px -12px 0; }
+.ui-as-side__nav { height: 100%; min-width: 0; min-height: 0; padding: 0 12px 12px; overflow-x: hidden; overflow-anchor: none; }
+
 .ui-as-side__group { display: flex; flex-direction: column; gap: 1px; }
 .ui-as-side__group + .ui-as-side__group { margin-top: 4px; }
 .ui-as-side__custom { margin-top: 8px; transition: opacity var(--motion-slow) var(--ease-slow) 100ms; }

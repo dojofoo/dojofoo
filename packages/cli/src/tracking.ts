@@ -112,11 +112,6 @@ function findSourceForAgent(root: string, agent: AgentName, sessionId: string | 
     return sourceFromCandidates(agent, existsSync(base) ? findJsonl(base) : [], sessionId);
   }
 
-  if (agent === "gemini") {
-    const base = join(home, ".gemini");
-    return sourceFromCandidates(agent, existsSync(base) ? findJsonl(base) : [], sessionId);
-  }
-
   return null;
 }
 
