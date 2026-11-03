@@ -66,10 +66,15 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
         const agents = await json<Page<Agent>>(agentApi(workspaceId, "/agents"), { signal: controller.signal });
         const agent = agents.data.find(item => item.selected)?.id ?? "";
         if (sessionId) {
-          const saved = await json<Session>(agentApi(workspaceId, `/sessions/${encodeURIComponent(sessionId)}`), { signal: controller.signal });
-          if (controller.signal.aborted) return;
-          if (saved.agent === agent) { setSession(saved); return; }
-          // One on another agent can't continue here: open the selected agent's conversation instead
+          const response = await fetch(agentApi(workspaceId, `/sessions/${encodeURIComponent(sessionId)}`), { signal: controller.signal });
+          // One that no longer exists, or that runs on another agent, can't continue here:
+          // open the selected agent's conversation instead
+          if (response.status !== 404) {
+            if (!response.ok) throw await httpError(response);
+            const saved = await response.json() as Session;
+            if (controller.signal.aborted) return;
+            if (saved.agent === agent) { setSession(saved); return; }
+          }
         }
         const existing = await json<Page<Session>>(agentApi(workspaceId, `/sessions?persona=${persona}&agent=${encodeURIComponent(agent)}&per_page=1`), { signal: controller.signal });
         if (controller.signal.aborted) return;

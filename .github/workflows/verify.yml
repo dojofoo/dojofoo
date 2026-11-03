@@ -11,7 +11,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     permissions:
       contents: read
     steps:
@@ -40,11 +40,29 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter @dojofoo/ui types:check
       - run: pnpm --filter @dojofoo/ui test --exclude '**/*.live.test.ts'
+      - run: pnpm --filter @dojofoo/agent-api test
+      - run: pnpm --filter @dojofoo/authoring test --exclude '**/*.live.test.ts'
+      # Also installs a clean consumer from registry.npmjs.org; no coding-agent CLI or login is needed
+      - run: pnpm --filter @dojofoo/agent test
       - run: pnpm --filter dojofoo test
       - run: pnpm --filter dojofoo test:package
       - run: pnpm --filter @dojofoo/web exec playwright install --with-deps chromium
       - run: pnpm --filter @dojofoo/web test:e2e
       - run: pnpm --filter @dojofoo/ui test:library
+      # The specs answer the API themselves; the built UI only serves the pages. Specs join and leave by
+      # the steps of docs/designs/agent-runtime.md.
+      - name: Verify the UI in the browser
+        env:
+          DOJOFOO_HOME: ${{ runner.temp }}/dojofoo-home
+          DO_NOT_TRACK: "1"
+          DOJO_SKIP_PREPARE: "1"
+          DOJO_UI_BASE_URL: http://127.0.0.1:4567
+        run: |
+          mkdir -p "$RUNNER_TEMP/dojofoo-ui"
+          (cd "$RUNNER_TEMP/dojofoo-ui" && HOST=127.0.0.1 node "$GITHUB_WORKSPACE/packages/cli/dist/index.js" ui --no-open --no-portless --port 4567 > "$RUNNER_TEMP/dojofoo-ui.log" 2>&1 &)
+          for _ in $(seq 60); do curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" && break; sleep 1; done
+          curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" || { cat "$RUNNER_TEMP/dojofoo-ui.log"; exit 1; }
+          pnpm --filter @dojofoo/ui exec playwright test agent-chat.spec.ts eve-authoring.spec.ts learner-pages.spec.ts workspace-loading.spec.ts
       - name: Install native lesson harness
         run: npm install --global @opencode/cli@2.0.28
       - name: Verify the installed lesson workflow with local inference
@@ -63,3 +81,12 @@ jobs:
             /tmp/dojo-interactive-runtime-evidence-*
           if-no-files-found: ignore
           retention-days: 3
+
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      # Step 3 of docs/designs/agent-runtime.md fills this job with each coding agent's conformance cases
+      - run: echo "No conformance cases yet"

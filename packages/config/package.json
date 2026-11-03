@@ -1,6 +1,7 @@
 {
   "name": "@dojofoo/config",
   "version": "0.2.0",
+  "private": true,
   "description": "Shared configuration and Vitest integration for dojofoo.",
   "license": "FSL-1.1-ALv2",
   "homepage": "https://dojo.foo/docs",
@@ -12,9 +13,6 @@
     "type": "git",
     "url": "https://github.com/dojofoo/dojofoo",
     "directory": "packages/config"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "files": [
     "dist",

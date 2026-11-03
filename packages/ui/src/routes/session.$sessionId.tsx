@@ -3,7 +3,8 @@ import { InteractiveCourse } from "@/components/interactive-course";
 import type { InteractiveSnapshot } from "@/server/interactive/service";
 import type { LessonSnapshot } from "@/server/lesson/service";
 import type { InstalledCourse } from "./course.$courseId";
-import { LessonPage } from "./index";
+import { LessonLoading, LessonPage } from "./index";
+import { useAccountMenu } from "@/hooks/use-account-menu";
 import { RouteErrorPanel } from "./__root";
 
 async function read<T>(url: string, signal: AbortSignal): Promise<T> {
@@ -15,7 +16,9 @@ async function read<T>(url: string, signal: AbortSignal): Promise<T> {
 
 export const Route = createFileRoute("/session/$sessionId")({
   ssr: false,
-  pendingMs: Infinity,
+  // The workspace shows at once and fills in when the session's files arrive
+  pendingMs: 0,
+  pendingMinMs: 0,
   preloadStaleTime: 0,
   loader: async ({ params, abortController, location }) => {
     const signal = abortController.signal;
@@ -42,6 +45,7 @@ export const Route = createFileRoute("/session/$sessionId")({
     return { course, lesson, interactive: undefined, nativeLesson };
   },
   component: SessionPage,
+  pendingComponent: SessionPending,
   errorComponent: SessionError,
 });
 
@@ -53,6 +57,11 @@ function SessionPage() {
   return <LessonPage key={`${course.id}:${lessonId}`} requestedWorkspaceId={course.workspaceId} requestedCourseId={course.id}
     requestedLessonId={lessonId} initialLesson={lesson?.kata === lessonId ? lesson : undefined}
     requestedSessionId={nativeLesson?.sessionId ?? (location.state.lesson?.courseId === course.id ? location.state.lesson.sessionId : undefined)} />;
+}
+
+function SessionPending() {
+  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
+  return <LessonLoading account={account} toast={toast} />;
 }
 
 function SessionError(props: ErrorComponentProps) {

@@ -41,7 +41,7 @@ test("the same conversation follows the open lesson and file without saving unse
   await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Main menu" });
-  await navigation.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  await navigation.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Code editor", exact: true });
   await editor.focus();
   await page.keyboard.press("ControlOrMeta+a");
@@ -55,7 +55,7 @@ test("the same conversation follows the open lesson and file without saving unse
   } });
   await expect(page.getByText("Echo: Explain this file", { exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
-  await navigation.getByRole("button", { name: "dojo.yaml", exact: true }).click();
+  await navigation.getByRole("treeitem", { name: "dojo.yaml", exact: true }).click();
   await composer.getByRole("textbox").fill("Now explain the course manifest");
   await composer.getByRole("button", { name: "Send", exact: true }).click();
   await expect.poll(() => sent.at(-1)?.body.clientContext).toEqual({ workspaceId, view: { scope: "course", file: "dojo.yaml", unsavedChanges: false } });
@@ -230,6 +230,16 @@ test("a conversation on a coding agent that's no longer selected opens the selec
   await expect(page.getByText(/selected coding agent/)).toHaveCount(0);
   expect(calls.filter(call => call === created)).toHaveLength(1);
   expect(calls.some(call => call.includes(`/sessions/${sessionId}/eve/`))).toBe(false);
+});
+
+test("a conversation that no longer exists opens the selected agent's conversation", async ({ page, mountAgentChat }) => {
+  test.setTimeout(30_000);
+  const { calls, sessionId } = await mountAgentChat(page);
+  await page.goto(`/authoring?workspace=${workspaceId}&session=gone`);
+  await expect(page).toHaveURL(new RegExp(`session=${sessionId}(?:&|$)`), { timeout: 10_000 });
+  await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Session not found.")).toHaveCount(0);
+  expect(calls.filter(call => call === created)).toHaveLength(0);
 });
 
 test("a conversation an older Eve built continues in a new session", async ({ page, mountAgentChat }) => {

@@ -19,9 +19,13 @@ it("loads the evaluation tool in Eve's native Node runtime without a TS resolver
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "dojo-eval-host-")); roots.push(root);
+  await mkdir(join(root, "src"));
+  await writeFile(join(root, "src", "INTRO.md"), "# Chapter\n\nWhat this chapter covers.\n");
   await writeFile(join(root, "dojo.yaml"), "katas:\n  - name: first\n    template: src/first/solution.ts\n  - name: second\n    template: src/second/solution.ts\n");
+  await writeFile(join(root, "README.md"), "# Course\n\nWhat the learner builds.\n");
   for (const lesson of ["first", "second"]) {
     await mkdir(join(root, "src", lesson), { recursive: true });
+    await writeFile(join(root, "src", lesson, "INTRO.md"), `# ${lesson}\n\nWhat this lesson covers.\n`);
     await writeFile(join(root, "src", lesson, "SENSEI.md"), validSensei);
     await writeFile(join(root, "src", lesson, "solution.test.ts"), 'it("works", () => {});');
   }

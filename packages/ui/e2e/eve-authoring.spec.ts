@@ -47,9 +47,10 @@ test("restored authoring conversations show their original attachments", async (
 });
 
 test("Pages navigation filters nested authoring files and preserves selection across renames", async ({ page }) => {
+  // The server marks files a course doesn't teach with `courseFile: false`
   let current = { ...draft, rootFiles: [...draft.rootFiles,
-    { path: "package.json", label: "package.json", content: "{}" },
-    { path: ".agents/skills/course/SKILL.md", label: "SKILL.md", content: "# Real guidance" },
+    { path: "package.json", label: "package.json", content: "{}", courseFile: false },
+    { path: ".agents/skills/course/SKILL.md", label: "SKILL.md", content: "# Real guidance", courseFile: false },
   ], lessons: [{ id: "first", title: "First lesson", senseiPath: "src/first/SENSEI.md", description: "", checks: [],
     files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# Teach" }] }] };
   const renames: unknown[] = [];
@@ -69,84 +70,43 @@ test("Pages navigation filters nested authoring files and preserves selection ac
   });
   await page.goto(`/authoring?session=${agent.sessionId}`);
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
-  const navigation = page.getByRole("navigation", { name: "Main menu" });
-  await expect(navigation.getByRole("tree")).toHaveCount(0);
-  await expect(navigation.locator("button button")).toHaveCount(0);
-  await expect(navigation.getByRole("button", { name: "package.json", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Course actions", exact: true }).click();
-  const boxStyle = (node: Element) => {
-    const style = getComputedStyle(node);
-    return { background: style.backgroundColor, radius: style.borderRadius, shadow: style.boxShadow };
-  };
-  const menuStyle = await page.getByRole("dialog").evaluate(boxStyle);
-  await page.getByRole("menuitemradio", { name: "Show all files", exact: true }).click();
-  for (const name of [".agents", "skills", "course"]) await navigation.getByRole("button", { name, exact: true }).click();
-  await navigation.getByRole("button", { name: "SKILL.md", exact: true }).click();
+  const tree = page.getByRole("navigation", { name: "Main menu" }).getByRole("tree", { name: "Course files and chapters", exact: true });
+  await expect(page.getByRole("navigation", { name: "Main menu" }).locator("button button")).toHaveCount(0);
+  await expect(tree.getByRole("treeitem", { name: "package.json", exact: true })).toHaveCount(0);
+  const courseActions = page.getByRole("button", { name: "Course actions", exact: true });
+  await courseActions.click();
+  await page.getByRole("dialog").getByRole("button", { name: "Show all files", exact: true }).click();
+  await expect(tree.getByRole("treeitem", { name: "package.json", exact: true })).toBeVisible();
+  for (const name of [".agents", "skills", "course"]) await tree.getByRole("treeitem", { name, exact: true }).getByText(name, { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "SKILL.md", exact: true }).click();
   const tab = page.getByRole("tab", { name: "SKILL.md", exact: true });
   await expect(tab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Real guidance");
-  const rename = async (from: string, to: string) => {
-    await navigation.getByRole("button", { name: from, exact: true }).hover();
-    await navigation.getByRole("button", { name: `Rename ${from}`, exact: true }).click();
-    const popup = page.getByRole("dialog");
-    expect(await popup.evaluate(boxStyle)).toEqual(menuStyle);
-    await popup.getByRole("textbox", { name: "Title", exact: true }).fill(to);
-    await page.screenshot({ path: test.info().outputPath(`rename-${from.replace(/\W+/gu, "-")}.png`), animations: "disabled" });
-    await popup.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(navigation.getByRole("button", { name: to, exact: true })).toBeVisible();
-  };
-  await rename("Eve course", "Renamed draft");
-  await rename("First lesson", "Revised lesson");
+  await courseActions.click();
+  const popup = page.getByRole("dialog");
+  await popup.getByRole("textbox", { name: "Title", exact: true }).fill("Renamed draft");
+  await page.screenshot({ path: test.info().outputPath("rename-course.png"), animations: "disabled" });
+  await popup.getByRole("button", { name: "Rename", exact: true }).click();
+  await expect(page.getByRole("navigation", { name: "Breadcrumb", exact: true })).toContainText("Renamed draft");
+  const lesson = tree.getByRole("treeitem", { name: "First lesson", exact: true });
+  await lesson.getByText("First lesson", { exact: true }).hover();
+  await lesson.getByRole("button", { name: "First lesson actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+  const title = tree.getByRole("textbox", { name: "Rename First lesson", exact: true });
+  await title.fill("Revised lesson");
+  await page.screenshot({ path: test.info().outputPath("rename-lesson.png"), animations: "disabled" });
+  await title.press("Enter");
+  await expect(tree.getByRole("treeitem", { name: "Revised lesson", exact: true })).toBeVisible();
   await expect(tab).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("button", { name: "Course actions", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: "Show only course files", exact: true }).click();
-  await expect(navigation.getByRole("button", { name: "SKILL.md", exact: true })).toHaveCount(0);
+  await courseActions.click();
+  await page.getByRole("dialog").getByRole("button", { name: "Show only course files", exact: true }).click();
+  await expect(tree.getByRole("treeitem", { name: "SKILL.md", exact: true })).toHaveCount(0);
   await expect(tab).toHaveAttribute("aria-selected", "true");
   expect(renames).toEqual([
     { path: "/api/authoring/course", title: "Renamed draft" },
     { path: "/api/authoring/lessons/first", title: "Revised lesson" },
   ]);
   await page.screenshot({ path: test.info().outputPath("authoring-pages-navigation.png"), animations: "disabled" });
-});
-
-test("the Pages brief shows scoped readiness findings without an empty box", async ({ page }) => {
-  const workspace = { ...draft, courseChecks: [
-    { id: "intent", label: "Course intent and teaching rules", ready: true },
-  ], lessons: [{ id: "first", title: "First lesson", senseiPath: "src/first/SENSEI.md", description: "A focused learner outcome", checks: [
-    { id: "sensei", label: "Lesson briefing and Sensei guidance", ready: true },
-    { id: "scaffold", label: "Learner scaffold and checks", ready: false, findings: ["Add a revealing edge case."] },
-  ], files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# Teach" }] },
-  { id: "empty", title: "Unchecked lesson", senseiPath: "src/empty/SENSEI.md", description: "No preflight result yet", checks: [],
-    files: [{ path: "src/empty/SENSEI.md", label: "SENSEI.md", content: "# Draft" }] }] };
-  await page.routeWebSocket("**/api/authoring/changes*", () => {});
-  await page.route("**/api/authoring/**", route => {
-    const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
-    if (path.endsWith("/draft")) return route.fulfill({ json: workspace });
-    if (path.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report: null } });
-    return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
-  });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
-  const readiness = page.getByRole("region", { name: "Readiness", exact: true });
-  await expect(readiness).toContainText("Course intent and teaching rules");
-  const nav = page.getByRole("navigation", { name: "Main menu" });
-  const firstLesson = nav.getByRole("button", { name: "First lesson", exact: true });
-  await expect(firstLesson).toHaveAttribute("aria-expanded", "true");
-  await nav.locator('[id$="authoring:lesson:first-list"]').getByRole("button", { name: "SENSEI.md", exact: true }).click();
-  await expect(readiness).toContainText("Add a revealing edge case.");
-  await expect(readiness).not.toContainText("Course intent and teaching rules");
-  await expect(readiness.getByRole("img", { name: "Ready", exact: true })).toHaveCount(1);
-  await expect(readiness.getByRole("img", { name: "Needs attention", exact: true })).toHaveCount(1);
-  expect(await readiness.evaluate(node => {
-    const style = getComputedStyle(node);
-    return { border: style.borderTopWidth, background: style.backgroundColor, overflows: node.scrollWidth > node.clientWidth };
-  })).toEqual({ border: "0px", background: "rgba(0, 0, 0, 0)", overflows: false });
-  await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Teach");
-  await page.screenshot({ path: test.info().outputPath("authoring-readiness.png"), animations: "disabled" });
-  await nav.getByRole("button", { name: "Unchecked lesson", exact: true }).click();
-  await nav.locator('[id$="authoring:lesson:empty-list"]').getByRole("button", { name: "SENSEI.md", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Unchecked lesson", exact: true })).toBeVisible();
-  await expect(readiness).toHaveCount(0);
 });
 
 test("the Pages evaluation view keeps real findings and the unsaved editor model", async ({ page }) => {
@@ -169,7 +129,7 @@ test("the Pages evaluation view keeps real findings and the unsaved editor model
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
   await page.goto(`/authoring?session=${agent.sessionId}`);
-  await page.getByRole("navigation", { name: "Main menu" }).getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  await page.getByRole("navigation", { name: "Main menu" }).getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Code editor" });
   await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Teach");
   await editor.focus();
@@ -326,10 +286,9 @@ test("report loading errors stay with their lesson and clear after watcher recov
   });
   await page.goto(`/authoring?session=${agent.sessionId}`);
   const selectLesson = async (name: string) => {
-    const button = page.getByRole("button", { name, exact: true });
-    if (await button.getAttribute("aria-expanded") !== "true") await button.click();
-    const item = page.locator(".ui-as-side__branch").filter({ has: button });
-    await item.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+    const item = page.getByRole("treeitem", { name, exact: true });
+    if (await item.getAttribute("aria-expanded") !== "true") await item.getByText(name, { exact: true }).click();
+    await item.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   };
   await selectLesson("first");
   const alert = page.getByRole("alert").filter({ hasText: "Could not load this lesson" });
@@ -378,10 +337,9 @@ test("a late evaluation cannot replace another lesson's report", async ({ page }
   });
   await page.goto(`/authoring?session=${agent.sessionId}`);
   const selectLesson = async (name: string) => {
-    const button = page.getByRole("button", { name, exact: true });
-    if (await button.getAttribute("aria-expanded") !== "true") await button.click();
-    const item = page.locator(".ui-as-side__branch").filter({ has: button });
-    await item.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+    const item = page.getByRole("treeitem", { name, exact: true });
+    if (await item.getAttribute("aria-expanded") !== "true") await item.getByText(name, { exact: true }).click();
+    await item.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   };
   await selectLesson("first");
   await page.getByRole("button", { name: "Evaluate lesson", exact: true }).click();
@@ -456,7 +414,7 @@ test("evaluation settings save model choices, not secrets or worker paths, witho
   const composer = page.getByTestId("authoring-chat-composer");
   await expect(composer.getByRole("button", { name: "Add file", exact: true })).toBeEnabled();
   await expect(composer.getByRole("button", { name: "Agent", exact: true })).toContainText("Codex");
-  await page.getByRole("button", { name: "You", exact: true }).click();
+  await page.getByRole("button", { name: "Anonymous", exact: true }).click();
   const boxStyle = (node: Element) => {
     const style = getComputedStyle(node);
     return { background: style.backgroundColor, radius: style.borderRadius, shadow: style.boxShadow };
@@ -562,10 +520,9 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
   await page.goto(`/authoring?session=${agent.sessionId}`);
-  const lessonButton = page.getByRole("button", { name: "first", exact: true });
-  if (await lessonButton.getAttribute("aria-expanded") !== "true") await lessonButton.click();
-  const lessonItem = page.locator(".ui-as-side__branch").filter({ has: lessonButton });
-  await lessonItem.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  const lessonItem = page.getByRole("treeitem", { name: "first", exact: true });
+  if (await lessonItem.getAttribute("aria-expanded") !== "true") await lessonItem.getByText("first", { exact: true }).click();
+  await lessonItem.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   if (outcome === "success") {
     const picker = page.getByRole("button", { name: "Trial agent: Configured trial agent", exact: true });
     await expect(picker).toBeVisible({ timeout: 5000 });

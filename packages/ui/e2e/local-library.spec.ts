@@ -1,6 +1,5 @@
-import { mountAgentChat } from "./agent-chat.fixture";
+import { expect, test } from "./agent-chat.fixture";
 import { agentDefinitions } from "@dojofoo/config/agents";
-import { expect, test } from "@playwright/test";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -10,7 +9,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { observeLocalContext } from "@dojofoo/config/local-state";
 
-test("the UIX library separates installed sessions from course previews and preserves sidebar navigation", async ({ page }, info) => {
+test("the UIX library separates installed sessions from course previews and preserves sidebar navigation", async ({ page, mountAgentChat }, info) => {
   test.setTimeout(90_000);
   const scratch = await mkdtemp(join(tmpdir(), "dojo-library-browser-"));
   const home = join(scratch, "state");

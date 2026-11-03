@@ -476,7 +476,7 @@ function AuthoringPage() {
               <div className="flex flex-wrap items-center justify-end gap-1 p-1">
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => setEvaluationSettingsOpen(true)}>Evaluation settings</WorkspaceAction>
                 <WorkspaceAction icon={<RefreshCw className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}>Refresh</WorkspaceAction>
-                {visibleReport ? <WorkspaceAction disabled={false} onClick={() => setReportOpen(!reportOpen)}>{reportOpen ? "Hide evaluation" : "Evaluation results"}</WorkspaceAction> : null}
+                {visibleReport ? <WorkspaceAction disabled={false} onClick={() => { setEvalsView("report"); setReportOpen(!reportOpen); }}>{reportOpen ? "Hide evaluation" : "Evaluation results"}</WorkspaceAction> : null}
                 {scope === "lesson" && selectedLesson ? <>
                   <MenuButton label="Trial agent" value={trialHarness} onChange={setTrialHarness} disabled={Boolean(busy)} align="start"
                     icon={codingAgents.find(agent => agent.value === trialHarness)?.icon}

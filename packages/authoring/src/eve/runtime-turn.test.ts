@@ -25,7 +25,9 @@ it("uses the shipped question schema before starting a harness", async () => {
   expect((await schema.validate({ prompt: question.question, options: [{ id: "beginner", label: "Beginner" }] })).issues).toBeDefined();
 });
 
-it.each(["runtime", "native", "grok", "fx", "codex"] as const)("asks and resumes through official authoring runtime with %s model selection", async (selection) => {
+const selections = ["runtime", "native", "grok", "fx", "codex"] as const;
+// Every selection but "runtime" starts that coding agent's installed CLI
+it.each(process.env.DOJO_HARNESS_LIFECYCLE === "1" ? selections : selections.slice(0, 1))("asks and resumes through official authoring runtime with %s model selection", async (selection) => {
   const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-turn-"));
   const home = join(root, "home");
   await mkdir(home);

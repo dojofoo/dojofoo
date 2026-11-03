@@ -126,7 +126,15 @@ async function mount(page: Page, eve: Eve, servers: Server[], options: MountOpti
  * `eve` is a real Eve host running the fixture agent (`packages/agent-api/test/eve`), one per
  * worker; `mountAgentChat` serves a fresh agent API on it for the test's page.
  */
-export const test = base.extend<{ mountAgentChat: (page: Page, options?: MountOptions) => Promise<MountedAgentChat> }, { eve: Eve }>({
+/** A finished local setup, so pages open past onboarding whatever the server's DOJOFOO_HOME holds. A spec's own
+ * catch-all `/api/**` route passes `/api/local/setup` on with `route.fallback()`. */
+export const localSetup = { completed: true, workspace: "/tmp/dojo-workspace", agents: ["codex"], agent: "codex", user: { name: "Anonymous" } };
+
+export const test = base.extend<{ mountAgentChat: (page: Page, options?: MountOptions) => Promise<MountedAgentChat>; localSetup: void }, { eve: Eve }>({
+  localSetup: [async ({ page }, use) => {
+    await page.route("**/api/local/setup", route => route.fulfill({ json: localSetup }));
+    await use();
+  }, { auto: true }],
   eve: [async ({}, use) => {
     const eve = await startEve();
     await use(eve);

@@ -196,6 +196,21 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
   );
 }
 
+/** A lesson's workspace before its files arrive */
+export function LessonLoading({ account, toast, error }: Pick<ReturnType<typeof useAccountMenu>, "account" | "toast"> & { error?: string | null }) {
+  const navigate = useNavigate();
+  return (
+    <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} workspace="Dojo" sidebarWidth="18rem" brand={<Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>}
+      navigation={[{ id: "lessons", heading: "Lessons", items: [], before: !error && <WorkspaceSkeleton label="Loading lessons" rows={4} /> }]}
+      showNews={false} showOnboarding={false} askAssistant={false}
+      crumbs={[{ label: "Dashboard", icon: <UIXIcon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }]}
+      editor={<Editor flush>{error ? <p role="alert" className="p-5 text-sm text-destructive">{error}</p> : <WorkspaceSkeleton />}</Editor>}
+      header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b></span>}
+      composer={<Composer tray={false} disabled models={[]} attachments="unavailable" dictation={false} plugins={false}
+        agent={{ name: "Coding agent", icon: AiMagicIcon }} placeholder="Ask your Sensei…" />} />{toast}</div>
+  );
+}
+
 export function LessonPage({ initialLesson, requestedHarness, requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
   initialLesson?: LessonSnapshot;
   requestedHarness?: string;
@@ -683,18 +698,7 @@ export function LessonPage({ initialLesson, requestedHarness, requestedCourseId,
     return () => window.removeEventListener("keydown", onSave);
   }, [lesson?.isCurrent, save]);
 
-  if (!lesson) {
-    return (
-      <div style={{ height: "100dvh" }}><AgentChatWorkspace {...account} workspace="Dojo" sidebarWidth="18rem" brand={<Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>}
-        navigation={[{ id: "lessons", heading: "Lessons", items: [], before: !error && <WorkspaceSkeleton label="Loading lessons" rows={4} /> }]}
-        showNews={false} showOnboarding={false} askAssistant={false}
-        crumbs={[{ label: "Dashboard", icon: <UIXIcon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }]}
-        editor={<Editor flush>{error ? <p role="alert" className="p-5 text-sm text-destructive">{error}</p> : <WorkspaceSkeleton />}</Editor>}
-        header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b></span>}
-        composer={<Composer tray={false} disabled models={[]} attachments="unavailable" dictation={false} plugins={false}
-          agent={{ name: "Coding agent", icon: AiMagicIcon }} placeholder="Ask your Sensei…" />} />{toast}</div>
-    );
-  }
+  if (!lesson) return <LessonLoading account={account} toast={toast} error={error} />;
 
   const thinking = chatStatus === "submitted" || chatStatus === "streaming";
   const navigation: ShellSection[] = [

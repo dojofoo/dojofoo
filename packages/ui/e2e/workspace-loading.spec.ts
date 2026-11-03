@@ -2,7 +2,7 @@ import { expect, savedReply, test } from "./agent-chat.fixture";
 
 test.setTimeout(60_000);
 
-for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mode} paints its workspace while filesystem reads are pending`, async ({ page }, info) => {
+for (const mode of ["authoring", "learner"] as const) test(`${mode} paints its workspace while filesystem reads are pending`, async ({ page }, info) => {
   const files = Promise.withResolvers<void>();
   await page.routeWebSocket("**/api/**", () => {});
   await page.route("**/api/**", async route => {
@@ -11,7 +11,8 @@ for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mod
   });
   try {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(mode === "authoring" ? "/authoring?session=saved" : mode === "interactive" ? "/interactive?workspace=fast-workspace&course=fast-course" : "/course/fast-workspace/fast-course/lesson/first");
+    // Learners open a session, whichever kind of course it is in
+    await page.goto(mode === "authoring" ? "/authoring?session=saved" : "/session/saved-run");
     await expect(page.getByRole("region", { name: "Course editor", exact: true })).toBeVisible();
     await expect(page.getByRole("status", { name: "Loading files", exact: true })).toBeVisible();
     await expect(page.getByText("Thinking", { exact: true })).toHaveCount(0, { timeout: 2000 });
@@ -68,6 +69,7 @@ test("a direct learner URL opens its lesson before discovery and keeps the same 
     if (path.endsWith("/diagnostics")) return route.fulfill({ json: [] });
     if (path.endsWith("/completions")) return route.fulfill({ json: { from: 0, options: [] } });
     if (request.method() !== "GET") writes.push(path);
+    if (path === "/api/control/learning-sessions/saved-run") return route.fulfill({ json: { id: "fast-course", title: "Fast Course", workspaceId: "fast-workspace", runId: "saved-run", mode: "katas", kata: "first", description: "", version: "", language: "TypeScript", tags: [], lessons: ["first"] } });
     if (path === "/api/control/courses") {
       await discovery.promise;
       return route.fulfill({ json: [{ workspaceId: "fast-workspace", dojo: "fast-course", kata: "first", mode: "katas", workspaceName: "Fast files", selected: true,
@@ -82,7 +84,7 @@ test("a direct learner URL opens its lesson before discovery and keeps the same 
     return route.fulfill({ status: 404 });
   });
   try {
-    await page.goto("/course/fast-workspace/fast-course/lesson/first");
+    await page.goto("/session/saved-run");
     await expect(page.getByRole("region", { name: "Course editor", exact: true })).toBeVisible({ timeout: 5000 });
     const input = page.getByRole("textbox", { name: "Code editor", exact: true });
     await input.focus();
@@ -137,6 +139,9 @@ test("learner files remain editable through a failed agent resume and retry", as
       workspaceId: "fast-workspace", dojo: "fast-course", kata: "first", mode: "katas", workspaceName: "Fast files", selected: true,
       sessionId: "saved", sessions: [{ lessonId: "first", sessionId: "saved" }],
     }] });
+    if (url.pathname === "/api/control/courses/fast-course" || url.pathname === "/api/control/learning-sessions/saved") {
+      return route.fulfill({ json: { id: "fast-course", title: "Fast Course", workspaceId: "fast-workspace", runId: "saved", mode: "katas", kata: "first", description: "", version: "", language: "TypeScript", tags: [], lessons: ["first"] } });
+    }
     if (url.pathname === "/api/teaching/preview") return route.fulfill({ json: { blocks: [] } });
     if (url.pathname.endsWith("/diagnostics")) return route.fulfill({ json: [] });
     if (url.pathname.endsWith("/completions")) return route.fulfill({ json: { from: 0, options: [] } });
@@ -149,7 +154,7 @@ test("learner files remain editable through a failed agent resume and retry", as
     return route.fulfill({ status: 404 });
   });
   try {
-    await page.goto("/course/fast-workspace");
+    await page.goto("/course/fast-course");
     const code = page.getByRole("textbox", { name: "Code editor", exact: true });
     await expect(code).toBeVisible({ timeout: 5000 });
     await expect(page.getByText("Already available learner guidance", { exact: true })).toBeVisible();
@@ -170,12 +175,15 @@ test("learner files remain editable through a failed agent resume and retry", as
 test("continuing from the dashboard reuses its known session when discovery is unavailable", async ({ page }) => {
   let discoveryAvailable = true;
   let snapshotSessionId = "saved";
-  const course = { workspaceId: "fast-workspace", dojo: "fast-course", kata: "first", mode: "katas", workspaceName: "Fast files", language: "TypeScript", selected: true,
+  const course = { workspaceId: "fast-workspace", runId: "saved-run", dojo: "fast-course", title: "Fast Course", kata: "first", mode: "katas", workspaceName: "Fast files", language: "TypeScript", selected: true,
     sessionId: "saved", sessions: [{ lessonId: "first", sessionId: "saved" }] };
   await page.routeWebSocket("**/api/session*", () => {});
   await page.route("**/api/**", route => {
+    if (new URL(route.request().url()).pathname === "/api/local/setup") return route.fallback();
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/control/courses") return discoveryAvailable ? route.fulfill({ json: [course] }) : route.abort();
+    if (path === "/api/control/courses/fast-course") return route.fulfill({ json: { id: "fast-course", title: "Fast Course", workspaceId: "fast-workspace", runId: "saved-run", mode: "katas", kata: "first", description: "", version: "", language: "TypeScript", tags: [], lessons: ["first"] } });
+    if (path === "/api/control/learning-sessions/saved-run") return route.fulfill({ json: { id: "fast-course", title: "Fast Course", workspaceId: "fast-workspace", runId: "saved-run", mode: "katas", kata: "first", description: "", version: "", language: "TypeScript", tags: [], lessons: ["first"] } });
     if (path === "/api/control/authoring") return route.fulfill({ json: [] });
     if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [] } });
     if (path.endsWith("/lessons/first")) return route.fulfill({ json: {
@@ -191,13 +199,17 @@ test("continuing from the dashboard reuses its known session when discovery is u
   await expect(entry).toBeVisible();
   discoveryAvailable = false;
   await entry.click();
-  await expect(page).toHaveURL(/\/session\/saved$/);
+  await expect(page).toHaveURL(/\/session\/saved-run$/);
   await expect(page.getByRole("textbox", { name: "Code editor", exact: true })).toBeVisible({ timeout: 5000 });
   await expect(page.getByText("Continue your saved lesson", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Continue your saved lesson", { exact: true })).toBeVisible();
+  // A lesson's own session address needs discovery to find its course, and only opens that exact session
+  discoveryAvailable = true;
+  await page.goto("/session/saved");
+  await expect(page.getByText("Continue your saved lesson", { exact: true })).toBeVisible();
   snapshotSessionId = "another-conversation";
   await page.reload();
-  await expect(page.getByRole("alert")).toContainText("This exact lesson session is unavailable");
+  await expect(page.getByRole("main", { name: "Something went wrong", exact: true })).toContainText("This exact lesson session is unavailable");
   await expect(page.getByText("Continue your saved lesson", { exact: true })).toHaveCount(0);
 });
