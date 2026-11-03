@@ -14,12 +14,12 @@
   "dependencies": {
     "@dojofoo/agent": "workspace:*",
     "@dojofoo/authoring": "workspace:*",
-    "@tanstack/ai": "0.69.0",
-    "elysia": "^1.4.18",
-    "exact-mirror": "0.2.7"
+    "@tanstack/ai": "1.0.1",
+    "elysia": "^1.4.30",
+    "exact-mirror": "1.2.6"
   },
   "devDependencies": {
-    "@tanstack/ai-client": "0.39.3",
+    "@tanstack/ai-client": "1.0.1",
     "@types/node": "^26.6.5",
     "typescript": "6.0.3",
     "vitest": "^5.0.5"

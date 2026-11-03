@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "@elysiajs/openapi": "1.4.16",
-    "@libsql/client": "0.17.4",
-    "drizzle-orm": "0.45.2",
-    "elysia": "^1.4.18",
-    "exact-mirror": "0.2.7",
-    "yaml": "^2.9.0"
+    "@libsql/client": "0.18.0",
+    "drizzle-orm": "0.45.4",
+    "elysia": "^1.4.30",
+    "exact-mirror": "1.2.6",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/bun": "^1.4.3",
