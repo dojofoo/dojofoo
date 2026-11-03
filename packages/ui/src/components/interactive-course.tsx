@@ -88,7 +88,9 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
       .then(value => { if (!cancelled) { setLesson(value); if (value.workspaceId) setWorkspace(value.workspaceId); } })
       .catch(cause => { if (!cancelled) setError(cause.message); });
     return () => { cancelled = true; controller.abort(); };
-  }, [requestedCourse, requestedWorkspace, initialLesson]);
+  }, [requestedCourse, requestedWorkspace]);
+  // The router can refresh the course after the page shows (a hovered link's preload); the conversation stays
+  useEffect(() => { if (initialLesson) setLesson(initialLesson); }, [initialLesson]);
 
   async function updateStep(action: "answer" | "next", submittedAnswer = answer) {
     if (!lesson?.current || stepBusy) return;
