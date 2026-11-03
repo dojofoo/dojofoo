@@ -37,3 +37,13 @@
 - adapter defaults settingSources ["user","project","local"], all built-ins; client override via newSession/loadSession `_meta.claudeCode.options` (tools, settingSources, disallowedTools, extraArgs, mcpServers, strictMcpConfig?)
 - judges use: claude -p --tools "" --strict-mcp-config --setting-sources "" (packages/authoring/src/evaluation/judges.ts)
 - unverified: whether strict MCP config drops claude.ai connectors
+
+## OpenCode v2.0.28 (probed with a recording fake provider plus 2 real turns)
+- `opencode acp` starts a private `serve --stdio` child; env on the acp process applies
+- env: OPENCODE_CONFIG_DIR=<empty dir> (global config, AGENTS.md, skills, plugins), OPENCODE_DISABLE_PROJECT_CONFIG=1 (project opencode.json, .opencode/.claude/.agents, AGENTS.md walk), OPENCODE_TEST_HOME=<empty dir> (home skills; undocumented test hook; alternative HOME=<dir> + XDG_DATA_HOME=~/.local/share untested)
+- auth in ~/.local/share/opencode stays usable
+- OPENCODE_CONFIG_CONTENT: default_agent "dojofoo"; an explicit model; dojofoo MCP declared under `mcp.servers.<name>` with `codemode: false` (the old `mcp.<name>` form drops codemode); agent dojofoo: mode primary, permission {"*":"deny","dojofoo_*":"allow"}
+- ACP mcpServers always sit behind the `execute` tool (model-written JS with unrestricted fetch); so declare dojofoo's server in config instead
+- evidence: today 12 built-in tools + 44 user skills + /Users/tom/AGENTS.md, 35k-char prompt; isolated: tools ['dojofoo_lesson_ping'], 815-char prompt
+- cannot: admin-managed config, remote org config, built-in modes/commands selectable via `mode`, sessions stored in ~/.local/share/opencode
+- probes: scratchpad/isolation-opencode/
