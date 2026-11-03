@@ -12,7 +12,6 @@ describe("visibleTranscriptText", () => {
 
   it("hides injected lesson policy and completed-check observations", () => {
     expect(visibleTranscriptText({ role: "user", text: `${senseiTurn("learner-evidence")}\nNo test run has been recorded yet.` })).toBe("");
-    expect(visibleTranscriptText({ role: "user", text: "Preserve ownership of the kata. Older evidence." })).toBe("");
     expect(visibleTranscriptText({
       role: "user",
       text: '{"instruction":"This check already completed. Inspect the attached evidence."}',

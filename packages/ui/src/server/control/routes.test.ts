@@ -487,35 +487,4 @@ describe("local control-plane API", () => {
       expect.objectContaining({ type: "dojo_run_completed", occurredAt: 200 }),
     ]);
   });
-
-  it("exposes session adoption through the local control API", async () => {
-    const { root, stateHome } = fixture();
-    const context = observeLocalContext(root, {
-      stateHome,
-      now: 100,
-      session: { harness: "codex", nativeId: "thread-123" },
-    });
-    const session = listSessions({ stateHome })[0];
-    const lifecycleState = {
-      type: "resume-session" as const,
-      harnessId: "codex",
-      specificationVersion: "harness-v1" as const,
-      data: { threadId: "thread-123" },
-    };
-    const adoptSession = vi.fn(async () => ({
-      session: { ...session, ownership: "managed" as const },
-      lifecycleState,
-      transcript: [{ role: "assistant" as const, text: "Prior turn" }],
-    }));
-    const app = buildControlRoutes({ stateHome, now: 200, adoptSession });
-
-    const response = await app.request(`/sessions/${context!.sessionId}/adopt`, { method: "POST" });
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(expect.objectContaining({
-      lifecycleState,
-      transcript: [{ role: "assistant", text: "Prior turn" }],
-    }));
-    expect(adoptSession).toHaveBeenCalledWith(context!.sessionId, { stateHome, now: 200 });
-  });
 });

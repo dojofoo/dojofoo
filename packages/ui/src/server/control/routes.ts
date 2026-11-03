@@ -14,11 +14,6 @@ import { Hono } from "hono";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
-import {
-  adoptLocalSession,
-  SessionAdoptionError,
-  type SessionAdoptionResult,
-} from "./session-adoption";
 import { closeDraftRuntime, createDraft, isManagedDraft } from "./drafts";
 import { requestOrigin } from "../request-origin";
 import { resolveWorkspaceId } from "./workspace";
@@ -53,7 +48,6 @@ function installedCourseDescriptor(courseId: string, options: LocalStateOptions)
 
 type ControlRouteOptions = LocalStateOptions & {
   activeWindowMs?: number;
-  adoptSession?: (sessionId: string, options: LocalStateOptions) => Promise<SessionAdoptionResult>;
   installStarter?: typeof installStarter;
   uninstallCourse?: typeof uninstallCourse;
 };
@@ -65,7 +59,6 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
     stateHome: options.stateHome,
     now: now(),
   });
-  const adopt = options.adoptSession ?? adoptLocalSession;
 
   return new Hono()
     .get("/starters", c => c.json(listWorkspaces(stateOptions()).flatMap(workspace =>
@@ -277,17 +270,6 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
         .map((session) => ({ ...session, active: session.lastSeenAt >= cutoff }))
         .filter((session) => !activeOnly || session.active);
       return c.json(sessions);
-    })
-    .post("/sessions/:sessionId/adopt", async (c) => {
-      try {
-        return c.json(await adopt(c.req.param("sessionId"), stateOptions()));
-      } catch (cause) {
-        if (!(cause instanceof SessionAdoptionError)) throw cause;
-        const status = cause.code === "not-found" ? 404
-          : cause.code === "unsupported-harness" ? 422
-          : 409;
-        return c.json({ error: cause.message, code: cause.code }, status);
-      }
     })
     .get("/events", (c) => {
       const requestedLimit = Number.parseInt(c.req.query("limit") ?? "100", 10);

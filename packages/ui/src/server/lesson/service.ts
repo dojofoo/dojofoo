@@ -159,9 +159,6 @@ function dojoContextResource(snapshot: LessonSnapshot) {
   };
 }
 
-/** Older transcripts began hidden evidence with this sentence; keep hiding them. */
-const legacyEvidencePrefix = "Preserve ownership of the kata.";
-
 export async function getLesson(root: string, requestedKata?: string, { prepareSession = true, courseId }: { prepareSession?: boolean; courseId?: string } = {}): Promise<LessonSnapshot | null> {
   const stored = readDojoRc(root);
   // Resource reads are scoped by their course URL, independent of the CLI's active course.
@@ -456,7 +453,7 @@ export function visibleTranscriptText(entry: TranscriptMessage): string {
   const text = entry.text.replace(checkResourceMarker, "").trim();
   if (!text) return "";
   if (entry.role !== "user") return text;
-  if (text.startsWith(legacyEvidencePrefix) || text.startsWith(senseiTurn("learner-evidence"))) return "";
+  if (text.startsWith(senseiTurn("learner-evidence"))) return "";
   if (text.startsWith('{"instruction":"This check already completed.')) return "";
   return text;
 }
@@ -946,19 +943,18 @@ function rememberLearnerEvidence(root: string, key: string, lessonId: string, se
 export function normalizeLessonThreads(
   threads: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; model?: string; resumeFailed?: boolean }> = {},
 ): WebState["threads"] {
-  return Object.fromEntries(Object.entries(threads).map(([key, thread]) => [
+  // A bare string is a pointer no live lesson writes any more: it is dropped, not migrated
+  return Object.fromEntries(Object.entries(threads).flatMap(([key, thread]) => typeof thread === "string" ? [] : [[
     key,
-    typeof thread === "string"
-      ? { sessionId: thread, harness: "codex", contractHash: "", aliases: [] }
-      : {
-          sessionId: thread.sessionId,
-          harness: thread.harness ?? "codex",
-          contractHash: thread.contractHash ?? "",
-          aliases: thread.aliases ?? [],
-          ...(thread.model ? { model: thread.model } : {}),
-          ...(thread.resumeFailed ? { resumeFailed: true } : {}),
-        },
-  ]));
+    {
+      sessionId: thread.sessionId,
+      harness: thread.harness ?? "codex",
+      contractHash: thread.contractHash ?? "",
+      aliases: thread.aliases ?? [],
+      ...(thread.model ? { model: thread.model } : {}),
+      ...(thread.resumeFailed ? { resumeFailed: true } : {}),
+    },
+  ]]));
 }
 
 function normalizeStoredTestReport(report: TestReport | Record<string, unknown>): TestReport {
