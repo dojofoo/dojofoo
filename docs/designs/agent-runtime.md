@@ -120,6 +120,8 @@ Status "Decided" is the user's decision; "Accepted" is the design's, settled in 
 | D31 | A history menu lists a page's conversations on every agent; picking one on another agent switches the workspace's agent after confirmation. | Decided (2026-11-02) |
 | D32 | Opening a page replaces an ended newest conversation automatically, for both personas. Read-only applies only when an author picks an ended Kyoshi conversation from the history menu. | Accepted (user request, 2026-11-02) |
 | D33 | From step 4 on, no error the chat can receive ends without an action. | Accepted (user request, 2026-11-02) |
+| D34 | Sensei runs with dojofoo's own tools plus read-only built-ins only. None of the user's configuration loads: no settings, rules, skills, plugins, MCP servers or account connectors, for every agent, by whatever each CLI needs (flags, a private config home, a private `HOME`, tool filtering). Where a built-in cannot be removed, its permission request is refused. Per-agent findings are in the step 4 plan. | Decided (2026-11-04) |
+| D35 | Each step's file-level plan is kept at `docs/designs/agent-runtime.steps/step-<n>.md`, next to this design. | Accepted (2026-11-04) |
 
 ## Relation to Earlier Designs
 
