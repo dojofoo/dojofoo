@@ -152,6 +152,10 @@ try {
   await expect(material).toContainText("Not quite: sidebar");
   await expect(page.getByTestId("chat-pane")).toContainText("Help me understand the first material");
   await expect(composer).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  await page.getByRole("textbox", { name: "Your answer", exact: true }).fill("resources");
+  await page.getByRole("button", { name: "Check answer", exact: true }).click();
+  await expect(material).toContainText("Correct: resources");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(material).toContainText("You practiced the first course.");
   await expect.poll(() => page.getByTestId("sensei-streaming-message").first().evaluate(node => Number(getComputedStyle(node).opacity))).toBe(1);

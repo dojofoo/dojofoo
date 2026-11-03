@@ -406,8 +406,8 @@ try {
     assert.equal((await progressed.json()).kata, "next");
     await expect(page.locator(".view-lines")).toContainText("const next");
     await expect.poll(async () => (await fetch(base.replace(/\/first$/, "/next")).then(response => response.json())).introduced, { timeout: 15_000 }).toBe(true);
-    await expect(page.getByRole("link", { name: /^First\b/ })).toBeVisible();
-    await page.getByRole("link", { name: /^First\b/ }).click();
+    await expect(page.getByRole("button", { name: /^First\b/ })).toBeVisible();
+    await page.getByRole("button", { name: /^First\b/ }).click();
     await expect(page.locator(".view-lines")).toContainText("return 42");
     await expect(page.getByRole("button", { name: "Check", exact: true })).toHaveCount(0);
     const original = await inspectModels();
