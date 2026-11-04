@@ -93,7 +93,7 @@ and ships the resulting runtime with Eve's notices.
 | `eve-native-turn@1.0.0-rc.1.patch` | Honor a native provider's completed turn and context-token accounting; preserve upstream sign-in parking | Provider/host continuation, sign-in parking and compaction fixtures |
 | `eve-distribution@1.0.0-rc.1.patch` | Resolve packaged modules (including an authored workflow step's authorization import), project root and workflow identity; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
 | `eve-managed-project@1.0.0-rc.1.patch` | Compile manifest-free `.dojo/kyoshi` and `.dojo/sensei` using the installed runtime, without project dependencies or symlinks | `experiments/model-provider/manifest-free-project.test.mjs` |
-| `eve-local-shutdown@1.0.0-rc.1.patch` | On SIGTERM/SIGINT, wait up to 1 s for in-flight local World deliveries before exiting | `test/local-shutdown.test.ts`; `kyoshi.host.ask-answer-across-restart` |
+| `eve-local-shutdown@1.0.0-rc.1.patch` | On SIGTERM/SIGINT, and in `DevelopmentServer.close()`, wait up to 1 s for in-flight local World deliveries before exiting or closing; a closing development server refuses new ones with 503 | `test/local-shutdown.test.ts`; `kyoshi.host.ask-answer-across-restart`; `experiments/model-provider/host.test.mjs` restarts |
 
 Eve's signal handler exits as soon as its remote sandboxes are stopped. With the
 local World, a workflow step still running then is lost: the step started inline,
@@ -107,7 +107,24 @@ delivery that is still running a turn would otherwise go on to start a native
 agent while the server exits, and that agent outlives it
 (`sensei.host-port.rerun-no-duplicate` leaves an OpenCode server with a 5 s
 bound). Such a delivery is cut short as before, and a crash still loses the
-step. Remove the patch when Eve drains deliveries itself or the local World
+step.
+
+`DevelopmentServer.close()` had the same gap. It disposed the Workflow World and
+closed its HTTP listener while the dev worker was still running a delivery, and
+the worker reaches the parent's World over that listener. A client sees a turn
+settle as soon as the turn step streams it, while the step records its own
+completion a few tens of milliseconds later, so a test that restarts its host
+right after a reply cut the step: the worker logged `Error while running
+workflow … USER_ERROR … ECONNREFUSED`, or left the step `running`, and the next
+host answered the session's next message with `session_not_ready` (Linux CI run
+41852746034, `host.test.mjs` at "restore filesystem"). Eve 0.81.1's development
+server closes in the same order. The patch counts requests that carry
+`x-eve-dev-workflow-delivery` in `DrainedNitroDevServer`, and `close()` first
+refuses new ones with 503, which the next host's `--resume` re-enqueues, and
+waits up to 1 s for those in flight. Client requests, such as open event
+streams, do not hold it.
+
+Remove the patch when Eve drains deliveries itself or the local World
 recovers inline steps of a previous process.
 
 The upgrade audit removed redundant model-reference metadata and capability-type
