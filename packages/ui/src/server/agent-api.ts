@@ -7,7 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type LifecycleStatus, type Persona } from "@dojofoo/agent-api";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { resolveAgent, writeAgent, writeAgentModel } from "@dojofoo/config/runtime";
-import { agentRow, isAgentId, latestConformance, offeredAgents, personaForKind, type AgentId } from "@dojofoo/protocol";
+import { agentRow, isAgentId, offeredAgents, personaForKind, type AgentId } from "@dojofoo/protocol";
 import { listWorkspaces, localStateDirectory, type LocalStateOptions } from "@dojofoo/config/local-state";
 import { reapProcessGroups } from "@dojofoo/agent/process-groups";
 import { resolveWorkspaceId } from "./control/workspace";
@@ -21,7 +21,6 @@ import { discardWindow, guardedLesson, openWindow, verifyRecords, verifyWindow }
 import { dropHeld } from "./agent-session/report-state";
 import { startupVerified } from "./startup";
 import { authoringWatchers } from "./authoring-watch";
-import { committedConformance } from "./conformance";
 import { forgetHost, hostPortUrl, registerHost, runningHost } from "./host-port";
 import { presence as pageHub } from "./agent-session/presence";
 import { pageKeyOf, type PageKey } from "./agent-session/notify";
@@ -37,12 +36,6 @@ type DeliveryHandle = { before: LifecycleStatus; opened?: string };
 type OwnedRuntime = { start(): Promise<{ url: string; auth?: ClientOptions["auth"]; secret?: string; exited?: Promise<unknown> }>; close(): Promise<void> };
 /** Which host a start is for: the persona the workspace's kind runs, and where its host port listens */
 export type RuntimeTarget = { persona: Persona; workspaceId: string; hostPortUrl: string };
-
-/** Interactive Sensei refuses Cursor until a passing Sensei conformance record exists (step-4 plan, decision 19; fail closed). */
-export function senseiRefusesCursor(agent: string): boolean {
-  return agent === "cursor" && latestConformance(committedConformance(), "cursor")?.personas.sensei !== "pass";
-}
-export const cursorRefusal = "Cursor can't teach here yet: its Sensei checks haven't passed. Choose another coding agent.";
 
 /** The agent saved in `.dojo/runtimes.json`, as written, even when it is no longer offered. */
 function savedSelection(path: string): string | undefined {
@@ -348,7 +341,6 @@ export function createLocalAgentRuntime(options: {
       await waitForSwitch(path);
       known(path, agentId);
       const persona = await workspacePersona(workspaceId);
-      if (persona === "sensei" && senseiRefusesCursor(agentId)) throw new AgentApiError(409, "agent_not_offered", cursorRefusal);
       offered(path, agentId);
       void endpoint(path, workspaceId, persona).catch(() => {});
       return describe(path, agentId);
@@ -368,7 +360,6 @@ export function createLocalAgentRuntime(options: {
       known(path, agent);
       // The workspace's kind decides who speaks: a draft runs Kyoshi, every other workspace Sensei
       const persona = await workspacePersona(workspaceId);
-      if (persona === "sensei" && senseiRefusesCursor(agent)) throw new AgentApiError(409, "agent_not_offered", cursorRefusal);
       offered(path, agent);
       return endpoint(path, workspaceId, persona);
     },
@@ -378,8 +369,6 @@ export function createLocalAgentRuntime(options: {
       if (!offeredAgents().some(row => row.id === agentId)) {
         throw new AgentApiError(409, "agent_not_offered", `${agentRow(agentId).name} isn't available yet. Choose another coding agent.`);
       }
-      // A learner workspace's every page now runs Sensei on Eve, so its selection refuses Cursor too (decision 11)
-      if (senseiRefusesCursor(agentId) && await workspacePersona(workspaceId) === "sensei") throw new AgentApiError(409, "agent_not_offered", cursorRefusal);
       if (agentId === selected(path)) return describe(path, agentId);
       const previous = switching.get(path)?.done ?? Promise.resolve();
       const next = previous.catch(() => {}).then(() => switchAgent(path, workspaceId, agentId));
@@ -452,7 +441,6 @@ export function createLocalAgentRuntime(options: {
   const openDefault = createDefaultSessions({
     root, persona: workspacePersona, selected,
     connect: (workspaceId, target) => runtime.connect(workspaceId, target),
-    refuses: agent => senseiRefusesCursor(agent) ? cursorRefusal : undefined,
   });
   runtime.sessions.openDefault = openDefault;
   pages().onLeave(leavePage);

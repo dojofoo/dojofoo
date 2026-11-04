@@ -1,4 +1,5 @@
 /** The coding agents dojofoo knows, as data: identity, install metadata and read-only capabilities. */
+import { offeredFrom, shippedConformance, type ConformanceRecord } from "./conformance.js";
 export const agentIds = ["claude", "codex", "cursor", "agy", "grok", "opencode", "fx", "pi"] as const;
 export type AgentId = (typeof agentIds)[number];
 /** Adapter ids stay inside the harness (D12). */
@@ -121,7 +122,7 @@ export const agentRows: readonly AgentRow[] = [
       prevention: "deny", permissionMode: "allow-reads", builtinTools: ["read", "glob", "grep", "ls"],
       userConfig: {
         environment: {}, tierA: false,
-        note: "None: a HOME override breaks Cursor's keychain login, and session MCP servers add to the user's mcp.json rather than replace it. Tier B decides; interactive Sensei refuses Cursor until then.",
+        note: "None: a HOME override breaks Cursor's keychain login, and session MCP servers add to the user's mcp.json rather than replace it. Tier B decides; Cursor is not offered for either persona until then (D1, from step 5).",
       },
     },
     modelDiscovery: { method: "acp-probe" },
@@ -205,9 +206,10 @@ export function agentRow(id: AgentId): AgentRow {
   return agentRows.find(row => row.id === id)!;
 }
 
-/** Steps 2-4: the rows today's ACP lesson registry runs. Step 5 switches this to the conformance record. */
-export function offeredAgents(): readonly AgentRow[] {
-  return agentRows.filter(row => row.acp);
+/** From step 5, the rows whose latest conformance entry passes both personas (design, "Offered agents"). The default record is
+ *  read at call time, so the import cycle with `conformance.ts` resolves before any call. */
+export function offeredAgents(record: ConformanceRecord = shippedConformance()): readonly AgentRow[] {
+  return offeredFrom(record);
 }
 
 export const acpAgentIds = ["claude", "codex", "cursor", "grok", "opencode", "fx"] as const;

@@ -42,8 +42,8 @@ it("a workspace's saved agent wins over the onboarding default and installed CLI
 it("the onboarding default is the first offered agent in settings.json", () => {
   const { workspace, state, home, options } = fixture();
   install(home, "grok");
-  writeFileSync(join(state, "settings.json"), JSON.stringify({ agents: ["pi", "cursor", "claude"] }));
-  expect(resolveAgent(workspace, options)).toBe("cursor");
+  writeFileSync(join(state, "settings.json"), JSON.stringify({ agents: ["agy", "cursor", "pi", "claude"] }));
+  expect(resolveAgent(workspace, options)).toBe("pi");
   writeFileSync(join(state, "settings.json"), JSON.stringify({ agent: "fx" }));
   expect(resolveAgent(workspace, options)).toBe("fx");
 });
@@ -51,7 +51,7 @@ it("the onboarding default is the first offered agent in settings.json", () => {
 it("without a saved or onboarding choice, the first offered installed CLI is used, else OpenCode", () => {
   const { workspace, home, options } = fixture();
   expect(resolveAgent(workspace, options)).toBe("opencode");
-  install(home, "pi");
+  install(home, "cursor-agent");
   expect(resolveAgent(workspace, options)).toBe("opencode");
   install(home, "fx");
   install(home, "grok");
@@ -62,11 +62,11 @@ it("an agent that is not offered is skipped with one warning", () => {
   const { workspace, state, options } = fixture();
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   writeFileSync(join(state, "settings.json"), JSON.stringify({ agents: ["codex"] }));
-  writeFileSync(join(workspace, ".dojo/runtimes.json"), JSON.stringify({ agent: "pi" }));
+  writeFileSync(join(workspace, ".dojo/runtimes.json"), JSON.stringify({ agent: "cursor" }));
   expect(resolveAgent(workspace, options)).toBe("codex");
   expect(resolveAgent(workspace, options)).toBe("codex");
   expect(warn).toHaveBeenCalledTimes(1);
-  expect(warn.mock.calls[0]![0]).toContain('"pi"');
+  expect(warn.mock.calls[0]![0]).toContain('"cursor"');
 });
 
 it("reports a malformed runtimes.json instead of switching agents", () => {
@@ -110,7 +110,7 @@ it("writeAgent keeps other keys, drops authoring and lesson, and refuses agents 
   writeAgent(workspace, "codex");
   expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ models: { codex: "gpt" }, agent: "codex" });
   expect(resolveAgent(workspace, options)).toBe("codex");
-  expect(() => writeAgent(workspace, "pi")).toThrow("Pi isn't available yet. Choose another coding agent.");
+  expect(() => writeAgent(workspace, "cursor")).toThrow("Cursor isn't available yet. Choose another coding agent.");
   expect(() => writeAgent(workspace, "nope" as "codex")).toThrow("Unsupported coding agent: nope");
   expect(JSON.parse(readFileSync(path, "utf8")).agent).toBe("codex");
   const fresh = join(workspace, "fresh");

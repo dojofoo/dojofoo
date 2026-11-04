@@ -49,7 +49,7 @@ describe("agents", () => {
     expect(await response.json()).toEqual({
       data: [
         { id: "codex", name: "Codex", selected: true, status: "stopped" },
-        ...["claude", "cursor", "grok", "opencode", "fx"].map(id => ({ id, name: expect.any(String), selected: false, status: "stopped" })),
+        ...["claude", "grok", "opencode", "fx", "pi"].map(id => ({ id, name: expect.any(String), selected: false, status: "stopped" })),
       ],
       pagination: { page: 0, perPage: 100, total: 6, hasMore: false },
     });
@@ -95,9 +95,9 @@ describe("agents", () => {
     const unknown = await json("/agents/nope/select", "POST", undefined, headers);
     expect(unknown.status).toBe(404);
     expect(await unknown.json()).toMatchObject({ error: "agent_not_found" });
-    const pi = await json("/agents/pi/select", "POST", undefined, headers);
-    expect(pi.status).toBe(409);
-    expect(await pi.json()).toEqual({ error: "agent_not_offered", message: "Pi isn't available yet. Choose another coding agent." });
+    const cursor = await json("/agents/cursor/select", "POST", undefined, headers);
+    expect(cursor.status).toBe(409);
+    expect(await cursor.json()).toEqual({ error: "agent_not_offered", message: "Cursor isn't available yet. Choose another coding agent." });
   });
 
   it("answers unknown workspaces and agents with stable error codes", async () => {
@@ -105,7 +105,7 @@ describe("agents", () => {
     const unknown = await app.handle(new Request("http://local/api/v1/workspaces/nope/agents"));
     expect(unknown.status).toBe(404);
     expect(await unknown.json()).toEqual({ error: "workspace_not_found", message: "Workspace not found." });
-    expect(await (await json("/agents/pi")).json()).toMatchObject({ error: "agent_not_found" });
+    expect(await (await json("/agents/cursor")).json()).toMatchObject({ error: "agent_not_found" });
   });
 });
 

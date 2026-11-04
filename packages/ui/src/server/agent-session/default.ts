@@ -15,10 +15,8 @@ export interface DefaultSessionDeps {
   persona(workspaceId: string): Promise<Persona>;
   /** The workspace's selected coding agent */
   selected(path: string): AgentId;
-  /** The Sensei host of the selected agent, applying the Cursor gate and the offer checks */
+  /** The Sensei host of the selected agent, applying the offer checks */
   connect(workspaceId: string, target: { agent: string; persona: Persona }): Promise<AgentEndpoint>;
-  /** Interactive Sensei refuses Cursor until a passing Sensei record exists (decision 19) */
-  refuses(agent: string): string | undefined;
 }
 
 type Unusable = "ended" | "replaced" | "resume-failed" | "unreadable";
@@ -150,8 +148,6 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
     const path = deps.root(workspaceId);
     if (await deps.persona(workspaceId) !== "sensei") throw new AgentApiError(400, "invalid_request", "Drafts open their conversation with Kyoshi's own route.");
     const agent = deps.selected(path);
-    const refusal = deps.refuses(agent);
-    if (refusal) throw new AgentApiError(409, "agent_not_offered", refusal);
     const lesson = request.lesson ?? "";
     return locked(`${path}\0sensei\0${request.course}\0${lesson}`, async () => {
       const endpoint = await deps.connect(workspaceId, { agent, persona: "sensei" });

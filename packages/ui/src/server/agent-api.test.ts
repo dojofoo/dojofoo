@@ -50,7 +50,7 @@ describe("local agent runtime", () => {
     const { local, workspaceId } = runtime();
     const agents = await local.agents(workspaceId);
     expect(agents[0]).toEqual({ id: "codex", name: "Codex", selected: true, status: "stopped" });
-    expect(agents.map(agent => agent.id)).toEqual(["codex", "claude", "cursor", "grok", "opencode", "fx"]);
+    expect(agents.map(agent => agent.id)).toEqual(["codex", "claude", "grok", "opencode", "fx", "pi"]);
   });
 
   it("accepts registered standalone authoring courses without learner workspace configuration", async () => {
@@ -107,7 +107,7 @@ describe("local agent runtime", () => {
 
   it("refuses a saved selection that is no longer offered with 409 agent_not_offered", async () => {
     const { local, workspaceId, root, owned } = runtime();
-    writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "pi" }));
+    writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "agy" }));
     const agent = (await local.agents(workspaceId))[0]!.id;
     await expect(local.connect(workspaceId, { agent, persona: "sensei" })).rejects.toMatchObject({ status: 409, code: "agent_not_offered" });
     await expect(local.start(workspaceId, agent)).rejects.toMatchObject({ status: 409, code: "agent_not_offered" });
@@ -158,46 +158,36 @@ describe("local agent runtime", () => {
     } finally { await eve.close(); }
   });
 
-  it("connect refuses Cursor for Sensei with 409 agent_not_offered while no passing Sensei record exists", async () => {
+  it("a saved Cursor starts neither Sensei nor Kyoshi while it has no passing record, even with its CLI installed", async () => {
     installed.cursor = true;
     try {
-      const { root, state, workspaceId } = workspace();
-      writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "cursor" }));
-      const runtimeStub = vi.fn(async () => ({ start: async () => ({ url: "http://127.0.0.1:9" }), close: async () => {} }));
-      const local = createLocalAgentRuntime({ state, runtime: runtimeStub });
-      await expect(local.connect(workspaceId, { agent: "cursor", persona: "sensei" })).rejects.toMatchObject({ status: 409, code: "agent_not_offered",
-        message: "Cursor can't teach here yet: its Sensei checks haven't passed. Choose another coding agent." });
-      expect(runtimeStub).not.toHaveBeenCalled();
+      for (const kind of ["learner", "draft"] as const) {
+        const { root, state } = workspace();
+        const workspaceId = observeWorkspacePath(root, { ...state, kind });
+        writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "cursor" }));
+        const runtimeStub = vi.fn(async () => ({ start: async () => ({ url: "http://127.0.0.1:9" }), close: async () => {} }));
+        const local = createLocalAgentRuntime({ state, runtime: runtimeStub });
+        const agent = (await local.agents(workspaceId))[0]!.id;
+        expect(agent, kind).not.toBe("cursor");
+        await expect(local.connect(workspaceId, { agent, persona: kind === "draft" ? "kyoshi" : "sensei" })).rejects.toMatchObject({ status: 409, code: "agent_not_offered",
+          message: "Cursor isn't available yet. Choose another coding agent." });
+        expect(runtimeStub, kind).not.toHaveBeenCalled();
+      }
     } finally { installed.cursor = false; }
   });
 
-  it("connect still starts Kyoshi on Cursor for a draft", async () => {
-    installed.cursor = true;
-    try {
-      const { root, state } = workspace();
-      const workspaceId = observeWorkspacePath(root, { ...state, kind: "draft" });
-      writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "cursor" }));
-      const targets: Array<{ persona: string }> = [];
-      const local = createLocalAgentRuntime({ state, runtime: async (_root, target) => { targets.push(target); return { start: async () => ({ url: "http://127.0.0.1:9" }), close: async () => {} }; } });
-      await expect(local.connect(workspaceId, { agent: "cursor", persona: "kyoshi" })).resolves.toBeDefined();
-      expect(targets.map(target => target.persona)).toEqual(["kyoshi"]);
-    } finally { installed.cursor = false; }
-  });
-
-  it("select refuses Cursor for a learner workspace while its Sensei record has not passed", async () => {
+  it("select refuses Cursor for a learner workspace and for a draft while it has no passing record", async () => {
     const { local, workspaceId, root } = runtime();
     await expect(local.select(workspaceId, "cursor")).rejects.toMatchObject({ status: 409, code: "agent_not_offered",
-      message: "Cursor can't teach here yet: its Sensei checks haven't passed. Choose another coding agent." });
+      message: "Cursor isn't available yet. Choose another coding agent." });
     expect(savedAgent(root)).toBe("codex");
-  });
-
-  it("select still accepts Cursor for a draft", async () => {
-    const { root, state, workspaceId } = workspace();
-    writeFileSync(resolve(root, "dojo.yaml"), "name: '@test/draft'\nversion: 1.0.0\n");
-    setWorkspaceKind(workspaceId, "draft", state);
-    const local = createLocalAgentRuntime({ state, runtime: async () => ({ start: async () => ({ url: "http://127.0.0.1:9" }), close: async () => {} }) });
-    expect(await local.select(workspaceId, "cursor")).toMatchObject({ id: "cursor", selected: true });
-    expect(savedAgent(root)).toBe("cursor");
+    const draft = workspace();
+    writeFileSync(resolve(draft.root, "dojo.yaml"), "name: '@test/draft'\nversion: 1.0.0\n");
+    setWorkspaceKind(draft.workspaceId, "draft", draft.state);
+    const authoring = createLocalAgentRuntime({ state: draft.state, runtime: async () => ({ start: async () => ({ url: "http://127.0.0.1:9" }), close: async () => {} }) });
+    await expect(authoring.select(draft.workspaceId, "cursor")).rejects.toMatchObject({ status: 409, code: "agent_not_offered",
+      message: "Cursor isn't available yet. Choose another coding agent." });
+    expect(savedAgent(draft.root)).toBe("codex");
   });
 
   it("keeps sessions in the workspace's .dojo folder", async () => {
@@ -331,7 +321,7 @@ describe("select", () => {
     const { local, workspaceId, root } = runtime();
     await expect(local.select(workspaceId, "nope")).rejects.toMatchObject({ status: 404, code: "agent_not_found" });
     await expect(local.select(workspaceId, "constructor")).rejects.toMatchObject({ status: 404, code: "agent_not_found" });
-    await expect(local.select(workspaceId, "pi")).rejects.toMatchObject({ status: 409, code: "agent_not_offered", message: "Pi isn't available yet. Choose another coding agent." });
+    await expect(local.select(workspaceId, "agy")).rejects.toMatchObject({ status: 409, code: "agent_not_offered", message: "Antigravity isn't available yet. Choose another coding agent." });
     await expect(local.select("missing", "opencode")).rejects.toMatchObject({ status: 404, code: "workspace_not_found" });
     expect(savedAgent(root)).toBe("codex");
   });

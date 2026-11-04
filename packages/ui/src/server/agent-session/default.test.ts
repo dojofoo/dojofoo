@@ -232,11 +232,11 @@ describe("the default conversation", () => {
     expect(runtimeStub).not.toHaveBeenCalled();
   });
 
-  it("Cursor is refused before any Eve call while its Sensei record has not passed", async () => {
+  it("a saved Cursor is refused before any Eve call while it has no passing record", async () => {
     const { open, runtimeStub } = workspace("learner", "cursor");
     const sent = watchFetch();
     await expect(open({ course: "first" })).rejects.toMatchObject({ status: 409, code: "agent_not_offered",
-      message: "Cursor can't teach here yet: its Sensei checks haven't passed. Choose another coding agent." });
+      message: "Cursor isn't available yet. Choose another coding agent." });
     expect(runtimeStub).not.toHaveBeenCalled();
     expect(sent).toEqual([]);
   });

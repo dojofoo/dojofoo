@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agentIds, agentRow, agentRows, isAcpAgentId, isAgentId, isolationPlaceholders, offeredAgents, personaForKind } from ".";
+import { agentIds, agentRow, agentRows, isAcpAgentId, isAgentId, isolationPlaceholders, offeredAgents, offeredFrom, personaForKind, shippedConformance } from ".";
 
 describe("coding-agent registry", () => {
   it("has one row per agent id, in onboarding order", () => {
@@ -7,9 +7,10 @@ describe("coding-agent registry", () => {
     expect(agentIds).toEqual(["claude", "codex", "cursor", "agy", "grok", "opencode", "fx", "pi"]);
   });
 
-  it("offers exactly the rows today's ACP lesson runtime runs", () => {
-    expect(offeredAgents().map(row => row.id)).toEqual(["claude", "codex", "cursor", "grok", "opencode", "fx"]);
-    expect(offeredAgents().every(row => isAcpAgentId(row.id))).toBe(true);
+  it("offers the rows whose latest record passes both personas: every tier-A agent, and Cursor not until tier B", () => {
+    expect(offeredAgents().map(row => row.id)).toEqual(["claude", "codex", "grok", "opencode", "fx", "pi"]);
+    expect(offeredAgents()).toEqual(offeredFrom(shippedConformance()));
+    expect(offeredAgents({ schema: 1, entries: [] })).toEqual([]);
   });
 
   it("every offered row has an adapter and a read-only profile", () => {

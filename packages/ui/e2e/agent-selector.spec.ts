@@ -31,6 +31,20 @@ test("switching the draft's agent asks first, then Kyoshi's next conversation ru
   await expect(page.getByText(greetingReply, { exact: true })).toBeVisible({ timeout: 10_000 });
 });
 
+test("the agent menu lists the offered agents, the selected one first, and not Cursor until it has a passing record", async ({ page, mountAgentChat }) => {
+  test.setTimeout(60_000);
+  const { sessionId } = await mountAgentChat(page);
+  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 10_000 });
+  const menu = page.getByTestId("authoring-chat-composer").getByRole("button", { name: "Agent", exact: true });
+  await expect(menu).toBeEnabled({ timeout: 10_000 });
+  await menu.click();
+  const items = page.getByRole("menuitemradio");
+  const offered = ["Codex", "Claude Code", "Grok Build", "OpenCode", "FX", "Pi"];
+  await expect(items).toHaveCount(offered.length);
+  for (const [index, name] of offered.entries()) await expect(items.nth(index)).toHaveAccessibleName(name);
+});
+
 test("cancelling the switch keeps the agent and the conversation", async ({ page, mountAgentChat }) => {
   test.setTimeout(60_000);
   const { selects, sessionId } = await mountAgentChat(page);
