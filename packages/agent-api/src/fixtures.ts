@@ -3,8 +3,8 @@ import { Client } from "@dojofoo/agent/client";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Agent, AgentEndpoint, AgentRuntime, EveDelivery, Persona, SessionRecord } from "./runtime";
-import { AgentApiError } from "./runtime";
-import { agentRow, isAgentId, offeredAgents, type AgentId } from "@dojofoo/protocol";
+import { AgentApiError, firstMessageOf } from "./runtime";
+import { agentRow, dojoTags, isAgentId, offeredAgents, type AgentId } from "@dojofoo/protocol";
 
 const fixture = fileURLToPath(new URL("../test/eve/", import.meta.url));
 
@@ -57,7 +57,13 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", optio
   return {
     records, started, selections, delivered, presence,
     deliveries: {
-      before: async (_id, session, delivery) => { delivered.push({ phase: "before", sessionId: session.id, delivery }); return `handle:${delivered.length}`; },
+      before: async (_id, session, delivery) => {
+        delivered.push({ phase: "before", sessionId: session.id, delivery });
+        const record = records.find(item => item.id === session.id);
+        const first = delivery.kind === "message" ? firstMessageOf(delivery.text) : undefined;
+        if (record && first && !record.firstMessage) record.firstMessage = first;
+        return `handle:${delivered.length}`;
+      },
       after: async (_id, session, delivery, outcome) => { delivered.push({ phase: "after", sessionId: session.id, delivery, ...outcome }); },
     },
     activity: (_id, kind) => {
@@ -99,17 +105,40 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", optio
         records[index] = change({ ...records[index]!, revision: records[index]!.revision ?? 0 });
         return records[index]!;
       },
-      // The newest record for the page key (course and lesson) on the selected agent, as the UI server's; else a bodyless create
+      // The page key's newest usable record on the selected agent, as the UI server's; else a create (Kyoshi's with its hidden start
+      // turn, so specs keep their greeting; Sensei's bodyless). A draft's page key is (draft, Kyoshi); a Sensei page's (course, lesson).
       openDefault: async (id, request) => {
         known(id);
-        const newest = records.filter(item => item.courseId === request.course && (item.lessonId ?? "") === (request.lesson ?? "") && item.agent === selected && !request.new)
+        const persona = options.persona ?? "kyoshi";
+        if (persona === "kyoshi" ? request.course !== undefined || request.lesson !== undefined : request.course === undefined) {
+          throw new AgentApiError(400, "invalid_request", "The request does not match this operation's schema.");
+        }
+        const forPage = (item: SessionRecord) => item.persona === persona
+          && (persona === "kyoshi" || (item.courseId === request.course && (item.lessonId ?? "") === (request.lesson ?? "")));
+        const usable = (item: SessionRecord) => !item.endedAt && !item.replacedBy;
+        const create = async (): Promise<SessionRecord> => {
+          const client = new Client(endpoint);
+          const { session } = persona === "kyoshi" ? await client.sessions.create({ message: dojoTags.beginAuthoring }) : await client.sessions.create();
+          const created: SessionRecord = { id: session.id, agent: selected, persona, createdAt: new Date().toISOString(),
+            ...(request.course ? { courseId: request.course } : {}), ...(request.lesson ? { lessonId: request.lesson } : {}), revision: 0 };
+          records.push(created);
+          return created;
+        };
+        if (request.new) {
+          const from = request.from ? records.find(item => item.id === request.from) : undefined;
+          const replacement = from?.replacedBy ? records.find(item => item.id === from.replacedBy) : undefined;
+          if (replacement) return { session: replacement, rewrite: true };
+          const created = await create();
+          if (from) from.replacedBy = created.id;
+          return { session: created, rewrite: true };
+        }
+        const picked = request.session ? records.find(item => item.id === request.session) : undefined;
+        if (picked && forPage(picked) && picked.agent === selected && usable(picked)) return { session: picked, rewrite: false };
+        // Only a requested record on the selected agent that can't continue is "picked-unavailable"; another agent's still can, after a switch
+        const notice = picked && forPage(picked) && picked.agent === selected ? { notice: "picked-unavailable" as const } : {};
+        const newest = records.filter(item => forPage(item) && item.agent === selected && usable(item))
           .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
-        if (newest) return { session: newest, rewrite: newest.id !== request.session };
-        const { session } = await new Client(endpoint).sessions.create();
-        const created: SessionRecord = { id: session.id, agent: selected, persona: options.persona ?? "kyoshi", createdAt: new Date().toISOString(),
-          courseId: request.course, ...(request.lesson ? { lessonId: request.lesson } : {}), revision: 0 };
-        records.push(created);
-        return { session: created, rewrite: true };
+        return { session: newest ?? await create(), rewrite: true, ...notice };
       },
       patch: async (id, sessionId, { model }) => {
         known(id);

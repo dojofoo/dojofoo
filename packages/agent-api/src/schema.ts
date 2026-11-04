@@ -40,6 +40,8 @@ const sessionSummary = {
   revision: t.Optional(t.Integer({ minimum: 0, description: "Raised by every model change." })),
   endedAt: t.Optional(t.String()),
   replacedBy: t.Optional(t.String({ description: "The conversation that replaced this one." })),
+  firstMessage: t.Optional(t.String({ description: "The opening of the conversation's first learner or author message, at most 80 characters." })),
+  unavailable: t.Optional(t.Literal(true, { description: "The conversation was found stranded or its data gone; it can't be opened again." })),
   lifecycle: t.Optional(lifecycle),
 };
 const modelChoice = t.Object({
@@ -102,10 +104,10 @@ export const routes = {
     response: { 201: t.Object(sessionSummary), 404: error, 409: error },
   },
   openDefaultSession: {
-    detail: details("openDefaultSession", "Open a page's default conversation", "Gets or creates the conversation a Sensei page opens: the newest usable one for the course (and lesson) on the selected coding agent, else a new one that starts with a hidden begin turn. `session` is honoured when it belongs to the page; `new` with `from` replaces that conversation once. Only the UI's own pages can call it: it takes the page's launch token.", "Sessions"),
+    detail: details("openDefaultSession", "Open a page's default conversation", "Gets or creates the conversation a page opens: on a Sensei page the newest usable one for the course (and lesson), on a draft's page Kyoshi's newest usable one, on the selected coding agent; else a new one that starts with a hidden begin turn. A draft's request names no course or lesson; a Sensei page's names its course. `session` is honoured when it belongs to the page; `new` with `from` replaces that conversation once. Only the UI's own pages can call it: it takes the page's launch token.", "Sessions"),
     params: t.Object(workspace),
     body: t.Object({
-      course: t.String({ minLength: 1 }),
+      course: t.Optional(t.String({ minLength: 1 })),
       lesson: t.Optional(t.String({ minLength: 1 })),
       session: t.Optional(t.String({ minLength: 1 })),
       new: t.Optional(t.Literal(true)),

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { SessionLifecycle, SessionRecord } from "@dojofoo/agent-api";
+import { firstMessageOf, type SessionLifecycle, type SessionRecord } from "@dojofoo/agent-api";
 import { afterDelivery, beforeDelivery, transition } from "./lifecycle";
 import { readRecords, saveRecord } from "./records";
 
@@ -118,5 +118,26 @@ describe("session lifecycle", () => {
     // An accepted delivery stays working until its turn reports
     await afterDelivery(root, "s1", await beforeDelivery(root, "s1"), 202);
     expect((await readRecords(root))[0]?.lifecycle).toMatchObject({ status: "working" });
+  });
+
+  it("the first untagged message is kept as firstMessage, at most 80 characters including the ellipsis; tagged turns are skipped; a later message does not replace it", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dojo-lifecycle-"));
+    roots.push(root);
+    await saveRecord(root, record());
+    const first = async () => (await readRecords(root))[0]?.firstMessage;
+    await beforeDelivery(root, "s1");
+    await beforeDelivery(root, "s1", { kind: "message", text: "[dojo:begin] Begin the lesson." });
+    await beforeDelivery(root, "s1", { kind: "answer" });
+    expect(await first()).toBeUndefined();
+    const long = `Outline   a course\n about ${"recursion ".repeat(12)}`;
+    await beforeDelivery(root, "s1", { kind: "message", text: long });
+    const kept = await first();
+    expect(kept).toBe("Outline a course about recursion recursion recursion recursion recursion…");
+    expect(kept!.length).toBeLessThanOrEqual(80);
+    expect(long.replace(/\s+/gu, " ").startsWith(kept!.slice(0, -1))).toBe(true);
+    await beforeDelivery(root, "s1", { kind: "message", text: "Something else" });
+    expect(await first()).toBe(kept);
+    expect(firstMessageOf("  Short one.  ")).toBe("Short one.");
+    expect(firstMessageOf("   ")).toBeUndefined();
   });
 });

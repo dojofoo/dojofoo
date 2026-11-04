@@ -15,7 +15,7 @@ export interface DefaultSessionDeps {
   persona(workspaceId: string): Promise<Persona>;
   /** The workspace's selected coding agent */
   selected(path: string): AgentId;
-  /** The Sensei host of the selected agent, applying the offer checks */
+  /** The persona's host of the selected agent, applying the offer checks */
   connect(workspaceId: string, target: { agent: string; persona: Persona }): Promise<AgentEndpoint>;
 }
 
@@ -42,7 +42,8 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
     return next;
   };
 
-  /** Whether Eve can still continue this conversation; a failed read or an ended session is written down, so the next lookup needs none */
+  /** Whether Eve can still continue this conversation; a failed read or an ended session is written down, so the next lookup needs none.
+   *  Only an unreadable one is `unavailable`: a conversation that ended in Eve stays readable (an ended Kyoshi one opens read-only, D32). */
   async function usable(path: string, endpoint: AgentEndpoint, record: SessionRecord): Promise<Unusable | undefined> {
     if (record.endedAt) return "ended";
     if (record.replacedBy) return "replaced";
@@ -64,9 +65,11 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
       // Anything else (a slow host) does not prove the conversation is gone
     }
     if (!reason) return undefined;
-    console.info(`Sensei conversation ${record.id} can't continue (${reason}); opening a new one.`);
-    await updateRecord(path, record.id, current => ({ ...current, endedAt: current.endedAt ?? new Date().toISOString() })).catch(() => {});
-    return "unreadable";
+    const lost = reason !== "session.ended";
+    console.info(`${record.persona === "kyoshi" ? "Kyoshi" : "Sensei"} conversation ${record.id} can't continue (${reason}); opening a new one.`);
+    await updateRecord(path, record.id, current => ({ ...current, endedAt: current.endedAt ?? new Date().toISOString(), ...(lost ? { unavailable: true as const } : {}) }))
+      .catch(() => {});
+    return lost ? "unreadable" : "ended";
   }
 
   async function endEve(endpoint: AgentEndpoint, record: SessionRecord) {
@@ -86,8 +89,21 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
     await sendServerTurn(path, workspaceId, endpoint, updated, { text: begin.message, idempotencyKey, resend });
   }
 
+  /** Kyoshi's: a bodyless Eve create, the record, then the hidden start turn (decision 1). Kyoshi has no begin contract to retry, so a
+   *  failed start turn is logged and the conversation returned as it is: the author's first message starts it. */
+  async function createKyoshi(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId): Promise<SessionRecord> {
+    const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
+    const now = new Date().toISOString();
+    const record: SessionRecord = { id: session.id, agent, persona: "kyoshi", createdAt: now, revision: 0, lifecycle: { status: "idle", updatedAt: now } };
+    await saveRecord(path, record);
+    await sendServerTurn(path, workspaceId, endpoint, record, { text: dojoTags.beginAuthoring, idempotencyKey: `begin-authoring:${record.id}` }).catch(error =>
+      console.warn(`Could not send Kyoshi's start turn to ${record.id}: ${error instanceof Error ? error.message : String(error)}`));
+    return (await readRecords(path)).find(item => item.id === record.id) ?? record;
+  }
+
   /** A bodyless Eve create, the record, then the hidden begin turn, seeded from the learner's evidence for this page key */
   async function create(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest): Promise<SessionRecord> {
+    if (request.course === undefined) return createKyoshi(path, workspaceId, endpoint, agent);
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
     const configured = agent === "codex" ? await (createRequire(import.meta.url)("@dojofoo/authoring/eve/models") as typeof import("@dojofoo/authoring/eve/models"))
       .configuredHarnessModel("codex").catch(() => undefined) : undefined;
@@ -118,7 +134,7 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
           await updateRecord(path, failed.id, current => ({ ...current, endedAt: current.endedAt ?? new Date().toISOString() })).catch(() => {});
         }
         if (attempt === 1 || !(error instanceof BeginFailed)) {
-          throw new AgentApiError(503, "agent_failed", `Sensei could not start the conversation: ${error instanceof Error ? error.message : String(error)}`);
+          throw new AgentApiError(503, "agent_failed", `${request.course === undefined ? "Kyoshi" : "Sensei"} could not start the conversation: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
     }
@@ -146,13 +162,18 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
 
   return async function openDefault(workspaceId: string, request: DefaultSessionRequest): Promise<DefaultSessionResponse> {
     const path = deps.root(workspaceId);
-    if (await deps.persona(workspaceId) !== "sensei") throw new AgentApiError(400, "invalid_request", "Drafts open their conversation with Kyoshi's own route.");
+    // A draft's page key is (draft, Kyoshi); a Sensei page's is its course and lesson
+    const persona = await deps.persona(workspaceId);
+    if (persona === "kyoshi" ? request.course !== undefined || request.lesson !== undefined : request.course === undefined) {
+      throw new AgentApiError(400, "invalid_request", persona === "kyoshi" ? "A draft's conversation names no course or lesson." : "A Sensei page names its course.");
+    }
     const agent = deps.selected(path);
     const lesson = request.lesson ?? "";
-    return locked(`${path}\0sensei\0${request.course}\0${lesson}`, async () => {
-      const endpoint = await deps.connect(workspaceId, { agent, persona: "sensei" });
+    return locked(persona === "kyoshi" ? `${path}\0kyoshi` : `${path}\0sensei\0${request.course}\0${lesson}`, async () => {
+      const endpoint = await deps.connect(workspaceId, { agent, persona });
       const records = await readRecords(path);
-      const forPage = (record: SessionRecord) => record.persona === "sensei" && record.courseId === request.course && (record.lessonId ?? "") === lesson;
+      const forPage = (record: SessionRecord) => record.persona === persona
+        && (persona === "kyoshi" || (record.courseId === request.course && (record.lessonId ?? "") === lesson));
       const answer = async (record: SessionRecord, notice?: "picked-unavailable"): Promise<DefaultSessionResponse> => ({
         session: await resumeBegin(path, workspaceId, endpoint, record), rewrite: record.id !== request.session, ...(notice ? { notice } : {}),
       });
@@ -167,10 +188,12 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
         return { session: created, rewrite: true };
       }
       let notice: "picked-unavailable" | undefined;
-      if (request.session) {
-        const picked = records.find(record => record.id === request.session);
-        if (picked && forPage(picked) && picked.agent === agent && !await usable(path, endpoint, picked)) return answer(picked);
-        if (picked) notice = "picked-unavailable";
+      // Only a requested record of this page on the selected agent that can't continue gets the notice; another agent's conversation
+      // can still continue after a switch (decision 19)
+      const picked = request.session ? records.find(record => record.id === request.session) : undefined;
+      if (picked && forPage(picked) && picked.agent === agent) {
+        if (!await usable(path, endpoint, picked)) return answer(picked);
+        notice = "picked-unavailable";
       }
       const newest = (await readRecords(path)).filter(record => forPage(record) && record.agent === agent)
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];

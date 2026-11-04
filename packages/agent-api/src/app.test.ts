@@ -245,6 +245,27 @@ describe("the default conversation route", () => {
     expect(await opened.json()).toMatchObject({ rewrite: true, session: { courseId: "first" } });
     expect(runtime.delivered).toEqual([]);
   }, 60_000);
+
+  it("POST /sessions/default opens a draft's Kyoshi conversation through the fixture runtime", async () => {
+    const { json, runtime, session } = setup();
+    const headers = { [LAUNCH_TOKEN_HEADER]: testLaunchToken };
+    const opened = await (await json("/sessions/default", "POST", {}, headers)).json();
+    expect(opened).toEqual({ session: expect.objectContaining({ agent: "codex", persona: "kyoshi", revision: 0 }), rewrite: true });
+    expect(opened.session).not.toHaveProperty("courseId");
+    expect(runtime.records).toEqual([opened.session]);
+    await vi.waitFor(async () => {
+      const { events } = await session(opened.session.id).snapshot();
+      expect(events.some(event => event.type === "content.completed" && JSON.stringify(event.data).includes("Echo: [dojo:begin-authoring]"))).toBe(true);
+    }, { timeout: 30_000 });
+    // The same conversation again, honouring it when asked; a course is not a draft's
+    expect(await (await json("/sessions/default", "POST", { session: opened.session.id }, headers)).json()).toMatchObject({ session: { id: opened.session.id }, rewrite: false });
+    expect(await (await json("/sessions/default", "POST", {}, headers)).json()).toMatchObject({ session: { id: opened.session.id }, rewrite: true });
+    expect((await json("/sessions/default", "POST", { course: "first" }, headers)).status).toBe(400);
+    // The author's first message names it
+    await (await session(opened.session.id).send("Outline a course about loops")).result();
+    expect(await (await json(`/sessions/${opened.session.id}`)).json()).toMatchObject({ firstMessage: "Outline a course about loops" });
+    expect(runtime.records).toHaveLength(1);
+  }, 60_000);
 });
 
 describe("a session's Eve routes", () => {

@@ -1,4 +1,4 @@
-import type { ModelChoice, Persona } from "@dojofoo/protocol";
+import { isTaggedTurn, type ModelChoice, type Persona } from "@dojofoo/protocol";
 
 /** Who the conversation is with: the same chat, with that persona's prompts and tools. */
 export { personas, type Persona } from "@dojofoo/protocol";
@@ -54,13 +54,31 @@ export interface SessionRecord {
   revision: number;
   endedAt?: string;
   replacedBy?: string;
+  /** The opening of the first untagged learner or author message, written once by the pre-delivery hook ({@link firstMessageOf}) */
+  firstMessage?: string;
+  /** Set with `endedAt` when opening found the conversation stranded or its data gone (404, 410, 409 session_stranded); never for a
+   *  conversation that ended in Eve. The history menu shows it as "no longer available". */
+  unavailable?: true;
   lifecycle?: SessionLifecycle;
+}
+
+/** A record's `firstMessage`: whitespace collapsed, at most 80 characters including a trailing "…", cut at the last space before the
+ *  limit when longer; undefined for a hidden tagged turn or empty text. */
+export function firstMessageOf(text: string): string | undefined {
+  const collapsed = text.replace(/\s+/gu, " ").trim();
+  if (!collapsed || isTaggedTurn(collapsed)) return undefined;
+  if (collapsed.length <= 80) return collapsed;
+  const cut = collapsed.slice(0, 79);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 0 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
 
 export interface SessionPatch { model: string }
 
 export interface DefaultSessionRequest {
-  course: string;
+  /** Sensei pages only; a draft's page key is (draft, Kyoshi). A draft request with course or lesson, or a Sensei request without
+   *  course, is 400 invalid_request. */
+  course?: string;
   /** Kata lessons only (step 5); an interactive course has no lesson */
   lesson?: string;
   /** From the URL or a history pick: honoured only if it belongs to the page key, the workspace and the selected agent, and is usable */
@@ -116,7 +134,8 @@ export interface AgentRuntime {
     save(workspaceId: string, session: SessionRecord): Promise<void>;
     /** One serialised read-modify-write of one record (the store's write queue); 404 session_not_found */
     update(workspaceId: string, sessionId: string, change: (record: SessionRecord) => SessionRecord): Promise<SessionRecord>;
-    /** POST /sessions/default (D29). 400 invalid_request for a draft workspace until step 6. */
+    /** POST /sessions/default (D29): a Sensei page's (course, lesson) or a draft's Kyoshi conversation. 400 invalid_request for a
+     *  draft request with a course or lesson, or a Sensei request without one. */
     openDefault(workspaceId: string, request: DefaultSessionRequest): Promise<DefaultSessionResponse>;
     /** PATCH /sessions/{id}: writes `model`, raises `revision`, and saves the model as the workspace's last for that agent (D26) */
     patch(workspaceId: string, sessionId: string, patch: SessionPatch): Promise<SessionRecord>;

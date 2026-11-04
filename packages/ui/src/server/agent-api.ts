@@ -405,11 +405,11 @@ export function createLocalAgentRuntime(options: {
     },
     deliveries: {
       // Rule 1: the guard window opens before the delivery can start or resume Sensei's model
-      before: async (workspaceId, session): Promise<DeliveryHandle> => {
+      before: async (workspaceId, session, delivery): Promise<DeliveryHandle> => {
         const path = root(workspaceId);
         await waitForSwitch(path);
         const opened = await openWindow(path, workspaceId, session);
-        return { before: await beforeDelivery(path, session.id), ...(opened ? { opened } : {}) };
+        return { before: await beforeDelivery(path, session.id, delivery), ...(opened ? { opened } : {}) };
       },
       after: async (workspaceId, session, _delivery, outcome) => {
         if (outcome.status >= 200 && outcome.status < 300) return;

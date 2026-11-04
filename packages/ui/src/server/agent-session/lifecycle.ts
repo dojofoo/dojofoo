@@ -1,4 +1,4 @@
-import type { LifecycleStatus, SessionLifecycle, SessionRecord } from "@dojofoo/agent-api";
+import { firstMessageOf, type EveDelivery, type LifecycleStatus, type SessionLifecycle, type SessionRecord } from "@dojofoo/agent-api";
 import { updateRecord } from "./records";
 
 export type TurnOutcome = "completed" | "failed" | "cancelled";
@@ -95,12 +95,14 @@ export async function applyLifecycle(path: string, sessionId: string, event: Lif
   }
 }
 
-/** Pre-delivery: the status before is the handle a rejected delivery restores. */
-export async function beforeDelivery(path: string, sessionId: string): Promise<LifecycleStatus> {
+/** Pre-delivery: the status before is the handle a rejected delivery restores. A learner's or author's message (server turns pass
+ *  none) also names the conversation once, as its `firstMessage`. */
+export async function beforeDelivery(path: string, sessionId: string, delivery?: EveDelivery): Promise<LifecycleStatus> {
   let before: LifecycleStatus = "idle";
   await updateRecord(path, sessionId, record => {
     before = statusOf(record);
-    return transition(record, { type: "pre-delivery" });
+    const first = delivery?.kind === "message" && !record.firstMessage ? firstMessageOf(delivery.text) : undefined;
+    return transition(first ? { ...record, firstMessage: first } : record, { type: "pre-delivery" });
   }).catch(error => { if ((error as { code?: unknown }).code !== "session_not_found") throw error; });
   return before;
 }

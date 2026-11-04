@@ -111,13 +111,11 @@ describe("the default conversation", () => {
   it("a URL session from another course, workspace or agent is replaced and the URL rewritten", async () => {
     const { root, open } = workspace();
     const otherCourse = record({ id: await eveSession(), courseId: "second" });
-    const otherAgent = record({ id: await eveSession(), agent: "claude" });
     await saveRecord(root, otherCourse);
-    await saveRecord(root, otherAgent);
     const fromCourse = await open({ course: "first", session: otherCourse.id });
-    expect(fromCourse).toMatchObject({ rewrite: true, notice: "picked-unavailable" });
+    expect(fromCourse).toMatchObject({ rewrite: true });
+    expect(fromCourse).not.toHaveProperty("notice");
     expect(fromCourse.session.id).not.toBe(otherCourse.id);
-    expect(await open({ course: "first", session: otherAgent.id })).toMatchObject({ session: { id: fromCourse.session.id }, rewrite: true, notice: "picked-unavailable" });
     // A session this workspace never had
     const unknown = await open({ course: "first", session: "wrun_from_another_workspace" });
     expect(unknown).toMatchObject({ session: { id: fromCourse.session.id }, rewrite: true });
@@ -226,11 +224,97 @@ describe("the default conversation", () => {
       body: { message: "[dojo:begin] Begin the lesson.", idempotencyKey: `begin:${opened.session.id}:0` } }]);
   }, 60_000);
 
-  it("a draft workspace answers invalid_request until step 6", async () => {
+  it("a requested conversation on another agent opens the default without a notice", async () => {
+    const { root, open } = workspace();
+    const otherAgent = record({ id: await eveSession(), agent: "claude", createdAt: "2026-11-09T00:00:00.000Z" });
+    await saveRecord(root, otherAgent);
+    const opened = await open({ course: "first", session: otherAgent.id });
+    expect(opened).toMatchObject({ session: { agent: "codex" }, rewrite: true });
+    expect(opened).not.toHaveProperty("notice");
+    expect(opened.session.id).not.toBe(otherAgent.id);
+    // A requested conversation of this page on the selected agent that can't continue does get it
+    const ended = record({ id: await eveSession(), endedAt: "2026-11-03T00:00:00.000Z" });
+    await saveRecord(root, ended);
+    expect(await open({ course: "first", session: ended.id })).toMatchObject({ session: { id: opened.session.id }, rewrite: true, notice: "picked-unavailable" });
+  }, 60_000);
+
+  it("a stranded conversation is marked unavailable, an ended one only ended", async () => {
+    const { root, open } = workspace();
+    const stranded = record({ id: await eveSession(), createdAt: "2026-11-02T00:00:00.000Z" });
+    const ended = record({ id: await eveSession(), createdAt: "2026-11-01T00:00:00.000Z", courseId: "second" });
+    await new Client({ baseUrl: eve.baseUrl }).sessions.attach(ended.id).end();
+    await saveRecord(root, stranded);
+    await saveRecord(root, ended);
+    watchFetch(request => request.url.includes(`/session/${stranded.id}/stream`)
+      ? Response.json({ error: "An earlier eve built this session.", code: "session_stranded" }, { status: 409 }) : undefined);
+    await open({ course: "first" });
+    await open({ course: "second" });
+    const saved = await readRecords(root);
+    expect(saved.find(item => item.id === stranded.id)).toMatchObject({ endedAt: expect.any(String), unavailable: true });
+    const endedRecord = saved.find(item => item.id === ended.id);
+    expect(endedRecord).toMatchObject({ endedAt: expect.any(String) });
+    expect(endedRecord).not.toHaveProperty("unavailable");
+  }, 60_000);
+
+  it("a draft's page opens its newest Kyoshi conversation on the selected agent, or creates one with the hidden start turn", async () => {
+    const { root, open } = workspace("draft");
+    const sent = watchFetch();
+    const created = await open({});
+    expect(created.rewrite).toBe(true);
+    expect(created.session).toMatchObject({ agent: "codex", persona: "kyoshi", revision: 0 });
+    expect(created.session).not.toHaveProperty("courseId");
+    expect(created.session).not.toHaveProperty("model");
+    expect(created.session.lifecycle).not.toHaveProperty("beginPending");
+    expect(begins(sent)).toEqual([{ method: "POST", url: `${eve.baseUrl.replace(/\/$/u, "")}/eve/v1/session/${created.session.id}`,
+      body: { message: "[dojo:begin-authoring]", idempotencyKey: `begin-authoring:${created.session.id}` } }]);
+    await vi.waitFor(async () => {
+      const { events } = await new Client({ baseUrl: eve.baseUrl }).sessions.attach(created.session.id).snapshot();
+      expect(events.some(event => event.type === "content.completed" && JSON.stringify(event.data).includes("Echo: [dojo:begin-authoring]"))).toBe(true);
+    }, { timeout: 30_000 });
+    // A newer Kyoshi conversation on the selected agent is the default; Sensei's records and another agent's are not
+    const newer = record({ id: await eveSession(), persona: "kyoshi", courseId: undefined, createdAt: "2099-01-01T00:00:00.000Z" });
+    await saveRecord(root, newer);
+    await saveRecord(root, record({ id: await eveSession(), persona: "kyoshi", courseId: undefined, agent: "claude", createdAt: "2099-01-03T00:00:00.000Z" }));
+    await saveRecord(root, record({ id: await eveSession(), createdAt: "2099-01-02T00:00:00.000Z" }));
+    expect(await open({})).toMatchObject({ session: { id: newer.id }, rewrite: true });
+    expect(await open({ session: newer.id })).toEqual({ session: expect.objectContaining({ id: newer.id }), rewrite: false });
+  }, 60_000);
+
+  it("a draft request that names a course is invalid", async () => {
     const { open, runtimeStub } = workspace("draft");
     await expect(open({ course: "first" })).rejects.toMatchObject({ status: 400, code: "invalid_request" });
+    await expect(open({ lesson: "first" })).rejects.toMatchObject({ status: 400, code: "invalid_request" });
     expect(runtimeStub).not.toHaveBeenCalled();
+    const { open: openSensei } = workspace();
+    await expect(openSensei({})).rejects.toMatchObject({ status: 400, code: "invalid_request" });
   });
+
+  it("after an agent switch the draft's page gets a new session and the old one stays live and listed", async () => {
+    const { root, open, local, workspaceId } = workspace("draft");
+    const old = await open({});
+    await local.select(workspaceId, "claude");
+    const opened = await open({});
+    expect(opened.session).toMatchObject({ agent: "claude", persona: "kyoshi" });
+    expect(opened.session.id).not.toBe(old.session.id);
+    const saved = await readRecords(root);
+    expect(saved.map(item => item.id).sort()).toEqual([old.session.id, opened.session.id].sort());
+    expect(saved.find(item => item.id === old.session.id)).not.toHaveProperty("endedAt");
+    expect(saved.find(item => item.id === old.session.id)).not.toHaveProperty("replacedBy");
+    expect((await local.sessions.list(workspaceId)).map(item => item.id)).toContain(old.session.id);
+  }, 60_000);
+
+  it("after an agent switch a Sensei lesson's page gets a new session and the old one stays live and listed", async () => {
+    const { root, open, local, workspaceId } = workspace();
+    const old = await open({ course: "first", lesson: "intro" });
+    await local.select(workspaceId, "claude");
+    const opened = await open({ course: "first", lesson: "intro" });
+    expect(opened.session).toMatchObject({ agent: "claude", persona: "sensei", courseId: "first", lessonId: "intro" });
+    expect(opened.session.id).not.toBe(old.session.id);
+    const saved = await readRecords(root);
+    expect(saved.find(item => item.id === old.session.id)).not.toHaveProperty("endedAt");
+    expect(saved.find(item => item.id === old.session.id)).not.toHaveProperty("replacedBy");
+    expect((await local.sessions.list(workspaceId)).map(item => item.id)).toContain(old.session.id);
+  }, 60_000);
 
   it("a saved Cursor is refused before any Eve call while it has no passing record", async () => {
     const { open, runtimeStub } = workspace("learner", "cursor");
