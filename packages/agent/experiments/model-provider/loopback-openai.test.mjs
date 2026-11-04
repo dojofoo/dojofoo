@@ -270,3 +270,25 @@ test("a held Messages response waits for release", async t => {
   held.release();
   assert.equal((await pending).at(-1).type, "message_stop");
 });
+
+test("respondText overrides the default answer on every route", async t => {
+  const seen = [];
+  const endpoint = await startLoopbackModel({ respondText: (input, route) => {
+    seen.push(route);
+    return JSON.stringify(input).includes("LEARNER-ROLE") ? `Learner on ${route}.` : undefined;
+  } });
+  t.after(() => endpoint.close());
+  const post = (path, input) => fetch(`${endpoint.baseURL}/${path}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  }).then(response => response.text());
+  const gateway = input => fetch(`${endpoint.anthropicBaseURL}/v4/ai/language-model`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  }).then(response => response.text());
+  const learner = { model: "fixture", stream: true, messages: [{ role: "user", content: "LEARNER-ROLE" }], input: "LEARNER-ROLE" };
+  assert.match(await post("responses", learner), /Learner on responses\./);
+  assert.match(await post("chat/completions", learner), /Learner on chat\./);
+  assert.match(await gateway(learner), /Learner on gateway\./);
+  assert.match(JSON.stringify(await messageEvents(await postMessages(endpoint, learner))), /Learner on messages\./);
+  assert.match(await post("responses", { stream: true, input: "Teach." }), /Ready to teach\./);
+  assert.deepEqual(seen, ["responses", "chat", "gateway", "messages", "responses"]);
+});

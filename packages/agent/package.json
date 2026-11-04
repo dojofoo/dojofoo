@@ -587,6 +587,11 @@
       "import": "./dist/read-only.js",
       "default": "./dist/read-only.js"
     },
+    "./one-shot": {
+      "types": "./dist/one-shot.d.ts",
+      "import": "./dist/one-shot.js",
+      "default": "./dist/one-shot.js"
+    },
     "./process-groups": {
       "types": "./dist/process-groups.d.ts",
       "import": "./dist/process-groups.js",

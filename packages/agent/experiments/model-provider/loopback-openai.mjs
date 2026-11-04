@@ -11,8 +11,9 @@ function offeredTools(route, input) {
     tool.type === "namespace" ? (tool.tools ?? []).map(child => child.name ?? child.type) : [tool.name ?? tool.type]);
 }
 
-/** Deterministic Responses, Chat Completions, FX gateway and Anthropic Messages endpoint; real harness/CLI, no external inference. */
-export async function startLoopbackModel({ toolRequest, responses = true, selectChatTool, selectResponsesTool, selectMessagesTool, selectGatewayTool, latencyMs = 0 } = {}) {
+/** Deterministic Responses, Chat Completions, FX gateway and Anthropic Messages endpoint; real harness/CLI, no external inference.
+ *  `respondText(input, route)` answers a request's text instead of "Ready to teach." when it returns a string. */
+export async function startLoopbackModel({ toolRequest, responses = true, selectChatTool, selectResponsesTool, selectMessagesTool, selectGatewayTool, respondText, latencyMs = 0 } = {}) {
   const requests = [];
   const requestedModels = [];
   const paths = [];
@@ -39,6 +40,7 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
     requestedModels.push(request.headers["ai-language-model-id"] ?? input.model);
     toolLists.push(offeredTools(route, input));
     routes.push(route);
+    const answer = respondText?.(input, route) ?? "Ready to teach.";
     if (nextHeldResponse?.matches(input)) {
       const held = nextHeldResponse;
       nextHeldResponse = undefined;
@@ -58,7 +60,7 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
       if (selected) requestedTools.push(selected.name);
       const usage = { input_tokens: 10, output_tokens: 5 };
       const content = selected ? { type: "tool_use", id: `toolu_lesson_${requestedTools.length}`, name: selected.name, input: selected.input }
-        : { type: "text", text: "Ready to teach." };
+        : { type: "text", text: answer };
       const message = { id: `msg_${requests.length}`, type: "message", role: "assistant", model: input.model,
         content: [content], stop_reason: selected ? "tool_use" : "end_turn", stop_sequence: null, usage };
       if (!input.stream) { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(message)); return; }
@@ -79,7 +81,7 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
       // Same gateway event shape as vercel-labs/fx tests/e2e/tmux-helpers.ts.
       response.writeHead(200, { "Content-Type": "text/event-stream" });
       let events = [
-        { type: "text-delta", id: "answer_1", delta: "Ready to teach." },
+        { type: "text-delta", id: "answer_1", delta: answer },
         { type: "finish", finishReason: { unified: "stop", raw: "stop" },
           usage: { inputTokens: { total: 3 }, outputTokens: { total: 5 } } },
       ];
@@ -110,7 +112,7 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
         function: { name: selected.name, arguments: JSON.stringify(selected.input) } } : undefined;
       if (call) requestedTools.push(call.function.name);
       const message = call ? { role: "assistant", content: null, tool_calls: [call] }
-        : { role: "assistant", content: "Ready to teach." };
+        : { role: "assistant", content: answer };
       const finishReason = call ? "tool_calls" : "stop";
       if (!input.stream) {
         response.setHeader("Content-Type", "application/json");
@@ -126,7 +128,7 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
       response.end("data: [DONE]\n\n");
       return;
     }
-    const part = { type: "output_text", text: "Ready to teach.", annotations: [] };
+    const part = { type: "output_text", text: answer, annotations: [] };
     const item = { id: `msg_${requests.length}`, type: "message", role: "assistant", status: "completed", content: [part] };
     const result = { id: `resp_${requests.length}`, object: "response", created_at: 1, model: "gpt-4o", status: "completed", output: [item],
       usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15, input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 0 } } };
