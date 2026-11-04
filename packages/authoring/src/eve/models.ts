@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { JSONRPCClient } from "json-rpc-2.0";
 import { parse } from "smol-toml";
 import { agentRow, type AgentId, type ModelChoice } from "@dojofoo/protocol";
+import { readOnlyEnvironment } from "@dojofoo/agent/read-only";
 
 /** Preserve the native CLI choice when the caller has not selected a model. */
 export async function configuredHarnessModel(harness: string, codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex")): Promise<string | undefined> {
@@ -44,13 +45,18 @@ export async function harnessModels(agent: AgentId, signal: AbortSignal): Promis
 const acpLaunch = { cursor: ["--disable-auto-update", "acp"], grok: ["agent", "stdio"] } as const;
 
 /** Cursor and Grok list their models only in an ACP session: start one in an empty folder, read its model list, close it and stop
- *  the CLI. No prompt is sent. A missing CLI lists none. */
+ *  the CLI. No prompt is sent. A missing CLI lists none. Grok keeps a closed or deleted session in its history (open risk 3), so its
+ *  probe runs in a throwaway copy of Sensei's private home, which lists the models Sensei can use and is removed afterwards. */
 export async function acpModels(agent: "cursor" | "grok", signal: AbortSignal,
   options: { executable?: string; args?: readonly string[]; environment?: NodeJS.ProcessEnv } = {}): Promise<HarnessModelChoice[]> {
   const executable = options.executable ?? resolveAgentExecutable(agent);
   if (!executable) return [];
   const cwd = await mkdtemp(join(tmpdir(), `dojo-${agent}-models-`));
-  const child = spawn(executable, [...(options.args ?? acpLaunch[agent])], { cwd, env: options.environment ?? process.env, stdio: ["pipe", "pipe", "ignore"] });
+  const state = agent === "grok" ? await mkdtemp(join(tmpdir(), "dojo-grok-models-home-")) : undefined;
+  const environment = state
+    ? await readOnlyEnvironment("grok", options.environment ?? process.env, { stateDirectory: state, eveSessionId: "model-probe" })
+    : options.environment ?? process.env;
+  const child = spawn(executable, [...(options.args ?? acpLaunch[agent])], { cwd, env: environment, stdio: ["pipe", "pipe", "ignore"] });
   const rpc = new JSONRPCClient(request => new Promise<void>((resolve, reject) => {
     child.stdin.write(`${JSON.stringify(request)}\n`, error => error ? reject(error) : resolve());
   }));
@@ -99,6 +105,7 @@ export async function acpModels(agent: "cursor" | "grok", signal: AbortSignal,
     child.stdin.end();
     child.kill();
     await rm(cwd, { recursive: true, force: true });
+    if (state) await rm(state, { recursive: true, force: true, maxRetries: 3 });
   }
 }
 
