@@ -32,7 +32,6 @@ import { parseSenseiContent } from "./sensei-content";
 
 type WebState = {
   version: 4;
-  defaultHarness?: HarnessKind;
   threads: Record<string, { sessionId: string; harness: HarnessKind; contractHash: string; aliases: string[]; model?: string; resumeFailed?: boolean }>;
   results: Record<string, TestReport>;
   checkpoints: Record<string, { at: string; threadId?: string }>;
@@ -175,22 +174,23 @@ export async function getLesson(root: string, requestedKata?: string, { prepareS
   if (!selected) return null;
 
   const key = lessonKey(rc.currentDojo, selected.name);
-  const webState = readWebState(root);
+  const agent = lessonAgent(root);
+  let webState = readWebState(root);
   const storedThread = webState.threads[key];
-  const harness = storedThread?.harness;
-  let threadId: string | undefined = storedThread?.sessionId;
+  // A thread runs on the agent it started on; after the workspace switches agents it is never resumed
+  let threadId: string | undefined = storedThread?.harness === agent ? storedThread.sessionId : undefined;
   const sensei = readFileSync(selected.senseiPath, "utf8");
   const instructions = lessonInstructions(root, rc.currentDojo, sensei);
   const contractHash = lessonContractHash(instructions);
   const senseiContent = parseSenseiContent(sensei);
   let messages: UIMessage[] = [];
-  if (threadId && harness && prepareSession) {
+  if (threadId && prepareSession) {
     // A provider outage is not a new lesson. Let the route expose the error;
     // an explicit retry resumes the same durable conversation.
     await acpClient.resumeThread(threadId, {
       root,
-      runtimeKey: lessonRuntimeKey(root, key, harness),
-      harness,
+      runtimeKey: lessonRuntimeKey(root, key, agent),
+      harness: agent,
       developerInstructions: instructions,
     });
     if (storedThread?.model && acpClient.modelConfiguration(threadId)?.currentValue !== storedThread.model) {
@@ -201,13 +201,17 @@ export async function getLesson(root: string, requestedKata?: string, { prepareS
       webState.threads[key] = {
         ...storedThread,
         sessionId: threadId,
-        harness,
+        harness: agent,
         contractHash,
         aliases: storedThread?.aliases ?? [],
       };
       writeWebState(root, webState);
     }
-  } else if (threadId && !harness) threadId = undefined;
+  } else if (storedThread && prepareSession && (!courseId || stored.currentDojo === courseId)) {
+    // The old agent's thread stays in the aliases; the new agent starts its own, without a prompt
+    threadId = (await lessonThread(root, selected.name)).threadId;
+    webState = readWebState(root);
+  }
 
   if (threadId && !prepareSession) messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
 
@@ -262,7 +266,7 @@ export async function getLesson(root: string, requestedKata?: string, { prepareS
     checkpointed: Boolean(webState.checkpoints[key]),
     sessionId: threadId ?? null,
     model: threadId ? acpClient.modelConfiguration(threadId) : null,
-    harness: harness ?? webState.defaultHarness ?? lessonAgent(root),
+    harness: agent,
     harnesses: lessonHarnesses,
     state: selectedState,
     isCurrent: selected.name === current?.name,
@@ -619,14 +623,14 @@ export function wantsNextLesson(answers: Record<string, string[]>): boolean {
   );
 }
 
-async function lessonThread(root: string, kataName: string, options: { forceNew?: boolean; harness?: HarnessKind } = {}) {
+async function lessonThread(root: string, kataName: string, options: { forceNew?: boolean } = {}) {
   const rc = readDojoRc(root);
   const key = lessonKey(rc.currentDojo, kataName);
   const state = readWebState(root);
   const existing = state.threads[key];
-  const harness = !options.forceNew && existing ? existing.harness : options.harness ?? state.defaultHarness ?? lessonAgent(root);
+  const harness = lessonAgent(root);
   const runtimeKey = lessonRuntimeKey(root, key, harness);
-  if (!options.forceNew && existing) {
+  if (!options.forceNew && existing?.harness === harness) {
     const catalog = readCatalog(root, rc.currentDojo);
     const kata = findKataByIdOrName(resolveAllKatas(root, rc, catalog), kataName);
     if (!kata) throw new Error(`Kata not found: ${kataName}`);
@@ -715,15 +719,9 @@ export async function startLessonSession(
   root: string,
   kataName: string,
   courseId?: string,
-  harness?: HarnessKind,
 ): Promise<LessonSnapshot> {
   if (courseId) lessonTarget(root, courseId, kataName);
-  await lessonThread(root, kataName, { forceNew: true, harness });
-  if (harness) {
-    const state = readWebState(root);
-    state.defaultHarness = harness;
-    writeWebState(root, state);
-  }
+  await lessonThread(root, kataName, { forceNew: true });
   const lesson = await getLesson(root, kataName);
   if (!lesson) throw new Error(`Lesson not found: ${kataName}`);
   return lesson;
@@ -900,7 +898,6 @@ function readWebState(root: string): WebState {
   const path = webStatePath(root);
   if (!existsSync(path)) return { version: 4, threads: {}, results: {}, checkpoints: {}, observations: {}, learnerEvidence: {}, learnerObservations: {} };
   const stored = JSON.parse(readFileSync(path, "utf8")) as {
-    defaultHarness?: HarnessKind;
     threads?: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; model?: string; resumeFailed?: boolean }>;
     results?: Record<string, string | TestReport>;
     checkpoints?: Record<string, { at: string; threadId?: string }>;
@@ -916,7 +913,6 @@ function readWebState(root: string): WebState {
   );
   return {
     version: 4,
-    defaultHarness: stored.defaultHarness,
     threads: normalizeLessonThreads(stored.threads),
     results,
     checkpoints: stored.checkpoints ?? {},

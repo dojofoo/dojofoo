@@ -90,12 +90,12 @@ it("validates explicit agent selection before starting a session", async () => {
   const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("selected-api");
   vi.spyOn(acpClient, "history").mockResolvedValue([]);
   vi.spyOn(acpClient, "modelConfiguration").mockReturnValue(null);
-  for (const body of [{}, { harness: "" }, { harness: "  " }, { harness: 42 }, { harness: "pi" }, { harness: "unknown" }, { harness: "toString" }]) {
+  for (const body of [{}, { harness: "" }, { harness: "  " }, { harness: 42 }, { harness: "pi" }, { harness: "codex" }, { harness: "unknown" }, { harness: "toString" }]) {
     const response = await app.request(`${base}/configuration/harness`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     expect(response.status).toBe(422);
   }
   expect(start).not.toHaveBeenCalled();
-  const selected = await app.request(`${base}/configuration/harness`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ harness: "codex" }) });
+  const selected = await app.request(`${base}/configuration/harness`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ harness: "opencode" }) });
   expect(selected.status).toBe(200);
-  expect(await selected.json()).toMatchObject({ sessionId: "selected-api", harness: "codex" });
+  expect(await selected.json()).toMatchObject({ sessionId: "selected-api", harness: "opencode" });
 });

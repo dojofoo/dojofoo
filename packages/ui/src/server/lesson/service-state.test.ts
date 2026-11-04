@@ -121,27 +121,36 @@ describe("fresh lesson state", () => {
     expect(setup).toHaveBeenCalledExactlyOnceWith(root);
   });
 
-  it("uses an explicitly selected trial harness across lessons without inheriting Pi from authoring", async () => {
+  it("a lesson opened after the workspace switches agents starts its thread on the new agent and never resumes the old one", async () => {
     const root = freshCourse();
-    vi.stubEnv("DOJOFOO_HARNESS", "pi");
-    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("codex-trial");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    writeAgent(root, "codex");
+    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("codex-1");
+    const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
     vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    await startLessonSession(root, "001-first", "starter", "codex");
-    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "codex" }));
-    start.mockResolvedValueOnce("next-trial");
-    await startLessonSession(root, "002-second", "starter");
-    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "codex" }));
-    expect(process.env.DOJOFOO_HARNESS).toBe("pi");
+    await startLessonSession(root, "001-first");
+    resume.mockClear();
+    writeAgent(root, "claude");
+    start.mockResolvedValueOnce("claude-1");
+    const lesson = await getLesson(root, "001-first");
+    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "claude" }));
+    expect(resume).not.toHaveBeenCalledWith("codex-1", expect.anything());
+    expect(lesson).toMatchObject({ sessionId: "claude-1", harness: "claude", messages: [] });
+    const state = JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8"));
+    expect(state.threads["starter/001-first"]).toMatchObject({ sessionId: "claude-1", harness: "claude" });
+    expect(state.threads["starter/001-first"].aliases).toContain("codex-1");
   });
 
-  it("does not persist a trial harness when session creation fails", async () => {
+  it("startLessonSession has no agent parameter and writes no defaultHarness", async () => {
     const root = freshCourse();
-    vi.spyOn(acpClient, "startThread").mockRejectedValue(new Error("Login required"));
-    await expect(startLessonSession(root, "001-first", "starter", "codex")).rejects.toThrow("Login required");
-    const { existsSync } = await import("node:fs");
-    const path = resolve(root, ".dojo/web.json");
-    expect(existsSync(path) ? JSON.parse(readFileSync(path, "utf8")).defaultHarness : undefined).toBeUndefined();
+    mkdirSync(resolve(root, ".dojo"), { recursive: true });
+    writeFileSync(resolve(root, ".dojo/web.json"), JSON.stringify({ version: 4, defaultHarness: "codex", threads: {}, results: {}, checkpoints: {} }));
+    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("opencode-1");
+    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
+    vi.spyOn(acpClient, "history").mockResolvedValue([]);
+    expect(startLessonSession).toHaveLength(3);
+    expect((await startLessonSession(root, "001-first", "starter")).harness).toBe("opencode");
+    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "opencode" }));
+    expect(JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8"))).not.toHaveProperty("defaultHarness");
   });
 
   it("loads the course named by a route without changing the CLI selection or starting an agent", async () => {

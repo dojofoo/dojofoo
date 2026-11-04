@@ -17,7 +17,6 @@ import { getTypeScriptCompletions, getTypeScriptDiagnostics, getTypeScriptHover 
 import { resolveWorkspaceId } from "../control/workspace";
 import type { AcpStreamPart } from "./codex-client";
 import { streamAcpAsAgUi } from "./agui-stream";
-import { isAcpAgentId } from "@dojofoo/protocol";
 import { readCourseManifest } from "@dojofoo/config";
 import { advanceInteractiveLesson, getInteractiveLesson } from "../interactive/service";
 
@@ -56,13 +55,7 @@ app.get("/:workspaceId/courses/:courseId/lessons/:lessonId/messages", async (c) 
 app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/sessions", async (c) => {
   try {
     const { root, courseId, lessonId } = context(c);
-    // Validate the target without requiring the old provider session to resume.
-    const body = await c.req.text();
-    const input = body ? JSON.parse(body) as { harness?: unknown } : {};
-    if (input.harness !== undefined) {
-      if (!isAcpAgentId(input.harness)) return c.json({ error: "Select a lesson harness" }, 422);
-      return c.json(await startLessonSession(root, lessonId, courseId, input.harness), 201);
-    }
+    // The new thread runs on the workspace's coding agent; a body is ignored.
     return c.json(await startLessonSession(root, lessonId, courseId), 201);
   } catch (cause) {
     return c.json({ error: cause instanceof Error ? cause.message : "Could not start a new lesson session" }, 502);

@@ -523,12 +523,6 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
   const lessonItem = page.getByRole("treeitem", { name: "first", exact: true });
   if (await lessonItem.getAttribute("aria-expanded") !== "true") await lessonItem.getByText("first", { exact: true }).click();
   await lessonItem.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
-  if (outcome === "success") {
-    const picker = page.getByRole("button", { name: "Trial agent: Configured trial agent", exact: true });
-    await expect(picker).toBeVisible({ timeout: 5000 });
-    await picker.click();
-    await page.getByRole("menuitemradio", { name: "Codex", exact: true }).click();
-  }
   const popup = page.waitForEvent("popup", { timeout: 5000 });
   await page.getByRole("button", { name: "Trial", exact: true }).click();
   const tab = await popup;
@@ -536,7 +530,7 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
   release.resolve();
   if (outcome === "success") {
     await expect(tab.getByRole("heading", { name: "Prepared lesson" })).toBeVisible();
-    await expect(tab).toHaveURL(/\/first\?harness=codex$/);
+    await expect(tab).toHaveURL(/\/first$/);
     expect(sessionStarts).toEqual([]);
     await expect(page).toHaveURL(new RegExp(`authoring\\?session=${agent.sessionId}`));
     await tab.close();

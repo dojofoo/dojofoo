@@ -29,8 +29,7 @@ import { useAccountMenu } from "@/hooks/use-account-menu";
 import { rememberAuthoringSession } from "@/lib/authoring-session-link";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
-import { Icon, MenuButton } from "@dojofoo/uix/components/app-shell";
-import { codingAgents } from "@/lib/coding-agents";
+import { Icon } from "@dojofoo/uix/components/app-shell";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
 import { WorkspaceSkeleton } from "@dojofoo/uix/components/workspace-skeleton";
 import { Editor, EditorTabs } from "@dojofoo/uix/containers/editor";
@@ -72,7 +71,6 @@ function AuthoringPage() {
   const [error, setError] = useState<string | null>(null);
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
   const [trialError, setTrialError] = useState<{ lessonId: string; message: string } | null>(null);
-  const [trialHarness, setTrialHarness] = useState("");
   const [evaluationReport, setEvaluationReport] = useState<AuthoringEvalReport | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [evalsView, setEvalsView] = useState<"overview" | "report">("overview");
@@ -317,8 +315,7 @@ function AuthoringPage() {
         authoringApi(`/api/authoring/lessons/${encodeURIComponent(lessonId)}/trials`),
         { method: "POST" }
       );
-      const search = trialHarness ? `?${new URLSearchParams({ harness: trialHarness })}` : "";
-      if (!tab.closed) tab.location.replace(`/course/${encodeURIComponent(trial.workspaceId)}/${encodeURIComponent(trial.courseId)}/lesson/${encodeURIComponent(trial.lessonId)}${search}`);
+      if (!tab.closed) tab.location.replace(`/course/${encodeURIComponent(trial.workspaceId)}/${encodeURIComponent(trial.courseId)}/lesson/${encodeURIComponent(trial.lessonId)}`);
     } catch (cause) {
       tab.close();
       setTrialError({ lessonId, message: errorMessage(cause) });
@@ -477,12 +474,7 @@ function AuthoringPage() {
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => setEvaluationSettingsOpen(true)}>Evaluation settings</WorkspaceAction>
                 <WorkspaceAction icon={<RefreshCw className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}>Refresh</WorkspaceAction>
                 {visibleReport ? <WorkspaceAction disabled={false} onClick={() => { setEvalsView("report"); setReportOpen(!reportOpen); }}>{reportOpen ? "Hide evaluation" : "Evaluation results"}</WorkspaceAction> : null}
-                {scope === "lesson" && selectedLesson ? <>
-                  <MenuButton label="Trial agent" value={trialHarness} onChange={setTrialHarness} disabled={Boolean(busy)} align="start"
-                    icon={codingAgents.find(agent => agent.value === trialHarness)?.icon}
-                    options={[{ value: "", label: "Configured trial agent" }, ...["codex", "opencode", "cursor", "grok", "fx"].map(value => ({ value, label: codingAgents.find(agent => agent.value === value)!.name }))]} />
-                  <WorkspaceAction icon={<ExternalLink className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}>Trial</WorkspaceAction>
-                </> : null}
+                {scope === "lesson" && selectedLesson ? <WorkspaceAction icon={<ExternalLink className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}>Trial</WorkspaceAction> : null}
                 {evaluationAction}
               </div>
             </div>

@@ -3,7 +3,8 @@ import type { UIMessage } from "@tanstack/ai-client";
 import { acpClient, type AcpStreamPart, type SessionModelConfiguration } from "../lesson/codex-client";
 import { transcriptToUIMessages } from "../lesson/service";
 import { readDojoMd } from "@dojofoo/config";
-import { isAcpAgentId } from "@dojofoo/protocol";
+import { agentRow, isAgentId } from "@dojofoo/protocol";
+import type { HarnessKind } from "../harness/adapter";
 import { lessonAgent, lessonHarnesses } from "../harness/registry";
 import {
   getInteractiveLesson, readInteractiveConversation, writeInteractiveConversation,
@@ -49,9 +50,11 @@ async function resume(root: string, dojo: string, binding: InteractiveConversati
 
 export async function getInteractiveConversation(root: string, dojo: string): Promise<InteractiveConversation> {
   getInteractiveLesson(root, dojo);
-  const binding = readInteractiveConversation(root, dojo);
+  const agent = lessonAgent(root);
+  // Each agent keeps its own conversation; switching back brings it back
+  const binding = readInteractiveConversation(root, dojo, agent);
   if (!binding || (binding.pendingRuntime && binding.pendingRuntime !== runtimeOwner)) return {
-    sessionId: null, messages: [], model: null, harness: binding?.harness ?? lessonAgent(root), harnesses: lessonHarnesses,
+    sessionId: null, messages: [], model: null, harness: agent, harnesses: lessonHarnesses,
   };
   await resume(root, dojo, binding);
   return conversationSnapshot(binding);
@@ -70,10 +73,17 @@ const selecting = new Map<string, { harness: string; promise: Promise<Interactiv
 const activeOperations = new Set<string>();
 const scope = (root: string, dojo: string) => `interactive:${resolve(root)}:${dojo}`;
 
-/** Selecting an agent never sends a turn or overwrites another agent's native session. */
+/** The workspace's coding agent; any other choice is refused. */
+export function interactiveAgent(root: string, value: string): HarnessKind {
+  if (!value.trim()) throw new Error("Select a supported coding agent.");
+  const agent = lessonAgent(root);
+  if (value !== agent) throw new Error(`${isAgentId(value) ? agentRow(value).name : value} isn't this workspace's coding agent.`);
+  return agent;
+}
+
+/** Preparing the agent's session never sends a turn or overwrites another agent's native session. */
 export async function selectInteractiveHarness(root: string, dojo: string, value: string): Promise<InteractiveConversation> {
-  if (!isAcpAgentId(value)) throw new Error("Select a supported coding agent.");
-  const harness = value;
+  const harness = interactiveAgent(root, value);
   getInteractiveLesson(root, dojo);
   const key = scope(root, dojo);
   if (activeOperations.has(key)) throw new Error("The conversation is busy. Wait for the current turn or cancel it first.");
@@ -101,7 +111,7 @@ export async function selectInteractiveHarness(root: string, dojo: string, value
 
 const starting = new Map<string, Promise<InteractiveConversationBinding>>();
 async function session(root: string, dojo: string): Promise<InteractiveConversationBinding> {
-  const saved = readInteractiveConversation(root, dojo);
+  const saved = readInteractiveConversation(root, dojo, lessonAgent(root));
   if (saved && (!saved.pendingRuntime || saved.pendingRuntime === runtimeOwner)) { await resume(root, dojo, saved); return saved; }
   const config = configuration(root, dojo, saved);
   const pending = starting.get(config.runtimeKey);
@@ -154,7 +164,7 @@ export async function setInteractiveModel(root: string, dojo: string, value: str
   activeOperations.add(key);
   try {
     getInteractiveLesson(root, dojo);
-    const binding = readInteractiveConversation(root, dojo);
+    const binding = readInteractiveConversation(root, dojo, lessonAgent(root));
     if (!binding) throw new Error("Start a Sensei conversation before changing its model.");
     await resume(root, dojo, binding);
     const model = await acpClient.setModel(binding.sessionId, value);
@@ -165,7 +175,7 @@ export async function setInteractiveModel(root: string, dojo: string, value: str
 
 export function answerInteractiveSensei(root: string, dojo: string, answers: Record<string, string[]>): void {
   getInteractiveLesson(root, dojo);
-  const binding = readInteractiveConversation(root, dojo);
+  const binding = readInteractiveConversation(root, dojo, lessonAgent(root));
   if (!binding) throw new Error("No active Sensei conversation.");
   acpClient.answerUserInput(binding.sessionId, answers);
 }

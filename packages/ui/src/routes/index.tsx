@@ -211,9 +211,8 @@ export function LessonLoading({ account, toast, error }: Pick<ReturnType<typeof 
   );
 }
 
-export function LessonPage({ initialLesson, requestedHarness, requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
+export function LessonPage({ initialLesson, requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
   initialLesson?: LessonSnapshot;
-  requestedHarness?: string;
   requestedCourseId?: string;
   requestedLessonId?: string;
   requestedSessionId?: string;
@@ -385,16 +384,7 @@ export function LessonPage({ initialLesson, requestedHarness, requestedCourseId,
     queueMicrotask(() => {
       if (controller.signal.aborted) return;
       void (async () => {
-        // A retry reads the accepted session before deciding to create one.
-        const saved = requestedHarness && conversationAttempt > 0
-          ? await fetch(`${apiBase}?prepare=false`, { signal: controller.signal }).then(assertResponse).then(response => response.json() as Promise<LessonSnapshot>)
-          : lesson;
-        if (controller.signal.aborted) return;
-        const startSelected = requestedHarness && !saved.sessionId;
-        const response = await fetch(startSelected ? `${apiBase}/sessions` : apiBase, {
-          signal: controller.signal,
-          ...(startSelected ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ harness: requestedHarness }) } : {}),
-        }).then(assertResponse);
+        const response = await fetch(apiBase, { signal: controller.signal }).then(assertResponse);
         const next = await response.json() as LessonSnapshot;
         if (controller.signal.aborted) return;
         if (requestedSessionId && next.sessionId !== requestedSessionId) throw new Error("This exact lesson session is unavailable.");
@@ -404,7 +394,7 @@ export function LessonPage({ initialLesson, requestedHarness, requestedCourseId,
       })().catch(cause => { if (!controller.signal.aborted) setConversationError(cause.message); });
     });
     return () => controller.abort();
-  }, [apiBase, lesson?.kata, requestedSessionId, requestedHarness, conversationAttempt]);
+  }, [apiBase, lesson?.kata, requestedSessionId, conversationAttempt]);
 
   useEffect(() => {
     if (chatError) setError(chatError.message);
@@ -530,32 +520,6 @@ export function LessonPage({ initialLesson, requestedHarness, requestedCourseId,
       setError(cause instanceof Error ? cause.message : String(cause));
       setBusy("");
     }
-  }
-
-  async function changeAgent(value: string) {
-    if (!apiBase || !lesson || value === lesson.harness || agentChanging || modelChanging || !lesson.harnesses?.some(harness => harness === value)) return;
-    const signal = navigationRequest.current?.signal;
-    setAgentChanging(true);
-    setModelNotice("Starting a conversation with the selected coding agent…");
-    setError(null);
-    try {
-      const response = await fetch(`${apiBase}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ harness: value }), signal });
-      if (!response.ok) throw await httpError(response);
-      const next = await response.json() as LessonSnapshot;
-      if (signal?.aborted) return;
-      // Agent selection creates no paid turn and must not navigate away from dirty code.
-      introductions.current.add(apiBase);
-      // A new agent owns a new conversation. The mounted editor and unsaved code stay local.
-      setLesson(next);
-      setStreamedMessages(next.messages);
-      setHostChatEvents([]);
-      setConversationReady(true);
-      setConversationError(undefined);
-      setModelNotice(`Started a conversation with ${codingAgents.find(agent => agent.value === next.harness)?.name ?? next.harness}.`);
-    } catch (cause) {
-      setModelNotice("Agent change failed. Your conversation stays open.");
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally { setAgentChanging(false); }
   }
 
   async function changeModel(value: string) {
@@ -838,8 +802,7 @@ export function LessonPage({ initialLesson, requestedHarness, requestedCourseId,
     scroller={chatViewportRef}
     composer={<div data-testid="chat-composer">
       <Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === lesson.harness) ?? { value: lesson.harness, name: lesson.harness ?? "Coding agent", icon: AiMagicIcon }}
-        agents={codingAgents.filter(agent => lesson.harnesses?.some(value => value === agent.value)).map(agent => ({ ...agent, description: "Start a new conversation" }))}
-        onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging || (!conversationReady && !conversationError)} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
+        agentChanging={agentChanging || (!conversationReady && !conversationError)} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
         placeholder="Ask your Sensei…" disabled={!chatCanAcceptInput || agentChanging} busy={chatIsWorking} onStop={stop}
         history={messages.filter(item => item.role === "user").map(item => item.parts.flatMap(part => part.type === "text" && !isInternalLessonMessage(part.content) ? [part.content] : []).join("")).filter(Boolean)}
         onSend={message => { void sendQuestion(message); }} model={lesson.model?.currentValue} models={lesson.model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging}

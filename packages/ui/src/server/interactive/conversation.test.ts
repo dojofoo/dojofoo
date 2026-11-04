@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { acpClient } from "../lesson/codex-client";
 import { advanceInteractiveLesson, answerInteractiveQuestion, getInteractiveLesson } from "./service";
 import { getInteractiveConversation, selectInteractiveHarness, setInteractiveModel, streamInteractiveSensei } from "./conversation";
+import { writeAgent } from "@dojofoo/config/runtime";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -117,8 +118,10 @@ describe("interactive Sensei", () => {
     });
     await setInteractiveModel(root, "first", "provider/chosen");
     vi.mocked(acpClient.startThread).mockResolvedValueOnce("model-codex");
+    writeAgent(root, "codex");
     await selectInteractiveHarness(root, "first", "codex");
     model.currentValue = "provider/default";
+    writeAgent(root, "opencode");
     await selectInteractiveHarness(root, "first", "opencode");
     expect((await getInteractiveConversation(root, "first")).model?.currentValue).toBe("provider/chosen");
     expect(setModel).toHaveBeenLastCalledWith("native-first", "provider/chosen");
@@ -143,12 +146,15 @@ it("switches coding agents without a turn and restores each native session while
   await streamInteractiveSensei(root, "first", "Hello", vi.fn());
   const before = getInteractiveLesson(root, "first");
   vi.mocked(acpClient.startThread).mockResolvedValueOnce("native-codex");
+  writeAgent(root, "codex");
   const selected = await selectInteractiveHarness(root, "first", "codex");
   expect(selected).toMatchObject({ sessionId: "native-codex", harness: "codex" });
   const calls = vi.mocked(acpClient.startThread).mock.calls;
   expect(calls[1][0].runtimeKey).not.toBe(calls[0][0].runtimeKey);
   expect(calls[1][0]).toMatchObject({ harness: "codex", toolProfile: "none" });
+  writeAgent(root, "opencode");
   expect((await selectInteractiveHarness(root, "first", "opencode")).sessionId).toBe("native-first");
+  writeAgent(root, "codex");
   expect((await selectInteractiveHarness(root, "first", "codex")).sessionId).toBe("native-codex");
   expect(acpClient.startThread).toHaveBeenCalledTimes(2);
   expect(acpClient.send).toHaveBeenCalledTimes(1);
@@ -164,23 +170,29 @@ it("retains the active binding on unsupported choices and failed starts/resumes"
   const path = resolve(root, ".dojo/interactive.json");
   const original = readFileSync(path, "utf8");
   await expect(selectInteractiveHarness(root, "first", "")).rejects.toThrow("coding agent");
-  await expect(selectInteractiveHarness(root, "first", "pi")).rejects.toThrow("Select a supported coding agent.");
+  await expect(selectInteractiveHarness(root, "first", "pi")).rejects.toThrow("isn't this workspace's coding agent");
+  await expect(selectInteractiveHarness(root, "first", "codex")).rejects.toThrow("isn't this workspace's coding agent");
+  writeAgent(root, "codex");
   vi.mocked(acpClient.startThread).mockRejectedValueOnce(new Error("Login required"));
   await expect(selectInteractiveHarness(root, "first", "codex")).rejects.toThrow("Login required");
   expect(readFileSync(path, "utf8")).toBe(original);
   vi.mocked(acpClient.startThread).mockResolvedValueOnce("codex-owned");
   await selectInteractiveHarness(root, "first", "codex");
   vi.mocked(acpClient.resumeThread).mockRejectedValueOnce(new Error("Old provider offline"));
+  writeAgent(root, "opencode");
   await expect(selectInteractiveHarness(root, "first", "opencode")).rejects.toThrow("Old provider offline");
-  expect((await getInteractiveConversation(root, "first")).sessionId).toBe("codex-owned");
+  expect(JSON.parse(readFileSync(path, "utf8")).conversations.first.sessionId).toBe("codex-owned");
 });
 
 it("deduplicates a pending choice and rejects competing sends or selections", async () => {
   const root = fixture();
   let finish!: (id: string) => void;
   vi.mocked(acpClient.startThread).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  writeAgent(root, "codex");
   const first = selectInteractiveHarness(root, "first", "codex");
   const duplicate = selectInteractiveHarness(root, "first", "codex");
+  // The workspace switches back while the first choice is still preparing
+  writeAgent(root, "opencode");
   await expect(selectInteractiveHarness(root, "first", "opencode")).rejects.toThrow("busy");
   await expect(streamInteractiveSensei(root, "first", "Hello", vi.fn())).rejects.toThrow("busy");
   await expect(setInteractiveModel(root, "first", "any-model")).rejects.toThrow("busy");
@@ -199,6 +211,7 @@ it("keeps selection locked until an active turn settles, including after a faile
   const turn = streamInteractiveSensei(root, "first", "Hello", vi.fn());
   const failure = expect(turn).rejects.toThrow("Connection lost");
   await sending;
+  writeAgent(root, "codex");
   await expect(selectInteractiveHarness(root, "first", "codex")).rejects.toThrow("busy");
   reject(new Error("Connection lost"));
   await failure;
@@ -213,7 +226,9 @@ it("retains legacy single-conversation state when the first agent switch adds bi
   writeFileSync(resolve(root, ".dojo/interactive.json"), JSON.stringify({ version: 1, courses,
     conversations: { first: { sessionId: "legacy-native", harness: "opencode" } } }));
   vi.mocked(acpClient.startThread).mockResolvedValueOnce("new-codex");
+  writeAgent(root, "codex");
   await selectInteractiveHarness(root, "first", "codex");
+  writeAgent(root, "opencode");
   expect((await selectInteractiveHarness(root, "first", "opencode")).sessionId).toBe("legacy-native");
   expect(acpClient.startThread).toHaveBeenCalledTimes(1);
   expect(acpClient.resumeThread).toHaveBeenCalledWith("legacy-native", expect.objectContaining({ harness: "opencode" }));
@@ -227,6 +242,7 @@ it("does not resume or recreate an unused selection from an older runtime while 
   mkdirSync(resolve(root, ".dojo"), { recursive: true });
   writeFileSync(resolve(root, ".dojo/interactive.json"), JSON.stringify({ version: 1, courses: {},
     conversations: { first: { sessionId: "unmaterialized-codex", harness: "codex", pendingRuntime: "previous-process" } } }));
+  writeAgent(root, "codex");
   expect(await getInteractiveConversation(root, "first")).toMatchObject({ sessionId: null, harness: "codex", messages: [], model: null });
   expect(acpClient.resumeThread).not.toHaveBeenCalled();
   expect(acpClient.startThread).not.toHaveBeenCalled();
@@ -239,6 +255,7 @@ it("does not resume or recreate an unused selection from an older runtime while 
 
 it("retains a submitted provisional session after a provider error without substituting an ID", async () => {
   const root = fixture();
+  writeAgent(root, "codex");
   await selectInteractiveHarness(root, "first", "codex");
   vi.mocked(acpClient.send).mockRejectedValueOnce(new Error("Provider interrupted"));
   await expect(streamInteractiveSensei(root, "first", "My first message", vi.fn())).rejects.toThrow("Provider interrupted");

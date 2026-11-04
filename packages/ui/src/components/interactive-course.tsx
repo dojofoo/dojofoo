@@ -231,8 +231,7 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     composer={<Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === conversation?.harness) ?? { value: conversation?.harness, name: conversation?.harness ?? "Coding agent", icon: AiMagicIcon }}
-      agents={codingAgents.filter(agent => conversation?.harnesses?.some(value => value === agent.value)).map(agent => ({ ...agent, description: "Open this agent’s conversation" }))}
-      onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging || sessionLoading} id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={question} onValueChange={setQuestion}
+      agentChanging={agentChanging || sessionLoading} id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={question} onValueChange={setQuestion}
       disabled={!acceptsInput} busy={working} onStop={stop} onSend={value => { void send(value); }}
       history={messages.filter(message => message.role === "user").map(message => message.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
       model={model?.currentValue} models={model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging} onModelChange={value => { void changeModel(value); }}
