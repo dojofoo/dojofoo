@@ -1,0 +1,61 @@
+diff --git a/dist/src/internal/nitro/host/sandbox-shutdown-plugin.d.ts b/dist/src/internal/nitro/host/sandbox-shutdown-plugin.d.ts
+index 4b51277..a1e847f 100644
+--- a/dist/src/internal/nitro/host/sandbox-shutdown-plugin.d.ts
++++ b/dist/src/internal/nitro/host/sandbox-shutdown-plugin.d.ts
+@@ -25,9 +25,17 @@ export declare function shouldInstallSandboxShutdown(env: Record<string, string
+  * {@link SANDBOX_SHUTDOWN_TIMEOUT_MS}. Never throws.
+  */
+ export declare function runSandboxShutdown(log: (message: string) => void): Promise<void>;
++/**
++ * Waits up to {@link WORKFLOW_DELIVERY_DRAIN_TIMEOUT_MS} (1 s) for in-flight
++ * local World deliveries, so a step that already ran finishes recording its
++ * result before the process exits. The bound stays short: a delivery still
++ * running a turn would otherwise go on to start new native processes while
++ * the server exits. Never throws.
++ */
++export declare function drainLocalWorkflowDeliveries(log: (message: string) => void): Promise<void>;
+ /**
+  * Wires sandbox shutdown into the server lifecycle: the nitro `close`
+- * hook plus SIGINT/SIGTERM, since the node-server preset installs no
++ * hook plus SIGINT/SIGTERM (which also drain local World deliveries), since the node-server preset installs no
+  * signal handling of its own. Exposed for tests; the plugin default
+  * export applies it to the real `process`.
+  */
+diff --git a/dist/src/internal/nitro/host/sandbox-shutdown-plugin.js b/dist/src/internal/nitro/host/sandbox-shutdown-plugin.js
+index eaa5fef..4d059a5 100644
+--- a/dist/src/internal/nitro/host/sandbox-shutdown-plugin.js
++++ b/dist/src/internal/nitro/host/sandbox-shutdown-plugin.js
+@@ -1 +1 @@
+-import{isEveDevEnvironment}from"#internal/application/dev-environment.js";import{shutdownActiveSandboxConnections}from"#execution/sandbox/active-connections.js";const SHUTDOWN_SIGNALS=[`SIGINT`,`SIGTERM`];let installed=!1;function shouldInstallSandboxShutdown(e){return!(isEveDevEnvironment()||e.EVE_DEVELOPMENT_SANDBOX_RUN_ID!==void 0||e.VERCEL!==void 0)}async function runSandboxShutdown(e){let t,n=new Promise(n=>{t=setTimeout(()=>{e(`eve: sandbox shutdown timed out; continuing exit`),n()},15e3),t.unref?.()});try{await Promise.race([shutdownActiveSandboxConnections({log:e}),n])}finally{clearTimeout(t)}}function exitCodeForSignal(e){return e===`SIGINT`?130:143}function installSandboxShutdownHandlers(e){if(shouldInstallSandboxShutdown(e.process.env)){e.nitroApp?.hooks?.hook(`close`,async()=>{await runSandboxShutdown(e.log)});for(let t of SHUTDOWN_SIGNALS)e.process.once(t,()=>{runSandboxShutdown(e.log).finally(()=>{e.process.exit(exitCodeForSignal(t))})})}}function sandboxShutdownPlugin(e){installed||(installed=!0,installSandboxShutdownHandlers({log:e=>console.error(e),nitroApp:e,process}))}export{sandboxShutdownPlugin as default,installSandboxShutdownHandlers,runSandboxShutdown,shouldInstallSandboxShutdown};
+\ No newline at end of file
++import{isEveDevEnvironment}from"#internal/application/dev-environment.js";import{shutdownActiveSandboxConnections}from"#execution/sandbox/active-connections.js";import{waitForLocalWorkflowDeliveries}from"#internal/workflow/local-world-delivery-auth.js";const SHUTDOWN_SIGNALS=[`SIGINT`,`SIGTERM`];let installed=!1;function shouldInstallSandboxShutdown(e){return!(isEveDevEnvironment()||e.EVE_DEVELOPMENT_SANDBOX_RUN_ID!==void 0||e.VERCEL!==void 0)}async function runSandboxShutdown(e){let t,n=new Promise(n=>{t=setTimeout(()=>{e(`eve: sandbox shutdown timed out; continuing exit`),n()},15e3),t.unref?.()});try{await Promise.race([shutdownActiveSandboxConnections({log:e}),n])}finally{clearTimeout(t)}}const WORKFLOW_DELIVERY_DRAIN_TIMEOUT_MS=1e3;async function drainLocalWorkflowDeliveries(e){await waitForLocalWorkflowDeliveries(WORKFLOW_DELIVERY_DRAIN_TIMEOUT_MS)||e(`eve: workflow deliveries still running at shutdown; continuing exit`)}function exitCodeForSignal(e){return e===`SIGINT`?130:143}function installSandboxShutdownHandlers(e){if(shouldInstallSandboxShutdown(e.process.env)){e.nitroApp?.hooks?.hook(`close`,async()=>{await runSandboxShutdown(e.log)});for(let t of SHUTDOWN_SIGNALS)e.process.once(t,()=>{Promise.all([runSandboxShutdown(e.log),drainLocalWorkflowDeliveries(e.log)]).finally(()=>{e.process.exit(exitCodeForSignal(t))})})}}function sandboxShutdownPlugin(e){installed||(installed=!0,installSandboxShutdownHandlers({log:e=>console.error(e),nitroApp:e,process}))}export{sandboxShutdownPlugin as default,drainLocalWorkflowDeliveries,installSandboxShutdownHandlers,runSandboxShutdown,shouldInstallSandboxShutdown};
+\ No newline at end of file
+diff --git a/dist/src/internal/workflow/local-world-delivery-auth.d.ts b/dist/src/internal/workflow/local-world-delivery-auth.d.ts
+index 0aec7bb..985b822 100644
+--- a/dist/src/internal/workflow/local-world-delivery-auth.d.ts
++++ b/dist/src/internal/workflow/local-world-delivery-auth.d.ts
+@@ -15,3 +15,15 @@ export declare const LOCAL_WORKFLOW_DELIVERY_HEADER = "x-eve-workflow-delivery";
+  * Mutates and returns `world`.
+  */
+ export declare function authenticateLocalWorkflowDeliveries(world: LocalWorld, secret?: string): LocalWorld;
++/**
++ * Runs one local World delivery (a workflow or step invocation), counting it
++ * as in flight until it settles.
++ */
++export declare function trackLocalWorkflowDelivery<T>(run: () => Promise<T>): Promise<T>;
++/**
++ * Resolves `true` once no local World delivery is in flight, or `false`
++ * after `timeoutMs`. A step that a shutdown cuts short stays leased to its
++ * dead invocation, so a restarted server does not rerun it for the
++ * inline-ownership lease.
++ */
++export declare function waitForLocalWorkflowDeliveries(timeoutMs: number): Promise<boolean>;
+diff --git a/dist/src/internal/workflow/local-world-delivery-auth.js b/dist/src/internal/workflow/local-world-delivery-auth.js
+index 83991dc..a91a48c 100644
+--- a/dist/src/internal/workflow/local-world-delivery-auth.js
++++ b/dist/src/internal/workflow/local-world-delivery-auth.js
+@@ -1 +1 @@
+-import{randomBytes}from"node:crypto";import{timingSafeEqualStrings}from"#internal/nitro/dev-client-address.js";import{WORKFLOW_QUEUE_NAMESPACE_ENV,workflowQueuePrefix}from"#internal/workflow/queue-namespace.js";const LOCAL_WORKFLOW_DELIVERY_HEADER=`x-eve-workflow-delivery`;function authenticateLocalWorkflowDeliveries(e,t=randomBytes(32).toString(`hex`)){let n=e.queue.bind(e);e.queue=async(e,r,i)=>await n(e,r,{...i,headers:{...i?.headers,[LOCAL_WORKFLOW_DELIVERY_HEADER]:t}});let r=e.createQueueHandler.bind(e);e.createQueueHandler=(e,n)=>{let i=r(e,n);return async e=>{let n=e.headers.get(LOCAL_WORKFLOW_DELIVERY_HEADER);return n===null||!timingSafeEqualStrings(n,t)?Response.json({error:`Untrusted workflow delivery.`},{status:401}):await i(e)}};let i=e.start?.bind(e);return e.start=async()=>{await i?.(),await reenqueueActiveRuns(e)},e}async function reenqueueActiveRuns(e){let t=process.env[WORKFLOW_QUEUE_NAMESPACE_ENV];if(!t)throw Error(`${WORKFLOW_QUEUE_NAMESPACE_ENV} must be installed before local workflow recovery.`);let n=workflowQueuePrefix(t),r;do{let t=await e.runs.list({pagination:{cursor:r},resolveData:`none`,status:[`pending`,`running`]});for(let r of t.data)try{await e.queue(`${n}${r.workflowName}`,{runId:r.runId})}catch(e){console.warn(`[eve] Failed to re-enqueue workflow run ${r.runId}:`,e)}r=t.hasMore?t.cursor??void 0:void 0}while(r!==void 0)}export{LOCAL_WORKFLOW_DELIVERY_HEADER,authenticateLocalWorkflowDeliveries};
+\ No newline at end of file
++import{randomBytes}from"node:crypto";import{timingSafeEqualStrings}from"#internal/nitro/dev-client-address.js";import{WORKFLOW_QUEUE_NAMESPACE_ENV,workflowQueuePrefix}from"#internal/workflow/queue-namespace.js";const LOCAL_WORKFLOW_DELIVERY_HEADER=`x-eve-workflow-delivery`;function authenticateLocalWorkflowDeliveries(e,t=randomBytes(32).toString(`hex`)){let n=e.queue.bind(e);e.queue=async(e,r,i)=>await n(e,r,{...i,headers:{...i?.headers,[LOCAL_WORKFLOW_DELIVERY_HEADER]:t}});let r=e.createQueueHandler.bind(e);e.createQueueHandler=(e,n)=>{let i=r(e,n);return async e=>{let n=e.headers.get(LOCAL_WORKFLOW_DELIVERY_HEADER);return n===null||!timingSafeEqualStrings(n,t)?Response.json({error:`Untrusted workflow delivery.`},{status:401}):await trackLocalWorkflowDelivery(()=>i(e))}};let i=e.start?.bind(e);return e.start=async()=>{await i?.(),await reenqueueActiveRuns(e)},e}async function reenqueueActiveRuns(e){let t=process.env[WORKFLOW_QUEUE_NAMESPACE_ENV];if(!t)throw Error(`${WORKFLOW_QUEUE_NAMESPACE_ENV} must be installed before local workflow recovery.`);let n=workflowQueuePrefix(t),r;do{let t=await e.runs.list({pagination:{cursor:r},resolveData:`none`,status:[`pending`,`running`]});for(let r of t.data)try{await e.queue(`${n}${r.workflowName}`,{runId:r.runId})}catch(e){console.warn(`[eve] Failed to re-enqueue workflow run ${r.runId}:`,e)}r=t.hasMore?t.cursor??void 0:void 0}while(r!==void 0)}const IN_FLIGHT_DELIVERIES=Symbol.for(`eve.local-workflow-deliveries`);function inFlightDeliveries(){return globalThis[IN_FLIGHT_DELIVERIES]??={count:0,idle:new Set}}async function trackLocalWorkflowDelivery(e){let t=inFlightDeliveries();t.count++;try{return await e()}finally{if(--t.count===0)for(let e of[...t.idle])e()}}function waitForLocalWorkflowDeliveries(e){let t=inFlightDeliveries();return t.count===0?Promise.resolve(!0):new Promise(n=>{let r,i=a=>{clearTimeout(r),t.idle.delete(o),n(a)},o=()=>i(!0);t.idle.add(o),r=setTimeout(()=>i(!1),e),r.unref?.()})}export{LOCAL_WORKFLOW_DELIVERY_HEADER,authenticateLocalWorkflowDeliveries,trackLocalWorkflowDelivery,waitForLocalWorkflowDeliveries};
+\ No newline at end of file

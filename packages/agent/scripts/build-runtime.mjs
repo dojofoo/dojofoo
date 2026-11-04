@@ -46,6 +46,10 @@ try {
   const managedProjectPatch = join(root, "patches", `eve-managed-project@${version}.patch`);
   execFileSync("git", ["apply", "--check", managedProjectPatch], { cwd: upstream });
   execFileSync("git", ["apply", managedProjectPatch], { cwd: upstream });
+  // A stopping local server lets in-flight workflow deliveries record their results before it exits.
+  const localShutdownPatch = join(root, "patches", `eve-local-shutdown@${version}.patch`);
+  execFileSync("git", ["apply", "--check", localShutdownPatch], { cwd: upstream });
+  execFileSync("git", ["apply", localShutdownPatch], { cwd: upstream });
   const destination = join(root, "dist/eve");
   await rm(destination, { recursive: true, force: true });
   // Preserve package scope, internal imports, workers, assets and license notices.

@@ -82,6 +82,22 @@ and ships the resulting runtime with Eve's notices.
 | `eve-native-turn@1.0.0-rc.1.patch` | Honor a native provider's completed turn and context-token accounting; preserve upstream sign-in parking | Provider/host continuation, sign-in parking and compaction fixtures |
 | `eve-distribution@1.0.0-rc.1.patch` | Resolve packaged modules, project root and workflow identity; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
 | `eve-managed-project@1.0.0-rc.1.patch` | Compile manifest-free `.dojo/kyoshi` and `.dojo/sensei` using the installed runtime, without project dependencies or symlinks | `experiments/model-provider/manifest-free-project.test.mjs` |
+| `eve-local-shutdown@1.0.0-rc.1.patch` | On SIGTERM/SIGINT, wait up to 1 s for in-flight local World deliveries before exiting | `test/local-shutdown.test.ts`; `kyoshi.host.ask-answer-across-restart` |
+
+Eve's signal handler exits as soon as its remote sandboxes are stopped. With the
+local World, a workflow step still running then is lost: the step started inline,
+so after a restart the Workflow runtime treats it as leased to the dead invocation
+for `WORKFLOW_INLINE_OWNERSHIP_LEASE_SECONDS` (860 s) and does not rerun it. A
+host closed right after a question appears hits this, because the step that
+publishes the question records its own result a moment later; the session then
+ignores the answer until the lease runs out. The patch counts deliveries in the
+local World's queue handler and waits for them on shutdown, for at most 1 s: a
+delivery that is still running a turn would otherwise go on to start a native
+agent while the server exits, and that agent outlives it
+(`sensei.host-port.rerun-no-duplicate` leaves an OpenCode server with a 5 s
+bound). Such a delivery is cut short as before, and a crash still loses the
+step. Remove the patch when Eve drains deliveries itself or the local World
+recovers inline steps of a previous process.
 
 The upgrade audit removed redundant model-reference metadata and capability-type
 patches. Eve's own model profiles handle provider routing; our `HarnessModel`
