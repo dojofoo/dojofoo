@@ -89,3 +89,4 @@ export type LessonCapabilityTool = (typeof lessonCapabilities)[LessonCapability]
 
 export * from "./agents.js";
 export * from "./personas.js";
+export * from "./conformance.js";
