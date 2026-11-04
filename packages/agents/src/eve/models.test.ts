@@ -29,6 +29,12 @@ describe("native model discovery", () => {
       expect(await configuredHarnessModel("opencode", home)).toBeUndefined();
     } finally { await rm(home, { recursive: true, force: true }); }
   });
+  it("starts FX on the first model its CLI lists, and on libfx's own default when the CLI lists none or fails", async () => {
+    const listed = [{ id: "gpt-6.1-sol", name: "gpt-6.1-sol", efforts: [] }, { id: "gpt-6-luna", name: "gpt-6-luna", efforts: [] }];
+    expect(await configuredHarnessModel("fx", undefined, async () => listed)).toBe("gpt-6.1-sol");
+    expect(await configuredHarnessModel("fx", undefined, async () => [])).toBeUndefined();
+    expect(await configuredHarnessModel("fx", undefined, async () => { throw new Error("FX returned an invalid model catalog"); })).toBeUndefined();
+  });
   it("uses Pi's configured availability without exposing credentials or inventing effort support", async () => {
     thinkingLevels.mockReturnValueOnce(["off", "high"]);
     const model = { provider: "custom", id: "reasoner", name: "Local reasoner", reasoning: true, apiKey: "private" };

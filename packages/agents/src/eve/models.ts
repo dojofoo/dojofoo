@@ -10,8 +10,11 @@ import { parse } from "smol-toml";
 import { agentRow, type AgentId, type ModelChoice } from "@dojofoo/protocol";
 import { readOnlyEnvironment } from "@dojofoo/harness/persona";
 
-/** Preserve the native CLI choice when the caller has not selected a model. */
-export async function configuredHarnessModel(harness: string, codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex")): Promise<string | undefined> {
+/** Preserve the native CLI choice when the caller has not selected a model. In-process libfx's own default belongs to the
+ *  gateway and fails on a subscription login, so FX starts on the first model the user's CLI lists for its active provider. */
+export async function configuredHarnessModel(harness: string, codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex"),
+  listFx = () => fxModels(AbortSignal.timeout(15_000))): Promise<string | undefined> {
+  if (harness === "fx") return (await listFx().catch(() => []))[0]?.id;
   if (harness !== "codex") return undefined;
   let source: string;
   try { source = await readFile(join(codexHome, "config.toml"), "utf8"); }
