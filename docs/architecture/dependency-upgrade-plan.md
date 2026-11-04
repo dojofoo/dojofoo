@@ -94,11 +94,11 @@ Each stage: one change, typecheck plus the existing offline/contract/cassette te
 | **A (recommended now)** | 1.0.153 | 1.0.155 | 1.0.67 | 1.0.67 | 1.0.91 | 1.0.153 | Keeps FX native logins; one release behind latest |
 | B | 1.0.154 | 1.0.156 | 1.0.68 | 1.0.69 | 1.0.92 | 1.0.154 | Latest; FX becomes Gateway-only |
 
-Recommendation: adopt Set A in `packages/harness`, `packages/authoring`, `packages/ui` **and** `packages/evals` (ends the separate eval stack). Revisit B when FX's direction is decided.
+Recommendation: adopt Set A in `packages/harness`, `packages/agents`, `packages/ui` **and** `packages/evals` (ends the separate eval stack). Revisit B when FX's direction is decided.
 
 Changes required with either set:
 
-- **Pi 1.x.** `harness-pi` 1.0.149+ depends on `@earendil-works/pi-coding-agent ^1.0.3`. Bump authoring's direct `pi-ai`/`pi-coding-agent` pins from 0.84.4 to 1.3.0. Replace `@earendil-works/pi-ai/compat` (marked "temporary… deleted") in `packages/authoring/src/eve/models.ts` with `@earendil-works/pi-ai/models`. Configuration paths are unchanged (`~/.pi/agent`, `auth.json`, `models.json`, session format v3 with auto-migration); the Azure provider key was renamed `azure-openai-responses` → `azure` (1.0.3). From harness-pi 1.0.154, MCP tools are named `mcp__<server>__<tool>`, and a non-`mcp` `toolPrefix` fails session start.
+- **Pi 1.x.** `harness-pi` 1.0.149+ depends on `@earendil-works/pi-coding-agent ^1.0.3`. Bump authoring's direct `pi-ai`/`pi-coding-agent` pins from 0.84.4 to 1.3.0. Replace `@earendil-works/pi-ai/compat` (marked "temporary… deleted") in `packages/agents/src/eve/models.ts` with `@earendil-works/pi-ai/models`. Configuration paths are unchanged (`~/.pi/agent`, `auth.json`, `models.json`, session format v3 with auto-migration); the Azure provider key was renamed `azure-openai-responses` → `azure` (1.0.3). From harness-pi 1.0.154, MCP tools are named `mcp__<server>__<tool>`, and a non-`mcp` `toolPrefix` fails session start.
 - **Sandbox API deprecations.** Move `sandbox:` / `createJustBashSandbox` to `createJustBashNetworkSandboxSession` + `createSession({ sandboxSession })` in `learner-fixtures.ts`, `learner-response.ts` and evals. `HarnessV1NetworkSandboxSession` is unchanged, so `local-sandbox.ts` should compile — verify.
 - **Harness state directory** moved to `~/.ai-sdk-harness` under the sandbox's HOME. With our local sandbox this is probably the real user home — confirm and decide before shipping.
 - **OpenCode patch** re-diffed against the new bundle (see patch table).
@@ -132,7 +132,7 @@ The largest change; do it after stages 1–4 so it is the only moving part.
 Required changes:
 
 - Rebase all three Eve patches onto the restructured files; drop the web-search part of `eve@0.53.0.patch`.
-- Pass `resume: true` to `createDevelopmentServer` in `packages/authoring/src/eve/runtime.ts:56`. Since 0.68 a restart otherwise leaves earlier sessions dormant.
+- Pass `resume: true` to `createDevelopmentServer` in `packages/agents/src/eve/runtime.ts:56`. Since 0.68 a restart otherwise leaves earlier sessions dormant.
 - Client/stream API: the default store returns `ConversationState` (0.70); stream protocol 26 rejects older clients. Kyoshi has no stream or resume adapter of its own: the browser's `useEveAgent` reaches the per-course Eve production server through the agent-api session proxy (`/api/v1/workspaces/:ws/sessions/:id/eve/*`).
 - Tool renames: `load_skill` → `eve__skill`, `final_output` → `eve__reply`, `task_*` → `eve__task_*`; the `eve__` prefix is reserved (`host-agent.fixture.ts:41`, a comment in `prepare.ts`).
 - `defineAgent` lost `outputSchema` (0.67); request structured output per turn.

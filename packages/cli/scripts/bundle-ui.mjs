@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = resolve(packageRoot, "../../packages/ui/.output");
 const destination = resolve(packageRoot, "dist/ui");
-const templateSource = resolve(packageRoot, "../../packages/authoring/templates");
+const templateSource = resolve(packageRoot, "../../packages/agents/templates");
 const templateDestination = resolve(packageRoot, "dist/templates");
 
 if (!existsSync(resolve(source, "server/index.mjs"))) {

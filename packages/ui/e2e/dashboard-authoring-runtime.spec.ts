@@ -10,7 +10,7 @@ for (const entry of ["installed", "dashboard"] as const) test(entry === "install
   : "the built dashboard creates two independent native authoring drafts and resumes them after restart", async ({ page }) => {
   test.skip(process.env.DOJO_AUTHORING_RUNTIME_E2E !== "1", "Opt-in native runtime; inference is loopback only.");
   test.setTimeout(300_000);
-  const fixture = fork(fileURLToPath(new URL("../../authoring/src/eve/browser.fixture.mjs", import.meta.url)), [], {
+  const fixture = fork(fileURLToPath(new URL("../../agents/src/eve/browser.fixture.mjs", import.meta.url)), [], {
     stdio: ["ignore", "pipe", "pipe", "ipc"], env: { ...process.env, DOJO_AUTHORING_ENTRY_FIXTURE: "1", DOJO_AUTHORING_REQUEST_LOG: test.info().outputPath("inference-requests.json") },
   });
   let logs = "";

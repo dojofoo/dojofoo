@@ -493,7 +493,7 @@ conversation on its first prompt, so an unused checkpoint has no native session
 ID. This check does **not** establish their recovery after a real conversation,
 tool use, or model access.
 
-Tier-A conformance (`packages/authoring/src/eve/conformance.test.ts`) runs every
+Tier-A conformance (`packages/agents/src/eve/conformance.test.ts`) runs every
 registry row with an adapter except Cursor: Claude Code, Codex, Grok, OpenCode, FX
 and Pi, each with its adapter's own pinned CLI and an isolated home. Its
 harness-level cases run each adapter at the HarnessAgent level against loopback

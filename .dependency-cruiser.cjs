@@ -1,12 +1,12 @@
 // Package dependency direction (docs/designs/agent-runtime.md, "Packages and dependency direction"):
-// protocol <- harness <- agents (authoring) <- (ui server, cli). Each exemption names the
+// protocol <- harness <- agents <- (ui server, cli). Each exemption names the
 // step of the design's roadmap that removes it.
 const exempt = (...files) => files.map(file => `^${file.replaceAll(".", "\\.")}$`);
 const relativeExemptions = exempt(
-  "packages/authoring/src/eve/browser.fixture.mjs",              // loopback: step 8
-  "packages/authoring/src/eve/conformance.fixture.ts",           // loopback model: step 8
-  "packages/authoring/src/eve/pi-workspace.test.ts",             // loopback model: step 8
-  "packages/authoring/src/eve/runtime-turn.test.ts",             // loopback model: step 8
+  "packages/agents/src/eve/browser.fixture.mjs",              // loopback: step 8
+  "packages/agents/src/eve/conformance.fixture.ts",           // loopback model: step 8
+  "packages/agents/src/eve/pi-workspace.test.ts",             // loopback model: step 8
+  "packages/agents/src/eve/runtime-turn.test.ts",             // loopback model: step 8
   "packages/cli/test/starter-courses.test.ts",                   // permanent: checks starters with the UI's parser
   "packages/uix/.storybook/language-api.ts",                     // permanent: Storybook dev server only
 );
@@ -23,10 +23,10 @@ module.exports = {
       to: { dependencyTypes: ["local"], path: "^packages/", pathNot: "^packages/$1/" } },
     { name: "protocol-is-a-leaf", severity: "error", from: { path: "^packages/protocol/" }, to: { path: "^packages/(?!protocol/)" } },
     { name: "harness-imports-no-persona", severity: "error", from: { path: "^packages/harness/" },
-      to: { path: "^packages/(authoring|ui|cli|evals|uix|avatar)/" } },
+      to: { path: "^packages/(agents|ui|cli|evals|uix|avatar)/" } },
     { name: "harness-reads-only-agent-installations-from-config", severity: "error", from: { path: "^packages/harness/" },
       to: { path: "^packages/config/", pathNot: "^packages/config/(src|dist)/agent-installations\\.(ts|js)$" } },
-    { name: "agents-below-ui-and-cli", severity: "error", from: { path: "^packages/authoring/" }, to: { path: "^packages/(ui|cli|evals|uix)/" } },
+    { name: "agents-below-ui-and-cli", severity: "error", from: { path: "^packages/agents/" }, to: { path: "^packages/(ui|cli|evals|uix)/" } },
     { name: "config-depends-on-protocol-only", severity: "error", from: { path: "^packages/config/" }, to: { path: "^packages/(?!config/|protocol/)" } },
     { name: "uix-depends-on-protocol-only", severity: "error",
       from: { path: "^packages/uix/", pathNot: exempt("packages/uix/.storybook/language-api.ts") }, to: { path: "^packages/(?!uix/|protocol/)" } },
@@ -36,7 +36,7 @@ module.exports = {
     { name: "harness-closed-surface-in-tests", severity: "error", from: { path: testFiles.map(file => `^packages/(ui|cli)/.*${file}`) },
       to: { path: "^packages/harness/", pathNot: [closedSet, testEntries] } },
     { name: "harness-test-entries", severity: "error",
-      from: { path: "^packages/", pathNot: ["^packages/harness/", "^packages/authoring/scripts/", "^packages/evals/", ...testFiles] },
+      from: { path: "^packages/", pathNot: ["^packages/harness/", "^packages/agents/scripts/", "^packages/evals/", ...testFiles] },
       to: { path: testEntries } },
     // An entry point that is gone fails here too in the untyped .mjs scripts. The harness's experiments import packed packages; the
     // session API's fixture Eve project reaches the harness only through the link its run folder gets (startEve)

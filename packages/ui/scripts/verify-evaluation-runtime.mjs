@@ -26,7 +26,7 @@ const marker = "SENSEI-GUIDANCE-MARKER";
 const reviewReply = "REVIEW-REPLY: I start the total at zero so an empty list sums to nothing.";
 
 // Each role is told by the first sentence of its prompt file (the judges' prompts are whole, so they carry theirs in the prompt)
-const firstSentence = async name => (await readFile(join(repo, "packages/authoring/src/evaluation/prompts", name), "utf8")).split("\n")[0].split(". ")[0];
+const firstSentence = async name => (await readFile(join(repo, "packages/agents/src/evaluation/prompts", name), "utf8")).split("\n")[0].split(". ")[0];
 const roles = {
   judge: [await firstSentence("MATERIAL-JUDGE.md"), await firstSentence("TEACHING-JUDGE.md")],
   fixture: await firstSentence("FIXTURE-GENERATOR.md"),

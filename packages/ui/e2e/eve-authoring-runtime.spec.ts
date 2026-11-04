@@ -11,7 +11,7 @@ test("the starter tutorial creates an independent draft, trials it and returns a
   test.skip(process.env.DOJO_AUTHORING_RUNTIME_E2E !== "1", "Requires local OpenCode and built @dojofoo/harness");
   test.setTimeout(300_000);
   context.setDefaultTimeout(30_000);
-  const fixture = fork(fileURLToPath(new URL("../../authoring/src/eve/browser.fixture.mjs", import.meta.url)), [], {
+  const fixture = fork(fileURLToPath(new URL("../../agents/src/eve/browser.fixture.mjs", import.meta.url)), [], {
     stdio: ["ignore", "pipe", "pipe", "ipc"], execArgv: [],
     env: { ...process.env, DOJO_AUTHORING_REQUEST_LOG: test.info().outputPath("inference-requests.json") },
   });

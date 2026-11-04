@@ -122,13 +122,13 @@ describe("authoring routes", () => {
       for (const trial of context.trialRoots) rmSync(trial, { recursive: true, force: true });
       rmSync(root, { recursive: true, force: true });
     });
-    cpSync(resolve(repository, "packages/authoring/templates/katas"), context.root, {
+    cpSync(resolve(repository, "packages/agents/templates/katas"), context.root, {
       recursive: true,
       filter: (source) => !source.includes("/.dojo/")
         && !source.endsWith("/node_modules")
         && !source.includes("/node_modules/"),
     });
-    const installed = resolve(repository, "packages/authoring/templates/katas/node_modules");
+    const installed = resolve(repository, "packages/agents/templates/katas/node_modules");
     if (existsSync(installed)) {
       symlinkSync(installed, resolve(context.root, "node_modules"), "dir");
     }

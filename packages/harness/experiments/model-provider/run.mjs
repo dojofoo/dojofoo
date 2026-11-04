@@ -10,7 +10,7 @@ const root = await realpath(await mkdtemp(join(tmpdir(), "dojo-unpatched-provide
 const cliOnly = process.argv.includes("--cli-only");
 const hostOnly = process.argv.includes("--host-only");
 const versions = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8"));
-const authoringVersions = JSON.parse(await readFile(new URL("../../../authoring/package.json", import.meta.url), "utf8"));
+const authoringVersions = JSON.parse(await readFile(new URL("../../../agents/package.json", import.meta.url), "utf8"));
 const run = (command, args) => new Promise((resolve, reject) => {
   const child = spawn(command, args, {
     cwd: root, stdio: "inherit", env: { ...process.env, NODE_OPTIONS: "" },
@@ -50,7 +50,7 @@ try {
   assert.ok(packed.files.every(({ path }) => path.startsWith("dist/") || path.startsWith("patches/") || ["package.json", "README.md"].includes(path)));
   assert.ok(packed.files.some(({ path }) => path === `patches/eve@${versions.devDependencies.eve}.patch`));
   const localPackages = { "@dojofoo/harness": `file:${packed.filename}` };
-  for (const name of ["authoring", "config", "protocol"]) {
+  for (const name of ["agents", "config", "protocol"]) {
     const artifact = JSON.parse(execFileSync("pnpm", ["pack", "--json", "--pack-destination", root], {
       cwd: fileURLToPath(new URL(`../../../${name}/`, import.meta.url)), encoding: "utf8",
     }));

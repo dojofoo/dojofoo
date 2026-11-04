@@ -17,7 +17,7 @@ existing legacy prompt API. Initial selection and subsequent model changes use
 the same session and API; native defaults remain untouched when no model is set.
 Compaction already supplies its model to the legacy summarize API.
 
-Regression coverage: `kyoshi.harness.model-switch` in `packages/authoring/src/eve/conformance.test.ts`,
+Regression coverage: `kyoshi.harness.model-switch` in `packages/agents/src/eve/conformance.test.ts`,
 the OpenCode row, checks initial and changed models through the native agent.
 This is a dependency patch, not a replacement harness. Authoring bundles the
 tested adapter and its bridge assets so npm consumers receive the same fix;
@@ -32,7 +32,7 @@ published 1.0.173 bridge still mixes these APIs, so the compatibility patch rema
 `chmod 700 -- <folder>`. GNU `chmod` accepts that; macOS `chmod` reads the `--`
 after the mode as a file name and fails, so FX could not start a turn on a Mac
 without GNU coreutils. The patch writes `chmod -- 700 <folder>`, which both
-accept. Regression: `packages/authoring/src/eve/runtime-turn.test.ts`, the FX
+accept. Regression: `packages/agents/src/eve/runtime-turn.test.ts`, the FX
 case, run on macOS without coreutils. Remove it when upstream reorders the call.
 
 FX's file tools resolve every path with `realpath -mz`, and macOS `realpath`
@@ -42,7 +42,7 @@ and, where it fails, resolves the deepest existing folder with plain `realpath`
 and appends the missing rest. It stops at a symlink, so a dangling link fails
 the resolution instead of passing the workspace check (1.0.89 still has the
 GNU-only call). Regression: `kyoshi.harness.native-write` in
-`packages/authoring/src/eve/conformance.test.ts`, the FX row, run on macOS.
+`packages/agents/src/eve/conformance.test.ts`, the FX row, run on macOS.
 Remove it when upstream resolves paths portably.
 
 The CLI package bundles the patched FX adapter and the patched ACP bridge
@@ -64,7 +64,7 @@ fields. Both bridge copies (`dist/bridge`, `dist/v1/bridge`) carry it; authoring
 prepared servers bundle the patched package.
 
 Regression: `sensei.evaluation.trial-loopback` in
-`packages/authoring/src/eve/conformance.test.ts`, the Grok row (the second
+`packages/agents/src/eve/conformance.test.ts`, the Grok row (the second
 message opens Eve's budget prompt). Remove it when Grok Build sets the
 response's `usage` or the bridge reads Grok's `_meta.usage` itself.
 

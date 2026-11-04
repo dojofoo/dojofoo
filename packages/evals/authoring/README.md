@@ -29,7 +29,7 @@ taught the last selected lesson, rather than observing both lesson dialogues.
 The new `priorLessons: "teach"` path requires evidence for each lesson and has
 not yet completed the two fresh live runs required by the current goal.
 See the smaller calibration and production checks in
-`packages/authoring/src/evaluation/fixtures/README.md` before repeating full runs.
+`packages/agents/src/evaluation/fixtures/README.md` before repeating full runs.
 
 ## Earlier investigations (historical)
 
@@ -231,13 +231,13 @@ eval bundle. (Eve rejects `?raw` imports from outside the generated app.)
 
 | Role | Files |
 | --- | --- |
-| Kyoshi core | `packages/authoring/src/contracts/KYOSHI.md`, `NATIVE-HARNESS.md` |
-| Kyoshi skills | `packages/authoring/skills/<skill>/SKILL.md` (+ `DOJO.tmpl`, `SENSEI.tmpl`): `lesson-design`, `kata-lessons`, `teaching-evals` |
-| Sensei platform / style | `packages/authoring/src/sensei/contracts/DOJOFOO.md`, `KATAS.md` |
-| Sensei hidden turns | `packages/authoring/src/sensei/contracts/TURNS.md` |
-| Judges | `packages/authoring/src/evaluation/prompts/{CRITERIA,VERDICT,BOUNDARY,MATERIAL-JUDGE,TEACHING-JUDGE}.md` |
-| Simulated learner | `packages/authoring/src/evaluation/prompts/{LEARNER,LEARNER-SCRIPT,FIXTURE-GENERATOR}.md` |
-| Suite briefs / chain judge | `packages/authoring/src/evaluation/prompts/suites/{BRIEFS,CHAIN-JUDGE,AUTOEVALS}.md` |
+| Kyoshi core | `packages/agents/src/contracts/KYOSHI.md`, `NATIVE-HARNESS.md` |
+| Kyoshi skills | `packages/agents/skills/<skill>/SKILL.md` (+ `DOJO.tmpl`, `SENSEI.tmpl`): `lesson-design`, `kata-lessons`, `teaching-evals` |
+| Sensei platform / style | `packages/agents/src/sensei/contracts/DOJOFOO.md`, `KATAS.md` |
+| Sensei hidden turns | `packages/agents/src/sensei/contracts/TURNS.md` |
+| Judges | `packages/agents/src/evaluation/prompts/{CRITERIA,VERDICT,BOUNDARY,MATERIAL-JUDGE,TEACHING-JUDGE}.md` |
+| Simulated learner | `packages/agents/src/evaluation/prompts/{LEARNER,LEARNER-SCRIPT,FIXTURE-GENERATOR}.md` |
+| Suite briefs / chain judge | `packages/agents/src/evaluation/prompts/suites/{BRIEFS,CHAIN-JUDGE,AUTOEVALS}.md` |
 
 Tests pin composition (every file shipped, every criterion defined once, no
 unfilled slots), never sentences. Wording is judged by live evals. Changing a

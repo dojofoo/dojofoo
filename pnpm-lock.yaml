@@ -241,7 +241,7 @@ importers:
         specifier: ^4.1.1
         version: 4.1.1
 
-  packages/authoring:
+  packages/agents:
     dependencies:
       '@ai-sdk/harness':
         specifier: 1.0.170
@@ -348,7 +348,7 @@ importers:
     dependencies:
       '@dojofoo/authoring':
         specifier: workspace:*
-        version: link:../authoring
+        version: link:../agents
       '@dojofoo/config':
         specifier: workspace:*
         version: link:../config
@@ -429,7 +429,7 @@ importers:
         version: 1.0.170(ws@8.22.0)(zod@4.6.7)
       '@dojofoo/authoring':
         specifier: workspace:*
-        version: link:../authoring
+        version: link:../agents
       '@dojofoo/config':
         specifier: workspace:*
         version: link:../config
@@ -563,7 +563,7 @@ importers:
         version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@dojofoo/authoring':
         specifier: workspace:*
-        version: link:../authoring
+        version: link:../agents
       '@dojofoo/avatar':
         specifier: workspace:*
         version: link:../avatar
