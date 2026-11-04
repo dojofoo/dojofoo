@@ -2,7 +2,7 @@ import type * as acp from "@agentclientprotocol/sdk";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
-import type { HarnessAdapter } from "./adapter";
+import type { AcpAgentConnection, HarnessAdapter } from "./adapter";
 
 export function opencodeRuntimeEnvironment(
   developerInstructions: string,
@@ -72,7 +72,7 @@ function configuredModel(environment: NodeJS.ProcessEnv = process.env): string |
 }
 
 export async function configureOpenCodeSessionModel(
-  connection: acp.ClientSideConnection,
+  connection: AcpAgentConnection,
   sessionId: string,
   modelId: string,
 ): Promise<acp.SessionConfigOption[] | undefined> {

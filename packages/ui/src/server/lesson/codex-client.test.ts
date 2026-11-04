@@ -1,5 +1,5 @@
 import type { SessionNotification } from "@agentclientprotocol/sdk";
-import { AgentSideConnection, ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
+import { agent as acpAgent, methods, ndJsonStream, PROTOCOL_VERSION, type InitializeRequest } from "@agentclientprotocol/sdk";
 import * as childProcess from "node:child_process";
 import { EventEmitter } from "node:events";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -83,14 +83,10 @@ describe("AcpClient projection", () => {
       kill: () => { stdin.end(); stdout.end(); stderr.end(); return true; },
     });
     const spawn = vi.mocked(childProcess.spawn).mockReturnValue(child as unknown as childProcess.ChildProcess);
-    const initialized = vi.fn(() => ({ protocolVersion: PROTOCOL_VERSION, agentCapabilities: {} }));
-    const agent = new AgentSideConnection(() => ({
-      initialize: initialized,
-      authenticate: async () => ({}),
-      newSession: async () => ({ sessionId: "session-1" }),
-      prompt: async () => ({ stopReason: "end_turn" as const }),
-      cancel: async () => {},
-    }), ndJsonStream(Writable.toWeb(stdout), Readable.toWeb(stdin) as unknown as ReadableStream<Uint8Array>));
+    const initialized = vi.fn((_request: InitializeRequest) => ({ protocolVersion: PROTOCOL_VERSION, agentCapabilities: {} }));
+    const agent = acpAgent()
+      .onRequest(methods.agent.initialize, ({ params }) => initialized(params))
+      .connect(ndJsonStream(Writable.toWeb(stdout), Readable.toWeb(stdin) as unknown as ReadableStream<Uint8Array>)).client;
     const client = new AcpClient();
     const internals = client as unknown as {
       initialize(key: string, runtime: unknown): Promise<void>;
@@ -111,7 +107,7 @@ describe("AcpClient projection", () => {
           _meta: expect.objectContaining({ terminal_output_delta: true }),
         }),
       }));
-      const answer = agent.createElicitation({
+      const answer = agent.request(methods.client.elicitation.create, {
         sessionId: "session-1", mode: "form", message: "Review?",
         requestedSchema: { type: "object", properties: { reply: { type: "string" } }, required: ["reply"] },
       });
@@ -388,7 +384,7 @@ describe("AcpClient projection", () => {
     const connection = {
       setSessionConfigOption: vi.fn().mockRejectedValue(new Error("Method not found")),
       request,
-    } as unknown as import("@agentclientprotocol/sdk").ClientSideConnection;
+    } as unknown as import("../harness/adapter").AcpAgentConnection;
 
     await configureOpenCodeSessionModel(connection, "session-1", "openai/codex-mini-latest");
 
@@ -606,7 +602,7 @@ describe("AcpClient projection", () => {
   it("surfaces ACP permission requests through the existing question UI", async () => {
     const client = new AcpClient();
     const promise = (client as unknown as {
-      requestPermission(value: Parameters<NonNullable<import("@agentclientprotocol/sdk").Client["requestPermission"]>>[0]): Promise<import("@agentclientprotocol/sdk").RequestPermissionResponse>;
+      requestPermission(value: import("@agentclientprotocol/sdk").RequestPermissionRequest): Promise<import("@agentclientprotocol/sdk").RequestPermissionResponse>;
     }).requestPermission({
       sessionId: "session-1",
       toolCall: { toolCallId: "tool-1", title: "Run tests" },
@@ -622,7 +618,7 @@ describe("AcpClient projection", () => {
     const parts: AcpStreamPart[] = [];
     (client as unknown as { callbacks: Map<string, (part: AcpStreamPart) => void> }).callbacks.set("session-1", part => parts.push(part));
     const promise = (client as unknown as {
-      requestPermission(value: Parameters<NonNullable<import("@agentclientprotocol/sdk").Client["requestPermission"]>>[0]): Promise<import("@agentclientprotocol/sdk").RequestPermissionResponse>;
+      requestPermission(value: import("@agentclientprotocol/sdk").RequestPermissionRequest): Promise<import("@agentclientprotocol/sdk").RequestPermissionResponse>;
     }).requestPermission({ sessionId: "session-1", toolCall: { toolCallId: "native-running-tool", title: "Read context" },
       options: [{ optionId: "once", name: "Allow once", kind: "allow_once" }] });
     const question = parts.find(part => part.type === "tool-input-start");
@@ -635,7 +631,7 @@ describe("AcpClient projection", () => {
   it.each(["once", "always", "reject", "unknown"])("returns the advertised opaque permission choice %s", async selected => {
     const client = new AcpClient();
     const promise = (client as unknown as {
-      requestPermission(value: Parameters<NonNullable<import("@agentclientprotocol/sdk").Client["requestPermission"]>>[0]): Promise<import("@agentclientprotocol/sdk").RequestPermissionResponse>;
+      requestPermission(value: import("@agentclientprotocol/sdk").RequestPermissionRequest): Promise<import("@agentclientprotocol/sdk").RequestPermissionResponse>;
     }).requestPermission({ sessionId: "session-1", toolCall: { toolCallId: "tool-1", title: "Read lesson context" }, options: [
       { optionId: "once", name: "Allow once", kind: "allow_once" },
       { optionId: "always", name: "Always allow", kind: "allow_always" },

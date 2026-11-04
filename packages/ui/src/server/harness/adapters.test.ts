@@ -179,7 +179,7 @@ describe("ACP harness adapters", () => {
     const connection = {
       setSessionConfigOption: vi.fn().mockRejectedValue(new Error("Method not found")),
       request: vi.fn().mockRejectedValue(failure),
-    } as unknown as import("@agentclientprotocol/sdk").ClientSideConnection;
+    } as unknown as import("./adapter").AcpAgentConnection;
 
     await expect(configureOpenCodeSessionModel(connection, "session-1", "openai/codex"))
       .rejects.toBe(failure);

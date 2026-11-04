@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { Readable, Writable } from "node:stream";
-import type { HarnessAdapter, HarnessKind } from "../harness/adapter";
+import { acpAgentConnection, type AcpAgentConnection, type HarnessAdapter, type HarnessKind } from "../harness/adapter";
 import { harnessAdapter } from "../harness/registry";
 /** Host-authored turn starters from contracts/TURNS.md (`begin`, `checks-ran`);
  * never shown as learner messages. Kept free of Markdown imports so plain tsx
@@ -73,7 +73,7 @@ type RuntimeConfiguration = {
 interface AcpRuntime {
   adapter: HarnessAdapter;
   child: ReturnType<typeof spawn> | null;
-  connection: acp.ClientSideConnection | null;
+  connection: AcpAgentConnection | null;
   harness: HarnessKind;
   root: string;
   developerInstructions: string;
@@ -304,7 +304,7 @@ export class AcpClient {
   }
 
   private async promptWithInactivityTimeout(
-    connection: acp.ClientSideConnection,
+    connection: AcpAgentConnection,
     harness: HarnessKind,
     sessionId: string,
     prompt: acp.ContentBlock[],
@@ -433,7 +433,7 @@ export class AcpClient {
     return runtime;
   }
 
-  private async ensureRuntime(configuration: RuntimeConfiguration): Promise<acp.ClientSideConnection> {
+  private async ensureRuntime(configuration: RuntimeConfiguration): Promise<AcpAgentConnection> {
     let runtime = this.runtimes.get(configuration.runtimeKey);
     if (runtime && runtime.developerInstructions !== configuration.developerInstructions) {
       runtime.child?.kill();
@@ -503,11 +503,11 @@ export class AcpClient {
       Writable.toWeb(child.stdin),
       Readable.toWeb(child.stdout) as unknown as ReadableStream<Uint8Array>,
     );
-    const connection = new acp.ClientSideConnection(() => ({
-      requestPermission: (request) => this.requestPermission(request),
-      sessionUpdate: (notification) => this.sessionUpdate(notification),
-      createElicitation: (request) => this.createElicitation(request),
-    }), stream);
+    const connection = acpAgentConnection(acp.client()
+      .onRequest(acp.methods.client.session.requestPermission, ({ params }) => this.requestPermission(params))
+      .onNotification(acp.methods.client.session.update, ({ params }) => this.sessionUpdate(params))
+      .onRequest(acp.methods.client.elicitation.create, ({ params }) => this.createElicitation(params))
+      .connect(stream).agent);
     runtime.connection = connection;
     const initialized = await connection.initialize({
       protocolVersion: acp.PROTOCOL_VERSION,
