@@ -36,6 +36,7 @@ jobs:
       - run: pnpm --filter @dojofoo/api test
       - run: pnpm --filter @dojofoo/uix types:check
       - run: pnpm --filter @dojofoo/uix test
+      - run: pnpm --filter @dojofoo/protocol test
       - run: pnpm --filter @dojofoo/web types:check
       - run: pnpm build
       - run: pnpm --filter @dojofoo/ui types:check

@@ -86,3 +86,6 @@ export function formatLessonContext(context: DojoLessonContext): string {
 
 export type LessonCapabilityMethod = (typeof lessonCapabilities)[LessonCapability]["method"];
 export type LessonCapabilityTool = (typeof lessonCapabilities)[LessonCapability]["tool"];
+
+export * from "./agents.js";
+export * from "./personas.js";

@@ -15,6 +15,7 @@ node_modules
 packages/cli/dist/
 packages/cli/.package/
 packages/config/dist/
+packages/protocol/dist/
 packages/authoring/dist/
 packages/authoring/agents/*/.eve/
 packages/authoring/agents/*/runtime.json
