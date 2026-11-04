@@ -179,6 +179,26 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     assert.match((await send(restored, "Read authoring note")).history.at(-1).output.content, /Authored in the editor/);
     await send(restored, "Write authoring note");
     assert.equal(await readFile(join(course, "note.md"), "utf8"), "Edited by Kyoshi.\n");
+    stage = "native file changes";
+    const nativeFile = join(course, "native.md");
+    const native = (op, extra = {}) => `Native fs ${JSON.stringify({ op, path: nativeFile, ...extra })}`;
+    assert.deepEqual((await send(restored, native("create", { content: "Created natively.\n" }))).history.at(-1), { native: "create", path: nativeFile });
+    assert.equal(await readFile(nativeFile, "utf8"), "Created natively.\n");
+    await send(restored, native("write", { content: "Changed natively.\n" }));
+    assert.equal(await readFile(nativeFile, "utf8"), "Changed natively.\n");
+    await send(restored, native("delete"));
+    await assert.rejects(readFile(nativeFile, "utf8"), { code: "ENOENT" });
+    const parkedNative = await (await restored.send(native("create", { content: "Written while parked.\n", after: "suspend" }),
+      { signal: AbortSignal.timeout(60_000) })).result();
+    assert.equal(parkedNative.status, "awaiting-input", JSON.stringify(parkedNative));
+    for (const deadline = Date.now() + 5000; Date.now() < deadline;) {
+      if (await readFile(nativeFile, "utf8").catch(() => undefined)) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    assert.equal(await readFile(nativeFile, "utf8"), "Written while parked.\n");
+    const continuedNative = await (await restored.respond([{ interactionId: parkedNative.interactions[0].interactionId, optionId: "Continue" }],
+      { signal: AbortSignal.timeout(60_000) })).result();
+    assert.equal(continuedNative.status, "completed", JSON.stringify(continuedNative));
     await writeFile(join(course, "note.md"), "Edited again by the human.\n");
     await server.close();
     server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });
