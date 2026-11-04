@@ -38,7 +38,7 @@ export function ChatCassettePlayer({
   autoPlay?: boolean;
   cassette: string;
   onAnswer?: (answers: Record<string, AskUserAnswer>) => void;
-  onComplete?: (messages: UIMessage[]) => void;
+  onComplete?: (messages: readonly UIMessage[]) => void;
   onFrame?: (frame: ChatCassetteFrame, index: number) => void;
   speed?: number;
 }) {
@@ -47,7 +47,7 @@ export function ChatCassettePlayer({
   const prompt = frames.find((frame) => frame.prompt !== undefined)?.prompt ?? "Replay this interaction.";
   const replayStartedAt = useRef(Date.now());
   const { viewportRef, scrollToBottom } = useChatScroll();
-  const messagesRef = useRef<UIMessage[]>([]);
+  const messagesRef = useRef<readonly UIMessage[]>([]);
   const connection = useMemo(() => stream(async function* () {
     for (const [index, frame] of frames.entries()) {
       if (!frame.chunk) continue;

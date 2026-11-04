@@ -6,7 +6,7 @@ export type AnchoredChatEvent = {
 };
 
 /** Merge host-owned events into the agent transcript without transferring ownership. */
-export function projectChatTimeline(messages: UIMessage[], events: AnchoredChatEvent[]): UIMessage[] {
+export function projectChatTimeline(messages: readonly UIMessage[], events: AnchoredChatEvent[]): UIMessage[] {
   const projected: UIMessage[] = [];
   const remaining = new Map(events.map((event) => [event.message.id, event]));
   for (const message of messages) {

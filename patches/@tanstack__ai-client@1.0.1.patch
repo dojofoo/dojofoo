@@ -1,8 +1,8 @@
 diff --git a/dist/esm/chat-client.js b/dist/esm/chat-client.js
-index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..ddb8a7ec6c6fd337e29998c307cfff4e0f42f25b 100644
+index 1ce5415..a8abeeb 100644
 --- a/dist/esm/chat-client.js
 +++ b/dist/esm/chat-client.js
-@@ -1122,6 +1122,7 @@ var ChatClient = class {
+@@ -1192,6 +1192,7 @@ var ChatClient = class {
  		(async () => {
  			let rebuilt = false;
  			let attached = false;
@@ -10,7 +10,7 @@ index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..ddb8a7ec6c6fd337e29998c307cfff4e
  			let refused = false;
  			const connectTimer = setTimeout(() => {
  				if (!attached) controller.abort();
-@@ -1138,9 +1139,11 @@ var ChatClient = class {
+@@ -1208,9 +1209,11 @@ var ChatClient = class {
  						this.dropTrailingInFlightAssistant();
  					}
  					this.processIncomingChunk(chunk);
@@ -22,7 +22,7 @@ index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..ddb8a7ec6c6fd337e29998c307cfff4e
  				const isAbort = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
  				if (!attached && !isAbort) refused = true;
  				if (attached && !isAbort) this.reportStreamError(error instanceof Error ? error : new Error(String(error)));
-@@ -1155,6 +1158,7 @@ var ChatClient = class {
+@@ -1225,6 +1228,7 @@ var ChatClient = class {
  					this.setIsLoading(false);
  					if (this.status === "streaming") this.setStatus("ready");
  					await this.drainPostStreamActions();
@@ -30,11 +30,11 @@ index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..ddb8a7ec6c6fd337e29998c307cfff4e
  				}
  			}
  		})();
-@@ -1302,11 +1306,19 @@ var ChatClient = class {
+@@ -1373,11 +1377,19 @@ var ChatClient = class {
  	async sendMessage(content, body, sendOptions) {
  		this.mountDevtools();
  		if (typeof content === "string" && !content.trim()) return;
--		if (this.hasPendingInterrupts()) throw new Error("ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.");
+-		if (this.hasPendingInterrupts()) throw new Error("ChatClient: cannot send normal input while pending interrupts exist. Resolve the interrupts first.");
  		const resolvedBody = {
  			...body,
  			...sendOptions?.body
@@ -46,12 +46,12 @@ index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..ddb8a7ec6c6fd337e29998c307cfff4e
 +				this.enqueueMessage(content, resolvedBody, id);
 +				return;
 +			}
-+			throw new Error("ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.");
++			throw new Error("ChatClient: cannot send normal input while pending interrupts exist. Resolve the interrupts first.");
 +		}
  		if (this.isSendBusy()) {
  			const { action, id } = this.decideWhenBusy(content, sendOptions);
  			if (action === "drop") return;
-@@ -1570,7 +1582,7 @@ var ChatClient = class {
+@@ -1640,7 +1652,7 @@ var ChatClient = class {
  					this.rememberProcessorMessageIds();
  					if (this.status !== "ready") this.setStatus("ready");
  					if (!this.messageQueueDraining) await this.drainQueue();
@@ -60,7 +60,7 @@ index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..ddb8a7ec6c6fd337e29998c307cfff4e
  			}
  		}
  		return streamCompletedSuccessfully;
-@@ -1924,7 +1936,7 @@ var ChatClient = class {
+@@ -1980,7 +1992,7 @@ var ChatClient = class {
  	* by control-flow analysis.
  	*/
  	shouldAbortMessageQueueDrain() {
@@ -69,7 +69,7 @@ index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..ddb8a7ec6c6fd337e29998c307cfff4e
  	}
  	/**
  	* Deliver queued messages after a successful settle.
-@@ -1937,7 +1949,7 @@ var ChatClient = class {
+@@ -1993,7 +2005,7 @@ var ChatClient = class {
  	* busy/queue policy (which would re-queue items and strand the rest).
  	*/
  	async drainQueue() {
@@ -79,10 +79,10 @@ index bae9ddd81aec77c2fb56b7a73b8fd487d9bc1c1b..ddb8a7ec6c6fd337e29998c307cfff4e
  		this.stopMessageQueueDrain = false;
  		try {
 diff --git a/src/chat-client.ts b/src/chat-client.ts
-index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae794e5bdc 100644
+index 3085d2f..cf41c3f 100644
 --- a/src/chat-client.ts
 +++ b/src/chat-client.ts
-@@ -2073,6 +2073,7 @@ export class ChatClient<
+@@ -2148,6 +2148,7 @@ export class ChatClient<
      void (async () => {
        let rebuilt = false
        let attached = false
@@ -90,7 +90,7 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae
        // Whether the join FAILED (a thrown non-abort error before any chunk), as
        // opposed to merely not delivering in time. Only a failure proves the
        // pointer dead — see the `finally`.
-@@ -2092,6 +2093,7 @@ export class ChatClient<
+@@ -2167,6 +2168,7 @@ export class ChatClient<
              this.dropTrailingInFlightAssistant()
            }
            this.processIncomingChunk(chunk)
@@ -98,7 +98,7 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae
          }
          // Same contract as `streamResponse`: client tools may finish (and
          // queue a resume) while `isLoading` is still true. Wait for them
-@@ -2100,6 +2102,7 @@ export class ChatClient<
+@@ -2175,6 +2177,7 @@ export class ChatClient<
            await Promise.all(this.pendingToolExecutions.values())
          }
        } catch (error) {
@@ -106,7 +106,7 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae
          // Pre-attach failures (unknown/evicted run, connect deadline abort)
          // stay soft: keep the restored transcript. Post-attach transport/parser
          // failures are real stream errors and must surface so the UI is not
-@@ -2141,6 +2144,7 @@ export class ChatClient<
+@@ -2216,6 +2219,7 @@ export class ChatClient<
            this.setIsLoading(false)
            if (this.status === 'streaming') this.setStatus('ready')
            await this.drainPostStreamActions()
@@ -114,7 +114,7 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae
          }
        }
      })()
-@@ -2346,14 +2350,19 @@ export class ChatClient<
+@@ -2422,14 +2426,19 @@ export class ChatClient<
      if (emptyMessage) {
        return
      }
@@ -127,7 +127,7 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae
 +        return
 +      }
        throw new Error(
-         'ChatClient: cannot send normal input while pending interrupts exist. Use resumeInterrupts() instead.',
+         'ChatClient: cannot send normal input while pending interrupts exist. Resolve the interrupts first.',
        )
      }
  
@@ -136,7 +136,7 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae
      if (this.isSendBusy()) {
        const { action, id } = this.decideWhenBusy(content, sendOptions)
        if (action === 'drop') {
-@@ -2831,11 +2840,10 @@ export class ChatClient<
+@@ -2904,11 +2913,10 @@ export class ChatClient<
            if (!this.messageQueueDraining) {
              await this.drainQueue()
            }
@@ -152,7 +152,7 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae
            this.flushQueue()
          }
        }
-@@ -3409,7 +3417,7 @@ export class ChatClient<
+@@ -3437,7 +3445,7 @@ export class ChatClient<
     * by control-flow analysis.
     */
    private shouldAbortMessageQueueDrain(): boolean {
@@ -161,7 +161,7 @@ index a94a3d3b0e81a29c3ed7670cc708900d2790cad3..d4578e42ffd2a1145be8e5dfa1e3e1ae
    }
  
    /**
-@@ -3429,6 +3437,7 @@ export class ChatClient<
+@@ -3457,6 +3465,7 @@ export class ChatClient<
      if (
        this.messageQueueDraining ||
        this.isLoading ||

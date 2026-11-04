@@ -255,7 +255,7 @@ export function LessonPage({ initialLesson, requestedCourseId, requestedLessonId
     setModelNotice(`Sensei now uses ${codingAgents.find(agent => agent.value === agentId)?.name ?? agentId} in this workspace.`);
     setConversationAttempt(attempt => attempt + 1);
   } });
-  const messagesRef = useRef<UIMessage[]>([]);
+  const messagesRef = useRef<readonly UIMessage[]>([]);
   const forwardedProps = useRef<Record<string, unknown>>({});
   const sessionSocket = useRef<WebSocket | null>(null);
   const undoEditor = useRef<(() => boolean) | null>(null);

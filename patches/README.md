@@ -8,7 +8,7 @@ removing them from a new one.
 
 ## Chat queue during questions
 
-`@tanstack/ai-client@0.39.3` rejects normal messages before applying its queue
+`@tanstack/ai-client@1.0.1` rejects normal messages before applying its queue
 policy when an interrupt is pending. Its drain also starts queued messages while
 the question still owns the next turn. The patch applies the configured queue
 policy and holds that same native queue until the interrupt is resolved. It does
