@@ -3,10 +3,10 @@
 // step of the design's roadmap that removes it.
 const exempt = (...files) => files.map(file => `^${file.replaceAll(".", "\\.")}$`);
 const relativeExemptions = exempt(
-  "packages/agents/src/eve/browser.fixture.mjs",              // loopback: step 8
-  "packages/agents/src/eve/conformance.fixture.ts",           // loopback model: step 8
-  "packages/agents/src/eve/pi-workspace.test.ts",             // loopback model: step 8
-  "packages/agents/src/eve/runtime-turn.test.ts",             // loopback model: step 8
+  "packages/agents/src/eve/browser.fixture.mjs",                 // permanent: the loopback model is a harness experiment outside `files` (step 2 plan, decision 14)
+  "packages/agents/src/eve/conformance.fixture.ts",              // permanent: the loopback model is a harness experiment outside `files` (step 2 plan, decision 14)
+  "packages/agents/src/eve/pi-workspace.test.ts",                // permanent: the loopback model is a harness experiment outside `files` (step 2 plan, decision 14)
+  "packages/agents/src/eve/runtime-turn.test.ts",                // permanent: the loopback model is a harness experiment outside `files` (step 2 plan, decision 14)
   "packages/cli/test/starter-courses.test.ts",                   // permanent: checks starters with the UI's parser
   "packages/uix/.storybook/language-api.ts",                     // permanent: Storybook dev server only
 );

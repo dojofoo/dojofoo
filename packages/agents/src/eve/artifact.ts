@@ -17,7 +17,8 @@ export async function agentSourceHash(agentRoot: string): Promise<string> {
   // The agent's own modules (local sandbox, harness model, …) change without a version bump during development
   const agentDist = dirname(require.resolve("@dojofoo/harness/adapters"));
   for (const file of (await readdir(agentDist)).filter(name => name.endsWith(".js")).sort()) hash.update(await readFile(join(agentDist, file)));
-  const { createOpenCode } = await import(require.resolve("@ai-sdk/harness-opencode"));
+  // The adapter the harness loads, resolved from the harness's own dependencies
+  const { createOpenCode } = await import(createRequire(require.resolve("@dojofoo/harness/package.json")).resolve("@ai-sdk/harness-opencode"));
   for (const file of (await createOpenCode().getBootstrap()).files) {
     hash.update(JSON.stringify([file.path, file.content.length]));
     hash.update(file.content);

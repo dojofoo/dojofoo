@@ -246,27 +246,6 @@ importers:
       '@ai-sdk/harness':
         specifier: 1.0.170
         version: 1.0.170(ws@8.21.0)(zod@4.6.7)
-      '@ai-sdk/harness-claude-code':
-        specifier: 1.0.174
-        version: 1.0.174(zod@4.6.7)
-      '@ai-sdk/harness-codex':
-        specifier: 1.0.172
-        version: 1.0.172(zod@4.6.7)
-      '@ai-sdk/harness-cursor':
-        specifier: 1.0.85
-        version: 1.0.85(ws@8.21.0)(zod@4.6.7)
-      '@ai-sdk/harness-fx':
-        specifier: 1.0.86
-        version: 1.0.86(patch_hash=1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825)(ws@8.21.0)(zod@4.6.7)
-      '@ai-sdk/harness-grok-build':
-        specifier: 1.0.109
-        version: 1.0.109(ws@8.21.0)(zod@4.6.7)
-      '@ai-sdk/harness-opencode':
-        specifier: 1.0.173
-        version: 1.0.173(patch_hash=b97fffa11b8180f659cae1cfe053a80de34944477f174eafe6baf3d49fae6edc)(zod@4.6.7)
-      '@ai-sdk/harness-pi':
-        specifier: 1.0.173
-        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/provider':
         specifier: 4.0.35
         version: 4.0.35
@@ -310,6 +289,27 @@ importers:
         specifier: ^4.4.3
         version: 4.6.7
     devDependencies:
+      '@ai-sdk/harness-claude-code':
+        specifier: 1.0.174
+        version: 1.0.174(zod@4.6.7)
+      '@ai-sdk/harness-codex':
+        specifier: 1.0.172
+        version: 1.0.172(zod@4.6.7)
+      '@ai-sdk/harness-cursor':
+        specifier: 1.0.85
+        version: 1.0.85(ws@8.21.0)(zod@4.6.7)
+      '@ai-sdk/harness-fx':
+        specifier: 1.0.86
+        version: 1.0.86(patch_hash=1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825)(ws@8.21.0)(zod@4.6.7)
+      '@ai-sdk/harness-grok-build':
+        specifier: 1.0.109
+        version: 1.0.109(ws@8.21.0)(zod@4.6.7)
+      '@ai-sdk/harness-opencode':
+        specifier: 1.0.173
+        version: 1.0.173(patch_hash=b97fffa11b8180f659cae1cfe053a80de34944477f174eafe6baf3d49fae6edc)(zod@4.6.7)
+      '@ai-sdk/harness-pi':
+        specifier: 1.0.173
+        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.21.0)(zod@4.6.7)
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5

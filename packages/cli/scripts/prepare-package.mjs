@@ -14,12 +14,12 @@ const scratch = mkdtempSync(resolve(tmpdir(), "dojo-cli-runtime-"));
 const packages = ["protocol", "config", "harness", "agents"].map(name => resolve(root, "..", name));
 // Retain the tested shutdown fix rather than reinstalling unpatched Nitro.
 packages.push(dirname(createRequire(resolve(root, "../harness/package.json")).resolve("nitro/package.json")));
-// Warm installation and the prepared agent must use the same patched bootstrap.
-const authoring = createRequire(resolve(root, "../agents/package.json"));
-packages.push(dirname(authoring.resolve("@ai-sdk/harness-opencode/package.json")));
+// Warm installation and the prepared agent must use the same patched bootstrap. The adapters are the harness's dependencies.
+const harness = createRequire(resolve(root, "../harness/package.json"));
+packages.push(dirname(harness.resolve("@ai-sdk/harness-opencode/package.json")));
 // The same for the other patched adapters: FX, and the ACP bridge that Grok Build runs
-packages.push(dirname(authoring.resolve("@ai-sdk/harness-fx/package.json")));
-packages.push(dirname(createRequire(authoring.resolve("@ai-sdk/harness-grok-build/package.json")).resolve("@ai-sdk/harness-acp/package.json")));
+packages.push(dirname(harness.resolve("@ai-sdk/harness-fx/package.json")));
+packages.push(dirname(createRequire(harness.resolve("@ai-sdk/harness-grok-build/package.json")).resolve("@ai-sdk/harness-acp/package.json")));
 const dependencies = { ...manifest.dependencies };
 const bundledDependencies = [];
 

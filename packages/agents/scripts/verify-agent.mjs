@@ -4,6 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // No prompt or model call, apart from Eve's mock model for Sensei's ended session. Observe child processes as well as SDK readiness.
 const commands = [];
@@ -38,6 +39,24 @@ for (const persona of Object.keys(personas)) {
   assert.equal(label.sourceHash, await readFile(new URL("source.sha256", prepared), "utf8"));
   labels[persona] = label;
 }
+// The adapters reach a prepared server through the harness alone: the agents package lists them only for its tests. From each
+// prepared server's own resolution root, every adapter package resolves through the harness and every agent's adapter builds.
+const adapterResolution = {};
+for (const persona of Object.keys(personas)) {
+  const server = createRequire(fileURLToPath(new URL(`../dist/prepared/${persona}/server/index.mjs`, import.meta.url)));
+  const harness = createRequire(server.resolve("@dojofoo/harness/package.json"));
+  const harnessManifest = JSON.parse(await readFile(server.resolve("@dojofoo/harness/package.json"), "utf8"));
+  const adapterPackages = Object.keys(harnessManifest.dependencies).filter(name => name.startsWith("@ai-sdk/harness-"));
+  for (const name of adapterPackages) assert.ok(harness.resolve(name), `${persona}: ${name} does not resolve through the harness`);
+  const { agentAdapter } = await import(server.resolve("@dojofoo/harness/adapters"));
+  const { agentRows } = await import(server.resolve("@dojofoo/protocol"));
+  const agents = agentRows.filter(row => row.adapterId).map(row => row.id);
+  for (const agent of agents) assert.ok(await agentAdapter(agent), `${persona}: no adapter for ${agent}`);
+  const bootstrap = await (await agentAdapter("opencode")).getBootstrap();
+  assert.ok(bootstrap.files.length > 0, `${persona}: OpenCode's bootstrap has no files`);
+  adapterResolution[persona] = { adapterPackages: adapterPackages.length, agents };
+}
+console.log("Both prepared builds resolve every adapter through the harness.");
 const root = await mkdtemp(join(tmpdir(), "dojo-prebuilt-startup-"));
 // Process records and Sensei's scratch directory stay out of the developer's own state
 process.env.DOJOFOO_HOME = join(root, ".dojofoo-home");
@@ -124,7 +143,7 @@ try {
   assert.equal(await readFile(join(override, "agent.ts"), "utf8"), 'throw new Error("Course Kyoshi overrides must not load");\n');
   const { build, timings, sameSession, copiedArtifactReady } = results.kyoshi;
   console.log(JSON.stringify({ build, timings, sameSession, copiedArtifactReady, courseKyoshiIgnored: true, legacyBindingUsesProduction: true,
-    buildProcesses: builds.length, personas: results }, null, 2));
+    buildProcesses: builds.length, personas: results, adapterResolution }, null, 2));
 } finally {
   childProcess.spawn = spawn;
   syncBuiltinESMExports();

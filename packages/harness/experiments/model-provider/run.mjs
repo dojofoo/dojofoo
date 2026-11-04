@@ -10,7 +10,6 @@ const root = await realpath(await mkdtemp(join(tmpdir(), "dojo-unpatched-provide
 const cliOnly = process.argv.includes("--cli-only");
 const hostOnly = process.argv.includes("--host-only");
 const versions = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8"));
-const authoringVersions = JSON.parse(await readFile(new URL("../../../agents/package.json", import.meta.url), "utf8"));
 const run = (command, args) => new Promise((resolve, reject) => {
   const child = spawn(command, args, {
     cwd: root, stdio: "inherit", env: { ...process.env, NODE_OPTIONS: "" },
@@ -29,11 +28,11 @@ try {
     }
   }
   dependencies.pnpm = "10.34.5";
-  // Use production adapter pins for the clean consumer too, rather than a
+  // Use the harness's production adapter pins for the clean consumer too, rather than a
   // second, independently maintained version matrix.
-  for (const [name, version] of Object.entries(authoringVersions.dependencies)) {
+  for (const [name, version] of Object.entries(versions.dependencies)) {
     if (!name.startsWith("@ai-sdk/harness-")) continue;
-    if (dependencies[name]) assert.equal(dependencies[name], version, `${name} must match authoring`);
+    if (dependencies[name]) assert.equal(dependencies[name], version, `${name} must match the harness`);
     dependencies[name] = version;
   }
   // Additional compile-only adapters; these are never started or authenticated.
