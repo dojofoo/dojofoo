@@ -80,7 +80,7 @@ and ships the resulting runtime with Eve's notices.
 | --- | --- | --- |
 | `eve@1.0.0-rc.1.patch` | Delegate compaction to ready providers instead of summarizing harness-owned history | `experiments/model-provider/provider.test.mjs` and host fixtures |
 | `eve-native-turn@1.0.0-rc.1.patch` | Honor a native provider's completed turn and context-token accounting; preserve upstream sign-in parking | Provider/host continuation, sign-in parking and compaction fixtures |
-| `eve-distribution@1.0.0-rc.1.patch` | Resolve packaged modules, project root and workflow identity; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
+| `eve-distribution@1.0.0-rc.1.patch` | Resolve packaged modules (including an authored workflow step's authorization import), project root and workflow identity; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
 | `eve-managed-project@1.0.0-rc.1.patch` | Compile manifest-free `.dojo/kyoshi` and `.dojo/sensei` using the installed runtime, without project dependencies or symlinks | `experiments/model-provider/manifest-free-project.test.mjs` |
 | `eve-local-shutdown@1.0.0-rc.1.patch` | On SIGTERM/SIGINT, wait up to 1 s for in-flight local World deliveries before exiting | `test/local-shutdown.test.ts`; `kyoshi.host.ask-answer-across-restart` |
 

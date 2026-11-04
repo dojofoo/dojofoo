@@ -42,6 +42,8 @@ type WebState = {
   learnerEvidence: Record<string, LearnerEvidenceExcerpt[]>;
   learnerObservations: Record<string, LearnerObservation[]>;
   observations: Record<string, {
+    /** The latest check's observation id, so a kata context read can mark its report seen (D16) */
+    id?: string;
     code: string;
     failureSignature: string;
     attempt: number;
@@ -387,6 +389,18 @@ export async function writeSolution(root: string, courseId: string, lessonId: st
   markActive(root, courseId, lessonId);
 }
 
+/** The lesson's SENSEI.md, for Sensei's per-session instructions. */
+export function lessonSource(root: string, courseId: string, lessonId: string): string {
+  return readFileSync(lessonTarget(root, courseId, lessonId).senseiPath, "utf8");
+}
+
+/** The observation id of the lesson's stored check result, when there is one. */
+export function latestObservationId(root: string, courseId: string, lessonId: string): string | undefined {
+  const state = readWebState(root);
+  const key = lessonKey(courseId, lessonId);
+  return state.results[key] ? state.observations[key]?.id : undefined;
+}
+
 /** The lesson's solution file, which the guard copies (design, "Write guard"). */
 export function solutionPath(root: string, courseId: string, lessonId: string): string {
   return lessonTarget(root, courseId, lessonId).workspacePath;
@@ -477,15 +491,16 @@ export async function checkLesson(
   const attempt = previous && previous.failureSignature === failureSignature && !codeChanged
     ? previous.attempt + 1
     : 1;
+  const id = crypto.randomUUID();
   webState.results[key] = report;
-  webState.observations[key] = { code, failureSignature, attempt };
+  webState.observations[key] = { id, code, failureSignature, attempt };
   writeWebState(root, webState);
   const updated = await readLesson(root, courseId, lessonId);
   if (!updated) throw new Error(`Lesson not found: ${lessonId}`);
   return {
     lesson: updated,
     observation: {
-      id: crypto.randomUUID(),
+      id,
       attempt,
       codeChanged,
       diff: lineDelta(previous?.code ?? "", code),

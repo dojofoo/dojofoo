@@ -194,6 +194,12 @@
       "import": "./dist/sensei/context-tool.js",
       "default": "./dist/sensei/context-tool.js"
     },
+    "./sensei/kata-tools": {
+      "types": "./src/sensei/kata-tools.ts",
+      "development": "./src/sensei/kata-tools.ts",
+      "import": "./dist/sensei/kata-tools.js",
+      "default": "./dist/sensei/kata-tools.js"
+    },
     "./sensei/runtime": {
       "types": "./src/sensei/runtime.ts",
       "development": "./src/sensei/runtime.ts",

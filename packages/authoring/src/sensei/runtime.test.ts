@@ -28,7 +28,7 @@ it("owns a real packaged Sensei server and releases it without launching a model
     expect(first.url).toBe(second.url);
     const info = await new Client({ baseUrl: first.url, auth: first.auth }).info();
     expect(info.hooks.map(hook => hook.slug)).toContain("dojofoo-lifecycle");
-    expect(info.tools.static.map(tool => tool.name).sort()).toEqual(["ask_question", "dojo_context"]);
+    expect(info.tools.static.map(tool => tool.name).sort()).toEqual(["ask_question", "dojo_context", "dojo_lesson_complete"]);
     await runtime.close();
     await expect(runtime.start()).rejects.toThrow("closed");
     await expect(fetch(first.url, { signal: AbortSignal.timeout(2000) })).rejects.toThrow();

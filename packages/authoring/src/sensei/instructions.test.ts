@@ -17,6 +17,12 @@ describe("Sensei instructions", () => {
     expect(senseiCourseInstructions({ mode: "katas", guidance: "  " })).toBe(contract("KATAS.md"));
   });
 
+  it("a kata session's instructions carry KATAS.md, DOJO.md, the fragment ids and the lesson source", () => {
+    const kata = senseiCourseInstructions({ mode: "katas", guidance: "PRIVATE-GUIDANCE-first", lesson: { source: "# First\n\nKATA-SOURCE-first", fragmentIds: ["hint", "example"] } });
+    expect(kata).toBe(`${contract("KATAS.md")}\n\nDOJO.md for this course:\nPRIVATE-GUIDANCE-first\n\nAvailable learner fragment IDs: hint, example.\n\nSensei lesson source:\n# First\n\nKATA-SOURCE-first`);
+    expect(senseiCourseInstructions({ mode: "katas", guidance: "", lesson: { source: "x", fragmentIds: [] } })).toContain("Available learner fragment IDs: none.");
+  });
+
   it("an interactive course gets INTERACTIVE.md, never KATAS.md", () => {
     const interactive = senseiCourseInstructions({ mode: "interactive", guidance: "PRIVATE-GUIDANCE-first" });
     expect(interactive).toContain(contract("INTERACTIVE.md"));

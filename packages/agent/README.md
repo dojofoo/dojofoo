@@ -7,6 +7,10 @@ release (1.0.0-rc.1) with a patch for native compaction.
 The separate distribution patch redirects the generated module-map loader import
 to `@dojofoo/agent`, recognizes that dependency during CLI project discovery,
 and preserves Eve package identity for workflow steps in linked workspaces.
+It also points the step-authorization import that Eve's workflow transformer adds
+to an authored workflow tool's `"use step"` functions at
+`@dojofoo/agent/internal/workflow-step-execution`, since a prepared persona build
+has no `eve` package to resolve (Sensei's `dojo_lesson_complete`).
 The latter prevents compiled workflow and registered step IDs from diverging
 when the embedded runtime lives outside `node_modules` during development.
 The native-turn patch respects a provider's terminal `stop` after native tool

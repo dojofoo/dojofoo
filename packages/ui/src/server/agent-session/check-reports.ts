@@ -3,10 +3,11 @@ import type { AgentEndpoint, AgentRuntime, SessionRecord } from "@dojofoo/agent-
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { dojoTags, tagged, type CheckReportState } from "@dojofoo/protocol";
 import { senseiTurn } from "../lesson/instructions";
-import { checkObservationInstruction, type CheckObservation } from "../lesson/service";
+import { checkLesson, checkObservationInstruction, type CheckObservation } from "../lesson/service";
 import { discardWindow, openWindow } from "./guard";
 import { afterDelivery, applyLifecycle, beforeDelivery } from "./lifecycle";
 import { readRecords } from "./records";
+import { notifyPage } from "./notify";
 import { dropHeld, notifyReport } from "./report-state";
 
 export { dropHeld } from "./report-state";
@@ -17,6 +18,18 @@ export function reportText(observation: CheckObservation): string {
     instruction: checkObservationInstruction(observation), attempt: observation.attempt, codeChanged: observation.codeChanged,
     diff: observation.diff, report: observation.report,
   })}`;
+}
+
+/** A learner's or Sensei's Check of a lesson of any course (D30), with the lesson socket's notifications for its page. */
+export async function runLessonCheck(target: { path: string; workspaceId: string }, courseId: string, lessonId: string) {
+  const key = { workspaceId: target.workspaceId, courseId, lessonId };
+  notifyPage(key, "lesson.check.started", { courseId, lessonId });
+  // Let the started notification reach the browser before the local test process occupies this worker
+  await new Promise<void>(resolve => setTimeout(resolve, 0));
+  const checked = await checkLesson(target.path, courseId, lessonId);
+  for (const test of checked.observation.report.tests) notifyPage(key, "lesson.check.test", { test });
+  notifyPage(key, "lesson.check.completed", checked);
+  return checked;
 }
 
 /** A server turn (the begin turn, a check report): window first (rule 1), the pre-delivery transition, then the POST, retrying

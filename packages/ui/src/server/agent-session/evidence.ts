@@ -28,6 +28,11 @@ export async function learnerEvidence(path: string, courseId: string, lessonId?:
   return (await readEvidence(path)).entries[key(courseId, lessonId)] ?? [];
 }
 
+/** Every excerpt of a course, its lessons' included: the sources a kata observation may cite (decision 12). */
+export async function courseEvidence(path: string, courseId: string): Promise<LearnerEvidenceExcerpt[]> {
+  return Object.entries((await readEvidence(path)).entries).filter(([entry]) => entry === courseId || entry.startsWith(`${courseId}/`)).flatMap(([, excerpts]) => excerpts);
+}
+
 let writing: Promise<unknown> = Promise.resolve();
 
 /** At a Sensei turn.settled: the whole current conversation, without tagged turns, kept within retainLearnerEvidence's bounds.

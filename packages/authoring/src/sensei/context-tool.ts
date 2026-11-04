@@ -1,5 +1,5 @@
 import { defineTool } from "@dojofoo/agent/tools";
-import { lessonCapabilities, type InteractiveContext } from "@dojofoo/protocol";
+import { formatKataContext, lessonCapabilities, type SenseiContext } from "@dojofoo/protocol";
 import { z } from "zod";
 import { senseiHostPort, type SenseiRuntime } from "./agent.ts";
 
@@ -13,7 +13,9 @@ export function createSenseiContextTool(runtime: () => Promise<Pick<SenseiRuntim
       const port = senseiHostPort(await runtime());
       if (!port) throw new Error("This Sensei host has no host port.");
       // A rerun step reuses the key, so the host port answers it once (sensei.host-port.rerun-no-duplicate)
-      return port.call<InteractiveContext>("context", context.session.id, {}, `${context.session.id}:${context.callId}`);
+      const result = await port.call<SenseiContext>("context", context.session.id, {}, `${context.session.id}:${context.callId}`);
+      // A kata reads as the model reads its per-turn context: the file's numbered lines, or that it is unchanged
+      return result.kind === "kata" ? formatKataContext(result) : result;
     },
   });
 }

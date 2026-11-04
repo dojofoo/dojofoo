@@ -25,6 +25,8 @@ const personas = {
   kyoshi: { create: createKyoshiRuntime, app: ".dojo/kyoshi-app/agents/kyoshi", relocate: copy => ({ courseRoot: copy }) },
   sensei: { create: createSenseiRuntime, app: ".dojo/sensei-app/agents/sensei", relocate: copy => ({ workspaceRoot: copy }) },
 };
+const kataTools = ["dojo_learner_observe", "dojo_lesson_verify", "dojo_ui_show"];
+const { startHostPortFixture } = await import(load.resolve("@dojofoo/agent/host-port/fixture"));
 const labels = {};
 for (const persona of Object.keys(personas)) {
   const prepared = new URL(`../dist/prepared/${persona}/`, import.meta.url);
@@ -62,7 +64,12 @@ try {
           const info = await client.info({ signal: AbortSignal.timeout(10_000) });
           assert.ok(info.hooks.some(hook => hook.slug === "dojofoo-lifecycle"), `${persona} lacks dojofoo's lifecycle hook`);
           // Only Sensei's own tools: no bash, file, web or subagent tools
-          if (persona === "sensei") assert.deepEqual(info.tools.static.map(tool => tool.name).sort(), ["ask_question", "dojo_context"]);
+          if (persona === "sensei") {
+            assert.deepEqual(info.tools.static.map(tool => tool.name).sort(), ["ask_question", "dojo_context", "dojo_lesson_complete"]);
+            // Info lists a dynamic tool only by its slug; which a session gets is read from a turn below
+            const dynamic = info.tools.dynamic.map(tool => tool.slug);
+            for (const slug of kataTools) assert.ok(dynamic.includes(slug), `Sensei's info lacks the dynamic tool ${slug}`);
+          }
         }
         const session = sessionId ? client.sessions.attach(sessionId) : (await client.sessions.create({ signal: AbortSignal.timeout(10_000) })).session;
         sessionId ??= session.state.sessionId;
@@ -82,6 +89,11 @@ try {
       } finally { await runtime.close(); }
     }
     const endedSessionReadable = persona === "sensei" ? await endedReadable(create, root) : undefined;
+    const kataToolsOffered = persona === "sensei" ? { katas: await offeredKataTools(root, "katas"), interactive: await offeredKataTools(root, "interactive") } : undefined;
+    if (kataToolsOffered) {
+      assert.deepEqual(kataToolsOffered.katas, [...kataTools].sort(), "A kata session is not offered its tools");
+      assert.deepEqual(kataToolsOffered.interactive, [], "An interactive session is offered kata tools");
+    }
     const app = join(root, appPath);
     const copy = await mkdtemp(join(tmpdir(), `dojo-prebuilt-relocated-${persona}-`));
     copies.push(copy);
@@ -104,7 +116,8 @@ try {
       const info = await new Client({ baseUrl: relocated.url, auth: { basic: binding.auth } }).info({ signal: AbortSignal.timeout(10_000) });
       assert.ok(info);
     } finally { await relocated.close(); }
-    results[persona] = { build: labels[persona], timings, sameSession: true, copiedArtifactReady: true, ...(endedSessionReadable ? { endedSessionReadable } : {}) };
+    results[persona] = { build: labels[persona], timings, sameSession: true, copiedArtifactReady: true, ...(endedSessionReadable ? { endedSessionReadable } : {}),
+      ...(kataToolsOffered ? { kataToolsOffered } : {}) };
   }
   const builds = commands.filter(args => args.some(arg => /(?:^|\/)(?:vite|rolldown|tsup|tsc|nft)(?:\.|$)|^build$|dev-server/u.test(String(arg))));
   assert.deepEqual(builds, [], "Opening or resuming spawned a compiler");
@@ -147,4 +160,40 @@ async function endedReadable(create, workspace) {
     assert.ok(snapshot.events.some(event => event.type === "session.ended"), "An ended Sensei session is not readable after a restart");
     return true;
   } finally { await second.close(); }
+}
+
+/** The kata tools one session is offered: /eve/v1/info names dynamic tools only by slug (step-5 plan, fact 15), and model.requested
+ *  carries no tool names (step-5 plan, commit 7's fallback), so Eve's mock model is asked to call all three in parallel. */
+async function offeredKataTools(workspace, mode) {
+  const kata = mode === "katas";
+  const port = await startHostPortFixture({ handlers: {
+    session: () => ({ courseId: "fixture", ...(kata ? { lessonId: "first" } : {}), mode, revision: 0 }),
+    context: () => kata
+      ? { kind: "kata", hash: "fixture", course: { id: "fixture", title: "Fixture" }, guidance: "", lesson: { id: "first", source: "# First\n", fragmentIds: [] },
+        context: { phase: "start", course: { id: "fixture", completedLessons: [] }, lesson: { id: "first", title: "First", objective: "Fixture", state: "ongoing" },
+          learner: { file: { path: "first.ts", language: "typescript", content: "export const answer = 0;\n" }, latestCheck: null } } }
+      : { kind: "interactive", hash: "fixture", course: { id: "fixture", title: "Fixture" }, guidance: "", lesson: { title: "Lesson" } },
+    check: () => ({ observationId: "fixture", report: { passed: 0, failed: 0, skipped: 0, total: 0, complete: false, tests: [] } }),
+    show: input => ({ fragmentId: input?.fragmentId ?? "" }),
+  } });
+  const mock = process.env.EVE_MOCK_AUTHORED_MODELS;
+  process.env.EVE_MOCK_AUTHORED_MODELS = "1";
+  const runtime = await createSenseiRuntime(workspace, { workspaceId: `kata-tools-${mode}`, hostPortUrl: port.url });
+  try {
+    const ready = await runtime.start();
+    const { session, delivery } = await new Client({ baseUrl: ready.url, auth: ready.auth }).sessions.create({
+      message: `call tools in parallel: ${kataTools.join(", ")}`, signal: AbortSignal.timeout(20_000) });
+    await delivery.result({ signal: AbortSignal.timeout(60_000) });
+    const { events } = await session.snapshot({ signal: AbortSignal.timeout(10_000) });
+    const called = [...new Set(events.filter(event => event.type === "call.requested").map(event => event.data.capability?.name)
+      .filter(name => kataTools.includes(name)))].sort();
+    // The mock's parallel directive calls nothing unless every named tool is offered; it drops a call whose input it can't
+    // synthesise (dojo_learner_observe's cited sha256), so any call means all three were offered
+    return called.length ? [...kataTools].sort() : [];
+  } finally {
+    await runtime.close();
+    await port.close();
+    if (mock === undefined) delete process.env.EVE_MOCK_AUTHORED_MODELS;
+    else process.env.EVE_MOCK_AUTHORED_MODELS = mock;
+  }
 }

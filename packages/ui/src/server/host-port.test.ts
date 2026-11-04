@@ -9,6 +9,15 @@ import type { SessionRecord } from "@dojofoo/agent-api";
 import { app } from "./app";
 import { evaluationRunner, forgetHost, hostPortUrl, registerHost } from "./host-port";
 import { readRecords, saveRecord } from "./agent-session/records";
+import { execFileSync } from "node:child_process";
+import * as preparation from "@dojofoo/config/project-preparation";
+import { kataWorkspace, removeRoots } from "./agent-session/test-kata.fixture";
+
+// The real CLI unless a test scripts its answer
+vi.mock("node:child_process", async importOriginal => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
+});
 
 
 const roots: string[] = [];
@@ -191,5 +200,93 @@ describe("host port in the UI server", () => {
     for (const host of ["", "0.0.0.0", "::", "[::]"]) expect(hostPortUrl({ HOST: host, PORT: "4813" })).toBe("http://127.0.0.1:4813/api/host-port");
     expect(hostPortUrl({})).toBe("http://127.0.0.1:4567/api/host-port");
     expect(hostPortUrl({ HOST: "127.0.0.1", PORT: "4567" })).toBe("http://127.0.0.1:4567/api/host-port");
+  });
+});
+
+describe("kata host-port methods", () => {
+  const kataRoots: string[] = [];
+  const cleanups: Array<() => void> = [];
+  afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); vi.restoreAllMocks(); removeRoots(kataRoots); });
+  function kata() {
+    const workspace = kataWorkspace(kataRoots, { baseUrl: "http://127.0.0.1:9" });
+    cleanups.push(workspace.cleanup);
+    const start = (key: string) => registerHost(workspace.workspaceId, "sensei", { secret: key, endpoint: { baseUrl: "http://127.0.0.1:9" }, agent: "codex" });
+    start(workspace.secret);
+    const as = async (key: string, method: string, sessionId: string, input: unknown = {}) => {
+      const response = await app.fetch(new Request(`http://127.0.0.1:4567/api/host-port/${workspace.workspaceId}/sensei/${method}`, {
+        method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body: JSON.stringify({ sessionId, idempotencyKey: crypto.randomUUID(), input }) }));
+      return { status: response.status, body: await response.json() as { result?: any; error?: string } };
+    };
+    return { ...workspace, start, as };
+  }
+  const webState = (root: string, observationId: string, report: object) => writeFileSync(resolve(root, ".dojo/web.json"), JSON.stringify({ version: 4, threads: {},
+    results: { "starter/001-first": report }, checkpoints: {}, observations: { "starter/001-first": { id: observationId, code: "", failureSignature: "", attempt: 1 } } }));
+  const failing = { passed: 0, failed: 1, skipped: 0, total: 1, complete: false, tests: [{ name: "answers", suite: [], status: "failed", failureMessages: [] }] };
+
+  it("kata context sends the file once until it changes, and again after a restart, a model change or an eviction", async () => {
+    const { root, as, start, record, secret, file } = kata();
+    const session = record();
+    await saveRecord(root, session);
+    const content = async (key = secret) => (await as(key, "context", session.id)).body.result as { kind: string; fileUnchanged?: true; context: { learner: { file: { content: string } } } };
+    const first = await content();
+    expect(first).toMatchObject({ kind: "kata", course: { id: "starter" }, lesson: { id: "001-first", source: expect.stringContaining("# 001-first"), fragmentIds: [] } });
+    expect(first.context.learner.file.content).toBe("export const answer = 0;\n");
+    expect(await content()).toMatchObject({ fileUnchanged: true, context: { learner: { file: { content: "" } } } });
+    // The per-session instructions read never moves the marker
+    expect((await as(secret, "context", session.id, { instructions: true })).body.result).not.toHaveProperty("fileUnchanged");
+    writeFileSync(file, "export const answer = 1;\n");
+    expect((await content()).context.learner.file.content).toBe("export const answer = 1;\n");
+    expect(await content()).toMatchObject({ fileUnchanged: true });
+    // A restart: the host's new secret
+    start("c".repeat(64));
+    expect(await content("c".repeat(64))).not.toHaveProperty("fileUnchanged");
+    // A model change: a raised revision
+    await saveRecord(root, { ...session, revision: 1 });
+    expect(await content("c".repeat(64))).not.toHaveProperty("fileUnchanged");
+    expect(await content("c".repeat(64))).toMatchObject({ fileUnchanged: true });
+    // An eviction: a failed or cancelled settle
+    await as("c".repeat(64), "turn.settled", session.id, { turnId: "t1", outcome: "cancelled" });
+    expect(await content("c".repeat(64))).not.toHaveProperty("fileUnchanged");
+  });
+
+  it("check runs the lesson's checks for the record's course, not the current one", async () => {
+    const { root, as, record, secret, workspaceId, messages } = kata();
+    writeFileSync(resolve(root, ".dojorc"), JSON.stringify({ currentDojo: "tour", currentKata: null, editor: null, progress: {} }));
+    const session = record();
+    await saveRecord(root, session);
+    vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
+    vi.mocked(execFileSync).mockImplementationOnce((() => JSON.stringify({ total: 1, passed: 0, failed: 1, tests: [{ name: "answers", status: "failed" }], error: null })) as never);
+    const { status, body } = await as(secret, "check", session.id);
+    expect(status).toBe(200);
+    expect(body.result).toMatchObject({ observationId: expect.any(String), report: { failed: 1, total: 1 } });
+    expect(vi.mocked(execFileSync).mock.calls.at(-1)?.[1]).toEqual(expect.arrayContaining(["kata", "001-first", "--check", "--course", "starter"]));
+    expect(JSON.parse(readFileSync(resolve(root, ".dojorc"), "utf8")).currentDojo).toBe("tour");
+    expect(messages.filter(entry => entry.key.workspaceId === workspaceId).map(entry => entry.message.method))
+      .toEqual(["lesson.check.started", "lesson.check.test", "lesson.check.completed"]);
+  });
+
+  it("navigate refuses an incomplete lesson and advances a passed one", async () => {
+    const { root, as, record, secret, messages } = kata();
+    const session = record();
+    await saveRecord(root, session);
+    expect(await as(secret, "navigate", session.id)).toMatchObject({ status: 409, body: { error: "lesson_incomplete" } });
+    webState(root, "obs-pass", { ...failing, passed: 1, failed: 0, complete: true, tests: [] });
+    expect(await as(secret, "navigate", session.id)).toEqual({ status: 200, body: { result: { courseId: "starter", lessonId: "002-second" } } });
+    expect(readFileSync(resolve(root, "katas/002-second/solution.ts"), "utf8")).toBe("export const second = 0;\n");
+    expect(JSON.parse(readFileSync(resolve(root, ".dojorc"), "utf8"))).toMatchObject({ currentKata: "002-second", progress: { starter: { lastActive: "002-second" } } });
+    expect(messages.find(entry => entry.message.method === "lesson.navigated")).toMatchObject({ key: { courseId: "starter", lessonId: "001-first" },
+      message: { params: { courseId: "starter", lessonId: "002-second" } } });
+  });
+
+  it("a context read marks the held report seen and drops it", async () => {
+    const { root, as, record, secret, messages } = kata();
+    webState(root, "obs-held", failing);
+    const session = record({ lifecycle: { status: "working", updatedAt: "2026-11-04T00:00:00.000Z",
+      heldReport: { observationId: "obs-held", text: "[dojo:check] Ran lesson checks.", heldAt: "2026-11-04T00:00:00.000Z" } } });
+    await saveRecord(root, session);
+    expect((await as(secret, "context", session.id)).body.result.context.learner.latestCheck).toMatchObject({ failed: 1 });
+    expect((await readRecords(root)).find(item => item.id === session.id)?.lifecycle?.heldReport).toBeUndefined();
+    expect(messages.find(entry => entry.message.method === "lesson.check.report")?.message.params).toEqual({ observationId: "obs-held", state: "seen" });
   });
 });

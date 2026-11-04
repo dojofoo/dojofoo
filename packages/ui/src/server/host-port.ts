@@ -4,14 +4,15 @@ import { Client } from "@dojofoo/agent/client";
 import { createHostPortServer, hostPortAnswer, HostPortFailure, type HostPortHandlers, type HostPortMethod } from "@dojofoo/agent/host-port";
 import type { AgentEndpoint, DefaultSessionRequest, DefaultSessionResponse, SessionRecord } from "@dojofoo/agent-api";
 import { readCourseManifest, readDojoMd } from "@dojofoo/config";
-import type { AgentId, InteractiveContext, Persona, SenseiSessionInfo } from "@dojofoo/protocol";
+import type { AgentId, InteractiveContext, KataContext, LessonCheck, LessonNavigation, Persona, SenseiContext, SenseiSessionInfo } from "@dojofoo/protocol";
 import { applyLifecycle, type TurnOutcome } from "./agent-session/lifecycle";
 import { captureLearnerEvidence } from "./agent-session/evidence";
-import { dropHeld, markSeen, sendHeld } from "./agent-session/check-reports";
+import { dropHeld, markSeen, runLessonCheck, sendHeld } from "./agent-session/check-reports";
+import { courseEvidence } from "./agent-session/evidence";
 import { guardedLesson, verifyWindow } from "./agent-session/guard";
 import { notifyPage, pageKeyOf } from "./agent-session/notify";
 import { readRecords } from "./agent-session/records";
-import { markLessonIntroduced } from "./lesson/service";
+import { advanceLesson, dojoLessonContext, dojoLessonFragment, latestObservationId, lessonSource, markLessonIntroduced, readLesson, saveObservation } from "./lesson/service";
 import { resolveWorkspaceId } from "./control/workspace";
 import { getInteractiveLesson } from "./interactive/service";
 
@@ -57,11 +58,46 @@ const courseOf = (record: SessionRecord) => {
 
 /** Sensei's course material: an interactive course's current lesson (without its references) and its DOJO.md. */
 function interactiveContext(path: string, courseId: string): InteractiveContext {
-  if (readCourseManifest(path, courseId).mode !== "interactive") throw new HostPortFailure(422, "invalid_request", "Kata lessons still run on their own connection.");
   const { references: _references, ...lesson } = getInteractiveLesson(path, courseId);
   const guidance = readDojoMd(path, courseId);
   const title = readCourseManifest(path, courseId).name ?? courseId;
   return { kind: "interactive", hash: createHash("sha256").update(JSON.stringify({ lesson, guidance })).digest("hex"), course: { id: courseId, title }, guidance, lesson };
+}
+
+const isKata = (path: string, courseId: string) => readCourseManifest(path, courseId).mode !== "interactive";
+const lessonOf = (record: SessionRecord) => {
+  if (!record.lessonId) throw new HostPortFailure(422, "invalid_request", "This conversation teaches no kata lesson.");
+  return record.lessonId;
+};
+
+/** The "last sent" file marker (design, "Host port"), in memory per session: a restart (another secret), a model change (a raised
+ *  revision) or an eviction (a cancelled or failed settle) resets it, so the next read sends the file again. */
+type FileMarker = { sha256: string; secret: string; revision: number };
+const markersKey = Symbol.for("dojofoo.host-port.file-markers");
+const markers = ((globalThis as Record<symbol, unknown>)[markersKey] ??= new Map<string, FileMarker>()) as Map<string, FileMarker>;
+
+/** Sensei's kata material: the lesson's context (file, latest check, evidence), DOJO.md, and its SENSEI.md with its fragment ids. */
+async function kataContext(path: string, workspaceId: string, record: SessionRecord, options: { instructions: boolean }): Promise<KataContext> {
+  const courseId = courseOf(record);
+  const lessonId = lessonOf(record);
+  const lesson = await readLesson(path, courseId, lessonId);
+  if (!lesson) throw new HostPortFailure(404, "lesson_not_found", "Lesson not found.");
+  const context = dojoLessonContext(lesson);
+  const guidance = readDojoMd(path, courseId) ?? "";
+  const source = lessonSource(path, courseId, lessonId);
+  const body: KataContext = { kind: "kata", hash: createHash("sha256").update(JSON.stringify({ context, guidance, source })).digest("hex"),
+    course: { id: courseId, title: lesson.course?.title ?? courseId }, guidance,
+    lesson: { id: lessonId, source, fragmentIds: Object.keys(lesson.fragments) }, context };
+  if (options.instructions) return body;
+  const secret = hosts.get(hostKey(workspaceId, "sensei"))?.secret ?? "";
+  const sha256 = createHash("sha256").update(lesson.code).digest("hex");
+  const marker = markers.get(record.id);
+  const unchanged = marker?.sha256 === sha256 && marker.secret === secret && marker.revision === record.revision;
+  markers.set(record.id, { sha256, secret, revision: record.revision });
+  // Sensei read this check: its report is seen, and a held one need not be sent (D16)
+  const observationId = latestObservationId(path, courseId, lessonId);
+  if (observationId) await markSeen(path, workspaceId, record.id, { observationId });
+  return unchanged ? { ...body, context: { ...context, learner: { ...context.learner, file: { ...context.learner.file, content: "" } } }, fileUnchanged: true } : body;
 }
 
 const read = <Input, Result>(handle: HostPortMethod<Input, Result>["handle"]): HostPortMethod<Input, Result> => ({ mutates: false, handle });
@@ -99,6 +135,8 @@ const lifecycleMethods = (persona: Persona): Record<string, HostPortMethod> => (
     await verifyWindow(path, workspaceId, sessionId, turnId ? { turnId } : {});
     const before = (await readRecords(path)).find(item => item.id === sessionId);
     const record = await applyLifecycle(path, sessionId, { type: "turn.settled", outcome });
+    // The hook evicted the native session, which no longer has the file
+    if (outcome !== "completed") markers.delete(sessionId);
     const host = hosts.get(hostKey(workspaceId, persona));
     if (persona === "sensei" && record?.courseId && host) {
       try {
@@ -173,9 +211,42 @@ export const hostPortHandlers: HostPortHandlers = {
       }
       return { ok: true };
     }),
-    context: read<unknown, InteractiveContext>(async ({ workspaceId, sessionId }) => {
+    context: read<{ instructions?: unknown }, SenseiContext>(async ({ workspaceId, sessionId, input }) => {
       const { path, record } = await sessionRecord(workspaceId, sessionId);
-      return interactiveContext(path, courseOf(record));
+      const courseId = courseOf(record);
+      return isKata(path, courseId) ? kataContext(path, workspaceId, record, { instructions: input?.instructions === true }) : interactiveContext(path, courseId);
+    }),
+    /** `dojo_lesson_verify`: the record's lesson's checks, never the CLI's current course (D30) */
+    check: mutate<unknown, LessonCheck>(async ({ workspaceId, sessionId }) => {
+      const { path, record } = await sessionRecord(workspaceId, sessionId);
+      const { observation } = await runLessonCheck({ path, workspaceId }, courseOf(record), lessonOf(record));
+      return { observationId: observation.id, report: observation.report };
+    }),
+    /** `dojo_learner_observe`: sources from Eve's evidence store, kept in web.json's learnerObservations (decision 12) */
+    observe: mutate<unknown, { observation: unknown }>(async ({ workspaceId, sessionId, input }) => {
+      const { path, record } = await sessionRecord(workspaceId, sessionId);
+      const courseId = courseOf(record);
+      try { return { observation: saveObservation(path, courseId, input, await courseEvidence(path, courseId)) }; }
+      catch (error) { throw new HostPortFailure(422, "invalid_request", error instanceof Error ? error.message : String(error)); }
+    }),
+    /** `dojo_ui_show`: only the lesson's own authored fragments */
+    show: read<{ fragmentId?: unknown }, { fragmentId: string }>(async ({ workspaceId, sessionId, input }) => {
+      const { path, record } = await sessionRecord(workspaceId, sessionId);
+      const lesson = await readLesson(path, courseOf(record), lessonOf(record));
+      if (!lesson) throw new HostPortFailure(404, "lesson_not_found", "Lesson not found.");
+      try { return dojoLessonFragment(lesson, String(input?.fragmentId ?? "")); }
+      catch (error) { throw new HostPortFailure(422, "invalid_request", error instanceof Error ? error.message : String(error)); }
+    }),
+    /** `dojo_lesson_complete`'s Move on: 409 lesson_incomplete unless the lesson's checks pass or it is completed (decision 20) */
+    navigate: mutate<unknown, LessonNavigation>(async ({ workspaceId, sessionId }) => {
+      const { path, record } = await sessionRecord(workspaceId, sessionId);
+      const courseId = courseOf(record);
+      const lessonId = lessonOf(record);
+      const next = await advanceLesson(path, courseId, lessonId);
+      for (const other of (await readRecords(path)).filter(item => item.courseId === courseId && item.lessonId === lessonId)) await dropHeld(path, workspaceId, other.id);
+      const navigation = { courseId, lessonId: next.kata };
+      notifyPage({ workspaceId, courseId, lessonId }, "lesson.navigated", navigation);
+      return navigation;
     }),
     ...lifecycleMethods("sensei"),
   },
