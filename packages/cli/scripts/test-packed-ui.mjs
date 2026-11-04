@@ -159,8 +159,8 @@ try {
       }
       console.log(`Packed starter ${courseId}: self-contained Slidev deck served with HTTP ${deck.status}.`);
     }
-    const conversation = await (await fetch(`${resource}/conversation`)).json();
-    if (conversation.sessionId !== null) throw new Error("Opening a starter unexpectedly created an agent session.");
+    const sessions = await (await fetch(`${base}/api/v1/workspaces/${workspace.id}/sessions?persona=sensei`)).json();
+    if (sessions.pagination?.total !== 0) throw new Error("Opening a starter unexpectedly created an agent session.");
     console.log(`Packed starter ${courseId}: installed, first material available, no agent session.`);
   }
   const setup = await fetch(`http://127.0.0.1:${port}/api/local/setup`).then(response => response.json());
