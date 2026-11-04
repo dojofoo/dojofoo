@@ -27,7 +27,6 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthoringFiles } from "@/hooks/use-authoring-files";
 import { useAuthoringWatch } from "@/hooks/use-authoring-watch";
 import { useAccountMenu } from "@/hooks/use-account-menu";
-import { rememberAuthoringSession } from "@/lib/authoring-session-link";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
 import { Icon } from "@dojofoo/uix/components/app-shell";
@@ -360,10 +359,7 @@ function AuthoringPage() {
     agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching}
     clientContext={{ view: { scope, ...(scope === "lesson" && selectedLessonId ? { lessonId: selectedLessonId } : {}),
       ...(activeFilePath ? { file: activeFilePath, unsavedChanges: dirty } : {}),
-    } }} onSession={id => {
-      rememberAuthoringSession(agentWorkspace.id!, id);
-      void navigate({ to: "/authoring", search: previous => ({ ...previous, workspace: agentWorkspace.id, session: id }), replace: true });
-    }} />{workspaceAgent.notice}{workspaceAgent.dialog}</> : <AuthoringChat embedded messages={[]} status="ready" busy={!agentWorkspace.error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}}
+    } }} onSessionDropped={() => { void navigate({ to: "/authoring", search: previous => ({ ...previous, session: undefined }), replace: true }); }} />{workspaceAgent.notice}{workspaceAgent.dialog}</> : <AuthoringChat embedded messages={[]} status="ready" busy={!agentWorkspace.error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}}
       error={agentWorkspace.error} onRetryLoad={agentWorkspace.retry} />;
   if (!workspace) return <div className="h-dvh overflow-hidden"><AgentChatWorkspace {...shell} navigation={[
     { id: "files", heading: "Course", items: [], before: !error && <WorkspaceSkeleton label="Loading course files" rows={4} /> },

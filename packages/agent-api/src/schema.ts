@@ -95,14 +95,6 @@ export const routes = {
       lesson: t.Optional(t.String({ description: "Only the conversations of this lesson; empty for those without a lesson." })) }),
     response: { 200: t.Object({ data: t.Array(t.Object(sessionSummary)), pagination }), 404: error },
   },
-  createSession: {
-    detail: details("createSession", "Create a session", "Starts a conversation on a coding agent (the workspace's selected one by default), with the persona the workspace's kind runs: Kyoshi for a draft, Sensei otherwise. A `persona` in the body is ignored. Its first run starts with `message`.", "Sessions"),
-    params: t.Object(workspace),
-    body: t.Object({ persona: t.Optional(persona), agent: t.Optional(t.String()), message: t.String({ minLength: 1 }),
-      clientContext: t.Optional(t.Record(t.String(), t.Unknown(), { description: "Page context for the first turn, as Eve's `clientContext`: the agent sees it, the conversation doesn't keep it." })),
-    }),
-    response: { 201: t.Object(sessionSummary), 404: error, 409: error },
-  },
   openDefaultSession: {
     detail: details("openDefaultSession", "Open a page's default conversation", "Gets or creates the conversation a page opens: on a Sensei page the newest usable one for the course (and lesson), on a draft's page Kyoshi's newest usable one, on the selected coding agent; else a new one that starts with a hidden begin turn. A draft's request names no course or lesson; a Sensei page's names its course. `session` is honoured when it belongs to the page; `new` with `from` replaces that conversation once. Only the UI's own pages can call it: it takes the page's launch token.", "Sessions"),
     params: t.Object(workspace),

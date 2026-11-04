@@ -22,7 +22,7 @@ hono.mount("/api/v1", request => api.handle(request), { replaceRequest: false })
 | `startAgent` | `POST /workspaces/{workspaceId}/agents/{agentId}` → `202` |
 | `stopAgent` | `DELETE /workspaces/{workspaceId}/agents/{agentId}` → `202` |
 | `listSessions` | `GET /workspaces/{workspaceId}/sessions?agent&persona&page&per_page` |
-| `createSession` | `POST /workspaces/{workspaceId}/sessions` `{ persona, agent?, message?, clientContext? }` → `201` |
+| `openDefaultSession` | `POST /workspaces/{workspaceId}/sessions/default` `{ course?, lesson?, session?, new?, from? }` (the page's launch token) |
 | `getSession` | `GET /workspaces/{workspaceId}/sessions/{sessionId}` |
 | `eve` | `/workspaces/{workspaceId}/sessions/{sessionId}/eve/v1/session/{sessionId}/…` (the session's own Eve routes) |
 

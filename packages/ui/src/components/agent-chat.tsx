@@ -2,11 +2,10 @@ import { useEveAgent } from "@dojofoo/agent/react";
 import { activeTurn, openInteractions } from "@dojofoo/agent/events";
 import type { SendTurnOptions } from "@dojofoo/agent/client";
 import type { Persona } from "@dojofoo/agent-api";
-import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
 import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
 import { agentRow, isAgentId } from "@dojofoo/protocol";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { projectChatTimeline, type AnchoredChatEvent } from "@/lib/chat-timeline";
 import type { CodeHighlight } from "@/lib/code-highlight";
 import { AuthoringChat, type ChatFailureView } from "./authoring-chat";
@@ -32,11 +31,12 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-/** POST /sessions/default (D29): the page's default conversation, or its replacement with `new` and `from` */
-async function openDefault(workspaceId: string, page: ChatPage, options: { session?: string; from?: string; signal?: AbortSignal } = {}) {
+/** POST /sessions/default (D29): the page's default conversation, or its replacement with `new` and `from`. A draft's page (Kyoshi)
+ *  names no course. */
+async function openDefault(workspaceId: string, page: ChatPage | undefined, options: { session?: string; from?: string; signal?: AbortSignal } = {}) {
   const response = await launchFetch(agentApi(workspaceId, "/sessions/default"), {
     method: "POST", signal: options.signal, headers: { "content-type": "application/json" },
-    body: JSON.stringify({ course: page.course, ...(page.lesson ? { lesson: page.lesson } : {}),
+    body: JSON.stringify({ ...(page ? { course: page.course, ...(page.lesson ? { lesson: page.lesson } : {}) } : {}),
       ...(options.from ? { new: true, from: options.from } : options.session ? { session: options.session } : {}) }),
   });
   if (!response.ok) throw await chatApiError(response);
@@ -51,9 +51,12 @@ function failureView(failure: ChatFailure | undefined, agent?: string): ChatFail
   return { ...failure, ...(row ? { agentName: row.name, ...(row.login ? { login: row.login } : {}) } : {}) };
 }
 
-/** Every persona uses the same conversation, uploads and session lifecycle. A Sensei page passes `page`, and its
- *  conversation comes from POST /sessions/default; Kyoshi keeps its own lookup until step 6. */
-export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded, clientContext, agents, onAgentChange, agentChanging, page, controls, hostEvents, fragments, onHighlight }: {
+/** The status line when a requested conversation can't continue (no alert: the default conversation is open) */
+const cantContinue = (agent: string) => `That conversation can't be continued, so the newest one on ${isAgentId(agent) ? agentRow(agent).name : agent} opened instead.`;
+
+/** Every persona uses the same conversation, uploads and session lifecycle, and gets its conversation from POST /sessions/default:
+ *  a Sensei page passes `page`, a draft's page (Kyoshi) none. */
+export function AgentChat({ workspaceId, persona, sessionId, onSessionDropped, embedded, clientContext, agents, onAgentChange, agentChanging, page, controls, hostEvents, fragments, onHighlight }: {
   embedded?: boolean;
   /** The workspace's agent menu (useWorkspaceAgent) */
   agents?: ComposerAgent[];
@@ -61,9 +64,10 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
   agentChanging?: boolean;
   workspaceId: string;
   persona: Persona;
+  /** The conversation to open, from `?session=`; the page never writes the default conversation's id */
   sessionId?: string;
-  /** Called with a session the page should put in its URL */
-  onSession?(id: string): void;
+  /** The server did not honour `sessionId`, or the requested conversation failed on open: the page drops `?session=` (replace: true) */
+  onSessionDropped?(): void;
   /** What the page shows, for every turn: the agent sees it, the conversation doesn't keep it */
   clientContext?: PageContext;
   page?: ChatPage;
@@ -77,28 +81,43 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
 }) {
   const current = useRef(sessionId);
   const [session, setSession] = useState<Session | null>(null);
+  /** Each open mounts the conversation afresh, even when the default is the conversation that just failed */
+  const [opening, setOpening] = useState(0);
   const [error, setError] = useState<unknown>();
   const [selectedAgent, setSelectedAgent] = useState<string>();
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [notice, setNotice] = useState<string>();
   const placeholder = persona === "kyoshi" ? "Shape this lesson with Kyoshi…" : "Ask your Sensei…";
   const context: PageContext = { ...clientContext, workspaceId };
   const pageKey = page ? `${page.course}\0${page.lesson ?? ""}` : "";
-  const create = (signal: AbortSignal) => json<Session>(agentApi(workspaceId, "/sessions"), {
-    // Kyoshi is the only caller of POST /sessions until step 6; its hidden first turn starts the conversation
-    method: "POST", signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ message: KYOSHI_START, clientContext: context }),
-  });
-  /** Open a conversation, as the URL's or the newest on the selected agent, or a new one */
-  const open = (selected: Session, rewrite = true) => {
+  /** What the page asked for last; a different request starts with an empty composer */
+  const loadKey = `${workspaceId}\0${persona}\0${pageKey}\0${sessionId ?? ""}`;
+  const requested = useRef({ key: loadKey, session: sessionId });
+  /** The requested conversation the server honoured, while the page still asks for it */
+  const picked = useRef<string | undefined>(undefined);
+  /** The conversation that opened when the page's requested one was dropped */
+  const dropped = useRef<string | undefined>(undefined);
+  const open = (selected: Session) => {
     // Bookmark acceptance before reading history so retries reuse this session.
     current.current = selected.id;
     setSession(selected);
-    if (rewrite) onSession?.(selected.id);
+    setOpening(count => count + 1);
+  };
+  /** The requested conversation was not honoured or can't continue: `selected` is open instead, and the page drops `?session=` */
+  const drop = (selected: Session, notify: boolean) => {
+    dropped.current = selected.id;
+    if (notify) setNotice(cantContinue(selected.agent));
+    onSessionDropped?.();
   };
   useEffect(() => {
+    const previous = requested.current;
+    requested.current = { key: loadKey, session: sessionId };
+    // The page dropped the session it asked for and the conversation that opened instead is open: nothing loads again (decision 16)
+    if (session && sessionId === undefined && previous.session !== undefined && dropped.current === session.id) return;
     if (session && current.current === sessionId) return;
-    if (current.current !== sessionId) { setValue(""); setFiles([]); }
+    if (previous.key !== loadKey) { setValue(""); setFiles([]); setNotice(undefined); }
     current.current = sessionId;
     setSession(null);
     setError(undefined);
@@ -111,30 +130,16 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
         const agents = await json<Page<Agent>>(agentApi(workspaceId, "/agents"), { signal: controller.signal });
         const agent = agents.data.find(item => item.selected)?.id ?? "";
         if (!controller.signal.aborted) setSelectedAgent(agent);
-        if (page) {
-          const opened = await openDefault(workspaceId, page, { session: sessionId, signal: controller.signal });
-          if (!controller.signal.aborted) open(opened.session, opened.rewrite);
-          return;
-        }
-        if (sessionId) {
-          const response = await fetch(agentApi(workspaceId, `/sessions/${encodeURIComponent(sessionId)}`), { signal: controller.signal });
-          // One that no longer exists, or that runs on another agent, can't continue here:
-          // open the selected agent's conversation instead
-          if (response.status !== 404) {
-            if (!response.ok) throw await chatApiError(response);
-            const saved = await response.json() as Session;
-            if (controller.signal.aborted) return;
-            if (saved.agent === agent) { setSession(saved); return; }
-          }
-        }
-        const existing = await json<Page<Session>>(agentApi(workspaceId, `/sessions?persona=${persona}&agent=${encodeURIComponent(agent)}&per_page=1`), { signal: controller.signal });
+        const opened = await openDefault(workspaceId, page, { session: sessionId, signal: controller.signal });
         if (controller.signal.aborted) return;
-        const selected = existing.data[0] ?? await create(controller.signal);
-        if (!controller.signal.aborted) open(selected);
+        picked.current = sessionId !== undefined && !opened.rewrite ? opened.session.id : undefined;
+        open(opened.session);
+        if (sessionId !== undefined && opened.rewrite) drop(opened.session, opened.notice === "picked-unavailable");
       })().catch(cause => { if (!controller.signal.aborted) setError(cause); });
     });
     return () => controller.abort();
   }, [sessionId, workspaceId, persona, pageKey, loadAttempt]);
+  const status = notice ? <p role="status" className="text-sm text-muted-foreground">{notice}</p> : undefined;
   const loadFailure = error === undefined ? undefined : chatFailure(error, { operation: "load", agentName: selectedAgent });
   // A switch in progress (409 agent_switching): load again once a second; after 30 seconds the failure offers Try again
   const switchingSince = useRef<number | undefined>(undefined);
@@ -152,24 +157,30 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
     // A load that can only start over shows "Try again"
     error={loadFailure && (switchingRetry && loadFailure.kind === "switching" ? { message: loadFailure.message, actions: [] } : failureView(loadFailure, selectedAgent)
       ?? { message: error instanceof Error ? error.message : String(error), actions: ["try-again"] })}
-    agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging}
+    agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} notice={status}
     onRetryLoad={error !== undefined ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
-  return <AgentConversation key={session.id} embedded={embedded} workspaceId={workspaceId} session={session} placeholder={placeholder}
-    hostEvents={hostEvents} fragments={fragments} onHighlight={onHighlight}
-    clientContext={context} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} sensei={Boolean(page)} controls={controls}
+  return <AgentConversation key={`${session.id}:${opening}`} embedded={embedded} workspaceId={workspaceId} session={session} placeholder={placeholder}
+    hostEvents={hostEvents} fragments={fragments} onHighlight={onHighlight} notice={status}
+    clientContext={context} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} sensei={persona === "sensei"} controls={controls}
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles}
     onReload={() => { setSession(null); setLoadAttempt(attempt => attempt + 1); }}
     onEnded={() => {
-      const replace = page ? openDefault(workspaceId, page, { from: session.id }).then(opened => open(opened.session, true))
-        : create(new AbortController().signal).then(selected => open(selected));
-      void replace.catch(cause => { setSession(null); setError(cause); });
+      // A requested conversation that can't continue: the page's newest usable one opens, not a replacement of it (decision 18)
+      const requestedOne = picked.current === session.id;
+      picked.current = undefined;
+      void openDefault(workspaceId, page, requestedOne ? {} : { from: session.id }).then(opened => {
+        open(opened.session);
+        if (requestedOne) drop(opened.session, true);
+      }).catch(cause => { setSession(null); setError(cause); });
     }} />;
 }
 
 /** The session is Eve's: its own client resumes it, streams it, and takes messages and answers. */
-function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext, agents, onAgentChange, agentChanging, sensei, controls, hostEvents, fragments, onHighlight }: {
+function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext, agents, onAgentChange, agentChanging, sensei, controls, hostEvents, fragments, onHighlight, notice }: {
   embedded?: boolean; workspaceId: string; session: Session;
-  /** Read the conversation again: Sensei's page asks for its default conversation */
+  /** A status line above the composer */
+  notice?: ReactNode;
+  /** Read the conversation again: the page asks for its default conversation */
   onReload(): void;
   agents?: ComposerAgent[]; onAgentChange?(id: string): void; agentChanging?: boolean;
   /** Eve can't continue this session: an older Eve built it, it ended, or its coding agent isn't selected */
@@ -177,7 +188,7 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   value: string; onValueChange(value: string): void; files: File[]; onFilesChange(files: File[]): void;
   placeholder: string;
   clientContext: PageContext;
-  /** Sensei's page: the model menu, and replacement through the default route */
+  /** Sensei's page: the model menu */
   sensei: boolean;
   controls?: MutableRefObject<{ send(text: string): void } | null>;
   hostEvents?: AnchoredChatEvent[];
@@ -254,10 +265,8 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   }
   const shown = failure ? chatFailure(failure.error, { operation: failure.operation, file: failure.file, agentName: session.agent, crashes: crashes.current })
     : agent.error ? chatFailure(agent.error, { operation: "send", agentName: session.agent, crashes: crashes.current }) : undefined;
-  const code = (failure?.error ?? agent.error) as { code?: unknown } | undefined;
-  // Kyoshi keeps today's recovery: a session it can't continue (or an agent no longer selected) starts another; a missing one reloads
-  const recovery = !shown ? undefined : shown.kind === "replace" ? "ended"
-    : shown.kind === "default-open" ? (sensei ? "reload" : code?.code === "agent_unavailable" ? "ended" : "reload") : undefined;
+  // A conversation Eve can't continue is replaced; a missing one, or one whose agent is no longer selected, opens the default again
+  const recovery = !shown ? undefined : shown.kind === "replace" ? "ended" : shown.kind === "default-open" ? "reload" : undefined;
   const handled = useRef(false);
   useEffect(() => {
     if (handled.current || !recovery) return;
@@ -277,6 +286,6 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
     {...(sensei ? { model, models, modelChanging: modelChanging || turnOpen, onModelChange: (next: string) => { void changeModel(next); } } : {})}
     value={value} onValueChange={onValueChange} attachments files={files} onFilesChange={onFilesChange}
     onSend={send} onStop={() => { setFailure(undefined); void agent.cancel().catch(cause => setFailure({ error: cause, operation: "cancel" })); }} onAnswer={answer}
-    error={failureView(shown, session.agent)}
+    error={failureView(shown, session.agent)} notice={notice}
     onRetryLoad={shown?.kind === "alert" ? () => { setFailure(undefined); onReload(); } : undefined} />;
 }

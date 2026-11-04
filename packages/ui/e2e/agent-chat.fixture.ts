@@ -26,6 +26,7 @@ export interface MountOptions {
   workspaceId?: string;
   /** Holds the browser's messages to the conversation until it resolves */
   hold?: Promise<void>;
+  /** Fails `POST /sessions/default` and `GET /sessions/{id}` while it returns true */
   failRead?: () => boolean;
   failRun?: () => boolean;
   failCancel?: () => boolean;
@@ -127,7 +128,8 @@ async function mount(page: Page, eve: Eve, servers: Server[], baseURL: string, o
     const select = request.method() === "POST" ? /\/agents\/([^/]+)\/select$/u.exec(url.pathname) : null;
     if (select) selects.push({ agentId: decodeURIComponent(select[1]!), token: await request.headerValue(LAUNCH_TOKEN_HEADER) });
     const eveRoute = request.method() === "POST" ? sessionRoute.exec(url.pathname) : null;
-    if (request.method() === "GET" && /\/sessions\/[^/]+$/u.test(url.pathname) && options.failRead?.()) {
+    // Reading a conversation: opening the page's default one, or one session's record
+    if ((request.method() === "GET" ? /\/sessions\/[^/]+$/u : /\/sessions\/default$/u).test(url.pathname) && options.failRead?.()) {
       return route.fulfill({ status: 503, json: { error: "temporarily_unavailable", message: "Conversation temporarily unavailable" } });
     }
     if (eveRoute && !eveRoute[2]) {

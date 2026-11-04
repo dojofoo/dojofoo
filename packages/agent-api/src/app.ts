@@ -1,7 +1,7 @@
-import { Client, ClientError } from "@dojofoo/agent/client";
+import { ClientError } from "@dojofoo/agent/client";
 import { Elysia } from "elysia";
 import { classifyEveRequest } from "./delivery";
-import { AgentApiError, type AgentRuntime, type Persona, type SessionRecord } from "./runtime";
+import { AgentApiError, type AgentRuntime, type SessionRecord } from "./runtime";
 import { routes } from "./schema";
 
 export interface AgentApiOptions {
@@ -71,24 +71,6 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
       return paginate(sessions, query);
     }, routes.listSessions)
-    .post("/workspaces/:workspaceId/sessions", async ({ params, body, request, set }) => {
-      // The workspace decides who speaks, not the page
-      const persona: Persona = await runtime.persona(params.workspaceId);
-      const agents = await runtime.agents(params.workspaceId);
-      const agent = body.agent ?? agents.find(item => item.selected)?.id;
-      if (!agent || !agents.some(item => item.id === agent)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
-      const client = new Client(await runtime.connect(params.workspaceId, { agent, persona }));
-      // Eve starts the first turn on acceptance; the client follows it on the session's stream.
-      const { session } = await client.sessions.create({
-        message: body.message,
-        ...(body.clientContext ? { clientContext: body.clientContext } : {}),
-        signal: request.signal,
-      });
-      const saved: SessionRecord = { id: session.state.sessionId, agent, persona, createdAt: new Date().toISOString(), revision: 0 };
-      await runtime.sessions.save(params.workspaceId, saved);
-      set.status = 201;
-      return saved;
-    }, routes.createSession)
     // The second token-checked route: only the UI's own pages open their default conversation
     .post("/workspaces/:workspaceId/sessions/default", async ({ params, body, request }) => {
       options.authorize?.(request);

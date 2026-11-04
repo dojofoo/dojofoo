@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { UIMessage } from "@tanstack/ai-react";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { ChatContainer, ChatContainerContent, ChatContainerFooter } from "@dojofoo/ui/chat-container";
@@ -15,8 +16,10 @@ import type { CodeHighlight } from "@/lib/code-highlight";
 export type ChatFailureView = { message: string; actions: ChatAction[]; refusedAgent?: string; login?: string; agentName?: string; retryAfter?: string };
 
 /** An agent conversation's presentation */
-export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent, agents, onAgentChange, agentChanging, model, models, modelChanging, onModelChange, fragments, onHighlight }: {
+export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent, agents, onAgentChange, agentChanging, model, models, modelChanging, onModelChange, fragments, onHighlight, notice }: {
   embedded?: boolean;
+  /** A status line or notice above the composer */
+  notice?: ReactNode;
   agent?: ComposerAgent;
   agents?: ComposerAgent[];
   onAgentChange?(id: string): void;
@@ -56,14 +59,14 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
         {!active && onRetryLoad ? <Button onClick={onRetryLoad}>Reload conversation</Button> : null}
       </> : error ? <FailureActions failure={error} active={active} agents={agents} onAgentChange={onAgentChange} onRetryLoad={onRetryLoad} /> : null}
     </div>;
-  const composer = <div data-testid="authoring-chat-composer">
+  const composer = <>{notice}<div data-testid="authoring-chat-composer">
       <Composer tray={false} attachments={attachments || "unavailable"} files={files} onFilesChange={onFilesChange} dictation={false} plugins={false} models={models ?? []} model={model} modelChanging={modelChanging} onModelChange={onModelChange} agent={agent ?? { name: "Coding agent", icon: AiBrain01Icon }}
         agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging}
         // A message sent while the agent works joins its turn, so the composer stays open
         disabled={inputDisabled || readOnly} busy={active} onStop={onStop} queueing
         history={messages.filter(({ role }) => role === "user").map(entry => entry.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
         onSend={(text, selected) => { scrollToBottom(); return onSend(text, selected); }} onValueChange={onValueChange} placeholder={placeholder} value={value} />
-    </div>;
+    </div></>;
   if (embedded) return <ConversationContent scroller={viewportRef} composer={composer}>{transcript}</ConversationContent>;
   return <ChatContainer><ChatContainerContent viewportRef={viewportRef}>{transcript}</ChatContainerContent>
     <ChatContainerFooter>{composer}</ChatContainerFooter></ChatContainer>;

@@ -47,7 +47,6 @@ import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
 import { codingAgents } from "@/lib/coding-agents";
 import { courseArt } from "@/lib/course-color";
 import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
-import { authoringSessionLink, authoringSessionSearch } from "@/lib/authoring-session-link";
 import { httpError } from "@/lib/http-error";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 import type { JsonRpcRequest } from "@/server/session/protocol";
@@ -181,7 +180,7 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
             progress: course.position ? Math.round(course.position.completedLessons / course.position.totalLessons * 100) : undefined,
             onOpen: () => openCourse(course.dojo), onDelete: () => { void deleteCourse(course.dojo); } }))}
           drafts={drafts.map(draft => ({ id: draft.workspaceId, title: draft.name, color: courseColor(courseArt(draft.workspaceId, draft.appearance)), mark: draft.mode,
-            caption: "Draft", detail: draft.description || "Open authoring", href: authoringSessionLink(draft.workspaceId), onDelete: () => { void deleteCourse(draft.workspaceId, true); } }))} />
+            caption: "Draft", detail: draft.description || "Open authoring", href: `/authoring?workspace=${encodeURIComponent(draft.workspaceId)}`, onDelete: () => { void deleteCourse(draft.workspaceId, true); } }))} />
         {toast}
       </AppShell>
       <DashboardPalette open={paletteOpen} onOpenChange={setPaletteOpen} searchLabel="Search your courses"
@@ -190,7 +189,7 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
           { id: "drafts", label: "Authoring", commands: drafts.map(draft => ({ id: `draft:${draft.workspaceId}`, label: draft.name })) },
         ]} onRun={id => {
           if (id.startsWith("course:")) openCourse(id.slice(7));
-          else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: authoringSessionSearch(id.slice(6)) });
+          else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: { workspace: id.slice(6) } });
         }} />
     </div>
   );

@@ -2,6 +2,7 @@ import { Client } from "@dojofoo/agent/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createAgentApi } from "./app";
 import { startEve, testLaunchToken, testRuntime } from "./fixtures";
+import type { SessionRecord } from "./runtime";
 import { LAUNCH_TOKEN_HEADER, launchGuard } from "./launch";
 
 const base = "http://local/api/v1/workspaces/ws-1";
@@ -27,7 +28,10 @@ function setup(options: Parameters<typeof testRuntime>[2] = {}) {
   const session = (id: string) => new Client({ baseUrl: `${base}/sessions/${encodeURIComponent(id)}` }).sessions.attach(id);
   /** A new session, once its first turn has settled (a message sent sooner steers that turn) */
   const created = async () => {
-    const record = await (await json("/sessions", "POST", { persona: "kyoshi", message: "Hello kyoshi" })).json() as { id: string };
+    // As a spec's saved conversation: Eve's create with the message, then the record (packages/ui/e2e/agent-chat.fixture.ts startConversation)
+    const { session: eveSession } = await new Client(eve).sessions.create({ message: "Hello kyoshi" });
+    const record: SessionRecord = { id: eveSession.state.sessionId, agent: "codex", persona: "kyoshi", createdAt: new Date().toISOString(), revision: 0 };
+    runtime.records.push(record);
     await vi.waitFor(async () => expect((await session(record.id).snapshot()).events.some(event => event.type === "turn.settled")).toBe(true), { timeout: 30_000 });
     return record;
   };
@@ -73,8 +77,8 @@ describe("agents", () => {
     expect(await selected.json()).toEqual({ id: "opencode", name: "OpenCode", selected: true, status: "stopped" });
     expect(runtime.selections).toEqual(["opencode"]);
     expect((await (await json("/agents")).json()).data[0]).toMatchObject({ id: "opencode", selected: true });
-    const created = await json("/sessions", "POST", { persona: "kyoshi", message: "Hello kyoshi" });
-    expect(await created.json()).toMatchObject({ agent: "opencode" });
+    const opened = await json("/sessions/default", "POST", {}, { [LAUNCH_TOKEN_HEADER]: testLaunchToken });
+    expect(await opened.json()).toMatchObject({ session: { agent: "opencode" }, rewrite: true });
   }, 60_000);
 
   it("refuses select without the launch token", async () => {
@@ -110,31 +114,14 @@ describe("agents", () => {
 });
 
 describe("sessions", () => {
-  it("creates a session on the selected coding agent, whose first turn is the message in the body", async () => {
-    const { json, runtime, session } = setup();
-    const created = await json("/sessions", "POST", { persona: "kyoshi", message: "Hello kyoshi", clientContext: { view: { scope: "course" } } });
-    expect(created.status).toBe(201);
-    const record = await created.json();
-    expect(record).toMatchObject({ agent: "codex", persona: "kyoshi", revision: 0 });
+  it("POST /sessions/default creates on the selected agent with the workspace's persona, ignoring a persona in the body", async () => {
+    const { json, runtime } = setup({ persona: "sensei" });
+    const opened = await json("/sessions/default", "POST", { course: "first", persona: "kyoshi" }, { [LAUNCH_TOKEN_HEADER]: testLaunchToken });
+    expect(opened.status).toBe(200);
+    const { session: record } = await opened.json();
+    expect(record).toMatchObject({ agent: "codex", persona: "sensei", courseId: "first" });
     expect(runtime.records).toEqual([record]);
     expect(await (await json(`/sessions/${record.id}`)).json()).toEqual(record);
-    await vi.waitFor(async () => {
-      const { events } = await session(record.id).snapshot();
-      expect(events.some(event => event.type === "content.completed" && JSON.stringify(event.data).includes("Echo: Hello kyoshi"))).toBe(true);
-    }, { timeout: 30_000 });
-  }, 60_000);
-
-  it("creates a session with the workspace's persona, ignoring a persona in the body", async () => {
-    const { json, runtime, session } = setup({ persona: "sensei" });
-    const created = await json("/sessions", "POST", { persona: "kyoshi", message: "Hello sensei" });
-    expect(created.status).toBe(201);
-    const record = await created.json();
-    expect(record).toMatchObject({ agent: "codex", persona: "sensei" });
-    expect(runtime.records).toEqual([record]);
-    await vi.waitFor(async () => {
-      const { events } = await session(record.id).snapshot();
-      expect(events.some(event => event.type === "content.completed" && JSON.stringify(event.data).includes("Echo: Hello sensei"))).toBe(true);
-    }, { timeout: 30_000 });
   }, 60_000);
 
   it("filters sessions by coding agent and persona, newest first", async () => {
@@ -210,15 +197,6 @@ describe("sessions", () => {
     expect(await (await json("/agents/nope/models")).json()).toMatchObject({ error: "agent_not_found" });
   });
 
-  it("POST /sessions without a message is invalid_request", async () => {
-    const { json, runtime } = setup();
-    for (const body of [{ persona: "kyoshi" }, { message: "" }]) {
-      const refused = await json("/sessions", "POST", body);
-      expect(refused.status).toBe(400);
-      expect(await refused.json()).toMatchObject({ error: "invalid_request" });
-    }
-    expect(runtime.records).toEqual([]);
-  });
 });
 
 describe("the default conversation route", () => {
