@@ -30,4 +30,17 @@ describe("session websocket channel", () => {
     connection.request = new Request("http://localhost/api/session");
     expect(() => new SessionChannel(connection)).toThrow("session-bound connection");
   });
+
+  it("a page key's peers share a channel; another lesson or course does not", () => {
+    const page = (query: string): SessionPeer => ({ request: new Request(`http://localhost/api/session?${query}`), send: vi.fn(), peers: [] });
+    const sender = page("workspace=w1&course=c1&lesson=first");
+    const tab = page("workspace=w1&course=c1&lesson=first");
+    const other = page("workspace=w1&course=c1&lesson=second");
+    const course = page("workspace=w1&course=c1");
+    sender.peers = [sender, tab, other, course];
+    new SessionChannel(sender).broadcast({ type: "check" });
+    expect(tab.send).toHaveBeenCalledWith('{"type":"check"}');
+    expect(other.send).not.toHaveBeenCalled();
+    expect(course.send).not.toHaveBeenCalled();
+  });
 });

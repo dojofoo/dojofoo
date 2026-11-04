@@ -75,3 +75,46 @@ it("refreshes agent-written evaluation reports without watching private evidence
   await expect.poll(() => notices.length).toBe(3);
   expect(notices).toEqual(Array.from({ length: 3 }, () => ({ method: "workspace.changed" })));
 });
+
+it("a draft's paused Kyoshi turn is cancelled 30 s after its last authoring socket closes", async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+  const { observeWorkspacePath } = await import("@dojofoo/config/local-state");
+  const { createLocalAgentRuntime } = await import("./agent-api");
+  const { authoringWatchers } = await import("./authoring-watch");
+  const { fakeEve } = await import("./agent-session/test-eve.fixture");
+  const { vi } = await import("vitest");
+  const eve = await fakeEve();
+  const draft = mkdtempSync(join(tmpdir(), "dojo-draft-leave-"));
+  const stateHome = mkdtempSync(join(tmpdir(), "dojo-draft-leave-home-"));
+  try {
+    mkdirSync(resolve(draft, ".dojo"), { recursive: true });
+    writeFileSync(resolve(draft, "dojo.yaml"), "name: draft\nversion: 1.0.0\ndescription: Draft\nkatas: []\n");
+    writeFileSync(resolve(draft, ".dojo/runtimes.json"), JSON.stringify({ agent: "codex" }));
+    const workspaceId = observeWorkspacePath(draft, { stateHome, kind: "draft" });
+    const local = createLocalAgentRuntime({ state: { stateHome }, runtime: async () => ({ start: async () => ({ url: eve.url, secret: "d".repeat(64) }), close: async () => {} }) });
+    await local.connect(workspaceId, { agent: "codex", persona: "kyoshi" });
+    await local.sessions.save(workspaceId, { id: "k-paused", agent: "codex", persona: "kyoshi", createdAt: new Date().toISOString(), revision: 0,
+      lifecycle: { status: "paused", turnId: "turn_4", updatedAt: new Date().toISOString() } });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+    const stop = authoringWatchers.subscribe(draft, () => {});
+    await stop();
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(eve.cancels).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1_500);
+    await vi.waitFor(() => expect(eve.cancels).toEqual([{ sessionId: "k-paused", body: { turnId: "turn_4" } }]));
+    // A socket that opens again within the bound keeps a later pause
+    const again = authoringWatchers.subscribe(draft, () => {});
+    await again();
+    const reopened = authoringWatchers.subscribe(draft, () => {});
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect(eve.cancels).toHaveLength(1);
+    await reopened();
+    await local.stop(workspaceId, "codex");
+  } finally {
+    vi.useRealTimers();
+    await eve.close();
+    rmSync(draft, { recursive: true, force: true });
+    rmSync(stateHome, { recursive: true, force: true });
+  }
+});

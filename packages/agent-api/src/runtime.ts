@@ -126,6 +126,9 @@ export interface AgentRuntime {
     before(workspaceId: string, session: SessionRecord, delivery: EveDelivery): Promise<unknown>;
     after(workspaceId: string, session: SessionRecord, delivery: EveDelivery, outcome: { handle: unknown; status: number; deliveryId?: string }): Promise<void>;
   };
+  /** Sends Eve's cancel to a session's running host (with `turnId` for a paused turn, without one for a working begin); nothing when
+   *  no host runs. The leave rules call it after the `leave` transition (D19). */
+  cancelTurn?(workspaceId: string, sessionId: string, turnId?: string): Promise<void>;
   /** Presence for idle stop: every proxied request, and each open stream until it closes. Returns the release. */
   activity?(workspaceId: string, kind: "request" | "stream"): () => void;
 }

@@ -7,12 +7,24 @@ type Listener = (notice: Notice) => void;
 const ignoredDirectories = new Set([".git", ".dojo", ".pnpm-store", "node_modules", "dist", "coverage"]);
 const evaluationReport = /^\.dojo\/evaluations\/run-[^/]+\/report\.json$/u;
 
-/** One watcher per viewed workspace, shared across tabs; never follows external links. */
-export function createAuthoringWatchers() {
+/** One watcher per viewed workspace, shared across tabs; never follows external links. A draft whose last authoring socket closed
+ *  without another opening within `leaveAfterMs` (30 seconds) is left: the `onLeft` listeners run with its folder (Kyoshi's leave rule). */
+export function createAuthoringWatchers(options: { leaveAfterMs?: number } = {}) {
   const entries = new Map<string, { listeners: Set<Listener>; close(): Promise<void>; ready: boolean }>();
+  const leaving = new Map<string, ReturnType<typeof setTimeout>>();
+  const leftListeners = new Set<(path: string) => unknown>();
+  const stopLeaving = (root: string) => {
+    clearTimeout(leaving.get(root));
+    leaving.delete(root);
+  };
   return {
+    onLeft(listener: (path: string) => unknown) {
+      leftListeners.add(listener);
+      return () => { leftListeners.delete(listener); };
+    },
     subscribe(path: string, listener: Listener) {
       const root = realpathSync(path);
+      stopLeaving(root);
       let entry = entries.get(root);
       if (!entry) {
         const listeners = new Set<Listener>();
@@ -58,6 +70,13 @@ export function createAuthoringWatchers() {
         subscribed.listeners.delete(listener);
         if (!subscribed.listeners.size && entries.get(root) === subscribed) {
           entries.delete(root);
+          stopLeaving(root);
+          const timer = setTimeout(() => {
+            leaving.delete(root);
+            for (const left of leftListeners) Promise.resolve().then(() => left(root)).catch(error => console.warn(`Could not leave ${root}: ${error instanceof Error ? error.message : String(error)}`));
+          }, options.leaveAfterMs ?? 30_000);
+          timer.unref?.();
+          leaving.set(root, timer);
           await subscribed.close();
         }
       };
@@ -69,6 +88,7 @@ export function createAuthoringWatchers() {
     async close() {
       const active = [...entries.values()];
       entries.clear();
+      for (const root of [...leaving.keys()]) stopLeaving(root);
       await Promise.all(active.map(entry => entry.close()));
     },
   };

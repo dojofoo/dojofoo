@@ -7,6 +7,7 @@ import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { createLocalAgentRuntime } from "../agent-api";
 import { forgetHost, hostPortServer } from "../host-port";
 import { setPageSink, type PageKey, type PageMessage } from "./notify";
+import { presence } from "./presence";
 
 /** A learner workspace with a kata course (`starter`, lessons `001-first`, `002-second`) and an interactive one (`tour`),
  *  registered under a temporary DOJOFOO_HOME, and an AgentRuntime whose Sensei host is `eve`. */
@@ -33,7 +34,9 @@ export function kataWorkspace(roots: string[], eve: AgentEndpoint, secret = "b".
   const workspaceId = observeWorkspacePath(root, { kind: "learner" });
   const local = createLocalAgentRuntime({ runtime: async () => ({ start: async () => ({ url: eve.baseUrl, secret }), close: async () => {} }) });
   const messages: Array<{ key: PageKey; message: PageMessage }> = [];
-  setPageSink((key, message) => { messages.push({ key, message }); return true; });
+  // Every page notification is recorded, and still reaches the page sockets the test opened
+  const hub = presence();
+  setPageSink((key, message) => { messages.push({ key, message }); hub.send(key, message.method, message.params); return true; });
   const file = resolve(root, "katas", "001-first", "solution.ts");
   // The learner's copy of the first lesson, as its scaffold wrote it
   mkdirSync(resolve(root, "katas", "001-first"), { recursive: true });
@@ -50,7 +53,7 @@ export function kataWorkspace(roots: string[], eve: AgentEndpoint, secret = "b".
     }));
     return { status: response.status, body: await response.json() as unknown };
   };
-  const cleanup = () => { setPageSink(undefined); forgetHost(workspaceId, "sensei"); forgetHost(workspaceId, "kyoshi"); };
+  const cleanup = () => { setPageSink((key, message) => hub.send(key, message.method, message.params)); forgetHost(workspaceId, "sensei"); forgetHost(workspaceId, "kyoshi"); };
   return { root, workspaceId, local, file, record, call, messages, cleanup, secret };
 }
 

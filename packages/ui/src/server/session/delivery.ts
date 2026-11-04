@@ -4,11 +4,12 @@ export type SessionPeer = {
   peers: Iterable<SessionPeer>;
 };
 
+/** The peers of one page key (`workspace`, `course`, `lesson`), or of one ACP thread (`session`) until the kata page moves to Eve. */
 export class SessionChannel {
   readonly id: string;
 
   constructor(private readonly peer: SessionPeer) {
-    const id = sessionId(peer);
+    const id = channelId(peer);
     if (!id) throw new Error("A session-bound connection is required");
     this.id = id;
   }
@@ -20,7 +21,7 @@ export class SessionChannel {
   broadcast(value: unknown): void {
     const data = JSON.stringify(value);
     for (const peer of this.peer.peers) {
-      if (peer === this.peer || sessionId(peer) !== this.id) continue;
+      if (peer === this.peer || channelId(peer) !== this.id) continue;
       peer.send(data);
     }
   }
@@ -31,6 +32,11 @@ export class SessionChannel {
   }
 }
 
-function sessionId(peer: Pick<SessionPeer, "request">): string | null {
-  return new URL(peer.request.url).searchParams.get("session");
+function channelId(peer: Pick<SessionPeer, "request">): string | null {
+  const query = new URL(peer.request.url).searchParams;
+  const session = query.get("session");
+  if (session) return session;
+  const workspace = query.get("workspace");
+  const course = query.get("course");
+  return workspace && course ? `page:${workspace}\0${course}\0${query.get("lesson") ?? ""}` : null;
 }

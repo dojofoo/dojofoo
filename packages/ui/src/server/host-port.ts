@@ -36,6 +36,11 @@ const hostKey = (workspaceId: string, persona: Persona) => `${workspaceId}\0${pe
 export function registerHost(workspaceId: string, persona: Persona, host: Host): void {
   hosts.set(hostKey(workspaceId, persona), host);
 }
+/** The running host of (workspace, persona), if any; process-global, so every AgentRuntime instance finds it */
+export function runningHost(workspaceId: string, persona: Persona): { endpoint: AgentEndpoint; agent?: AgentId } | undefined {
+  const host = hosts.get(hostKey(workspaceId, persona));
+  return host ? { endpoint: host.endpoint, ...(host.agent ? { agent: host.agent } : {}) } : undefined;
+}
 export function forgetHost(workspaceId: string, persona: Persona, secret?: string): void {
   const key = hostKey(workspaceId, persona);
   if (!secret || hosts.get(key)?.secret === secret) hosts.delete(key);

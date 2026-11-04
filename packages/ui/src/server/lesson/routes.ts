@@ -20,6 +20,9 @@ import type { AcpStreamPart } from "./codex-client";
 import { streamAcpAsAgUi } from "./agui-stream";
 import { readCourseManifest } from "@dojofoo/config";
 import { advanceInteractiveLesson, getInteractiveLesson } from "../interactive/service";
+import { dropHeld, offerCheckReport } from "../agent-session/check-reports";
+import { readRecords } from "../agent-session/records";
+import { localAgentRuntime } from "../agent-api";
 
 const app = new Hono();
 
@@ -96,13 +99,19 @@ app.get("/:workspaceId/courses/:courseId/lessons/:lessonId/files/:fileId", async
 app.put("/:workspaceId/courses/:courseId/lessons/:lessonId/files/:fileId", async (c) => {
   const { root, courseId, lessonId } = context(c);
   const body = await c.req.json<{ content: string }>();
-  return c.json(await writeLessonFile(root, courseId, lessonId, c.req.param("fileId"), body.content));
+  const written = await writeLessonFile(root, courseId, lessonId, c.req.param("fileId"), body.content);
+  // A save makes a report Sensei has not been sent stale (D16)
+  for (const record of (await readRecords(root)).filter(item => item.courseId === courseId && item.lessonId === lessonId)) {
+    await dropHeld(root, c.req.param("workspaceId"), record.id);
+  }
+  return c.json(written);
 });
 
 app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/checks", async (c) => {
   try {
     const { root, courseId, lessonId } = context(c);
     const { lesson, observation } = await checkLesson(root, courseId, lessonId);
+    await offerCheckReport(localAgentRuntime, { path: root, workspaceId: c.req.param("workspaceId") }, courseId, lessonId, observation);
     return c.json({
       data: {
         type: "checks",

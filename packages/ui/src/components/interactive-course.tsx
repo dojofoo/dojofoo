@@ -18,6 +18,7 @@ import { CourseContent } from "./course-content";
 import { AgentChat } from "./agent-chat";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
+import { usePageSocket } from "@/hooks/use-page-socket";
 import { lessonResources } from "@/lib/lesson-resources";
 import type { InteractiveSnapshot } from "@/server/interactive/service";
 
@@ -92,6 +93,12 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
   }
 
   const workspaceAgent = useWorkspaceAgent({ workspaceId: workspace, persona: "sensei", onSwitched: () => { setAgentEpoch(epoch => epoch + 1); } });
+  // The course page's socket is its presence (D19); a conversation the server replaced opens in its place
+  const [replacement, setReplacement] = useState<string>();
+  usePageSocket({ workspace, course: lesson?.dojo }, message => {
+    const to = (message.params as { to?: unknown } | undefined)?.to;
+    if (message.method === "session.replaced" && typeof to === "string") setReplacement(to);
+  });
 
   const brand = <Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>;
   const shell = { ...account, workspace: "Dojo", brand, sidebarWidth: "18rem", showNews: false, showOnboarding: false };
@@ -141,5 +148,6 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     conversation={<><AgentChat key={`${workspace}:${lesson.dojo}:${agentEpoch}`} embedded workspaceId={workspace} persona="sensei" page={{ course: lesson.dojo }} controls={chat}
+      sessionId={replacement}
       agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching} />{workspaceAgent.notice}{workspaceAgent.dialog}</>} />{toast}</div>;
 }

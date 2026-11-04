@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { Client, ClientError, type ClientOptions } from "@dojofoo/agent/client";
@@ -22,7 +22,9 @@ import { dropHeld } from "./agent-session/report-state";
 import { startupVerified } from "./startup";
 import { authoringWatchers } from "./authoring-watch";
 import { committedConformance } from "./conformance";
-import { forgetHost, hostPortUrl, registerHost } from "./host-port";
+import { forgetHost, hostPortUrl, registerHost, runningHost } from "./host-port";
+import { presence as pageHub } from "./agent-session/presence";
+import { pageKeyOf, type PageKey } from "./agent-session/notify";
 
 type RuntimeState = {
   agent: string; persona: Persona; workspaceId: string; status: AgentStatus; message?: string;
@@ -79,6 +81,7 @@ export function createLocalAgentRuntime(options: {
   idleCheckMs?: number;
 }): AgentRuntime {
   const states = new Map<string, RuntimeState>();
+  const pages = () => pageHub();
   /** Presence for idle stop: the proxied streams still open per workspace, and since when a ready host has had nothing using it */
   const presence = new Map<string, { streams: number }>();
   const idleSince = new Map<string, number>();
@@ -135,6 +138,7 @@ export function createLocalAgentRuntime(options: {
   /** Before any host stops (switch, switch timeout, crash, idle stop, stop): verify its sessions' windows, drop their held reports */
   const beforeHostStop = async (path: string, workspaceId: string, agent: string) => {
     const records = (await read(path)).filter(record => record.agent === agent);
+    pageHub().clearTimers(records.flatMap(record => pageKeyOf(workspaceId, record) ?? []));
     await verifyRecords(path, workspaceId, records);
     for (const record of records) await dropHeld(path, workspaceId, record.id).catch(() => undefined);
   };
@@ -193,6 +197,11 @@ export function createLocalAgentRuntime(options: {
         await beforeHostStop(path, workspaceId, agent).catch(() => undefined);
       });
       await reconcile(path, workspaceId, agent, ready).catch(error => console.warn(`Could not reconcile the sessions of ${path}: ${error instanceof Error ? error.message : String(error)}`));
+      // Startup step 5: a paused conversation whose page has no socket is left 30 seconds after its host is ready
+      if (persona === "sensei") for (const record of await read(path).catch(() => [])) {
+        const key = record.agent === agent && record.lifecycle?.status === "paused" ? pageKeyOf(workspaceId, record) : undefined;
+        if (key) pageHub().armIfAbsent(key);
+      }
       return ready;
     })().then(value => {
       state.status = "ready";
@@ -274,7 +283,7 @@ export function createLocalAgentRuntime(options: {
   const stopIdle = async () => {
     for (const [path, state] of [...states]) {
       if (state.status !== "ready") continue;
-      const busy = (presence.get(path)?.streams ?? 0) > 0 || authoringWatchers.watching(path)
+      const busy = (presence.get(path)?.streams ?? 0) > 0 || authoringWatchers.watching(path) || pages().sockets(state.workspaceId) > 0
         || (await read(path)).some(record => record.agent === state.agent && (record.lifecycle?.status === "working" || record.lifecycle?.status === "paused"));
       if (busy) { idleSince.delete(path); continue; }
       const since = idleSince.get(path) ?? Date.now();
@@ -287,7 +296,48 @@ export function createLocalAgentRuntime(options: {
   };
   setInterval(() => { void stopIdle().catch(() => {}); }, options.idleCheckMs ?? 60_000).unref();
 
+  /** D19: leaving a page cancels its paused turn (by turnId) and its working begin; the leave transition comes first, so the held report
+   *  is dropped before Eve's cancel. Evaluation-trial workspaces are never left; an ordinary working turn runs until it settles. */
+  const leavePage = async (key: PageKey) => {
+    let path: string;
+    try { path = root(key.workspaceId); } catch { return; }
+    const workspace = listWorkspaces(options.state).find(item => item.id === key.workspaceId);
+    if (!workspace || workspaceKind(workspace, options.state ?? {}) === "evaluation-trial") return;
+    const agent = selected(path);
+    for (const record of await read(path)) {
+      if (record.persona !== "sensei" || record.agent !== agent || record.endedAt || record.courseId !== key.courseId || (record.lessonId ?? "") !== (key.lessonId ?? "")) continue;
+      const status = record.lifecycle?.status;
+      if (status !== "paused" && !(status === "working" && record.lifecycle?.beginPending)) continue;
+      await dropHeld(path, key.workspaceId, record.id);
+      await applyLifecycle(path, record.id, { type: "leave" });
+      await runtime.cancelTurn!(key.workspaceId, record.id, status === "paused" ? record.lifecycle?.turnId : undefined);
+    }
+  };
+  /** Kyoshi's leave rule: 30 seconds after a draft's last authoring socket closed, its paused turns are cancelled by turnId (D27 evicts) */
+  const leaveDraft = async (folder: string) => {
+    for (const [path, state] of states) {
+      let same = false;
+      try { same = realpathSync(path) === folder; } catch {}
+      if (!same || state.persona !== "kyoshi") continue;
+      for (const record of await read(path)) {
+        if (record.persona !== "kyoshi" || record.agent !== state.agent || record.lifecycle?.status !== "paused") continue;
+        await applyLifecycle(path, record.id, { type: "leave" });
+        await runtime.cancelTurn!(state.workspaceId, record.id, record.lifecycle.turnId);
+      }
+    }
+  };
+
   const runtime: AgentRuntime = {
+    /** Eve's cancel through the running host of the record's persona; nothing when no host runs */
+    async cancelTurn(workspaceId, sessionId, turnId) {
+      const path = root(workspaceId);
+      const record = (await read(path)).find(item => item.id === sessionId);
+      const host = record ? runningHost(workspaceId, record.persona) : undefined;
+      if (!host) return;
+      await new Client({ baseUrl: host.endpoint.baseUrl, headers: host.endpoint.headers }).sessions.attach(sessionId)
+        .cancel({ ...(turnId ? { turnId } : {}), signal: AbortSignal.timeout(5_000) })
+        .catch(error => console.warn(`Could not cancel the turn of ${sessionId}: ${error instanceof Error ? error.message : String(error)}`));
+    },
     async agents(workspaceId) {
       const path = root(workspaceId);
       const current = selected(path);
@@ -403,6 +453,8 @@ export function createLocalAgentRuntime(options: {
     refuses: agent => senseiRefusesCursor(agent) ? cursorRefusal : undefined,
   });
   runtime.sessions.openDefault = openDefault;
+  pages().onLeave(leavePage);
+  authoringWatchers.onLeft(leaveDraft);
   return runtime;
 }
 
