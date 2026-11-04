@@ -149,3 +149,124 @@ test("held response exposes physical client cancellation", async t => {
   await rejected;
   await held.closed;
 });
+
+const postMessages = (endpoint, input, path = "v1/messages?beta=true") => fetch(`${endpoint.anthropicBaseURL}/${path}`, {
+  method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+});
+const messageEvents = async response => (await response.text()).split("\n\n").filter(Boolean).map(block => {
+  const [event, data] = block.split("\n");
+  const parsed = JSON.parse(data.slice("data: ".length));
+  assert.equal(event, `event: ${parsed.type}`);
+  return parsed;
+});
+
+test("Messages streams one text reply and records the offered tools", async t => {
+  const endpoint = await startLoopbackModel();
+  t.after(() => endpoint.close());
+  assert.doesNotMatch(endpoint.anthropicBaseURL, /\/v1$/);
+  const events = await messageEvents(await postMessages(endpoint, { model: "claude-sonnet", stream: true,
+    tools: [{ name: "Read" }, { name: "Grep" }], messages: [{ role: "user", content: "Introduce the lesson." }] }));
+  assert.deepEqual(events.map(event => event.type), ["message_start", "content_block_start", "content_block_delta",
+    "content_block_stop", "message_delta", "message_stop"]);
+  assert.equal(events[0].message.model, "claude-sonnet");
+  assert.deepEqual(events[2].delta, { type: "text_delta", text: "Ready to teach." });
+  assert.equal(events[4].delta.stop_reason, "end_turn");
+  assert.deepEqual(endpoint.toolLists, [["Read", "Grep"]]);
+  assert.deepEqual(endpoint.routes, ["messages"]);
+  assert.deepEqual(endpoint.requestedModels, ["claude-sonnet"]);
+  assert.deepEqual(endpoint.requestedTools, []);
+});
+
+test("Messages calls a requested host tool once, then answers", async t => {
+  const endpoint = await startLoopbackModel({ toolRequest: { name: "dojo_conformance_echo", input: { value: "receipt" } } });
+  t.after(() => endpoint.close());
+  const input = { model: "fixture", stream: true, tools: [{ name: "Read" }, { name: "mcp__harness-tools__dojo_conformance_echo" }] };
+  const first = await messageEvents(await postMessages(endpoint, input));
+  assert.deepEqual(first[1].content_block, { type: "tool_use", id: "toolu_lesson_1", name: "mcp__harness-tools__dojo_conformance_echo", input: {} });
+  assert.deepEqual(first[2].delta, { type: "input_json_delta", partial_json: JSON.stringify({ value: "receipt" }) });
+  assert.equal(first[4].delta.stop_reason, "tool_use");
+  const second = await messageEvents(await postMessages(endpoint, input));
+  assert.equal(second[2].delta.text, "Ready to teach.");
+  assert.deepEqual(endpoint.requestedTools, ["mcp__harness-tools__dojo_conformance_echo"]);
+});
+
+test("Messages answers without streaming", async t => {
+  const endpoint = await startLoopbackModel();
+  t.after(() => endpoint.close());
+  const response = await postMessages(endpoint, { model: "fixture", messages: [] }, "v1/messages");
+  assert.match(response.headers.get("content-type"), /application\/json/);
+  const message = await response.json();
+  assert.equal(message.type, "message");
+  assert.deepEqual(message.content, [{ type: "text", text: "Ready to teach." }]);
+  assert.equal(message.stop_reason, "end_turn");
+});
+
+test("Messages discovers a host tool that is not offered yet", async t => {
+  const endpoint = await startLoopbackModel({ toolRequest: { name: "dojo_conformance_echo", input: { value: "receipt" },
+    discovery: { name: "ToolSearch", input: { query: "select:mcp__harness-tools__dojo_conformance_echo", max_results: 1 } } } });
+  t.after(() => endpoint.close());
+  const search = await (await postMessages(endpoint, { model: "fixture", tools: [{ name: "ToolSearch" }] }, "v1/messages")).json();
+  assert.equal(search.content[0].name, "ToolSearch");
+  assert.deepEqual(search.content[0].input, { query: "select:mcp__harness-tools__dojo_conformance_echo", max_results: 1 });
+  const call = await (await postMessages(endpoint, { model: "fixture",
+    tools: [{ name: "ToolSearch" }, { name: "mcp__harness-tools__dojo_conformance_echo" }] }, "v1/messages")).json();
+  assert.equal(call.content[0].name, "mcp__harness-tools__dojo_conformance_echo");
+  assert.deepEqual(call.content[0].input, { value: "receipt" });
+  assert.deepEqual(endpoint.requestedTools, ["ToolSearch", "mcp__harness-tools__dojo_conformance_echo"]);
+});
+
+test("Messages can select a native tool without changing its input", async t => {
+  const write = { file_path: "/course/probe.txt", content: "ok\n" };
+  const endpoint = await startLoopbackModel({ selectMessagesTool: (_input, requested) =>
+    requested.length ? undefined : { name: "Write", input: write } });
+  t.after(() => endpoint.close());
+  const call = await (await postMessages(endpoint, { model: "fixture", tools: [{ name: "Write" }] }, "v1/messages")).json();
+  assert.equal(call.content[0].name, "Write");
+  assert.deepEqual(call.content[0].input, write);
+  const answer = await (await postMessages(endpoint, { model: "fixture", tools: [{ name: "Write" }] }, "v1/messages")).json();
+  assert.equal(answer.content[0].text, "Ready to teach.");
+  assert.deepEqual(endpoint.requestedTools, ["Write"]);
+});
+
+test("every route records the tool names it offered", async t => {
+  const endpoint = await startLoopbackModel({ responses: true });
+  t.after(() => endpoint.close());
+  const post = (path, input) => fetch(`${endpoint.anthropicBaseURL}/${path}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  }).then(response => response.text());
+  await post("v1/responses", { tools: [{ type: "tool_search", execution: "client" }, { type: "function", name: "exec_command" }],
+    input: [{ type: "tool_search_output", tools: [{ type: "namespace", name: "dojo", tools: [{ type: "function", name: "dojo_ui_ask" }] }] }] });
+  await post("v1/chat/completions", { tools: [{ type: "function", function: { name: "search_tool" } }] });
+  await post("v4/ai/language-model", { tools: [{ name: "capability_search" }] });
+  await post("v1/messages", { tools: [{ name: "Read" }] });
+  await post("v1/chat/completions", { messages: [] });
+  assert.deepEqual(endpoint.toolLists, [["tool_search", "exec_command", "dojo_ui_ask"], ["search_tool"], ["capability_search"], ["Read"], []]);
+  assert.deepEqual(endpoint.routes, ["responses", "chat", "gateway", "messages", "chat"]);
+  assert.equal(endpoint.requests.length, endpoint.toolLists.length);
+  assert.equal(endpoint.requestedModels.length, endpoint.toolLists.length);
+});
+
+test("count_tokens is answered without recording a request", async t => {
+  const endpoint = await startLoopbackModel();
+  t.after(() => endpoint.close());
+  const response = await postMessages(endpoint, { model: "fixture", messages: [] }, "v1/messages/count_tokens?beta=true");
+  assert.deepEqual(await response.json(), { input_tokens: 1 });
+  assert.deepEqual(endpoint.paths, ["POST /v1/messages/count_tokens?beta=true"]);
+  assert.deepEqual(endpoint.requests, []);
+  assert.deepEqual(endpoint.toolLists, []);
+  assert.deepEqual(endpoint.routes, []);
+});
+
+test("a held Messages response waits for release", async t => {
+  const endpoint = await startLoopbackModel();
+  t.after(() => endpoint.close());
+  const held = endpoint.holdNextResponse(input => JSON.stringify(input).includes("Wait for the model"));
+  let answered = false;
+  const pending = postMessages(endpoint, { model: "fixture", stream: true, messages: [{ role: "user", content: "Wait for the model" }] })
+    .then(async response => { answered = true; return messageEvents(response); });
+  await held.started;
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(answered, false);
+  held.release();
+  assert.equal((await pending).at(-1).type, "message_stop");
+});

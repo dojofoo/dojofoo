@@ -1,12 +1,24 @@
 import { createServer } from "node:http";
 import { once } from "node:events";
 
-/** Deterministic Responses endpoint; real harness/CLI, no external inference. */
-export async function startLoopbackModel({ toolRequest, responses = true, selectChatTool, selectResponsesTool, latencyMs = 0 } = {}) {
+/** The tool names a request offered, per route; a Responses tool without a name contributes its type. */
+function offeredTools(route, input) {
+  if (route === "chat") return (input.tools ?? []).map(tool => tool.function?.name).filter(Boolean);
+  if (route !== "responses") return (input.tools ?? []).map(tool => tool.name).filter(Boolean);
+  const discovered = Array.isArray(input.input)
+    ? input.input.filter(entry => entry.type === "tool_search_output").flatMap(entry => entry.tools ?? []) : [];
+  return [...(input.tools ?? []), ...discovered].flatMap(tool =>
+    tool.type === "namespace" ? (tool.tools ?? []).map(child => child.name ?? child.type) : [tool.name ?? tool.type]);
+}
+
+/** Deterministic Responses, Chat Completions, FX gateway and Anthropic Messages endpoint; real harness/CLI, no external inference. */
+export async function startLoopbackModel({ toolRequest, responses = true, selectChatTool, selectResponsesTool, selectMessagesTool, latencyMs = 0 } = {}) {
   const requests = [];
   const requestedModels = [];
   const paths = [];
   const requestedTools = [];
+  const toolLists = [];
+  const routes = [];
   let nextHeldResponse;
   const server = createServer(async (request, response) => {
     paths.push(`${request.method} ${request.url}`);
@@ -14,9 +26,19 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
     for await (const chunk of request) body += chunk;
     if (request.method !== "POST") { response.writeHead(404); response.end(); return; }
     if (!responses && request.url === "/v1/responses") { response.writeHead(404); response.end(); return; }
+    const { pathname } = new URL(request.url, "http://loopback");
+    if (pathname === "/v1/messages/count_tokens") {
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify({ input_tokens: 1 }));
+      return;
+    }
     const input = JSON.parse(body);
+    const route = pathname === "/v4/ai/language-model" ? "gateway" : pathname === "/v1/chat/completions" ? "chat"
+      : pathname === "/v1/messages" ? "messages" : "responses";
     requests.push(input);
     requestedModels.push(request.headers["ai-language-model-id"] ?? input.model);
+    toolLists.push(offeredTools(route, input));
+    routes.push(route);
     if (nextHeldResponse?.matches(input)) {
       const held = nextHeldResponse;
       nextHeldResponse = undefined;
@@ -26,6 +48,33 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
       if (response.destroyed) return;
     }
     if (latencyMs) await new Promise(resolve => setTimeout(resolve, latencyMs));
+    if (route === "messages") {
+      const offered = input.tools ?? [];
+      const target = toolRequest && offered.find(tool => tool.name?.endsWith(toolRequest.name));
+      const discovery = toolRequest?.discovery;
+      const selected = selectMessagesTool?.(input, requestedTools)
+        ?? (target && !requestedTools.includes(target.name) ? { name: target.name, input: toolRequest.input }
+          : !target && discovery && requestedTools.length === 0 && offered.some(tool => tool.name === discovery.name) ? discovery : undefined);
+      if (selected) requestedTools.push(selected.name);
+      const usage = { input_tokens: 10, output_tokens: 5 };
+      const content = selected ? { type: "tool_use", id: `toolu_lesson_${requestedTools.length}`, name: selected.name, input: selected.input }
+        : { type: "text", text: "Ready to teach." };
+      const message = { id: `msg_${requests.length}`, type: "message", role: "assistant", model: input.model,
+        content: [content], stop_reason: selected ? "tool_use" : "end_turn", stop_sequence: null, usage };
+      if (!input.stream) { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(message)); return; }
+      response.writeHead(200, { "Content-Type": "text/event-stream" });
+      for (const event of [
+        { type: "message_start", message: { ...message, content: [], stop_reason: null } },
+        { type: "content_block_start", index: 0, content_block: selected ? { ...content, input: {} } : { type: "text", text: "" } },
+        { type: "content_block_delta", index: 0, delta: selected
+          ? { type: "input_json_delta", partial_json: JSON.stringify(selected.input) } : { type: "text_delta", text: content.text } },
+        { type: "content_block_stop", index: 0 },
+        { type: "message_delta", delta: { stop_reason: message.stop_reason, stop_sequence: null }, usage: { output_tokens: 5 } },
+        { type: "message_stop" },
+      ]) response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+      response.end();
+      return;
+    }
     if (request.url === "/v4/ai/language-model") {
       // Same gateway event shape as vercel-labs/fx tests/e2e/tmux-helpers.ts.
       response.writeHead(200, { "Content-Type": "text/event-stream" });
@@ -133,7 +182,8 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
-  return { requests, requestedModels, paths, requestedTools, baseURL: `http://127.0.0.1:${server.address().port}/v1`,
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  return { requests, requestedModels, paths, requestedTools, toolLists, routes, baseURL: `${origin}/v1`, anthropicBaseURL: origin,
     holdNextResponse(matches = () => true) {
       if (nextHeldResponse) throw new Error("A fixture response is already held.");
       const held = { started: Promise.withResolvers(), release: Promise.withResolvers(), closed: Promise.withResolvers(), matches };
