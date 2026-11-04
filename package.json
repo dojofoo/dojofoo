@@ -22,6 +22,9 @@
     "lint:names": "git grep -n -P '@dojofoo/(agent(?![s-])|agent-api|authoring)\\b|packages/(agent|agent-api|authoring)\\b' -- . ':!.changeset/' ':!**/CHANGELOG.md' ':!docs/architecture/' ':!docs/designs/' ':!docs/research/' ':!.prd/'; test $? -eq 1"
   },
   "pnpm": {
+    "overrides": {
+      "@ai-sdk/harness-pi>@earendil-works/pi-coding-agent": "1.3.0"
+    },
     "onlyBuiltDependencies": [
       "esbuild"
     ],

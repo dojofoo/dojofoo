@@ -62,7 +62,11 @@ test("native documentation uses UIX while the host keeps URLs, content and brows
   await page.goto("/docs", { waitUntil: "networkidle" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("uix-docs-mobile.png"), animations: "disabled" });
-  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  // A click before hydration has no handler yet; retry until the menu opens.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await expect(page.getByRole("complementary", { name: "Menu", exact: true }).getByRole("link", { name: "Quickstart", exact: true })).toBeVisible({ timeout: 1_000 });
+  }).toPass();
   await page.getByRole("complementary", { name: "Menu", exact: true }).getByRole("link", { name: "Quickstart", exact: true }).click();
   await expect(page).toHaveURL(/\/docs\/quickstart$/);
   await expect(page.getByRole("heading", { name: "Quickstart", exact: true })).toBeInViewport();

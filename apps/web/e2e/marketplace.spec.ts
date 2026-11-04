@@ -22,7 +22,11 @@ test("browses, filters, sorts, and opens courses from the catalog", async ({ pag
   await expect(cards).toHaveCount(3);
   await expect(cards.first()).toHaveAttribute("href", "/courses/dojofoo/effect-ts");
   const sort = page.getByRole("button", { name: /^Sort courses:/ });
-  await sort.click();
+  // A click before hydration has no handler yet; retry until the menu opens.
+  await expect(async () => {
+    await sort.click();
+    await expect(page.getByRole("menuitemradio", { name: "Newest" })).toBeVisible({ timeout: 1_000 });
+  }).toPass();
   await page.getByRole("menuitemradio", { name: "Newest" }).click();
   await expect(cards.first()).toHaveAttribute("href", "/courses/dojofoo/build-llm");
   await expect(page.getByRole("menuitemradio", { name: "Newest" })).toBeHidden();
