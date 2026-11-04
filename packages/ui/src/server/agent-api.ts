@@ -378,6 +378,8 @@ export function createLocalAgentRuntime(options: {
       if (!offeredAgents().some(row => row.id === agentId)) {
         throw new AgentApiError(409, "agent_not_offered", `${agentRow(agentId).name} isn't available yet. Choose another coding agent.`);
       }
+      // A learner workspace's every page now runs Sensei on Eve, so its selection refuses Cursor too (decision 11)
+      if (senseiRefusesCursor(agentId) && await workspacePersona(workspaceId) === "sensei") throw new AgentApiError(409, "agent_not_offered", cursorRefusal);
       if (agentId === selected(path)) return describe(path, agentId);
       const previous = switching.get(path)?.done ?? Promise.resolve();
       const next = previous.catch(() => {}).then(() => switchAgent(path, workspaceId, agentId));

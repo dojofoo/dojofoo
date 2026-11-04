@@ -3,13 +3,11 @@ import { offerCheckReport, runLessonCheck } from "../agent-session/check-reports
 import { takeNotices } from "../agent-session/guard-store";
 import type { PageKey } from "../agent-session/notify";
 import { presence } from "../agent-session/presence";
-import { resolveSessionWorkspace, resolveWorkspaceId } from "../control/workspace";
-import { checkLesson } from "../lesson/service";
+import { resolveWorkspaceId } from "../control/workspace";
 import { SessionChannel, type SessionPeer } from "./delivery";
 import { error, notification, parseRequest, result, type JsonRpcId } from "./protocol";
 
-/** A lesson or course page socket (`/api/session`): `workspace`, `course` and, for a kata lesson, `lesson` in the query; until the kata
- *  page moves to Eve (commit 9) the ACP page's `session` still opens one. */
+/** A lesson or course page socket (`/api/session`): `workspace`, `course` and, for a kata lesson, `lesson` in the query. */
 export type LessonSocketPeer = SessionPeer & { id: string };
 
 export function pageKeyOf(request: Request): PageKey | undefined {
@@ -24,11 +22,11 @@ export function pageKeyOf(request: Request): PageKey | undefined {
 export function createLessonSocket(deps: { runtime: Pick<AgentRuntime, "connect">; root?(workspaceId: string): string }) {
   const root = deps.root ?? ((workspaceId: string) => resolveWorkspaceId(workspaceId));
   return {
-    /** A foreign Origin and a request without a page key (or the ACP session) are refused */
+    /** A foreign Origin and a request without a page key are refused */
     upgrade(request: Request): void {
       const origin = request.headers.get("origin");
       if (origin && new URL(origin).host !== new URL(request.url).host) throw new Response("Forbidden", { status: 403 });
-      if (!pageKeyOf(request) && !new URL(request.url).searchParams.get("session")) throw new Response("A workspace and course are required", { status: 400 });
+      if (!pageKeyOf(request)) throw new Response("A workspace and course are required", { status: 400 });
     },
     /** Joins the page key, then sends the guard notices raised while no socket for it was open (decision 19) */
     async open(peer: LessonSocketPeer): Promise<void> {
@@ -60,18 +58,7 @@ export function createLessonSocket(deps: { runtime: Pick<AgentRuntime, "connect"
         }
         const params = request.params as { courseId?: string; lessonId?: string };
         if (!params.courseId || !params.lessonId) throw new Error("A course and lesson are required");
-        const key = pageKeyOf(peer.request);
-        if (!key) {
-          // The ACP page, keyed by its thread, still gets its notifications on its own channel (until commit 9)
-          const path = resolveSessionWorkspace(channel.id);
-          channel.emit(notification("lesson.check.started", { courseId: params.courseId, lessonId: params.lessonId }));
-          await new Promise<void>(resolve => setTimeout(resolve, 0));
-          const checked = await checkLesson(path, params.courseId, params.lessonId);
-          for (const test of checked.observation.report.tests) channel.emit(notification("lesson.check.test", { test }));
-          channel.emit(notification("lesson.check.completed", checked));
-          if (request.id !== undefined) channel.send(result(request.id, checked.observation.report));
-          return;
-        }
+        const key = pageKeyOf(peer.request)!;
         const target = { path: root(key.workspaceId), workspaceId: key.workspaceId };
         const checked = await runLessonCheck(target, params.courseId, params.lessonId);
         if (request.id !== undefined) channel.send(result(request.id, checked.observation.report));

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { observeLocalContext, observeWorkspacePath } from "@dojofoo/config/local-state";
+import { observeLocalContext, observeWorkspacePath, setWorkspaceKind } from "@dojofoo/config/local-state";
 import { DatabaseSync } from "node:sqlite";
 import { createServer, type IncomingMessage } from "node:http";
 import { once } from "node:events";
@@ -184,8 +184,18 @@ describe("local agent runtime", () => {
     } finally { installed.cursor = false; }
   });
 
-  it("select still accepts Cursor for a learner workspace", async () => {
+  it("select refuses Cursor for a learner workspace while its Sensei record has not passed", async () => {
     const { local, workspaceId, root } = runtime();
+    await expect(local.select(workspaceId, "cursor")).rejects.toMatchObject({ status: 409, code: "agent_not_offered",
+      message: "Cursor can't teach here yet: its Sensei checks haven't passed. Choose another coding agent." });
+    expect(savedAgent(root)).toBe("codex");
+  });
+
+  it("select still accepts Cursor for a draft", async () => {
+    const { root, state, workspaceId } = workspace();
+    writeFileSync(resolve(root, "dojo.yaml"), "name: '@test/draft'\nversion: 1.0.0\n");
+    setWorkspaceKind(workspaceId, "draft", state);
+    const local = createLocalAgentRuntime({ state, runtime: async () => ({ start: async () => ({ url: "http://127.0.0.1:9" }), close: async () => {} }) });
     expect(await local.select(workspaceId, "cursor")).toMatchObject({ id: "cursor", selected: true });
     expect(savedAgent(root)).toBe("cursor");
   });

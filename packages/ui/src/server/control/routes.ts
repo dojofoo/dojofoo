@@ -352,20 +352,16 @@ function continuationLesson(
   )?.id ?? named.at(-1)?.id ?? null;
 }
 
+/** A course's Sensei conversations per lesson, newest first, from the workspace's session records (read synchronously, so the
+ *  `/courses` handler stays synchronous; step-5 plan, decision 32) */
 function lessonSessions(root: string, dojo: string): Array<{ lessonId: string; sessionId: string }> {
   try {
-    const state = JSON.parse(readFileSync(resolve(root, ".dojo", "web.json"), "utf8")) as {
-      threads?: Record<string, string | { sessionId: string; aliases?: string[] }>;
+    const { sessions } = JSON.parse(readFileSync(resolve(root, ".dojo", "agent-sessions.json"), "utf8")) as {
+      sessions?: Array<{ id?: unknown; persona?: unknown; courseId?: unknown; lessonId?: unknown; createdAt?: unknown }>;
     };
-    return Object.entries(state.threads ?? {}).flatMap(([key, thread]) => {
-      const prefix = `${dojo}/`;
-      if (!key.startsWith(prefix)) return [];
-      const sessionId = typeof thread === "string" ? thread : thread.sessionId;
-      if (!sessionId) return [];
-      const lessonId = key.slice(prefix.length);
-      return [sessionId, ...(typeof thread === "string" ? [] : thread.aliases ?? [])]
-        .map((candidate) => ({ lessonId, sessionId: candidate }));
-    });
+    return (sessions ?? []).filter(record => record.persona === "sensei" && record.courseId === dojo && typeof record.lessonId === "string" && typeof record.id === "string")
+      .sort((left, right) => String(right.createdAt ?? "").localeCompare(String(left.createdAt ?? "")))
+      .map(record => ({ lessonId: record.lessonId as string, sessionId: record.id as string }));
   } catch {
     return [];
   }

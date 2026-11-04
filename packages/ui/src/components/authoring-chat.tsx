@@ -9,12 +9,13 @@ import { StreamedChatMessage } from "@/components/chat/streamed-message";
 import { ChatTranscript } from "./chat/assistant-response";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import type { ChatAction } from "@/lib/chat-failure";
+import type { CodeHighlight } from "@/lib/code-highlight";
 
 /** A failure with its actions (D33); "try-again" keeps the "Reload conversation" button the specs click */
 export type ChatFailureView = { message: string; actions: ChatAction[]; refusedAgent?: string; login?: string; agentName?: string; retryAfter?: string };
 
 /** An agent conversation's presentation */
-export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent, agents, onAgentChange, agentChanging, model, models, modelChanging, onModelChange }: {
+export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent, agents, onAgentChange, agentChanging, model, models, modelChanging, onModelChange, fragments, onHighlight }: {
   embedded?: boolean;
   agent?: ComposerAgent;
   agents?: ComposerAgent[];
@@ -41,12 +42,15 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
   onAnswer(answers: Record<string, AskUserAnswer>): void | Promise<void>;
   error?: string | ChatFailureView;
   onRetryLoad?: () => void;
+  /** A kata lesson's authored fragments (Sensei's dojo_ui_show) */
+  fragments?: Record<string, string>;
+  onHighlight?: (highlight: CodeHighlight) => void;
 }) {
   const { viewportRef, scrollToBottom } = useChatScroll();
   const active = busy || status === "submitted" || status === "streaming";
   const transcript = <div data-testid="authoring-chat-pane" className="contents">
       <ChatTranscript messages={messages} streaming={status === "submitted" || status === "streaming"}
-        renderMessage={(message, streaming) => <StreamedChatMessage fragments={{}} message={message} onToolAnswer={readOnly ? undefined : answers => { scrollToBottom(); return onAnswer(answers); }} streaming={streaming} workspaceId="" />} />
+        renderMessage={(message, streaming) => <StreamedChatMessage fragments={fragments ?? {}} message={message} onHighlight={onHighlight} onToolAnswer={readOnly ? undefined : answers => { scrollToBottom(); return onAnswer(answers); }} streaming={streaming} workspaceId="" />} />
       {typeof error === "string" ? <>
         <p role="alert" className="text-sm text-destructive">{error}</p>
         {!active && onRetryLoad ? <Button onClick={onRetryLoad}>Reload conversation</Button> : null}

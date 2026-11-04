@@ -99,10 +99,10 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", optio
         records[index] = change({ ...records[index]!, revision: records[index]!.revision ?? 0 });
         return records[index]!;
       },
-      // The newest record for the course, or one made with a bodyless create on the endpoint
+      // The newest record for the page key (course and lesson) on the selected agent, as the UI server's; else a bodyless create
       openDefault: async (id, request) => {
         known(id);
-        const newest = records.filter(item => item.courseId === request.course && !request.new)
+        const newest = records.filter(item => item.courseId === request.course && (item.lessonId ?? "") === (request.lesson ?? "") && item.agent === selected && !request.new)
           .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
         if (newest) return { session: newest, rewrite: newest.id !== request.session };
         const { session } = await new Client(endpoint).sessions.create();

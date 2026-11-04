@@ -24,6 +24,19 @@ describe("chat failures (D33)", () => {
     expect(chatFailure(api(409, "session_not_active"), { operation: "cancel" })).toEqual({ kind: "stopped" });
   });
 
+  it("409 agent_switching retries the load, then offers Try again", () => {
+    expect(chatFailure(api(409, "agent_switching", "Switching to OpenCode…"), { operation: "load" })).toEqual({ kind: "switching", message: "Switching to OpenCode…" });
+  });
+
+  it("409 control_refused reloads the page; the chat never sends clear or compact", () => {
+    expect(chatFailure(api(409, "control_refused", "Sensei's conversations can't be cleared or compacted."))).toMatchObject({ kind: "alert", actions: ["reload-page"] });
+  });
+
+  it("a turn an agent switch interrupted shows as stopped, with no alert", () => {
+    expect(chatFailure(turn("REACTION_FAILED", "This turn was interrupted by an agent switch."))).toEqual({ kind: "stopped" });
+    expect(chatFailure(turn("REACTION_FAILED", "The model definition failed."))).toMatchObject({ kind: "alert" });
+  });
+
   it("404 workspace_not_found goes back to the dashboard", () => {
     expect(chatFailure(api(404, "workspace_not_found"))).toMatchObject({ kind: "alert", actions: ["dashboard"] });
   });

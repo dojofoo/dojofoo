@@ -1,5 +1,5 @@
 import { useEveAgent } from "@dojofoo/agent/react";
-import { activeTurn } from "@dojofoo/agent/events";
+import { activeTurn, openInteractions } from "@dojofoo/agent/events";
 import type { SendTurnOptions } from "@dojofoo/agent/client";
 import type { Persona } from "@dojofoo/agent-api";
 import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
@@ -7,6 +7,8 @@ import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
 import { agentRow, isAgentId } from "@dojofoo/protocol";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { projectChatTimeline, type AnchoredChatEvent } from "@/lib/chat-timeline";
+import type { CodeHighlight } from "@/lib/code-highlight";
 import { AuthoringChat, type ChatFailureView } from "./authoring-chat";
 import { chatApiError, chatFailure, classifyTurnFailure, type ChatFailure } from "@/lib/chat-failure";
 import { chatMessageContent } from "@/lib/chat-files";
@@ -43,6 +45,7 @@ async function openDefault(workspaceId: string, page: ChatPage, options: { sessi
 
 /** The failure as the conversation shows it, with the agent's name and login command for its actions */
 function failureView(failure: ChatFailure | undefined, agent?: string): ChatFailureView | undefined {
+  if (failure?.kind === "switching") return { message: failure.message, actions: ["try-again"] };
   if (failure?.kind !== "alert") return undefined;
   const row = agent && isAgentId(agent) ? agentRow(agent) : undefined;
   return { ...failure, ...(row ? { agentName: row.name, ...(row.login ? { login: row.login } : {}) } : {}) };
@@ -50,7 +53,7 @@ function failureView(failure: ChatFailure | undefined, agent?: string): ChatFail
 
 /** Every persona uses the same conversation, uploads and session lifecycle. A Sensei page passes `page`, and its
  *  conversation comes from POST /sessions/default; Kyoshi keeps its own lookup until step 6. */
-export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded, clientContext, agents, onAgentChange, agentChanging, page, controls }: {
+export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded, clientContext, agents, onAgentChange, agentChanging, page, controls, hostEvents, fragments, onHighlight }: {
   embedded?: boolean;
   /** The workspace's agent menu (useWorkspaceAgent) */
   agents?: ComposerAgent[];
@@ -66,6 +69,11 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
   page?: ChatPage;
   /** Lets the page send a message through the chat (Ask Sensei) */
   controls?: MutableRefObject<{ send(text: string): void } | null>;
+  /** Cards the page owns (a kata lesson's check results), placed after the message that was last when each first appeared */
+  hostEvents?: AnchoredChatEvent[];
+  /** The lesson's authored fragments, for Sensei's dojo_ui_show */
+  fragments?: Record<string, string>;
+  onHighlight?(highlight: CodeHighlight): void;
 }) {
   const current = useRef(sessionId);
   const [session, setSession] = useState<Session | null>(null);
@@ -128,13 +136,26 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
     return () => controller.abort();
   }, [sessionId, workspaceId, persona, pageKey, loadAttempt]);
   const loadFailure = error === undefined ? undefined : chatFailure(error, { operation: "load", agentName: selectedAgent });
+  // A switch in progress (409 agent_switching): load again once a second; after 30 seconds the failure offers Try again
+  const switchingSince = useRef<number | undefined>(undefined);
+  const switching = loadFailure?.kind === "switching";
+  if (!switching) switchingSince.current = undefined;
+  else switchingSince.current ??= Date.now();
+  const switchingRetry = switching && Date.now() - switchingSince.current! < 30_000;
+  useEffect(() => {
+    if (!switchingRetry) return;
+    const timer = setTimeout(() => setLoadAttempt(attempt => attempt + 1), 1_000);
+    return () => clearTimeout(timer);
+  }, [switchingRetry, error]);
   if (!session) return <AuthoringChat embedded={embedded} placeholder={placeholder} messages={[]} status="ready" busy={error === undefined} inputDisabled
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles} onSend={() => {}} onAnswer={() => {}}
     // A load that can only start over shows "Try again"
-    error={loadFailure && (failureView(loadFailure, selectedAgent) ?? { message: error instanceof Error ? error.message : String(error), actions: ["try-again"] })}
+    error={loadFailure && (switchingRetry && loadFailure.kind === "switching" ? { message: loadFailure.message, actions: [] } : failureView(loadFailure, selectedAgent)
+      ?? { message: error instanceof Error ? error.message : String(error), actions: ["try-again"] })}
     agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging}
     onRetryLoad={error !== undefined ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
   return <AgentConversation key={session.id} embedded={embedded} workspaceId={workspaceId} session={session} placeholder={placeholder}
+    hostEvents={hostEvents} fragments={fragments} onHighlight={onHighlight}
     clientContext={context} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} sensei={Boolean(page)} controls={controls}
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles}
     onReload={() => { setSession(null); setLoadAttempt(attempt => attempt + 1); }}
@@ -146,7 +167,7 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
 }
 
 /** The session is Eve's: its own client resumes it, streams it, and takes messages and answers. */
-function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext, agents, onAgentChange, agentChanging, sensei, controls }: {
+function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext, agents, onAgentChange, agentChanging, sensei, controls, hostEvents, fragments, onHighlight }: {
   embedded?: boolean; workspaceId: string; session: Session;
   /** Read the conversation again: Sensei's page asks for its default conversation */
   onReload(): void;
@@ -159,6 +180,9 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   /** Sensei's page: the model menu, and replacement through the default route */
   sensei: boolean;
   controls?: MutableRefObject<{ send(text: string): void } | null>;
+  hostEvents?: AnchoredChatEvent[];
+  fragments?: Record<string, string>;
+  onHighlight?(highlight: CodeHighlight): void;
 }) {
   const context = useRef(clientContext);
   context.current = clientContext;
@@ -172,7 +196,15 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   const [model, setModel] = useState(session.model);
   const [models, setModels] = useState<ComposerModel[]>([]);
   const [modelChanging, setModelChanging] = useState(false);
-  const messages = useMemo(() => eveChatMessages(agent.messages), [agent.messages]);
+  const transcript = useMemo(() => eveChatMessages(agent.messages), [agent.messages]);
+  // A host card stays where it first appeared, after the message that was last then
+  const anchors = useRef(new Map<string, string | null>());
+  for (const event of hostEvents ?? []) {
+    if (!anchors.current.has(event.message.id)) anchors.current.set(event.message.id, event.afterMessageId ?? transcript.at(-1)?.id ?? null);
+  }
+  const messages = useMemo(() => hostEvents?.length
+    ? projectChatTimeline(transcript, hostEvents.map(event => ({ ...event, afterMessageId: anchors.current.get(event.message.id) ?? null })))
+    : transcript, [transcript, hostEvents]);
   // Sensei's composer offers the coding agent's models; a change applies from the next turn
   useEffect(() => {
     if (!sensei) return;
@@ -235,7 +267,10 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   }, [recovery]);
   // A turn that is working or waiting on the learner keeps its model (D26)
   const turnOpen = activeTurn(agent.view) !== undefined;
-  return <AuthoringChat embedded={embedded} agent={selectedAgent} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} placeholder={placeholder} messages={messages}
+  // A typed message answers the first open question (Eve docs tools/human-in-the-loop.md), which the hint says (decision 15)
+  const hint = sensei && openInteractions(agent.view).length > 0 ? "Answer Sensei's question above, or type your answer" : placeholder;
+  return <AuthoringChat embedded={embedded} agent={selectedAgent} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} placeholder={hint} messages={messages}
+    fragments={fragments} onHighlight={onHighlight}
     status={agent.status === "busy" ? "streaming" : "ready"} busy={agent.status === "resuming"}
     // Eve takes no input until the session has caught up
     inputDisabled={agent.status === "resuming"}

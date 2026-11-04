@@ -4,7 +4,7 @@ export type SessionPeer = {
   peers: Iterable<SessionPeer>;
 };
 
-/** The peers of one page key (`workspace`, `course`, `lesson`), or of one ACP thread (`session`) until the kata page moves to Eve. */
+/** The peers of one page key (`workspace`, `course`, `lesson`). */
 export class SessionChannel {
   readonly id: string;
 
@@ -34,8 +34,6 @@ export class SessionChannel {
 
 function channelId(peer: Pick<SessionPeer, "request">): string | null {
   const query = new URL(peer.request.url).searchParams;
-  const session = query.get("session");
-  if (session) return session;
   const workspace = query.get("workspace");
   const course = query.get("course");
   return workspace && course ? `page:${workspace}\0${course}\0${query.get("lesson") ?? ""}` : null;

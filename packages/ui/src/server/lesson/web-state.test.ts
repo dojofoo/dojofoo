@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { normalizeLessonThreads } from "./service";
-import { threadOwnsSession } from "../control/workspace";
 
 describe("lesson web state", () => {
   it("drops bare thread pointers and keeps native session identity", () => {
@@ -30,15 +29,5 @@ describe("lesson web state", () => {
         resumeFailed: true,
       },
     });
-  });
-
-  it("never treats a superseded session as the current transcript", () => {
-    const thread = {
-      sessionId: "thread-current",
-      aliases: ["thread-superseded"],
-    };
-
-    expect(threadOwnsSession(thread, "thread-current")).toBe(true);
-    expect(threadOwnsSession(thread, "thread-superseded")).toBe(false);
   });
 });

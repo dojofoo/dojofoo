@@ -40,8 +40,7 @@ export const Route = createFileRoute("/session/$sessionId")({
     }
     const lessonId = nativeLesson?.lessonId ?? (location.state.courseLesson?.courseId === course.id ? location.state.courseLesson.lessonId : course.kata ?? undefined);
     const lesson = lessonId ? await read<LessonSnapshot>(`${base}/lessons/${encodeURIComponent(lessonId)}?prepare=false`, signal) : undefined;
-    const requestedSession = nativeLesson?.sessionId ?? (location.state.lesson?.courseId === course.id ? location.state.lesson.sessionId : undefined);
-    if (requestedSession && lesson?.sessionId !== requestedSession) throw new Error("This exact lesson session is unavailable.");
+    // The native session goes to AgentChat as the requested conversation; one that no longer belongs to the lesson opens the default (D29)
     return { course, lesson, interactive: undefined, nativeLesson };
   },
   component: SessionPage,

@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSentEventsResponse } from "@tanstack/ai";
 import {
+  advanceLesson,
   answerSenseiQuestion,
   checkLesson,
   getLesson,
-  nextLesson,
   readLesson,
   readLessonFile,
   setLessonModel,
@@ -40,8 +40,9 @@ function assertCourse(actual: string, requested: string): void {
 
 app.get("/:workspaceId/courses/:courseId/lessons/:lessonId", async (c) => {
   const { root, courseId, lessonId } = context(c);
-  // The ACP lesson page reads its thread id from both forms until it moves to Eve (decision 41)
-  const lesson = await getLesson(root, lessonId, { prepareSession: c.req.query("prepare") !== "false", courseId });
+  // The learner's read never touches ACP; the prepared read stays for the ACP routes evaluation still uses (step 7 deletes them)
+  const lesson = c.req.query("prepare") === "false" ? await readLesson(root, courseId, lessonId)
+    : await getLesson(root, lessonId, { prepareSession: true, courseId });
   if (!lesson) return c.json({ error: "Lesson not found" }, 404);
   assertCourse(lesson.dojo, courseId);
   return c.json(lesson);
@@ -136,13 +137,8 @@ app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/progressions", async
       if (current.current?.id !== lessonId) return c.json({ error: "This is not the current interactive step." }, 409);
       return c.json(advanceInteractiveLesson(root, courseId));
     }
-    const lesson = await getLesson(root, lessonId);
-    if (!lesson) return c.json({ error: "Lesson not found" }, 404);
-    assertCourse(lesson.dojo, courseId);
-    if (!lesson.result?.complete && lesson.state !== "completed") {
-      return c.json({ error: "Complete the current lesson before moving on" }, 409);
-    }
-    return c.json(await nextLesson(root));
+    // "Open next lesson" (D25's fallback) and Sensei's Move on share one step, for any course
+    return c.json(await advanceLesson(root, courseId, lessonId));
   } catch (cause) {
     return c.json({ error: cause instanceof Error ? cause.message : "Could not continue the course" }, 409);
   }

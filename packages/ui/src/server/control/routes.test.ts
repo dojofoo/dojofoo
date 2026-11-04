@@ -328,7 +328,7 @@ describe("local control-plane API", () => {
     ]);
   });
 
-  it("keeps completed lesson sessions addressable after the course advances", async () => {
+  it("lists a course's Sensei conversations from session records", async () => {
     const { root, stateHome } = fixture();
     writeFileSync(resolve(root, ".dojos", "starter", "dojo.yaml"), [
       "name: '@test/starter'",
@@ -342,12 +342,12 @@ describe("local control-plane API", () => {
       "    template: katas/002-second/solution.ts",
     ].join("\n"));
     mkdirSync(resolve(root, ".dojo"), { recursive: true });
-    writeFileSync(resolve(root, ".dojo", "web.json"), JSON.stringify({
-      threads: {
-        "starter/001-first": { sessionId: "session-001" },
-        "starter/002-second": { sessionId: "session-002" },
-      },
-    }));
+    writeFileSync(resolve(root, ".dojo", "agent-sessions.json"), JSON.stringify({ sessions: [
+      { id: "session-001", agent: "codex", persona: "sensei", createdAt: "2026-11-01T00:00:00.000Z", courseId: "starter", lessonId: "001-first", revision: 0 },
+      { id: "session-002", agent: "codex", persona: "sensei", createdAt: "2026-11-02T00:00:00.000Z", courseId: "starter", lessonId: "002-second", revision: 0 },
+      { id: "kyoshi-1", agent: "codex", persona: "kyoshi", createdAt: "2026-11-03T00:00:00.000Z", revision: 0 },
+      { id: "other-course", agent: "codex", persona: "sensei", createdAt: "2026-11-03T00:00:00.000Z", courseId: "other", lessonId: "001-first", revision: 0 },
+    ] }));
     writeFileSync(resolve(root, ".dojorc"), JSON.stringify({
       currentDojo: "starter",
       currentKata: "002-second",
@@ -363,8 +363,8 @@ describe("local control-plane API", () => {
         kata: "002-second",
         sessionId: "session-002",
         sessions: [
-          { lessonId: "001-first", sessionId: "session-001" },
           { lessonId: "002-second", sessionId: "session-002" },
+          { lessonId: "001-first", sessionId: "session-001" },
         ],
       }),
     ]);

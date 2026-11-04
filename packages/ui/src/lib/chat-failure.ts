@@ -5,8 +5,10 @@ export type ChatFailure =
   | { kind: "default-open" }
   /** The conversation can't continue: Sensei replaces it (`new` + `from`); Kyoshi starts another */
   | { kind: "replace" }
-  /** A cancel found nothing to stop: the turn shows as stopped, with no alert */
+  /** A cancel found nothing to stop, or an agent switch interrupted the turn: it shows as stopped, with no alert */
   | { kind: "stopped" }
+  /** 409 agent_switching: the conversation loads again once a second, and offers Try again after 30 seconds */
+  | { kind: "switching"; message: string }
   | { kind: "alert"; message: string; actions: ChatAction[]; refusedAgent?: string; retryAfter?: string };
 
 export type TurnFailure = "sign-in" | "rate-limit" | "native-crash" | "other";
@@ -63,9 +65,14 @@ export function chatFailure(error: unknown, context: { operation?: "load" | "sen
     if ((status === 400 && code === "invalid_request") || (status === 404 && (code === "agent_not_found" || code === "not_found"))) return { kind: "alert", message, actions: ["reload-page"] };
     if (status === 413 || status === 415) return { kind: "alert", message: `Remove ${context.file ?? "the attachment"} and send again.`, actions: [] };
     if (status === 503 && code === "agent_failed") return { kind: "alert", message, actions: ["choose-agent", "try-again"] };
+    if (status === 409 && code === "agent_switching") return { kind: "switching", message };
+    // The chat never sends clear or compact to Sensei; reaching this means the page is out of date
+    if (status === 409 && code === "control_refused") return { kind: "alert", message, actions: ["reload-page"] };
     if (status === 409 && code === "agent_not_offered") return { kind: "alert", message, actions: ["choose-agent"], ...(context.agentName ? { refusedAgent: context.agentName } : {}) };
     return { kind: "alert", message, actions: ["try-again"] };
   }
+  // A turn an agent switch interrupted fails before its native agent starts (REACTION_FAILED); it shows as stopped
+  if (/interrupted by an agent switch/iu.test(message)) return { kind: "stopped" };
   // A failed turn: Eve names its error by code
   const turn = classifyTurnFailure({ code: name && name !== "Error" ? name : undefined, message });
   if (turn === "sign-in") return { kind: "alert", message, actions: ["login", "try-again"] };

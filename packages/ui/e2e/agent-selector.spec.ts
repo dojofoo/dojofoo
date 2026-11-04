@@ -54,9 +54,9 @@ test("a lesson opened after a switch runs on the new agent", async ({ page, moun
   const lessons = [{ name: "first", title: "First lesson", summary: "Start here", state: "ongoing", isCurrent: true }, { name: "second", title: "Second lesson", summary: "Review another example", state: "completed", isCurrent: false }];
   const snapshot = async (kata: "first" | "second") => ({ dojo: "agent-course", course: { name: "Agent course", title: "Agent course", version: "1.0.0", lessons: 2 },
     kata, title: kata === "first" ? "First lesson" : "Second lesson", briefing: "Try a small example.", code: "export const answer = 0;\n", starterCode: "export const answer = 0;\n",
-    fileId: "solution", filePath: `${kata}.ts`, language: "typescript", introduced: true, checkpointed: false, sessionId: `${await current()}-${kata}`, model: null,
-    harness: await current(), harnesses: ["claude", "codex", "cursor", "grok", "opencode", "fx"], state: kata === "first" ? "ongoing" : "completed", isCurrent: kata === "first",
-    result: null, messages: [], fragments: {}, lessons });
+    fileId: "solution", filePath: `${kata}.ts`, language: "typescript", introduced: true, checkpointed: false, model: null,
+    harness: await current(), state: kata === "first" ? "ongoing" : "completed", isCurrent: kata === "first",
+    result: null, fragments: {}, lessons });
   const lessonReads: string[] = [];
   const bodies: string[] = [];
   page.on("request", request => { const body = request.postData(); if (body) bodies.push(body); });
@@ -83,7 +83,8 @@ test("a lesson opened after a switch runs on the new agent", async ({ page, moun
   });
 
   await page.goto("/session/learn-run");
-  const composer = page.getByTestId("chat-composer");
+  // The kata page's conversation is the fixture runtime's, on AgentChat
+  const composer = page.getByTestId("authoring-chat-composer");
   const agent = composer.getByRole("button", { name: "Agent", exact: true });
   await expect(agent).toContainText("Codex", { timeout: 10_000 });
   await expect(agent).toBeEnabled({ timeout: 10_000 });
@@ -96,11 +97,11 @@ test("a lesson opened after a switch runs on the new agent", async ({ page, moun
   await expect.poll(() => selects.map(select => select.agentId)).toEqual(["opencode"]);
   await expect.poll(() => lessonReads).toContain("first:opencode");
   await expect(agent).toContainText("OpenCode");
-  await expect(composer.getByRole("status")).toContainText("Sensei now uses OpenCode in this workspace.");
+  await expect(page.getByRole("status").filter({ hasText: "Sensei now uses OpenCode in this workspace." })).toBeVisible();
 
   await page.getByRole("button", { name: /^Second lesson \(done\)/u }).click();
   await expect.poll(() => lessonReads).toContain("second:opencode");
-  await expect(page.getByTestId("chat-composer").getByRole("button", { name: "Agent", exact: true })).toContainText("OpenCode");
+  await expect(page.getByTestId("authoring-chat-composer").getByRole("button", { name: "Agent", exact: true })).toContainText("OpenCode");
   expect(bodies.filter(body => body.includes("harness"))).toEqual([]);
 });
 

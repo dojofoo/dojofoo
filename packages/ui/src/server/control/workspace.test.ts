@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveRequestWorkspace, threadOwnsSession } from "./workspace";
+import { resolveRequestWorkspace } from "./workspace";
 
 describe("configured workspace root", () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -18,11 +18,3 @@ describe("configured workspace root", () => {
   });
 });
 
-describe("session route ownership", () => {
-  it("only resolves the exact native transcript named by the URL", () => {
-    const thread = { sessionId: "current", aliases: ["superseded"] };
-    expect(threadOwnsSession(thread, "current")).toBe(true);
-    expect(threadOwnsSession(thread, "superseded")).toBe(false);
-    expect(threadOwnsSession(thread, "unrelated")).toBe(false);
-  });
-});
