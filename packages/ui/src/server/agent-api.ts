@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { Client, ClientError, type ClientOptions } from "@dojofoo/agent/client";
 import { activeTurn, emptySessionView, foldEvents } from "@dojofoo/agent/messages";
 import { setTimeout as delay } from "node:timers/promises";
-import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type LifecycleStatus, type Persona } from "@dojofoo/agent-api";
+import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type LifecycleStatus, type Persona } from "@dojofoo/agent/api";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { resolveAgent, writeAgent, writeAgentModel } from "@dojofoo/config/runtime";
 import { agentRow, isAgentId, offeredAgents, personaForKind, type AgentId } from "@dojofoo/protocol";

@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { AgentApiError, type SessionRecord } from "@dojofoo/agent-api";
+import { AgentApiError, type SessionRecord } from "@dojofoo/agent/api";
 
 /** A workspace's session records, next to its other `dojofoo` state in `.dojo/agent-sessions.json`. */
 const file = (path: string) => join(path, ".dojo", "agent-sessions.json");

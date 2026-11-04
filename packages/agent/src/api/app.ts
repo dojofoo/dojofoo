@@ -22,7 +22,7 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
     return session;
   };
 
-  return new Elysia({ name: "@dojofoo/agent-api", prefix: "/api/v1" })
+  return new Elysia({ name: "@dojofoo/agent/api", prefix: "/api/v1" })
     .error({ AgentApiError })
     .onError(({ code, error, set, request }) => {
       // On a session's Eve routes, in the shape Eve's client reads

@@ -11,5 +11,5 @@
     "allowImportingTsExtensions": true,
     "customConditions": ["development"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/api/**/*.ts"]
 }

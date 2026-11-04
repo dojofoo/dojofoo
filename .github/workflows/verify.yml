@@ -42,11 +42,10 @@ jobs:
       - run: pnpm lint:deps
       - run: pnpm --filter @dojofoo/ui types:check
       - run: pnpm --filter @dojofoo/ui test --exclude '**/*.live.test.ts'
-      - run: pnpm --filter @dojofoo/agent-api test
       - run: pnpm --filter @dojofoo/authoring test --exclude '**/*.live.test.ts'
       # Both prepared personas: cold open and resume, a relocated copy, no compiler, Sensei's tools and hook
       - run: pnpm --filter @dojofoo/authoring test:prepared
-      # Also installs a clean consumer from registry.npmjs.org; no coding-agent CLI or login is needed
+      # The session API's tests, and a clean consumer installed from registry.npmjs.org; no coding-agent CLI or login is needed
       - run: pnpm --filter @dojofoo/agent test
       - run: pnpm --filter dojofoo test
       - run: pnpm --filter dojofoo test:package

@@ -1,5 +1,5 @@
 import { relative } from "node:path";
-import type { SessionRecord } from "@dojofoo/agent-api";
+import type { SessionRecord } from "@dojofoo/agent/api";
 import { readCourseManifest } from "@dojofoo/config";
 import type { GuardViolation } from "@dojofoo/protocol";
 import { clearCheckResult, solutionPath } from "../lesson/service";

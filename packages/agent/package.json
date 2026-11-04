@@ -572,6 +572,8 @@
       "import": "./dist/messages.js",
       "default": "./dist/messages.js"
     },
+    "./api": "./src/api/index.ts",
+    "./api/fixtures": "./src/api/fixtures.ts",
     "./tools/ask_question": {
       "types": "./dist/tools-ask-question.d.ts",
       "import": "./dist/tools-ask-question.js",
@@ -597,7 +599,7 @@
   "scripts": {
     "build": "tsc && node scripts/build-runtime.mjs",
     "test:packaging": "pnpm build && node experiments/model-provider/packaging.mjs",
-    "types:check": "tsc --noEmit",
+    "types:check": "tsc --noEmit && tsc -p tsconfig.api.json",
     "test": "pnpm build && vitest run && node --test --test-timeout=10000 experiments/model-provider/local-sandbox.test.mjs experiments/model-provider/loopback-openai.test.mjs experiments/model-provider/pi-local-continuation.test.mjs experiments/model-provider/runtime-toolchain.test.mjs && node experiments/model-provider/run.mjs"
   },
   "dependencies": {
@@ -622,6 +624,8 @@
     "@ai-sdk/sandbox-just-bash": "1.0.170",
     "@tanstack/ai": "1.0.1",
     "@types/node": "^26.6.5",
+    "elysia": "^1.4.30",
+    "exact-mirror": "0.2.7",
     "typescript": "6.0.3",
     "vitest": "^5.0.5"
   }

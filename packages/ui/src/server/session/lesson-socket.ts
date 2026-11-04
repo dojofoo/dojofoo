@@ -1,4 +1,4 @@
-import type { AgentRuntime } from "@dojofoo/agent-api";
+import type { AgentRuntime } from "@dojofoo/agent/api";
 import { offerCheckReport, runLessonCheck } from "../agent-session/check-reports";
 import { takeNotices } from "../agent-session/guard-store";
 import type { PageKey } from "../agent-session/notify";

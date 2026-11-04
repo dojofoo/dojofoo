@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { Client } from "@dojofoo/agent/client";
 import { createHostPortServer, hostPortAnswer, HostPortFailure, type HostPortHandlers, type HostPortMethod } from "@dojofoo/agent/host-port";
-import type { AgentEndpoint, DefaultSessionRequest, DefaultSessionResponse, SessionRecord } from "@dojofoo/agent-api";
+import type { AgentEndpoint, DefaultSessionRequest, DefaultSessionResponse, SessionRecord } from "@dojofoo/agent/api";
 import { readCourseManifest, readDojoMd } from "@dojofoo/config";
 import type { AgentId, EvaluationTrialStatus, InteractiveContext, KataContext, LessonCheck, LessonNavigation, Persona, SenseiContext, SenseiSessionInfo } from "@dojofoo/protocol";
 import { applyLifecycle, type TurnOutcome } from "./agent-session/lifecycle";

@@ -90,9 +90,10 @@ closed set (A), and the test entries (C) only in their tests; lint rules in
 | A | `/host-port` | The persona host's port to the UI server |
 | A | `/adapters` | `agentAdapter`, the official HarnessAgent API unchanged, the harness model (`experimental_createHarnessModel`, which translates the AI SDK model contract to HarnessAgent), the local sandbox and `oneShot` |
 | A | `/persona` | The persona host, the lifecycle hook, process groups, the file guard and the read-only settings |
+| A | `/api` | The versioned workspace agent API, as TypeScript source (see [`src/api/README.md`](src/api/README.md)) |
 | A | `/messages` | Eve's messages in the chat's render model (`eveChatMessages`, `eveQuestion`), and Eve's `activeTurn`, `emptySessionView`, `foldEvents` and `openInteractions` |
 | B | Eve's other subpaths, `/server/production`, `/server/build`, `/eve/package.json` | Persona builds and evals |
-| C | `/host-port/fixture`, `/scripted-harness`, `/local-history` | Tests, fixtures, the agents' scripts and the evals only |
+| C | `/api/fixtures`, `/host-port/fixture`, `/scripted-harness`, `/local-history` | Tests, fixtures, the agents' scripts and the evals only |
 
 The provider factory accepts the official adapter and runtime settings. Its
 generic type preserves adapter-specific settings and the SDK's mutually exclusive

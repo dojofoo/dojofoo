@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test";
-import type { startEve } from "@dojofoo/agent-api/fixtures";
+import type { startEve } from "@dojofoo/agent/api/fixtures";
 import { expect, startConversation, test, type MountedAgentChat } from "./agent-chat.fixture";
 
 test.setTimeout(90_000);

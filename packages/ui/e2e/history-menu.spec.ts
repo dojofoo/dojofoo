@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { Client } from "@dojofoo/agent/client";
-import type { SessionRecord } from "@dojofoo/agent-api";
-import type { startEve } from "@dojofoo/agent-api/fixtures";
+import type { SessionRecord } from "@dojofoo/agent/api";
+import type { startEve } from "@dojofoo/agent/api/fixtures";
 import { agentIds, agentRow, offeredAgents } from "@dojofoo/protocol";
 import { expect, greetingReply, startConversation, test, workspaceId, type MountedAgentChat } from "./agent-chat.fixture";
 

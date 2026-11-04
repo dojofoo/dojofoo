@@ -8,7 +8,7 @@ import type { Agent, AgentEndpoint, AgentRuntime, EveDelivery, Persona, SessionR
 import { AgentApiError, firstMessageOf } from "./runtime";
 import { agentRow, dojoTags, isAgentId, offeredAgents, type AgentId } from "@dojofoo/protocol";
 
-const fixture = fileURLToPath(new URL("../test/eve/", import.meta.url));
+const fixture = fileURLToPath(new URL("../../test/api/eve/", import.meta.url));
 
 /**
  * A real Eve host running the fixture agent (`test/eve`, a mock model): its replies echo the

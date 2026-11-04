@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Client } from "@dojofoo/agent/client";
-import { startEve } from "@dojofoo/agent-api/fixtures";
-import type { EveDelivery } from "@dojofoo/agent-api";
+import { startEve } from "@dojofoo/agent/api/fixtures";
+import type { EveDelivery } from "@dojofoo/agent/api";
 import { registerHost } from "../host-port";
 import { writeSolution } from "../lesson/service";
 import { sendServerTurn } from "./check-reports";

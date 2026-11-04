@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import type { Persona } from "@dojofoo/agent-api";
+import type { Persona } from "@dojofoo/agent/api";
 import type { ComposerAgent } from "@dojofoo/uix/containers/assistant-home";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { AiMagicIcon } from "@dojofoo/uix/icons";

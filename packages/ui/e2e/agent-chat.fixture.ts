@@ -1,10 +1,10 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { test as base, type Page } from "@playwright/test";
-import { createAgentApi, LAUNCH_TOKEN_HEADER, launchGuard, type Persona, type SessionRecord } from "@dojofoo/agent-api";
+import { createAgentApi, LAUNCH_TOKEN_HEADER, launchGuard, type Persona, type SessionRecord } from "@dojofoo/agent/api";
 import { Client, type MessageContent } from "@dojofoo/agent/client";
 import type { AgentId } from "@dojofoo/protocol";
-import { startEve, testLaunchToken, testRuntime } from "@dojofoo/agent-api/fixtures";
+import { startEve, testLaunchToken, testRuntime } from "@dojofoo/agent/api/fixtures";
 import type { AuthoringDraft } from "@dojofoo/authoring/service";
 import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
 
@@ -148,7 +148,7 @@ async function mount(page: Page, eve: Eve, servers: Server[], baseURL: string, o
 }
 
 /**
- * `eve` is a real Eve host running the fixture agent (`packages/agent-api/test/eve`), one per
+ * `eve` is a real Eve host running the fixture agent (`packages/agent/test/api/eve`), one per
  * worker; `mountAgentChat` serves a fresh agent API on it for the test's page.
  */
 /** A finished local setup, so pages open past onboarding whatever the server's DOJOFOO_HOME holds. A spec's own

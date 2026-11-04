@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { firstMessageOf, type SessionLifecycle, type SessionRecord } from "@dojofoo/agent-api";
+import { firstMessageOf, type SessionLifecycle, type SessionRecord } from "@dojofoo/agent/api";
 import { afterDelivery, beforeDelivery, transition } from "./lifecycle";
 import { readRecords, saveRecord } from "./records";
 

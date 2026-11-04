@@ -1,7 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { Client } from "@dojofoo/agent/client";
 import { emptySessionView, foldEvents, openInteractions } from "@dojofoo/agent/messages";
-import { LAUNCH_TOKEN_HEADER } from "@dojofoo/agent-api";
+import { LAUNCH_TOKEN_HEADER } from "@dojofoo/agent/api";
 import type { CheckObservation } from "../lesson/service";
 
 export interface TrialTurn {

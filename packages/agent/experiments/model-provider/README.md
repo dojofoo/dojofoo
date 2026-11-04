@@ -103,7 +103,7 @@ user messages, and the answer must reach the same native session exactly once; t
 question settles with `interaction.settled`, accepted, on its tool part.
 
 The browser talks to these sessions through Eve's own client as well: the agent
-API forwards each session's Eve routes (`packages/agent-api`), and the authoring
+API forwards each session's Eve routes (`packages/agent/src/api`), and the authoring
 chat uses `useEveAgent`. `@dojofoo/agent/messages` only maps Eve's messages
 into the chat's render model.
 
