@@ -8,36 +8,27 @@ import { fileURLToPath } from "node:url";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const { agentSourceHash } = await import("../dist/eve/artifact.js");
-const source = join(packageRoot, "agents/kyoshi");
-const hash = await agentSourceHash(source);
-const destination = join(packageRoot, "dist/prepared/kyoshi");
 const release = JSON.parse(await readFile(join(packageRoot, "../cli/package.json"), "utf8"));
 const installed = createRequire(join(packageRoot, "package.json"));
 const sdk = JSON.parse(await readFile(installed.resolve("@dojofoo/agent/package.json"), "utf8"));
 const eve = JSON.parse(await readFile(installed.resolve("@dojofoo/agent/eve/package.json"), "utf8"));
-const label = {
-  dojofoo: `dojofoo@${release.version}`,
-  agent: `@dojofoo/agent@${sdk.version}`,
-  eve: `eve@${eve.version}`,
-  source: `dojofoo/kyoshi@${release.version}`,
-  sourceHash: hash,
-  // The prepared server is deployed from this lockfile, which also pins dependency patches
-  lockfile: createHash("sha256").update(await readFile(resolve(packageRoot, "../../pnpm-lock.yaml"))).digest("hex"),
-};
+// The prepared servers are deployed from this lockfile, which also pins dependency patches
+const lockfile = createHash("sha256").update(await readFile(resolve(packageRoot, "../../pnpm-lock.yaml"))).digest("hex");
+const names = { kyoshi: "Kyoshi", sensei: "Sensei" };
 
-try {
-  const saved = JSON.parse(await readFile(join(destination, "build.json"), "utf8"));
-  const savedHash = (await readFile(join(destination, "source.sha256"), "utf8")).trim();
-  await access(join(destination, "server/index.mjs"));
-  if (savedHash === hash && Object.entries(label).every(([key, value]) => saved[key] === value)) {
-    console.info("Kyoshi source and release match; reusing the prepared build.");
-    process.exit(0);
+async function current(destination, hash, label) {
+  try {
+    const saved = JSON.parse(await readFile(join(destination, "build.json"), "utf8"));
+    const savedHash = (await readFile(join(destination, "source.sha256"), "utf8")).trim();
+    await access(join(destination, "server/index.mjs"));
+    return savedHash === hash && Object.entries(label).every(([key, value]) => saved[key] === value);
+  } catch (error) {
+    if (!(error instanceof SyntaxError) && error.code !== "ENOENT") throw error;
+    return false;
   }
-} catch (error) {
-  if (!(error instanceof SyntaxError) && error.code !== "ENOENT") throw error;
 }
 
-async function build() {
+async function build({ persona, source, destination, hash, label }) {
   const scratch = await mkdtemp(join(tmpdir(), "dojo-agent-package-"));
   const isolated = join(scratch, "application");
 
@@ -50,12 +41,13 @@ try {
   // Trace source dependencies once; a previous prepared server contains its
   // own traced graph and must not become input to the next build.
   await rm(join(isolated, "dist/prepared"), { recursive: true, force: true });
-  const agent = join(isolated, "agents/kyoshi");
+  const agent = join(isolated, "agents", persona);
   await cp(source, agent, {
     recursive: true,
     filter: path => ![".eve", ".output", "runtime.json"].includes(path.split(/[\\/]/u).at(-1)),
   });
-  await cp(join(packageRoot, "skills"), join(agent, "skills"), { recursive: true });
+  // Kyoshi's authoring skills; Sensei has none
+  if (persona === "kyoshi") await cp(join(packageRoot, "skills"), join(agent, "skills"), { recursive: true });
   const load = createRequire(join(isolated, "package.json"));
   const builder = load.resolve("@dojofoo/agent/server/build");
   const builtPath = join(scratch, "built-path.json");
@@ -73,6 +65,23 @@ try {
   await rm(scratch, { recursive: true, force: true });
 }
 }
-await build();
+for (const persona of ["kyoshi", "sensei"]) {
+  const source = join(packageRoot, "agents", persona);
+  const destination = join(packageRoot, "dist/prepared", persona);
+  const hash = await agentSourceHash(source);
+  const label = {
+    dojofoo: `dojofoo@${release.version}`,
+    agent: `@dojofoo/agent@${sdk.version}`,
+    eve: `eve@${eve.version}`,
+    source: `dojofoo/${persona}@${release.version}`,
+    sourceHash: hash,
+    lockfile,
+  };
+  if (await current(destination, hash, label)) {
+    console.info(`${names[persona]} source and release match; reusing the prepared build.`);
+    continue;
+  }
+  await build({ persona, source, destination, hash, label });
+}
 // Like Eve's bin entrypoint, this one-shot worker has no work after cleanup.
 process.exit(0);

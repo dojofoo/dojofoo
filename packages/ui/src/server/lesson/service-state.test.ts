@@ -7,7 +7,9 @@ import * as preparation from "@dojofoo/config/project-preparation";
 import { answerSenseiQuestion, checkLesson, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, saveLearnerObservation, shouldIntroduceLesson, setLessonModel, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
 import { writeAgent } from "@dojofoo/config/runtime";
 import { acpClient } from "./codex-client";
-import kataTeaching from "./contracts/KATAS.md?raw";
+import { readPrompt } from "@dojofoo/authoring/prompts";
+
+const kataTeaching = readPrompt("sensei/contracts/KATAS.md");
 
 const roots: string[] = [];
 

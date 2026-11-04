@@ -244,8 +244,8 @@ eval bundle. (Eve rejects `?raw` imports from outside the generated app.)
 | --- | --- |
 | Kyoshi core | `packages/authoring/src/contracts/KYOSHI.md`, `NATIVE-HARNESS.md` |
 | Kyoshi skills | `packages/authoring/skills/<skill>/SKILL.md` (+ `DOJO.tmpl`, `SENSEI.tmpl`): `lesson-design`, `kata-lessons`, `teaching-evals` |
-| Sensei platform / style | `packages/ui/src/server/lesson/contracts/DOJOFOO.md`, `KATAS.md` |
-| Sensei hidden turns | `packages/ui/src/server/lesson/contracts/TURNS.md` |
+| Sensei platform / style | `packages/authoring/src/sensei/contracts/DOJOFOO.md`, `KATAS.md` |
+| Sensei hidden turns | `packages/authoring/src/sensei/contracts/TURNS.md` |
 | Judges | `packages/authoring/src/evaluation/prompts/{CRITERIA,VERDICT,BOUNDARY,MATERIAL-JUDGE,TEACHING-JUDGE}.md` |
 | Simulated learner | `packages/authoring/src/evaluation/prompts/{LEARNER,LEARNER-SCRIPT,FIXTURE-GENERATOR}.md` |
 | Suite briefs / chain judge | `packages/authoring/src/evaluation/prompts/suites/{BRIEFS,CHAIN-JUDGE,AUTOEVALS}.md` |

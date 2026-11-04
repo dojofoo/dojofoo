@@ -1,0 +1,19 @@
+import { defineTool } from "@dojofoo/agent/tools";
+import { lessonCapabilities, type InteractiveContext } from "@dojofoo/protocol";
+import { z } from "zod";
+import { senseiHostPort, type SenseiRuntime } from "./agent.ts";
+
+/** `dojo_context`: the current course material on demand, from the UI server's host port. */
+export function createSenseiContextTool(runtime: () => Promise<Pick<SenseiRuntime, "hostPort">>) {
+  return defineTool({
+    description: lessonCapabilities.context.description,
+    inputSchema: z.object({}).strict(),
+    label: { start: () => "Reading the course" },
+    execute: async (_input, context) => {
+      const port = senseiHostPort(await runtime());
+      if (!port) throw new Error("This Sensei host has no host port.");
+      // A rerun step reuses the key, so the host port answers it once (sensei.host-port.rerun-no-duplicate)
+      return port.call<InteractiveContext>("context", context.session.id, {}, `${context.session.id}:${context.callId}`);
+    },
+  });
+}

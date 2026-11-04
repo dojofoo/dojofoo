@@ -30,11 +30,11 @@ export async function introductionScenario(): Promise<IntroductionScenario> {
       : resolve(workspace, ".dojos/starter-kata");
   const [dojofoo, style, dojo, sensei, skill, courseSkill] = await Promise.all([
     readFile(
-      resolve(workspace, "packages/ui/src/server/lesson/contracts/DOJOFOO.md"),
+      resolve(workspace, "packages/authoring/src/sensei/contracts/DOJOFOO.md"),
       "utf8"
     ),
     readFile(
-      resolve(workspace, "packages/ui/src/server/lesson/contracts/KATAS.md"),
+      resolve(workspace, "packages/authoring/src/sensei/contracts/KATAS.md"),
       "utf8"
     ),
     readFile(resolve(courseRoot, "DOJO.md"), "utf8"),

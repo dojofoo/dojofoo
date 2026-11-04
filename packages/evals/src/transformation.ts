@@ -12,11 +12,11 @@ const workspace = resolve(import.meta.dirname, "../../..");
 const fixture = resolve(import.meta.dirname, "../courses/kata-capabilities");
 const [platform, style, course, lesson, skill] = await Promise.all([
   readFile(
-    resolve(workspace, "packages/ui/src/server/lesson/contracts/DOJOFOO.md"),
+    resolve(workspace, "packages/authoring/src/sensei/contracts/DOJOFOO.md"),
     "utf8"
   ),
   readFile(
-    resolve(workspace, "packages/ui/src/server/lesson/contracts/KATAS.md"),
+    resolve(workspace, "packages/authoring/src/sensei/contracts/KATAS.md"),
     "utf8"
   ),
   readFile(resolve(fixture, "DOJO.md"), "utf8"),

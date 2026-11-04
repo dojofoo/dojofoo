@@ -1,7 +1,9 @@
+import { readPrompt } from "@dojofoo/authoring/prompts";
 import { expect, it } from "vitest";
-import platform from "./contracts/DOJOFOO.md?raw";
-import katas from "./contracts/KATAS.md?raw";
-import turns from "./contracts/TURNS.md?raw";
+
+const platform = readPrompt("sensei/contracts/DOJOFOO.md");
+const katas = readPrompt("sensei/contracts/KATAS.md");
+const turns = readPrompt("sensei/contracts/TURNS.md");
 import { senseiEvaluationPolicy, senseiInstructions, senseiTeachingPolicy } from "./instructions";
 
 it("preserves the existing instruction contract byte-for-byte", () => {

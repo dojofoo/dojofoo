@@ -36,9 +36,11 @@ try {
   const installedRequire = createRequire(resolve(installRoot, "node_modules/dojofoo/package.json"));
   try { installedRequire.resolve("@dojofoo/protocol"); }
   catch { throw new Error("Packed CLI is missing @dojofoo/protocol."); }
-  const label = JSON.parse(readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/authoring/package.json")), "dist/prepared/kyoshi/build.json"), "utf8"));
-  if (label.dojofoo !== `dojofoo@${expectedPackage.version}` || !label.sourceHash) {
-    throw new Error("The installed Kyoshi build is missing its release and source labels.");
+  for (const persona of ["kyoshi", "sensei"]) {
+    const label = JSON.parse(readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/authoring/package.json")), `dist/prepared/${persona}/build.json`), "utf8"));
+    if (label.dojofoo !== `dojofoo@${expectedPackage.version}` || label.source !== `dojofoo/${persona}@${expectedPackage.version}` || !label.sourceHash) {
+      throw new Error(`The installed ${persona === "kyoshi" ? "Kyoshi" : "Sensei"} build is missing its release and source labels.`);
+    }
   }
   // Preserve the original adapter's assets beside its module. Model switching
   // is exercised by the production turn test, without extracting private code.
@@ -191,6 +193,8 @@ function pack(packageRoot, destination) {
   execFileSync("pnpm", ["pack", "--pack-destination", destination], {
     cwd: packageRoot,
     stdio: "pipe",
+    // pnpm lists every packed file; two prepared persona servers outgrow the 1 MiB default
+    maxBuffer: 64 * 1024 * 1024,
   });
 }
 

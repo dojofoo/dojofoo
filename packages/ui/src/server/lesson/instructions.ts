@@ -1,9 +1,9 @@
-import { promptSection, promptSections, renderPrompt } from "@dojofoo/authoring/prompts";
-import platformTeaching from "./contracts/DOJOFOO.md?raw";
-import kataTeaching from "./contracts/KATAS.md?raw";
-import turnPrompts from "./contracts/TURNS.md?raw";
+import { promptSection, promptSections, readPrompt, renderPrompt } from "@dojofoo/authoring/prompts";
 import { senseiFragmentIds } from "./sensei-content";
 
+const platformTeaching = readPrompt("sensei/contracts/DOJOFOO.md");
+const kataTeaching = readPrompt("sensei/contracts/KATAS.md");
+const turnPrompts = readPrompt("sensei/contracts/TURNS.md");
 const styles: Record<string, string> = { katas: kataTeaching };
 
 export function senseiTeachingPolicy(mode: string): string {
@@ -18,7 +18,7 @@ export function senseiEvaluationPolicy(mode: string): string {
 
 const turns = promptSections(turnPrompts);
 
-/** Hidden host message for a Sensei turn, from contracts/TURNS.md. */
+/** Hidden host message for a Sensei turn, from @dojofoo/authoring's sensei/contracts/TURNS.md. */
 export function senseiTurn(id: string, values?: Record<string, string>): string {
   return renderPrompt(promptSection(turns, id), values);
 }

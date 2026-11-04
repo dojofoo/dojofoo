@@ -6,7 +6,7 @@ import { existsSync } from "node:fs";
 import { Readable, Writable } from "node:stream";
 import { acpAgentConnection, type AcpAgentConnection, type HarnessAdapter, type HarnessKind } from "../harness/adapter";
 import { harnessAdapter } from "../harness/registry";
-/** Host-authored turn starters from contracts/TURNS.md (`begin`, `checks-ran`);
+/** Host-authored turn starters from @dojofoo/authoring's sensei/contracts/TURNS.md (`begin`, `checks-ran`);
  * never shown as learner messages. Kept free of Markdown imports so plain tsx
  * scripts can load this client; a unit test keeps it equal to TURNS.md. */
 export const hiddenTurnTexts = ["Begin the lesson.", "Ran lesson checks."] as const;

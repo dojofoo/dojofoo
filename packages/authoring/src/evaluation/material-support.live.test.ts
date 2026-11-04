@@ -33,7 +33,7 @@ it.runIf(process.env.DOJOFOO_EVAL_MATERIAL_CALIBRATION === "1").each(cases)(
   async ({ name, sensei, expected }) => {
     if (name === "concise concept support without a dialogue script") expect(checkSensei(sensei)).toEqual([]);
     const policy = await Promise.all(["DOJOFOO", "KATAS", "TURNS"].map(file => readFile(
-      new URL(`../../../ui/src/server/lesson/contracts/${file}.md`, import.meta.url), "utf8")));
+      new URL(`../sensei/contracts/${file}.md`, import.meta.url), "utf8")));
     const evidence = {
       "DOJO.md": "Learner knows variables, functions, arrays, loops and basic TypeScript. New: union return types, running state and explicitly handling empty input. Use plain loops; no Math.max or sort. Teach concepts, not one required implementation.",
       "src/001-max/SENSEI.md": sensei,

@@ -17,7 +17,7 @@ DOJOFOO_EVAL_HARNESS=codex pnpm --filter @dojofoo/evals eval:authoring
 
 The first scenario assembles:
 
-1. the internal lesson-runtime `DOJOFOO.md` platform contract;
+1. the internal lesson-runtime `DOJOFOO.md` platform contract (`packages/authoring/src/sensei/contracts/`);
 2. the starter course's `DOJO.md`;
 3. lesson 002's `SENSEI.md`;
 4. the generic Dojofoo skill;

@@ -7,11 +7,13 @@
   "files": [
     "dist",
     "agents/kyoshi",
+    "agents/sensei",
     "scripts/build-agent.mjs",
     "skills",
     "templates",
     "src/**/*.ts",
     "src/contracts/*.md",
+    "src/sensei/contracts/*.md",
     "src/evaluation/prompts/**/*.md",
     "!src/**/*.test.ts"
   ],
@@ -131,6 +133,7 @@
     },
     "./KYOSHI.md": "./src/contracts/KYOSHI.md",
     "./NATIVE-HARNESS.md": "./src/contracts/NATIVE-HARNESS.md",
+    "./sensei/contracts/*.md": "./src/sensei/contracts/*.md",
     "./prompts": {
       "types": "./src/prompts.ts",
       "development": "./src/prompts.ts",
@@ -166,6 +169,30 @@
       "development": "./src/eve/messages.ts",
       "import": "./dist/eve/messages.js",
       "default": "./dist/eve/messages.js"
+    },
+    "./sensei/agent": {
+      "types": "./src/sensei/agent.ts",
+      "development": "./src/sensei/agent.ts",
+      "import": "./dist/sensei/agent.js",
+      "default": "./dist/sensei/agent.js"
+    },
+    "./sensei/instructions": {
+      "types": "./src/sensei/instructions.ts",
+      "development": "./src/sensei/instructions.ts",
+      "import": "./dist/sensei/instructions.js",
+      "default": "./dist/sensei/instructions.js"
+    },
+    "./sensei/context-tool": {
+      "types": "./src/sensei/context-tool.ts",
+      "development": "./src/sensei/context-tool.ts",
+      "import": "./dist/sensei/context-tool.js",
+      "default": "./dist/sensei/context-tool.js"
+    },
+    "./sensei/runtime": {
+      "types": "./src/sensei/runtime.ts",
+      "development": "./src/sensei/runtime.ts",
+      "import": "./dist/sensei/runtime.js",
+      "default": "./dist/sensei/runtime.js"
     },
     "./sandbox": {
       "types": "./src/sandbox.ts",

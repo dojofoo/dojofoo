@@ -95,3 +95,11 @@ try {
   await rm(root, { recursive: true, force: true, maxRetries: 3 });
 }
 ```
+
+## Step 4: safe mode and the host tools
+
+*   **For:** step 4 plan, commit 5 ("Claude Code safe-mode check"). Safe mode turns off "MCP servers"; whether that includes the adapter's own `harness-tools` server decided whether Claude's read-only row keeps `CLAUDE_CODE_SAFE_MODE=1`.
+*   **Date:** 2026-11-04, same machine, `@ai-sdk/harness-claude-code` 1.0.174 with the bootstrapped Claude Code 2.1.290.
+*   **Ran:** the prepared Sensei host (`createSenseiRuntime(…, { agent: "claude", hostPortUrl })`) against the loopback Messages route and a host-port fixture whose `session` answers `sonnet` and whose `context` answers marked course material, with the read-only environment from the registry row (`CLAUDE_CODE_SAFE_MODE=1`, `ENABLE_CLAUDEAI_MCP_SERVERS=false`, `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`, `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1`, adapter `strictMcpConfig: true`) and the read-only tool filter. One bodyless create, then one message.
+*   **Findings:** the first main-loop request offered exactly `Read`, `mcp__harness-tools__ask_question` and `mcp__harness-tools__dojo_context`; the loopback called `mcp__harness-tools__dojo_context` once, the fixture's `context` ran for it once with key `<sessionId>:toolu_lesson_1`, a later request carried the context's guidance, the `onMessage` context marker reached the model, the turn settled `completed` with "Ready to teach.", and the lifecycle hook reported `turn.settled` with key `<sessionId>:turn_0:settled`. Every request used the Messages route.
+*   **Decision:** safe mode keeps the adapter's host-tool server, so Claude's row keeps `CLAUDE_CODE_SAFE_MODE=1`; the fallback (no safe mode, `skillOverrides`) is not needed. `sensei.interactive.host-tool-turn` on Claude stays the lasting check, and `sensei.isolation.user-config` decides whether safe mode keeps the user's configuration out.

@@ -136,7 +136,10 @@ it.runIf(process.env.DOJOFOO_EVAL_TEACHING_COMPARISON === "1")("compares baselin
   const scaffold = await readFile(join(course, "src/001-map/kata.ts"), "utf8");
   expect(scaffold).toContain("wordLengths");
   const policyFiles = ["DOJOFOO", "KATAS"];
-  const old = (await Promise.all(policyFiles.map(async name => (await execute("git", ["show", `${baseline}:packages/ui/src/server/lesson/contracts/${name}.md`], { cwd: repository })).stdout))).join("\n\n");
+  // Baselines from before step 4 keep the policy in the UI package
+  const show = (path: string) => execute("git", ["show", `${baseline}:${path}`], { cwd: repository }).then(result => result.stdout);
+  const old = (await Promise.all(policyFiles.map(name => show(`packages/authoring/src/sensei/contracts/${name}.md`)
+    .catch(() => show(`packages/ui/src/server/lesson/contracts/${name}.md`))))).join("\n\n");
   const candidate = senseiInstructions({ mode: "katas", dojo, sensei });
   const previous = candidate.replace(senseiTeachingPolicy("katas"), old);
   expect(previous).not.toBe(candidate);

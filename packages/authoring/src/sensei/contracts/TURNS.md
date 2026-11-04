@@ -6,6 +6,10 @@ Hidden host messages that start a Sensei turn. Each `##` heading is a turn ID. `
 
 Begin the lesson.
 
+## evidence-seed
+
+Excerpts from this learner's earlier conversation in this course, for continuity. Don't quote them back or treat them as proof of mastery.
+
 ## checks-ran
 
 Ran lesson checks.

@@ -8,6 +8,7 @@ import { resolveAgent } from "@dojofoo/config/runtime";
 import { localStateDirectory, workspaceIdFor } from "@dojofoo/config/local-state";
 import type { AgentId } from "@dojofoo/protocol";
 import { configuredHarnessModel } from "./models.ts";
+import { closeSenseiRuntimes } from "../sensei/runtime.ts";
 
 /** Which host a composition root asks for: the workspace it serves and where its host port listens. */
 export interface PersonaRuntimeTarget {
@@ -29,7 +30,7 @@ export async function closeKyoshiRuntimes(): Promise<void> {
 
 /** Every persona host this process owns (the Nitro close hook). */
 export async function closePersonaRuntimes(): Promise<void> {
-  const results = await Promise.allSettled([closeKyoshiRuntimes()]);
+  const results = await Promise.allSettled([closeKyoshiRuntimes(), closeSenseiRuntimes()]);
   const failures = results.flatMap(result => result.status === "rejected" ? [result.reason] : []);
   if (failures.length) throw new AggregateError(failures, "Failed to close persona runtimes.");
 }

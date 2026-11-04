@@ -5,7 +5,7 @@ import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 
-// No prompt or model call. Observe child processes as well as SDK readiness.
+// No prompt or model call, apart from Eve's mock model for Sensei's ended session. Observe child processes as well as SDK readiness.
 const commands = [];
 const spawn = childProcess.spawn;
 childProcess.spawn = function (command, args, options) {
@@ -17,20 +17,30 @@ const load = createRequire(new URL("../package.json", import.meta.url));
 const { Client } = await import(load.resolve("@dojofoo/agent/client"));
 const { startProductionServer } = await import(load.resolve("@dojofoo/agent/server/production"));
 const { createKyoshiRuntime } = await import("../dist/eve/runtime.js");
-const prepared = new URL("../dist/prepared/kyoshi/", import.meta.url);
-const label = JSON.parse(await readFile(new URL("build.json", prepared), "utf8"));
+const { createSenseiRuntime } = await import("../dist/sensei/runtime.js");
 const cli = JSON.parse(await readFile(new URL("../../cli/package.json", import.meta.url), "utf8"));
 const sdk = JSON.parse(await readFile(load.resolve("@dojofoo/agent/package.json"), "utf8"));
 const eve = JSON.parse(await readFile(load.resolve("@dojofoo/agent/eve/package.json"), "utf8"));
-assert.equal(label.dojofoo, `dojofoo@${cli.version}`);
-assert.equal(label.source, `dojofoo/kyoshi@${cli.version}`);
-assert.equal(label.agent, `@dojofoo/agent@${sdk.version}`);
-assert.equal(label.eve, `eve@${eve.version}`);
-assert.equal(label.sourceHash, await readFile(new URL("source.sha256", prepared), "utf8"));
+const personas = {
+  kyoshi: { create: createKyoshiRuntime, app: ".dojo/kyoshi-app/agents/kyoshi", relocate: copy => ({ courseRoot: copy }) },
+  sensei: { create: createSenseiRuntime, app: ".dojo/sensei-app/agents/sensei", relocate: copy => ({ workspaceRoot: copy }) },
+};
+const labels = {};
+for (const persona of Object.keys(personas)) {
+  const prepared = new URL(`../dist/prepared/${persona}/`, import.meta.url);
+  const label = JSON.parse(await readFile(new URL("build.json", prepared), "utf8"));
+  assert.equal(label.dojofoo, `dojofoo@${cli.version}`);
+  assert.equal(label.source, `dojofoo/${persona}@${cli.version}`);
+  assert.equal(label.agent, `@dojofoo/agent@${sdk.version}`);
+  assert.equal(label.eve, `eve@${eve.version}`);
+  assert.equal(label.sourceHash, await readFile(new URL("source.sha256", prepared), "utf8"));
+  labels[persona] = label;
+}
 const root = await mkdtemp(join(tmpdir(), "dojo-prebuilt-startup-"));
-const copy = await mkdtemp(join(tmpdir(), "dojo-prebuilt-relocated-"));
-const timings = [];
-let sessionId, saved;
+// Process records and Sensei's scratch directory stay out of the developer's own state
+process.env.DOJOFOO_HOME = join(root, ".dojofoo-home");
+const copies = [];
+const results = {};
 try {
   const override = join(root, ".dojo/kyoshi");
   await mkdir(override, { recursive: true });
@@ -38,56 +48,103 @@ try {
   const legacy = join(root, ".dojo/kyoshi-app/agents/kyoshi");
   await mkdir(join(legacy, ".eve/dev-runtime"), { recursive: true });
   await writeFile(join(legacy, "runtime.json"), JSON.stringify({ harness: "opencode" }));
-  for (const label of ["cold open", "cold resume"]) {
-    const began = performance.now();
-    const runtime = await createKyoshiRuntime(root);
-    try {
-      const ready = await runtime.start();
-      const infoAt = performance.now();
-      const client = new Client({ baseUrl: ready.url, auth: ready.auth });
-      const session = sessionId ? client.sessions.attach(sessionId) : (await client.sessions.create({ signal: AbortSignal.timeout(10_000) })).session;
-      sessionId ??= session.state.sessionId;
-      assert.equal(session.state.sessionId, sessionId);
-      // The history and its cursor; the session's opaque inbox hint isn't part of it
-      const { events, session: { sessionId: id, streamIndex } } = await session.snapshot({ signal: AbortSignal.timeout(10_000) });
-      const snapshot = { events, sessionId: id, streamIndex };
-      if (saved) assert.deepEqual(snapshot, saved);
-      else saved = snapshot;
-      timings.push({ operation: label, readyMs: Math.round(infoAt - began), attachedMs: Math.round(performance.now() - began) });
-      if (label === "cold resume") {
-        const warmAt = performance.now();
-        const warm = await client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(10_000) });
-        assert.deepEqual({ events: warm.events, sessionId: warm.session.sessionId, streamIndex: warm.session.streamIndex }, saved);
-        timings.push({ operation: "warm resume", readyMs: 0, attachedMs: Math.round(performance.now() - warmAt) });
-      }
-    } finally { await runtime.close(); }
-  }
-  const app = join(root, ".dojo/kyoshi-app/agents/kyoshi");
-  await cp(await realpath(join(app, ".output")), join(copy, ".output"), { recursive: true, verbatimSymlinks: true });
-  assert.deepEqual(JSON.parse(await readFile(join(copy, ".output/build.json"), "utf8")), label);
-  async function verifyLinks(directory) {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      const path = join(directory, entry.name);
-      if (entry.isSymbolicLink()) {
-        const target = await realpath(path);
-        assert.ok(!relative(await realpath(copy), target).startsWith(".."), `Prepared dependency escapes the copied artifact: ${path}`);
-      } else if (entry.isDirectory()) await verifyLinks(path);
+  for (const [persona, { create, app: appPath, relocate }] of Object.entries(personas)) {
+    const timings = [];
+    let sessionId, saved;
+    for (const label of ["cold open", "cold resume"]) {
+      const began = performance.now();
+      const runtime = await create(root);
+      try {
+        const ready = await runtime.start();
+        const infoAt = performance.now();
+        const client = new Client({ baseUrl: ready.url, auth: ready.auth });
+        if (label === "cold open") {
+          const info = await client.info({ signal: AbortSignal.timeout(10_000) });
+          assert.ok(info.hooks.some(hook => hook.slug === "dojofoo-lifecycle"), `${persona} lacks dojofoo's lifecycle hook`);
+          // Only Sensei's own tools: no bash, file, web or subagent tools
+          if (persona === "sensei") assert.deepEqual(info.tools.static.map(tool => tool.name).sort(), ["ask_question", "dojo_context"]);
+        }
+        const session = sessionId ? client.sessions.attach(sessionId) : (await client.sessions.create({ signal: AbortSignal.timeout(10_000) })).session;
+        sessionId ??= session.state.sessionId;
+        assert.equal(session.state.sessionId, sessionId);
+        // The history and its cursor; the session's opaque inbox hint isn't part of it
+        const { events, session: { sessionId: id, streamIndex } } = await session.snapshot({ signal: AbortSignal.timeout(10_000) });
+        const snapshot = { events, sessionId: id, streamIndex };
+        if (saved) assert.deepEqual(snapshot, saved);
+        else saved = snapshot;
+        timings.push({ operation: label, readyMs: Math.round(infoAt - began), attachedMs: Math.round(performance.now() - began) });
+        if (label === "cold resume") {
+          const warmAt = performance.now();
+          const warm = await client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(10_000) });
+          assert.deepEqual({ events: warm.events, sessionId: warm.session.sessionId, streamIndex: warm.session.streamIndex }, saved);
+          timings.push({ operation: "warm resume", readyMs: 0, attachedMs: Math.round(performance.now() - warmAt) });
+        }
+      } finally { await runtime.close(); }
     }
+    const endedSessionReadable = persona === "sensei" ? await endedReadable(create, root) : undefined;
+    const app = join(root, appPath);
+    const copy = await mkdtemp(join(tmpdir(), `dojo-prebuilt-relocated-${persona}-`));
+    copies.push(copy);
+    await cp(await realpath(join(app, ".output")), join(copy, ".output"), { recursive: true, verbatimSymlinks: true });
+    assert.deepEqual(JSON.parse(await readFile(join(copy, ".output/build.json"), "utf8")), labels[persona]);
+    async function verifyLinks(directory) {
+      for (const entry of await readdir(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        if (entry.isSymbolicLink()) {
+          const target = await realpath(path);
+          assert.ok(!relative(await realpath(copy), target).startsWith(".."), `Prepared dependency escapes the copied artifact: ${path}`);
+        } else if (entry.isDirectory()) await verifyLinks(path);
+      }
+    }
+    await verifyLinks(join(copy, ".output"));
+    const binding = JSON.parse(await readFile(join(app, "runtime.json"), "utf8"));
+    await writeFile(join(copy, "runtime.json"), JSON.stringify({ ...binding, ...relocate(copy) }), { mode: 0o600 });
+    const relocated = await startProductionServer(copy, { host: "127.0.0.1", port: 0 });
+    try {
+      const info = await new Client({ baseUrl: relocated.url, auth: { basic: binding.auth } }).info({ signal: AbortSignal.timeout(10_000) });
+      assert.ok(info);
+    } finally { await relocated.close(); }
+    results[persona] = { build: labels[persona], timings, sameSession: true, copiedArtifactReady: true, ...(endedSessionReadable ? { endedSessionReadable } : {}) };
   }
-  await verifyLinks(join(copy, ".output"));
-  const binding = JSON.parse(await readFile(join(app, "runtime.json"), "utf8"));
-  await writeFile(join(copy, "runtime.json"), JSON.stringify({ ...binding, courseRoot: copy }), { mode: 0o600 });
-  const relocated = await startProductionServer(copy, { host: "127.0.0.1", port: 0 });
-  try {
-    const info = await new Client({ baseUrl: relocated.url, auth: { basic: binding.auth } }).info({ signal: AbortSignal.timeout(10_000) });
-    assert.ok(info);
-  } finally { await relocated.close(); }
   const builds = commands.filter(args => args.some(arg => /(?:^|\/)(?:vite|rolldown|tsup|tsc|nft)(?:\.|$)|^build$|dev-server/u.test(String(arg))));
   assert.deepEqual(builds, [], "Opening or resuming spawned a compiler");
   assert.equal(await readFile(join(override, "agent.ts"), "utf8"), 'throw new Error("Course Kyoshi overrides must not load");\n');
-  console.log(JSON.stringify({ build: label, timings, sameSession: true, copiedArtifactReady: true, courseKyoshiIgnored: true, legacyBindingUsesProduction: true, buildProcesses: builds.length }, null, 2));
+  const { build, timings, sameSession, copiedArtifactReady } = results.kyoshi;
+  console.log(JSON.stringify({ build, timings, sameSession, copiedArtifactReady, courseKyoshiIgnored: true, legacyBindingUsesProduction: true,
+    buildProcesses: builds.length, personas: results }, null, 2));
 } finally {
   childProcess.spawn = spawn;
   syncBuiltinESMExports();
-  await Promise.all([rm(root, { recursive: true, force: true }), rm(copy, { recursive: true, force: true })]);
+  await Promise.all([root, ...copies].map(path => rm(path, { recursive: true, force: true })));
+}
+
+/** Open risk 11 for Sensei: an ended session is readable after a host restart (retention "default"). A bodyless session cannot
+ *  end, so it starts with one turn on Eve's mock model; session.ended closes the stream before the end's delivery settles. */
+async function endedReadable(create, workspace) {
+  const mock = process.env.EVE_MOCK_AUTHORED_MODELS;
+  process.env.EVE_MOCK_AUTHORED_MODELS = "1";
+  let sessionId;
+  try {
+    const first = await create(workspace);
+    try {
+      const ready = await first.start();
+      const { session, delivery } = await new Client({ baseUrl: ready.url, auth: ready.auth }).sessions.create({ message: "Hello.", signal: AbortSignal.timeout(20_000) });
+      sessionId = session.id;
+      await delivery.result({ signal: AbortSignal.timeout(30_000) });
+      await session.end({ signal: AbortSignal.timeout(20_000) });
+      for (const deadline = Date.now() + 20_000; Date.now() < deadline; await new Promise(resolve => setTimeout(resolve, 100))) {
+        if ((await session.snapshot({ signal: AbortSignal.timeout(5_000) })).events.some(event => event.type === "session.ended")) break;
+      }
+    } finally { await first.close(); }
+  } finally {
+    if (mock === undefined) delete process.env.EVE_MOCK_AUTHORED_MODELS;
+    else process.env.EVE_MOCK_AUTHORED_MODELS = mock;
+  }
+  const second = await create(workspace);
+  try {
+    const ready = await second.start();
+    const snapshot = await new Client({ baseUrl: ready.url, auth: ready.auth }).sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(20_000) });
+    assert.ok(snapshot.events.some(event => event.type === "session.ended"), "An ended Sensei session is not readable after a restart");
+    return true;
+  } finally { await second.close(); }
 }

@@ -77,7 +77,7 @@ it.runIf(process.env.DOJOFOO_EVAL_DESIGN === "1").each(cases)(
     const signal = AbortSignal.timeout(1_770_000);
     const session = await agent.createSession({ abortSignal: signal });
     const policy = await Promise.all(["DOJOFOO", "KATAS", "TURNS"].map(file => readFile(
-      new URL(`../../../ui/src/server/lesson/contracts/${file}.md`, import.meta.url), "utf8")));
+      new URL(`../sensei/contracts/${file}.md`, import.meta.url), "utf8")));
     let results: Awaited<ReturnType<typeof judgeMaterial>> = [];
     let reviews = 0;
     try {
