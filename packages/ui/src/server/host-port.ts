@@ -4,7 +4,7 @@ import { Client } from "@dojofoo/agent/client";
 import { createHostPortServer, hostPortAnswer, HostPortFailure, type HostPortHandlers, type HostPortMethod } from "@dojofoo/agent/host-port";
 import type { AgentEndpoint, DefaultSessionRequest, DefaultSessionResponse, SessionRecord } from "@dojofoo/agent-api";
 import { readCourseManifest, readDojoMd } from "@dojofoo/config";
-import type { InteractiveContext, Persona, SenseiSessionInfo } from "@dojofoo/protocol";
+import type { AgentId, InteractiveContext, Persona, SenseiSessionInfo } from "@dojofoo/protocol";
 import { applyLifecycle, type TurnOutcome } from "./agent-session/lifecycle";
 import { captureLearnerEvidence } from "./agent-session/evidence";
 import { dropHeld, markSeen, sendHeld } from "./agent-session/check-reports";
@@ -23,8 +23,9 @@ export function hostPortUrl(environment: NodeJS.ProcessEnv = process.env): strin
   return `http://${loopback}:${environment.PORT || "4567"}/api/host-port`;
 }
 
-/** A running persona host. `openDefault` is its AgentRuntime's get-or-create, which a settle's replacement uses (D28). */
-type Host = { secret: string; endpoint: AgentEndpoint; openDefault?: (request: DefaultSessionRequest) => Promise<DefaultSessionResponse> };
+/** A running persona host: its secret, where it serves, and the coding agent it runs (decision 30). `openDefault` is its AgentRuntime's
+ *  get-or-create, which a settle's replacement uses (D28). */
+type Host = { secret: string; endpoint: AgentEndpoint; agent?: AgentId; openDefault?: (request: DefaultSessionRequest) => Promise<DefaultSessionResponse> };
 const hostsKey = Symbol.for("dojofoo.host-port.hosts");
 // Process-global: route modules may be loaded twice by the dev runner
 const hosts = ((globalThis as Record<symbol, unknown>)[hostsKey] ??= new Map<string, Host>()) as Map<string, Host>;
@@ -160,6 +161,17 @@ export const hostPortHandlers: HostPortHandlers = {
         mode: readCourseManifest(path, courseId).mode === "interactive" ? "interactive" : "katas",
         ...(record.model ? { model: record.model } : {}), revision: record.revision,
       };
+    }),
+    /** Before every model call, outside any memo (decision 6): a turn an agent switch interrupted, or another agent's session, never runs */
+    "turn.check": read<{ turnId?: unknown }, { ok: true }>(async ({ workspaceId, sessionId, input }) => {
+      const { record } = await sessionRecord(workspaceId, sessionId);
+      const turnId = typeof input?.turnId === "string" ? input.turnId : undefined;
+      const host = hosts.get(hostKey(workspaceId, "sensei"));
+      const lifecycle = record.lifecycle;
+      if (lifecycle?.status === "interrupted" || (turnId && lifecycle?.interruptedTurnId === turnId) || (host?.agent && record.agent !== host.agent)) {
+        throw new HostPortFailure(409, "turn_interrupted", "This turn was interrupted by an agent switch.");
+      }
+      return { ok: true };
     }),
     context: read<unknown, InteractiveContext>(async ({ workspaceId, sessionId }) => {
       const { path, record } = await sessionRecord(workspaceId, sessionId);

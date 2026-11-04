@@ -1,8 +1,8 @@
-import { defineAgent, defineDynamic } from "@dojofoo/agent";
+import { defineAgent, defineDynamic, type DynamicModelContext } from "@dojofoo/agent";
 import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
 import { createLocalHarnessSandbox, prepareHarnessEnvironment } from "@dojofoo/agent/experimental/local";
 import { agentAdapter } from "@dojofoo/agent/adapters";
-import { createHostPortClient } from "@dojofoo/agent/host-port";
+import { createHostPortClient, HostPortError, type HostPortClient } from "@dojofoo/agent/host-port";
 import type { HostPortBinding } from "@dojofoo/agent/lifecycle";
 import { readOnlyEnvironment } from "@dojofoo/agent/read-only";
 import type { AgentId, SenseiSessionInfo } from "@dojofoo/protocol";
@@ -28,6 +28,19 @@ export function senseiHostPort(settings: Pick<SenseiRuntime, "hostPort">) {
   return settings.hostPort ? createHostPortClient(settings.hostPort) : undefined;
 }
 
+/** Before every model call: the un-memoised turn check (step-5 plan, decision 6), then the session read memoised per turn, so a model
+ *  change applies from the next turn a delivery starts, never on a paused turn's resume (D26). A turn an agent switch interrupted, or
+ *  another agent's session, fails here before any native agent starts; without a status code, so Eve does not retry it. */
+export async function sessionForModelCall(port: HostPortClient | undefined, ctx: Pick<DynamicModelContext, "session" | "turn" | "memo">): Promise<SenseiSessionInfo | undefined> {
+  if (!port) return undefined;
+  try { await port.call("turn.check", ctx.session.id, { turnId: ctx.turn?.id ?? null }); }
+  catch (error) {
+    if (error instanceof HostPortError && error.code === "turn_interrupted") throw new Error("This turn was interrupted by an agent switch.");
+    throw error;
+  }
+  return ctx.memo(["sensei-model", ctx.turn?.id ?? "none"], () => port.call<SenseiSessionInfo>("session", ctx.session.id, {}));
+}
+
 /** Sensei is read-only (D18, D34): native reads only, its own two tools, and none of the user's configuration. */
 export function createSenseiAgent(runtime: () => Promise<SenseiRuntime>) {
   return defineAgent({
@@ -44,9 +57,7 @@ export function createSenseiAgent(runtime: () => Promise<SenseiRuntime>) {
     model: defineDynamic(async ctx => {
       const settings = await runtime();
       const port = senseiHostPort(settings);
-      // Per turn, so a model change applies from the next turn a delivery starts, never on a paused turn's resume (D26)
-      const session = port ? await ctx.memo(["sensei-model", ctx.turn?.id ?? "none"],
-        () => port.call<SenseiSessionInfo>("session", ctx.session.id, {})) : undefined;
+      const session = await sessionForModelCall(port, ctx);
       const environment = await readOnlyEnvironment(settings.harness, await prepareHarnessEnvironment(),
         { stateDirectory: settings.stateDirectory, eveSessionId: ctx.session.id });
       const sandbox = createLocalHarnessSandbox(settings.harnessRoot, { environment, processRecord: settings.processRecord, providerId: "dojo-sensei-local" });

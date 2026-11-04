@@ -44,8 +44,8 @@ const call = (workspaceId: string, persona: string, method: string, input: unkno
     headers: { "content-type": "application/json", authorization: `Bearer ${options.bearer ?? secret}`, ...(options.origin ? { origin: options.origin } : {}) },
     body: JSON.stringify({ sessionId: options.sessionId ?? "wrun_1", idempotencyKey: options.key ?? crypto.randomUUID(), input }),
   }));
-function register(workspaceId: string, persona: "sensei" | "kyoshi", baseUrl = "http://127.0.0.1:9", key = secret) {
-  registerHost(workspaceId, persona, { secret: key, endpoint: { baseUrl } });
+function register(workspaceId: string, persona: "sensei" | "kyoshi", baseUrl = "http://127.0.0.1:9", key = secret, agent: "opencode" | "codex" = "opencode") {
+  registerHost(workspaceId, persona, { secret: key, endpoint: { baseUrl }, agent });
   closers.push(async () => forgetHost(workspaceId, persona));
 }
 
@@ -90,6 +90,25 @@ describe("host port in the UI server", () => {
     expect(context).toMatchObject({ kind: "interactive", course: { id: "first", title: "First" }, guidance: "PRIVATE-GUIDANCE-first\n", lesson: { dojo: "first", current: { id: "read" } } });
     expect(context.lesson).not.toHaveProperty("references");
     expect(context.hash).toMatch(/^[0-9a-f]{64}$/u);
+  });
+
+  it("turn.check answers turn_interrupted for an interrupted record, for its interrupted turn after the status was cleared, and for another agent's record", async () => {
+    const { root, workspaceId } = workspace();
+    register(workspaceId, "sensei");
+    const check = async (sessionId: string, turnId: string) => {
+      const response = await call(workspaceId, "sensei", "turn.check", { turnId }, { sessionId });
+      return { status: response.status, body: await response.json() };
+    };
+    await saveRecord(root, record({ id: "s-interrupted", lifecycle: { status: "interrupted", interruptedAt: "2026-11-04T00:00:00.000Z", interruptedTurnId: "t1", updatedAt: "2026-11-04T00:00:00.000Z" } }));
+    expect(await check("s-interrupted", "t1")).toEqual({ status: 409, body: { error: "turn_interrupted", message: "This turn was interrupted by an agent switch." } });
+    // A learner message cleared the status; the interrupted turn stays refused, a new turn runs
+    await saveRecord(root, record({ id: "s-continued", lifecycle: { status: "working", interruptedTurnId: "t1", updatedAt: "2026-11-04T00:00:00.000Z" } }));
+    expect((await check("s-continued", "t1")).status).toBe(409);
+    expect(await check("s-continued", "t2")).toEqual({ status: 200, body: { result: { ok: true } } });
+    // A host of one agent never runs another agent's session
+    await saveRecord(root, record({ id: "s-codex", agent: "codex" }));
+    expect((await check("s-codex", "t3")).status).toBe(409);
+    expect((await check("wrun_1", "t4")).status).toBe(404);
   });
 
   it("refuses an earlier start's secret", async () => {

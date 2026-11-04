@@ -7,7 +7,13 @@ import { listWorkspaces, observeWorkspacePath, setWorkspaceKind } from "@dojofoo
 import { buildControlRoutes } from "./control/routes";
 import { spawn } from "node:child_process";
 import { recordProcessGroup } from "@dojofoo/agent/process-groups";
+import { readFileSync } from "node:fs";
+import { vi } from "vitest";
 import { backfillWorkspaceKinds, startUiServer } from "./startup";
+import { releaseServerLock } from "./server-lock";
+import { guardFor } from "./agent-session/guard-store";
+import { kataWorkspace, removeRoots } from "./agent-session/test-kata.fixture";
+import { createLocalAgentRuntime } from "./agent-api";
 
 const temporaryPaths: string[] = [];
 afterEach(() => { for (const path of temporaryPaths.splice(0)) rmSync(path, { recursive: true, force: true }); });
@@ -59,7 +65,32 @@ it("reaps recorded process groups at startup", async () => {
       recordProcessGroup(record, sleeper.pid!);
       await new Promise(accept => setTimeout(accept, 20));
     }
-    startUiServer({ stateHome });
+    try { await startUiServer({ stateHome, url: "http://127.0.0.1:4567" }); }
+    finally { releaseServerLock(stateHome); }
     await expect(Promise.race([exited.then(() => "exited"), new Promise(accept => setTimeout(() => accept("running"), 5_000))])).resolves.toBe("exited");
   } finally { try { process.kill(-sleeper.pid!, "SIGKILL"); } catch {} }
+});
+
+it("verifies persisted windows before any host starts", async () => {
+  const roots: string[] = [];
+  const { root, workspaceId, file, cleanup } = kataWorkspace(roots, { baseUrl: "http://127.0.0.1:9" });
+  const stateHome = resolve(root, "state");
+  try {
+    // A window a crashed server left open, and the native write it never saw
+    await guardFor(root).open("eve-crashed", file, { root, workspaceId, sessionId: "eve-crashed", courseId: "starter", lessonId: "001-first" });
+    writeFileSync(file, "native write before the crash\n");
+    const seen: string[] = [];
+    const local = createLocalAgentRuntime({ runtime: async () => ({
+      start: async () => { seen.push(readFileSync(file, "utf8")); return { url: "http://127.0.0.1:9" }; }, close: async () => {} }) });
+    const started = startUiServer({ stateHome, url: "http://127.0.0.1:4567" });
+    await local.connect(workspaceId, { agent: "codex", persona: "sensei" });
+    await started;
+    expect(seen).toEqual(["export const answer = 0;\n"]);
+    expect(await guardFor(root).list()).toEqual([]);
+  } finally {
+    releaseServerLock(stateHome);
+    cleanup();
+    vi.unstubAllEnvs();
+    removeRoots(roots);
+  }
 });

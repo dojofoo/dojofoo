@@ -96,10 +96,12 @@ export interface AgentEndpoint {
 export interface AgentRuntime {
   /** Fails with `workspace_not_found` for an unknown workspace */
   agents(workspaceId: string): Promise<Agent[]>;
-  /** Starts (or keeps) the coding agent without waiting for it to be ready */
+  /** Starts (or keeps) the coding agent without waiting for it to be ready. While an agent switch holds the workspace's lock, this and
+   *  `connect`, `openDefault` and `deliveries.before` wait at most the switch's bound, then fail with 409 agent_switching. */
   start(workspaceId: string, agentId: string): Promise<Agent>;
   stop(workspaceId: string, agentId: string): Promise<Agent>;
-  /** Saves the workspace's coding agent after cancelling the old agent's turns and stopping its host.
+  /** Saves the workspace's coding agent after cancelling the old agent's turns and stopping its host. A turn that does not settle
+   *  within the bound is marked `interrupted`; a host refuses its model calls with the host-port code turn_interrupted.
    *  404 workspace_not_found | agent_not_found; 409 agent_not_offered. Selecting the current agent changes nothing. */
   select(workspaceId: string, agentId: string): Promise<Agent>;
   /** The Eve host serving this persona on this coding agent; starts it when needed */

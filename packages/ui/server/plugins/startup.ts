@@ -2,7 +2,7 @@ import { definePlugin } from "nitro";
 import { startUiServer } from "../../src/server/startup";
 
 export default definePlugin(() => {
-  // A failed backfill must not stop the UI; rows without a kind still use the draft rule.
-  try { startUiServer(); }
-  catch (error) { console.error(error); }
+  // The server lock is its first step, outside any catch: a second server on this DOJOFOO_HOME must not start.
+  // The kind backfill inside it logs its own errors.
+  void startUiServer();
 });

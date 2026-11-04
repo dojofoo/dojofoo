@@ -9,6 +9,8 @@ import { once } from "node:events";
 import { writeAgent } from "@dojofoo/config/runtime";
 import { app } from "./app";
 import { createLocalAgentRuntime } from "./agent-api";
+import { guardFor } from "./agent-session/guard-store";
+import { kataWorkspace, removeRoots } from "./agent-session/test-kata.fixture";
 
 // Cursor's CLI is looked up on this machine; the tests decide whether it is installed
 const installed = vi.hoisted(() => ({ cursor: false }));
@@ -398,5 +400,84 @@ describe("mounted in the UI server", () => {
   it("leaves the existing routes alone", async () => {
     const response = await app.fetch(new Request("http://localhost/api/health"));
     expect(response.status).toBe(200);
+  });
+});
+
+describe("switching and host stops (step 5)", () => {
+  const roots: string[] = [];
+  const cleanups: Array<() => void> = [];
+  afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); vi.restoreAllMocks(); removeRoots(roots); });
+  const kata = (endpoint: string) => {
+    const workspace = kataWorkspace(roots, { baseUrl: endpoint });
+    cleanups.push(workspace.cleanup);
+    return workspace;
+  };
+  const message = { kind: "message" as const, text: "Hello" };
+
+  it("a switch whose turn does not settle in time marks it interrupted with its turn id and leaves no open window", async () => {
+    const eve = await unsettledEve();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { root, workspaceId, record, file } = kata(eve.url);
+      const local = createLocalAgentRuntime({ runtime: async () => ({ start: async () => ({ url: eve.url }), close: async () => {} }), switchSettleMs: 200 });
+      const session = record();
+      await local.sessions.save(workspaceId, session);
+      await local.connect(workspaceId, { agent: "codex", persona: "sensei" });
+      await local.deliveries!.before(workspaceId, session, message);
+      writeFileSync(file, "written by the old agent\n");
+      await local.select(workspaceId, "opencode");
+      expect((await local.sessions.get(workspaceId, session.id))?.lifecycle).toMatchObject({ status: "interrupted", interruptedTurnId: "turn_0", interruptedAt: expect.any(String) });
+      expect(await guardFor(root).list()).toEqual([]);
+      expect(readFileSync(file, "utf8")).toBe("export const answer = 0;\n");
+      expect(savedAgent(root)).toBe("opencode");
+    } finally { await eve.close(); }
+  });
+
+  it("connects wait for a switch at most its bound, then answer agent_switching", async () => {
+    const { workspaceId } = kata("http://127.0.0.1:9");
+    const stopped = Promise.withResolvers<void>();
+    const local = createLocalAgentRuntime({ runtime: async () => ({ start: async () => ({ url: "http://127.0.0.1:9" }), close: () => stopped.promise }),
+      switchSettleMs: 50, hostStopMs: 50 });
+    await local.connect(workspaceId, { agent: "codex", persona: "sensei" });
+    const switched = local.select(workspaceId, "opencode");
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const started = performance.now();
+    await expect(local.connect(workspaceId, { agent: "opencode", persona: "sensei" })).rejects.toMatchObject({ status: 409, code: "agent_switching", message: "Switching to OpenCode…" });
+    expect(performance.now() - started).toBeLessThan(1_000);
+    await expect(local.deliveries!.before(workspaceId, { id: "s", agent: "codex", persona: "sensei", createdAt: "", revision: 0 }, message)).rejects.toMatchObject({ code: "agent_switching" });
+    stopped.resolve();
+    await switched;
+  });
+
+  it("a same-agent host restart opens a recovery window for its working session and the settle closes it", async () => {
+    const eve = await unsettledEve();
+    try {
+      const { root, workspaceId, local, record, call } = kata(eve.url);
+      const session = record({ lifecycle: { status: "working", updatedAt: new Date().toISOString() } });
+      await local.sessions.save(workspaceId, session);
+      await local.sessions.save(workspaceId, record({ agent: "claude", lifecycle: { status: "working", updatedAt: new Date().toISOString() } }));
+      await local.connect(workspaceId, { agent: "codex", persona: "sensei" });
+      // Eve still reports the recovered run, so the reconcile keeps the window
+      expect((await guardFor(root).list()).map(window => window.owner)).toEqual([session.id]);
+      await call("turn.settled", session.id, { turnId: "turn_0", outcome: "completed" });
+      expect(await guardFor(root).list()).toEqual([]);
+    } finally { await eve.close(); }
+  });
+
+  it("a host that stops verifies its windows and drops held reports", async () => {
+    const eve = await unsettledEve();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { workspaceId, local, record, file, messages } = kata(eve.url);
+      const session = record({ lifecycle: { status: "working", updatedAt: new Date().toISOString(),
+        heldReport: { observationId: "obs-1", text: "[dojo:check] Ran lesson checks.", heldAt: new Date().toISOString() } } });
+      await local.sessions.save(workspaceId, session);
+      await local.connect(workspaceId, { agent: "codex", persona: "sensei" });
+      writeFileSync(file, "written before the stop\n");
+      await local.stop(workspaceId, "codex");
+      expect(readFileSync(file, "utf8")).toBe("export const answer = 0;\n");
+      expect((await local.sessions.get(workspaceId, session.id))?.lifecycle?.heldReport).toBeUndefined();
+      expect(messages.map(entry => entry.message.method)).toEqual(expect.arrayContaining(["guard.violation", "lesson.check.report"]));
+    } finally { await eve.close(); }
   });
 });

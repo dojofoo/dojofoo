@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { Client, ClientError, type ClientOptions } from "@dojofoo/agent/client";
 import { activeTurn, emptySessionView, foldEvents } from "@dojofoo/agent/events";
 import { setTimeout as delay } from "node:timers/promises";
@@ -8,7 +8,8 @@ import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type Age
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { resolveAgent, writeAgent, writeAgentModel } from "@dojofoo/config/runtime";
 import { agentRow, isAgentId, latestConformance, offeredAgents, personaForKind, type AgentId } from "@dojofoo/protocol";
-import { listWorkspaces, type LocalStateOptions } from "@dojofoo/config/local-state";
+import { listWorkspaces, localStateDirectory, type LocalStateOptions } from "@dojofoo/config/local-state";
+import { reapProcessGroups } from "@dojofoo/agent/process-groups";
 import { resolveWorkspaceId } from "./control/workspace";
 import { workspaceKind } from "./control/drafts";
 import { authorizeLaunchRequest } from "./launch-token";
@@ -16,7 +17,9 @@ import { readRecords as read, saveRecord as save, updateRecord } from "./agent-s
 import { afterDelivery, applyLifecycle, beforeDelivery } from "./agent-session/lifecycle";
 import { createDefaultSessions } from "./agent-session/default";
 import { sendHeld } from "./agent-session/check-reports";
-import { discardWindow, openWindow } from "./agent-session/guard";
+import { discardWindow, guardedLesson, openWindow, verifyRecords, verifyWindow } from "./agent-session/guard";
+import { dropHeld } from "./agent-session/report-state";
+import { startupVerified } from "./startup";
 import { authoringWatchers } from "./authoring-watch";
 import { committedConformance } from "./conformance";
 import { forgetHost, hostPortUrl, registerHost } from "./host-port";
@@ -68,16 +71,31 @@ export function createLocalAgentRuntime(options: {
   state?: LocalStateOptions;
   /** How long a switch waits for the old agent's cancelled turns to settle (10 seconds) */
   switchSettleMs?: number;
+  /** How long a switch allows the old host to stop; a waiter gives up after switchSettleMs + hostStopMs (10 seconds) */
+  hostStopMs?: number;
   /** How long a host may go unused before it stops (15 minutes) */
   idleStopMs?: number;
   /** How often idle hosts are looked for (60 seconds; tests use less) */
   idleCheckMs?: number;
 }): AgentRuntime {
   const states = new Map<string, RuntimeState>();
-  /** Presence for idle stop: the last proxied request and the proxied streams still open, per workspace */
-  const presence = new Map<string, { last: number; streams: number }>();
-  /** One agent switch at a time per workspace; starts and connects wait for it */
-  const switching = new Map<string, Promise<unknown>>();
+  /** Presence for idle stop: the proxied streams still open per workspace, and since when a ready host has had nothing using it */
+  const presence = new Map<string, { streams: number }>();
+  const idleSince = new Map<string, number>();
+  /** One agent switch at a time per workspace, and the agent it switches to; starts, connects and deliveries wait for it, bounded */
+  const switching = new Map<string, { done: Promise<unknown>; agent: AgentId }>();
+  const switchBoundMs = (options.switchSettleMs ?? 10_000) + (options.hostStopMs ?? 10_000);
+  /** Waits for a switch in progress at most its bound, then answers 409 agent_switching (D33) */
+  const waitForSwitch = async (path: string) => {
+    const current = switching.get(path);
+    if (!current) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = await Promise.race([
+      current.done.then(() => false, () => false),
+      new Promise<boolean>(accept => { timer = setTimeout(() => accept(true), switchBoundMs); }),
+    ]).finally(() => clearTimeout(timer));
+    if (timedOut) throw new AgentApiError(409, "agent_switching", `Switching to ${agentRow(current.agent).name}…`);
+  };
 
   const root = (workspaceId: string) => {
     try { return resolveWorkspaceId(workspaceId, options.state); }
@@ -114,20 +132,38 @@ export function createLocalAgentRuntime(options: {
     if (!workspace) throw new AgentApiError(404, "workspace_not_found", "Workspace not found.");
     return personaForKind(workspaceKind(workspace, options.state ?? {}));
   };
+  /** Before any host stops (switch, switch timeout, crash, idle stop, stop): verify its sessions' windows, drop their held reports */
+  const beforeHostStop = async (path: string, workspaceId: string, agent: string) => {
+    const records = (await read(path)).filter(record => record.agent === agent);
+    await verifyRecords(path, workspaceId, records);
+    for (const record of records) await dropHeld(path, workspaceId, record.id).catch(() => undefined);
+  };
   /** Stops a host and withdraws its host-port secret */
-  const closeState = async (state: RuntimeState | undefined) => {
+  const closeState = async (path: string, state: RuntimeState | undefined) => {
     if (!state) return;
     forgetHost(state.workspaceId, state.persona, state.secret);
+    await beforeHostStop(path, state.workspaceId, state.agent).catch(error => console.warn(`Could not verify the windows of ${path}: ${error instanceof Error ? error.message : String(error)}`));
     await state.owned?.close();
   };
-  /** Records left working or paused with no open turn in Eve (a crash, a missed hook) settle when the host is ready */
-  const reconcile = async (path: string, agent: string, ready: AgentEndpoint) => {
+  /** Records left working or paused with no open turn in Eve (a crash, a missed hook) settle when the host is ready: their windows
+   *  are verified, then their held reports go out or are dropped under D16. An interrupted record stays as it is. */
+  const reconcile = async (path: string, workspaceId: string, agent: string, ready: AgentEndpoint) => {
     const client = new Client({ baseUrl: ready.baseUrl, headers: ready.headers });
     const open = (await read(path)).filter(record => record.agent === agent
       && (record.lifecycle?.status === "working" || record.lifecycle?.status === "paused"));
     await Promise.all(open.map(async record => {
-      if (!await turnOpen(client, record.id)) await applyLifecycle(path, record.id, { type: "reconcile" });
+      if ((await activeTurnOf(client, record.id)).open) return;
+      await verifyWindow(path, workspaceId, record.id);
+      await applyLifecycle(path, record.id, { type: "reconcile" });
+      await sendHeld(path, workspaceId, ready, record.id);
     }));
+  };
+  /** Startup step 4: a recovery window for each of this agent's kata sessions Eve may recover without the pre-delivery hook */
+  const recoveryWindows = async (path: string, workspaceId: string, agent: string) => {
+    for (const record of await read(path)) {
+      if (record.agent !== agent || record.lifecycle?.status !== "working" || !guardedLesson(path, record)) continue;
+      await openWindow(path, workspaceId, record).catch(error => console.warn(`Could not open a recovery window for ${record.id}: ${error instanceof Error ? error.message : String(error)}`));
+    }
   };
   /** Start the workspace's agent once; later calls share the same start, until the agent changes or stops */
   const endpoint = (path: string, workspaceId: string, persona: Persona) => {
@@ -139,24 +175,28 @@ export function createLocalAgentRuntime(options: {
     states.set(path, state);
     state.endpoint = (async (): Promise<AgentEndpoint> => {
       // The running host was started for another coding agent
-      await closeState(previous);
+      await closeState(path, previous);
+      // No host starts before startup has verified the persisted windows (startup step 3)
+      await startupVerified();
+      if (persona === "sensei") await recoveryWindows(path, workspaceId, agent);
       state.owned = await options.runtime(path, { persona, workspaceId, hostPortUrl: hostPortUrl() });
       const { url, auth, exited, secret } = await state.owned.start();
       const ready = { baseUrl: url, headers: authorization(auth) };
       if (secret) {
         state.secret = secret;
-        registerHost(workspaceId, persona, { secret, endpoint: ready, openDefault: request => runtime.sessions.openDefault(workspaceId, request) });
+        registerHost(workspaceId, persona, { secret, endpoint: ready, agent: agent as AgentId, openDefault: request => runtime.sessions.openDefault(workspaceId, request) });
       }
-      // A host that exits on its own starts again on the next request
-      void exited?.catch(() => {}).finally(() => {
+      // A host that exits on its own starts again on the next request, once its windows are verified
+      void exited?.catch(() => {}).finally(async () => {
         forgetHost(workspaceId, persona, secret);
         if (states.get(path) === state) states.delete(path);
+        await beforeHostStop(path, workspaceId, agent).catch(() => undefined);
       });
-      await reconcile(path, agent, ready).catch(error => console.warn(`Could not reconcile the sessions of ${path}: ${error instanceof Error ? error.message : String(error)}`));
+      await reconcile(path, workspaceId, agent, ready).catch(error => console.warn(`Could not reconcile the sessions of ${path}: ${error instanceof Error ? error.message : String(error)}`));
       return ready;
     })().then(value => {
       state.status = "ready";
-      presence.set(path, { last: Date.now(), streams: presence.get(path)?.streams ?? 0 });
+      presence.set(path, { streams: presence.get(path)?.streams ?? 0 });
       return value;
     }, async error => {
       forgetHost(workspaceId, persona, state.secret);
@@ -170,58 +210,79 @@ export function createLocalAgentRuntime(options: {
     return state.endpoint;
   };
 
-  /** Whether a session still has a turn that started and has not settled; a paused turn is open */
-  const turnOpen = async (client: Client, sessionId: string) => {
+  /** Whether a session still has a turn that started and has not settled (a paused turn is open), and that turn's id */
+  const activeTurnOf = async (client: Client, sessionId: string): Promise<{ open: boolean; turnId?: string }> => {
     try {
       const { events } = await client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(2_000) });
-      return activeTurn(foldEvents(emptySessionView(), events)) !== undefined;
+      const turn = activeTurn(foldEvents(emptySessionView(), events));
+      return turn ? { open: true, turnId: turn.turnId } : { open: false };
     } catch (error) {
       // An ended or expired session has no turn left to settle
-      return !(error instanceof ClientError && (error.status === 409 || error.status === 410));
+      return { open: !(error instanceof ClientError && (error.status === 409 || error.status === 410)) };
     }
   };
-  /** Cancels the old agent's turns, waits a bounded time for them to settle, stops its host, then saves the new agent */
-  const switchAgent = async (path: string, agentId: AgentId) => {
+  const processRecord = (workspaceId: string, persona: Persona) => join(localStateDirectory(options.state), "processes", `${workspaceId}.${persona}.jsonl`);
+  /** Holding the switch lock: drop the workspace's held reports; cancel the old agent's turns (a paused one by its turnId) and wait a
+   *  bounded time for them to settle; mark those still open interrupted; verify the remaining windows; stop the old host and reap its
+   *  process groups; then save the new agent (design, "Workspace agent selection") */
+  const switchAgent = async (path: string, workspaceId: string, agentId: AgentId) => {
     const current = selected(path);
     if (agentId === current) return describe(path, agentId);
+    const records = await read(path);
+    for (const record of records) await dropHeld(path, workspaceId, record.id).catch(() => undefined);
     const state = states.get(path);
     const endpoint = state?.endpoint && state.agent === current ? await state.endpoint.catch(() => undefined) : undefined;
+    const old = records.filter(record => record.agent === current);
     if (endpoint) {
       const client = new Client({ baseUrl: endpoint.baseUrl, headers: endpoint.headers });
-      let pending = (await read(path)).filter(record => record.agent === current).map(record => record.id);
       // Without a turnId, Eve cancels whatever runs; an idle session takes it as a no-op
-      await Promise.all(pending.map(id => client.sessions.attach(id).cancel({ signal: AbortSignal.timeout(5_000) }).catch(() => {})));
+      await Promise.all(old.map(record => client.sessions.attach(record.id).cancel({
+        ...(record.lifecycle?.status === "paused" && record.lifecycle.turnId ? { turnId: record.lifecycle.turnId } : {}),
+        signal: AbortSignal.timeout(5_000),
+      }).catch(() => {})));
+      let pending = old.map(record => record.id);
+      const openTurns = new Map<string, string | undefined>();
       const deadline = Date.now() + (options.switchSettleMs ?? 10_000);
       while (pending.length) {
-        const open = await Promise.all(pending.map(id => turnOpen(client, id)));
-        pending = pending.filter((_, index) => open[index]);
+        const turns = await Promise.all(pending.map(id => activeTurnOf(client, id)));
+        turns.forEach((turn, index) => openTurns.set(pending[index]!, turn.turnId));
+        pending = pending.filter((_, index) => turns[index]!.open);
         const remaining = deadline - Date.now();
         if (!pending.length) break;
         if (remaining <= 0) {
           console.warn(`Switching to ${agentRow(agentId).name} without waiting longer for these sessions to stop: ${pending.join(", ")}`);
+          // No host recovers these turns: each is marked interrupted with its open turn, and its window is closed (CUJ 3)
+          for (const id of pending) {
+            await applyLifecycle(path, id, { type: "switch-timeout", ...(openTurns.get(id) ? { turnId: openTurns.get(id)! } : {}) });
+            await verifyWindow(path, workspaceId, id);
+          }
           break;
         }
         await delay(Math.min(250, remaining));
       }
     }
-    await closeState(state);
+    await closeState(path, state);
     states.delete(path);
+    if (state) reapProcessGroups(processRecord(state.workspaceId, state.persona));
     writeAgent(path, agentId);
     return describe(path, agentId);
   };
 
-  /** A host is idle without proxied requests for the idle bound, open streams, an authoring watcher, or a turn in progress */
+  /** A ready host is idle with no open proxied stream, no authoring watcher and no turn in progress; it stops after the idle bound,
+   *  counted from the moment it became idle */
   const idleStopMs = options.idleStopMs ?? 15 * 60_000;
   const stopIdle = async () => {
     for (const [path, state] of [...states]) {
       if (state.status !== "ready") continue;
-      const seen = presence.get(path);
-      if (!seen || seen.streams > 0 || Date.now() - seen.last < idleStopMs || authoringWatchers.watching(path)) continue;
-      const busy = (await read(path)).some(record => record.agent === state.agent
-        && (record.lifecycle?.status === "working" || record.lifecycle?.status === "paused"));
-      if (busy || states.get(path) !== state) continue;
+      const busy = (presence.get(path)?.streams ?? 0) > 0 || authoringWatchers.watching(path)
+        || (await read(path)).some(record => record.agent === state.agent && (record.lifecycle?.status === "working" || record.lifecycle?.status === "paused"));
+      if (busy) { idleSince.delete(path); continue; }
+      const since = idleSince.get(path) ?? Date.now();
+      idleSince.set(path, since);
+      if (Date.now() - since < idleStopMs || states.get(path) !== state) continue;
       states.delete(path);
-      await closeState(state).catch(error => console.warn(`Could not stop the idle host of ${path}: ${error instanceof Error ? error.message : String(error)}`));
+      idleSince.delete(path);
+      await closeState(path, state).catch(error => console.warn(`Could not stop the idle host of ${path}: ${error instanceof Error ? error.message : String(error)}`));
     }
   };
   setInterval(() => { void stopIdle().catch(() => {}); }, options.idleCheckMs ?? 60_000).unref();
@@ -234,7 +295,7 @@ export function createLocalAgentRuntime(options: {
     },
     async start(workspaceId, agentId) {
       const path = root(workspaceId);
-      await switching.get(path)?.catch(() => {});
+      await waitForSwitch(path);
       known(path, agentId);
       const persona = await workspacePersona(workspaceId);
       if (persona === "sensei" && senseiRefusesCursor(agentId)) throw new AgentApiError(409, "agent_not_offered", cursorRefusal);
@@ -247,13 +308,13 @@ export function createLocalAgentRuntime(options: {
       known(path, agentId);
       const state = states.get(path);
       await state?.endpoint?.catch(() => {});
-      await closeState(state);
+      await closeState(path, state);
       states.delete(path);
       return describe(path, agentId);
     },
     async connect(workspaceId, { agent }) {
       const path = root(workspaceId);
-      await switching.get(path)?.catch(() => {});
+      await waitForSwitch(path);
       known(path, agent);
       // The workspace's kind decides who speaks: a draft runs Kyoshi, every other workspace Sensei
       const persona = await workspacePersona(workspaceId);
@@ -268,11 +329,12 @@ export function createLocalAgentRuntime(options: {
         throw new AgentApiError(409, "agent_not_offered", `${agentRow(agentId).name} isn't available yet. Choose another coding agent.`);
       }
       if (agentId === selected(path)) return describe(path, agentId);
-      const previous = switching.get(path) ?? Promise.resolve();
-      const next = previous.catch(() => {}).then(() => switchAgent(path, agentId));
-      switching.set(path, next);
+      const previous = switching.get(path)?.done ?? Promise.resolve();
+      const next = previous.catch(() => {}).then(() => switchAgent(path, workspaceId, agentId));
+      const entry = { done: next, agent: agentId };
+      switching.set(path, entry);
       try { return await next; }
-      finally { if (switching.get(path) === next) switching.delete(path); }
+      finally { if (switching.get(path) === entry) switching.delete(path); }
     },
     persona: workspacePersona,
     async models(workspaceId, agentId) {
@@ -304,6 +366,7 @@ export function createLocalAgentRuntime(options: {
       // Rule 1: the guard window opens before the delivery can start or resume Sensei's model
       before: async (workspaceId, session): Promise<DeliveryHandle> => {
         const path = root(workspaceId);
+        await waitForSwitch(path);
         const opened = await openWindow(path, workspaceId, session);
         return { before: await beforeDelivery(path, session.id), ...(opened ? { opened } : {}) };
       },
@@ -318,18 +381,19 @@ export function createLocalAgentRuntime(options: {
         if (restored?.lifecycle?.status === "idle" && ready) await sendHeld(path, workspaceId, await ready, session.id).catch(() => undefined);
       },
     },
+    // Only open streams count (the proxied-request presence of step 4 is gone; page sockets count from commit 8)
     activity(workspaceId, kind) {
+      if (kind !== "stream") return () => {};
       const path = root(workspaceId);
-      const seen = presence.get(path) ?? { last: Date.now(), streams: 0 };
+      const seen = presence.get(path) ?? { streams: 0 };
       presence.set(path, seen);
-      seen.last = Date.now();
-      if (kind === "stream") seen.streams++;
+      seen.streams++;
+      idleSince.delete(path);
       let released = false;
       return () => {
         if (released) return;
         released = true;
-        if (kind === "stream") seen.streams--;
-        seen.last = Date.now();
+        seen.streams--;
       };
     },
   };

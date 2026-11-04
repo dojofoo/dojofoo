@@ -68,7 +68,7 @@ export const routes = {
   startAgent: {
     detail: details("startAgent", "Start a coding agent", "Starts the coding agent, or keeps it running. Returns without waiting for it to be ready, so a page can warm it while it loads.", "Agents"),
     params: t.Object({ ...workspace, agentId: t.String() }),
-    response: { 202: agent, 404: error, 409: error },
+    response: { 202: agent, 404: error, 409: t.Object({ error: t.String({ description: "agent_unavailable, agent_not_offered, or agent_switching while a switch of this workspace's coding agent is in progress." }), message: t.String() }) },
   },
   stopAgent: {
     detail: details("stopAgent", "Stop a coding agent", "Stops the coding agent. Its sessions keep their history.", "Agents"),
