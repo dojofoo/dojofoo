@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { processStartTime } from "@dojofoo/agent/persona";
+import { processStartTime } from "@dojofoo/harness/persona";
 import { acquireServerLock, releaseServerLock } from "./server-lock";
 
 const homes: string[] = [];

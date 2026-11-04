@@ -1,4 +1,4 @@
-import { firstMessageOf, type EveDelivery, type LifecycleStatus, type SessionLifecycle, type SessionRecord } from "@dojofoo/agent/api";
+import { firstMessageOf, type EveDelivery, type LifecycleStatus, type SessionLifecycle, type SessionRecord } from "@dojofoo/harness/api";
 import { updateRecord } from "./records";
 
 export type TurnOutcome = "completed" | "failed" | "cancelled";

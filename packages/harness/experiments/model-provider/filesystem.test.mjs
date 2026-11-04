@@ -4,9 +4,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { JustBashSandbox } from "@dojofoo/agent/sandbox/just-bash";
+import { JustBashSandbox } from "@dojofoo/harness/sandbox/just-bash";
 
-const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/harness/eve/package.json"));
 const { getSandboxEnvironmentRuntime } = await import(new URL("dist/src/shared/sandbox-environment.js", eveRoot));
 // 1.0 providers return a byte-level connection; Eve derives the session from it.
 const { createConnectionSession } = await import(new URL("dist/src/execution/sandbox/session.js", eveRoot));

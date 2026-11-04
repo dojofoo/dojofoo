@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { createPi } from "@ai-sdk/harness-pi";
 import { generateText, jsonSchema, tool } from "ai";
-import { experimental_createHarnessModel, createLocalSandbox } from "@dojofoo/agent/adapters";
+import { experimental_createHarnessModel, createLocalSandbox } from "@dojofoo/harness/adapters";
 import { startLoopbackModel } from "./loopback-openai.mjs";
 
 test("Pi native filesystem remains usable after an Eve-owned tool boundary", { timeout: 60000 }, async t => {

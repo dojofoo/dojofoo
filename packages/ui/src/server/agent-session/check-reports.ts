@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import type { AgentEndpoint, AgentRuntime, SessionRecord } from "@dojofoo/agent/api";
+import type { AgentEndpoint, AgentRuntime, SessionRecord } from "@dojofoo/harness/api";
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { dojoTags, tagged, type CheckReportState } from "@dojofoo/protocol";
 import { senseiTurn } from "../lesson/instructions";

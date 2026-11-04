@@ -20,7 +20,7 @@ isolated-trial/
 ```
 
 - Definitions are ordinary Eve files. JavaScript and TypeScript compile as ESM.
-- Installed `@dojofoo/agent` supplies package imports. No course package manager
+- Installed `@dojofoo/harness` supplies package imports. No course package manager
   or ancestor `node_modules` is needed. Unknown packages fail resolution.
 - Shared authored-module cache: `~/.dojo/cache/authored-modules`, with the existing
   `DOJOFOO_HOME` override supported. Dependencies stay in the CLI/package

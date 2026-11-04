@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Persona, SessionRecord } from "@dojofoo/agent/api";
+import type { Persona, SessionRecord } from "@dojofoo/harness/api";
 import { agentRow, isAgentId } from "@dojofoo/protocol";
 import { Icon, Popover } from "@dojofoo/uix/components/app-shell";
 import { Button as UIXButton } from "@dojofoo/uix/components/button";

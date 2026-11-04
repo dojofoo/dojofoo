@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import { LAUNCH_TOKEN_HEADER } from "@dojofoo/agent/api";
+import { LAUNCH_TOKEN_HEADER } from "@dojofoo/harness/api";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { app } from "./app";
 import { launchToken } from "./launch-token";

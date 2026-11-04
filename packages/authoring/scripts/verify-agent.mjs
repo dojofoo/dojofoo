@@ -14,26 +14,26 @@ childProcess.spawn = function (command, args, options) {
 };
 syncBuiltinESMExports();
 const load = createRequire(new URL("../package.json", import.meta.url));
-const { Client } = await import(load.resolve("@dojofoo/agent/client"));
-const { startProductionServer } = await import(load.resolve("@dojofoo/agent/server/production"));
+const { Client } = await import(load.resolve("@dojofoo/harness/client"));
+const { startProductionServer } = await import(load.resolve("@dojofoo/harness/server/production"));
 const { createKyoshiRuntime } = await import("../dist/eve/runtime.js");
 const { createSenseiRuntime } = await import("../dist/sensei/runtime.js");
 const cli = JSON.parse(await readFile(new URL("../../cli/package.json", import.meta.url), "utf8"));
-const sdk = JSON.parse(await readFile(load.resolve("@dojofoo/agent/package.json"), "utf8"));
-const eve = JSON.parse(await readFile(load.resolve("@dojofoo/agent/eve/package.json"), "utf8"));
+const sdk = JSON.parse(await readFile(load.resolve("@dojofoo/harness/package.json"), "utf8"));
+const eve = JSON.parse(await readFile(load.resolve("@dojofoo/harness/eve/package.json"), "utf8"));
 const personas = {
   kyoshi: { create: createKyoshiRuntime, app: ".dojo/kyoshi-app/agents/kyoshi", relocate: copy => ({ courseRoot: copy }) },
   sensei: { create: createSenseiRuntime, app: ".dojo/sensei-app/agents/sensei", relocate: copy => ({ workspaceRoot: copy }) },
 };
 const kataTools = ["dojo_learner_observe", "dojo_lesson_verify", "dojo_ui_show"];
-const { startHostPortFixture } = await import(load.resolve("@dojofoo/agent/host-port/fixture"));
+const { startHostPortFixture } = await import(load.resolve("@dojofoo/harness/host-port/fixture"));
 const labels = {};
 for (const persona of Object.keys(personas)) {
   const prepared = new URL(`../dist/prepared/${persona}/`, import.meta.url);
   const label = JSON.parse(await readFile(new URL("build.json", prepared), "utf8"));
   assert.equal(label.dojofoo, `dojofoo@${cli.version}`);
   assert.equal(label.source, `dojofoo/${persona}@${cli.version}`);
-  assert.equal(label.agent, `@dojofoo/agent@${sdk.version}`);
+  assert.equal(label.harness, `@dojofoo/harness@${sdk.version}`);
   assert.equal(label.eve, `eve@${eve.version}`);
   assert.equal(label.sourceHash, await readFile(new URL("source.sha256", prepared), "utf8"));
   labels[persona] = label;

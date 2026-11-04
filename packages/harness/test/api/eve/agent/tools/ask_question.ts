@@ -1,1 +1,1 @@
-export { default } from "@dojofoo/agent/tools/ask_question";
+export { default } from "@dojofoo/harness/tools/ask_question";

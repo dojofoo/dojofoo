@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { Client } from "@dojofoo/agent/client";
-import { startEve } from "@dojofoo/agent/api/fixtures";
-import type { SessionLifecycle } from "@dojofoo/agent/api";
+import { Client } from "@dojofoo/harness/client";
+import { startEve } from "@dojofoo/harness/api/fixtures";
+import type { SessionLifecycle } from "@dojofoo/harness/api";
 import { hostPortServer } from "../host-port";
 import type { CheckObservation } from "../lesson/service";
 import { dropHeld, offerCheckReport } from "./check-reports";

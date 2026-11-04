@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { HarnessAgent } from "@ai-sdk/harness/agent";
-import { agentAdapter, createLocalSandbox } from "@dojofoo/agent/adapters";
-import { readOnlyEnvironment, readOnlyHarnessSettings } from "@dojofoo/agent/persona";
+import { agentAdapter, createLocalSandbox } from "@dojofoo/harness/adapters";
+import { readOnlyEnvironment, readOnlyHarnessSettings } from "@dojofoo/harness/persona";
 import type { AgentId } from "@dojofoo/protocol";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

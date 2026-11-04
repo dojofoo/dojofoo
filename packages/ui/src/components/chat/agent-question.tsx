@@ -1,5 +1,5 @@
 import type { ToolCallPart } from "@tanstack/ai-client";
-import { eveQuestion } from "@dojofoo/agent/messages";
+import { eveQuestion } from "@dojofoo/harness/messages";
 import { toolQuestion, type AgentQuestionState } from "@dojofoo/uix/components/agent-question";
 
 // The form and the questions of plain tools live in uix, where the chat renders; Eve's questions are the app's

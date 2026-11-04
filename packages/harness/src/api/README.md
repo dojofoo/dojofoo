@@ -1,11 +1,11 @@
-# @dojofoo/agent/api
+# @dojofoo/harness/api
 
 The versioned workspace agent API, as an Elysia app: coding agents and sessions
 under `/api/v1`, in the public Course API's conventions (`{ error, message }` errors,
 `{ data, pagination }` collections with zero-based `page` and `per_page`).
 
 ```ts
-import { createAgentApi } from "@dojofoo/agent/api";
+import { createAgentApi } from "@dojofoo/harness/api";
 
 const api = createAgentApi(runtime); // an AgentRuntime: where agents run
 hono.mount("/api/v1", request => api.handle(request), { replaceRequest: false });
@@ -34,7 +34,7 @@ credentials. Errors there come in Eve's shape (`{ error: message, code }`), so i
 shows them.
 
 ```ts
-import { useEveAgent } from "@dojofoo/agent/react";
+import { useEveAgent } from "@dojofoo/harness/react";
 
 const agent = useEveAgent({
   baseUrl: `/api/v1/workspaces/${workspaceId}/sessions/${sessionId}`,

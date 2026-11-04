@@ -1,6 +1,6 @@
-import { defineAgent, defineDynamic } from "@dojofoo/agent";
-import { experimental_createHarnessModel, createLocalHarnessSandbox, prepareHarnessEnvironment, agentAdapter } from "@dojofoo/agent/adapters";
-import type { HostPortBinding } from "@dojofoo/agent/persona";
+import { defineAgent, defineDynamic } from "@dojofoo/harness";
+import { experimental_createHarnessModel, createLocalHarnessSandbox, prepareHarnessEnvironment, agentAdapter } from "@dojofoo/harness/adapters";
+import type { HostPortBinding } from "@dojofoo/harness/persona";
 import type { AgentId } from "@dojofoo/protocol";
 import { delimiter } from "node:path";
 
@@ -20,7 +20,7 @@ export interface KyoshiRuntime {
 export function createKyoshiAgent(runtime: () => Promise<KyoshiRuntime>) {
   return defineAgent({
     // Native adapters load their bridge assets relative to their package files.
-    build: { externalDependencies: ["@dojofoo/agent", "@dojofoo/authoring", "@ai-sdk/harness",
+    build: { externalDependencies: ["@dojofoo/harness", "@dojofoo/authoring", "@ai-sdk/harness",
       "@ai-sdk/harness-claude-code", "@ai-sdk/harness-codex", "@ai-sdk/harness-cursor", "@ai-sdk/harness-fx",
       "@ai-sdk/harness-grok-build", "@ai-sdk/harness-opencode", "@ai-sdk/harness-pi"] },
     // Ended sessions stay readable after a host restart (open risk 11)

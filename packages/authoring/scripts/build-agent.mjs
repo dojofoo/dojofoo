@@ -10,8 +10,8 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const { agentSourceHash } = await import("../dist/eve/artifact.js");
 const release = JSON.parse(await readFile(join(packageRoot, "../cli/package.json"), "utf8"));
 const installed = createRequire(join(packageRoot, "package.json"));
-const sdk = JSON.parse(await readFile(installed.resolve("@dojofoo/agent/package.json"), "utf8"));
-const eve = JSON.parse(await readFile(installed.resolve("@dojofoo/agent/eve/package.json"), "utf8"));
+const sdk = JSON.parse(await readFile(installed.resolve("@dojofoo/harness/package.json"), "utf8"));
+const eve = JSON.parse(await readFile(installed.resolve("@dojofoo/harness/eve/package.json"), "utf8"));
 // The prepared servers are deployed from this lockfile, which also pins dependency patches
 const lockfile = createHash("sha256").update(await readFile(resolve(packageRoot, "../../pnpm-lock.yaml"))).digest("hex");
 const names = { kyoshi: "Kyoshi", sensei: "Sensei" };
@@ -28,7 +28,7 @@ async function builtHash(...roots) {
   }
   return digest.digest("hex");
 }
-const sdkRoot = dirname(installed.resolve("@dojofoo/agent/package.json"));
+const sdkRoot = dirname(installed.resolve("@dojofoo/harness/package.json"));
 const built = await builtHash(join(sdkRoot, "dist"), join(sdkRoot, "patches"), join(packageRoot, "dist"));
 
 async function current(destination, hash, label) {
@@ -64,7 +64,7 @@ try {
   // Kyoshi's authoring skills; Sensei has none
   if (persona === "kyoshi") await cp(join(packageRoot, "skills"), join(agent, "skills"), { recursive: true });
   const load = createRequire(join(isolated, "package.json"));
-  const builder = load.resolve("@dojofoo/agent/server/build");
+  const builder = load.resolve("@dojofoo/harness/server/build");
   const builtPath = join(scratch, "built-path.json");
   execFileSync(process.execPath, ["--input-type=module", "-e",
     'import { writeFile } from "node:fs/promises"; const { buildApplication } = await import(process.argv[1]); const output = await buildApplication(process.argv[2], { skipSandboxPrewarm: false }); await writeFile(process.argv[3], JSON.stringify({ output })); process.exit(0);', builder, agent, builtPath,
@@ -86,7 +86,7 @@ for (const persona of ["kyoshi", "sensei"]) {
   const hash = await agentSourceHash(source);
   const label = {
     dojofoo: `dojofoo@${release.version}`,
-    agent: `@dojofoo/agent@${sdk.version}`,
+    harness: `@dojofoo/harness@${sdk.version}`,
     eve: `eve@${eve.version}`,
     source: `dojofoo/${persona}@${release.version}`,
     sourceHash: hash,

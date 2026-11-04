@@ -1,4 +1,4 @@
-import { Client } from "@dojofoo/agent/client";
+import { Client } from "@dojofoo/harness/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createAgentApi } from "./app";
 import { startEve, testLaunchToken, testRuntime } from "./fixtures";

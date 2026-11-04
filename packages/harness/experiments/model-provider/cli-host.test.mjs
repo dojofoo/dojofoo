@@ -4,13 +4,13 @@ import { cp, mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { Client } from "@dojofoo/agent/client";
+import { Client } from "@dojofoo/harness/client";
 import { startLoopbackModel } from "./loopback-openai.mjs";
 
 // The same public CLI boundary used by Eve's framework integrations. No private
 // server imports or custom HTTP routes; only inference is deterministic.
 function startCli(root, home) {
-  const executable = fileURLToPath(new URL("bin/eve.js", import.meta.resolve("@dojofoo/agent/eve/package.json")));
+  const executable = fileURLToPath(new URL("bin/eve.js", import.meta.resolve("@dojofoo/harness/eve/package.json")));
   return startServer(root, home, [executable, "dev", "--no-ui", "--host", "127.0.0.1", "--port", "0", "--resume"]);
 }
 
@@ -60,15 +60,15 @@ test("public Eve CLI restores a Pi question and native history after process res
   let server;
   try {
     await Promise.all([mkdir(join(agent, "tools"), { recursive: true }), mkdir(runtime), mkdir(home)]);
-    await writeFile(join(root, "package.json"), JSON.stringify({ name: "cli-host-fixture", private: true, type: "module", dependencies: { "@dojofoo/agent": "0.0.0" } }));
+    await writeFile(join(root, "package.json"), JSON.stringify({ name: "cli-host-fixture", private: true, type: "module", dependencies: { "@dojofoo/harness": "0.0.0" } }));
     await writeFile(join(agent, "instructions.md"), "CLI_HOST_INSTRUCTIONS: Ask before continuing.\n");
-    await writeFile(join(agent, "tools/ask_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
+    await writeFile(join(agent, "tools/ask_question.ts"), 'export { default } from "@dojofoo/harness/tools/ask_question";\n');
     await writeFile(join(agent, "agent.ts"), `
-      import { defineAgent, defineDynamic } from "@dojofoo/agent";
-      import { experimental_createHarnessModel, createLocalSandbox } from "@dojofoo/agent/adapters";
+      import { defineAgent, defineDynamic } from "@dojofoo/harness";
+      import { experimental_createHarnessModel, createLocalSandbox } from "@dojofoo/harness/adapters";
       import { createPi } from "@ai-sdk/harness-pi";
       export default defineAgent({
-        build: { externalDependencies: ["@dojofoo/agent", "@ai-sdk/harness-pi"] },
+        build: { externalDependencies: ["@dojofoo/harness", "@ai-sdk/harness-pi"] },
         model: defineDynamic(async () => ({
           model: experimental_createHarnessModel({
             harness: createPi({ auth: { OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: ${JSON.stringify(endpoint.baseURL)} } }),

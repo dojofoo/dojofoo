@@ -1,4 +1,4 @@
-/** `LAUNCH_TOKEN_HEADER` in @dojofoo/agent/api; that entry is server-side. */
+/** `LAUNCH_TOKEN_HEADER` in @dojofoo/harness/api; that entry is server-side. */
 const header = "x-dojofoo-launch-token";
 
 /** The page's token is from an earlier UI-server launch, even after fetching it again. */

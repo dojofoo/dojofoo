@@ -65,7 +65,7 @@
     "@a2a-js/sdk": "0.3.14",
     "@ai-sdk/harness": "1.0.170",
     "@base-ui/react": "^1.9.0",
-    "@dojofoo/agent": "workspace:*",
+    "@dojofoo/harness": "workspace:*",
     "@dojofoo/authoring": "workspace:*",
     "@dojofoo/avatar": "workspace:*",
     "@dojofoo/config": "workspace:*",

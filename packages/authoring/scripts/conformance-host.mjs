@@ -40,7 +40,7 @@ if (!scenarios[persona]?.includes(scenario) || !isAgentId(agent) || !agentRow(ag
 }
 const { createKyoshiRuntime } = await import("../dist/eve/runtime.js");
 const { createSenseiRuntime } = await import("../dist/sensei/runtime.js");
-const { Client } = await import("@dojofoo/agent/client");
+const { Client } = await import("@dojofoo/harness/client");
 const result = value => console.log(`CONFORMANCE_RESULT ${JSON.stringify(value)}`);
 const app = persona === "kyoshi" ? ".dojo/kyoshi-app/agents/kyoshi" : ".dojo/sensei-app/agents/sensei";
 const start = async options => {
@@ -110,7 +110,7 @@ try {
   if (scenario === "one-shot") {
     // An evaluation's roles (step-7 plan, "Conformance cases"): the learner, the fixture generator and a teaching judge, each one
     // tool-free read-only call on this agent in this driver's environment, with no host. Each reports its text and what it left running.
-    const { oneShot } = await import("@dojofoo/agent/adapters");
+    const { oneShot } = await import("@dojofoo/harness/adapters");
     const { learnerPrompt } = await import("../dist/evaluation/learner.js");
     const { fixturePrompt } = await import("../dist/evaluation/learner-fixtures.js");
     const { fixtureGeneratorInstructions, teachingJudgePrompt } = await import("../dist/evaluation/prompts/index.js");
@@ -172,7 +172,7 @@ try {
         .catch(() => undefined);
       result({ step: "recovered", outcome: settled?.data.outcome ?? "open", error: settled?.data.error ?? null });
     } else {
-      const { activeTurn, emptySessionView, foldEvents } = await import("@dojofoo/agent/events");
+      const { activeTurn, emptySessionView, foldEvents } = await import("@dojofoo/harness/events");
       const { events } = await first.client.sessions.attach(sessionArgument).snapshot({ signal: turn() });
       result({ step: "inspected", active: activeTurn(foldEvents(emptySessionView(), events))?.turnId ?? null,
         settled: events.filter(event => event.type === "turn.settled").map(event => event.data.outcome) });

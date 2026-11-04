@@ -1,10 +1,10 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { test as base, type Page } from "@playwright/test";
-import { createAgentApi, LAUNCH_TOKEN_HEADER, launchGuard, type Persona, type SessionRecord } from "@dojofoo/agent/api";
-import { Client, type MessageContent } from "@dojofoo/agent/client";
+import { createAgentApi, LAUNCH_TOKEN_HEADER, launchGuard, type Persona, type SessionRecord } from "@dojofoo/harness/api";
+import { Client, type MessageContent } from "@dojofoo/harness/client";
 import type { AgentId } from "@dojofoo/protocol";
-import { startEve, testLaunchToken, testRuntime } from "@dojofoo/agent/api/fixtures";
+import { startEve, testLaunchToken, testRuntime } from "@dojofoo/harness/api/fixtures";
 import type { AuthoringDraft } from "@dojofoo/authoring/service";
 import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
 

@@ -5,7 +5,7 @@ import { dirname, relative, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { isDeepStrictEqual } from "node:util";
 import { parse, stringify } from "yaml";
-import { withPathLock, writeFileAtomic } from "@dojofoo/agent/persona";
+import { withPathLock, writeFileAtomic } from "@dojofoo/harness/persona";
 import { dojoDir, readDojoMd } from "@dojofoo/config";
 import { listWorkspaces } from "@dojofoo/config/local-state";
 import { readAgentModel, resolveAgent } from "@dojofoo/config/runtime";

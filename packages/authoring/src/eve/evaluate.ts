@@ -1,6 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { defineTool } from "@dojofoo/agent/tools";
-import { createHostPortClient } from "@dojofoo/agent/host-port";
+import { defineTool } from "@dojofoo/harness/tools";
+import { createHostPortClient } from "@dojofoo/harness/host-port";
 import type { EvaluationFailureCode, EvaluationTrialStatus } from "@dojofoo/protocol";
 import { z } from "zod";
 import type { EvaluationReceipt } from "../evaluation/run";

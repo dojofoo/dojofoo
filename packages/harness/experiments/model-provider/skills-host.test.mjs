@@ -3,9 +3,9 @@ import { copyFile, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promis
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { Client } from "@dojofoo/agent/client";
+import { Client } from "@dojofoo/harness/client";
 
-const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/harness/eve/package.json"));
 const { createDevelopmentServer } = await import(new URL("dist/src/internal/nitro/host/start-development-server.js", eveRoot));
 // The fixture sandbox is just-bash; do not wait on an installed Docker CLI on close.
 process.env.EVE_DOCKER_PATH ??= join(process.cwd(), "no-docker");
@@ -15,16 +15,16 @@ test("Eve loads an authored skill through the harness provider and retains its s
   let server;
   try {
     await writeFile(join(root, "package.json"), JSON.stringify({ name: "skill-host-fixture", private: true, type: "module",
-      dependencies: { "@dojofoo/agent": "*", "@ai-sdk/sandbox-just-bash": "*" },
+      dependencies: { "@dojofoo/harness": "*", "@ai-sdk/sandbox-just-bash": "*" },
     }));
     await mkdir(join(root, "node_modules/@dojofoo"), { recursive: true });
-    await symlink(fileURLToPath(new URL("./", import.meta.resolve("@dojofoo/agent/package.json"))), join(root, "node_modules/@dojofoo/agent"), "dir");
+    await symlink(fileURLToPath(new URL("./", import.meta.resolve("@dojofoo/harness/package.json"))), join(root, "node_modules/@dojofoo/harness"), "dir");
     // 1.0 resolves the agent directory inside its package.
     const agent = join(root, "agent");
     await mkdir(join(agent, "tools"), { recursive: true });
     await copyFile(new URL("host-agent.fixture.ts", import.meta.url), join(agent, "agent.ts"));
     await writeFile(join(agent, "instructions.md"), "HOST_INSTRUCTIONS_LOADED: Use the course-outline skill when requested.\n");
-    await writeFile(join(agent, "tools/root_only.ts"), 'import { defineTool } from "@dojofoo/agent/tools"; import read from "@dojofoo/agent/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
+    await writeFile(join(agent, "tools/root_only.ts"), 'import { defineTool } from "@dojofoo/harness/tools"; import read from "@dojofoo/harness/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
     await mkdir(join(agent, "skills/course-outline"), { recursive: true });
     const skill = "---\nname: course-outline\ndescription: Shape one observable lesson outcome.\n---\n\nOUTLINE_SKILL_EVIDENCE: Ask who the learner is before choosing prerequisites.\n";
     await writeFile(join(agent, "skills/course-outline/SKILL.md"), skill);

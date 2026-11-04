@@ -2,7 +2,7 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HarnessAgent, createLocalSandbox, agentAdapter } from "@dojofoo/agent/adapters";
+import { HarnessAgent, createLocalSandbox, agentAdapter } from "@dojofoo/harness/adapters";
 import { expect, it } from "vitest";
 import type { AgentId } from "@dojofoo/protocol";
 import { prepareAuthoringHarness } from "./install";

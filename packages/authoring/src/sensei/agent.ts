@@ -1,7 +1,7 @@
-import { defineAgent, defineDynamic, type DynamicModelContext } from "@dojofoo/agent";
-import { experimental_createHarnessModel, createLocalHarnessSandbox, prepareHarnessEnvironment, agentAdapter } from "@dojofoo/agent/adapters";
-import { createHostPortClient, HostPortError, type HostPortClient } from "@dojofoo/agent/host-port";
-import { type HostPortBinding, readOnlyEnvironment } from "@dojofoo/agent/persona";
+import { defineAgent, defineDynamic, type DynamicModelContext } from "@dojofoo/harness";
+import { experimental_createHarnessModel, createLocalHarnessSandbox, prepareHarnessEnvironment, agentAdapter } from "@dojofoo/harness/adapters";
+import { createHostPortClient, HostPortError, type HostPortClient } from "@dojofoo/harness/host-port";
+import { type HostPortBinding, readOnlyEnvironment } from "@dojofoo/harness/persona";
 import type { AgentId, SenseiSessionInfo } from "@dojofoo/protocol";
 
 /** What the Sensei host writes to its app folder's runtime.json before every start. */
@@ -51,7 +51,7 @@ export async function sessionForModelCall(port: HostPortClient | undefined, ctx:
 export function createSenseiAgent(runtime: () => Promise<SenseiRuntime>, usageCeiling: () => UsageCeiling | undefined = () => undefined) {
   return defineAgent({
     // Native adapters load their bridge assets relative to their package files.
-    build: { externalDependencies: ["@dojofoo/agent", "@dojofoo/authoring", "@ai-sdk/harness",
+    build: { externalDependencies: ["@dojofoo/harness", "@dojofoo/authoring", "@ai-sdk/harness",
       "@ai-sdk/harness-claude-code", "@ai-sdk/harness-codex", "@ai-sdk/harness-cursor", "@ai-sdk/harness-fx",
       "@ai-sdk/harness-grok-build", "@ai-sdk/harness-opencode", "@ai-sdk/harness-pi"] },
     // Only ask_question and dojo_context: no bash, file writes, web or subagents

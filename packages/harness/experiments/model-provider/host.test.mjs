@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
-import { Client, SessionStore } from "@dojofoo/agent/client";
+import { Client, SessionStore } from "@dojofoo/harness/client";
 import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox";
 
-import { createDevelopmentServer } from "@dojofoo/agent/server";
+import { createDevelopmentServer } from "@dojofoo/harness/server";
 
 // The fixture sandboxes are just-bash. Do not wait on an installed Docker CLI
 // whose daemon is down when the development server closes.
@@ -64,21 +64,21 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     await mkdir(join(agent, "tools"), { recursive: true });
     await copyFile(new URL("host-agent.fixture.ts", import.meta.url), join(agent, "agent.ts"));
     await writeFile(join(agent, "instructions.md"), "HOST_INSTRUCTIONS_LOADED: Teach one concept at a time.\n");
-    await writeFile(join(agent, "tools/ask_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
-    await writeFile(join(agent, "tools/read_file.ts"), 'export { default } from "@dojofoo/agent/tools/read_file";\n');
-    await writeFile(join(agent, "tools/root_only.ts"), 'import { defineTool } from "@dojofoo/agent/tools"; import read from "@dojofoo/agent/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
-    await writeFile(join(agent, "tools/write_file.ts"), 'export { default } from "@dojofoo/agent/tools/write_file";\n');
+    await writeFile(join(agent, "tools/ask_question.ts"), 'export { default } from "@dojofoo/harness/tools/ask_question";\n');
+    await writeFile(join(agent, "tools/read_file.ts"), 'export { default } from "@dojofoo/harness/tools/read_file";\n');
+    await writeFile(join(agent, "tools/root_only.ts"), 'import { defineTool } from "@dojofoo/harness/tools"; import read from "@dojofoo/harness/tools/read_file"; export default defineTool({ ...read, description: "Root-only lesson evidence lookup." });\n');
+    await writeFile(join(agent, "tools/write_file.ts"), 'export { default } from "@dojofoo/harness/tools/write_file";\n');
     await mkdir(join(agent, "sandbox/workspace"), { recursive: true });
     await writeFile(join(course, "note.md"), "Authored in the editor.\n");
-    await writeFile(join(agent, "sandbox/sandbox.ts"), `import { defineSandbox } from "@dojofoo/agent/sandbox"; import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox"; export const environment = createAuthoringSandbox(${JSON.stringify(course)}); export default defineSandbox(() => environment.open());\n`);
+    await writeFile(join(agent, "sandbox/sandbox.ts"), `import { defineSandbox } from "@dojofoo/harness/sandbox"; import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox"; export const environment = createAuthoringSandbox(${JSON.stringify(course)}); export default defineSandbox(() => environment.open());\n`);
     await writeFile(join(agent, "sandbox/workspace/note.md"), "Original lesson note.\n");
     if (specialist) {
       await mkdir(join(agent, "subagents/reviewer/tools"), { recursive: true });
       await mkdir(join(agent, "subagents/reviewer/sandbox/workspace"), { recursive: true });
-      await writeFile(join(agent, "subagents/reviewer/agent.ts"), 'import { defineAgent } from "@dojofoo/agent"; import root from "../../agent"; export default defineAgent({ ...root, description: "Review lesson evidence independently." });\n');
+      await writeFile(join(agent, "subagents/reviewer/agent.ts"), 'import { defineAgent } from "@dojofoo/harness"; import root from "../../agent"; export default defineAgent({ ...root, description: "Review lesson evidence independently." });\n');
       await writeFile(join(agent, "subagents/reviewer/instructions.md"), "SPECIALIST_INSTRUCTIONS_LOADED: Read your own lesson evidence before reviewing.\n");
       await copyFile(join(agent, "tools/read_file.ts"), join(agent, "subagents/reviewer/tools/read_file.ts"));
-      await writeFile(join(agent, "subagents/reviewer/sandbox/sandbox.ts"), 'import { defineSandbox } from "@dojofoo/agent/sandbox"; import { JustBashSandbox } from "@dojofoo/agent/sandbox/just-bash"; export const environment = JustBashSandbox.environment({ autoInstall: false }); export default defineSandbox(() => environment.open());\n');
+      await writeFile(join(agent, "subagents/reviewer/sandbox/sandbox.ts"), 'import { defineSandbox } from "@dojofoo/harness/sandbox"; import { JustBashSandbox } from "@dojofoo/harness/sandbox/just-bash"; export const environment = JustBashSandbox.environment({ autoInstall: false }); export default defineSandbox(() => environment.open());\n');
       await writeFile(join(agent, "subagents/reviewer/sandbox/workspace/note.md"), "Specialist-only evidence.\n");
     }
     server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject", resume: true });

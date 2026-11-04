@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { listWorkspaces, localStateDirectory, setWorkspaceKind, type LocalStateOptions } from "@dojofoo/config/local-state";
-import { reapAllProcessGroups } from "@dojofoo/agent/persona";
+import { reapAllProcessGroups } from "@dojofoo/harness/persona";
 import type { GuardViolation } from "@dojofoo/protocol";
 import { isAuthoringWorkspace } from "./control/drafts";
 import { reportViolation } from "./agent-session/guard";

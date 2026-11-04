@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { expect, it } from "vitest";
 import { parse } from "yaml";
-import { HarnessAgent, createLocalHarnessSandbox, agentAdapter } from "@dojofoo/agent/adapters";
+import { HarnessAgent, createLocalHarnessSandbox, agentAdapter } from "@dojofoo/harness/adapters";
 import { readLessonMaterial, readMaterial } from "@dojofoo/authoring/evaluation/material";
 import { kyoshiInstructions } from "@dojofoo/authoring/eve/instructions";
 import { isAgentId } from "@dojofoo/protocol";

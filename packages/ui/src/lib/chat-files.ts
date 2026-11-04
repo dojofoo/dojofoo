@@ -1,4 +1,4 @@
-import type { MessageContent } from "@dojofoo/agent/client";
+import type { MessageContent } from "@dojofoo/harness/client";
 
 /** Browser-selected files travel in the agent's own message, beside its text. */
 export async function chatMessageContent(text: string, files: File[]): Promise<MessageContent> {

@@ -1,12 +1,12 @@
 # Eve model-provider experiment
 
-Run with Node 24+ from `packages/agent`:
+Run with Node 24+ from `packages/harness`:
 
 ```sh
 pnpm test
 ```
 
-The runner installs the packed `@dojofoo/agent`, pinned AI SDK and official
+The runner installs the packed `@dojofoo/harness`, pinned AI SDK and official
 HarnessAgent adapters into a fresh temporary consumer. Eve 1.0.0-rc.1 and its four
 audited patches are already assembled in that package; consumers install no
 separate Eve and run no patch scripts. The runner verifies registry URLs,
@@ -103,8 +103,8 @@ user messages, and the answer must reach the same native session exactly once; t
 question settles with `interaction.settled`, accepted, on its tool part.
 
 The browser talks to these sessions through Eve's own client as well: the agent
-API forwards each session's Eve routes (`packages/agent/src/api`), and the authoring
-chat uses `useEveAgent`. `@dojofoo/agent/messages` only maps Eve's messages
+API forwards each session's Eve routes (`packages/harness/src/api`), and the authoring
+chat uses `useEveAgent`. `@dojofoo/harness/messages` only maps Eve's messages
 into the chat's render model.
 
 `cli-host.test.mjs` additionally uses the supported `eve dev --no-ui --host
@@ -116,7 +116,7 @@ instructions and exactly one answer; a subsequent turn sees that history.
 Only inference uses the loopback fixture. The agent stores its journal outside
 the watched source directory using the exported local filesystem helper.
 Eve's CLI requires the application package to explicitly declare an `eve`
-dependency: a transitive dependency through `@dojofoo/agent` is not sufficient
+dependency: a transitive dependency through `@dojofoo/harness` is not sufficient
 for project discovery. This proves a public CLI hosting path for Pi, not cold
 recovery of OpenCode's live native bridge.
 
@@ -309,7 +309,7 @@ for that reason only; it is not a production workaround for `just-bash`, whose
 missing resume capability has its own rejection test.
 
 The provider remains available through the explicit
-`@dojofoo/agent/adapters` entrypoint. Authoring now uses it through the
+`@dojofoo/harness/adapters` entrypoint. Authoring now uses it through the
 managed Eve runtime; this integration is still under acceptance testing.
 It retains no conversation state on the model instance. It accepts text or
 structured user turns and function tools;

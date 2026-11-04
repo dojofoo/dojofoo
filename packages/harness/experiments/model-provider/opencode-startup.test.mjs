@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { HarnessAgent } from "@ai-sdk/harness/agent";
 import { generateText, jsonSchema } from "ai";
-import { experimental_createHarnessModel } from "@dojofoo/agent/adapters";
+import { experimental_createHarnessModel } from "@dojofoo/harness/adapters";
 import { createRuntime } from "./opencode-runtime.fixture.mjs";
 import { startLoopbackModel } from "./loopback-openai.mjs";
 
@@ -38,7 +38,7 @@ for (const backend of ["official", "provider", "process", "eve", "eve-tools", "e
   const { sandboxSession, runtime } = await createRuntime(root, endpoint.baseURL);
   try {
     if (backend.startsWith("eve")) {
-      const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
+      const eveRoot = new URL("./", import.meta.resolve("@dojofoo/harness/eve/package.json"));
       const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
       const definition = { name: "lesson_context", description: "Read the current lesson context", inputSchema: { type: "object", properties: {}, additionalProperties: false } };
       let executions = 0;

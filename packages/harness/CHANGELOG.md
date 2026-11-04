@@ -1,4 +1,4 @@
-# @dojofoo/agent
+# @dojofoo/harness
 
 ## 0.1.0
 

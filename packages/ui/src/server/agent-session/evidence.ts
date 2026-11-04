@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { transcriptOf } from "@dojofoo/agent/client";
-import type { SessionRecord } from "@dojofoo/agent/api";
+import { transcriptOf } from "@dojofoo/harness/client";
+import type { SessionRecord } from "@dojofoo/harness/api";
 import { isTaggedTurn, type LearnerEvidenceExcerpt } from "@dojofoo/protocol";
 import type { UIMessage } from "@tanstack/ai-client";
 import { retainLearnerEvidence } from "../lesson/learner-evidence";

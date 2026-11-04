@@ -1,4 +1,4 @@
-import { defineInstructions } from "@dojofoo/agent/instructions";
+import { defineInstructions } from "@dojofoo/harness/instructions";
 import { readPrompt } from "../prompts.ts";
 
 const read = (path: string) => readPrompt(path).trim();

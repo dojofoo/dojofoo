@@ -1,5 +1,5 @@
-import { httpBasic } from "@dojofoo/agent/channels/auth";
-import { eveChannel } from "@dojofoo/agent/channels/eve";
+import { httpBasic } from "@dojofoo/harness/channels/auth";
+import { eveChannel } from "@dojofoo/harness/channels/eve";
 import { runtime } from "../runtime.ts";
 
 export default eveChannel({

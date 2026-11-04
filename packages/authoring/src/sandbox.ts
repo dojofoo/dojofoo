@@ -1,5 +1,5 @@
 import { isAbsolute, parse, resolve } from "node:path";
-import { JustBashSandbox } from "@dojofoo/agent/sandbox/just-bash";
+import { JustBashSandbox } from "@dojofoo/harness/sandbox/just-bash";
 
 function validateRoot(courseRoot: string): string {
   if (!isAbsolute(courseRoot) || resolve(courseRoot) === parse(courseRoot).root) {

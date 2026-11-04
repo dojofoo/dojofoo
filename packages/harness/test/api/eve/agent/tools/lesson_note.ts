@@ -1,4 +1,4 @@
-import { defineTool } from "@dojofoo/agent/tools";
+import { defineTool } from "@dojofoo/harness/tools";
 
 export default defineTool({
   description: "Read a lesson note.",

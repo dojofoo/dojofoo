@@ -10,12 +10,12 @@ export const authoringPackageRoot = dirname(require.resolve("@dojofoo/authoring/
 /** Hash definitions and their installed implementation, never private runtime bindings. */
 export async function agentSourceHash(agentRoot: string): Promise<string> {
   const hash = createHash("sha256");
-  const { name, version, dependencies } = JSON.parse(await readFile(require.resolve("@dojofoo/agent/package.json"), "utf8"));
+  const { name, version, dependencies } = JSON.parse(await readFile(require.resolve("@dojofoo/harness/package.json"), "utf8"));
   hash.update(JSON.stringify({ name, version, dependencies }));
   const own = JSON.parse(await readFile(join(authoringPackageRoot, "package.json"), "utf8"));
   hash.update(JSON.stringify(Object.entries(own.dependencies).filter(([name]) => name.startsWith("@ai-sdk/") || name === "ai")));
   // The agent's own modules (local sandbox, harness model, …) change without a version bump during development
-  const agentDist = dirname(require.resolve("@dojofoo/agent/adapters"));
+  const agentDist = dirname(require.resolve("@dojofoo/harness/adapters"));
   for (const file of (await readdir(agentDist)).filter(name => name.endsWith(".js")).sort()) hash.update(await readFile(join(agentDist, file)));
   const { createOpenCode } = await import(require.resolve("@ai-sdk/harness-opencode"));
   for (const file of (await createOpenCode().getBootstrap()).files) {

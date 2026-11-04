@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
-import type { SessionRecord } from "@dojofoo/agent/api";
+import type { SessionRecord } from "@dojofoo/harness/api";
 import type { EvaluationReport } from "@dojofoo/authoring/evaluation/run";
 import { app } from "./app";
 import { forgetHost, hostPortUrl, registerHost } from "./host-port";

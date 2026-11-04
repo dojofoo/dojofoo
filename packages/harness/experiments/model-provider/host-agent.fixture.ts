@@ -1,7 +1,7 @@
-import { defineAgent, defineDynamic } from "@dojofoo/agent";
-import { experimental_createHarnessModel } from "@dojofoo/agent/adapters";
+import { defineAgent, defineDynamic } from "@dojofoo/harness";
+import { experimental_createHarnessModel } from "@dojofoo/harness/adapters";
 import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
-import { scriptedHarness } from "@dojofoo/agent/scripted-harness";
+import { scriptedHarness } from "@dojofoo/harness/scripted-harness";
 
 const harness = scriptedHarness;
 const sandbox = createJustBashSandbox();

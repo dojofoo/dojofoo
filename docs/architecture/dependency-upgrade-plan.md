@@ -61,7 +61,7 @@ Every patch was re-checked against the latest published artifact. **None of the 
 | `eve@0.53.0.patch` — compaction hook (`experimental_compact`) | Not upstream; compaction moved to `harness/compaction/` with a summarizer only | Rebase onto 0.80 structure |
 | `eve@0.53.0.patch` — web-search by real provider | Upstream differently (0.71.3, 0.75.1): Eve reads the live model's `.provider` | Drop this part on upgrade; confirm `web_search` stays excluded for `provider: "harness"` |
 | `eve-native-turn@0.53.0.patch` — respect provider `stop` after its own tool results; `contextTokens` for compaction | Not upstream (logic now in `harness/step/after-model.js`) | Rebase |
-| `eve-distribution@0.53.0.patch` — module map, project-root discovery, step identity for `@dojofoo/agent` | Not upstream | Rebase; also resolve the new `./server` export clash (below) |
+| `eve-distribution@0.53.0.patch` — module map, project-root discovery, step identity for `@dojofoo/harness` | Not upstream | Rebase; also resolve the new `./server` export clash (below) |
 | `@ai-sdk__harness-opencode@1.0.110.patch` — legacy prompt model instead of v2 `switchModel` | Not upstream in 1.0.156 or `main`; no upstream issue | Re-diff against the tsdown build; **file upstream** |
 | `@tanstack__ai-client@0.25.1.patch` — queue normal input during interrupts | Not upstream in 0.39.3 (`sendMessage` still throws; `drainQueue` still ignores interrupts) | Rewrite for 0.39 (`hasPendingInterrupts`); **file upstream**. PR #162 was ours. |
 

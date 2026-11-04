@@ -1,5 +1,5 @@
 import { cp, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
-import { Client } from "@dojofoo/agent/client";
+import { Client } from "@dojofoo/harness/client";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -20,12 +20,12 @@ export async function startEve(): Promise<AgentEndpoint & { close(): Promise<voi
   await cp(fixture, root, { recursive: true, filter: source => !/[/\\](?:\.eve|node_modules)(?:[/\\]|$)/u.test(source) });
   // The fixture agent imports the harness; the copy finds it through its own link, as a managed persona app does
   await mkdir(join(root, "node_modules", "@dojofoo"), { recursive: true });
-  await symlink(dirname(createRequire(import.meta.url).resolve("@dojofoo/agent/package.json")), join(root, "node_modules", "@dojofoo", "agent"), "dir");
+  await symlink(dirname(createRequire(import.meta.url).resolve("@dojofoo/harness/package.json")), join(root, "node_modules", "@dojofoo", "harness"), "dir");
   // Under NODE_ENV=test (vitest) Eve replaces every authored model with its own mock; the fixture's
   // agent has no sandbox, so its Docker cleanup needn't wait for a Docker daemon that isn't running
   if (process.env.NODE_ENV === "test") process.env.NODE_ENV = "development";
   process.env.EVE_DOCKER_PATH ??= join(root, "no-docker");
-  const { createDevelopmentServer } = await import("@dojofoo/agent/server");
+  const { createDevelopmentServer } = await import("@dojofoo/harness/server");
   const server = createDevelopmentServer(root, { host: "127.0.0.1", port: 0, existing: "reject" });
   const { url } = await server.start();
   return {

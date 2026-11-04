@@ -30,6 +30,6 @@ export function managedAgentImport(source: string, importer?: string, managedPac
   if (source.startsWith(".") || source.startsWith("#") || isAbsolute(source)
     || /^(?:node|file|data):/u.test(source) || isBuiltin(source)) return;
   const specifier = source === "eve" || source.startsWith("eve/")
-    ? `@dojofoo/agent${source.slice(3)}` : source;
+    ? `@dojofoo/harness${source.slice(3)}` : source;
   return { external: true, id: pathToFileURL(installation.resolve(specifier)).href };
 }

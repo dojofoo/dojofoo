@@ -55,26 +55,44 @@ it("prepares private host state without generating agent files or editing the co
   expect(await readFile(join(root, "DOJO.md"), "utf8")).toBe("Author-owned material\n");
   await expect(readFile(join(app, "agent.ts"))).rejects.toMatchObject({ code: "ENOENT" });
   expect(await readFile(join(app, "../../package.json"), "utf8")).not.toContain('"eve"');
-  expect(await readFile(join(app, "../../node_modules/@dojofoo/agent/package.json"), "utf8")).toContain('"@dojofoo/agent"');
+  expect(await readFile(join(app, "../../node_modules/@dojofoo/harness/package.json"), "utf8")).toContain('"@dojofoo/harness"');
 });
 
 it("moves a course's app to this installation when another dojofoo prepared it", async () => {
   const root = await course();
   const other = await course();
   await mkdir(join(other, "agent"), { recursive: true });
-  await writeFile(join(other, "agent/package.json"), '{"name":"@dojofoo/agent","version":"0.0.0-other"}');
+  await writeFile(join(other, "agent/package.json"), '{"name":"@dojofoo/harness","version":"0.0.0-other"}');
   const app = await prepareKyoshiApp(root);
-  const link = join(app, "../../node_modules/@dojofoo/agent");
+  const link = join(app, "../../node_modules/@dojofoo/harness");
   await rm(link);
   await symlink(join(other, "agent"), link, "dir");
   await prepareKyoshiApp(root);
   expect(await readFile(join(link, "package.json"), "utf8")).not.toContain("0.0.0-other");
 });
 
+it("an app prepared under the old package names is rewritten and relinked", async () => {
+  // Spelled in parts, so lint:names keeps finding real uses of the old names
+  const oldHarness = ["@dojofoo", "agent"].join("/");
+  const root = await course();
+  const app = join(root, ".dojo/kyoshi-app");
+  await mkdir(join(app, "node_modules/@dojofoo"), { recursive: true });
+  await writeFile(join(app, "package.json"), `${JSON.stringify({ name: "dojo-kyoshi-runtime", private: true, type: "module",
+    dependencies: { [oldHarness]: "*", "@dojofoo/authoring": "*" } }, null, 2)}\n`);
+  const old = join(root, "old-harness");
+  await mkdir(old);
+  await writeFile(join(old, "package.json"), JSON.stringify({ name: oldHarness, version: "0.0.0-old" }));
+  await symlink(old, join(app, "node_modules", oldHarness), "dir");
+  await prepareKyoshiApp(root);
+  expect(JSON.parse(await readFile(join(app, "package.json"), "utf8")).dependencies).toEqual({ "@dojofoo/harness": "*", "@dojofoo/authoring": "*" });
+  expect(JSON.parse(await readFile(join(app, "node_modules/@dojofoo/harness/package.json"), "utf8")).name).toBe("@dojofoo/harness");
+  expect(await readFile(join(app, "node_modules", oldHarness, "package.json"), "utf8")).toContain("0.0.0-old");
+});
+
 it("refuses to replace a dependency that is not a link", async () => {
   const root = await course();
   const app = await prepareKyoshiApp(root);
-  const link = join(app, "../../node_modules/@dojofoo/agent");
+  const link = join(app, "../../node_modules/@dojofoo/harness");
   await rm(link);
   await mkdir(link);
   await writeFile(join(link, "package.json"), '{"name":"mine"}');

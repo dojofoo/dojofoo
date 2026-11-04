@@ -1,5 +1,5 @@
-import { defineDynamic } from "@dojofoo/agent";
-import { defineInstructions } from "@dojofoo/agent/instructions";
+import { defineDynamic } from "@dojofoo/harness";
+import { defineInstructions } from "@dojofoo/harness/instructions";
 import { senseiHostPort } from "@dojofoo/authoring/sensei/agent";
 import { senseiCourseInstructions } from "@dojofoo/authoring/sensei/instructions";
 import type { SenseiContext, SenseiSessionInfo } from "@dojofoo/protocol";

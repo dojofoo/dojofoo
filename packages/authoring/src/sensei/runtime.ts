@@ -1,7 +1,7 @@
 import { mkdir, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { agentAdapter } from "@dojofoo/agent/adapters";
+import { agentAdapter } from "@dojofoo/harness/adapters";
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { localStateDirectory, workspaceIdFor } from "@dojofoo/config/local-state";
 import type { AgentId } from "@dojofoo/protocol";
@@ -55,7 +55,7 @@ export async function createSenseiRuntime(workspaceRoot: string, options: { agen
   const app = await preparePersonaApp(workspaceRoot, "sensei");
   const stateDirectory = localStateDirectory();
   const load = createRequire(import.meta.url);
-  const { createPersonaHost, lifecycleHookSlug } = await import(load.resolve("@dojofoo/agent/persona")) as typeof import("@dojofoo/agent/persona");
+  const { createPersonaHost, lifecycleHookSlug } = await import(load.resolve("@dojofoo/harness/persona")) as typeof import("@dojofoo/harness/persona");
   return createPersonaHost({
     appDir: app,
     processRecord: join(stateDirectory, "processes", `${workspaceId}.sensei.jsonl`),

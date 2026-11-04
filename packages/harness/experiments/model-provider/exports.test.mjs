@@ -3,9 +3,9 @@ import { access, readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 test("the packed package preserves every pinned Eve public entry point", async () => {
-  const ownUrl = import.meta.resolve("@dojofoo/agent/package.json");
+  const ownUrl = import.meta.resolve("@dojofoo/harness/package.json");
   const own = JSON.parse(await readFile(new URL(ownUrl), "utf8"));
-  const eve = JSON.parse(await readFile(new URL(import.meta.resolve("@dojofoo/agent/eve/package.json")), "utf8"));
+  const eve = JSON.parse(await readFile(new URL(import.meta.resolve("@dojofoo/harness/eve/package.json")), "utf8"));
   async function checkTargets(value) {
     if (typeof value === "string") {
       assert.ok(value.startsWith("./"));
@@ -21,14 +21,14 @@ test("the packed package preserves every pinned Eve public entry point", async (
     // Eve also publishes type-only modules; preserve that boundary rather than
     // inventing runtime exports for them.
     if (typeof upstream === "string" || upstream.import || upstream.default) {
-      assert.ok(import.meta.resolve(`@dojofoo/agent${key === "." ? "" : key.slice(1)}`));
+      assert.ok(import.meta.resolve(`@dojofoo/harness${key === "." ? "" : key.slice(1)}`));
     }
   }
 });
 
 for (const path of ["server", "evals", "skills", "context", "hooks", "tools/bash", "tools/ask_question", "sandbox/provider", "tools/agent"]) {
   test(`public authoring API /${path} loads without a separate Eve install`, async () => {
-    const api = await import(`@dojofoo/agent/${path}`);
+    const api = await import(`@dojofoo/harness/${path}`);
     assert.ok(Object.keys(api).length > 0);
   });
 }

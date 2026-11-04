@@ -1,5 +1,5 @@
-import { defineSandbox } from "@dojofoo/agent/sandbox";
-import { JustBashSandbox } from "@dojofoo/agent/sandbox/just-bash";
+import { defineSandbox } from "@dojofoo/harness/sandbox";
+import { JustBashSandbox } from "@dojofoo/harness/sandbox/just-bash";
 
 // An empty environment: Eve's sandbox never mounts learner files
 export const environment = JustBashSandbox.environment({ autoInstall: false });

@@ -1,4 +1,4 @@
-import { testLaunchToken } from "@dojofoo/agent/api/fixtures";
+import { testLaunchToken } from "@dojofoo/harness/api/fixtures";
 import { expect, greetingReply, savedReply, test, workspaceId } from "./agent-chat.fixture";
 import type { Page } from "@playwright/test";
 

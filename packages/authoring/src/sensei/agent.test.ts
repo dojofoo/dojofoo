@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "vitest";
-import { createHostPortClient } from "@dojofoo/agent/host-port";
-import { startHostPortFixture } from "@dojofoo/agent/host-port/fixture";
+import { createHostPortClient } from "@dojofoo/harness/host-port";
+import { startHostPortFixture } from "@dojofoo/harness/host-port/fixture";
 import { createSenseiAgent, sessionForModelCall } from "./agent.ts";
 
 const closers: Array<() => Promise<void>> = [];

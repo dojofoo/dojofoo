@@ -11,9 +11,9 @@ import { createFx } from "@ai-sdk/harness-fx";
 import { createGrokBuild } from "@ai-sdk/harness-grok-build";
 import { createOpenCode } from "@ai-sdk/harness-opencode";
 import { createPi } from "@ai-sdk/harness-pi";
-import { experimental_createHarnessModel, type PreventionRecord, createLocalHarnessSandbox } from "@dojofoo/agent/adapters";
-import { readOnlyAdapterSettings, readOnlyEnvironment, readOnlyToolNames, withoutBuiltinFiltering } from "@dojofoo/agent/persona";
-import { scriptedHarness } from "@dojofoo/agent/scripted-harness";
+import { experimental_createHarnessModel, type PreventionRecord, createLocalHarnessSandbox } from "@dojofoo/harness/adapters";
+import { readOnlyAdapterSettings, readOnlyEnvironment, readOnlyToolNames, withoutBuiltinFiltering } from "@dojofoo/harness/persona";
+import { scriptedHarness } from "@dojofoo/harness/scripted-harness";
 import { agentRow, type ResumeFailure } from "@dojofoo/protocol";
 import { expect } from "vitest";
 // Shared deterministic HTTP fixture; it performs no external inference.

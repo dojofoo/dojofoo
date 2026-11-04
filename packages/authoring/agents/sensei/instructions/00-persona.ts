@@ -1,4 +1,4 @@
-import { defineInstructions } from "@dojofoo/agent/instructions";
+import { defineInstructions } from "@dojofoo/harness/instructions";
 import { senseiPersonaInstructions } from "@dojofoo/authoring/sensei/instructions";
 import { contract } from "../contracts.ts";
 

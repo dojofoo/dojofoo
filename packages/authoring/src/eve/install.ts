@@ -1,7 +1,7 @@
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { HarnessAgent, createLocalSandbox, prepareHarnessEnvironment, agentAdapter } from "@dojofoo/agent/adapters";
+import { HarnessAgent, createLocalSandbox, prepareHarnessEnvironment, agentAdapter } from "@dojofoo/harness/adapters";
 import type { AgentId } from "@dojofoo/protocol";
 
 /** Run the adapter's own cached installation recipe without opening a chat. The bootstrap lands under the environment's HOME. */

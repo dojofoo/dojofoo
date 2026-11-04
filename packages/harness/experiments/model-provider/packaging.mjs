@@ -15,7 +15,7 @@ try {
   assert.ok(packed.files.some(file => file.path === "dist/eve/NOTICE"));
   assert.ok(packed.files.some(file => file.path === "dist/eve/bin/eve.js"));
   await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module", dependencies: {
-    "@dojofoo/agent": `file:./${packed.filename}`,
+    "@dojofoo/harness": `file:./${packed.filename}`,
     "@ai-sdk/sandbox-just-bash": manifest.devDependencies["@ai-sdk/sandbox-just-bash"],
     "ai": manifest.dependencies.ai,
     "@ai-sdk/harness": manifest.dependencies["@ai-sdk/harness"],
@@ -23,7 +23,7 @@ try {
   execFileSync("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"], { cwd: root, stdio: "inherit" });
   const lock = JSON.parse(await readFile(join(root, "package-lock.json"), "utf8"));
   assert.ok(!Object.keys(lock.packages).some(path => path.endsWith("node_modules/eve")), "Consumer must not install a separate Eve");
-  const installed = JSON.parse(await readFile(join(root, "node_modules/@dojofoo/agent/package.json"), "utf8"));
+  const installed = JSON.parse(await readFile(join(root, "node_modules/@dojofoo/harness/package.json"), "utf8"));
   assert.equal(installed.scripts.postinstall, undefined);
   for (const file of ["provider.test.mjs", "recovery-worker.mjs", "filesystem.test.mjs", "exports.test.mjs", "local-history.test.mjs", "manifest-free-project.test.mjs", "host-agent.fixture.ts"]) {
     await copyFile(join(source, "experiments/model-provider", file), join(root, file));

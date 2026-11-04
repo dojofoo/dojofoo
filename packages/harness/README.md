@@ -1,15 +1,15 @@
-# @dojofoo/agent
+# @dojofoo/harness
 
 Eve plus an experimental model provider backed by the official AI SDK
 HarnessAgent. No maintained Eve source fork, custom execution backend, workflow
 runner or per-adapter provider implementations. The build embeds a pinned Eve
 release (1.0.0-rc.1) with a patch for native compaction.
 The separate distribution patch redirects the generated module-map loader import
-to `@dojofoo/agent`, recognizes that dependency during CLI project discovery,
+to `@dojofoo/harness`, recognizes that dependency during CLI project discovery,
 and preserves Eve package identity for workflow steps in linked workspaces.
 It also points the step-authorization import that Eve's workflow transformer adds
 to an authored workflow tool's `"use step"` functions at
-`@dojofoo/agent/internal/workflow-step-execution`, since a prepared persona build
+`@dojofoo/harness/internal/workflow-step-execution`, since a prepared persona build
 has no `eve` package to resolve (Sensei's `dojo_lesson_complete`).
 The latter prevents compiled workflow and registered step IDs from diverging
 when the embedded runtime lives outside `node_modules` during development.
@@ -30,7 +30,7 @@ consumer test reads and edits a live course mount, observes human edits, and
 reopens private workspace files after shutdown.
 
 The managed authoring host prepares adapter bootstrap tools through mise:
-`prepareHarnessEnvironment()` from `@dojofoo/agent/adapters` installs
+`prepareHarnessEnvironment()` from `@dojofoo/harness/adapters` installs
 and selects `pnpm@10.34.5` with `--no-config`. Only the resulting PATH is passed
 to the local sandbox. Course/global mise configuration, credentials, and
 global pnpm are not changed. Mise is prepared by `dojofoo install`; the first
@@ -38,7 +38,7 @@ tool download requires network access. Standalone local hosts can use the same
 helper before creating their local sandbox.
 
 Run the real toolchain regression (no model calls) with:
-`DOJO_MISE_BOOTSTRAP=1 node --test packages/agent/experiments/model-provider/runtime-toolchain.test.mjs`.
+`DOJO_MISE_BOOTSTRAP=1 node --test packages/harness/experiments/model-provider/runtime-toolchain.test.mjs`.
 
 The opt-in browser acceptance check runs a real local UI, Eve host and OpenCode
 against a loopback model endpoint (no paid inference):
@@ -50,7 +50,7 @@ DOJO_AUTHORING_RUNTIME_E2E=1 pnpm --filter @dojofoo/ui exec playwright test e2e/
 It starts from an empty temporary course, saves authored files through Monaco,
 restarts the server with a pending question, answers the restored question, and
 opens an isolated learner trial that receives an agent response. Requires Node 24,
-built `@dojofoo/agent`, Playwright Chromium and a local ACP-capable OpenCode binary
+built `@dojofoo/harness`, Playwright Chromium and a local ACP-capable OpenCode binary
 (`OPENCODE_BIN` can override discovery). This verifies runtime integration, not
 the pedagogical quality of generated material or other harnesses.
 
@@ -84,7 +84,7 @@ closed set (A), and the test entries (C) only in their tests; lint rules in
 
 | Group | Entry | Responsibility |
 | --- | --- | --- |
-| A | `@dojofoo/agent` | Reexport Eve's root API unchanged |
+| A | `@dojofoo/harness` | Reexport Eve's root API unchanged |
 | A | `/client`, `/react` | Reexport Eve's existing client integrations |
 | A | `/server` | Reexport the pinned Eve host lifecycle (`start`/`close`) for local UI ownership |
 | A | `/host-port` | The persona host's port to the UI server |
@@ -216,7 +216,7 @@ agent's read-only built-ins and the call's Eve tools; a persona that writes,
 such as Kyoshi, passes `mode: "full"`.
 For adapters with package-relative bridge assets, retain their package boundary
 using Eve's existing `build.externalDependencies` configuration. The hosted
-OpenCode fixture externalizes `@ai-sdk/harness-opencode` and `@dojofoo/agent`;
+OpenCode fixture externalizes `@ai-sdk/harness-opencode` and `@dojofoo/harness`;
 bundling the adapter relocates `import.meta.url` without copying its bridge
 assets. Keep native runtime state outside the authored source directory, so
 database and journal writes do not trigger Eve's development watcher.
@@ -305,7 +305,7 @@ process is not equivalent to restarting Eve or freezing a cloud sandbox:
 pending-question recovery after native-process termination remains unsupported
 by this local integration.
 
-The Node-only entry point is `@dojofoo/agent/adapters`. Build the
+The Node-only entry point is `@dojofoo/harness/adapters`. Build the
 sandbox where the model runs: call `createLocalHarnessSandbox(root, { environment })`
 inside the agent's model definition and pass it to `experimental_createHarnessModel`.
 The native package-consumer tests use these exports exclusively, including
@@ -329,7 +329,7 @@ synthetic learner message; Pi receives the answer once and the history carries i
 the next turn. Only inference is mocked; Eve, Pi and the provider execute normally.
 Run just these public-CLI cases with
 `node experiments/model-provider/run.mjs --cli-only` after building this package.
-The authored application declares `@dojofoo/agent` in `package.json`;
+The authored application declares `@dojofoo/harness` in `package.json`;
 our distribution recognizes it during Eve project discovery.
 This test requires no private Eve server imports. It
 does not establish the same cold-restart behavior for bridge-based adapters.
@@ -350,7 +350,7 @@ The draft's `.dojo/runtimes.json` `agent` selects its official adapter (OpenCode
 `--execution-backend` mode.
 
 Local Cursor uses the installed `cursor-agent` executable and its normal home/login.
-`packages/agent/src/local-cursor.ts` disables the official adapter's credential
+`packages/harness/src/local-cursor.ts` disables the official adapter's credential
 resolver with explicit empty authentication and changes only its bootstrap recipe:
 link the installed executable instead of downloading another CLI, and retain the
 normal home instead of creating a private one. It does not read Keychain, copy
@@ -370,7 +370,7 @@ patch before packaging it under `dist/eve`. Public exports reference that runtim
 including its original package scope, workers, assets and license notices.
 Consumers neither install Eve separately nor configure patches. No postinstall
 hook mutates consumer dependencies. The patch remains available through
-`@dojofoo/agent/eve.patch` for auditing, not as an installation step.
+`@dojofoo/harness/eve.patch` for auditing, not as an installation step.
 
 `pnpm test:packaging` installs the tarball in a clean temporary project with
 install scripts disabled, rejects a separate Eve installation, and runs the
@@ -525,7 +525,7 @@ adapter writes authentication files. It never installs utilities automatically,
 mutates the user's shell environment, or rewrites adapter commands.
 
 ```sh
-pnpm --filter @dojofoo/agent test
+pnpm --filter @dojofoo/harness test
 ```
 
 Type-checks/builds the provider, packs its patched runtime, and installs it with

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { Client } from "@dojofoo/agent/client";
+import { Client } from "@dojofoo/harness/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { createSenseiRuntime } from "./runtime";
 

@@ -5,10 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
-import { Client } from "@dojofoo/agent/client";
-import { createDevelopmentServer } from "@dojofoo/agent/server";
+import { Client } from "@dojofoo/harness/client";
+import { createDevelopmentServer } from "@dojofoo/harness/server";
 
-const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/harness/eve/package.json"));
 const { compileAgent } = await import(new URL("dist/src/compiler/compile-agent.js", eveRoot));
 // These roles use just-bash only. Eve 1.0 probes Docker on server close, which
 // waits on an installed CLI whose daemon is down.
@@ -46,7 +46,7 @@ test("manifest-free Kyoshi and Sensei compile against the installed runtime with
       await mkdir(root, { recursive: true });
       await writeFile(join(root, "instructions.md"), `You are ${role}. Read only your assigned workspace.\n`);
       await writeFile(join(root, role === "kyoshi" ? "agent.ts" : "agent.js"), [
-        'import { defineAgent } from "@dojofoo/agent";',
+        'import { defineAgent } from "@dojofoo/harness";',
         'export default defineAgent({ model: "openai/gpt-4o" });',
         "",
       ].join("\n"));
@@ -93,16 +93,16 @@ test("manifest-free roles use real Eve tools, isolated course/trial files and du
       const guidance = role === "kyoshi" ? join(project, "DOJO.md") : join(trial, "SENSEI.md");
       await writeFile(join(root, "instructions.ts"), `
 import { readFile } from "node:fs/promises";
-import { defineInstructions } from "@dojofoo/agent/instructions";
+import { defineInstructions } from "@dojofoo/harness/instructions";
 export default defineInstructions({ content: "HOST_INSTRUCTIONS_LOADED: You are ${role}.\\n" + await readFile(${JSON.stringify(guidance)}, "utf8")${role === "sensei" ? ` + await readFile(${JSON.stringify(join(trial, "DOJO.md"))}, "utf8")` : ""} });
 `);
       for (const tool of ["read_file", "write_file", "ask_question"]) {
-        await writeFile(join(root, "tools", `${tool}.ts`), `export { default } from "@dojofoo/agent/tools/${tool}";\n`);
+        await writeFile(join(root, "tools", `${tool}.ts`), `export { default } from "@dojofoo/harness/tools/${tool}";\n`);
       }
-      await writeFile(join(root, "tools/root_only.ts"), 'export { default } from "@dojofoo/agent/tools/read_file";\n');
+      await writeFile(join(root, "tools/root_only.ts"), 'export { default } from "@dojofoo/harness/tools/read_file";\n');
       await writeFile(join(root, "sandbox/sandbox.ts"), `
-import { defineSandbox } from "@dojofoo/agent/sandbox";
-import { JustBashSandbox } from "@dojofoo/agent/sandbox/just-bash";
+import { defineSandbox } from "@dojofoo/harness/sandbox";
+import { JustBashSandbox } from "@dojofoo/harness/sandbox/just-bash";
 export const environment = JustBashSandbox.environment({
   autoInstall: false,
   experimental: {

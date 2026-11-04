@@ -1,4 +1,4 @@
-import { defineTool } from "@dojofoo/agent/tools";
+import { defineTool } from "@dojofoo/harness/tools";
 import { formatKataContext, lessonCapabilities, type SenseiContext } from "@dojofoo/protocol";
 import { z } from "zod";
 import { senseiHostPort, type SenseiRuntime } from "./agent.ts";

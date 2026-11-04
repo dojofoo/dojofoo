@@ -1,4 +1,4 @@
-import { Client } from "@dojofoo/agent/client";
+import { Client } from "@dojofoo/harness/client";
 import { draft, expect, greetingReply, savedMessage, savedReply, test, workspaceId, type MountedAgentChat } from "./agent-chat.fixture";
 
 /** Conversations the page created: the records besides the saved one */

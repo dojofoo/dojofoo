@@ -2,7 +2,7 @@
 
 Upgrade status and baseline results live in
 [`docs/architecture/dependency-upgrade-ledger.md`](../docs/architecture/dependency-upgrade-ledger.md).
-The compatibility patches here and four assembled into `@dojofoo/agent` are independent
+The compatibility patches here and four assembled into `@dojofoo/harness` are independent
 compatibility changes. Passing tests against an old release does not justify
 removing them from a new one.
 

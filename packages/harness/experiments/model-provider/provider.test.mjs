@@ -6,14 +6,14 @@ import { test } from "node:test";
 import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
 import { generateText, jsonSchema, Output, streamText, tool } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
-import { defineAgent } from "@dojofoo/agent";
-import { experimental_createHarnessModel } from "@dojofoo/agent/adapters";
+import { defineAgent } from "@dojofoo/harness";
+import { experimental_createHarnessModel } from "@dojofoo/harness/adapters";
 
 // Harness-level tests of the full-access path: native tools and approval cards stay on.
 const createHarnessModel = (runtime, options = {}) => experimental_createHarnessModel(runtime, { mode: "full", ...options });
 
 // Exercise the exact runtime shipped to consumers, not a workspace dependency.
-const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/harness/eve/package.json"));
 const { createToolLoopHarness } = await import(new URL("dist/src/harness/tool-loop.js", eveRoot));
 const { maybeCompact } = await import(new URL("dist/src/harness/compaction/step.js", eveRoot));
 const { compileAgentConfig } = await import(new URL("dist/src/compiler/normalize-agent-config.js", eveRoot));
@@ -106,14 +106,14 @@ const text = value => [
 
 test("the package reexports Eve and the official HarnessAgent without wrapping them", async () => {
   const [facade, eve, harness, official] = await Promise.all([
-    import("@dojofoo/agent"), import(new URL("dist/src/index.js", eveRoot)),
-    import("@dojofoo/agent/adapters"), import("@ai-sdk/harness/agent"),
+    import("@dojofoo/harness"), import(new URL("dist/src/index.js", eveRoot)),
+    import("@dojofoo/harness/adapters"), import("@ai-sdk/harness/agent"),
   ]);
   assert.deepEqual(Object.keys(facade), Object.keys(eve));
   for (const key of Object.keys(eve)) assert.equal(facade[key], eve[key]);
   assert.equal(harness.HarnessAgent, official.HarnessAgent);
   const [server, upstreamServer] = await Promise.all([
-    import("@dojofoo/agent/server"),
+    import("@dojofoo/harness/server"),
     import(new URL("dist/src/internal/nitro/host/start-development-server.js", eveRoot)),
   ]);
   assert.equal(server.createDevelopmentServer, upstreamServer.createDevelopmentServer);
@@ -681,7 +681,7 @@ for (const failure of [false, true]) test(`unmodified Eve settles the tool once 
 test("Eve's question workflow waits for ctx.ask and returns its actual answer", async () => {
   // 1.0 exports the durable workflow tool as a value, not a factory.
   // The CLI/host suites cover persistence and provider continuation.
-  const { askQuestion } = await import("@dojofoo/agent/tools/ask_question");
+  const { askQuestion } = await import("@dojofoo/harness/tools/ask_question");
   const answer = Promise.withResolvers();
   const requests = [];
   let completed = false;

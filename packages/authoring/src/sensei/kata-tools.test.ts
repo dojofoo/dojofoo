@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { startHostPortFixture } from "@dojofoo/agent/host-port/fixture";
+import { startHostPortFixture } from "@dojofoo/harness/host-port/fixture";
 import { createKataTool } from "./kata-tools.ts";
 import { createSenseiContextTool } from "./context-tool.ts";
 

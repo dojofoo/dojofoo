@@ -4,10 +4,10 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { Client } from "@dojofoo/agent/client";
+import { Client } from "@dojofoo/harness/client";
 import { startLoopbackModel } from "./loopback-openai.mjs";
 
-const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
+const eveRoot = new URL("./", import.meta.resolve("@dojofoo/harness/eve/package.json"));
 const { createDevelopmentServer } = await import(new URL("dist/src/internal/nitro/host/start-development-server.js", eveRoot));
 // OpenCode runs in a local sandbox; do not wait on an installed Docker CLI on close.
 process.env.EVE_DOCKER_PATH ??= join(process.cwd(), "no-docker");
@@ -29,7 +29,7 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
     await mkdir(join(runtimeRoot, "home"), { recursive: true });
     await writeFile(join(root, "package.json"), JSON.stringify({ name: "native-host-fixture", private: true, type: "module" }));
     await writeFile(join(agent, "instructions.md"), "NATIVE_HOST_INSTRUCTIONS: Ask before continuing.\n");
-    await writeFile(join(agent, "tools/ask_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
+    await writeFile(join(agent, "tools/ask_question.ts"), 'export { default } from "@dojofoo/harness/tools/ask_question";\n');
     const bin = fileURLToPath(new URL("./node_modules/.bin", import.meta.url));
     const environment = {
       PATH: `${bin}:${process.env.PATH}`, HOME: join(runtimeRoot, "home"),
@@ -38,11 +38,11 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
       XDG_CACHE_HOME: join(runtimeRoot, "home/cache"), CI: "1",
     };
     await writeFile(join(agent, "agent.ts"), `
-      import { defineAgent, defineDynamic } from "@dojofoo/agent";
-      import { experimental_createHarnessModel, createLocalHarnessSandbox } from "@dojofoo/agent/adapters";
+      import { defineAgent, defineDynamic } from "@dojofoo/harness";
+      import { experimental_createHarnessModel, createLocalHarnessSandbox } from "@dojofoo/harness/adapters";
       import { createOpenCode } from "@ai-sdk/harness-opencode";
       export default defineAgent({
-        build: { externalDependencies: ["@ai-sdk/harness-opencode", "@dojofoo/agent"] },
+        build: { externalDependencies: ["@ai-sdk/harness-opencode", "@dojofoo/harness"] },
         model: defineDynamic(async () => {
           // As in Kyoshi: the sandbox is built where the model runs.
           const sandbox = createLocalHarnessSandbox(${JSON.stringify(runtimeRoot)}, {

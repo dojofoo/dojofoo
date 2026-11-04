@@ -4,7 +4,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Client } from "@dojofoo/agent/client";
+import { Client } from "@dojofoo/harness/client";
 import { expect, it, vi } from "vitest";
 import { acquireKyoshiRuntime, createKyoshiRuntime } from "./runtime";
 

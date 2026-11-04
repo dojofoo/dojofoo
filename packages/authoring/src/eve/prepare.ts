@@ -10,7 +10,7 @@ const manifest = (persona: PreparedPersona) => ({
   name: `dojo-${persona}-runtime`,
   private: true,
   type: "module",
-  dependencies: { "@dojofoo/agent": "*", "@dojofoo/authoring": "*" },
+  dependencies: { "@dojofoo/harness": "*", "@dojofoo/authoring": "*" },
 });
 
 /** Link immutable packaged output; each workspace retains its own runtime and durable state. */
@@ -55,8 +55,13 @@ export async function preparePersonaApp(courseRoot: string, persona: PreparedPer
     if (current.name !== manifest(persona).name || current.private !== true) {
       throw new Error(`Refusing to replace an unmanaged ${names[persona]} app: ${app}`);
     }
+    // An app prepared under earlier package names: Eve finds the app by its dependency on the harness
+    const { dependencies } = manifest(persona);
+    if (JSON.stringify(current.dependencies) !== JSON.stringify(dependencies)) {
+      await writeFile(packagePath, `${JSON.stringify({ ...current, dependencies }, null, 2)}\n`);
+    }
   }
-  for (const name of ["@dojofoo/agent", "@dojofoo/authoring"]) {
+  for (const name of ["@dojofoo/harness", "@dojofoo/authoring"]) {
     const target = dirname(require.resolve(`${name}/package.json`));
     const link = join(app, "node_modules", name);
     await mkdir(dirname(link), { recursive: true });

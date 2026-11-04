@@ -1,5 +1,5 @@
-import { defineAgent } from "@dojofoo/agent";
-import { mockModel } from "@dojofoo/agent/evals";
+import { defineAgent } from "@dojofoo/harness";
+import { mockModel } from "@dojofoo/harness/evals";
 
 /** Replies by what the message asks for: a question, a tool call, a slow or paused reply, files without text, or an echo. */
 export default defineAgent({

@@ -1,7 +1,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { agentAdapter } from "@dojofoo/agent/adapters";
+import { agentAdapter } from "@dojofoo/harness/adapters";
 import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiOutput } from "./prepare.ts";
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { localStateDirectory, workspaceIdFor } from "@dojofoo/config/local-state";
@@ -87,7 +87,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   const workspaceId = options.workspaceId ?? workspaceIdFor(courseRoot);
   // Keep Node workers and the coordinator in the same installed package scope.
   const load = createRequire(import.meta.url);
-  const { createPersonaHost, lifecycleHookSlug } = await import(load.resolve("@dojofoo/agent/persona")) as typeof import("@dojofoo/agent/persona");
+  const { createPersonaHost, lifecycleHookSlug } = await import(load.resolve("@dojofoo/harness/persona")) as typeof import("@dojofoo/harness/persona");
   return createPersonaHost({
     appDir: app,
     processRecord: join(localStateDirectory(), "processes", `${workspaceId}.kyoshi.jsonl`),

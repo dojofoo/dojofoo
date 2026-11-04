@@ -1,4 +1,4 @@
-import { defineSandbox } from "@dojofoo/agent/sandbox";
+import { defineSandbox } from "@dojofoo/harness/sandbox";
 import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox";
 import { runtime } from "../runtime.ts";
 

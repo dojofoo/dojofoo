@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { vi } from "vitest";
-import type { AgentEndpoint, SessionRecord } from "@dojofoo/agent/api";
+import type { AgentEndpoint, SessionRecord } from "@dojofoo/harness/api";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { createLocalAgentRuntime } from "../agent-api";
 import { forgetHost, hostPortServer } from "../host-port";

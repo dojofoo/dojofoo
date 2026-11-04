@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
-import { preserveLegacyLocalHistory } from "@dojofoo/agent/local-history";
+import { preserveLegacyLocalHistory } from "@dojofoo/harness/local-history";
 
 const fixture = JSON.parse(await readFile(new URL("./fixtures/legacy-world-v25.json", import.meta.url), "utf8"));
 async function workspace(run) {

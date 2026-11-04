@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import type { OneShotRequest } from "@dojofoo/agent/adapters";
+import type { OneShotRequest } from "@dojofoo/harness/adapters";
 import { judgePanel } from "@dojofoo/authoring/evaluation/judges";
 import { learnerPrompt, parseLearnerAnswers, type LearnerDialogue, type LearnerQuestion } from "@dojofoo/authoring/evaluation/learner";
 import { fixtureGeneratorInstructions } from "@dojofoo/authoring/evaluation/prompts";
@@ -30,7 +30,7 @@ export function oneShotRoles(options: { agent: AgentId; model?: string; evidence
   const call = async (request: { instructions?: string; prompt: string; signal: AbortSignal; timeoutMs: number }) => {
     // Resolved from @dojofoo/authoring, as the persona runtimes reach the adapters: the built CLI that serves this module depends on
     // authoring, not on the harness package itself
-    const oneShot = options.oneShot ?? (createRequire(load.resolve("@dojofoo/authoring/package.json"))("@dojofoo/agent/adapters") as typeof import("@dojofoo/agent/adapters")).oneShot;
+    const oneShot = options.oneShot ?? (createRequire(load.resolve("@dojofoo/authoring/package.json"))("@dojofoo/harness/adapters") as typeof import("@dojofoo/harness/adapters")).oneShot;
     const directory = join(stateDirectory, "evaluation", randomUUID());
     await mkdir(join(directory, "scratch"), { recursive: true });
     try {

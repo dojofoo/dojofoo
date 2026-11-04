@@ -1,4 +1,4 @@
-import { defineWorkflowTool } from "@dojofoo/agent/tools";
+import { defineWorkflowTool } from "@dojofoo/harness/tools";
 import { senseiHostPort } from "@dojofoo/authoring/sensei/agent";
 import { lessonCapabilities, type LessonNavigation, type SenseiSessionInfo } from "@dojofoo/protocol";
 import { z } from "zod";

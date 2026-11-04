@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { afterEach, expect, it } from "vitest";
-import { startHostPortFixture } from "@dojofoo/agent/host-port/fixture";
+import { startHostPortFixture } from "@dojofoo/harness/host-port/fixture";
 import type { EvaluationTrialStatus } from "@dojofoo/protocol";
 import { createKyoshiEvaluationTool } from "./evaluate.ts";
 

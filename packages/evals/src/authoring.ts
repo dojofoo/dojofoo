@@ -6,7 +6,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { startHostPortFixture } from "@dojofoo/agent/host-port/fixture";
+import { startHostPortFixture } from "@dojofoo/harness/host-port/fixture";
 import { createKyoshiRuntime } from "@dojofoo/authoring/eve/runtime";
 import { scaffoldAuthoringWorkspace } from "@dojofoo/authoring/scaffold";
 import { writeAgent } from "@dojofoo/config/runtime";
@@ -28,7 +28,7 @@ if (live && !localJudges && !process.env.DOJOFOO_EVAL_JUDGE) {
 if (live && !localJudges && !process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN) {
   throw new Error("The Eve judge requires AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN.");
 }
-const cli = resolve(dirname(fileURLToPath(import.meta.resolve("@dojofoo/agent/eve/package.json"))), "bin/eve.js");
+const cli = resolve(dirname(fileURLToPath(import.meta.resolve("@dojofoo/harness/eve/package.json"))), "bin/eve.js");
 const dojoCli = process.env.DOJO_CLI ?? resolve(import.meta.dirname, "../../cli/dist/index.js");
 if (live && (chained || workflow)) await access(dojoCli);
 const root = await mkdtemp(resolve(tmpdir(), "dojofoo-kyoshi-eval-"));

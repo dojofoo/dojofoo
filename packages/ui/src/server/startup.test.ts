@@ -6,7 +6,7 @@ import { afterEach, expect, it } from "vitest";
 import { listWorkspaces, observeWorkspacePath, setWorkspaceKind } from "@dojofoo/config/local-state";
 import { buildControlRoutes } from "./control/routes";
 import { spawn } from "node:child_process";
-import { recordProcessGroup } from "@dojofoo/agent/persona";
+import { recordProcessGroup } from "@dojofoo/harness/persona";
 import { readFileSync } from "node:fs";
 import { vi } from "vitest";
 import { backfillWorkspaceKinds, startUiServer } from "./startup";

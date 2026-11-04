@@ -1,7 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { Client } from "@dojofoo/agent/client";
-import { emptySessionView, foldEvents, openInteractions } from "@dojofoo/agent/messages";
-import { LAUNCH_TOKEN_HEADER } from "@dojofoo/agent/api";
+import { Client } from "@dojofoo/harness/client";
+import { emptySessionView, foldEvents, openInteractions } from "@dojofoo/harness/messages";
+import { LAUNCH_TOKEN_HEADER } from "@dojofoo/harness/api";
 import type { CheckObservation } from "../lesson/service";
 
 export interface TrialTurn {
@@ -70,7 +70,7 @@ export function turnOf(events: readonly Event[], all: readonly Event[]): TrialTu
  *  client on each session's routes. A turn is done only when Eve's stream shows it paused or settled and the session record has
  *  left `working`, so the hooks' guard verify and transitions have run (step-7 plan, decision 37). */
 export function httpChannel(options: { baseUrl: string; workspaceId: string; token: string;
-  /** Tests only: a session's Eve client in place of `@dojofoo/agent/client` on its routes */
+  /** Tests only: a session's Eve client in place of `@dojofoo/harness/client` on its routes */
   eve?: (sessionId: string) => Pick<EveSession, "snapshot" | "send" | "respond" | "cancel"> }): TrialChannel {
   const api = `${options.baseUrl.replace(/\/$/u, "")}/api/v1/workspaces/${encodeURIComponent(options.workspaceId)}`;
   const lesson = (courseId: string, lessonId: string) =>

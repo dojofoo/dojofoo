@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { prepareHarnessEnvironment } from "@dojofoo/agent/adapters";
+import { prepareHarnessEnvironment } from "@dojofoo/harness/adapters";
 import { agentRow, agentRows, latestConformance, parseConformanceRecord } from "@dojofoo/protocol";
 
 const execute = promisify(execFile);

@@ -5,7 +5,7 @@ import type { UIMessage } from "@tanstack/ai-client";
 import { describe, expect, it, vi } from "vitest";
 import { parseAgentQuestions } from "@/components/chat/agent-question";
 import { StreamedChatMessage } from "./index";
-import { eveChatMessages } from "@dojofoo/agent/messages";
+import { eveChatMessages } from "@dojofoo/harness/messages";
 
 // This suite verifies routing, not the effect-driven Markdown compiler.
 // Real Markdown rendering is covered by the teaching-content browser tests.

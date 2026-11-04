@@ -2,8 +2,8 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Client } from "@dojofoo/agent/client";
-import { askQuestion } from "@dojofoo/agent/tools/ask_question";
+import { Client } from "@dojofoo/harness/client";
+import { askQuestion } from "@dojofoo/harness/tools/ask_question";
 import { expect, it, vi } from "vitest";
 // Shared deterministic HTTP fixture; it performs no external inference.
 // @ts-expect-error Existing JavaScript test fixture has no declaration file.

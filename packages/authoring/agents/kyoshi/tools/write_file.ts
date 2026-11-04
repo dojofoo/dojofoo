@@ -1,2 +1,2 @@
-import { disableTool } from "@dojofoo/agent/tools";
+import { disableTool } from "@dojofoo/harness/tools";
 export default disableTool();

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { launchGuard } from "@dojofoo/agent/api";
+import { launchGuard } from "@dojofoo/harness/api";
 import { requestOrigin } from "./request-origin";
 
 const key = Symbol.for("dojofoo.launchToken");

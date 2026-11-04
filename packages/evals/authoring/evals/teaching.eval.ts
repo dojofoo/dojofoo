@@ -1,5 +1,5 @@
-import { defineEval, type EveEvalContext } from "@dojofoo/agent/evals";
-import { satisfies } from "@dojofoo/agent/evals/expect";
+import { defineEval, type EveEvalContext } from "@dojofoo/harness/evals";
+import { satisfies } from "@dojofoo/harness/evals/expect";
 import { validateManifest } from "@dojofoo/config";
 import { parse } from "yaml";
 import { readMaterial } from "./material";

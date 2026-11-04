@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { createPi } from "@ai-sdk/harness-pi";
 import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
 import { generateText, jsonSchema, tool } from "ai";
-import { experimental_createHarnessModel } from "@dojofoo/agent/adapters";
+import { experimental_createHarnessModel } from "@dojofoo/harness/adapters";
 
 for (const mode of ["conversation", "tool", ...(process.env.EVE_NATIVE_COMPACTION === "1" ? ["compaction"] : [])]) test(`official Pi journal recovery without paid inference (${mode})`, async () => {
   const question = mode === "tool";

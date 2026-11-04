@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { defineEval, type EveEvalContext } from "@dojofoo/agent/evals";
-import { satisfies } from "@dojofoo/agent/evals/expect";
+import { defineEval, type EveEvalContext } from "@dojofoo/harness/evals";
+import { satisfies } from "@dojofoo/harness/evals/expect";
 import { decidePanel } from "@dojofoo/authoring/evaluation/panel";
 import instructions from "@dojofoo/authoring/eve/instructions";
 import { judgeMaterial, requireJudgeResults } from "./local-judges";

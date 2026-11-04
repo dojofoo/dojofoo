@@ -2,7 +2,7 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { HarnessAgent, createLocalHarnessSandbox, agentAdapter } from "@dojofoo/agent/adapters";
+import { HarnessAgent, createLocalHarnessSandbox, agentAdapter } from "@dojofoo/harness/adapters";
 import { isAgentId } from "@dojofoo/protocol";
 import { kyoshiInstructions } from "../eve/instructions";
 import { judgeMaterial } from "./judges";

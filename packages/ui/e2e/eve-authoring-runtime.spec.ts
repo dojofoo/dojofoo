@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { Client } from "@dojofoo/agent/client";
+import { Client } from "@dojofoo/harness/client";
 import { execFileSync, fork } from "node:child_process";
 import { once } from "node:events";
 import { readFile, readdir, realpath, writeFile } from "node:fs/promises";
@@ -8,7 +8,7 @@ import { join } from "node:path";
 
 // Opt-in infrastructure test: real Eve + official OpenCode, local model only.
 test("the starter tutorial creates an independent draft, trials it and returns after restart", async ({ page, context }) => {
-  test.skip(process.env.DOJO_AUTHORING_RUNTIME_E2E !== "1", "Requires local OpenCode and built @dojofoo/agent");
+  test.skip(process.env.DOJO_AUTHORING_RUNTIME_E2E !== "1", "Requires local OpenCode and built @dojofoo/harness");
   test.setTimeout(300_000);
   context.setDefaultTimeout(30_000);
   const fixture = fork(fileURLToPath(new URL("../../authoring/src/eve/browser.fixture.mjs", import.meta.url)), [], {

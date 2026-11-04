@@ -49,7 +49,7 @@ try {
   }));
   assert.ok(packed.files.every(({ path }) => path.startsWith("dist/") || path.startsWith("patches/") || ["package.json", "README.md"].includes(path)));
   assert.ok(packed.files.some(({ path }) => path === `patches/eve@${versions.devDependencies.eve}.patch`));
-  const localPackages = { "@dojofoo/agent": `file:${packed.filename}` };
+  const localPackages = { "@dojofoo/harness": `file:${packed.filename}` };
   for (const name of ["authoring", "config", "protocol"]) {
     const artifact = JSON.parse(execFileSync("pnpm", ["pack", "--json", "--pack-destination", root], {
       cwd: fileURLToPath(new URL(`../../../${name}/`, import.meta.url)), encoding: "utf8",

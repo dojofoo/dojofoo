@@ -5,7 +5,7 @@ import { readRecords, saveRecord } from "./records";
 import { applyLifecycle } from "./lifecycle";
 import { kataWorkspace, removeRoots } from "./test-kata.fixture";
 import { fakeEve } from "./test-eve.fixture";
-import type { SessionLifecycle } from "@dojofoo/agent/api";
+import type { SessionLifecycle } from "@dojofoo/harness/api";
 
 const roots: string[] = [];
 const cleanups: Array<() => unknown> = [];

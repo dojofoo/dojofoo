@@ -1,8 +1,8 @@
 import type { HarnessAgentAdapter } from "@ai-sdk/harness/agent";
 import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
-import { experimental_createHarnessModel, createLocalHarnessSandbox, createLocalSandbox } from "@dojofoo/agent/adapters";
-import { defineAgent } from "@dojofoo/agent";
-import { createDevelopmentServer } from "@dojofoo/agent/server";
+import { experimental_createHarnessModel, createLocalHarnessSandbox, createLocalSandbox } from "@dojofoo/harness/adapters";
+import { defineAgent } from "@dojofoo/harness";
+import { createDevelopmentServer } from "@dojofoo/harness/server";
 
 // Compile against the packed public declarations, not workspace source aliases.
 declare const harness: HarnessAgentAdapter;

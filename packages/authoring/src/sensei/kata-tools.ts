@@ -1,4 +1,4 @@
-import { defineDynamic, defineTool } from "@dojofoo/agent/tools";
+import { defineDynamic, defineTool } from "@dojofoo/harness/tools";
 import { lessonCapabilities, uiCapabilities, type LessonCheck, type SenseiSessionInfo } from "@dojofoo/protocol";
 import { z } from "zod";
 import { senseiHostPort, type SenseiRuntime } from "./agent.ts";

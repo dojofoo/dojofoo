@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
-import { Client, ClientError } from "@dojofoo/agent/client";
-import { AgentApiError, type AgentEndpoint, type DefaultSessionRequest, type DefaultSessionResponse, type Persona, type SessionRecord } from "@dojofoo/agent/api";
+import { Client, ClientError } from "@dojofoo/harness/client";
+import { AgentApiError, type AgentEndpoint, type DefaultSessionRequest, type DefaultSessionResponse, type Persona, type SessionRecord } from "@dojofoo/harness/api";
 import { readAgentModel } from "@dojofoo/config/runtime";
 import { dojoTags, tagged, type AgentId, type LearnerEvidenceExcerpt } from "@dojofoo/protocol";
 import { senseiTurn } from "../lesson/instructions";
