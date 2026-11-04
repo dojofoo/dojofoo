@@ -72,4 +72,9 @@ describe("conformance record", () => {
   it("the shipped record is the committed file", () => {
     expect(shippedConformance()).toEqual(JSON.parse(readFileSync(new URL("./conformance.json", import.meta.url), "utf8")));
   });
+
+  it("an entry's observations must be an object", () => {
+    expect(() => parseConformanceRecord(record(entry({ observations: { modelBeforeSettleHookAnswered: false } })))).not.toThrow();
+    expect(() => parseConformanceRecord(record(entry({ observations: ["not", "an", "object"] as never })))).toThrow("Invalid conformance entry 0: observations");
+  });
 });

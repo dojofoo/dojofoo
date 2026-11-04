@@ -48,16 +48,19 @@ for (const agent of agents) {
   outcomes[agent] = {};
   for (const file of (await readJson(report)).testResults ?? []) {
     for (const result of file.assertionResults ?? []) {
-      if (result.ancestorTitles?.[0] !== "tier A" || result.ancestorTitles[1] !== agent) continue;
+      // An agent's own cases, and the scripted cases its process ran once (step-5 plan, decision 5)
+      if (result.ancestorTitles?.[0] !== "tier A" || (result.ancestorTitles[1] !== agent && result.ancestorTitles[1] !== "scripted")) continue;
       const id = /^(\S+) \[/u.exec(result.title)?.[1];
       if (id) outcomes[agent][id] = result.status;
     }
   }
 }
-const due = cases.cases.filter(entry => entry.since <= cases.implementedStep && entry.tier === "A" && entry.agents === "tier-a");
+/** A case is due for an agent when it runs on every tier-A agent, on a list naming the agent, or on the scripted fixture (decision 5) */
+const dueFor = agent => cases.cases.filter(entry => entry.since <= cases.implementedStep && entry.tier === "A"
+  && (entry.agents === "tier-a" || entry.agents === "scripted" || (Array.isArray(entry.agents) && entry.agents.includes(agent))));
 const personaNow = agent => Object.fromEntries(personas.map(persona => {
   if (cases.implementedStep < cases.personaRecordedFrom[persona]) return [persona, "untested"];
-  const own = due.filter(entry => entry.persona === persona);
+  const own = dueFor(agent).filter(entry => entry.persona === persona);
   return [persona, own.length && own.every(entry => outcomes[agent]?.[entry.id] === "passed") ? "pass" : "fail"];
 }));
 
@@ -66,6 +69,7 @@ for (const agent of agents) {
   const latest = record && latestConformance(record, agent, "A");
   const passing = latest ? personas.filter(persona => latest.personas[persona] === "pass") : [];
   const ran = outcomes[agent];
+  const due = dueFor(agent);
   const failing = due.filter(entry => ran?.[entry.id] !== "passed").map(entry => entry.id);
   if (!ran) {
     if (requireAll && passing.length) failures.push(`${agent}: no report, but its recorded tier-A entry passes ${passing.join(", ")}`);

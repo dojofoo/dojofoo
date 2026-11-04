@@ -4,17 +4,19 @@ import type { AddressInfo } from "node:net";
 export interface HostPortFixtureCall { method: string; workspaceId: string; persona: string; sessionId: string; idempotencyKey: string; input: unknown; bearer?: string }
 export type HostPortFixtureHandler = (input: any, call: HostPortFixtureCall) => unknown;
 
-/** For tests only: a host port that accepts any bearer, records every call and answers from `handlers` (`{ ok: true }` otherwise). */
-export async function startHostPortFixture(options: { handlers?: Record<string, HostPortFixtureHandler> } = {}) {
+/** For tests only: a host port that accepts any bearer, records every call and answers from `handlers` (`{ ok: true }` otherwise).
+ *  `onAnswered` runs once a call's answer has been written (as the UI server's answered-first host-port work does). */
+export async function startHostPortFixture(options: { handlers?: Record<string, HostPortFixtureHandler>; onAnswered?: (call: HostPortFixtureCall) => void } = {}) {
   const calls: HostPortFixtureCall[] = [];
   const handlers = options.handlers ?? {};
   const server = createServer((request, response) => {
     const chunks: Buffer[] = [];
     request.on("data", chunk => chunks.push(chunk));
     request.on("end", async () => {
+      let answered: HostPortFixtureCall | undefined;
       const send = (status: number, body: unknown) => {
         response.writeHead(status, { "content-type": "application/json" });
-        response.end(JSON.stringify(body));
+        response.end(JSON.stringify(body), () => { if (answered) options.onAnswered?.(answered); });
       };
       const match = /\/host-port\/([^/]+)\/([^/]+)\/([^/]+)\/?$/u.exec(new URL(request.url ?? "/", "http://fixture").pathname);
       if (!match) return send(404, { error: "host_port_method_unknown", message: "No such host-port method." });
@@ -24,6 +26,7 @@ export async function startHostPortFixture(options: { handlers?: Record<string, 
       const call: HostPortFixtureCall = { method, workspaceId, persona, sessionId: body.sessionId ?? "", idempotencyKey: body.idempotencyKey ?? "", input: body.input,
         bearer: /^Bearer (.+)$/u.exec(request.headers.authorization ?? "")?.[1] };
       calls.push(call);
+      answered = call;
       try {
         const handler = Object.hasOwn(handlers, method) ? handlers[method] : undefined;
         send(200, { result: handler ? await handler(body.input, call) : { ok: true } });

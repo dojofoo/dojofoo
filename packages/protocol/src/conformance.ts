@@ -28,6 +28,8 @@ export interface ConformanceEntry {
   absolutePathReads: ReadonlyArray<{ path: string; read: boolean }> | null;
   /** Which seeded user config reached the model, per persona (D34). */
   userConfig: Partial<Record<Persona, { mcp: boolean; skill: boolean; rules: boolean }>>;
+  /** Every other observation of the run (`observations/<agent>.json`), by key: facts a case records rather than requires */
+  observations?: Readonly<Record<string, unknown>>;
   note?: string;
 }
 export interface ConformanceRecord { schema: 1; entries: readonly ConformanceEntry[] }
@@ -68,6 +70,7 @@ function entryProblem(entry: unknown): string | undefined {
   const { userConfig } = entry;
   if (!isObject(userConfig) || Object.entries(userConfig).some(([persona, seen]) => !(personas as readonly string[]).includes(persona)
     || !isObject(seen) || !isFlag(seen.mcp) || !isFlag(seen.skill) || !isFlag(seen.rules))) return "userConfig";
+  if (entry.observations !== undefined && !isObject(entry.observations)) return "observations";
   if (entry.note !== undefined && typeof entry.note !== "string") return "note";
   return undefined;
 }

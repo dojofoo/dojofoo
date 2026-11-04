@@ -14,6 +14,7 @@ import { createPi } from "@ai-sdk/harness-pi";
 import { experimental_createHarnessModel, type PreventionRecord } from "@dojofoo/agent/experimental";
 import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
 import { readOnlyAdapterSettings, readOnlyEnvironment, readOnlyToolNames, withoutBuiltinFiltering } from "@dojofoo/agent/read-only";
+import { scriptedHarness } from "@dojofoo/agent/scripted-harness";
 import { agentRow, type ResumeFailure } from "@dojofoo/protocol";
 import { expect } from "vitest";
 // Shared deterministic HTTP fixture; it performs no external inference.
@@ -380,7 +381,7 @@ export interface HostRun {
 /** Runs scripts/conformance-host.mjs in a child process group with the host environment; kills the group after 180 s.
  *  `hostPort` is the host-port fixture's URL; Sensei's host reads its session and course through it. */
 export function runHost(context: CaseContext, endpoint: LoopbackEndpoint, harnessPath: string,
-  options: { scenario: string; persona: "kyoshi" | "sensei"; hostPort?: string; model?: string; workspaceId?: string }): HostRun {
+  options: { scenario: string; persona: "kyoshi" | "sensei"; hostPort?: string; model?: string; workspaceId?: string; args?: string[] }): HostRun {
   const environment = {
     ...context.environment(endpoint),
     PATH: [join(authoring, "node_modules/.bin"), harnessPath].join(delimiter),
@@ -389,7 +390,8 @@ export function runHost(context: CaseContext, endpoint: LoopbackEndpoint, harnes
     ...context.wiring.auth(endpoint),
   };
   const args = ["scripts/conformance-host.mjs", options.scenario, context.agent, context.root, ...(options.model ? [options.model] : []),
-    "--persona", options.persona, ...(options.hostPort ? ["--host-port", options.hostPort] : []), "--workspace-id", options.workspaceId ?? `w-${context.agent}`];
+    "--persona", options.persona, ...(options.hostPort ? ["--host-port", options.hostPort] : []), "--workspace-id", options.workspaceId ?? `w-${context.agent}`,
+    ...(options.args ?? [])];
   const child = spawn(process.execPath, args, { cwd: authoring, env: environment, detached: true, stdio: ["pipe", "pipe", "pipe"] });
   let output = "";
   const results: Array<Record<string, unknown>> = [];
@@ -560,4 +562,25 @@ export async function runSenseiModel(context: CaseContext, endpoint: LoopbackEnd
     checkpoint: harnessMetadata ? [{ role: "user", content: [{ type: "text", text: options.prompt }] },
       { role: "assistant", content: [{ type: "text", text, providerOptions: { harness: harnessMetadata } }] }] : undefined,
     ...readOnlyToolNames(context.agent, senseiTools.map(tool => tool.name)) };
+}
+
+/** The scripted guard cases' model call (step-5 plan, "Conformance cases"): the scripted HarnessV1 harness in `full` mode, whose native file
+ *  operations are its own node:fs calls (decision 4). The system prompt and the no-op `root_only` tool satisfy its own checks (decision 24);
+ *  `ask_question` lets a `Native fs {…, "after": "suspend"}` prompt park on a question. */
+export async function runScriptedModel(context: CaseContext, options: { prompt: string; ask?: boolean }) {
+  const tools = [
+    { type: "function" as const, name: "root_only", description: "A no-op root tool.", inputSchema: { type: "object" as const, properties: {} } },
+    ...(options.ask ? [senseiTools[0]!] : []),
+  ];
+  const { model } = experimental_createHarnessModel({ harness: scriptedHarness, sandbox: createLocalHarnessSandbox(context.root), sandboxConfig: { workDir: "course" },
+    model: "scripted" } as never, { mode: "full" });
+  const parts: Array<Record<string, unknown>> = [];
+  let failure: unknown;
+  try {
+    const { stream } = await model.doStream({ prompt: [{ role: "system", content: "HOST_INSTRUCTIONS_LOADED" },
+      { role: "user", content: [{ type: "text", text: options.prompt }] }] as never, tools, abortSignal: AbortSignal.timeout(60_000) });
+    for await (const part of stream as unknown as AsyncIterable<Record<string, unknown>>) parts.push(part);
+  } catch (error) { failure = error; }
+  const parked = parts.some(part => part.type === "tool-call" && part.toolName === "ask_question");
+  return { parts, failure, parked };
 }

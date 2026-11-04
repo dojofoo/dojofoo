@@ -6,13 +6,15 @@ import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalHarnessSandbox, createLocalSandbox, prepareHarnessEnvironment } from "@dojofoo/agent/experimental/local";
 import { ResumeFailedError } from "@dojofoo/agent/experimental";
 import { startHostPortFixture } from "@dojofoo/agent/host-port/fixture";
+import { createFileGuard, type GuardVerdict } from "@dojofoo/agent/file-guard";
+import { lifecycleHandlers } from "@dojofoo/agent/lifecycle";
 import type { ResumeFailure } from "@dojofoo/protocol";
 import { personaRecordedFrom, type Persona } from "@dojofoo/protocol";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
   agentProcesses, caseBaseEnvironment, expectNoNativeProcesses, nativeCalls, nativeLogTail, nativeProcesses, observe, openCase, requestsCarrying, runHost, runKyoshiHost,
-  runSenseiModel, scriptedCalls, seedMarkers, snapshotDirectory, stopAfterCancel, toolListExtras, userConfigSeeds,
+  runScriptedModel, runSenseiModel, scriptedCalls, seedMarkers, snapshotDirectory, stopAfterCancel, toolListExtras, userConfigSeeds,
   type CaseContext, type LoopbackEndpoint, type TierAAgent, type ToolRequest,
 } from "./conformance.fixture";
 import { acpModels } from "./models";
@@ -22,7 +24,7 @@ import instructions from "./instructions";
 
 // Tier A of docs/designs/agent-runtime.md, "Conformance tiers": every registry row with an adapter except Cursor,
 // against the loopback model. The case list, its tags and its runner are docs/designs/agent-runtime.steps/step-3.md.
-const implementedStep = 4;                                   // each later step raises it
+const implementedStep = 5;                                   // each later step raises it
 interface ConformanceCase {
   id: string;                 // "<persona>.<level>.<name>", the record's key; never reused
   persona: Persona;
@@ -71,28 +73,88 @@ async function resumedSession(context: CaseContext, endpoint: LoopbackEndpoint) 
   return { harness, agent, session: resumed, sessionId: session.sessionId };
 }
 
+/** The turn's own main-loop request (it offers tools), not an agent's side request with the same prompt (OpenCode's title) */
+const holdsTurn = (request: unknown) => {
+  const tools = (request as { tools?: unknown } | null)?.tools;
+  return Array.isArray(tools) && tools.length > 0 && JSON.stringify(request).includes("Introduce the lesson.");
+};
+
+/** Whether a model request offers the host tool: by name, or through the agent's own tool discovery (Grok finds host tools with
+ *  `search_tool` and calls them with `use_tool`, so its list never names them; decision 68) */
+const offers = (endpoint: LoopbackEndpoint, index: number, tool: string) =>
+  (endpoint.toolLists[index] ?? []).some(name => name.endsWith(tool) || name === "search_tool");
+
+/** A kata session's material, as the UI server answers `context` (step-5 plan, "Tier-A fixture answers") */
+const kataContext = { kind: "kata", hash: "fixture", course: { id: "kata-course", title: "Kata course" }, guidance: "SENSEI-GUIDANCE-MARKER",
+  lesson: { id: "first", source: "# First\n\n## Briefing\nKATA-SOURCE-MARKER\n", fragmentIds: ["hint"] },
+  context: { phase: "start", course: { id: "kata-course", completedLessons: [] }, lesson: { id: "first", title: "First", objective: "KATA-OBJECTIVE-MARKER", state: "ongoing" },
+    learner: { file: { path: "first.ts", language: "typescript", content: "export const answer = 0; // KATA-FILE-MARKER\n" }, latestCheck: null } } };
+const kataCheck = { observationId: "fixture-check", report: { passed: 0, failed: 1, skipped: 0, total: 1, complete: false,
+  tests: [{ name: "KATA-REPORT-MARKER", suite: [], status: "failed", failureMessages: ["expected 42"] }] } };
+
 /** The host-port fixture a Sensei or Kyoshi host reports to; Sensei's session and course come from it. Its tool-call reads
- *  (keys `<session>:<callId>`) run once per key, as the UI server's idempotency keeps a mutating call's result. */
-async function hostPort(context: CaseContext, options: { model?: () => string | undefined; context?: (key: string) => Promise<void> | void } = {}) {
+ *  (keys `<session>:<callId>`) run once per key, as the UI server's idempotency keeps a mutating call's result. A kata fixture
+ *  (`mode: "katas"`) answers the kata context, `check`, `turn.check` (409 for a turn the case marked interrupted) and `navigate`. */
+async function hostPort(context: CaseContext, options: { model?: () => string | undefined; context?: (key: string) => Promise<void> | void;
+  mode?: "katas" | "interactive"; check?: (key: string) => Promise<void> | void; interrupted?: Set<string>;
+  handlers?: Record<string, (input: any, call: any) => unknown>; onAnswered?: (call: any) => void } = {}) {
+  const kata = options.mode === "katas";
   const executions = new Map<string, number>();
   const memo = new Map<string, Promise<unknown>>();
-  const port = await startHostPortFixture({ handlers: {
-    session: () => ({ courseId: "first", mode: "interactive", revision: 0, ...(options.model?.() ?? context.wiring.hostModel ?? context.wiring.firstModel
+  const once = (key: string, run: () => Promise<unknown>) => {
+    if (!memo.has(key)) {
+      executions.set(key, (executions.get(key) ?? 0) + 1);
+      memo.set(key, run());
+    }
+    return memo.get(key);
+  };
+  const port = await startHostPortFixture({ onAnswered: options.onAnswered, handlers: {
+    session: () => ({ courseId: kata ? "kata-course" : "first", ...(kata ? { lessonId: "first" } : {}), mode: kata ? "katas" : "interactive", revision: 0,
+      ...(options.model?.() ?? context.wiring.hostModel ?? context.wiring.firstModel
       ? { model: options.model?.() ?? context.wiring.hostModel ?? context.wiring.firstModel } : {}) }),
     context: (_input, call) => {
-      const body = { kind: "interactive", hash: "fixture", course: { id: "first", title: "First" }, guidance: "SENSEI-GUIDANCE-MARKER",
+      const body = kata ? kataContext : { kind: "interactive", hash: "fixture", course: { id: "first", title: "First" }, guidance: "SENSEI-GUIDANCE-MARKER",
         lesson: { title: "Lesson", marker: "ONMESSAGE-CONTEXT-MARKER" } };
       if (!call.idempotencyKey.includes(":")) return body;
       // A tool call: its own marker, and one run per key
-      if (!memo.has(call.idempotencyKey)) {
-        executions.set(call.idempotencyKey, (executions.get(call.idempotencyKey) ?? 0) + 1);
-        memo.set(call.idempotencyKey, Promise.resolve(options.context?.(call.idempotencyKey)).then(() => ({ ...body, toolMarker: "TOOL-CONTEXT-MARKER" })));
-      }
-      return memo.get(call.idempotencyKey);
+      return once(call.idempotencyKey, () => Promise.resolve(options.context?.(call.idempotencyKey)).then(() => ({ ...body, toolMarker: "TOOL-CONTEXT-MARKER" })));
     },
+    ...(kata ? {
+      check: (_input: unknown, call: { idempotencyKey: string }) => once(call.idempotencyKey, () => Promise.resolve(options.check?.(call.idempotencyKey)).then(() => kataCheck)),
+      "turn.check": (input: { turnId?: string }) => {
+        if (input?.turnId && options.interrupted?.has(input.turnId)) throw Object.assign(new Error("This turn was interrupted by an agent switch."), { status: 409, code: "turn_interrupted" });
+        return { ok: true };
+      },
+      navigate: () => ({ courseId: "kata-course", lessonId: "second" }),
+    } : {}),
+    ...options.handlers,
   } });
   context.defer(() => port.close());
   return { ...port, executions, recorded: (method: string) => port.calls.filter(call => call.method === method) };
+}
+
+/** A scripted guard case's window on `<case root>/course/solution.ts` (or a missing `created.ts`), a guard store under the case root, and the
+ *  lifecycle hook's handlers bound to a host-port fixture whose pause and settle verify that window (or to a closed port: `portDown`) */
+async function scriptedGuard(context: CaseContext, options: { create?: boolean; portDown?: boolean } = {}) {
+  const file = join(context.course, options.create ? "created.ts" : "solution.ts");
+  if (!options.create) await writeFile(file, "export const answer = 0;\n");
+  const guard = createFileGuard(join(context.root, "guard"));
+  const sessionId = `eve-scripted-${context.id}`;
+  const window = await guard.open(sessionId, file);
+  const verdicts: GuardVerdict[] = [];
+  const verify = async () => {
+    const verdict = await guard.verify(window.id);
+    if (verdict) verdicts.push(verdict);
+    return { ok: true };
+  };
+  const port = await startHostPortFixture({ handlers: { "turn.paused": verify, "turn.settled": verify } });
+  context.defer(() => port.close());
+  const handlers = lifecycleHandlers(async () => ({ url: options.portDown ? "http://127.0.0.1:9/api/host-port" : port.url, workspaceId: "w-scripted", persona: "sensei", secret: "scripted" }));
+  const ctx = { session: { id: sessionId } };
+  const report = (parked: boolean) => parked
+    ? handlers["turn.paused"]({ data: { turnId: "turn_0", awaiting: [{ interactionId: "question" }] } }, ctx)
+    : handlers["turn.settled"]({ data: { turnId: "turn_0", outcome: "completed" } }, ctx);
+  return { file, guard, window, verdicts, report, quarantine: join(context.root, "guard", "quarantine") };
 }
 
 /** Pseudo-tools that run nothing: OpenCode reports a call to a tool it doesn't have through "invalid"; Grok's ACP adapter reports
@@ -647,19 +709,318 @@ const cases: ConformanceCase[] = [
       expect(await snapshot()).toEqual(initialised);
     },
   },
-  later(5, "sensei", "sensei.kata.host-tool-turn", "Kata Sensei calls Check through the host port"),
-  later(5, "sensei", "sensei.kata.ask-answer-across-restart", "Kata Sensei parks a question across a host restart"),
-  later(5, "sensei", "sensei.kata.cancel-pending-host-tool", "Kata Sensei cancels with a host tool pending"),
-  later(5, "sensei", "sensei.kata.resume-after-eviction", "Kata Sensei resumes after eviction"),
-  later(5, "sensei", "sensei.guard.write-restored", "The guard restores a native write", { agents: "scripted" }),
-  later(5, "sensei", "sensei.guard.delete-restored", "The guard restores a native delete", { agents: "scripted" }),
-  later(5, "sensei", "sensei.guard.create-restored", "The guard removes a native create", { agents: "scripted" }),
-  later(5, "sensei", "sensei.guard.write-after-pause", "A write after the pause is not restored, and is recorded (accepted residual)", { agents: "scripted" }),
-  later(5, "sensei", "sensei.guard.host-port-down-at-pause", "The guard handles a host port that is down at the pause", { agents: "scripted" }),
-  later(5, "sensei", "sensei.check.during-working-turn", "Check during a working turn, then settle (open risk 4)"),
-  later(5, "sensei", "sensei.switch.timeout-marks-interrupted", "An agent switch that times out marks the turn interrupted"),
-  later(5, "sensei", "sensei.switch.during-working-turn", "An agent switch during a working turn"),
-  later(5, "sensei", "sensei.host.start-after-eve-version-change", "A host start after an Eve version change closes a working session's window"),
+  {
+    id: "sensei.kata.host-tool-turn", persona: "sensei", since: 5, tier: "A", agents: "tier-a",
+    title: "Kata Sensei calls Check through the host port",
+    async run(context) {
+      const endpoint = await context.loopback({ name: "dojo_lesson_verify", input: {} });
+      const port = await hostPort(context, { mode: "katas" });
+      const ended = await runHost(context, endpoint, harnessPath, { scenario: "host-tool-turn", persona: "sensei", hostPort: port.url }).done;
+      const diagnostics = diagnosticsOf(endpoint, ended.output);
+      expect(ended.error, diagnostics).toBeUndefined();
+      const replied = ended.results.find(entry => entry.step === "replied") as { reply: string; sessionId: string };
+      expect(replied?.reply, diagnostics).toBe("Ready to teach.");
+      const firstMain = endpoint.requests.findIndex((_request, index) => endpoint.toolLists[index]?.length);
+      expect(offers(endpoint, firstMain, "dojo_lesson_verify"), diagnostics).toBe(true);
+      expect(JSON.stringify(endpoint.requests[firstMain]).split("KATA-FILE-MARKER").length - 1, diagnostics).toBe(1);
+      const keys = [...port.executions.keys()].filter(key => port.recorded("check").some(call => call.idempotencyKey === key));
+      expect(keys, diagnostics).toHaveLength(1);
+      expect(keys[0]!.startsWith(`${replied.sessionId}:`)).toBe(true);
+      expect(port.executions.get(keys[0]!)).toBe(1);
+      expect(requestsCarrying(endpoint, "KATA-REPORT-MARKER").length, diagnostics).toBeGreaterThan(0);
+    },
+  },
+  {
+    id: "sensei.kata.ask-answer-across-restart", persona: "sensei", since: 5, tier: "A", agents: "tier-a",
+    title: "Kata Sensei parks a question across a host restart",
+    async run(context) {
+      const endpoint = await context.loopback({ name: "ask_question", input: { question: "Which learner?" } });
+      const port = await hostPort(context, { mode: "katas" });
+      const ended = await runHost(context, endpoint, harnessPath, { scenario: "ask-answer-across-restart", persona: "sensei", hostPort: port.url }).done;
+      const diagnostics = diagnosticsOf(endpoint, ended.output);
+      expect(ended.error, diagnostics).toBeUndefined();
+      const started = ended.results.filter(entry => entry.step === "started");
+      expect(started).toHaveLength(2);
+      expect(started[0]!.secret).not.toBe(started[1]!.secret);
+      const parked = ended.results.find(entry => entry.step === "parked") as { interactions: Array<{ prompt: string }> };
+      expect(parked.interactions[0]?.prompt, diagnostics).toBe("Which learner?");
+      const answered = ended.results.find(entry => entry.step === "answered") as { reply: string };
+      expect(answered?.reply, diagnostics).toBe("Ready to teach.");
+      // The restarted host's requests still offer the kata tools
+      const lastMain = endpoint.toolLists.map((list, index) => list.length ? index : -1).reduce((last, index) => Math.max(last, index), -1);
+      expect(offers(endpoint, lastMain, "dojo_lesson_verify"), diagnostics).toBe(true);
+      expect(port.recorded("turn.settled").map(call => (call.input as { outcome?: string }).outcome)).toContain("completed");
+    },
+  },
+  {
+    id: "sensei.kata.cancel-pending-host-tool", persona: "sensei", since: 5, tier: "A", agents: "tier-a",
+    title: "Kata Sensei cancels with a host tool pending",
+    async run(context) {
+      const endpoint = await context.loopback({ name: "dojo_lesson_verify", input: {} });
+      let releaseCheck = () => {};
+      const released = new Promise<void>(resolve => { releaseCheck = resolve; });
+      context.defer(() => releaseCheck());
+      const port = await hostPort(context, { mode: "katas", check: () => released });
+      const host = runHost(context, endpoint, harnessPath, { scenario: "cancel-pending-host-tool", persona: "sensei", hostPort: port.url });
+      await host.step("cancelled");
+      await expect.poll(() => port.recorded("turn.settled").map(call => (call.input as { outcome?: string }).outcome), { timeout: 15_000 }).toContain("cancelled");
+      await expectEvicted(context);
+      const requests = endpoint.requests.length;
+      releaseCheck();
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      expect(endpoint.requests.length, "no model request after the cancel").toBe(requests);
+      host.send("done");
+      expect((await host.done).exitCode).toBe(0);
+    },
+  },
+  {
+    id: "sensei.kata.resume-after-eviction", persona: "sensei", since: 5, tier: "A", agents: "tier-a",
+    title: "Kata Sensei resumes after eviction",
+    async run(context) {
+      const endpoint = await context.loopback({ name: "dojo_lesson_verify", input: {} });
+      let releaseCheck = () => {};
+      const released = new Promise<void>(resolve => { releaseCheck = resolve; });
+      context.defer(() => releaseCheck());
+      const port = await hostPort(context, { mode: "katas", check: () => released });
+      const host = runHost(context, endpoint, harnessPath, { scenario: "resume-after-eviction", persona: "sensei", hostPort: port.url });
+      await host.step("cancelled");
+      await expectEvicted(context);
+      releaseCheck();
+      host.send("continue");
+      const continued = await host.step("continued");
+      expect(continued.reply, diagnosticsOf(endpoint)).toMatch(/Ready to teach\.$/u);
+      const request = requestsCarrying(endpoint, "Continue the lesson.").at(-1);
+      expect(request, diagnosticsOf(endpoint)).toBeDefined();
+      expect(JSON.stringify(request!.request)).toContain("Introduce the lesson.");
+      host.send("done");
+      expect((await host.done).exitCode).toBe(0);
+    },
+  },
+  {
+    id: "sensei.guard.write-restored", persona: "sensei", since: 5, tier: "A", agents: "scripted",
+    title: "The guard restores a native write",
+    async run(context) {
+      const guarded = await scriptedGuard(context);
+      const run = await runScriptedModel(context, { prompt: `Native fs ${JSON.stringify({ op: "write", path: guarded.file, content: "native write\n" })}` });
+      expect(run.failure).toBeUndefined();
+      await guarded.report(run.parked);
+      expect(guarded.verdicts.map(verdict => verdict.action)).toEqual(["restored"]);
+      expect(await readFile(guarded.file, "utf8")).toBe("export const answer = 0;\n");
+      expect(await readFile(guarded.verdicts[0]!.quarantined!, "utf8")).toBe("native write\n");
+    },
+  },
+  {
+    id: "sensei.guard.delete-restored", persona: "sensei", since: 5, tier: "A", agents: "scripted",
+    title: "The guard restores a native delete",
+    async run(context) {
+      const guarded = await scriptedGuard(context);
+      const run = await runScriptedModel(context, { prompt: `Native fs ${JSON.stringify({ op: "delete", path: guarded.file })}` });
+      expect(run.failure).toBeUndefined();
+      await guarded.report(run.parked);
+      expect(guarded.verdicts.map(verdict => verdict.action)).toEqual(["recreated"]);
+      expect(await readFile(guarded.file, "utf8")).toBe("export const answer = 0;\n");
+      expect(existsSync(guarded.quarantine) ? await readdir(guarded.quarantine) : []).toEqual([]);
+    },
+  },
+  {
+    id: "sensei.guard.create-restored", persona: "sensei", since: 5, tier: "A", agents: "scripted",
+    title: "The guard removes a native create",
+    async run(context) {
+      const guarded = await scriptedGuard(context, { create: true });
+      const run = await runScriptedModel(context, { prompt: `Native fs ${JSON.stringify({ op: "create", path: guarded.file, content: "created natively\n" })}` });
+      expect(run.failure).toBeUndefined();
+      await guarded.report(run.parked);
+      expect(guarded.verdicts.map(verdict => verdict.action)).toEqual(["removed"]);
+      expect(existsSync(guarded.file)).toBe(false);
+      expect(await readFile(guarded.verdicts[0]!.quarantined!, "utf8")).toBe("created natively\n");
+    },
+  },
+  {
+    id: "sensei.guard.write-after-pause", persona: "sensei", since: 5, tier: "A", agents: "scripted",
+    title: "A write after the pause is not restored, and is recorded (accepted residual)",
+    async run(context) {
+      const guarded = await scriptedGuard(context);
+      const run = await runScriptedModel(context, { ask: true,
+        prompt: `Native fs ${JSON.stringify({ op: "write", path: guarded.file, content: "written while parked\n", after: "suspend", delayMs: 500 })}` });
+      expect(run.failure).toBeUndefined();
+      expect(run.parked).toBe(true);
+      await guarded.report(run.parked);
+      expect(guarded.verdicts.map(verdict => verdict.action)).toEqual(["unchanged"]);
+      await new Promise(resolve => setTimeout(resolve, 1_000));
+      expect(await readFile(guarded.file, "utf8")).toBe("written while parked\n");
+      await new Promise(resolve => setTimeout(resolve, 500));
+      expect(await readFile(guarded.file, "utf8")).toBe("written while parked\n");
+      for (const agent of agents) await observe(agent, "guardWriteAfterPause", true);
+    },
+  },
+  {
+    id: "sensei.guard.host-port-down-at-pause", persona: "sensei", since: 5, tier: "A", agents: "scripted",
+    title: "The guard handles a host port that is down at the pause",
+    async run(context) {
+      const guarded = await scriptedGuard(context, { portDown: true });
+      const run = await runScriptedModel(context, { ask: true,
+        prompt: `Native fs ${JSON.stringify({ op: "write", path: guarded.file, content: "written while the port was down\n", after: "suspend", delayMs: 500 })}` });
+      expect(run.failure).toBeUndefined();
+      await guarded.report(run.parked);
+      // The pause reached nothing: the window stays open and the write lands
+      expect(guarded.verdicts).toEqual([]);
+      expect(await guarded.guard.list()).toHaveLength(1);
+      await new Promise(resolve => setTimeout(resolve, 1_000));
+      expect(await readFile(guarded.file, "utf8")).toBe("written while the port was down\n");
+      // As the UI server's start verifies every persisted window
+      const verdicts = await Promise.all((await guarded.guard.list()).map(window => guarded.guard.verify(window.id)));
+      expect(verdicts.map(verdict => verdict?.action)).toEqual(["restored"]);
+      expect(await readFile(guarded.file, "utf8")).toBe("export const answer = 0;\n");
+      expect(await readFile(verdicts[0]!.quarantined!, "utf8")).toBe("written while the port was down\n");
+    },
+  },
+  {
+    id: "sensei.check.during-working-turn", persona: "sensei", since: 5, tier: "A", agents: "tier-a",
+    title: "Check during a working turn, then settle (open risk 4)",
+    async run(context) {
+      const endpoint = await context.loopback();
+      const held = endpoint.holdNextResponse(holdsTurn);
+      context.defer(() => held.release());
+      let host: ReturnType<typeof runHost> | undefined;
+      let sessionId = "";
+      const report = (n: number) => host?.send(`report:${JSON.stringify({ text: `[dojo:check] Ran lesson checks.\n\n{"report":"CHECK-REPORT-${n}"}`, key: `check:${sessionId}:${n}` })}`);
+      let settles = 0;
+      let modelBeforeAnswer: boolean | undefined;
+      const port = await hostPort(context, { mode: "katas",
+        handlers: { "turn.settled": async () => {
+          const n = ++settles;
+          // The first settle answers after 1 s; the report goes once that answer is written (onAnswered), as the UI server's afterAnswer does
+          if (n === 1) await new Promise(resolve => setTimeout(resolve, 1_000));
+          // The report's own settle is held 2 s while the second report is sent: does Eve start its model call before the answer?
+          if (n === 2) {
+            report(2);
+            const until = Date.now() + 2_000;
+            while (Date.now() < until && !requestsCarrying(endpoint, "CHECK-REPORT-2").length) await new Promise(resolve => setTimeout(resolve, 50));
+            modelBeforeAnswer = requestsCarrying(endpoint, "CHECK-REPORT-2").length > 0;
+            await new Promise(resolve => setTimeout(resolve, Math.max(0, until - Date.now())));
+          }
+          return { ok: true };
+        } },
+        onAnswered: call => { if (call.method === "turn.settled" && settles === 1) report(1); },
+      });
+      host = runHost(context, endpoint, harnessPath, { scenario: "check-during-turn", persona: "sensei", hostPort: port.url });
+      const working = await host.step("working") as { sessionId: string; turnId: string };
+      sessionId = working.sessionId;
+      await held.started;
+      held.release();
+      const first = await host.step(`reported:check:${sessionId}:1`, 60_000) as { status: number; deliveryId: string | null; at: number };
+      expect(first.status, diagnosticsOf(endpoint)).toBe(202);
+      await expect.poll(() => settles, { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
+      const firstAnswered = port.recorded("turn.settled")[0]!;
+      expect(requestsCarrying(endpoint, "CHECK-REPORT-1").length, diagnosticsOf(endpoint)).toBeGreaterThan(0);
+      const turns = new Set(port.recorded("turn.settled").map(call => (call.input as { turnId?: string }).turnId));
+      expect(turns.size, "the report starts its own turn").toBeGreaterThanOrEqual(2);
+      expect((firstAnswered.input as { turnId?: string }).turnId).toBe(working.turnId);
+      await host.step(`reported:check:${sessionId}:2`, 60_000);
+      await expect.poll(() => settles, { timeout: 60_000 }).toBeGreaterThanOrEqual(3);
+      // Each report's delivery is consumed once
+      await expect.poll(() => port.recorded("delivery.consumed").filter(call => (call.input as { deliveryId?: string }).deliveryId === first.deliveryId).length, { timeout: 15_000 }).toBe(1);
+      await observe(context.agent, "modelBeforeSettleHookAnswered", modelBeforeAnswer);
+      host.send("done");
+      expect((await host.done).exitCode).toBe(0);
+    },
+  },
+  {
+    id: "sensei.switch.timeout-marks-interrupted", persona: "sensei", since: 5, tier: "A", agents: "tier-a",
+    title: "An agent switch that times out marks the turn interrupted",
+    async run(context) {
+      const endpoint = await context.loopback();
+      const held = endpoint.holdNextResponse(holdsTurn);
+      context.defer(() => held.release());
+      const interrupted = new Set<string>();
+      const port = await hostPort(context, { mode: "katas", interrupted });
+      const host = runHost(context, endpoint, harnessPath, { scenario: "interrupted-after-kill", persona: "sensei", hostPort: port.url });
+      const working = await host.step("working") as { sessionId: string; turnId: string };
+      await held.started;
+      // The switch timeout's host stop; the held response stays held, so a native process the killed host left (which the restarted host
+      // reaps) can't send another request either
+      host.kill();
+      await host.done;
+      interrupted.add(working.turnId);
+      // Main-loop requests (those offering tools): an agent's own side requests, such as OpenCode's title, are not the turn
+      const mainLoop = () => endpoint.requests.filter((_request, index) => endpoint.toolLists[index]?.length).length;
+      const requests = mainLoop();
+      const recovered = await runHost(context, endpoint, harnessPath, { scenario: "recover-session", persona: "sensei", hostPort: port.url,
+        args: ["--session", working.sessionId, "--turn", working.turnId] }).done;
+      const diagnostics = diagnosticsOf(endpoint, recovered.output);
+      expect(recovered.error, diagnostics).toBeUndefined();
+      const result = recovered.results.find(entry => entry.step === "recovered") as { outcome: string; error: { code?: string; message?: string } | null };
+      // Recovered within the bound, the run fails before any native call (turn.check refused it); otherwise Eve leaves it open (decision 66)
+      expect(["failed", "open"], diagnostics).toContain(result?.outcome);
+      expect(mainLoop(), `no model request after the restart: ${diagnostics}`).toBe(requests);
+      if (result.outcome === "failed") {
+        expect(port.recorded("turn.settled").map(call => (call.input as { outcome?: string }).outcome)).toContain("failed");
+        expect(port.recorded("turn.check").some(call => (call.input as { turnId?: string }).turnId === working.turnId), diagnostics).toBe(true);
+      }
+      await observe(context.agent, "interruptedTurnRecovery", result.outcome);
+      await observe(context.agent, "interruptedTurnError", result.error ? { code: result.error.code ?? null, message: result.error.message ?? null } : null);
+    },
+  },
+  {
+    id: "sensei.switch.during-working-turn", persona: "sensei", since: 5, tier: "A", agents: "tier-a",
+    title: "An agent switch during a working turn",
+    async run(context) {
+      const endpoint = await context.loopback();
+      const held = endpoint.holdNextResponse(holdsTurn);
+      context.defer(() => held.release());
+      const port = await hostPort(context, { mode: "katas" });
+      const host = runHost(context, endpoint, harnessPath, { scenario: "switch-during-turn", persona: "sensei", hostPort: port.url });
+      await host.step("working");
+      await held.started;
+      host.send("cancel");
+      const cancelled = await host.step("cancelled") as { outcome: string; ms: number };
+      expect(cancelled.outcome, diagnosticsOf(endpoint)).toBe("cancelled");
+      expect(cancelled.ms).toBeLessThan(10_000);
+      held.release();
+      const closed = await host.step("closed") as { processes: string[] };
+      expect(closed.processes).toEqual([]);
+      const prompts = requestsCarrying(endpoint, "Introduce the lesson.").length;
+      await host.step("restarted");
+      expect(requestsCarrying(endpoint, "Introduce the lesson.").length, "the new host never runs the cancelled turn's prompt").toBe(prompts);
+      expect((await host.done).exitCode).toBe(0);
+    },
+  },
+  {
+    id: "sensei.host.start-after-eve-version-change", persona: "sensei", since: 5, tier: "A", agents: "tier-a",
+    title: "A host start after an Eve version change closes a working session's window",
+    async run(context) {
+      const endpoint = await context.loopback();
+      let settleCalls = 0;
+      let settleSeen = () => {};
+      const seen = new Promise<void>(resolve => { settleSeen = resolve; });
+      const port = await hostPort(context, { mode: "katas", handlers: { "turn.settled": async () => {
+        settleCalls++;
+        settleSeen();
+        // Held: the host is killed while this call is open, as a host is stopped with its settle unreported
+        await new Promise(() => {});
+      } } });
+      const host = runHost(context, endpoint, harnessPath, { scenario: "settle-hook-lost", persona: "sensei", hostPort: port.url });
+      const working = await host.step("working") as { sessionId: string; turnId: string };
+      // The guard window the UI server opened for the turn
+      const file = join(context.root, "solution.ts");
+      await writeFile(file, "export const answer = 0;\n");
+      const guard = createFileGuard(join(context.root, "guard"));
+      const window = await guard.open(working.sessionId, file);
+      await seen;
+      host.kill();
+      await host.done;
+      const inspected = await runHost(context, endpoint, harnessPath, { scenario: "inspect-session", persona: "sensei", hostPort: port.url,
+        args: ["--session", working.sessionId] }).done;
+      const diagnostics = diagnosticsOf(endpoint, inspected.output);
+      expect(inspected.error, diagnostics).toBeUndefined();
+      const result = inspected.results.find(entry => entry.step === "inspected") as { active: string | null; settled: string[] };
+      expect(result?.active, diagnostics).toBeNull();
+      expect(settleCalls, "Eve does not run the settle hook again after a restart").toBe(1);
+      // What the reconcile does for a turn with no active run: verify and close its window
+      expect(await guard.verify(window.id)).toMatchObject({ action: "unchanged" });
+      expect(await guard.list()).toEqual([]);
+    },
+  },
   later(6, "kyoshi", "kyoshi.switch.away-and-back", "Switching away and back continues the old Kyoshi conversation (D31)"),
   later(6, "sensei", "sensei.switch.away-and-back", "Switching away and back continues the old Sensei conversation (D31)"),
   later(6, "kyoshi", "kyoshi.switch.new-agent-new-session", "After an agent switch the page opens a new Kyoshi session (D29)"),
@@ -675,7 +1036,6 @@ const cases: ConformanceCase[] = [
 // A step cannot raise implementedStep and leave a case behind; this throws at collection, in every run.
 for (const entry of cases) {
   if (entry.since <= implementedStep && !entry.run) throw new Error(`${entry.id} is due in step ${entry.since} but has no body`);
-  if (entry.since <= implementedStep && entry.agents === "scripted") throw new Error(`${entry.id} is a scripted case; step ${entry.since} adds their runner`);
 }
 const allAgents: TierAAgent[] = tierAAgents({});
 const agents: TierAAgent[] = tierAAgents();   // narrowed by DOJO_CONFORMANCE_AGENTS
@@ -708,6 +1068,17 @@ describe.skipIf(process.env.DOJO_HARNESS_LIFECYCLE !== "1")("tier A", () => {
       }
     });
   }
+  // Agent-independent: once per Vitest process, under "scripted"; each per-agent process's report carries them for its agent (decision 5)
+  describe("scripted", () => {
+    for (const entry of due.filter(item => item.agents === "scripted")) {
+      it(title(entry), async () => {
+        const context = await openCase(agents[0]!, entry.id, harnessPath);
+        try { await entry.run!(context); }
+        finally { await context.close(); }
+        await expectNoNativeProcesses(context.markers);
+      }, 120_000);
+    }
+  });
   describe("due in a later step", () => {
     for (const entry of cases.filter(item => item.since > implementedStep)) it.todo(title(entry));
   });

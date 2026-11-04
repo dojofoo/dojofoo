@@ -20,7 +20,10 @@ if (run.dirty && !process.argv.includes("--allow-dirty")) {
 const record = parseConformanceRecord(await readJson(recordPath));
 const cases = await readJson(join(out, "cases.json"));
 const versions = await readJson(join(out, "versions.json"));
-const due = cases.cases.filter(entry => entry.since <= cases.implementedStep && entry.tier === "A" && entry.agents === "tier-a");
+/** A case is due for an agent when it runs on every tier-A agent, on a list naming the agent, or on the scripted fixture (decision 5) */
+const dueFor = agent => cases.cases.filter(entry => entry.since <= cases.implementedStep && entry.tier === "A"
+  && (entry.agents === "tier-a" || entry.agents === "scripted" || (Array.isArray(entry.agents) && entry.agents.includes(agent))));
+const kept = new Set(["latency", "absolutePathReads", "userConfig"]);
 const entries = [];
 for (const agent of cases.agents) {
   const report = join(out, `report-${agent}.json`);
@@ -28,7 +31,8 @@ for (const agent of cases.agents) {
   const outcomes = {};
   for (const file of (await readJson(report)).testResults ?? []) {
     for (const result of file.assertionResults ?? []) {
-      if (result.ancestorTitles?.[0] !== "tier A" || result.ancestorTitles[1] !== agent) continue;
+      // An agent's own cases, and the scripted cases its process ran once (step-5 plan, decision 5)
+      if (result.ancestorTitles?.[0] !== "tier A" || (result.ancestorTitles[1] !== agent && result.ancestorTitles[1] !== "scripted")) continue;
       const id = /^(\S+) \[/u.exec(result.title)?.[1];
       if (id) outcomes[id] = result.status;
     }
@@ -36,6 +40,8 @@ for (const agent of cases.agents) {
   const installed = versions[agent];
   if (!installed || installed.error) throw new Error(`${agent}: versions.json has no installed CLI: ${installed?.error ?? "missing"}`);
   const observations = existsSync(join(out, "observations", `${agent}.json`)) ? await readJson(join(out, "observations", `${agent}.json`)) : {};
+  const due = dueFor(agent);
+  const other = Object.fromEntries(Object.entries(observations).filter(([key]) => !kept.has(key)));
   entries.push({
     agent, tier, recordedAt: new Date().toISOString(), commit: run.commit, platform: run.platform, step: cases.implementedStep,
     adapter: installed.adapter, cli: installed.cli, cliRange: argument("--cli-range") ?? `=${installed.cli.version}`,
@@ -48,6 +54,7 @@ for (const agent of cases.agents) {
     latency: observations.latency ?? null,
     absolutePathReads: observations.absolutePathReads ?? null,
     userConfig: observations.userConfig ?? {},
+    ...(Object.keys(other).length ? { observations: other } : {}),
     ...(argument("--note") ? { note: argument("--note") } : {}),
   });
 }

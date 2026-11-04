@@ -13,7 +13,10 @@ import { agentRow, isAgentId } from "@dojofoo/protocol";
 const scenarios = {
   kyoshi: ["ask-answer-across-restart", "cancel-pending-host-tool", "resume-after-eviction", "crash-after-park", "restart-only"],
   sensei: ["ask-answer-across-restart", "cancel-pending-host-tool", "resume-after-eviction", "crash-after-park", "restart-only",
-    "host-tool-turn", "model-switch", "rerun-no-duplicate"],
+    "host-tool-turn", "model-switch", "rerun-no-duplicate",
+    // Step 5: a report during a working turn, a switch's cancel, a killed host whose turn is interrupted, a settle hook lost to a crash,
+    // and the restarts that read what those left (`--session <id>`)
+    "check-during-turn", "switch-during-turn", "interrupted-after-kill", "settle-hook-lost", "recover-session", "inspect-session"],
 };
 const argument = name => { const index = process.argv.indexOf(name); return index === -1 ? undefined : process.argv[index + 1]; };
 const positional = process.argv.slice(2).filter((value, index, all) => !value.startsWith("--") && !all[index + 1 - 1 - 1]?.startsWith("--"));
@@ -21,6 +24,7 @@ const [scenario, agent, root, model] = positional;
 const persona = argument("--persona") ?? "kyoshi";
 const hostPortUrl = argument("--host-port");
 const workspaceId = argument("--workspace-id");
+const sessionArgument = argument("--session");
 if (!existsSync(new URL("../dist/eve/runtime.js", import.meta.url))) {
   console.error('Build authoring first: pnpm --filter "@dojofoo/authoring..." build');
   process.exit(2);
@@ -40,7 +44,7 @@ const start = async options => {
   const started = await runtime.start();
   const configuration = JSON.parse(await readFile(join(root, app, "runtime.json"), "utf8"));
   result({ step: "started", harness: configuration.harness, secret: started.secret });
-  return { runtime, client: new Client({ baseUrl: started.url, auth: started.auth }) };
+  return { runtime, started, client: new Client({ baseUrl: started.url, auth: started.auth }) };
 };
 /** Native processes of this case still running (their command names the case root or the harness bootstrap), not this driver's */
 const caseProcesses = () => {
@@ -62,6 +66,21 @@ const waitForLine = expected => new Promise(resolve => {
   check();
 });
 const turn = () => AbortSignal.timeout(120_000);
+/** Each stdin line that starts with `prefix`, as it arrives */
+const onLines = (prefix, handle) => {
+  let seen = 0;
+  listeners.push(() => {
+    for (; seen < received.length; seen++) if (received[seen].startsWith(prefix)) void handle(received[seen].slice(prefix.length));
+  });
+};
+/** A server turn as the UI server posts one: the message with its idempotency key and turn policy (fact 11) */
+async function post(started, sessionId, body) {
+  const authorization = `Basic ${Buffer.from(`${started.auth.basic.username}:${started.auth.basic.password}`).toString("base64")}`;
+  const response = await fetch(`${started.url.replace(/\/$/u, "")}/eve/v1/session/${encodeURIComponent(sessionId)}`, {
+    method: "POST", headers: { authorization, "content-type": "application/json" }, body: JSON.stringify(body), signal: turn() });
+  return { status: response.status, body: await response.json().catch(() => ({})) };
+}
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 /** Polls the session until `test` holds for its events */
 async function until(client, sessionId, test, timeoutMs = 90_000) {
   for (const deadline = Date.now() + timeoutMs; Date.now() < deadline; await new Promise(resolve => setTimeout(resolve, 200))) {
@@ -87,6 +106,27 @@ try {
   const first = await start(model ? { model } : {});
   runtime = first.runtime;
   latest = { client: first.client };
+  if (scenario === "recover-session" || scenario === "inspect-session") {
+    // A restarted host for a session the killed host left: Eve recovers its run at start, or finds it settled
+    latest.state = () => ({ sessionId: sessionArgument });
+    if (scenario === "recover-session") {
+      // Eve recovers the run when its world redelivers the interrupted step, which may come later than this bound: then it stays open
+      const settled = await until(first.client, sessionArgument, events => events.find(event => event.type === "turn.settled" && event.data.turnId === argument("--turn")), 30_000)
+        .catch(() => undefined);
+      result({ step: "recovered", outcome: settled?.data.outcome ?? "open", error: settled?.data.error ?? null });
+    } else {
+      const { activeTurn, emptySessionView, foldEvents } = await import("@dojofoo/agent/events");
+      const { events } = await first.client.sessions.attach(sessionArgument).snapshot({ signal: turn() });
+      result({ step: "inspected", active: activeTurn(foldEvents(emptySessionView(), events))?.turnId ?? null,
+        settled: events.filter(event => event.type === "turn.settled").map(event => event.data.outcome) });
+    }
+    // Long enough for a hook Eve might run again to reach the host port
+    await sleep(3_000);
+    await runtime.close();
+    runtime = undefined;
+    result({ step: "closed", processes: caseProcesses() });
+    process.exit(0);
+  }
   if (scenario === "restart-only") {
     await runtime.close();
     runtime = undefined;
@@ -146,6 +186,38 @@ try {
     const secondReply = await (await first.client.sessions.attach(state().sessionId).send("Continue with the newly selected model.", { signal: turn() }))
       .result({ signal: turn() });
     result({ step: "second", status: secondReply.status, reply: secondReply.reply, sessionId: state().sessionId });
+  } else if (scenario === "check-during-turn") {
+    // The first turn is held by the loopback; the case sends each report (`report:<json>`) when the UI server would
+    const turnId = await until(first.client, state().sessionId, events => events.find(event => event.type === "turn.started")?.data.turnId);
+    result({ step: "working", turnId, sessionId: state().sessionId });
+    onLines("report:", async line => {
+      const { text, key } = JSON.parse(line);
+      const sent = await post(first.started, state().sessionId, { message: text, idempotencyKey: key, turnPolicy: "queue" });
+      result({ step: `reported:${key}`, status: sent.status, deliveryId: sent.body.deliveryId ?? null, at: Date.now() });
+    });
+    await waitForLine("done");
+  } else if (scenario === "switch-during-turn") {
+    const turnId = await until(first.client, state().sessionId, events => events.find(event => event.type === "turn.started")?.data.turnId);
+    result({ step: "working", turnId, sessionId: state().sessionId });
+    await waitForLine("cancel");
+    // As select sends it: no turnId, so Eve cancels whatever runs
+    const began = Date.now();
+    await first.client.sessions.attach(state().sessionId).cancel({ signal: turn() });
+    const settled = await until(first.client, state().sessionId, events => settledTurn(events), 10_000);
+    result({ step: "cancelled", outcome: settled.data.outcome, ms: Date.now() - began });
+    await runtime.close();
+    runtime = undefined;
+    result({ step: "closed", processes: caseProcesses() });
+    const second = await start({});
+    runtime = second.runtime;
+    latest.client = second.client;
+    await sleep(3_000);
+    result({ step: "restarted" });
+  } else if (scenario === "interrupted-after-kill" || scenario === "settle-hook-lost") {
+    // The case kills this process group: during the turn, or once the settle hook's call is in flight
+    const turnId = await until(first.client, state().sessionId, events => events.find(event => event.type === "turn.started")?.data.turnId);
+    result({ step: "working", turnId, sessionId: state().sessionId });
+    await new Promise(() => {});
   } else if (scenario === "rerun-no-duplicate") {
     // Stop the host as soon as dojo_context's call starts, then start it again: Eve reruns the step
     await until(first.client, state().sessionId, events => events.some(event => event.type === "call.started"));
