@@ -28,23 +28,3 @@ These are local contribution drafts, not published issues or PRs.
   process to zero; the full browser restart/shutdown gate remains required.
 - Packaged bridge patch:
   [../@ai-sdk__harness-opencode@1.0.173.patch](../@ai-sdk__harness-opencode@1.0.173.patch).
-
-## TanStack: preserve queued input while an interrupt owns the turn
-
-- Affected artifact: `@tanstack/ai-client@1.0.1`.
-- `sendMessage` throws before consulting queue policy when an interrupt is
-  pending. Queue draining also ignores pending interrupts.
-- Proposed fix: apply queue/drop policy before rejecting incompatible sends;
-  preserve merged body options; hold draining until interrupts are resolved.
-  Do not answer, dismiss, or replace the pending question.
-- Prepared source and distribution patch:
-  [../@tanstack__ai-client@1.0.1.patch](../@tanstack__ai-client@1.0.1.patch).
-- Upstream issue draft: a failed answer submission also clears queued notes in
-  0.39.3, 1.0.0 and 1.0.1. Keep those notes until an explicit retry succeeds. Normal
-  failed sends, stop and abort still clear the queue; an error never auto-drains it.
-- Regressions: `packages/authoring/src/eve/chat-queue.test.ts` checks queue/drop,
-  failed answer then successful retry with ordered notes, stop and in-flight abort.
-  `packages/ui/e2e/agent-chat.spec.ts` covers the same answer retry through the
-  versioned API and rendered composer. Both use local fixtures without model calls.
-- This is a local upstream report and patch, not an upstream-accepted fix or a
-  published GitHub issue.

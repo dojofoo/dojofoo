@@ -110,7 +110,7 @@ export async function acpModels(agent: "cursor" | "grok", signal: AbortSignal,
 }
 
 type AcpSelectOption = { value?: unknown; name?: unknown; options?: AcpSelectOption[] };
-/** Cursor's model select among the session's config options, as the ACP lesson client reads it (codex-client.ts, modelConfiguration). */
+/** Cursor's model select among the session's config options (the ACP probe's `session/new` answer). */
 function cursorModels(configOptions: unknown): HarnessModelChoice[] {
   if (!Array.isArray(configOptions)) return [];
   const option = configOptions.find(candidate => candidate?.type === "select" && candidate.id === "model")

@@ -67,8 +67,6 @@ jobs:
           for _ in $(seq 60); do curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" && break; sleep 1; done
           curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" || { cat "$RUNNER_TEMP/dojofoo-ui.log"; exit 1; }
           pnpm --filter @dojofoo/ui exec playwright test agent-chat.spec.ts eve-authoring.spec.ts learner-pages.spec.ts workspace-loading.spec.ts agent-selector.spec.ts learner-agent-picker.spec.ts page-addressing.spec.ts history-menu.spec.ts
-      - name: Install native lesson harness
-        run: npm install --global @opencode/cli@2.0.28
       - name: Verify kata lessons on Eve with local inference
         run: pnpm --filter @dojofoo/ui test:lesson
       - name: Verify interactive courses on Eve with local inference

@@ -48,8 +48,6 @@ export interface AgentRow {
   executableEnvironment?: string;
   /** Undefined when no AI SDK adapter exists (agy). */
   adapterId?: AdapterId;
-  /** Runs today's ACP Sensei path; removed in step 7. */
-  acp: boolean;
   readOnly?: ReadOnlyProfile;
   modelDiscovery?: ModelDiscovery;
 }
@@ -80,7 +78,7 @@ export const agentRows: readonly AgentRow[] = [
   {
     id: "claude", name: "Claude Code", short: "Claude", command: "claude", install: "npm install -g @anthropic-ai/claude-code", docs: "docs.anthropic.com/claude-code",
     login: "claude, then /login",
-    adapterId: "claude-code", acp: true,
+    adapterId: "claude-code",
     readOnly: {
       // Claude Code 2.1.290 offers no Glob or Grep tool (claude-spike.md, finding 6).
       prevention: "filter", permissionMode: "allow-reads", builtinTools: ["read"],
@@ -99,7 +97,7 @@ export const agentRows: readonly AgentRow[] = [
   {
     id: "codex", name: "Codex", short: "Codex", command: "codex", install: "npm install -g @openai/codex", docs: "developers.openai.com/codex", executableEnvironment: "CODEX_PATH",
     login: "codex login",
-    adapterId: "codex", acp: true,
+    adapterId: "codex",
     readOnly: {
       // Codex has no read-only file tool (bash, apply_patch, webSearch, view_image), so Codex Sensei reads through context.
       // Its adapter accepts no permission mode but allow-all (no built-in approvals).
@@ -117,7 +115,7 @@ export const agentRows: readonly AgentRow[] = [
   {
     id: "cursor", name: "Cursor", short: "Cursor", command: "cursor-agent", install: "curl https://cursor.com/install -fsS | bash", docs: "cursor.com/cli",
     login: "cursor-agent login",
-    adapterId: "cursor", acp: true,
+    adapterId: "cursor",
     readOnly: {
       prevention: "deny", permissionMode: "allow-reads", builtinTools: ["read", "glob", "grep", "ls"],
       userConfig: {
@@ -127,11 +125,11 @@ export const agentRows: readonly AgentRow[] = [
     },
     modelDiscovery: { method: "acp-probe" },
   },
-  { id: "agy", name: "Antigravity", short: "Antigravity", command: "agy", install: "", docs: "antigravity.google/docs/cli", login: "", acp: false },
+  { id: "agy", name: "Antigravity", short: "Antigravity", command: "agy", install: "", docs: "antigravity.google/docs/cli", login: "" },
   {
     id: "grok", name: "Grok Build", short: "Grok", command: "grok", install: "npm install -g @xai-official/grok", docs: "x.ai/cli",
     login: "grok login",
-    adapterId: "grok-build", acp: true,
+    adapterId: "grok-build",
     readOnly: {
       // Host tools are reached through search_tool and use_tool, which stay.
       prevention: "deny", permissionMode: "allow-reads", builtinTools: ["read_file", "list_dir", "grep"],
@@ -150,7 +148,7 @@ export const agentRows: readonly AgentRow[] = [
   {
     id: "opencode", name: "OpenCode", short: "OpenCode", command: "opencode", install: "brew install sst/tap/opencode", docs: "opencode.ai", executableEnvironment: "OPENCODE_BIN",
     login: "opencode auth login",
-    adapterId: "opencode", acp: true,
+    adapterId: "opencode",
     readOnly: {
       prevention: "filter", permissionMode: "allow-reads", builtinTools: ["read", "glob", "grep"],
       userConfig: {
@@ -170,7 +168,7 @@ export const agentRows: readonly AgentRow[] = [
   {
     id: "fx", name: "FX", short: "FX", command: "fx", install: "", docs: "dojo.foo/docs",
     login: "fx login",
-    adapterId: "fx", acp: true,
+    adapterId: "fx",
     readOnly: {
       prevention: "filter", permissionMode: "allow-reads", builtinTools: ["read", "grep", "glob", "ls"],
       userConfig: {
@@ -183,7 +181,7 @@ export const agentRows: readonly AgentRow[] = [
   {
     id: "pi", name: "Pi", short: "Pi", command: "pi", install: "curl -fsSL https://pi.dev/install.sh | sh", docs: "pi.dev",
     login: "pi, then /login",
-    adapterId: "pi", acp: false,
+    adapterId: "pi",
     readOnly: {
       prevention: "filter", permissionMode: "allow-reads", builtinTools: ["read", "grep", "glob", "ls"],
       userConfig: {
@@ -210,11 +208,4 @@ export function agentRow(id: AgentId): AgentRow {
  *  read at call time, so the import cycle with `conformance.ts` resolves before any call. */
 export function offeredAgents(record: ConformanceRecord = shippedConformance()): readonly AgentRow[] {
   return offeredFrom(record);
-}
-
-export const acpAgentIds = ["claude", "codex", "cursor", "grok", "opencode", "fx"] as const;
-export type AcpAgentId = (typeof acpAgentIds)[number];
-
-export function isAcpAgentId(value: unknown): value is AcpAgentId {
-  return typeof value === "string" && (acpAgentIds as readonly string[]).includes(value);
 }

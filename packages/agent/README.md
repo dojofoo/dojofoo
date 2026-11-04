@@ -338,7 +338,7 @@ The UI prepares and starts the managed application described above (tests use th
 concurrent requests share one startup, and startup failures reach the frontend
 without automatic retries or fallback.
 The draft's `.dojo/runtimes.json` `agent` selects its official adapter (OpenCode by default); there is no
-`--execution-backend` mode. Learning/trial sessions retain their existing ACP path.
+`--execution-backend` mode.
 
 Local Cursor uses the installed `cursor-agent` executable and its normal home/login.
 `packages/agent/src/local-cursor.ts` disables the official adapter's credential

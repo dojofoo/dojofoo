@@ -6,18 +6,6 @@ The compatibility patches here and four assembled into `@dojofoo/agent` are inde
 compatibility changes. Passing tests against an old release does not justify
 removing them from a new one.
 
-## Chat queue during questions
-
-`@tanstack/ai-client@1.0.1` rejects normal messages before applying its queue
-policy when an interrupt is pending. Its drain also starts queued messages while
-the question still owns the next turn. The patch applies the configured queue
-policy and holds that same native queue until the interrupt is resolved. It does
-not answer or dismiss the question. Remove it when upstream supports this case.
-
-Browser regression: `packages/ui/e2e/eve-authoring.spec.ts`, “keeps a pending
-question while queuing messages through its continuation”. It verifies both
-waiting for an answer and accepting messages during the resumed stream.
-
 ## OpenCode adapter compatibility
 
 `@ai-sdk/harness-opencode@1.0.173` creates legacy OpenCode sessions but calls the
@@ -125,7 +113,6 @@ checks and byte-preservation fixture.
 
 ## Upstream tracking
 
-No upstream issue or PR has been filed for the OpenCode or TanStack fixes yet.
+No upstream issue or PR has been filed for the OpenCode fixes yet.
 Local reports and regression details are prepared in [`upstream/`](./upstream/README.md).
-Publishing those reports requires explicit authorization; do not
-mislabel Dojofoo PR #162 as an upstream TanStack fix.
+Publishing those reports requires explicit authorization.

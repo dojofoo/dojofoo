@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agentIds, agentRow, agentRows, isAcpAgentId, isAgentId, isolationPlaceholders, offeredAgents, offeredFrom, personaForKind, shippedConformance } from ".";
+import { agentIds, agentRow, agentRows, isAgentId, isolationPlaceholders, offeredAgents, offeredFrom, personaForKind, shippedConformance } from ".";
 
 describe("coding-agent registry", () => {
   it("has one row per agent id, in onboarding order", () => {
@@ -61,7 +61,6 @@ describe("coding-agent registry", () => {
   it("rejects prototype keys as agent ids", () => {
     for (const key of ["constructor", "__proto__", "toString"]) {
       expect(isAgentId(key)).toBe(false);
-      expect(isAcpAgentId(key)).toBe(false);
     }
     expect(isAgentId("codex")).toBe(true);
     expect(isAgentId(1)).toBe(false);

@@ -10,7 +10,7 @@ import { scaffoldAuthoringWorkspace } from "../scaffold.ts";
 import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 
-// Manual browser fixture: real UI/server/harness; only inference is loopback.
+// Manual browser fixture: the real UI, server and harness; only inference is loopback.
 const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-browser-"));
 const learning = join(root, "learning");
 const source = join(root, "source");
