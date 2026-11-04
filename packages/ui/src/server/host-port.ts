@@ -15,13 +15,11 @@ import { readRecords } from "./agent-session/records";
 import { advanceLesson, dojoLessonContext, dojoLessonFragment, latestObservationId, lessonSource, markLessonIntroduced, readLesson, saveObservation } from "./lesson/service";
 import { resolveWorkspaceId } from "./control/workspace";
 import { getInteractiveLesson } from "./interactive/service";
+import { loopbackOrigin } from "./loopback";
 
-/** Where persona hosts reach the host port: loopback on the UI server's own port, never DOJO_UI_BASE_URL, whose portless TLS proxy
- *  the Eve host's fetch may not trust (decision 8). A wildcard or empty HOST is loopback. */
+/** Where persona hosts reach the host port: the UI server's loopback origin. */
 export function hostPortUrl(environment: NodeJS.ProcessEnv = process.env): string {
-  const host = environment.HOST?.trim();
-  const loopback = !host || ["0.0.0.0", "::", "[::]"].includes(host) ? "127.0.0.1" : host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
-  return `http://${loopback}:${environment.PORT || "4567"}/api/host-port`;
+  return `${loopbackOrigin(environment)}/api/host-port`;
 }
 
 /** A running persona host: its secret, where it serves, and the coding agent it runs (decision 30). `openDefault` is its AgentRuntime's

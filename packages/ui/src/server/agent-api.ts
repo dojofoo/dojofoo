@@ -25,6 +25,7 @@ import { forgetHost, hostPortUrl, registerHost, runningHost } from "./host-port"
 import { presence as pageHub } from "./agent-session/presence";
 import { pageKeyOf, type PageKey } from "./agent-session/notify";
 import { trialUsageCeiling } from "./evaluation/limits";
+import { registerEvaluationHost } from "./evaluation/evaluations";
 
 type RuntimeState = {
   agent: string; persona: Persona; workspaceId: string; status: AgentStatus; message?: string;
@@ -464,6 +465,9 @@ export const localAgentRuntime = createLocalAgentRuntime({
     return acquireSenseiRuntime(root, target);
   },
 });
+
+// An evaluation trial's Sensei host stops when its trial ends (design, "Persona hosts")
+registerEvaluationHost({ stop: (workspaceId, agent) => localAgentRuntime.stop(workspaceId, agent) });
 
 /** The versioned agent API, backed by this machine's workspaces. Selecting an agent takes the page's launch token. */
 export const agentApi = createAgentApi(localAgentRuntime, { authorize: authorizeLaunchRequest });

@@ -3,6 +3,8 @@
 export const trialUsageCeiling = { newInputTokens: 3_000_000, outputTokens: 300_000 };
 /** A whole trial, as the worker allowed it */
 export const trialTimeLimitMs = 2_100_000;
+/** One stage's Sensei turn with its questions answered, as the worker bounded it */
+export const turnTimeLimitMs = 120_000;
 /** Each role's one-shot */
 export const oneShotTimeLimitMs = { fixtures: 120_000, learner: 120_000, judge: 180_000 };
 /** The simulated learner's replies to Sensei's teaching questions */
