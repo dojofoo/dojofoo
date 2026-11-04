@@ -42,6 +42,8 @@ export type InteractiveSnapshot = {
   current: InteractiveStep | null;
   response: { answer: string; correct: boolean } | null;
   complete: boolean;
+  /** Whether `.dojorc` names this course as `currentDojo`; only "Make this my current course" changes it (D30) */
+  courseCurrent: boolean;
 };
 
 function progressFor(state: InteractiveState, dojo: string, curriculum: InteractiveCurriculum): CourseProgress {
@@ -98,6 +100,7 @@ export function getInteractiveLesson(root: string, requestedDojo?: string): Inte
     current: authoredStep ? hydrateStep(root, dojo, authoredStep) : null,
     response: authoredStep ? progress.answers[`${lesson.id}/${authoredStep.id}`] ?? progress.answers[authoredStep.id] ?? null : null,
     complete,
+    courseCurrent: readDojoRc(root).currentDojo === dojo,
   };
 }
 

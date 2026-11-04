@@ -450,6 +450,16 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
     await navigate({ to: "/learn/$runId", params: { runId: targetRunId }, search: { lesson: name } });
   }
 
+  /** "Make this my current course" (D30): the CLI's current course becomes this one, then the page reads its snapshot again */
+  async function makeCurrentCourse() {
+    if (!workspaceId || !dojoId) return;
+    const response = await fetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/courses/${encodeURIComponent(dojoId)}/current`, { method: "POST" });
+    if (!response.ok) throw await httpError(response);
+    const next = await fetch(`${apiBase}?prepare=false`).then(answer => answer.ok ? answer.json() as Promise<LessonSnapshot> : undefined);
+    // The editor keeps its text: only the snapshot is read again
+    if (next) setLesson(next);
+  }
+
   /** D25's fallback: once the checks pass, the learner can open the next lesson without Sensei's question */
   async function openNextLesson() {
     if (!apiBase) return;
@@ -647,6 +657,9 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
             </div>}
     details={<div data-testid="lesson-pane">
       <LessonMaterial lesson={lesson} workspaceId={workspaceId} />
+      {/* The only web write of currentDojo (D30); a snapshot without the field (an older server) shows nothing */}
+      {lesson.courseCurrent === false && <UIXButton className="mt-4" size="sm" variant="secondary" type="button" disabled={Boolean(busy)}
+        onClick={() => { void makeCurrentCourse().catch(cause => setError(cause instanceof Error ? cause.message : String(cause))); }}>Make this my current course</UIXButton>}
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b>

@@ -109,6 +109,8 @@ export type LessonSnapshot = {
   learnerObservations?: LearnerObservation[];
   fragments: Record<string, string>;
   lessons: Array<{ name: string; title: string; summary: string; state: string; isCurrent: boolean; chapter?: ChapterReference }>;
+  /** Whether `.dojorc` names this course as `currentDojo` (the learner's read); only "Make this my current course" changes it (D30) */
+  courseCurrent?: boolean;
 };
 
 export type LessonFileResource = {
@@ -316,15 +318,16 @@ function lessonSnapshot(root: string, parts: LessonParts, conversation: Pick<Les
   };
 }
 
-/** The rc as the course `courseId` sees it, whatever the CLI's current course is (D30); never written back. */
-function courseView(stored: ReturnType<typeof readDojoRc>, courseId: string): ReturnType<typeof readDojoRc> {
+/** The rc as the course `courseId` sees it, whatever the CLI's current course is (D30); written back only by "Make this my current course". */
+export function courseView(stored: ReturnType<typeof readDojoRc>, courseId: string): ReturnType<typeof readDojoRc> {
   return stored.currentDojo === courseId ? stored
     : { ...stored, currentDojo: courseId, currentKata: stored.progress?.[courseId]?.lastActive ?? null };
 }
 
 /** The learner's read of a lesson of any course: no ACP thread, history or evidence, and no web.json threads (constraint 2). */
 export async function readLesson(root: string, courseId: string, lessonId: string): Promise<LessonSnapshot | null> {
-  const rc = courseView(readDojoRc(root), courseId);
+  const stored = readDojoRc(root);
+  const rc = courseView(stored, courseId);
   if (!rc.currentDojo) return null;
   const catalog = readCatalog(root, rc.currentDojo);
   const katas = resolveAllKatas(root, rc, catalog);
@@ -340,8 +343,8 @@ export async function readLesson(root: string, courseId: string, lessonId: strin
   // A completed lesson without a stored report shows its test map, as the prepared read does, without writing it
   const result = webState.results[lessonKey(courseId, selected.name)]
     ?? (kataState(selected, progress) === "completed" ? completedTestReport(sensei) : null);
-  return lessonSnapshot(root, { rc, catalog, katas, progress, current, selected, sensei, senseiContent: parseSenseiContent(sensei), webState, result, learnerEvidence: evidence },
-    { sessionId: null, model: null, harness: resolveAgent(root), messages: [] });
+  return { ...lessonSnapshot(root, { rc, catalog, katas, progress, current, selected, sensei, senseiContent: parseSenseiContent(sensei), webState, result, learnerEvidence: evidence },
+    { sessionId: null, model: null, harness: resolveAgent(root), messages: [] }), courseCurrent: stored.currentDojo === courseId };
 }
 
 export async function readLessonFile(

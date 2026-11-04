@@ -3,6 +3,7 @@ import { AiMagicIcon } from "@dojofoo/uix/icons";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
+import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { Icon } from "@dojofoo/uix/components/app-shell";
 import { WorkspaceSkeleton } from "@dojofoo/uix/components/workspace-skeleton";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
@@ -118,6 +119,17 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
     if (message.method === "session.replaced" && typeof to === "string") setSession(to);
   });
 
+  /** "Make this my current course" (D30): the CLI's current course becomes this one, then the page reads its snapshot again */
+  async function makeCurrentCourse() {
+    if (!lesson) return;
+    const response = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/courses/${encodeURIComponent(lesson.dojo)}/current`, { method: "POST" });
+    if (!response.ok) throw new Error(`The course could not be made current (${response.status}).`);
+    setLesson(await read<InteractiveSnapshot>(api(workspace, lesson.dojo)));
+  }
+  // A snapshot without the field (an older server) shows nothing
+  const currentCourseControl = lesson?.courseCurrent === false ? <UIXButton className="mt-4" size="sm" variant="secondary" type="button" disabled={stepBusy}
+    onClick={() => { void makeCurrentCourse().catch(cause => setError(cause instanceof Error ? cause.message : String(cause))); }}>Make this my current course</UIXButton> : null;
+
   const brand = <Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>;
   const shell = { ...account, workspace: "Dojo", brand, sidebarWidth: "18rem", showNews: false, showOnboarding: false };
   if (!lesson) return <div style={{ height: "100dvh" }}><AgentChatWorkspace {...shell}
@@ -153,6 +165,7 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
     onCommand={(id, query) => { if (id === "ask" && query) chat.current?.send(query); }}
     details={lesson.deck ? <LessonBrief title={lesson.title} lead={lesson.course?.intro ? undefined : lesson.course?.description} resources={resources}>
       {lesson.course?.intro && <CourseContent basePath={null} workspaceId={workspace} courseId={lesson.dojo}>{lesson.course.intro.content.replace(/^# .+\r?\n+/, "")}</CourseContent>}
+      {currentCourseControl}
     </LessonBrief> : <div data-testid="interactive-material">
       <InteractiveLesson title={lesson.title} lead={lesson.course?.description} slideTitle={current?.title ?? lesson.lessonTitle} slideId={current?.id ?? "complete"} resources={resources}
         step={lesson.step} totalSteps={lesson.totalSteps} complete={lesson.complete && !current} question={current?.type === "question"} unlockedStep={lesson.unlockedStep}
@@ -163,6 +176,7 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
         <CourseContent basePath={basePath} workspaceId={workspace} courseId={lesson.dojo} diagrams={false}>{material}</CourseContent>
       </InteractiveLesson>
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
+      {currentCourseControl}
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b>
       <ConversationHistory workspaceId={workspace} persona="sensei" page={{ course: lesson.dojo }} current={opened?.id} agents={workspaceAgent.list}

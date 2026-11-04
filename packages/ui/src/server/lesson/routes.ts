@@ -4,6 +4,7 @@ import {
   advanceLesson,
   answerSenseiQuestion,
   checkLesson,
+  courseView,
   getLesson,
   readLesson,
   readLessonFile,
@@ -18,7 +19,8 @@ import { getTypeScriptCompletions, getTypeScriptDiagnostics, getTypeScriptHover 
 import { resolveWorkspaceId } from "../control/workspace";
 import type { AcpStreamPart } from "./codex-client";
 import { streamAcpAsAgUi } from "./agui-stream";
-import { readCourseManifest } from "@dojofoo/config";
+import { readCourseManifest, readDojoRc, writeDojoRc } from "@dojofoo/config";
+import { requestOrigin } from "../request-origin";
 import { advanceInteractiveLesson, getInteractiveLesson } from "../interactive/service";
 import { dropHeld, offerCheckReport } from "../agent-session/check-reports";
 import { readRecords } from "../agent-session/records";
@@ -80,6 +82,16 @@ app.put("/:workspaceId/courses/:courseId/lessons/:lessonId/configuration/model",
   } catch (cause) {
     return c.json({ error: cause instanceof Error ? cause.message : "Could not change the harness model" }, 502);
   }
+});
+
+// "Make this my current course": the only web write of `currentDojo` (D30), with the course's last active lesson
+app.post("/:workspaceId/courses/:courseId/current", (c) => {
+  // It writes .dojorc, so a foreign page may not call it, as the control routes' writes
+  const origin = c.req.header("Origin");
+  if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
+  const root = resolveWorkspaceId(c.req.param("workspaceId"));
+  writeDojoRc(root, courseView(readDojoRc(root), c.req.param("courseId")));
+  return c.body(null, 204);
 });
 
 app.get("/:workspaceId/courses/:courseId/lessons/:lessonId/checks", async (c) => {
