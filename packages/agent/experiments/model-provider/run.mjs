@@ -21,7 +21,7 @@ const run = (command, args) => new Promise((resolve, reject) => {
 try {
   const dependencies = Object.fromEntries(["ai", "@ai-sdk/harness"].map(name => [name, versions.dependencies[name]]));
   dependencies["@ai-sdk/sandbox-just-bash"] = versions.devDependencies["@ai-sdk/sandbox-just-bash"];
-  dependencies["@ai-sdk/harness-pi"] = versions.devDependencies["@ai-sdk/harness-pi"];
+  dependencies["@ai-sdk/harness-pi"] = versions.dependencies["@ai-sdk/harness-pi"];
   for (const name of ["ui", "evals"]) {
     const consumer = JSON.parse(await readFile(new URL(`../../../${name}/package.json`, import.meta.url), "utf8"));
     for (const dependency of ["ai", "@ai-sdk/harness"]) {
@@ -43,12 +43,13 @@ try {
   })) {
     dependencies[`@ai-sdk/harness-${adapter}`] = version;
   }
-  const [packed] = JSON.parse(execFileSync("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", root], {
+  // pnpm rewrites the workspace:* dependencies (protocol, config) to versions
+  const packed = JSON.parse(execFileSync("pnpm", ["pack", "--json", "--pack-destination", root], {
     cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8",
   }));
   assert.ok(packed.files.every(({ path }) => path.startsWith("dist/") || path.startsWith("patches/") || ["package.json", "README.md"].includes(path)));
   assert.ok(packed.files.some(({ path }) => path === `patches/eve@${versions.devDependencies.eve}.patch`));
-  const localPackages = { "@dojofoo/agent": `file:./${packed.filename}` };
+  const localPackages = { "@dojofoo/agent": `file:${packed.filename}` };
   for (const name of ["authoring", "config", "protocol"]) {
     const artifact = JSON.parse(execFileSync("pnpm", ["pack", "--json", "--pack-destination", root], {
       cwd: fileURLToPath(new URL(`../../../${name}/`, import.meta.url)), encoding: "utf8",

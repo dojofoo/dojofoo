@@ -1,9 +1,9 @@
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createLocalCursor } from "./local-cursor";
-import { HarnessAgent } from "@dojofoo/agent/harness";
-import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
+import { createLocalCursor } from "../src/local-cursor.ts";
+import { HarnessAgent } from "../src/harness.ts";
+import { createLocalSandbox } from "../src/local-runtime.ts";
 import { expect, it } from "vitest";
 
 // Explicit consent required: Cursor routes these requests through the user's

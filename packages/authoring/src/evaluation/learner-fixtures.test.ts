@@ -14,7 +14,7 @@ vi.mock("@dojofoo/agent/harness", () => ({ HarnessAgent: class {
   generate = mocks.generate;
 } }));
 vi.mock("@dojofoo/agent/experimental/local", () => ({ createLocalSandbox: async (directory: string) => ({ directory, stop: mocks.stop }) }));
-vi.mock("../eve/harness", () => ({ authoringHarness: () => ({}) }));
+vi.mock("@dojofoo/agent/adapters", () => ({ agentAdapter: () => ({}) }));
 
 import { generateLearnerFixtures, parseLearnerFixture } from "./learner-fixtures";
 import { answerAsLearner, respondAsLearner } from "./learner-response";

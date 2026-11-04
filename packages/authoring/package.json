@@ -219,6 +219,7 @@
     "@ai-sdk/provider-utils": "5.0.70",
     "@dojofoo/agent": "workspace:*",
     "@dojofoo/config": "workspace:*",
+    "@dojofoo/protocol": "workspace:*",
     "@earendil-works/pi-ai": "1.3.0",
     "@earendil-works/pi-coding-agent": "1.3.0",
     "@tanstack/ai": "0.69.0",

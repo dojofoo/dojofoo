@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { z } from "zod";
 import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
-import { authoringHarness } from "../eve/harness";
+import { agentAdapter } from "@dojofoo/agent/adapters";
+import { isAgentId } from "@dojofoo/protocol";
 import { learnerInstructions } from "./prompts";
 
 export type LearnerDialogue = Array<{ role: "user" | "assistant"; content: string }>;
@@ -49,6 +50,7 @@ export async function answerAsLearner(request: LearnerRequest & { questions: Lea
 
 async function runLearner({ dialogue, source, harness, model, signal }: LearnerRequest, questions?: LearnerQuestion[]): Promise<string> {
   if (!harness.trim() || !model.trim()) throw new Error("Select the learner harness and model explicitly");
+  if (!isAgentId(harness)) throw new Error(`Unsupported coding agent: ${harness}`);
   signal.throwIfAborted();
   const directory = await mkdtemp(join(tmpdir(), "dojo-learner-response-"));
   const format = questions
@@ -60,7 +62,7 @@ async function runLearner({ dialogue, source, harness, model, signal }: LearnerR
   console.info(`Learner response evidence: ${directory}`);
   const agent = new HarnessAgent({
     id: "dojo-review-learner",
-    harness: await authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness }),
+    harness: await agentAdapter(harness),
     model, instructions, activeTools: [],
     stopWhen: ({ steps }) => steps.length >= 1,
   });

@@ -1,5 +1,5 @@
-import { execFileSync } from "node:child_process";
 import { createCursor } from "@ai-sdk/harness-cursor";
+import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { homedir } from "node:os";
 
 /** Local launch binding only; the official adapter owns ACP, tools and sessions.
@@ -18,13 +18,14 @@ export function createLocalCursor(): ReturnType<typeof createCursor> {
       if (!installer?.content.includes("curl https://cursor.com/install -fsS | bash") || installs?.length !== 1) {
         throw new Error("Cursor bootstrap changed; review the local launch binding before upgrading the adapter.");
       }
-      let binary: string;
-      try { binary = execFileSync("which", ["agent"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); }
-      catch { throw new Error("Cursor CLI is not installed. Install `agent` and log in with `agent login`."); }
+      // The installer also puts an `agent` command on PATH, which other CLIs (Grok) share
+      const binary = resolveAgentExecutable("cursor");
+      if (!binary) throw new Error("Cursor CLI is not installed. Install it with `curl https://cursor.com/install -fsS | bash` and log in with `cursor-agent login`.");
       if (!binary.startsWith("/") || binary.includes("\n")) throw new Error("Cursor CLI must resolve to one absolute executable path.");
       const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
       return {
         ...bootstrap,
+        // The adapter's bootstrap runs `agent`; only the executable it links to changes
         files: [...bootstrap.files?.filter(file => file.path !== installPath) ?? [], {
           path: `${bootstrap.bootstrapDir}/home/.local/bin/agent`,
           content: `#!/bin/sh\nHOME=${quote(homedir())} exec ${quote(binary)} "$@"\n`,

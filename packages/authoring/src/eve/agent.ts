@@ -1,13 +1,14 @@
 import { defineAgent, defineDynamic } from "@dojofoo/agent";
 import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
 import { createLocalHarnessSandbox, prepareHarnessEnvironment } from "@dojofoo/agent/experimental/local";
-import { authoringHarness, type AuthoringHarness } from "./harness.ts";
+import { agentAdapter } from "@dojofoo/agent/adapters";
+import type { AgentId } from "@dojofoo/protocol";
 import { delimiter } from "node:path";
 
 export interface KyoshiRuntime {
   courseRoot: string;
   harnessRoot: string;
-  harness: AuthoringHarness;
+  harness: AgentId;
   model?: string;
   commandPath?: string;
 }
@@ -31,7 +32,7 @@ export function createKyoshiAgent(runtime: () => Promise<KyoshiRuntime>) {
         model: experimental_createHarnessModel({
           sandbox,
           sandboxConfig: { workDir: "course" },
-          harness: await authoringHarness({ DOJOFOO_HARNESS: settings.harness }),
+          harness: await agentAdapter(settings.harness),
           model: settings.model,
         }).model,
         // A conservative Eve compaction budget, not a claimed model capacity.

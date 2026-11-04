@@ -335,8 +335,8 @@ without automatic retries or fallback.
 `DOJOFOO_HARNESS` selects its official adapter (OpenCode by default); there is no
 `--execution-backend` mode. Learning/trial sessions retain their existing ACP path.
 
-Local Cursor uses the installed `agent` executable and its normal home/login.
-The authoring package's `local-cursor.ts` disables the official adapter's credential
+Local Cursor uses the installed `cursor-agent` executable and its normal home/login.
+`packages/agent/src/local-cursor.ts` disables the official adapter's credential
 resolver with explicit empty authentication and changes only its bootstrap recipe:
 link the installed executable instead of downloading another CLI, and retain the
 normal home instead of creating a private one. It does not read Keychain, copy

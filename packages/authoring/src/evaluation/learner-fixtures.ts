@@ -4,7 +4,8 @@ import { basename, join } from "node:path";
 import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
 import { z } from "zod";
-import { authoringHarness } from "../eve/harness";
+import { agentAdapter } from "@dojofoo/agent/adapters";
+import { isAgentId } from "@dojofoo/protocol";
 import { fixtureGeneratorInstructions } from "./prompts";
 
 const fixtureSchema = z.object({
@@ -42,6 +43,7 @@ export async function generateLearnerFixtures({ material, lessonIds, harness, mo
   signal: AbortSignal;
 }) {
   if (!harness.trim() || !model.trim()) throw new Error("Select the fixture harness and model explicitly");
+  if (!isAgentId(harness)) throw new Error(`Unsupported coding agent: ${harness}`);
   if (!lessonIds.length || lessonIds.length > 2 || new Set(lessonIds).size !== lessonIds.length) {
     throw new Error("Generate fixtures for one or two distinct lessons");
   }
@@ -55,7 +57,7 @@ export async function generateLearnerFixtures({ material, lessonIds, harness, mo
   await writeFile(join(directory, "input.json"), JSON.stringify({ harness, model, lessonIds, material: learnerMaterial, instructions }, null, 2));
   const agent = new HarnessAgent({
     id: "dojo-learner-fixtures",
-    harness: await authoringHarness({ ...process.env, DOJOFOO_HARNESS: harness }),
+    harness: await agentAdapter(harness),
     model,
     activeTools: [],
     instructions,

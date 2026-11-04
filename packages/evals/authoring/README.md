@@ -95,7 +95,7 @@ production teaching acceptance.
 
 ```sh
 DOJOFOO_EVAL_MATERIAL_CALIBRATION=1 pnpm --filter @dojofoo/authoring exec vitest run src/evaluation/material-support.live.test.ts
-DOJOFOO_HARNESS=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro DOJOFOO_EVAL_DESIGN=1 pnpm --filter @dojofoo/authoring exec vitest run src/evaluation/lesson-design.live.test.ts
+DOJOFOO_EVAL_AGENT=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro DOJOFOO_EVAL_DESIGN=1 pnpm --filter @dojofoo/authoring exec vitest run src/evaluation/lesson-design.live.test.ts
 DOJOFOO_EVAL_JUDGE_CALIBRATION=1 pnpm --filter @dojofoo/authoring exec vitest run src/evaluation/solution-boundary.live.test.ts
 ```
 
@@ -132,7 +132,7 @@ their inputs and file snapshots. To replay a recorded accepted lesson:
 
 ```sh
 DOJO_CLI=/path/to/packages/cli/dist/index.js \
-DOJOFOO_HARNESS=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro \
+DOJOFOO_EVAL_AGENT=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro \
 DOJOFOO_EVAL_CONTINUATION=1 \
 DOJOFOO_ACCEPTED_MATERIAL=/path/to/course/.dojo/evaluations/run-ID/material.json \
 pnpm --filter @dojofoo/evals exec vitest run src/authoring-continuation.live.test.ts

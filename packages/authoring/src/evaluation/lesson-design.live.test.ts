@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
-import { authoringHarness } from "../eve/harness";
+import { agentAdapter } from "@dojofoo/agent/adapters";
+import { isAgentId } from "@dojofoo/protocol";
 import { kyoshiInstructions } from "../eve/instructions";
 import { judgeMaterial } from "./judges";
 import { checkSensei } from "./preflight";
@@ -63,12 +64,13 @@ it.runIf(process.env.DOJOFOO_EVAL_DESIGN === "1").each(cases)(
     const instructions = kyoshiInstructions();
     let prompt = `Material-only drafting rehearsal; the files below are already prepared. Return only the complete SENSEI.md text. Do not use tools or run a trial in this rehearsal.\nGoal: ${goal}\nDOJO.md:\n${dojo}\nkata.ts:\n${scaffold}\nChecks:\n${checks}`;
     if (revision) prompt = `Material-only revision rehearsal. Keep the captured goal, learner and other files. Revise SENSEI.md from the actual material-review findings. Return only the complete SENSEI.md, without tools or a live trial.\nFiles: ${JSON.stringify(revision.material)}\nFindings: ${JSON.stringify(revision.feedback)}`;
-    const harness = process.env.DOJOFOO_HARNESS;
+    const harness = process.env.DOJOFOO_EVAL_AGENT;
     const model = process.env.DOJOFOO_EVAL_MODEL;
     if (!harness || !model) throw new Error("Select the authoring harness and model explicitly");
+    if (!isAgentId(harness)) throw new Error(`Unsupported coding agent: ${harness}`);
     await writeFile(join(directory, "input.json"), JSON.stringify({ name, harness, model, rubric: materialRubricVersion, instructions, prompt }, null, 2));
     const agent = new HarnessAgent({
-      harness: await authoringHarness(), model, instructions, activeTools: [],
+      harness: await agentAdapter(harness), model, instructions, activeTools: [],
       sandbox: createLocalHarnessSandbox(directory),
       stopWhen: ({ steps }) => steps.length >= 1,
     });

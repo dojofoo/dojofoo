@@ -7,7 +7,8 @@ import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
 import { readLessonMaterial, readMaterial } from "@dojofoo/authoring/evaluation/material";
 import { kyoshiInstructions } from "../../authoring/src/eve/instructions";
-import { authoringHarness } from "../../authoring/src/eve/harness";
+import { agentAdapter } from "@dojofoo/agent/adapters";
+import { isAgentId } from "@dojofoo/protocol";
 import { prepareKyoshiCommand, prepareKyoshiHarness } from "../../authoring/src/eve/prepare";
 import { preservesAcceptedMaterial, restoreMaterial } from "./accepted-material";
 
@@ -20,7 +21,9 @@ it.runIf(process.env.DOJOFOO_EVAL_CONTINUATION === "1" || handoffOnly)(handoffOn
   const source = process.env.DOJOFOO_ACCEPTED_MATERIAL;
   const model = process.env.DOJOFOO_EVAL_MODEL;
   const cli = process.env.DOJO_CLI;
+  const agentId = process.env.DOJOFOO_EVAL_AGENT ?? "opencode";
   if (!source || !model || !cli) throw new Error("Select an accepted material.json snapshot, authoring model and bundled CLI");
+  if (!isAgentId(agentId)) throw new Error(`Unsupported coding agent: ${agentId}`);
   const previous: Record<string, string> = JSON.parse(await readFile(source, "utf8"));
   const recorded: Array<{ prompt?: string; material?: Record<string, string>; events?: Array<{
     type: string; data?: { phase?: string; value?: string };
@@ -38,9 +41,9 @@ it.runIf(process.env.DOJOFOO_EVAL_CONTINUATION === "1" || handoffOnly)(handoffOn
   const prompt = handoffOnly
     ? `Finish this authoring turn in the copied course.\n\nAuthor request:\n${prior!.prompt}\n\nThe production evaluation just returned this report for the current files:\n${await readFile(join(dirname(source), "report.json"), "utf8")}\n\nPrepare your handover to the author. This is a handover-only rehearsal; do not run another paid evaluation.`
     : `Continue this authoring conversation in the copied course.\n\nPrevious author request:\n${prior!.prompt}\n\nPrevious Kyoshi handover:\n${handover}\n\nCurrent author request:\nNow create the next lesson on filtering positive numbers, including zero and negative values. Same learner. Create this lesson and its checks now.\n\nThis is a draft-only rehearsal: don't run a paid teaching trial. Finish after writing and checking the new lesson.`;
-  await writeFile(join(root, ".dojo/replay-input.json"), JSON.stringify({ source, model, harness: process.env.DOJOFOO_HARNESS, instructions, prompt }, null, 2));
+  await writeFile(join(root, ".dojo/replay-input.json"), JSON.stringify({ source, model, harness: agentId, instructions, prompt }, null, 2));
   const agent = new HarnessAgent({
-    harness: await authoringHarness(), model, instructions, sandboxConfig: { workDir: "course" },
+    harness: await agentAdapter(agentId), model, instructions, sandboxConfig: { workDir: "course" },
     sandbox: createLocalHarnessSandbox(harnessRoot, { environment: { ...process.env, PATH: `${commands}${delimiter}${process.env.PATH}` } }),
   });
   const abortSignal = AbortSignal.timeout(360_000);

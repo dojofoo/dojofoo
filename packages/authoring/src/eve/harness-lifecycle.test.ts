@@ -5,17 +5,18 @@ import { fileURLToPath } from "node:url";
 import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
 import { expect, it } from "vitest";
-import { authoringHarness } from "./harness";
+import { agentAdapter } from "@dojofoo/agent/adapters";
+import type { AgentId } from "@dojofoo/protocol";
 import { prepareAuthoringHarness } from "./install";
 
 // No prompts or inference. Opt-in because official adapters may bootstrap their
 // native binaries and discover the user's existing authentication configuration.
 const enabled = process.env.DOJO_HARNESS_LIFECYCLE === "1";
-it.skipIf(!enabled).each(["codex", "opencode", "pi", "cursor", "grok", "fx"])(
+it.skipIf(!enabled).each(["codex", "opencode", "pi", "cursor", "grok", "fx"] satisfies readonly AgentId[])(
   "%s boots and reports its unprompted-session recovery capability",
   async name => {
     const preparation = performance.now();
-    await prepareAuthoringHarness(name as Parameters<typeof prepareAuthoringHarness>[0]);
+    await prepareAuthoringHarness(name);
     const preparedAt = performance.now();
     const environment = {
       ...process.env,
@@ -24,7 +25,7 @@ it.skipIf(!enabled).each(["codex", "opencode", "pi", "cursor", "grok", "fx"])(
     const root = await realpath(await mkdtemp(join(tmpdir(), `dojo-${name}-lifecycle-`)));
     const sandbox = await createLocalSandbox(root, { environment });
     const agent = new HarnessAgent({
-      harness: await authoringHarness({ DOJOFOO_HARNESS: name }),
+      harness: await agentAdapter(name),
       sandboxConfig: { workDir: "course" },
     });
     try {
