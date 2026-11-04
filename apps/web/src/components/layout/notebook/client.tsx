@@ -2,6 +2,7 @@
 import { cn } from '@/lib/utils'
 import {
   type ComponentProps,
+  type CSSProperties,
   createContext,
   Fragment,
   type HTMLAttributes,
@@ -100,7 +101,7 @@ export function LayoutBody({ className, style, children, ...props }: ComponentPr
           '--fd-docs-row-3': 'calc(var(--fd-docs-row-2) + var(--fd-toc-popover-height))',
           '--fd-sidebar-col': collapsed ? '0px' : 'var(--fd-sidebar-width)',
           ...style,
-        } as object
+        } as CSSProperties
       }
       {...props}
     >
