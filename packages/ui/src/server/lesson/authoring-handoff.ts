@@ -19,6 +19,8 @@ import { isDeepStrictEqual } from "node:util";
 import { acpClient, type AcpStreamPart, type UserQuestion } from "./codex-client";
 import { runRoutes } from "../run/routes";
 import { senseiInstructions } from "./instructions";
+import { lessonAgent } from "../harness/registry";
+import type { AcpAgentId } from "@dojofoo/protocol";
 import {
   answerSenseiQuestion, checkLesson, dojoLessonContext, getLesson, nextLesson, setLessonModel,
   startLessonSession, streamCheckObservation, streamLessonIntroduction,
@@ -27,6 +29,8 @@ import {
 
 /** Worker-only: lesson services own process-wide harness state. */
 export async function runAuthoringHandoff(signal: AbortSignal = new AbortController().signal, lessonIds?: string[], options?: {
+  /** The coding agent that teaches; defaults to the authored course's own agent. */
+  agent?: AcpAgentId;
   fixturesPath?: string;
   learnerProfile?: "struggling" | "confident";
   /** Complete a real teaching dialogue for each lesson instead of seeding
@@ -53,7 +57,8 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
   assert.equal(process.env.DOJOFOO_EVALUATION_WORKER, "1", "Production teaching evaluations require an isolated worker");
   const authoredRoot = process.env.DOJOFOO_HANDOFF_COURSE;
   if (!authoredRoot) throw new Error("DOJOFOO_HANDOFF_COURSE is required");
-  if (!process.env.DOJOFOO_HARNESS) throw new Error("Choose a production lesson harness explicitly");
+  // Read before DOJOFOO_HOME moves to the trial's state
+  const agent = options?.agent ?? lessonAgent(authoredRoot);
   await mkdir(resolve(authoredRoot, ".dojo/handoffs"), { recursive: true });
   const evidenceRoot = await mkdtemp(resolve(authoredRoot, ".dojo/handoffs/run-"));
   const evidencePath = resolve(evidenceRoot, "evidence.json");
@@ -71,10 +76,10 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
   const learnerPath = options?.turns ? undefined : options?.fixturesPath ?? resolve(authoredRoot, ".dojo/learner-fixtures.json");
   const learner: Record<string, LearnerFixture> = learnerPath ? JSON.parse(await readFile(learnerPath, "utf8")) : {};
   const priorLessons = options?.priorLessons ?? "seed-completion";
-  const evidence: unknown[] = [{ learnerProfile, priorLessons, maxTeachingQuestionReplies, harness: process.env.DOJOFOO_HARNESS, model: process.env.DOJOFOO_HANDOFF_MODEL, learnerPath, turnIntervalMs }];
+  const evidence: unknown[] = [{ learnerProfile, priorLessons, maxTeachingQuestionReplies, harness: agent, model: process.env.DOJOFOO_HANDOFF_MODEL, learnerPath, turnIntervalMs }];
   const persist = () => writeFile(evidencePath, JSON.stringify(evidence, null, 2));
   await mkdir(process.env.DOJOFOO_HOME, { recursive: true });
-  const trial = createLessonTrial(authoredRoot, lessons[0].name);
+  const trial = createLessonTrial(authoredRoot, lessons[0].name, { agent });
   const root = listWorkspaces().find(workspace => workspace.id === trial.workspaceId)?.path;
   if (!root) throw new Error("Production trial did not register its workspace");
   evidence.push({ trialWorkspace: root });

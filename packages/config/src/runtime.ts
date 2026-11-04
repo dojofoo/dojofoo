@@ -1,37 +1,77 @@
-import { existsSync, readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { resolve } from "node:path";
-import { agentDefinitions } from "./agents";
+import { dirname, resolve } from "node:path";
+import { agentRow, fallbackAgent, isAgentId, offeredAgents, type AgentId } from "@dojofoo/protocol";
+import { resolveAgentExecutable, type AgentDiscoveryOptions } from "./agent-installations";
 
-export type RuntimeRole = "authoring" | "lesson";
-type RuntimeConfig = Partial<Record<RuntimeRole, string>>;
+export type AgentSelectionOptions = { environment?: NodeJS.ProcessEnv; discovery?: AgentDiscoveryOptions };
 
-function read(path: string): RuntimeConfig {
-  if (!existsSync(path)) return {};
-  const value = JSON.parse(readFileSync(path, "utf8")) as RuntimeConfig;
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid runtime config: ${path}`);
-  for (const role of ["authoring", "lesson"] as const) {
-    if (value[role] !== undefined && (typeof value[role] !== "string" || !value[role]?.trim())) {
-      throw new Error(`Invalid ${role} harness in ${path}`);
-    }
-  }
-  return value;
+/** Removed: each workspace keeps its coding agent in `.dojo/runtimes.json`. */
+export const ignoredAgentVariables = ["DOJOFOO_HARNESS", "DOJOFOO_LESSON_HARNESS", "DOJOFOO_AUTHORING_HARNESS",
+  "DOJOFOO_MODEL", "DOJOFOO_LESSON_MODEL", "DOJOFOO_AUTHORING_MODEL"] as const;
+
+const warned = new Set<string>();
+function warnOnce(key: string, message: string): void {
+  if (warned.has(key)) return;
+  warned.add(key);
+  console.warn(message);
 }
 
-function selectedRuntime(role: RuntimeRole, stateHome: string): string | undefined {
+const offered = (id: string): id is AgentId => isAgentId(id) && offeredAgents().some(row => row.id === id);
+
+function readRuntimes(path: string): Record<string, unknown> {
+  if (!existsSync(path)) return {};
+  const value: unknown = JSON.parse(readFileSync(path, "utf8"));
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid agent in ${path}`);
+  return value as Record<string, unknown>;
+}
+
+function savedAgent(root: string): AgentId | undefined {
+  const path = resolve(root, ".dojo", "runtimes.json");
+  const { agent, authoring, lesson } = readRuntimes(path);
+  if (authoring !== undefined || lesson !== undefined) {
+    warnOnce(`roles:${path}`, `The authoring and lesson keys in ${path} are ignored: each workspace has one coding agent, saved as "agent".`);
+  }
+  if (agent === undefined) return undefined;
+  if (typeof agent !== "string") throw new Error(`Invalid agent in ${path}`);
+  if (offered(agent)) return agent;
+  warnOnce(`offered:${path}`, `The coding agent "${agent}" in ${path} isn't offered; choose another one in the composer's agent menu.`);
+  return undefined;
+}
+
+function onboardingAgent(stateHome: string): AgentId | undefined {
   const path = resolve(stateHome, "settings.json");
   if (!existsSync(path)) return undefined;
   const settings = JSON.parse(readFileSync(path, "utf8")) as { agents?: unknown; agent?: string };
   const selected = settings.agents ?? (settings.agent ? [settings.agent] : []);
   if (!Array.isArray(selected) || selected.some(id => typeof id !== "string")) throw new Error(`Invalid selected agents in ${path}`);
-  return selected.find(id => agentDefinitions.some(agent => agent.id === id));
+  return (selected as string[]).find(offered);
 }
 
-/** Re-read on selection: selected agents < global < project < environment < explicit UI choice. */
-export function resolveRuntimeHarness(role: RuntimeRole, root: string, environment: NodeJS.ProcessEnv = process.env): string {
+/** Highest first: <root>/.dojo/runtimes.json `agent`; the first offered agent in $DOJOFOO_HOME/settings.json `agents`
+ * (or legacy `agent`); the first offered agent whose CLI resolveAgentExecutable finds; fallbackAgent. */
+export function resolveAgent(root: string, options: AgentSelectionOptions = {}): AgentId {
+  const environment = options.environment ?? process.env;
+  for (const name of ignoredAgentVariables) {
+    if (environment[name]) {
+      warnOnce(`variable:${name}`, `${name} is ignored: each workspace keeps its coding agent in .dojo/runtimes.json; choose it in the composer's agent menu.`);
+    }
+  }
   const stateHome = environment.DOJOFOO_HOME ?? resolve(homedir(), ".dojofoo");
-  const global = read(resolve(stateHome, "runtimes.json"));
-  const project = read(resolve(root, ".dojo", "runtimes.json"));
-  return environment[`DOJOFOO_${role.toUpperCase()}_HARNESS`] || environment.DOJOFOO_HARNESS || project[role] || global[role] || selectedRuntime(role, stateHome) || "opencode";
+  return savedAgent(root) ?? onboardingAgent(stateHome)
+    ?? offeredAgents().find(row => resolveAgentExecutable(row.id, { environment, ...options.discovery }))?.id
+    ?? fallbackAgent;
 }
 
+/** Saves <root>/.dojo/runtimes.json { ...other keys, agent } through a temp file and rename; drops `authoring`/`lesson`. */
+export function writeAgent(root: string, agent: AgentId, _options: AgentSelectionOptions = {}): void {
+  if (!isAgentId(agent)) throw new Error(`Unsupported coding agent: ${String(agent)}`);
+  if (!offered(agent)) throw new Error(`${agentRow(agent).name} isn't available yet. Choose another coding agent.`);
+  const path = resolve(root, ".dojo", "runtimes.json");
+  const { authoring: _authoring, lesson: _lesson, ...other } = readRuntimes(path);
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify({ ...other, agent }, null, 2)}\n`);
+  renameSync(temporary, path);
+}

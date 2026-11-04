@@ -67,9 +67,9 @@ try {
   const { createKyoshiRuntime } = await import(
     pathToFileURL(installedRequire.resolve("@dojofoo/authoring/eve/runtime")).href
   );
-  const previousHarness = process.env.DOJOFOO_HARNESS;
+  mkdirSync(resolve(authorRoot, ".dojo"), { recursive: true });
+  writeFileSync(resolve(authorRoot, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode" }));
   const previousHome = process.env.DOJOFOO_HOME;
-  process.env.DOJOFOO_HARNESS = "opencode";
   process.env.DOJOFOO_HOME = resolve(scratch, "home");
   let runtime;
   try {
@@ -78,8 +78,6 @@ try {
     console.log("Packed master authoring agent passed readiness without a model call.");
   } finally {
     await runtime?.close();
-    if (previousHarness === undefined) delete process.env.DOJOFOO_HARNESS;
-    else process.env.DOJOFOO_HARNESS = previousHarness;
     if (previousHome === undefined) delete process.env.DOJOFOO_HOME;
     else process.env.DOJOFOO_HOME = previousHome;
   }

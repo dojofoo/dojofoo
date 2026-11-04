@@ -22,7 +22,7 @@ export default defineEval({
     if (!workspace) throw new Error("Isolated workspace is required");
     const root = workspace;
     const evidence: Record<string, string> = { configuration: JSON.stringify({
-      harness: process.env.DOJOFOO_HARNESS,
+      harness: process.env.DOJOFOO_EVAL_AGENT ?? "opencode",
       model: process.env.DOJOFOO_EVAL_MODEL,
       rubric: chainRubricVersion,
       revisionPasses: process.env.DOJOFOO_EVAL_REVISE === "1" ? 1 : 0,

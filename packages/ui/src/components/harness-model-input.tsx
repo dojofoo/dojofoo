@@ -30,7 +30,7 @@ export function HarnessModelInput({ harness, value, onChange, label, api }: {
   return <div className="min-w-0 flex-1 text-xs"><label htmlFor={id}>Model</label>
     <div className="ui-ob-input mt-1 w-full pl-3">
       <input id={id} aria-label={label} required value={value}
-        onChange={event => onChange(event.target.value)} placeholder={loading ? "Reading native models…" : "Search models or enter a model ID"} />
+        onChange={event => onChange(event.target.value)} placeholder={loading ? "Reading native models…" : !error && !models.length ? "No models listed; the agent's default is used" : "Search models or enter a model ID"} />
       <Dropdown title="Available models" align="end" items={models.map(model => ({ label: model.name, description: model.id, checked: model.id === value, onSelect: () => onChange(model.id) }))}
         trigger={({ open, toggle }) => <button type="button" className="ui-as-icon-btn" aria-label={`Choose ${label}`} aria-haspopup="menu" aria-expanded={open} disabled={loading || !models.length} onClick={toggle}><Icon icon={ArrowDown01Icon} size={14} /></button>} />
     </div>

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
+import { writeAgent } from "@dojofoo/config/runtime";
 import { app } from "./app";
 import { createLocalAgentRuntime } from "./agent-api";
 
@@ -19,6 +20,8 @@ function workspace() {
   writeFileSync(resolve(root, ".dojorc"), JSON.stringify({ currentDojo: "starter", currentKata: "001-first", editor: null, progress: {} }));
   mkdirSync(resolve(root, ".dojos", "starter"), { recursive: true });
   writeFileSync(resolve(root, ".dojos", "starter", "dojo.yaml"), ["name: '@test/starter'", "version: 1.0.0", "description: A course.", "test: echo ok", "katas: []"].join("\n"));
+  mkdirSync(resolve(root, ".dojo"), { recursive: true });
+  writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "codex" }));
   const state = { stateHome };
   return { root, state, workspaceId: observeWorkspacePath(root, state) };
 }
@@ -31,11 +34,10 @@ function runtime(start = async () => ({ url: "http://127.0.0.1:9" })) {
 
 describe("local agent runtime", () => {
   it("lists the workspace's selected coding agent first and the others it supports", async () => {
-    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
     const { local, workspaceId } = runtime();
     const agents = await local.agents(workspaceId);
     expect(agents[0]).toEqual({ id: "codex", name: "Codex", selected: true, status: "stopped" });
-    expect(agents.map(agent => agent.id)).toEqual(["codex", "claude", "opencode", "pi", "cursor", "grok", "fx"]);
+    expect(agents.map(agent => agent.id)).toEqual(["codex", "claude", "cursor", "grok", "opencode", "fx"]);
   });
 
   it("accepts registered standalone authoring courses without learner workspace configuration", async () => {
@@ -47,7 +49,6 @@ describe("local agent runtime", () => {
   });
 
   it("can retry a failed start after releasing the failed runtime", async () => {
-    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
     const { state, workspaceId } = workspace();
     let released = false;
     const failed = { start: async () => { throw new Error("Start failed"); }, close: async () => { released = true; } };
@@ -59,7 +60,6 @@ describe("local agent runtime", () => {
   });
 
   it("starts the selected agent in the background and reports when it's ready", async () => {
-    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
     const { local, workspaceId, owned } = runtime();
     expect(await local.start(workspaceId, "codex")).toMatchObject({ status: "starting" });
     await vi.waitFor(async () => expect((await local.agents(workspaceId))[0].status).toBe("ready"));
@@ -70,7 +70,6 @@ describe("local agent runtime", () => {
   });
 
   it("reports a failed start with its reason", async () => {
-    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
     const { local, workspaceId } = runtime(async () => { throw new Error("codex is not installed"); });
     await local.start(workspaceId, "codex");
     await vi.waitFor(async () => expect((await local.agents(workspaceId))[0]).toMatchObject({ status: "failed", message: "codex is not installed" }));
@@ -78,7 +77,6 @@ describe("local agent runtime", () => {
   });
 
   it("refuses unknown workspaces, other coding agents and personas it can't run", async () => {
-    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
     const { local, workspaceId } = runtime();
     await expect(local.agents("missing")).rejects.toMatchObject({ status: 404, code: "workspace_not_found" });
     await expect(local.start(workspaceId, "pi")).rejects.toMatchObject({ status: 409, code: "agent_unavailable" });
@@ -87,7 +85,6 @@ describe("local agent runtime", () => {
   });
 
   it("keeps sessions in the workspace's .dojo folder", async () => {
-    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
     const { local, workspaceId, root } = runtime();
     const session = { id: "s1", agent: "codex", persona: "kyoshi" as const, createdAt: "2026-10-28T12:00:00.000Z" };
     await Promise.all([local.sessions.save(workspaceId, session), local.sessions.save(workspaceId, { ...session, id: "s2" })]);
@@ -101,10 +98,9 @@ describe("local agent runtime", () => {
   });
 
   it("restarts the host when the workspace selects another coding agent", async () => {
-    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
-    const { local, workspaceId, owned } = runtime();
+    const { local, workspaceId, owned, root } = runtime();
     await local.connect(workspaceId, { agent: "codex", persona: "kyoshi" });
-    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "opencode");
+    writeAgent(root, "opencode");
     await local.connect(workspaceId, { agent: "opencode", persona: "kyoshi" });
     expect(owned.close).toHaveBeenCalledTimes(1);
     expect(owned.start).toHaveBeenCalledTimes(2);
@@ -112,7 +108,6 @@ describe("local agent runtime", () => {
   });
 
   it("starts a host that exited on its own again", async () => {
-    vi.stubEnv("DOJOFOO_AUTHORING_HARNESS", "codex");
     let exit!: () => void;
     const { local, workspaceId, owned } = runtime(async () => ({ url: "http://127.0.0.1:9", exited: new Promise<void>(resolve => { exit = resolve; }) }));
     await local.connect(workspaceId, { agent: "codex", persona: "kyoshi" });

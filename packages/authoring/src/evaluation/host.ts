@@ -4,6 +4,7 @@ import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { parse, YAMLParseError } from "yaml";
+import { resolveAgent } from "@dojofoo/config/runtime";
 import { MaterialFailure } from "./failure.ts";
 import { preflightLessons } from "./preflight.ts";
 import { readLessonSensei } from "./sensei.ts";
@@ -38,7 +39,8 @@ function reportFromOutput(output: string): EvaluationReport {
 export async function executeEvaluationWorker(root: string, lessonIds: string[], config: EvaluationConfiguration, signal: AbortSignal, profile: "struggling" | "confident" = "struggling") {
   const options = {
     cwd: root, signal, timeout: 2_160_000, maxBuffer: 8 * 1024 * 1024,
-    env: { ...process.env, DOJOFOO_HARNESS: config.teachingHarness, DOJOFOO_HANDOFF_MODEL: config.teachingModel,
+    // Sensei teaches on the draft's agent; the configured model applies only to that agent
+    env: { ...process.env, DOJOFOO_HANDOFF_MODEL: config.teachingHarness === resolveAgent(root) ? config.teachingModel : "",
       DOJOFOO_EVAL_FIXTURE_HARNESS: config.fixtureHarness, DOJOFOO_EVAL_FIXTURE_MODEL: config.fixtureModel },
   };
   try {

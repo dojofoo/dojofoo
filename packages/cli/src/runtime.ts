@@ -1,4 +1,4 @@
-import { agentDefinitions, type AgentId } from "@dojofoo/config/agents";
+import type { AgentId } from "@dojofoo/config/agents";
 
 export type RuntimeName = AgentId | "unknown";
 
@@ -23,8 +23,6 @@ export function runtimeIdentity(environment: NodeJS.ProcessEnv = process.env): R
 }
 
 function runtimeName(environment: NodeJS.ProcessEnv): RuntimeName {
-  const selected = environment.DOJOFOO_HARNESS;
-  if (agentDefinitions.some(agent => agent.id === selected)) return selected as AgentId;
   if (environment.OPENCODE) return "opencode";
   if (environment.CLAUDECODE) return "claude";
   if (environment.PI_CODING_AGENT) return "pi";

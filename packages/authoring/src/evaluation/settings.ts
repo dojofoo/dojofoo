@@ -1,10 +1,11 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
+import { agentIds, agentRow } from "@dojofoo/protocol";
 import { evaluationConfiguration, type EvaluationConfiguration } from "./host.ts";
 
 const model = z.object({
-  harness: z.enum(["codex", "opencode", "pi", "cursor", "grok", "fx"]),
+  harness: z.enum(agentIds).refine(id => agentRow(id).adapterId !== undefined, "Select a supported coding agent"),
   model: z.string().trim().min(1).max(200),
 }).strict();
 export const evaluationSettingsSchema = z.object({

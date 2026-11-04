@@ -5,6 +5,7 @@ import { Button } from "@dojofoo/uix/components/button";
 import { MenuButton } from "@dojofoo/uix/components/app-shell";
 import { Switch } from "@dojofoo/uix/components/switch";
 import { codingAgents } from "@/lib/coding-agents";
+import { agentRows, offeredAgents } from "@dojofoo/protocol";
 import { HarnessModelInput } from "./harness-model-input";
 import { httpError } from "@/lib/http-error";
 
@@ -55,11 +56,12 @@ export function AuthoringEvaluationSettings({ open, onOpenChange, api, onSaved }
     <form className="mt-4 space-y-4" onSubmit={event => { event.preventDefault(); void save(); }}>
       {(["teacher", "learner"] as const).map(role => <fieldset key={role} disabled={busy || !loaded} className="space-y-2">
         <legend className="mb-2 text-sm font-semibold">{role === "teacher" ? "Sensei" : "Simulated learner"}</legend>
+        {role === "teacher" ? <p className="text-xs text-muted-foreground">Sensei teaches on this draft's coding agent; the model applies when it is that agent.</p> : null}
         <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
           <div className="text-xs">Coding agent<div className="mt-1">
             <MenuButton label={`${role} agent`} value={settings[role].harness} disabled={busy || !loaded} align="start"
               icon={codingAgents.find(agent => agent.value === settings[role].harness)?.icon}
-              options={(["codex", "opencode", "pi", "cursor", "grok", "fx"] as const).map(value => ({ value, label: codingAgents.find(agent => agent.value === value)!.name }))}
+              options={(role === "teacher" ? offeredAgents() : agentRows.filter(row => row.adapterId)).map(({ id: value }) => ({ value, label: codingAgents.find(agent => agent.value === value)!.name }))}
               onChange={harness => setSettings(current => ({ ...current, [role]: { harness, model: "" } }))} />
           </div></div>
           <HarnessModelInput harness={settings[role].harness} value={settings[role].model} label={`${role} model`} api={api}

@@ -8,7 +8,7 @@ import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { resolveRequestWorkspace, resolveWorkspaceId } from "../control/workspace";
 import { answerInteractiveQuestion, getInteractiveLesson, selectInteractiveMaterial } from "./service";
 import { answerInteractiveSensei, getInteractiveConversation, selectInteractiveHarness, setInteractiveModel, streamInteractiveSensei } from "./conversation";
-import { dojofooHarness, lessonHarnesses } from "../harness/registry";
+import { isAcpAgentId } from "@dojofoo/protocol";
 import { streamAcpAsAgUi } from "../lesson/agui-stream";
 
 const root = (c: Context) => c.req.param("workspaceId")
@@ -37,11 +37,7 @@ export const interactiveRoutes = new Hono()
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ error: "Select a supported coding agent." }, 422); }
     if (!body || typeof body !== "object" || !("harness" in body) || typeof body.harness !== "string" || !body.harness.trim() || Object.keys(body).some(key => key !== "harness")) return c.json({ error: "Select a supported coding agent." }, 422);
-    try {
-      const harness = dojofooHarness({ DOJOFOO_HARNESS: body.harness });
-      if (!lessonHarnesses.includes(harness)) throw new Error("Select a supported coding agent.");
-    }
-    catch (cause) { return c.json({ error: cause instanceof Error ? cause.message : String(cause) }, 422); }
+    if (!isAcpAgentId(body.harness)) return c.json({ error: "Select a supported coding agent." }, 422);
     try { return c.json(await selectInteractiveHarness(root(c), target(c), body.harness)); }
     catch (cause) { return c.json({ error: cause instanceof Error ? cause.message : String(cause) }, 502); }
   })

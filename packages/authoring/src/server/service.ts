@@ -107,7 +107,7 @@ export function readAuthoringDraft(root: string): AuthoringDraft {
   };
 }
 
-export function createLessonTrial(root: string, lessonId: string): {
+export function createLessonTrial(root: string, lessonId: string, options: { agent?: AgentId } = {}): {
   workspaceId: string;
   courseId: string;
   lessonId: string;
@@ -132,7 +132,7 @@ export function createLessonTrial(root: string, lessonId: string): {
   // mkdtemp owns this exact isolated workspace; cleanup never targets the draft.
   try {
     mkdirSync(resolve(trialRoot, ".dojo"), { recursive: true });
-    writeFileSync(resolve(trialRoot, ".dojo/runtimes.json"), JSON.stringify({ lesson: resolveRuntimeHarness("lesson", root) }));
+    writeFileSync(resolve(trialRoot, ".dojo/runtimes.json"), JSON.stringify({ agent: options.agent ?? resolveAgent(root) }));
     mkdirSync(dirname(courseRoot), { recursive: true });
     mkdirSync(courseRoot, { recursive: true });
     const include = trialCopyFilter(root);
@@ -448,4 +448,5 @@ function humanTitle(id: string): string {
 function substantiveMarkdown(markdown: string): boolean {
   return markdown.replace(/^#.*$/gmu, "").trim().length > 0;
 }
-import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
+import { resolveAgent } from "@dojofoo/config/runtime";
+import type { AgentId } from "@dojofoo/protocol";

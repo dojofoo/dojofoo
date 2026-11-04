@@ -5,6 +5,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createKyoshiRuntime } from "@dojofoo/authoring/eve/runtime";
 import { scaffoldAuthoringWorkspace } from "@dojofoo/authoring/scaffold";
+import { writeAgent } from "@dojofoo/config/runtime";
+import { isAgentId } from "@dojofoo/protocol";
 
 const live = process.argv.includes("--live");
 const localJudges = process.argv.includes("--local-judges");
@@ -28,6 +30,10 @@ const root = await mkdtemp(resolve(tmpdir(), "dojofoo-kyoshi-eval-"));
 let runtime: Awaited<ReturnType<typeof createKyoshiRuntime>> | undefined;
 try {
   scaffoldAuthoringWorkspace({ root, name: "Kyoshi teaching baseline", style: "katas" });
+  // An eval parameter, saved where the Kyoshi runtime reads the workspace's agent
+  const agent = process.env.DOJOFOO_EVAL_AGENT ?? "opencode";
+  if (!isAgentId(agent)) throw new Error(`Unsupported coding agent: ${agent}`);
+  writeAgent(root, agent);
   runtime = await createKyoshiRuntime(root, { model: process.env.DOJOFOO_EVAL_MODEL });
   const cwd = resolve(root, ".dojo/kyoshi-app/agents/kyoshi");
   await symlink(resolve(import.meta.dirname, "../authoring/evals"), resolve(cwd, "evals"), "dir");

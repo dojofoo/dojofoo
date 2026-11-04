@@ -29,6 +29,8 @@ async function fixture() {
     await writeFile(join(root, "src", lesson, "SENSEI.md"), validSensei);
     await writeFile(join(root, "src", lesson, "solution.test.ts"), 'it("works", () => {});');
   }
+  await mkdir(join(root, ".dojo"));
+  await writeFile(join(root, ".dojo/runtimes.json"), JSON.stringify({ agent: "codex" }));
   const workerPath = join(root, "worker.js"); await writeFile(workerPath, "");
   const config: EvaluationConfiguration = { workerPath, teachingHarness: "codex", teachingModel: "teacher", fixtureHarness: "pi", fixtureModel: "fixture" };
   const report: EvaluationReport = { version: 1, directory: "/evidence", materialHash: "hash", lessonIds: ["first"], status: "teaching-failed", stage: "teaching", startedAt: "start", completedAt: "end" };
@@ -121,6 +123,14 @@ it("accepts a completed failure report from a real worker exit 1 without treatin
   const report = await executeEvaluationWorker(f.root, ["first"], f.config, AbortSignal.timeout(5000));
   expect(report.status).toBe("teaching-failed");
   expect(report.directory).toBe("teacher");
+});
+
+it("drops the teacher model when the draft's agent is not the configured teacher", async () => {
+  const f = await fixture();
+  await writeFile(join(f.root, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode" }));
+  await writeFile(f.config.workerPath, `console.log(JSON.stringify({version:1,completedAt:"end",status:"passed",directory:process.env.DOJOFOO_HANDOFF_MODEL}));`);
+  const report = await executeEvaluationWorker(f.root, ["first"], f.config, AbortSignal.timeout(5000));
+  expect(report.directory).toBe("");
 });
 
 it.each([

@@ -332,7 +332,7 @@ The UI accepts `EVE_BASE_URL` for an externally owned host, which it never close
 Without it, the UI prepares and starts the managed application described above;
 concurrent requests share one startup, and startup failures reach the frontend
 without automatic retries or fallback.
-`DOJOFOO_HARNESS` selects its official adapter (OpenCode by default); there is no
+The draft's `.dojo/runtimes.json` `agent` selects its official adapter (OpenCode by default); there is no
 `--execution-backend` mode. Learning/trial sessions retain their existing ACP path.
 
 Local Cursor uses the installed `cursor-agent` executable and its normal home/login.

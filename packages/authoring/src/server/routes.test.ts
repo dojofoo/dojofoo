@@ -314,7 +314,7 @@ describe("authoring routes", () => {
   it("trials authored files without copying Kyoshi runtime or repository state", async () => {
     authorLesson();
     mkdirSync(resolve(context.root, ".dojo"), { recursive: true });
-    writeFileSync(resolve(context.root, ".dojo/runtimes.json"), JSON.stringify({ authoring: "pi", lesson: "codex" }));
+    writeFileSync(resolve(context.root, ".dojo/runtimes.json"), JSON.stringify({ agent: "codex" }));
     for (const directory of [".dojo/kyoshi-app", ".dojo/kyoshi-harness", ".git"]) {
       mkdirSync(resolve(context.root, directory), { recursive: true });
       writeFileSync(resolve(context.root, directory, "private-state"), "not lesson content");
@@ -331,7 +331,7 @@ describe("authoring routes", () => {
     const trial = context.trialRoots.at(-1)!;
     expect(trial.startsWith(`${context.root}/`)).toBe(false);
     expect(existsSync(resolve(context.root, ".dojo/state/trials"))).toBe(false);
-    expect(JSON.parse(readFileSync(resolve(trial, ".dojo/runtimes.json"), "utf8"))).toEqual({ lesson: "codex" });
+    expect(JSON.parse(readFileSync(resolve(trial, ".dojo/runtimes.json"), "utf8"))).toEqual({ agent: "codex" });
     const copied = resolve(trial, "courses/systems-thinking");
     for (const directory of [".dojo/kyoshi-app", ".dojo/kyoshi-harness", ".dojo/runtimes.json", ".git", "node_modules", ".env", ".npmrc", "src/001-draw-a-boundary/.env.local"]) {
       expect(existsSync(resolve(copied, directory)), directory).toBe(false);

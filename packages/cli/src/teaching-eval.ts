@@ -9,9 +9,6 @@ import { verifyLearnerFixtures } from "./fixture-preflight";
 if (!["--run", "--evaluate", "--evaluate-heldout"].includes(process.argv[2]) || !process.argv[3]) {
   process.stdout.write("Usage: teaching-eval --run|--evaluate|--evaluate-heldout <course-root> (uses configured local model; consumes usage; evaluation adds two independent judges)\n");
   process.exitCode = process.argv.includes("--help") ? 0 : 1;
-} else if (!process.env.DOJOFOO_HARNESS) {
-  process.stderr.write("Select the teaching harness before running a live evaluation.\n");
-  process.exitCode = 1;
 } else {
   // The host kills the worker on cancel or timeout. Abort instead of dying so
   // the report is completed as interrupted rather than left "running".
@@ -28,8 +25,8 @@ if (!["--run", "--evaluate", "--evaluate-heldout"].includes(process.argv[2]) || 
     if (priorLessons !== "teach" && priorLessons !== "seed-completion") throw new Error("Prior-lesson evaluation must be teach or seed-completion");
     // Validate against the production lesson runtime before either judge or
     // learner fixture generation can consume model usage.
-    const { dojofooHarness } = await import("../../ui/src/server/harness/registry");
-    dojofooHarness();
+    const { lessonAgent } = await import("../../ui/src/server/harness/registry");
+    const agent = lessonAgent(process.env.DOJOFOO_HANDOFF_COURSE);
     const { runAuthoringHandoff } = await import("../../ui/src/server/lesson/authoring-handoff");
     if (process.argv[2] !== "--run") {
       const root = process.env.DOJOFOO_HANDOFF_COURSE;
@@ -58,7 +55,7 @@ if (!["--run", "--evaluate", "--evaluate-heldout"].includes(process.argv[2]) || 
             harness: fixtureHarness, model: fixtureModel, signal,
           });
           return runAuthoringHandoff(signal, lessonIds, {
-            priorLessons,
+            agent, priorLessons,
             learnerProfile: process.argv[2] === "--evaluate-heldout" ? "confident" : "struggling",
             fixturesPath: fixtures.path, verifyFixtures: verifyLearnerFixtures,
             respondToReview: (dialogue, source, signal) => respondAsLearner({ dialogue, source, signal, harness: fixtureHarness, model: fixtureModel }),
@@ -69,7 +66,7 @@ if (!["--run", "--evaluate", "--evaluate-heldout"].includes(process.argv[2]) || 
       process.stdout.write(`${JSON.stringify(report)}\n`);
       if (report.status !== "passed") process.exitCode = 1;
     } else {
-      const evidenceRoot = await runAuthoringHandoff(undefined, undefined, { priorLessons });
+      const evidenceRoot = await runAuthoringHandoff(undefined, undefined, { agent, priorLessons });
       process.stdout.write(`${JSON.stringify({ evidenceRoot })}\n`);
     }
   } catch (error) {

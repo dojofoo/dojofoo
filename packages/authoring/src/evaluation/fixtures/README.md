@@ -53,8 +53,8 @@ gap. It reuses the production trial runner and does not generate a new course
 or simulate a learner with another model.
 
 Run it explicitly with `DOJOFOO_EVAL_FOCUSED=1`, `DOJOFOO_HANDOFF_COURSE` pointing
-to the saved course, `DOJOFOO_EVAL_LESSON_ID` selecting its lesson, and the normal
-`DOJOFOO_HARNESS`, `DOJOFOO_HANDOFF_MODEL`, and `DOJO_CLI` settings. It is skipped
+to the saved course, `DOJOFOO_EVAL_LESSON_ID` selecting its lesson, and the course's
+`.dojo/runtimes.json` agent and the normal `DOJOFOO_HANDOFF_MODEL` and `DOJO_CLI` settings. It is skipped
 by default. The saved evidence includes the exact production instructions.
 
 The first run on 2026-10-15 passed engagement, learner grounding, adaptation,

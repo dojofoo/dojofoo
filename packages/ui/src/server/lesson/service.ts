@@ -1,5 +1,4 @@
 import { execFileSync } from "node:child_process";
-import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
 import { courseTitle } from "@dojofoo/config/course-installations";
 import { prepareWorkspace } from "@dojofoo/config/project-preparation";
 import { createHash } from "node:crypto";
@@ -27,7 +26,7 @@ import { retainLearnerEvidence, lessonEvidence } from "./learner-evidence";
 import { recordLearnerObservation } from "./learner-observations";
 import { senseiInstructions, senseiTurn } from "./instructions";
 import type { HarnessKind } from "../harness/adapter";
-import { dojofooHarness, lessonHarnesses } from "../harness/registry";
+import { lessonAgent, lessonHarnesses } from "../harness/registry";
 import { acpClient, type AcpStreamPart, type SessionModelConfiguration, type TranscriptMessage } from "./codex-client";
 import { parseSenseiContent } from "./sensei-content";
 
@@ -263,7 +262,7 @@ export async function getLesson(root: string, requestedKata?: string, { prepareS
     checkpointed: Boolean(webState.checkpoints[key]),
     sessionId: threadId ?? null,
     model: threadId ? acpClient.modelConfiguration(threadId) : null,
-    harness: harness ?? webState.defaultHarness ?? resolveRuntimeHarness("lesson", root),
+    harness: harness ?? webState.defaultHarness ?? lessonAgent(root),
     harnesses: lessonHarnesses,
     state: selectedState,
     isCurrent: selected.name === current?.name,
@@ -625,7 +624,7 @@ async function lessonThread(root: string, kataName: string, options: { forceNew?
   const key = lessonKey(rc.currentDojo, kataName);
   const state = readWebState(root);
   const existing = state.threads[key];
-  const harness = !options.forceNew && existing ? existing.harness : options.harness ?? state.defaultHarness ?? dojofooHarness({ DOJOFOO_HARNESS: resolveRuntimeHarness("lesson", root) });
+  const harness = !options.forceNew && existing ? existing.harness : options.harness ?? state.defaultHarness ?? lessonAgent(root);
   const runtimeKey = lessonRuntimeKey(root, key, harness);
   if (!options.forceNew && existing) {
     const catalog = readCatalog(root, rc.currentDojo);
@@ -873,7 +872,7 @@ function lessonKey(dojo: string, kata: string): string {
   return `${dojo}/${kata}`;
 }
 
-function lessonRuntimeKey(root: string, key: string, harness: HarnessKind = dojofooHarness()): string {
+function lessonRuntimeKey(root: string, key: string, harness: HarnessKind): string {
   return `${harness}\0${resolve(root)}\0${key}`;
 }
 

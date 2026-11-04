@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 import type { UIMessage } from "@tanstack/ai-client";
 import { acpClient, type AcpStreamPart, type SessionModelConfiguration } from "../lesson/codex-client";
 import { transcriptToUIMessages } from "../lesson/service";
-import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
 import { readDojoMd } from "@dojofoo/config";
-import { dojofooHarness, lessonHarnesses } from "../harness/registry";
+import { isAcpAgentId } from "@dojofoo/protocol";
+import { lessonAgent, lessonHarnesses } from "../harness/registry";
 import {
   getInteractiveLesson, readInteractiveConversation, writeInteractiveConversation,
   type InteractiveConversationBinding,
@@ -29,7 +29,7 @@ Do not edit the installed tutorial or course source. If authoring is requested, 
 const runtimeOwner = crypto.randomUUID();
 
 function configuration(root: string, dojo: string, binding?: Pick<InteractiveConversationBinding, "harness">) {
-  const harness = binding?.harness ?? dojofooHarness({ DOJOFOO_HARNESS: resolveRuntimeHarness("lesson", root) });
+  const harness = binding?.harness ?? lessonAgent(root);
   return {
     root,
     runtimeKey: `interactive:${resolve(root)}:${dojo}:${harness}`,
@@ -51,7 +51,7 @@ export async function getInteractiveConversation(root: string, dojo: string): Pr
   getInteractiveLesson(root, dojo);
   const binding = readInteractiveConversation(root, dojo);
   if (!binding || (binding.pendingRuntime && binding.pendingRuntime !== runtimeOwner)) return {
-    sessionId: null, messages: [], model: null, harness: binding?.harness ?? resolveRuntimeHarness("lesson", root), harnesses: lessonHarnesses,
+    sessionId: null, messages: [], model: null, harness: binding?.harness ?? lessonAgent(root), harnesses: lessonHarnesses,
   };
   await resume(root, dojo, binding);
   return conversationSnapshot(binding);
@@ -72,9 +72,8 @@ const scope = (root: string, dojo: string) => `interactive:${resolve(root)}:${do
 
 /** Selecting an agent never sends a turn or overwrites another agent's native session. */
 export async function selectInteractiveHarness(root: string, dojo: string, value: string): Promise<InteractiveConversation> {
-  if (!value.trim()) throw new Error("Select a supported coding agent.");
-  const harness = dojofooHarness({ DOJOFOO_HARNESS: value });
-  if (!lessonHarnesses.includes(harness)) throw new Error("Select a supported coding agent.");
+  if (!isAcpAgentId(value)) throw new Error("Select a supported coding agent.");
+  const harness = value;
   getInteractiveLesson(root, dojo);
   const key = scope(root, dojo);
   if (activeOperations.has(key)) throw new Error("The conversation is busy. Wait for the current turn or cancel it first.");

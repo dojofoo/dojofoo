@@ -2,16 +2,25 @@ import type { SessionNotification } from "@agentclientprotocol/sdk";
 import { AgentSideConnection, ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import * as childProcess from "node:child_process";
 import { EventEmitter } from "node:events";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough, Readable, Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { codexHarnessAdapter, codexRuntimeEnvironment } from "../harness/codex";
 import { configureOpenCodeSessionModel, opencodeRuntimeEnvironment } from "../harness/opencode";
-import { dojofooHarness } from "../harness/registry";
+import { isAcpAgentId } from "@dojofoo/protocol";
+import { lessonAgent } from "../harness/registry";
 import { AcpClient, type AcpStreamPart } from "./codex-client";
 import { runCoordinator } from "../run/coordinator";
+
+/** A workspace whose saved coding agent is `agent` */
+function workspaceWith(agent: string): string {
+  const root = mkdtempSync(join(tmpdir(), "dojo-lesson-agent-"));
+  mkdirSync(join(root, ".dojo"));
+  writeFileSync(join(root, ".dojo/runtimes.json"), JSON.stringify({ agent }));
+  return root;
+}
 
 vi.mock("node:child_process", async importOriginal => {
   const actual = await importOriginal<typeof import("node:child_process")>();
@@ -425,10 +434,13 @@ describe("AcpClient projection", () => {
     expect(configureSession).toHaveBeenCalledWith(runtime.connection, "session-1", []);
   });
 
-  it("uses OpenCode normally and keeps the environment variable as an override", () => {
-    expect(dojofooHarness({})).toBe("opencode");
-    expect(dojofooHarness({ DOJOFOO_HARNESS: "codex" })).toBe("codex");
-    expect(() => dojofooHarness({ DOJOFOO_HARNESS: "unknown" })).toThrow("Unsupported Dojofoo harness");
+  it("teaches on the workspace's saved coding agent", () => {
+    const roots = [workspaceWith("opencode"), workspaceWith("codex")];
+    try {
+      expect(lessonAgent(roots[0]!)).toBe("opencode");
+      expect(lessonAgent(roots[1]!)).toBe("codex");
+    } finally { for (const root of roots) rmSync(root, { recursive: true, force: true }); }
+    expect(isAcpAgentId("unknown")).toBe(false);
   });
   it("retains the whole turn duration when ACP emits a late thought chunk", async () => {
     const client = new AcpClient();

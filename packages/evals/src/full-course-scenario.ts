@@ -1,6 +1,9 @@
-export const matrixHarnesses = ["codex", "opencode", "cursor", "grok", "fx", "pi"] as const;
+import { acpAgentIds, type AcpAgentId } from "@dojofoo/protocol";
 
-export type MatrixHarness = (typeof matrixHarnesses)[number];
+/** Every ACP lesson agent, plus Pi on its own driver. */
+export const matrixHarnesses = [...acpAgentIds, "pi"] as const;
+
+export type MatrixHarness = AcpAgentId | "pi";
 
 export type CourseLesson = {
   id: string;

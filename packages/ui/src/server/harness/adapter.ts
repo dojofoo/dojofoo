@@ -1,6 +1,8 @@
 import type * as acp from "@agentclientprotocol/sdk";
+import type { AcpAgentId } from "@dojofoo/protocol";
 
-export type HarnessKind = "claude" | "codex" | "cursor" | "fx" | "grok" | "opencode";
+/** The registry rows today's ACP lesson runtime runs; step 7 deletes this runtime. */
+export type HarnessKind = AcpAgentId;
 
 export type HarnessProcess = {
   command: string;

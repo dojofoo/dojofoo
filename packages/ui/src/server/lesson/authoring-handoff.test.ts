@@ -80,10 +80,10 @@ async function fixture() {
   roots.push(root); state.root = root;
   vi.stubEnv("DOJOFOO_EVALUATION_WORKER", "1");
   vi.stubEnv("DOJOFOO_HANDOFF_COURSE", root);
-  vi.stubEnv("DOJOFOO_HARNESS", "codex");
   // The runner owns these settings in production only inside its worker.
   vi.stubEnv("DOJOFOO_HOME", ""); vi.stubEnv("DOJO_CLI", ""); vi.stubEnv("PORT", "");
   await mkdir(join(root, ".dojo"));
+  await writeFile(join(root, ".dojo/runtimes.json"), JSON.stringify({ agent: "codex" }));
   await writeFile(join(root, "DOJO.md"), "Course guidance");
   const katas = ["001-first", "002-second"].map(name => ({ name, template: `src/${name}/solution.ts` }));
   for (const lesson of katas) {

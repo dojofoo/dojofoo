@@ -7,6 +7,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { JSONRPCClient } from "json-rpc-2.0";
 import { parse } from "smol-toml";
+import { agentRow, type AgentId } from "@dojofoo/protocol";
 
 /** Preserve the native CLI choice when the caller has not selected a model. */
 export async function configuredHarnessModel(harness: string, codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex")): Promise<string | undefined> {
@@ -28,15 +29,19 @@ export interface HarnessModelChoice {
   defaultEffort?: string;
 }
 
-export async function harnessModels(harness: string, signal: AbortSignal): Promise<HarnessModelChoice[]> {
-  if (harness === "codex") return codexModels(signal);
-  if (harness === "pi") return piModels(signal);
-  if (harness === "opencode") {
+export async function harnessModels(agent: AgentId, signal: AbortSignal): Promise<HarnessModelChoice[]> {
+  const discovery = agentRow(agent).modelDiscovery;
+  if (discovery?.method === "cli-aliases") return discovery.aliases.map(id => ({ id, name: id, efforts: [] }));
+  // ACP probing (Cursor, Grok) and adapter discovery (FX) are not available yet; the agent's default model is used
+  if (discovery?.method !== "native") return [];
+  if (agent === "codex") return codexModels(signal);
+  if (agent === "pi") return piModels(signal);
+  if (agent === "opencode") {
     const executable = process.env.OPENCODE_BIN ?? resolveAgentExecutable("opencode") ?? "opencode";
     const { stdout } = await promisify(execFile)(executable, ["models"], { signal, timeout: 15_000, maxBuffer: 1024 * 1024 });
     return parseOpenCodeModels(stdout);
   }
-  throw new Error(`${harness} model discovery is not available here yet. Use its native CLI to select a model.`);
+  throw new Error(`${agentRow(agent).name} model discovery is not available here yet. Use its native CLI to select a model.`);
 }
 
 export function parseOpenCodeModels(output: string): HarnessModelChoice[] {

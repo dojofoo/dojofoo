@@ -5,6 +5,7 @@ import { createJustBashNetworkSandboxSession } from "@ai-sdk/sandbox-just-bash";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { AcpClient } from "../../ui/src/server/lesson/codex-client";
+import type { AcpAgentId } from "@dojofoo/protocol";
 import {
   matrixHarnesses,
   runFullCourseScenario,
@@ -34,7 +35,7 @@ class LiveAcpCourseDriver implements FullCourseDriver {
   private sessionId = "";
 
   constructor(
-    private readonly harness: Exclude<MatrixHarness, "pi">,
+    private readonly harness: AcpAgentId,
     private readonly root: string,
   ) {}
 

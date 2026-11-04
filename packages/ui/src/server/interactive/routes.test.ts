@@ -16,6 +16,8 @@ function fixture() {
   vi.stubEnv("DOJOFOO_HOME", resolve(root, "state"));
   vi.stubEnv("DOJO_PROJECT_ROOT", root);
   writeFileSync(resolve(root, ".dojorc"), JSON.stringify({ currentDojo: "first", currentKata: null, editor: null }));
+  mkdirSync(resolve(root, ".dojo"), { recursive: true });
+  writeFileSync(resolve(root, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode" }));
   for (const name of ["first", "second"]) {
     const dir = resolve(root, ".dojos", name);
     mkdirSync(dir, { recursive: true });

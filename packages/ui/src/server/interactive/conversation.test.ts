@@ -17,6 +17,8 @@ function fixture() {
   roots.push(root);
   vi.stubEnv("DOJOFOO_HOME", resolve(root, "state"));
   writeFileSync(resolve(root, ".dojorc"), JSON.stringify({ currentDojo: "first", currentKata: null, editor: null }));
+  mkdirSync(resolve(root, ".dojo"), { recursive: true });
+  writeFileSync(resolve(root, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode" }));
   for (const course of ["first", "second"]) {
     const folder = resolve(root, ".dojos", course);
     mkdirSync(folder, { recursive: true });
@@ -162,7 +164,7 @@ it("retains the active binding on unsupported choices and failed starts/resumes"
   const path = resolve(root, ".dojo/interactive.json");
   const original = readFileSync(path, "utf8");
   await expect(selectInteractiveHarness(root, "first", "")).rejects.toThrow("coding agent");
-  await expect(selectInteractiveHarness(root, "first", "pi")).rejects.toThrow("not by the ACP");
+  await expect(selectInteractiveHarness(root, "first", "pi")).rejects.toThrow("Select a supported coding agent.");
   vi.mocked(acpClient.startThread).mockRejectedValueOnce(new Error("Login required"));
   await expect(selectInteractiveHarness(root, "first", "codex")).rejects.toThrow("Login required");
   expect(readFileSync(path, "utf8")).toBe(original);

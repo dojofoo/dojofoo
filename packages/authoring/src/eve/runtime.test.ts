@@ -10,11 +10,12 @@ import { acquireKyoshiRuntime, createKyoshiRuntime } from "./runtime";
 
 it("defaults to the native Codex model, preserving saved and explicit selections", async () => {
   const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-model-"));
-  vi.stubEnv("DOJOFOO_HARNESS", "codex");
   vi.stubEnv("CODEX_HOME", root);
   vi.stubEnv("DOJOFOO_HOME", root);
   const statePath = join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json");
   try {
+    await mkdir(join(root, ".dojo"), { recursive: true });
+    await writeFile(join(root, ".dojo/runtimes.json"), JSON.stringify({ agent: "codex" }));
     await writeFile(join(root, "config.toml"), 'model = "native-model"\n');
     for (const [options, expected] of [[{}, "native-model"], [{}, "changed-native-model"], [{ model: "selected-model" }, "selected-model"], [{}, "selected-model"]] as const) {
       const runtime = await createKyoshiRuntime(root, options);

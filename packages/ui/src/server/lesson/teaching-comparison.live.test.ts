@@ -202,9 +202,8 @@ it.runIf(["1", "retest"].includes(process.env.DOJOFOO_EVAL_AUTHORED_PROBE ?? "")
   await writeFile(join(course, "src/001-map/SENSEI.md"), material.sensei);
   process.env.DOJOFOO_HANDOFF_COURSE = course;
   process.env.DOJOFOO_EVALUATION_WORKER = "1";
-  process.env.DOJOFOO_HARNESS = "codex";
   process.env.DOJOFOO_HANDOFF_MODEL = model;
-  const root = await runAuthoringHandoff(undefined, ["001-map"], { turns: [
+  const root = await runAuthoringHandoff(undefined, ["001-map"], { agent: "codex", turns: [
     { message: "I understand the output we want, but I don't know what a callback is. Is it a special kind of loop?" },
     { message: "I thought arrow functions returned their last line. Why am I getting undefined?", code: "export function wordLengths(words: string[]): number[] {\n  return words.map(word => { word.length; });\n}\n" },
   ] });

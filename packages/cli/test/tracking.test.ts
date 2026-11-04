@@ -11,7 +11,6 @@ afterEach(() => {
 });
 
 it("records Pi dialogue while ignoring absent message payloads", () => {
-  vi.stubEnv("DOJOFOO_HARNESS", "");
   vi.stubEnv("OPENCODE", "");
   vi.stubEnv("CLAUDECODE", "");
   vi.stubEnv("PI_CODING_AGENT", "1");

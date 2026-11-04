@@ -63,7 +63,8 @@ it.each(process.env.DOJO_HARNESS_LIFECYCLE === "1" ? selections : selections.sli
       provider: { openai: { options: { baseURL: endpoint.baseURL, apiKey: "fixture-only" } } },
     }));
   }
-  vi.stubEnv("DOJOFOO_HARNESS", selection === "runtime" || selection === "native" ? "opencode" : selection);
+  await mkdir(join(root, ".dojo"), { recursive: true });
+  await writeFile(join(root, ".dojo/runtimes.json"), JSON.stringify({ agent: selection === "runtime" || selection === "native" ? "opencode" : selection }));
   // Eve intentionally substitutes mock models under NODE_ENV=test.
   vi.stubEnv("NODE_ENV", "development");
   vi.stubEnv("EVE_MOCK_AUTHORED_MODELS", "0");

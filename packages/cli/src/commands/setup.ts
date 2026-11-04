@@ -3,6 +3,7 @@ import { createInterface } from "node:readline/promises";
 import { dirname, resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CLI, DOJOS_DIR, readDojoRc, writeDojoRc, type DojoRc } from "../config";
+import { agentRow } from "@dojofoo/protocol";
 
 export const AGENTS = {
   claude: { dir: ".claude", commandsDir: "commands", hasSettings: true, envVars: ["CLAUDECODE"] },
@@ -17,11 +18,8 @@ const AGENTS_SKILLS_DIR = ".agents/skills";
 
 export type AgentName = keyof typeof AGENTS;
 
-const INTERACTIVE_AGENTS = [
-  { name: "OpenCode", value: "opencode" },
-  { name: "Codex", value: "codex" },
-  { name: "Pi", value: "pi" },
-] as const satisfies ReadonlyArray<{ name: string; value: AgentName }>;
+const INTERACTIVE_AGENTS = (["opencode", "codex", "pi"] as const satisfies readonly AgentName[])
+  .map(value => ({ name: agentRow(value).name, value }));
 
 export function detectAgentsFromEnv(): AgentName[] {
   return (Object.keys(AGENTS) as AgentName[]).filter((a) =>

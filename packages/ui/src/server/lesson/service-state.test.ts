@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { readDojoRc } from "@dojofoo/config";
 import * as preparation from "@dojofoo/config/project-preparation";
 import { answerSenseiQuestion, checkLesson, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, saveLearnerObservation, shouldIntroduceLesson, setLessonModel, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
-import { dojofooHarness } from "../harness/registry";
+import { writeAgent } from "@dojofoo/config/runtime";
 import { acpClient } from "./codex-client";
 import kataTeaching from "./contracts/KATAS.md?raw";
 
@@ -46,6 +46,7 @@ function freshCourse(): string {
   mkdirSync(second, { recursive: true });
   writeFileSync(resolve(second, "SENSEI.md"), "# Second lesson\n\nContinue here.");
   writeFileSync(resolve(second, "solution.ts"), "export const second = 0;\n");
+  writeAgent(root, "opencode");
   return root;
 }
 
@@ -77,7 +78,6 @@ describe("fresh lesson state", () => {
   });
 
   it("exposes installed course details for the learner card without starting a session", async () => {
-    vi.stubEnv("DOJOFOO_LESSON_HARNESS", "opencode");
     const root = freshCourse();
     const start = vi.spyOn(acpClient, "startThread");
     const lesson = await getLesson(root, "001-first");
@@ -144,20 +144,6 @@ describe("fresh lesson state", () => {
     expect(existsSync(path) ? JSON.parse(readFileSync(path, "utf8")).defaultHarness : undefined).toBeUndefined();
   });
 
-  it("rejects an authoring-only harness before starting a trial, without silently substituting one", async () => {
-    const root = freshCourse();
-    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("trial-session");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    vi.stubEnv("DOJOFOO_HARNESS", "pi");
-    await expect(startLessonSession(root, "001-first")).rejects.toThrow("not by the ACP lesson runtime");
-    expect(start).not.toHaveBeenCalled();
-
-    vi.stubEnv("DOJOFOO_HARNESS", "codex");
-    expect((await startLessonSession(root, "001-first")).sessionId).toBe("trial-session");
-    expect(start).toHaveBeenCalledWith(expect.objectContaining({ harness: "codex" }));
-  });
-
   it("loads the course named by a route without changing the CLI selection or starting an agent", async () => {
     const root = freshCourse();
     const selection = JSON.stringify({ currentDojo: "another-course", currentKata: "another-lesson", editor: "code", progress: {} });
@@ -201,25 +187,23 @@ describe("fresh lesson state", () => {
     expect(start).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps an existing conversation on its harness when the global default changes", async () => {
+  it("keeps a conversation on its agent while the selection stays the same", async () => {
     const root = freshCourse();
-    vi.stubEnv("DOJOFOO_HARNESS", "codex");
+    writeAgent(root, "codex");
     const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("owned-session");
     const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
     vi.spyOn(acpClient, "history").mockResolvedValue([]);
     vi.spyOn(acpClient, "send").mockResolvedValue("");
     await startLessonSession(root, "001-first");
 
-    vi.stubEnv("DOJOFOO_HARNESS", "pi");
     expect(await getLesson(root, "001-first")).toMatchObject({ sessionId: "owned-session", harness: "codex" });
     await streamSensei(root, "001-first", "Please explain this", () => {});
     expect(start).toHaveBeenCalledTimes(1);
     expect(resume).toHaveBeenLastCalledWith("owned-session", expect.objectContaining({ harness: "codex" }));
     expect((await getLesson(root, "002-second"))?.kata).toBe("002-second");
-    vi.stubEnv("DOJOFOO_HARNESS", "opencode");
     start.mockResolvedValueOnce("replacement-session");
     expect((await startLessonSession(root, "001-first", "starter")).sessionId).toBe("replacement-session");
-    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "opencode" }));
+    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "codex" }));
     const state = JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8"));
     expect(state.threads["starter/001-first"].aliases).toContain("owned-session");
     await expect(startLessonSession(root, "001-first", "another-course")).rejects.toThrow("Course not found");
@@ -456,7 +440,7 @@ describe("fresh lesson state", () => {
       threads: {
         "starter/001-first": {
           sessionId: "old-session",
-          harness: dojofooHarness(),
+          harness: "opencode",
           contractHash: "old-contract",
           aliases: [],
         },

@@ -3,13 +3,11 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { ClientOptions } from "@dojofoo/agent/client";
 import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type SessionRecord } from "@dojofoo/agent-api";
-import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
+import { resolveAgent } from "@dojofoo/config/runtime";
+import { agentRow, isAgentId, offeredAgents, type AgentId } from "@dojofoo/protocol";
 import type { LocalStateOptions } from "@dojofoo/config/local-state";
 import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
 import { resolveWorkspaceId } from "./control/workspace";
-
-/** The coding agents Kyoshi's runtime has adapters for, as `dojofoo` names them. */
-const codingAgents: Record<string, string> = { claude: "Claude Code", codex: "Codex", opencode: "OpenCode", pi: "Pi", cursor: "Cursor", grok: "Grok Build", fx: "FX" };
 
 type RuntimeState = { agent: string; status: AgentStatus; message?: string; endpoint?: Promise<AgentEndpoint>; owned?: OwnedRuntime };
 
@@ -41,25 +39,22 @@ export function createLocalAgentRuntime(options: {
     try { return resolveWorkspaceId(workspaceId, options.state); }
     catch { throw new AgentApiError(404, "workspace_not_found", "Workspace not found."); }
   };
-  const selected = (path: string) => {
-    const id = resolveRuntimeHarness("authoring", path);
-    return id === "grok-build" ? "grok" : id;
-  };
-  const describe = (path: string, id: string): Agent => {
+  const selected = (path: string) => resolveAgent(path);
+  const describe = (path: string, id: AgentId): Agent => {
     const state = states.get(path);
     const current = id === selected(path);
     return {
-      id, name: codingAgents[id] ?? id, selected: current,
+      id, name: agentRow(id).name, selected: current,
       status: current && state ? state.status : "stopped",
       ...(current && state?.message ? { message: state.message } : {}),
     };
   };
-  const known = (path: string, agentId: string) => {
-    if (!codingAgents[agentId] && agentId !== selected(path)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
+  function known(path: string, agentId: string): asserts agentId is AgentId {
+    if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
     if (agentId !== selected(path)) {
-      throw new AgentApiError(409, "agent_unavailable", `${codingAgents[agentId] ?? agentId} isn't this workspace's selected coding agent. Select it for authoring to run it here.`);
+      throw new AgentApiError(409, "agent_unavailable", `${agentRow(agentId).name} isn't this workspace's selected coding agent. Select it for authoring to run it here.`);
     }
-  };
+  }
   /** Start the workspace's agent once; later calls share the same start, until the agent changes or stops */
   const endpoint = (path: string) => {
     const existing = states.get(path);
@@ -115,8 +110,8 @@ export function createLocalAgentRuntime(options: {
   return {
     async agents(workspaceId) {
       const path = root(workspaceId);
-      const ids = [...new Set([selected(path), ...Object.keys(codingAgents)])];
-      return ids.map(id => describe(path, id));
+      const current = selected(path);
+      return [current, ...offeredAgents().map(row => row.id).filter(id => id !== current)].map(id => describe(path, id));
     },
     async start(workspaceId, agentId) {
       const path = root(workspaceId);

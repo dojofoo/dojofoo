@@ -64,10 +64,9 @@ await writeFile(join(source, "src/installed-start/kata.ts"), "export const start
 await writeFile(join(source, "dojo.yaml"), "mode: katas\nname: browser-authoring-fixture\nversion: 0.0.1\ndescription: Learn pure functions.\ntest: npx vitest run {template}\nkatas:\n  - name: installed-start\n    template: src/installed-start/kata.ts\n");
 const environment = { ...process.env, NODE_ENV: "production", EVE_MOCK_AUTHORED_MODELS: "0",
     NODE_PATH: undefined,
-    EVE_BASE_URL: "", DOJO_PROJECT_ROOT: undefined, DOJOFOO_HARNESS: "opencode", DOJOFOO_AUTHORING_HARNESS: "opencode",
+    EVE_BASE_URL: "", DOJO_PROJECT_ROOT: undefined,
     DOJO_UI_DISABLE_PORTLESS: "1",
     DOJO_CLI: cli, DOJOFOO_HOME: join(home, ".dojofoo"),
-    DOJOFOO_MODEL: "", DOJOFOO_AUTHORING_MODEL: "", DOJOFOO_LESSON_MODEL: "",
     MISE_TRUSTED_CONFIG_PATHS: root,
     MISE_DATA_DIR: process.env.MISE_DATA_DIR ?? join(homedir(), ".local/share/mise"),
     OPENCODE_BIN: opencode,
@@ -86,6 +85,11 @@ await promisify(execFile)(process.execPath, [cli, "add", source, "--master"], {
   cwd: learning, timeout: 120_000,
   env: { ...environment, DOJO_PROJECT_ROOT: learning, DO_NOT_TRACK: "1" },
 });
+// Each workspace keeps its coding agent, as the composer's agent menu saves it
+for (const workspace of [course, learning]) {
+  await mkdir(join(workspace, ".dojo"), { recursive: true });
+  await writeFile(join(workspace, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode" }));
+}
 let child;
 let restart = false;
 const stop = () => {

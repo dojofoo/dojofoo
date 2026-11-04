@@ -17,7 +17,7 @@ import { getTypeScriptCompletions, getTypeScriptDiagnostics, getTypeScriptHover 
 import { resolveWorkspaceId } from "../control/workspace";
 import type { AcpStreamPart } from "./codex-client";
 import { streamAcpAsAgUi } from "./agui-stream";
-import { dojofooHarness } from "../harness/registry";
+import { isAcpAgentId } from "@dojofoo/protocol";
 import { readCourseManifest } from "@dojofoo/config";
 import { advanceInteractiveLesson, getInteractiveLesson } from "../interactive/service";
 
@@ -60,9 +60,8 @@ app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/sessions", async (c)
     const body = await c.req.text();
     const input = body ? JSON.parse(body) as { harness?: unknown } : {};
     if (input.harness !== undefined) {
-      if (typeof input.harness !== "string") return c.json({ error: "Select a lesson harness" }, 422);
-      const harness = dojofooHarness({ DOJOFOO_HARNESS: input.harness });
-      return c.json(await startLessonSession(root, lessonId, courseId, harness), 201);
+      if (!isAcpAgentId(input.harness)) return c.json({ error: "Select a lesson harness" }, 422);
+      return c.json(await startLessonSession(root, lessonId, courseId, input.harness), 201);
     }
     return c.json(await startLessonSession(root, lessonId, courseId), 201);
   } catch (cause) {

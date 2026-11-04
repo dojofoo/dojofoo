@@ -226,8 +226,9 @@ passing report and files passed unchanged in `dojo-continuation-eval-CA2bUy`.
 Set `DOJOFOO_EVAL_HANDOFF=1` instead of `DOJOFOO_EVAL_CONTINUATION=1` to run that
 handoff-only test. This does not replace fresh full-workflow acceptance.
 
-This suite runs the **production Kyoshi Eve runtime**, using the local harness selected
-by `DOJOFOO_HARNESS` (default OpenCode). It replaces the legacy direct-ACP authoring
+This suite runs the **production Kyoshi Eve runtime**. The runner writes the local
+coding agent named by `DOJOFOO_EVAL_AGENT` (default OpenCode) to the scaffold's
+`.dojo/runtimes.json`, where the runtime reads it. It replaces the legacy direct-ACP authoring
 benchmark. The course is scaffolded in a fresh temporary directory; existing courses
 and conversations are untouched. No mandatory eval directory is added to courses.
 
@@ -281,10 +282,10 @@ the owning `prompts/index.ts`.
 For the fixed two-local-judge material test (no Gateway key):
 
 ```sh
-DOJOFOO_HARNESS=opencode DOJOFOO_EVAL_MODEL=zai-coding-plan/glm-5.3 \
+DOJOFOO_EVAL_AGENT=opencode DOJOFOO_EVAL_MODEL=zai-coding-plan/glm-5.3 \
   pnpm --filter @dojofoo/evals eval:authoring --live --local-judges
 
-DOJOFOO_HARNESS=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro \
+DOJOFOO_EVAL_AGENT=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro \
   pnpm --filter @dojofoo/evals eval:authoring --live --local-judges
 ```
 
@@ -310,7 +311,7 @@ For two linked authoring turns (first lesson, then the next lesson):
 
 ```sh
 pnpm --filter dojofoo exec tsup
-DOJOFOO_HARNESS=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro \
+DOJOFOO_EVAL_AGENT=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro \
   pnpm --filter @dojofoo/evals eval:authoring --live --local-judges --chained
 ```
 
@@ -358,18 +359,19 @@ Every attempt writes its material hash, snapshots, stage, and verdicts under
 For the low-level `--run` replay, prepare `.dojo/learner-fixtures.json`. Key entries by
 lesson ID, each with `misconception`, `wrong`, `solved`, and `review` strings.
 Review these against the generated exports and tests. They are learner-side
-inputs, never extra teaching instructions.
+inputs, never extra teaching instructions. The worker teaches on the course's
+`.dojo/runtimes.json` agent; write `{ "agent": "codex" }` there to teach on Codex.
 
 ```sh
 pnpm --filter dojofoo exec tsup
-DOJOFOO_HARNESS=codex CODEX_PATH=/path/to/installed/codex \
+CODEX_PATH=/path/to/installed/codex \
   node packages/cli/dist/teaching-eval.js --run /path/to/authored-course
 
 pnpm --filter @dojofoo/evals exec tsx src/judge-handoff.ts \
   /path/to/authored-course/.dojo/handoffs/run-ID --live
 
 # Same worker, with material and teaching judges (paid usage):
-DOJOFOO_HARNESS=codex DOJOFOO_EVAL_FIXTURE_HARNESS=pi \
+DOJOFOO_EVAL_FIXTURE_HARNESS=pi \
   DOJOFOO_EVAL_FIXTURE_MODEL=deepseek/deepseek-v4-pro \
   node packages/cli/dist/teaching-eval.js \
   --evaluate /path/to/authored-course 001-first-lesson
@@ -449,7 +451,7 @@ For the separate native Eve autoevals author-and-revise case, set `DOJOFOO_EVAL_
 `AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN`, then run:
 
 ```sh
-DOJOFOO_HARNESS=opencode pnpm --filter @dojofoo/evals eval:authoring --live
+DOJOFOO_EVAL_AGENT=opencode pnpm --filter @dojofoo/evals eval:authoring --live
 ```
 
 Optional `DOJOFOO_EVAL_MODEL` selects the harness model. Its existing local login

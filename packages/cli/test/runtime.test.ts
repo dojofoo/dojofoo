@@ -4,7 +4,6 @@ import { runtimeIdentity } from "../src/runtime";
 describe("agent runtime identity", () => {
   it("uses the selected OpenCode harness when a parent Codex ID leaks into its environment", () => {
     expect(runtimeIdentity({
-      DOJOFOO_HARNESS: "opencode",
       OPENCODE: "1",
       OPENCODE_SESSION_ID: "opencode-session",
       CODEX_THREAD_ID: "parent-codex-session",
@@ -14,7 +13,6 @@ describe("agent runtime identity", () => {
   it("prefers an explicit Dojofoo session identity", () => {
     expect(runtimeIdentity({
       DOJOFOO_SESSION_ID: "explicit-session",
-      DOJOFOO_HARNESS: "opencode",
       OPENCODE_SESSION_ID: "opencode-session",
     })).toEqual({ name: "opencode", sessionId: "explicit-session" });
   });
@@ -30,7 +28,6 @@ describe("agent runtime identity", () => {
   it.each([
     ["claude", { CLAUDECODE: "1", CLAUDE_SESSION_ID: "session" }],
     ["pi", { PI_CODING_AGENT: "1", PI_SESSION_ID: "session" }],
-    ["agy", { DOJOFOO_HARNESS: "agy", DOJOFOO_SESSION_ID: "session" }],
     ["codex", { CODEX_THREAD_ID: "session" }],
   ] as const)("detects the %s runtime", (name, environment) => {
     expect(runtimeIdentity(environment)).toEqual({ name, sessionId: "session" });

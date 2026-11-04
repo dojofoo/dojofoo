@@ -1,11 +1,18 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, expect, it } from "vitest";
 
 const worker = process.env.DOJOFOO_TEST_EVAL_WORKER ?? resolve(import.meta.dirname, "../dist/teaching-eval.js");
 const roots: string[] = [];
+/** A worker teaches on the course's own coding agent. */
+async function course(agent: unknown = "codex") {
+  const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
+  await mkdir(join(root, ".dojo"));
+  await writeFile(join(root, ".dojo/runtimes.json"), JSON.stringify({ agent }));
+  return root;
+}
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
 });
@@ -24,19 +31,11 @@ it("describes usage without loading a teaching harness", () => {
   expect(result.stdout).toContain("consumes usage");
 });
 
-it("requires an explicitly selected harness", () => {
-  const result = spawnSync(process.execPath, [worker, "--run", "/not-used"], {
-    encoding: "utf8", timeout: 10_000, env: { ...process.env, DOJOFOO_HARNESS: "" },
-  });
-  expect(result.status).toBe(1);
-  expect(result.stderr).toContain("Select the teaching harness");
-});
-
 it("rejects unknown prior-lesson coverage before starting a model", async () => {
-  const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
+  const root = await course();
   const result = spawnSync(process.execPath, [worker, "--evaluate", root], {
     encoding: "utf8", timeout: 15_000, env: {
-      ...process.env, DOJOFOO_HARNESS: "codex", DOJOFOO_EVAL_PRIOR_LESSONS: "assume-passed",
+      ...process.env, DOJOFOO_EVAL_PRIOR_LESSONS: "assume-passed",
     },
   });
   expect(result.status).toBe(1);
@@ -44,20 +43,20 @@ it("rejects unknown prior-lesson coverage before starting a model", async () => 
   expect(result.stderr).not.toContain("ENOENT");
 });
 
-it.each(["--run", "--evaluate", "--evaluate-heldout"])("rejects an unsupported lesson harness before paid work in %s", async mode => {
-  const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
+it.each(["--run", "--evaluate", "--evaluate-heldout"])("rejects a malformed saved agent before paid work in %s", async mode => {
+  const root = await course(123);
   const result = spawnSync(process.execPath, [worker, mode, root], {
-    encoding: "utf8", timeout: 15_000, env: { ...process.env, DOJOFOO_HARNESS: "not-a-lesson-harness" },
+    encoding: "utf8", timeout: 15_000, env: process.env,
   });
   expect(result.status).toBe(1);
-  expect(result.stderr).toContain("Unsupported Dojofoo harness: not-a-lesson-harness");
+  expect(result.stderr).toContain("Invalid agent");
   expect(result.stderr).not.toContain("ENOENT");
 });
 
 it.each(["--run", "--evaluate", "--evaluate-heldout"])("loads %s and fails before inference on a missing manifest", async (mode) => {
-  const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
+  const root = await course();
   const result = spawnSync(process.execPath, [worker, mode, root], {
-    encoding: "utf8", timeout: 15_000, env: { ...process.env, DOJOFOO_HARNESS: "codex" },
+    encoding: "utf8", timeout: 15_000, env: process.env,
   });
   expect(result.status).toBe(1);
   expect(result.stderr).toContain("ENOENT");
@@ -67,11 +66,11 @@ it.each(["--run", "--evaluate", "--evaluate-heldout"])("loads %s and fails befor
 });
 
 it("loads the official fixture harness dependencies before rejecting an empty curriculum without inference", async () => {
-  const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
+  const root = await course();
   await writeFile(join(root, "dojo.yaml"), "katas: []");
   const result = spawnSync(process.execPath, [worker, "--evaluate", root], {
     encoding: "utf8", timeout: 15_000, env: {
-      ...process.env, DOJOFOO_HARNESS: "codex",
+      ...process.env,
       DOJOFOO_EVAL_FIXTURE_HARNESS: "pi", DOJOFOO_EVAL_FIXTURE_MODEL: "test-only-no-inference",
     },
   });
@@ -83,11 +82,11 @@ it.each([
   ["--evaluate", "missing-fixtures.json"],
   ["--evaluate-heldout", "Held-out evaluation requires fresh learner fixtures"],
 ])("rejects unsafe replay input for %s before spending inference", async (mode, message) => {
-  const root = await mkdtemp(join(tmpdir(), "dojo-eval-worker-test-")); roots.push(root);
+  const root = await course();
   await writeFile(join(root, "dojo.yaml"), "katas: []");
   const result = spawnSync(process.execPath, [worker, mode, root], {
     encoding: "utf8", timeout: 15_000, env: {
-      ...process.env, DOJOFOO_HARNESS: "codex",
+      ...process.env,
       DOJOFOO_EVAL_FIXTURE_HARNESS: "pi", DOJOFOO_EVAL_FIXTURE_MODEL: "test-only-no-inference",
       DOJOFOO_EVAL_FIXTURE_PATH: join(root, "missing-fixtures.json"),
     },

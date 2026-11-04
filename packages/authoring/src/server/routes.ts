@@ -20,6 +20,7 @@ import { materialHash, readLessonMaterial } from "../evaluation/material.ts";
 import type { EvaluationReport } from "../evaluation/run";
 import { decidePanel } from "../evaluation/panel";
 import { harnessModels } from "../eve/models.ts";
+import { agentRow, isAgentId } from "@dojofoo/protocol";
 
 export type AuthoringEvalReport = EvaluationReport;
 
@@ -37,7 +38,7 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
     // Resolve authorization before accessing this machine's native harnesses.
     dependencies.resolveWorkspace(c.req.raw);
     const harness = c.req.query("harness");
-    if (!harness || !["codex", "opencode", "pi", "cursor", "grok", "fx"].includes(harness)) return c.json({ error: "Select a supported harness" }, 422);
+    if (!isAgentId(harness) || !agentRow(harness).adapterId) return c.json({ error: "Select a supported harness" }, 422);
     return c.json(await harnessModels(harness, AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(20_000)])));
   })
   .get("/evaluation-settings", async c => c.json(await readEvaluationSettings(dependencies.resolveWorkspace(c.req.raw))))

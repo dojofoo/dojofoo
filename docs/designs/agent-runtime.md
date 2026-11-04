@@ -523,7 +523,7 @@ One `ModelChoice { id, name, efforts, defaultEffort? }` type in protocol replace
 
 ### Workspace agent selection (D6, D20)
 
-*   Each workspace has exactly one selection (D6, D20; see "Workspaces" in Background). Precedence, highest first: `<workspace>/.dojo/runtimes.json` `agent`, the onboarding default (the first offered agent in `~/.dojofoo/settings.json` `agents`), then the first offered agent whose CLI is installed. `DOJOFOO_AGENT` overrides all of them only when the UI server runs in test mode (`NODE_ENV=test` or the test fixture runtime); elsewhere it is ignored with a logged warning.
+*   Each workspace has exactly one selection (D6, D20; see "Workspaces" in Background). Precedence, highest first: `<workspace>/.dojo/runtimes.json` `agent`, the onboarding default (the first offered agent in `~/.dojofoo/settings.json` `agents`), then the first offered agent whose CLI is installed. There is no test-mode agent variable: tests and scripts write the agent to their own temporary workspace's `.dojo/runtimes.json`.
 *   The old `authoring`/`lesson` keys and the `DOJOFOO_*_HARNESS`/`DOJOFOO_*_MODEL` variables are removed; old keys are ignored with one logged warning (D9).
 *   The selector is the composer's agent menu (the composer already supports `agents` and `onAgentChange`). It writes through `POST /agents/{id}/select`. A switch runs in this order:
     1.  The learner confirms.

@@ -3,10 +3,9 @@ import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { agentAdapter } from "@dojofoo/agent/adapters";
-import { isAgentId } from "@dojofoo/protocol";
 import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiOutput } from "./prepare.ts";
 import { evaluationConfiguration } from "../evaluation/host.ts";
-import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
+import { resolveAgent } from "@dojofoo/config/runtime";
 import { configuredHarnessModel } from "./models.ts";
 
 // Native Node module lifetime, not Vite's reloadable route-module lifetime.
@@ -51,9 +50,8 @@ export async function acquireKyoshiRuntime(courseRoot: string) {
 
 /** Owns infrastructure, never the course files or the harness credentials. */
 export async function createKyoshiRuntime(courseRoot: string, options: { model?: string } = {}) {
-  const harness = resolveRuntimeHarness("authoring", courseRoot);
+  const harness = resolveAgent(courseRoot);
   // An unsupported agent fails here, before anything is prepared
-  if (!isAgentId(harness)) throw new Error(`Unsupported coding agent: ${harness}`);
   await agentAdapter(harness);
   const app = await prepareKyoshiApp(courseRoot);
   const harnessRoot = await prepareKyoshiHarness(courseRoot);

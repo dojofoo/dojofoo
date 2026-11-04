@@ -1,10 +1,12 @@
+import { resolveAgent } from "@dojofoo/config/runtime";
+import { acpAgentIds, agentRow, isAcpAgentId, type AcpAgentId } from "@dojofoo/protocol";
 import type { HarnessAdapter, HarnessKind } from "./adapter";
 import { codexHarnessAdapter } from "./codex";
 import { cursorHarnessAdapter, fxHarnessAdapter, grokHarnessAdapter } from "./native-acp";
 import { opencodeHarnessAdapter } from "./opencode";
 import { claudeHarnessAdapter } from "./claude";
 
-const adapters: Record<HarnessKind, HarnessAdapter> = {
+const adapters: Record<AcpAgentId, HarnessAdapter> = {
   claude: claudeHarnessAdapter,
   codex: codexHarnessAdapter,
   cursor: cursorHarnessAdapter,
@@ -13,16 +15,13 @@ const adapters: Record<HarnessKind, HarnessAdapter> = {
   opencode: opencodeHarnessAdapter,
 };
 
-export const lessonHarnesses = Object.keys(adapters) as HarnessKind[];
+export const lessonHarnesses: HarnessKind[] = [...acpAgentIds];
 
-export function dojofooHarness(environment: NodeJS.ProcessEnv = process.env): HarnessKind {
-  const override = environment.DOJOFOO_HARNESS;
-  if (!override) return "opencode";
-  if (override in adapters) return override as HarnessKind;
-  if (override === "pi") {
-    throw new Error("Pi is supported for authoring, but not by the ACP lesson runtime. Select Codex, OpenCode, Cursor, Grok, or FX for lesson trials.");
-  }
-  throw new Error(`Unsupported Dojofoo harness: ${override}`);
+/** The workspace's coding agent, when the ACP lesson runtime can run it. */
+export function lessonAgent(root: string): AcpAgentId {
+  const agent = resolveAgent(root);
+  if (!isAcpAgentId(agent)) throw new Error(`${agentRow(agent).name} can't teach lessons yet. Choose another coding agent for this workspace.`);
+  return agent;
 }
 
 export function harnessAdapter(kind: HarnessKind): HarnessAdapter {

@@ -15,7 +15,8 @@ import { kyoshi } from "./commands/kyoshi";
 import { flushCourseEvents } from "./telemetry";
 import { bootstrapMise } from "./mise-bootstrap";
 import { miseConfigPath } from "@dojofoo/config/project-preparation";
-import { resolveRuntimeHarness } from "@dojofoo/config/runtime";
+import { resolveAgent } from "@dojofoo/config/runtime";
+import { agentRow, type AgentId } from "@dojofoo/protocol";
 import { agentEnvironment } from "@dojofoo/config/agent-installations";
 
 const argv = process.argv.slice(2);
@@ -84,14 +85,9 @@ async function install(installArgs: string[]): Promise<void> {
   await setup(process.cwd(), installArgs);
   if (installArgs.includes("--skills")) return;
   const { prepareAuthoringHarness } = await import("@dojofoo/authoring/eve/install");
-  const selected = new Set([
-    ...configuredAgents(process.cwd()),
-    resolveRuntimeHarness("authoring", process.cwd()),
-    resolveRuntimeHarness("lesson", process.cwd()),
-  ]);
+  const selected = new Set<AgentId>([...configuredAgents(process.cwd()), resolveAgent(process.cwd())]);
   for (const agent of selected) {
-    if (agent !== "claude" && agent !== "codex" && agent !== "opencode" && agent !== "pi"
-      && agent !== "cursor" && agent !== "grok" && agent !== "fx") continue;
+    if (!agentRow(agent).adapterId) continue;
     console.log(`Preparing ${agent} for the course UI…`);
     await prepareAuthoringHarness(agent);
   }

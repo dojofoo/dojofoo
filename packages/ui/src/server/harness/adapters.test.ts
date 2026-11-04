@@ -4,12 +4,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCodexHarnessAdapter } from "./codex";
 import { configureOpenCodeSessionModel, createOpenCodeHarnessAdapter, opencodeExecutable } from "./opencode";
-import { dojofooHarness, harnessAdapter } from "./registry";
+import { isAcpAgentId } from "@dojofoo/protocol";
+import { harnessAdapter, lessonAgent } from "./registry";
 import { promptContextBlock } from "../lesson/codex-client";
+
+/** A workspace whose saved coding agent is `agent` */
+function workspaceWith(agent: string): string {
+  const root = mkdtempSync(join(tmpdir(), "dojo-lesson-agent-"));
+  mkdirSync(join(root, ".dojo"));
+  writeFileSync(join(root, ".dojo/runtimes.json"), JSON.stringify({ agent }));
+  return root;
+}
 
 describe("ACP harness adapters", () => {
   it("accepts Claude Code as a native course harness", () => {
-    expect(dojofooHarness({ DOJOFOO_HARNESS: "claude" })).toBe("claude");
+    const root = workspaceWith("claude");
+    try { expect(lessonAgent(root)).toBe("claude"); }
+    finally { rmSync(root, { recursive: true, force: true }); }
     expect(harnessAdapter("claude").process({ root: "/tmp", developerInstructions: "Teach" })).toMatchObject({
       command: process.execPath,
       environment: expect.objectContaining({ CLAUDE_CODE_EXECUTABLE: expect.any(String) }),
@@ -110,7 +121,9 @@ describe("ACP harness adapters", () => {
   });
 
   it("selects registered harnesses and rejects unknown names", () => {
-    expect(dojofooHarness({})).toBe("opencode");
+    const root = workspaceWith("opencode");
+    try { expect(lessonAgent(root)).toBe("opencode"); }
+    finally { rmSync(root, { recursive: true, force: true }); }
     expect(harnessAdapter("codex").kind).toBe("codex");
     expect(harnessAdapter("cursor").process({ root: "/tmp/lesson", developerInstructions: "Teach" }).args)
       .toEqual(["--yolo", "--trust", "acp"]);
@@ -123,7 +136,7 @@ describe("ACP harness adapters", () => {
       .toBe("yolo");
     expect(harnessAdapter("fx").contextualInstructions).toBe(true);
     expect(harnessAdapter("fx").supportsVirtualResourceUris).toBe(false);
-    expect(() => dojofooHarness({ DOJOFOO_HARNESS: "unknown" })).toThrow("Unsupported Dojofoo harness");
+    expect(isAcpAgentId("unknown")).toBe(false);
   });
 
   it("negotiates embedded context and falls back for virtual URI incompatibilities", () => {
