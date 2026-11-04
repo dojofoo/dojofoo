@@ -19,7 +19,9 @@ const scenarios = {
     "host-tool-turn", "model-switch", "rerun-no-duplicate",
     // Step 5: a report during a working turn, a switch's cancel, a killed host whose turn is interrupted, a settle hook lost to a crash,
     // and the restarts that read what those left (`--session <id>`)
-    "check-during-turn", "switch-during-turn", "interrupted-after-kill", "settle-hook-lost", "recover-session", "inspect-session", ...switchScenarios],
+    "check-during-turn", "switch-during-turn", "interrupted-after-kill", "settle-hook-lost", "recover-session", "inspect-session", ...switchScenarios,
+    // Step 7: an evaluation's one-shot roles on the agent (no host), and a trial's usage ceiling on its Sensei host
+    "one-shot", "usage-ceiling"],
 };
 const argument = name => { const index = process.argv.indexOf(name); return index === -1 ? undefined : process.argv[index + 1]; };
 const positional = process.argv.slice(2).filter((value, index, all) => !value.startsWith("--") && !all[index + 1 - 1 - 1]?.startsWith("--"));
@@ -105,6 +107,59 @@ let runtime;
 // The client and session a failure's event dump reads
 let latest;
 try {
+  if (scenario === "one-shot") {
+    // An evaluation's roles (step-7 plan, "Conformance cases"): the learner, the fixture generator and a teaching judge, each one
+    // tool-free read-only call on this agent in this driver's environment, with no host. Each reports its text and what it left running.
+    const { oneShot } = await import("@dojofoo/agent/one-shot");
+    const { learnerPrompt } = await import("../dist/evaluation/learner.js");
+    const { fixturePrompt } = await import("../dist/evaluation/learner-fixtures.js");
+    const { fixtureGeneratorInstructions, teachingJudgePrompt } = await import("../dist/evaluation/prompts/index.js");
+    const { judgeSchema } = await import("../dist/evaluation/judges.js");
+    const material = { "dojo.yaml": "katas:\n  - name: first\n    template: src/first/kata.ts\n", "src/first/SENSEI.md": "SENSEI-GUIDANCE-MARKER",
+      "src/first/kata.ts": "export const total = (values: number[]) => 0;\n" };
+    const learner = learnerPrompt({ dialogue: [{ role: "assistant", content: "What should the total be before anything is added?" }], source: material["src/first/kata.ts"] });
+    const roles = [
+      { role: "learner", instructions: learner.instructions, prompt: learner.prompt },
+      { role: "fixture", instructions: fixtureGeneratorInstructions, prompt: fixturePrompt({ lessonId: "first", completedBefore: [], material }) },
+      { role: "judge", prompt: teachingJudgePrompt({ transcript: "[]", "first-instructions.md": "SENSEI-GUIDANCE-MARKER" }, judgeSchema) },
+    ];
+    for (const [index, call] of roles.entries()) {
+      const { text } = await oneShot({ agent, ...(model ? { model } : {}), ...(call.instructions ? { instructions: call.instructions } : {}), prompt: call.prompt,
+        directory: join(root, "one-shot", String(index)), stateDirectory: join(root, "one-shot-state"), environment: process.env,
+        signal: turn(), timeoutMs: 120_000 });
+      result({ step: "one-shot", role: call.role, text, processes: caseProcesses() });
+    }
+    process.exit(0);
+  }
+  if (scenario === "usage-ceiling") {
+    // A trial's Sensei: a ceiling of one output token, so the first message spends it and the second opens Eve's budget prompt
+    const first = await start({ ...(model ? { model } : {}), usageCeiling: { newInputTokens: 1_000_000_000, outputTokens: 1 } });
+    runtime = first.runtime;
+    latest = { client: first.client };
+    const created = await open(first.client, firstPrompt);
+    const sessionId = created.session.state.sessionId;
+    latest.state = () => ({ sessionId });
+    const budget = events => events.find(event => event.type === "interaction.opened" && event.data?.request?.kind === "budget");
+    const replied = await created.delivery.result({ signal: turn() });
+    const afterFirst = (await first.client.sessions.attach(sessionId).snapshot({ signal: turn() })).events;
+    result({ step: "first", status: replied.status, reply: replied.reply, budget: Boolean(budget(afterFirst)), sessionId });
+    await waitForLine("second");
+    await first.client.sessions.attach(sessionId).send("Continue the lesson.", { signal: turn() });
+    const settledBefore = afterFirst.filter(event => event.type === "turn.settled").length;
+    const opened = await until(first.client, sessionId, events => budget(events)
+      ?? (events.filter(event => event.type === "turn.settled").length > settledBefore ? { settled: true } : undefined));
+    const paused = opened.settled ? undefined : await until(first.client, sessionId, events => events.findLast(event => event.type === "turn.paused"));
+    result({ step: "second", budget: !opened.settled, budgetPromptOnMessage: opened.settled ? null : 2, turnId: paused?.data.turnId ?? null });
+    if (paused) {
+      await first.client.sessions.attach(sessionId).cancel({ turnId: paused.data.turnId, signal: turn() });
+      const settled = await until(first.client, sessionId, events => events.find(event => event.type === "turn.settled" && event.data.turnId === paused.data.turnId));
+      result({ step: "cancelled", outcome: settled.data.outcome });
+    }
+    await runtime.close();
+    runtime = undefined;
+    result({ step: "closed", processes: caseProcesses() });
+    process.exit(0);
+  }
   const first = await start(model ? { model } : {});
   runtime = first.runtime;
   latest = { client: first.client };

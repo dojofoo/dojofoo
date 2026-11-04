@@ -18,13 +18,17 @@ import {
   type CaseContext, type LoopbackEndpoint, type TierAAgent, type ToolRequest,
 } from "./conformance.fixture";
 import { acpModels } from "./models";
+import { readOnlyToolNames } from "@dojofoo/agent/read-only";
+import { criterionIds, parseVerdict } from "../evaluation/judges";
+import { parseGeneratedFixture } from "../evaluation/learner-fixtures";
+import { evaluationPrompts } from "../evaluation/prompts";
 // @ts-expect-error The conformance scripts are plain JavaScript without declarations.
 import { agentHome, bootstrapBinary, conformancePaths, installAgent, needsInstall, pinnedCli, readRecord, tierAAgents } from "../../scripts/conformance-install.mjs";
 import instructions from "./instructions";
 
 // Tier A of docs/designs/agent-runtime.md, "Conformance tiers": every registry row with an adapter except Cursor,
 // against the loopback model. The case list, its tags and its runner are docs/designs/agent-runtime.steps/step-3.md.
-const implementedStep = 6;                                   // each later step raises it
+const implementedStep = 7;                                   // each later step raises it
 interface ConformanceCase {
   id: string;                 // "<persona>.<level>.<name>", the record's key; never reused
   persona: Persona;
@@ -1078,13 +1082,67 @@ const cases: ConformanceCase[] = [
     { run: context => switchAwayAndBack(context, "kyoshi", "new-session") }),
   later(6, "sensei", "sensei.switch.new-agent-new-session", "After an agent switch the page opens a new Sensei session (D29)",
     { run: context => switchAwayAndBack(context, "sensei", "new-session") }),
-  later(7, "sensei", "sensei.evaluation.trial-loopback", "An evaluation trial runs against the loopback model"),
+  later(7, "sensei", "sensei.evaluation.trial-loopback", "An evaluation trial runs against the loopback model", { run: trialLoopback }),
   later(8, "sensei", "sensei.tier-b.latency", "Median time to first output is at most 15 s", { tier: "B" }),
   later(8, "sensei", "sensei.tier-b.leave-cancels-begin-turns", "Leaving N lessons cancels their begin turns", { tier: "B" }),
   later(8, "sensei", "sensei.tier-b.two-hosts-one-agent", "Two hosts on one agent (open risk 6)", { tier: "B" }),
   later(8, "sensei", "sensei.tier-b.host-memory", "Host memory", { tier: "B" }),
   later(8, "kyoshi", "kyoshi.tier-b.cold-start", "Kyoshi cold start", { tier: "B" }),
 ];
+
+/** Step 7's per-agent half of an evaluation trial (step-7 plan, "Conformance cases"; the whole trial is test:evaluation): the learner,
+ *  fixture-generator and judge one-shots on this agent, read-only and tool-free, and a trial host's usage ceiling. */
+async function trialLoopback(context: CaseContext) {
+  const role = (prompt: string) => prompt.split("\n")[0]!.split(". ")[0]!;
+  const markers = { learner: role(evaluationPrompts.learner), fixture: role(evaluationPrompts.fixtureGenerator), judge: role(evaluationPrompts.teachingJudge) };
+  const learnerText = "I think the total starts at zero.";
+  const fixture = { uncertainty: "What is the total before anything is added?", terminology: "What does accumulator mean?",
+    misconception: "An empty list has no total.", wrong: "export const total = () => 1;", solved: "export const total = () => 0;", review: "Why zero?" };
+  const verdict = { criteria: criterionIds.map(id => ({ id, pass: true, evidence: "Observed.", improvement: "None." })), overall: "pass", limitation: "A fixture." };
+  const roleOf = (request: unknown): "learner" | "fixture" | "judge" | undefined => {
+    const text = JSON.stringify(request);
+    return text.includes(markers.judge) ? "judge" : text.includes(markers.fixture) ? "fixture" : text.includes(markers.learner) ? "learner" : undefined;
+  };
+  const answer = { learner: learnerText, fixture: JSON.stringify(fixture), judge: JSON.stringify(verdict) };
+  const endpoint = await context.loopback(undefined, { respondText: (input: unknown) => { const name = roleOf(input); return name ? answer[name] : undefined; } });
+  const model = context.wiring.hostModel ?? context.wiring.firstModel;
+  const shots = await runHost(context, endpoint, harnessPath, { scenario: "one-shot", persona: "sensei", ...(model ? { model } : {}) }).done;
+  const diagnostics = diagnosticsOf(endpoint, shots.output);
+  expect(shots.error, diagnostics).toBeUndefined();
+  const answers: Record<string, { text: string; processes: string[] }> = Object.fromEntries(shots.results.filter(result => result.step === "one-shot")
+    .map(result => [String(result.role), result as unknown as { text: string; processes: string[] }]));
+  expect(answers.learner?.text, diagnostics).toBe(learnerText);
+  expect(parseGeneratedFixture(answers.fixture!.text)).toEqual(fixture);
+  expect(parseVerdict(JSON.parse(answers.judge!.text))).toMatchObject({ overall: "pass" });
+  // No native process is left after any call
+  const left = Object.values(answers).map(answer => answer.processes.length);
+  expect(left, diagnostics).toEqual([0, 0, 0]);
+  // Every request offered only the read-only built-ins: a one-shot has no Eve tools
+  const { native, keys } = readOnlyToolNames(context.agent, []);
+  const allowed = new Set([...native, ...keys, ...Object.keys(toolListExtras[context.agent])]);
+  expect([...new Set(endpoint.toolLists.flat())].filter(name => !allowed.has(name)), diagnostics).toEqual([]);
+  // The learner and the fixture generator never see the lesson's teaching guidance
+  for (const request of endpoint.requests.filter(request => roleOf(request) === "learner" || roleOf(request) === "fixture")) {
+    expect(JSON.stringify(request)).not.toContain("SENSEI-GUIDANCE-MARKER");
+  }
+  await observe(context.agent, "oneShotProcessesLeft", left.reduce((sum, count) => sum + count, 0));
+
+  // The ceiling: the first message settles with the loopback's reply; the second opens Eve's budget prompt before any request for it
+  const port = await hostPort(context);
+  const host = runHost(context, endpoint, harnessPath, { scenario: "usage-ceiling", persona: "sensei", hostPort: port.url });
+  const first = await host.step("first") as { status: string; reply?: string; budget: boolean };
+  expect(first, diagnosticsOf(endpoint)).toMatchObject({ budget: false });
+  expect(first.reply).toMatch(/Ready to teach\.$/u);
+  const requests = requestsCarrying(endpoint, "Continue the lesson.").length;
+  host.send("second");
+  const second = await host.step("second") as { budget: boolean; budgetPromptOnMessage: number | null };
+  expect(second.budgetPromptOnMessage, diagnosticsOf(endpoint)).toBe(2);
+  expect(requestsCarrying(endpoint, "Continue the lesson.").length, "the budget prompt opens before the second message's model call").toBe(requests);
+  expect(await host.step("cancelled")).toMatchObject({ outcome: "cancelled" });
+  expect(await host.step("closed")).toMatchObject({ processes: [] });
+  expect((await host.done).exitCode).toBe(0);
+  await observe(context.agent, "budgetPromptOnMessage", second.budgetPromptOnMessage);
+}
 
 // A step cannot raise implementedStep and leave a case behind; this throws at collection, in every run.
 for (const entry of cases) {

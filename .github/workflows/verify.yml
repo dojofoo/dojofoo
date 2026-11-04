@@ -89,7 +89,7 @@ jobs:
 
   conformance:
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 37
     permissions:
       contents: read
     env:
