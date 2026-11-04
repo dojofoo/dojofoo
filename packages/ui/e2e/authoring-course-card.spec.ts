@@ -21,7 +21,7 @@ test("authoring keeps the live card, saves its color, groups chapters, and opens
     return route.fulfill({ status: 404 });
   });
   await mountAgentChat(page, { root: workspace.root, files: false });
-  await page.goto("/authoring?workspace=ws-1&session=saved");
+  await page.goto("/authoring/ws-1?session=saved");
   const card = page.getByLabel("Course card preview", { exact: true });
   await expect(card).toContainText("Card course");
   const color = page.getByRole("button", { name: "Card color", exact: true });
@@ -168,7 +168,7 @@ test("official authoring exposes README/INTRO content, muted extra files, chapte
     return route.fulfill({ status: 404 });
   });
   await mountAgentChat(page, { root: workspace.root, files: false });
-  await page.goto("/authoring?workspace=ws-1&session=saved");
+  await page.goto("/authoring/ws-1?session=saved");
   const tree = page.getByRole("tree", { name: "Course files and chapters", exact: true });
   await expect(page.getByRole("tab", { name: "README.md", exact: true })).toBeVisible();
   await expect(page.locator(".ui-as-chat__details")).toContainText("Course welcome.");
@@ -203,7 +203,7 @@ test("official authoring exposes README/INTRO content, muted extra files, chapte
   await expect(extra.locator(":scope > div")).toHaveCSS("filter", "grayscale(1)");
   await tree.getByRole("treeitem", { name: "Chapters", exact: true }).getByRole("button", { name: "Chapters actions", exact: true }).click();
   await page.getByRole("menuitem", { name: "New chapter", exact: true }).click();
-  await expect(page).toHaveURL(/authoring\?workspace=ws-1&session=saved$/);
+  await expect(page).toHaveURL(/authoring\/ws-1\?session=saved$/);
   const branch = tree.getByRole("treeitem", { name: "New chapter", exact: true });
   await expect(branch.getByRole("treeitem", { name: "INTRO.md", exact: true })).toBeVisible();
   await expect(page.locator(".ui-as-chat__details")).toContainText("New chapter welcome.");

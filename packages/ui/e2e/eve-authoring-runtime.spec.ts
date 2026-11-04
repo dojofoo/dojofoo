@@ -63,10 +63,14 @@ test("the starter tutorial creates an independent draft, trials it and returns a
     expect(course).not.toBe(installedCourse);
     expect(course.startsWith(tutorialRoot)).toBe(false);
     await expect(page.getByRole("radio", { name: /^Beginners/ })).toBeVisible({ timeout: 120_000 });
+    // The draft is in the path (/authoring/<id>); its conversation is the newest Kyoshi record, never in the URL (D30)
     const sessionUrl = page.url();
-    expect(sessionUrl).toContain("session=wrun_");
-    const sessionId = new URL(sessionUrl).searchParams.get("session")!;
-    const workspaceId = new URL(sessionUrl).searchParams.get("workspace")!;
+    expect(new URL(sessionUrl).searchParams.has("session")).toBe(false);
+    const workspaceId = decodeURIComponent(/^\/authoring\/([^/?#]+)/u.exec(new URL(page.url()).pathname)![1]!);
+    expect(workspaceId).toBe(draft.workspaceId);
+    const listed = await (await page.request.get(`${url}api/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions?persona=kyoshi`)).json() as { data: Array<{ id: string }> };
+    const sessionId = listed.data[0]!.id;
+    expect(sessionId).toMatch(/^wrun_/u);
     const sessionApi = `${url}api/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions/${encodeURIComponent(sessionId)}`;
     const snapshot = await page.request.get(sessionApi);
     expect(snapshot.ok()).toBe(true);
@@ -215,8 +219,8 @@ test("the starter tutorial creates an independent draft, trials it and returns a
     expect(afterRestart.code).toContain('throw new Error("Your turn")');
     await page.goto(sessionUrl);
     await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
-    expect(new URL(page.url()).searchParams.get("workspace")).toBe(draft.workspaceId);
-    expect(new URL(page.url()).searchParams.get("session")).toBe(sessionId);
+    expect(new URL(page.url()).pathname).toBe(`/authoring/${draft.workspaceId}`);
+    expect((await (await page.request.get(`${url}api/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions?persona=kyoshi`)).json()).data[0].id).toBe(sessionId);
     expect(await readFile(join(course, "src/001-untitled-lesson/kata.ts"), "utf8")).toContain('throw new Error("Your turn")');
     await expect(material).toContainText("Use the Dashboard breadcrumb");
     expect(await Promise.all(tutorialFiles.map(path => readFile(path, "utf8")))).toEqual(tutorialBefore);

@@ -305,7 +305,7 @@ test("the UIX library separates installed sessions from course previews and pres
     expect(draftResponse.status()).toBe(201);
     const draft = await draftResponse.json();
     await mountAgentChat(page, { root: draft.path, workspaceId: draft.workspaceId, files: false });
-    await page.goto(`${origin}/authoring?workspace=${draft.workspaceId}&session=saved`);
+    await page.goto(`${origin}/authoring/${draft.workspaceId}?session=saved`);
     const authoringTree = page.getByRole("tree", { name: "Course files and chapters", exact: true });
     await expect(authoringTree).toBeVisible();
     await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();

@@ -24,7 +24,7 @@ test("authoring previews share the learner typography and keep unsupported diagr
     return route.fulfill({ status: 404 });
   });
   const agent = await mountAgentChat(page, { root: "/tmp/preview-course", files: false });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await page.getByRole("button", { name: "Switch to preview", exact: true }).click();
   const preview = page.getByTestId("authoring-workspace");
   await expect(preview.locator(".ui-lb__title")).toHaveText("Preview course");

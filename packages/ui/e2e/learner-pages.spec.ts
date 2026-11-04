@@ -33,14 +33,14 @@ test("New course retries failed creation and reopens the accepted native session
   await expect(button).toBeEnabled();
   await button.click();
   await expect.poll(() => agent.runtime.records.length).toBe(1);
-  await expect(page).toHaveURL(/\/authoring\?workspace=created-draft$/u);
+  await expect(page).toHaveURL(/\/authoring\/created-draft$/u);
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
   await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
-  await expect(page).toHaveURL(/\/authoring\?workspace=created-draft$/u);
+  await expect(page).toHaveURL(/\/authoring\/created-draft$/u);
   expect(agent.runtime.records).toHaveLength(1);
   await page.getByRole("link", { name: "Dojo dashboard", exact: true }).click();
   const entry = page.getByRole("region", { name: "Authoring", exact: true }).getByRole("link", { name: /New course/i });
-  await expect(entry).toHaveAttribute("href", "/authoring?workspace=created-draft");
+  await expect(entry).toHaveAttribute("href", "/authoring/created-draft");
   await entry.click();
   await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
   // The same conversation opens again: still one record

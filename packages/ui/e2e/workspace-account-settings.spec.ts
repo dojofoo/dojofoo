@@ -32,7 +32,7 @@ for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mod
     return route.fulfill({ status: 404 });
   });
   const agent = mode === "authoring" ? await mountAgentChat(page, { root: "/tmp/settings-course", files: false }) : undefined;
-  const url = agent ? `/authoring?session=${agent.sessionId}` : mode === "learner"
+  const url = agent ? `/authoring/ws-1?session=${agent.sessionId}` : mode === "learner"
     ? "/course/settings-workspace/settings-course/lesson/first" : "/interactive?workspace=settings-workspace&course=settings-course";
   await page.goto(url);
   const editor = mode === "interactive" ? null : page.locator(".ui-ed__monaco");

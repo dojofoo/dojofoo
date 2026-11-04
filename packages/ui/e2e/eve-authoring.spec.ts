@@ -28,7 +28,7 @@ test("restored authoring conversations show their original attachments", async (
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
     return route.fulfill({ status: 404 });
   });
-  await page.goto(`/authoring?session=${saved.id}`);
+  await page.goto(`/authoring/ws-1?session=${saved.id}`);
   await expect(page.getByText("Use this outline and recording.", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "outline.svg", exact: true })).toBeVisible({ timeout: 5000 });
   await expect.poll(() => page.getByRole("img", { name: "outline.svg", exact: true }).evaluate((node: HTMLImageElement) => node.naturalWidth)).toBe(160);
@@ -68,7 +68,7 @@ test("Pages navigation filters nested authoring files and preserves selection ac
     }
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
   const tree = page.getByRole("navigation", { name: "Main menu" }).getByRole("tree", { name: "Course files and chapters", exact: true });
   await expect(page.getByRole("navigation", { name: "Main menu" }).locator("button button")).toHaveCount(0);
@@ -128,7 +128,7 @@ test("the Pages evaluation view keeps real findings and the unsaved editor model
     if (path.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report } });
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await page.getByRole("navigation", { name: "Main menu" }).getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Code editor" });
   await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Teach");
@@ -184,7 +184,7 @@ test("reloading conversation history preserves editor text and undo", async ({ p
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await expect(page.getByRole("button", { name: "Reload conversation" })).toBeVisible();
   const editor = page.getByRole("textbox", { name: "Code editor" });
   await editor.focus();
@@ -213,7 +213,7 @@ test("course files can be retried without replacing the conversation", async ({ 
       : route.fulfill({ status: 503, json: { error: "Course files unavailable" } });
     return route.fulfill({ status: 404, json: { error: "Unexpected route" } });
   });
-  await page.goto(`/authoring?workspace=ws-1&session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await expect(page.getByRole("alert").filter({ hasText: "Course files unavailable" })).toBeVisible();
   // Saved guidance and draft input remain available while startup is repaired.
   const refreshed = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/draft"));
@@ -242,7 +242,7 @@ test("a failed save stays with its file and preserves the unsaved content", asyn
     if (path.includes("/files/")) return route.fulfill({ status: 422, json: { error: "Fixture save rejected" } });
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await page.getByRole("textbox", { name: "Code editor" }).focus();
   await page.keyboard.press("Meta+End");
   await page.keyboard.type("# unsaved");
@@ -284,7 +284,7 @@ test("report loading errors stay with their lesson and clear after watcher recov
     }
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   const selectLesson = async (name: string) => {
     const item = page.getByRole("treeitem", { name, exact: true });
     if (await item.getAttribute("aria-expanded") !== "true") await item.getByText(name, { exact: true }).click();
@@ -335,7 +335,7 @@ test("a late evaluation cannot replace another lesson's report", async ({ page }
     }
     return route.fulfill({ status: 404 });
   });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   const selectLesson = async (name: string) => {
     const item = page.getByRole("treeitem", { name, exact: true });
     if (await item.getAttribute("aria-expanded") !== "true") await item.getByText(name, { exact: true }).click();
@@ -376,7 +376,7 @@ test("a course without lessons has no empty report button", async ({ page }) => 
     } } });
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await expect(page.getByRole("region", { name: "Course conversation", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Report|Evaluation results/ })).toHaveCount(0);
   expect(posts).toEqual([]);
@@ -410,7 +410,7 @@ test("evaluation settings save model choices, not secrets or worker paths, witho
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
   const isolated = await mountAgentChat(page, { root: draft.root, workspaceId: "isolated-course", files: false });
-  await page.goto(`/authoring?session=${isolated.sessionId}&workspace=isolated-course`);
+  await page.goto(`/authoring/isolated-course?session=${isolated.sessionId}`);
   const composer = page.getByTestId("authoring-chat-composer");
   await expect(composer.getByRole("button", { name: "Add file", exact: true })).toBeEnabled();
   await expect(composer.getByRole("button", { name: "Agent", exact: true })).toContainText("Codex");
@@ -480,7 +480,7 @@ test("evaluation settings cannot overwrite saved choices after a failed reload",
     }
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toHaveValue("teacher");
@@ -503,7 +503,7 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
     sessionStarts.push(route.request().postDataJSON());
     return route.fulfill({ json: {} });
   });
-  await context.route(/\/course\/trial-workspace\/trial-course\/lesson\/first(?:\?|$)/, route => route.fulfill({ contentType: "text/html", body: "<h1>Prepared lesson</h1>" }));
+  await context.route(/\/learn\/trial-run\?lesson=first$/, route => route.fulfill({ contentType: "text/html", body: "<h1>Prepared lesson</h1>" }));
   const lesson = { id: "first", title: "first", senseiPath: "src/first/SENSEI.md", description: "", checks: [], files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# First" }] };
   await page.routeWebSocket("**/api/authoring/changes*", () => {});
   await page.route("**/api/authoring/**", async route => {
@@ -515,11 +515,11 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
       await release.promise;
       return outcome === "failure"
         ? route.fulfill({ status: 503, json: { error: "Trial harness unavailable" } })
-        : route.fulfill({ json: { workspaceId: "trial-workspace", courseId: "trial-course", lessonId: "first" } });
+        : route.fulfill({ json: { workspaceId: "trial-workspace", courseId: "trial-course", lessonId: "first", runId: "trial-run" } });
     }
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   const lessonItem = page.getByRole("treeitem", { name: "first", exact: true });
   if (await lessonItem.getAttribute("aria-expanded") !== "true") await lessonItem.getByText("first", { exact: true }).click();
   await lessonItem.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
@@ -530,9 +530,9 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
   release.resolve();
   if (outcome === "success") {
     await expect(tab.getByRole("heading", { name: "Prepared lesson" })).toBeVisible();
-    await expect(tab).toHaveURL(/\/first$/);
+    await expect(tab).toHaveURL(/\/learn\/trial-run\?lesson=first$/);
     expect(sessionStarts).toEqual([]);
-    await expect(page).toHaveURL(new RegExp(`authoring\\?session=${agent.sessionId}`));
+    await expect(page).toHaveURL(new RegExp(`authoring/ws-1\\?session=${agent.sessionId}`));
     await tab.close();
     return;
   }

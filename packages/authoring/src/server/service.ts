@@ -111,6 +111,8 @@ export function createLessonTrial(root: string, lessonId: string, options: { age
   workspaceId: string;
   courseId: string;
   lessonId: string;
+  /** The trial's course run, which the Trial tab opens as `/learn/<runId>?lesson=<lessonId>` */
+  runId: string;
 } {
   const manifest = readDraftManifest(root);
   const lessons = draftLessons(root, manifest);
@@ -154,8 +156,8 @@ export function createLessonTrial(root: string, lessonId: string, options: { age
     const starters = createStateDirectory(trialRoot, courseId, "starters");
     writeFileSync(resolve(starters, lessonId), readFileSync(template));
     const observed = observeLocalContext(trialRoot, { kind: options.kind ?? "learner" });
-    if (!observed) throw new Error("Could not register the lesson trial workspace");
-    return { workspaceId: observed.workspaceId, courseId, lessonId };
+    if (!observed?.dojoRunId) throw new Error("Could not register the lesson trial workspace");
+    return { workspaceId: observed.workspaceId, courseId, lessonId, runId: observed.dojoRunId };
   } catch (error) {
     rmSync(trialRoot, { recursive: true, force: true });
     throw error;

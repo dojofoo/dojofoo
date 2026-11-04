@@ -4,7 +4,7 @@ import {
   authoringFiles,
   authoringFileUrl,
   isSaveShortcut,
-} from "./authoring";
+} from "./authoring_.$draftId";
 import { authoringSidebarSelection, authoringCourseSidebarResources, authoringLessonSidebarResources } from "@/components/authoring-sidebar";
 import { authoringNavigation } from "@/lib/authoring-navigation";
 

@@ -20,7 +20,7 @@ const context = vi.hoisted(() => ({ root: "", trialRoots: [] as string[] }));
 vi.mock("@dojofoo/config/local-state", () => ({
   observeLocalContext: (root: string) => {
     context.trialRoots.push(root);
-    return { workspaceId: "trial-workspace" };
+    return { workspaceId: "trial-workspace", dojoRunId: "trial-run", sessionId: null };
   },
 }));
 
@@ -308,6 +308,7 @@ describe("authoring routes", () => {
       workspaceId: "trial-workspace",
       courseId: "systems-thinking",
       lessonId: "001-draw-a-boundary",
+      runId: "trial-run",
     });
   });
 

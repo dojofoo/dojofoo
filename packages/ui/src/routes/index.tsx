@@ -143,7 +143,7 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
       if (!response.ok) throw await httpError(response);
       const draft = await response.json() as AuthoringDraft;
       setDrafts(previous => [draft, ...previous.filter(item => item.workspaceId !== draft.workspaceId)]);
-      await navigate({ to: "/authoring", search: { workspace: draft.workspaceId } });
+      await navigate({ to: "/authoring/$draftId", params: { draftId: draft.workspaceId } });
     } catch (error) { setAuthoringError(error instanceof Error ? error.message : "Could not create the draft."); }
     finally { setCreatingCourse(false); }
   }
@@ -180,7 +180,7 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
             progress: course.position ? Math.round(course.position.completedLessons / course.position.totalLessons * 100) : undefined,
             onOpen: () => openCourse(course.dojo), onDelete: () => { void deleteCourse(course.dojo); } }))}
           drafts={drafts.map(draft => ({ id: draft.workspaceId, title: draft.name, color: courseColor(courseArt(draft.workspaceId, draft.appearance)), mark: draft.mode,
-            caption: "Draft", detail: draft.description || "Open authoring", href: `/authoring?workspace=${encodeURIComponent(draft.workspaceId)}`, onDelete: () => { void deleteCourse(draft.workspaceId, true); } }))} />
+            caption: "Draft", detail: draft.description || "Open authoring", href: `/authoring/${encodeURIComponent(draft.workspaceId)}`, onDelete: () => { void deleteCourse(draft.workspaceId, true); } }))} />
         {toast}
       </AppShell>
       <DashboardPalette open={paletteOpen} onOpenChange={setPaletteOpen} searchLabel="Search your courses"
@@ -189,7 +189,7 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
           { id: "drafts", label: "Authoring", commands: drafts.map(draft => ({ id: `draft:${draft.workspaceId}`, label: draft.name })) },
         ]} onRun={id => {
           if (id.startsWith("course:")) openCourse(id.slice(7));
-          else if (id.startsWith("draft:")) void navigate({ to: "/authoring", search: { workspace: id.slice(6) } });
+          else if (id.startsWith("draft:")) void navigate({ to: "/authoring/$draftId", params: { draftId: id.slice(6) } });
         }} />
     </div>
   );

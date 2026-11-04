@@ -21,7 +21,7 @@ test("authoring search opens the chosen course or lesson file and preserves edit
     return route.fulfill({ status: 404 });
   });
   const agent = await mountAgentChat(page, { root: workspace.root, files: false });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   const input = page.getByRole("textbox", { name: "Code editor", exact: true });
   const lines = page.locator(".monaco-editor .view-lines");
   await expect(lines).toContainText("name: Search course");

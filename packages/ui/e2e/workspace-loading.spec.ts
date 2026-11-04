@@ -19,7 +19,7 @@ for (const mode of ["authoring", "learner"] as const) test(`${mode} paints its w
   try {
     await page.setViewportSize({ width: 1440, height: 900 });
     // Learners open a session, whichever kind of course it is in
-    await page.goto(mode === "authoring" ? "/authoring?session=saved" : "/learn/saved-run");
+    await page.goto(mode === "authoring" ? "/authoring/ws-1?session=saved" : "/learn/saved-run");
     await expect(page.getByRole("region", { name: "Course editor", exact: true })).toBeVisible();
     await expect(page.getByRole("status", { name: "Loading files", exact: true })).toBeVisible();
     await expect(page.getByText("Thinking", { exact: true })).toHaveCount(0, { timeout: 2000 });
@@ -50,7 +50,7 @@ test("authoring opens its files before the agent connects and retains edits when
   const agent = await mountAgentChat(page, { root: "/tmp/fast-files", files: false });
   await page.route("**/api/v1/**", async route => { await connected.promise; return route.fallback(); });
   try {
-    await page.goto(`/authoring?session=${agent.sessionId}`);
+    await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
     await expect(page.getByRole("region", { name: "Course editor", exact: true })).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
     await expect(page.getByText("Thinking", { exact: true })).toHaveCount(0);
@@ -124,7 +124,7 @@ test("saved authoring guidance opens before course files", async ({ page, mountA
   });
   const agent = await mountAgentChat(page, { root: "/tmp/fast-files", files: false });
   try {
-    await page.goto(`/authoring?workspace=ws-1&session=${agent.sessionId}`);
+    await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
     await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 5000 });
     const question = page.getByTestId("authoring-chat-composer").getByRole("textbox");
     await question.fill("Keep my question while files open");

@@ -13,7 +13,7 @@ async function pickAgent(page: Page, name: string) {
 test("switching the draft's agent asks first, then Kyoshi's next conversation runs on the new agent", async ({ page, mountAgentChat }) => {
   test.setTimeout(60_000);
   const { runtime, selects, sessionId } = await mountAgentChat(page);
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   const agent = page.getByTestId("authoring-chat-composer").getByRole("button", { name: "Agent", exact: true });
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 10_000 });
   await expect(agent).toContainText("Codex");
@@ -34,7 +34,7 @@ test("switching the draft's agent asks first, then Kyoshi's next conversation ru
 test("the agent menu lists the offered agents, the selected one first, and not Cursor until it has a passing record", async ({ page, mountAgentChat }) => {
   test.setTimeout(60_000);
   const { sessionId } = await mountAgentChat(page);
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 10_000 });
   const menu = page.getByTestId("authoring-chat-composer").getByRole("button", { name: "Agent", exact: true });
   await expect(menu).toBeEnabled({ timeout: 10_000 });
@@ -48,7 +48,7 @@ test("the agent menu lists the offered agents, the selected one first, and not C
 test("cancelling the switch keeps the agent and the conversation", async ({ page, mountAgentChat }) => {
   test.setTimeout(60_000);
   const { selects, sessionId } = await mountAgentChat(page);
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 10_000 });
   await pickAgent(page, "OpenCode");
   const dialog = page.getByRole("dialog", { name: "Switch this workspace to OpenCode?" });
@@ -123,7 +123,7 @@ test("a refused launch token is fetched once more and the switch succeeds", asyn
   test.setTimeout(60_000);
   const launch = { served: ["stale", "fresh"], accepted: "stale" };
   const { selects, tokenReads, sessionId } = await mountAgentChat(page, { launch });
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 10_000 });
   // The conversation opened with the page's token (POST /sessions/default takes it too); the UI server then relaunches
   launch.accepted = "fresh";
@@ -138,7 +138,7 @@ test("a launch token refused twice asks to reload the page", async ({ page, moun
   test.setTimeout(60_000);
   const launch = { served: ["stale"], accepted: "stale" };
   const { selects, sessionId } = await mountAgentChat(page, { launch });
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 10_000 });
   launch.accepted = testLaunchToken;
   await pickAgent(page, "OpenCode");

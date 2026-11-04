@@ -26,7 +26,7 @@ test("authoring uses shared editor preferences while retaining file models and t
     return route.fulfill({ status: 404 });
   });
   const agent = await mountAgentChat(page, { root: workspace.root, files: false });
-  await page.goto(`/authoring?session=${agent.sessionId}`);
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   const lines = page.locator(".monaco-editor .view-lines");
   await expect(lines).toContainText("name: Editor course");
   // The authoring story has course/file sections, without dashboard navigation.

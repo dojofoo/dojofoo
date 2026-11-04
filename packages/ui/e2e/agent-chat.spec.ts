@@ -9,7 +9,7 @@ const noSessionInUrl = (page: import("@playwright/test").Page) => expect.poll(()
 test("opening authoring without a session URL resumes its saved workspace conversation", async ({ page, mountAgentChat }) => {
   test.setTimeout(30_000);
   const mounted = await mountAgentChat(page);
-  await page.goto(`/authoring?workspace=${workspaceId}`);
+  await page.goto(`/authoring/${workspaceId}`);
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 4000 });
   await noSessionInUrl(page);
   expect(created(mounted)).toBe(0);
@@ -22,7 +22,7 @@ test("a failed saved-conversation lookup can retry without creating another conv
   await page.route("**/api/v1/**/sessions/default", route => unavailable
     ? route.fulfill({ status: 503, json: { error: "temporarily_unavailable", message: "Saved conversations temporarily unavailable" } })
     : route.fallback());
-  await page.goto(`/authoring?workspace=${workspaceId}`);
+  await page.goto(`/authoring/${workspaceId}`);
   await expect(page.getByRole("alert").filter({ hasText: "Saved conversations temporarily unavailable" })).toBeVisible({ timeout: 4000 });
   expect(created(mounted)).toBe(0);
   unavailable = false;
@@ -42,7 +42,7 @@ test("the same conversation follows the open lesson and file without saving unse
     files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# Teaching notes" }],
   }] } });
   const { sent, sessionId } = mounted;
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Main menu" });
   await navigation.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
@@ -73,7 +73,7 @@ test("authoring restores history and sends a file without text through the sessi
   test.setTimeout(30_000);
   const mounted = await mountAgentChat(page);
   const { sent, calls, sessionId } = mounted;
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   await expect(page.getByText(savedMessage, { exact: true })).toBeVisible({ timeout: 4000 });
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible();
   const composer = page.getByTestId("authoring-chat-composer");
@@ -92,7 +92,7 @@ test("an accepted conversation survives a failed history read and retries withou
   test.setTimeout(30_000);
   let failRead = false;
   const { runtime } = await mountAgentChat(page, { existingSession: false, failRead: () => failRead });
-  await page.goto(`/authoring?workspace=${workspaceId}`);
+  await page.goto(`/authoring/${workspaceId}`);
   await expect.poll(() => runtime.records.length).toBe(1);
   await expect(page.getByText(greetingReply, { exact: true })).toBeVisible({ timeout: 10_000 });
   await noSessionInUrl(page);
@@ -115,7 +115,7 @@ test("new authoring opens its files and conversation without calling the retired
     discoveries++;
     return route.fulfill({ json: { backend: "eve" } });
   });
-  await page.goto(`/authoring?workspace=${workspaceId}`);
+  await page.goto(`/authoring/${workspaceId}`);
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible({ timeout: 4000 });
   await expect.poll(() => runtime.records.length).toBe(1);
   await expect(page.getByText(greetingReply, { exact: true })).toBeVisible({ timeout: 10_000 });
@@ -128,7 +128,7 @@ test("conversation reload preserves an unsent note and attachment through a fail
   let failRead = false;
   const mounted = await mountAgentChat(page, { failRead: () => failRead, failRun: () => true });
   const { sessionId } = mounted;
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   const composer = page.getByTestId("authoring-chat-composer");
   const input = composer.getByRole("textbox");
   await expect(input).toBeEnabled({ timeout: 4000 });
@@ -154,7 +154,7 @@ test("a note during a running turn steers it instead of queueing, and a failed s
   test.setTimeout(60_000);
   let cancellations = 0;
   const { sessionId, cancelled, sent } = await mountAgentChat(page, { failCancel: () => cancellations++ === 0 });
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   const input = page.getByTestId("authoring-chat-composer").getByRole("textbox");
   const pane = page.getByTestId("authoring-chat-pane");
   await expect(input).toBeEnabled({ timeout: 4000 });
@@ -192,7 +192,7 @@ test("opening an in-flight conversation rejoins it in the same session", async (
   const { session } = await new Client({ baseUrl: eve.baseUrl }).sessions.create({ message: "Reply after a pause" });
   const sessionId = session.state.sessionId;
   runtime.records.push({ id: sessionId, agent: "codex", persona: "kyoshi", createdAt: "2026-10-28T00:00:00Z", revision: 0 });
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   await expect(page.getByText("Reply after a pause", { exact: true })).toBeVisible({ timeout: 4000 });
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
   await expect(page.getByText("Echo: Reply after a pause", { exact: true })).toBeVisible({ timeout: 10_000 });
@@ -205,7 +205,7 @@ test("opening an in-flight conversation rejoins it in the same session", async (
 test("a saved question resumes and its answer continues the turn", async ({ page, mountAgentChat }) => {
   test.setTimeout(30_000);
   const { sent, sessionId } = await mountAgentChat(page, { existingSession: "Please ask me first" });
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   const review = page.getByRole("radio", { name: /Review/ });
   await expect(review).toBeVisible({ timeout: 4000 });
   await review.click();
@@ -218,7 +218,7 @@ test("a failed answer is reported and the reloaded question can be answered agai
   test.setTimeout(30_000);
   let failures = 1;
   const { sent, sessionId } = await mountAgentChat(page, { existingSession: "Please ask me first", failRun: () => failures-- > 0 });
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   const review = page.getByRole("radio", { name: /Review/ });
   await review.click();
   await expect(page.getByRole("alert").filter({ hasText: "Could not send this note" })).toBeVisible({ timeout: 4000 });
@@ -233,7 +233,7 @@ test("a conversation on a coding agent that's no longer selected opens the selec
   const mounted = await mountAgentChat(page);
   const { calls, sessionId, runtime } = mounted;
   runtime.records[0]!.agent = "opencode";
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   await expect(page.getByText(greetingReply, { exact: true })).toBeVisible({ timeout: 10_000 });
   await keepsDraft(page);
   await expect(page.getByText(/selected coding agent/)).toHaveCount(0);
@@ -244,7 +244,7 @@ test("a conversation on a coding agent that's no longer selected opens the selec
 test("a conversation that no longer exists opens the selected agent's conversation", async ({ page, mountAgentChat }) => {
   test.setTimeout(30_000);
   const mounted = await mountAgentChat(page);
-  await page.goto(`/authoring?workspace=${workspaceId}&session=gone`);
+  await page.goto(`/authoring/${workspaceId}?session=gone`);
   await expect(page.getByText(savedReply, { exact: true })).toBeVisible({ timeout: 10_000 });
   await keepsDraft(page);
   await expect(page.getByText("Session not found.")).toHaveCount(0);
@@ -259,7 +259,7 @@ test("a conversation an older Eve built continues in a new session", async ({ pa
   await page.route(`**/sessions/${sessionId}/eve/v1/session/${sessionId}/stream*`, route => route.fulfill({
     status: 409, json: { error: "This session was built by eve 0.81.1.", code: "session_stranded", eveVersion: "0.81.1" },
   }));
-  await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
+  await page.goto(`/authoring/${workspaceId}?session=${sessionId}`);
   await expect(page.getByText(greetingReply, { exact: true })).toBeVisible({ timeout: 10_000 });
   await keepsDraft(page);
   // The requested conversation can't continue: a status line says so, with no alert

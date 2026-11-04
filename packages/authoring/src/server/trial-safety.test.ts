@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { parse, stringify } from "yaml";
 import { expect, it, onTestFinished, vi } from "vitest";
-import { listWorkspaces } from "@dojofoo/config/local-state";
+import { listDojoRuns, listWorkspaces } from "@dojofoo/config/local-state";
 import { scaffoldAuthoringWorkspace } from "../scaffold";
 import { createAuthoringLesson, createLessonTrial, readAuthoringDraft } from "./service";
 import { dojoDir, readDojoRc, readCatalog, resolveAllKatas } from "@dojofoo/config";
@@ -104,4 +104,17 @@ it.each(["external", "private"])("rejects a link to %s material", kind => {
   expect(readdirSync(f.directory).filter(name => name.startsWith("dojofoo-trial-"))).toEqual([]);
   expect(listWorkspaces()).toEqual([]);
   expect(readFileSync(target, "utf8")).toBe("PRIVATE_FIXTURE=do-not-copy");
+});
+
+it("a trial returns its course run", () => {
+  const f = fixture();
+  const first = createLessonTrial(f.course, f.lesson);
+  const second = createLessonTrial(f.course, f.lesson);
+  for (const trial of [first, second]) {
+    const workspace = listWorkspaces().find(item => item.id === trial.workspaceId)!;
+    expect(trial.runId).toBe(listDojoRuns().find(run => run.workspaceId === workspace.id && run.dojo === trial.courseId)?.id);
+  }
+  // Each trial installs the course under the same id in its own workspace, with its own run
+  expect(second.courseId).toBe(first.courseId);
+  expect(second.runId).not.toBe(first.runId);
 });
