@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createOpenCode } from "@ai-sdk/harness-opencode";
-import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
+import { createLocalSandbox } from "@dojofoo/agent/adapters";
 
 export async function createRuntime(root, baseURL) {
   const home = join(root, "home");

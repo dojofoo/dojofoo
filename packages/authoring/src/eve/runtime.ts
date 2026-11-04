@@ -87,8 +87,7 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   const workspaceId = options.workspaceId ?? workspaceIdFor(courseRoot);
   // Keep Node workers and the coordinator in the same installed package scope.
   const load = createRequire(import.meta.url);
-  const { createPersonaHost } = await import(load.resolve("@dojofoo/agent/persona-host")) as typeof import("@dojofoo/agent/persona-host");
-  const { lifecycleHookSlug } = await import(load.resolve("@dojofoo/agent/lifecycle")) as typeof import("@dojofoo/agent/lifecycle");
+  const { createPersonaHost, lifecycleHookSlug } = await import(load.resolve("@dojofoo/agent/persona")) as typeof import("@dojofoo/agent/persona");
   return createPersonaHost({
     appDir: app,
     processRecord: join(localStateDirectory(), "processes", `${workspaceId}.kyoshi.jsonl`),

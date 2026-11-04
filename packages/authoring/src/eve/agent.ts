@@ -1,8 +1,6 @@
 import { defineAgent, defineDynamic } from "@dojofoo/agent";
-import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
-import { createLocalHarnessSandbox, prepareHarnessEnvironment } from "@dojofoo/agent/experimental/local";
-import { agentAdapter } from "@dojofoo/agent/adapters";
-import type { HostPortBinding } from "@dojofoo/agent/lifecycle";
+import { experimental_createHarnessModel, createLocalHarnessSandbox, prepareHarnessEnvironment, agentAdapter } from "@dojofoo/agent/adapters";
+import type { HostPortBinding } from "@dojofoo/agent/persona";
 import type { AgentId } from "@dojofoo/protocol";
 import { delimiter } from "node:path";
 

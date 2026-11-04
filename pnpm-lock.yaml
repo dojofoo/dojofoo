@@ -292,6 +292,9 @@ importers:
       '@ai-sdk/sandbox-just-bash':
         specifier: 1.0.170
         version: 1.0.170(ws@8.21.0)(zod@4.6.7)
+      '@tanstack/ai':
+        specifier: 1.0.1
+        version: 1.0.1(@opentelemetry/api@1.9.0)(zod@4.6.7)
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
@@ -377,9 +380,6 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: 1.4.0
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.21.0)(zod@4.6.7)
-      '@tanstack/ai':
-        specifier: 1.0.1
-        version: 1.0.1(@opentelemetry/api@1.9.0)(zod@4.6.7)
       globby:
         specifier: 16.2.4
         version: 16.2.4

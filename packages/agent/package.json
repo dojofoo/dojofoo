@@ -557,45 +557,25 @@
       "import": "./dist/server-build.js",
       "default": "./dist/server-build.js"
     },
-    "./harness": {
-      "types": "./dist/harness.d.ts",
-      "import": "./dist/harness.js",
-      "default": "./dist/harness.js"
-    },
-    "./experimental": {
-      "types": "./dist/harness-model.d.ts",
-      "import": "./dist/harness-model.js",
-      "default": "./dist/harness-model.js"
-    },
-    "./experimental/local": {
-      "types": "./dist/local-runtime.d.ts",
-      "import": "./dist/local-runtime.js",
-      "default": "./dist/local-runtime.js"
-    },
     "./adapters": {
       "types": "./dist/adapters.d.ts",
       "import": "./dist/adapters.js",
       "default": "./dist/adapters.js"
     },
+    "./persona": {
+      "types": "./dist/persona.d.ts",
+      "import": "./dist/persona.js",
+      "default": "./dist/persona.js"
+    },
+    "./messages": {
+      "types": "./dist/messages.d.ts",
+      "import": "./dist/messages.js",
+      "default": "./dist/messages.js"
+    },
     "./tools/ask_question": {
       "types": "./dist/tools-ask-question.d.ts",
       "import": "./dist/tools-ask-question.js",
       "default": "./dist/tools-ask-question.js"
-    },
-    "./read-only": {
-      "types": "./dist/read-only.d.ts",
-      "import": "./dist/read-only.js",
-      "default": "./dist/read-only.js"
-    },
-    "./one-shot": {
-      "types": "./dist/one-shot.d.ts",
-      "import": "./dist/one-shot.js",
-      "default": "./dist/one-shot.js"
-    },
-    "./process-groups": {
-      "types": "./dist/process-groups.d.ts",
-      "import": "./dist/process-groups.js",
-      "default": "./dist/process-groups.js"
     },
     "./host-port": {
       "types": "./dist/host-port/index.d.ts",
@@ -606,21 +586,6 @@
       "types": "./dist/host-port/fixture.d.ts",
       "import": "./dist/host-port/fixture.js",
       "default": "./dist/host-port/fixture.js"
-    },
-    "./lifecycle": {
-      "types": "./dist/lifecycle.d.ts",
-      "import": "./dist/lifecycle.js",
-      "default": "./dist/lifecycle.js"
-    },
-    "./persona-host": {
-      "types": "./dist/persona-host.d.ts",
-      "import": "./dist/persona-host.js",
-      "default": "./dist/persona-host.js"
-    },
-    "./file-guard": {
-      "types": "./dist/file-guard.d.ts",
-      "import": "./dist/file-guard.js",
-      "default": "./dist/file-guard.js"
     },
     "./scripted-harness": {
       "types": "./dist/scripted-harness.d.ts",
@@ -655,6 +620,7 @@
   "devDependencies": {
     "eve": "1.0.0-rc.1",
     "@ai-sdk/sandbox-just-bash": "1.0.170",
+    "@tanstack/ai": "1.0.1",
     "@types/node": "^26.6.5",
     "typescript": "6.0.3",
     "vitest": "^5.0.5"

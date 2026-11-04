@@ -2,8 +2,7 @@ import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createPi } from "@ai-sdk/harness-pi";
-import { HarnessAgent } from "@dojofoo/agent/harness";
-import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
+import { HarnessAgent, createLocalSandbox } from "@dojofoo/agent/adapters";
 import { expect, it } from "vitest";
 // @ts-expect-error Shared inference fixture is JavaScript.
 import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";

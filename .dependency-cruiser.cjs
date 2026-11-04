@@ -11,6 +11,11 @@ const relativeExemptions = exempt(
   "packages/evals/src/authoring-continuation.live.test.ts",      // eve/prepare: step 8
   "packages/uix/.storybook/language-api.ts",                     // permanent: Storybook dev server only
 );
+// The harness's entry points (agent-runtime.steps/step-8.md, "The harness's entry points"): the UI server, the CLI and the browser
+// import only the closed set (A), and the test entries (C) only in their tests. A package import resolves to its types target.
+const testFiles = ["\\.(test|spec)\\.[cm]?[jt]sx?$", "\\.fixture\\.[cm]?[jt]sx?$", "/e2e/"];
+const closedSet = "^packages/agent/dist/(eve/dist/src/index|eve/dist/src/client/index|eve/dist/src/react/index|server|host-port/index|adapters|persona|messages)\\.(d\\.ts|js)$";
+const testEntries = "^packages/agent/dist/(host-port/fixture|scripted-harness|local-history)\\.(d\\.ts|js)$";
 
 module.exports = {
   forbidden: [
@@ -27,6 +32,16 @@ module.exports = {
     { name: "uix-depends-on-protocol-only", severity: "error",
       from: { path: "^packages/uix/", pathNot: exempt("packages/uix/.storybook/language-api.ts") }, to: { path: "^packages/(?!uix/|protocol/)" } },
     { name: "evals-depend-on-harness-and-agents", severity: "error", from: { path: "^packages/evals/" }, to: { path: "^packages/(ui|cli|uix)/" } },
+    { name: "harness-closed-surface", severity: "error", from: { path: "^packages/(ui|cli)/", pathNot: testFiles },
+      to: { path: "^packages/agent/", pathNot: closedSet } },
+    { name: "harness-closed-surface-in-tests", severity: "error", from: { path: testFiles.map(file => `^packages/(ui|cli)/.*${file}`) },
+      to: { path: "^packages/agent/", pathNot: [closedSet, testEntries] } },
+    { name: "harness-test-entries", severity: "error",
+      from: { path: "^packages/", pathNot: ["^packages/agent/", "^packages/authoring/scripts/", "^packages/evals/", ...testFiles] },
+      to: { path: testEntries } },
+    // An entry point that is gone fails here too in the untyped .mjs scripts; the harness's experiments import packed packages
+    { name: "dojofoo-imports-resolve", severity: "error", from: { pathNot: "^packages/agent/experiments/" },
+      to: { couldNotResolve: true, path: "^@dojofoo/" } },
   ],
   options: {
     // Package imports resolve to dist; following into it would hide the importing package's edges

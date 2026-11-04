@@ -19,7 +19,7 @@ import {
   writeDojoRc,
 } from "@dojofoo/config";
 import type { DojoLessonContext, LearnerEvidenceExcerpt, LearnerObservation } from "@dojofoo/protocol";
-import { withPathLock, writeFileAtomic } from "@dojofoo/agent/file-guard";
+import { withPathLock, writeFileAtomic } from "@dojofoo/agent/persona";
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { learnerEvidence as storedLearnerEvidence } from "../agent-session/evidence";
 import { updateOpenWindows } from "../agent-session/guard-store";

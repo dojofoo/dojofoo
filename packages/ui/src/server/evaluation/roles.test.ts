@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync }
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import type { OneShotRequest } from "@dojofoo/agent/one-shot";
+import type { OneShotRequest } from "@dojofoo/agent/adapters";
 import { criterionIds } from "@dojofoo/authoring/evaluation/judges";
 import { oneShotRoles } from "./roles";
 

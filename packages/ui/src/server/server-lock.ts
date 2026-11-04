@@ -1,6 +1,6 @@
 import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
-import { processStartTime } from "@dojofoo/agent/process-groups";
+import { processStartTime } from "@dojofoo/agent/persona";
 
 /** `<DOJOFOO_HOME>/ui.lock`: `{ pid, startedAt, url }` of the one UI server that owns this DOJOFOO_HOME (design, "Startup and recovery order", 1). */
 type Holder = { pid: number; startedAt?: string; url?: string };

@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
+import { experimental_createHarnessModel } from "@dojofoo/agent/adapters";
 import { createRuntime } from "./opencode-runtime.fixture.mjs";
 
 let input = "";

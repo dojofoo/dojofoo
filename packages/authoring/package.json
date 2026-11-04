@@ -152,12 +152,6 @@
       "import": "./dist/eve/evaluate.js",
       "default": "./dist/eve/evaluate.js"
     },
-    "./eve/messages": {
-      "types": "./src/eve/messages.ts",
-      "development": "./src/eve/messages.ts",
-      "import": "./dist/eve/messages.js",
-      "default": "./dist/eve/messages.js"
-    },
     "./eve/models": {
       "types": "./src/eve/models.ts",
       "development": "./src/eve/models.ts",
@@ -254,7 +248,6 @@
     "@dojofoo/protocol": "workspace:*",
     "@earendil-works/pi-ai": "1.4.0",
     "@earendil-works/pi-coding-agent": "1.4.0",
-    "@tanstack/ai": "1.0.1",
     "globby": "16.2.4",
     "hono": "^4.13.14",
     "json-rpc-2.0": "1.8.1",

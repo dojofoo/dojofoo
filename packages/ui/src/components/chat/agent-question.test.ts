@@ -1,7 +1,7 @@
 import type { ToolCallPart } from "@tanstack/ai-client";
 import { describe, expect, it } from "vitest";
 import { isAgentQuestion, parseAgentQuestions, agentQuestionState } from "./agent-question";
-import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
+import { eveChatMessages } from "@dojofoo/agent/messages";
 
 const choice: ToolCallPart = {
   type: "tool-call",

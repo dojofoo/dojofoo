@@ -1,5 +1,5 @@
 import { defineAgent, defineDynamic } from "@dojofoo/agent";
-import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
+import { experimental_createHarnessModel } from "@dojofoo/agent/adapters";
 import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
 import { scriptedHarness } from "@dojofoo/agent/scripted-harness";
 

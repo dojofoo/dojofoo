@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { JSONRPCClient } from "json-rpc-2.0";
 import { parse } from "smol-toml";
 import { agentRow, type AgentId, type ModelChoice } from "@dojofoo/protocol";
-import { readOnlyEnvironment } from "@dojofoo/agent/read-only";
+import { readOnlyEnvironment } from "@dojofoo/agent/persona";
 
 /** Preserve the native CLI choice when the caller has not selected a model. */
 export async function configuredHarnessModel(harness: string, codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex")): Promise<string | undefined> {

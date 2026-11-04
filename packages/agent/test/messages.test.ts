@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { EveMessage, EveMessagePart } from "@dojofoo/agent/client";
-import { eveChatMessages, eveQuestion } from "./messages";
-import { KYOSHI_START } from "./bootstrap";
+import type { EveMessage, EveMessagePart } from "eve/client";
+import { eveChatMessages, eveQuestion } from "../src/messages.ts";
+import { dojoTags } from "@dojofoo/protocol";
 
 type Tool = Extract<EveMessagePart, { type: "tool" }>;
 type Interaction = NonNullable<Tool["interaction"]>;
@@ -19,7 +19,7 @@ const question: Interaction = {
 describe("Eve chat projection", () => {
   it("hides only the first server lifecycle input, not actual messages with similar text", () => {
     const messages: EveMessage[] = [
-      { id: "start", role: "user", parts: [{ type: "text", text: KYOSHI_START }] },
+      { id: "start", role: "user", parts: [{ type: "text", text: dojoTags.beginAuthoring }] },
       { id: "answer", role: "assistant", parts: [{ type: "text", text: "What would you like to teach?" }] },
       { id: "human", role: "user", parts: [{ type: "text", text: "Help me author this course." }] },
     ];
@@ -33,7 +33,7 @@ describe("Eve chat projection", () => {
       { id: "reply", role: "assistant", parts: [{ type: "text", text: "Ready to teach." }] },
       { id: "link", role: "user", parts: [{ type: "text", text: "dojo://courses/first explains it" }] },
       { id: "check", role: "user", parts: [{ type: "text", text: "[dojo:check] Ran lesson checks." }] },
-      { id: "start", role: "user", parts: [{ type: "text", text: KYOSHI_START }] },
+      { id: "start", role: "user", parts: [{ type: "text", text: dojoTags.beginAuthoring }] },
       { id: "quoted", role: "user", parts: [{ type: "text", text: "Why does [dojo:begin] show up?" }] },
     ];
     expect(eveChatMessages(messages).map(message => message.id)).toEqual(["reply", "link", "quoted"]);

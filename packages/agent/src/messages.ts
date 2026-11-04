@@ -1,4 +1,4 @@
-import type { EveMessage, EveMessagePart } from "@dojofoo/agent/client";
+import type { EveMessage, EveMessagePart } from "eve/client";
 import type { MessagePart, ToolCallPart, UIMessage } from "@tanstack/ai";
 import { isTaggedTurn } from "@dojofoo/protocol";
 
@@ -88,3 +88,4 @@ function projectInteraction(part: EveInteractionPart): MessagePart {
   }
   return { type: "text", content: part.request.signIn?.instructions ?? part.request.prompt, metadata: { eve: part } };
 }
+export { activeTurn, emptySessionView, foldEvents, openInteractions } from "eve/events";

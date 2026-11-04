@@ -1,4 +1,4 @@
-import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
+import { experimental_createHarnessModel } from "@dojofoo/agent/adapters";
 
 // Extract concrete adapter types from official factories without invoking them.
 type FactoryAdapter<Module> = {

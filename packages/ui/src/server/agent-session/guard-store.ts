@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { createFileGuard, writeFileAtomic, type GuardVerdict } from "@dojofoo/agent/file-guard";
+import { createFileGuard, writeFileAtomic, type GuardVerdict } from "@dojofoo/agent/persona";
 import { localStateDirectory, type LocalStateOptions } from "@dojofoo/config/local-state";
 import type { GuardViolation } from "@dojofoo/protocol";
 

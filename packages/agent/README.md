@@ -30,7 +30,7 @@ consumer test reads and edits a live course mount, observes human edits, and
 reopens private workspace files after shutdown.
 
 The managed authoring host prepares adapter bootstrap tools through mise:
-`prepareHarnessEnvironment()` from `@dojofoo/agent/experimental/local` installs
+`prepareHarnessEnvironment()` from `@dojofoo/agent/adapters` installs
 and selects `pnpm@10.34.5` with `--no-config`. Only the resulting PATH is passed
 to the local sandbox. Course/global mise configuration, credentials, and
 global pnpm are not changed. Mise is prepared by `dojofoo install`; the first
@@ -78,13 +78,21 @@ passing it does not establish tool, inference or compaction compatibility.
 
 ## Boundaries
 
-| Module | Responsibility |
-| --- | --- |
-| `@dojofoo/agent` | Reexport Eve's root API unchanged |
-| `/client`, `/react` | Reexport Eve's existing client integrations |
-| `/harness` | Reexport the official HarnessAgent API unchanged |
-| `/server` | Reexport the pinned Eve host lifecycle (`start`/`close`) for local UI ownership |
-| `/experimental` | Translate the AI SDK model contract to HarnessAgent |
+The export map has three groups. The UI server, the CLI and the browser import only the
+closed set (A), and the test entries (C) only in their tests; lint rules in
+`.dependency-cruiser.cjs` enforce both.
+
+| Group | Entry | Responsibility |
+| --- | --- | --- |
+| A | `@dojofoo/agent` | Reexport Eve's root API unchanged |
+| A | `/client`, `/react` | Reexport Eve's existing client integrations |
+| A | `/server` | Reexport the pinned Eve host lifecycle (`start`/`close`) for local UI ownership |
+| A | `/host-port` | The persona host's port to the UI server |
+| A | `/adapters` | `agentAdapter`, the official HarnessAgent API unchanged, the harness model (`experimental_createHarnessModel`, which translates the AI SDK model contract to HarnessAgent), the local sandbox and `oneShot` |
+| A | `/persona` | The persona host, the lifecycle hook, process groups, the file guard and the read-only settings |
+| A | `/messages` | Eve's messages in the chat's render model (`eveChatMessages`, `eveQuestion`), and Eve's `activeTurn`, `emptySessionView`, `foldEvents` and `openInteractions` |
+| B | Eve's other subpaths, `/server/production`, `/server/build`, `/eve/package.json` | Persona builds and evals |
+| C | `/host-port/fixture`, `/scripted-harness`, `/local-history` | Tests, fixtures, the agents' scripts and the evals only |
 
 The provider factory accepts the official adapter and runtime settings. Its
 generic type preserves adapter-specific settings and the SDK's mutually exclusive
@@ -296,7 +304,7 @@ process is not equivalent to restarting Eve or freezing a cloud sandbox:
 pending-question recovery after native-process termination remains unsupported
 by this local integration.
 
-The Node-only entry point is `@dojofoo/agent/experimental/local`. Build the
+The Node-only entry point is `@dojofoo/agent/adapters`. Build the
 sandbox where the model runs: call `createLocalHarnessSandbox(root, { environment })`
 inside the agent's model definition and pass it to `experimental_createHarnessModel`.
 The native package-consumer tests use these exports exclusively, including

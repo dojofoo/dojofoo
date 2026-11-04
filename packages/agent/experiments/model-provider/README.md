@@ -104,7 +104,7 @@ question settles with `interaction.settled`, accepted, on its tool part.
 
 The browser talks to these sessions through Eve's own client as well: the agent
 API forwards each session's Eve routes (`packages/agent-api`), and the authoring
-chat uses `useEveAgent`. `@dojofoo/authoring/eve/messages` only maps Eve's messages
+chat uses `useEveAgent`. `@dojofoo/agent/messages` only maps Eve's messages
 into the chat's render model.
 
 `cli-host.test.mjs` additionally uses the supported `eve dev --no-ui --host
@@ -309,7 +309,7 @@ for that reason only; it is not a production workaround for `just-bash`, whose
 missing resume capability has its own rejection test.
 
 The provider remains available through the explicit
-`@dojofoo/agent/experimental` entrypoint. Authoring now uses it through the
+`@dojofoo/agent/adapters` entrypoint. Authoring now uses it through the
 managed Eve runtime; this integration is still under acceptance testing.
 It retains no conversation state on the model instance. It accepts text or
 structured user turns and function tools;

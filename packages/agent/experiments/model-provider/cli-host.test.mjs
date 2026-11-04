@@ -65,8 +65,7 @@ test("public Eve CLI restores a Pi question and native history after process res
     await writeFile(join(agent, "tools/ask_question.ts"), 'export { default } from "@dojofoo/agent/tools/ask_question";\n');
     await writeFile(join(agent, "agent.ts"), `
       import { defineAgent, defineDynamic } from "@dojofoo/agent";
-      import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
-      import { createLocalSandbox } from "@dojofoo/agent/experimental/local";
+      import { experimental_createHarnessModel, createLocalSandbox } from "@dojofoo/agent/adapters";
       import { createPi } from "@ai-sdk/harness-pi";
       export default defineAgent({
         build: { externalDependencies: ["@dojofoo/agent", "@ai-sdk/harness-pi"] },

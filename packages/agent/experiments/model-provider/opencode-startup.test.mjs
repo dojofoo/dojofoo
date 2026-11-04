@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { HarnessAgent } from "@ai-sdk/harness/agent";
 import { generateText, jsonSchema } from "ai";
-import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
+import { experimental_createHarnessModel } from "@dojofoo/agent/adapters";
 import { createRuntime } from "./opencode-runtime.fixture.mjs";
 import { startLoopbackModel } from "./loopback-openai.mjs";
 

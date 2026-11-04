@@ -1,10 +1,7 @@
 import { defineAgent, defineDynamic, type DynamicModelContext } from "@dojofoo/agent";
-import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
-import { createLocalHarnessSandbox, prepareHarnessEnvironment } from "@dojofoo/agent/experimental/local";
-import { agentAdapter } from "@dojofoo/agent/adapters";
+import { experimental_createHarnessModel, createLocalHarnessSandbox, prepareHarnessEnvironment, agentAdapter } from "@dojofoo/agent/adapters";
 import { createHostPortClient, HostPortError, type HostPortClient } from "@dojofoo/agent/host-port";
-import type { HostPortBinding } from "@dojofoo/agent/lifecycle";
-import { readOnlyEnvironment } from "@dojofoo/agent/read-only";
+import { type HostPortBinding, readOnlyEnvironment } from "@dojofoo/agent/persona";
 import type { AgentId, SenseiSessionInfo } from "@dojofoo/protocol";
 
 /** What the Sensei host writes to its app folder's runtime.json before every start. */

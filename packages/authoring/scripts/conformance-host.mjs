@@ -110,7 +110,7 @@ try {
   if (scenario === "one-shot") {
     // An evaluation's roles (step-7 plan, "Conformance cases"): the learner, the fixture generator and a teaching judge, each one
     // tool-free read-only call on this agent in this driver's environment, with no host. Each reports its text and what it left running.
-    const { oneShot } = await import("@dojofoo/agent/one-shot");
+    const { oneShot } = await import("@dojofoo/agent/adapters");
     const { learnerPrompt } = await import("../dist/evaluation/learner.js");
     const { fixturePrompt } = await import("../dist/evaluation/learner-fixtures.js");
     const { fixtureGeneratorInstructions, teachingJudgePrompt } = await import("../dist/evaluation/prompts/index.js");

@@ -39,9 +39,8 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
     };
     await writeFile(join(agent, "agent.ts"), `
       import { defineAgent, defineDynamic } from "@dojofoo/agent";
-      import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
+      import { experimental_createHarnessModel, createLocalHarnessSandbox } from "@dojofoo/agent/adapters";
       import { createOpenCode } from "@ai-sdk/harness-opencode";
-      import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
       export default defineAgent({
         build: { externalDependencies: ["@ai-sdk/harness-opencode", "@dojofoo/agent"] },
         model: defineDynamic(async () => {

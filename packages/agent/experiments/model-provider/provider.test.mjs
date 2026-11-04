@@ -7,7 +7,7 @@ import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
 import { generateText, jsonSchema, Output, streamText, tool } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
 import { defineAgent } from "@dojofoo/agent";
-import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
+import { experimental_createHarnessModel } from "@dojofoo/agent/adapters";
 
 // Harness-level tests of the full-access path: native tools and approval cards stay on.
 const createHarnessModel = (runtime, options = {}) => experimental_createHarnessModel(runtime, { mode: "full", ...options });
@@ -107,7 +107,7 @@ const text = value => [
 test("the package reexports Eve and the official HarnessAgent without wrapping them", async () => {
   const [facade, eve, harness, official] = await Promise.all([
     import("@dojofoo/agent"), import(new URL("dist/src/index.js", eveRoot)),
-    import("@dojofoo/agent/harness"), import("@ai-sdk/harness/agent"),
+    import("@dojofoo/agent/adapters"), import("@ai-sdk/harness/agent"),
   ]);
   assert.deepEqual(Object.keys(facade), Object.keys(eve));
   for (const key of Object.keys(eve)) assert.equal(facade[key], eve[key]);

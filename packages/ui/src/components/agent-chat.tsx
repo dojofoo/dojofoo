@@ -1,8 +1,7 @@
 import { useEveAgent } from "@dojofoo/agent/react";
-import { activeTurn, openInteractions } from "@dojofoo/agent/events";
+import { activeTurn, eveChatMessages, openInteractions } from "@dojofoo/agent/messages";
 import type { SendTurnOptions } from "@dojofoo/agent/client";
 import type { Persona } from "@dojofoo/agent-api";
-import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
 import { agentRow, isAgentId } from "@dojofoo/protocol";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";

@@ -2,12 +2,9 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tool } from "@ai-sdk/provider-utils";
-import { HarnessAgent } from "@dojofoo/agent/harness";
-import { createLocalHarnessSandbox, createLocalSandbox, prepareHarnessEnvironment } from "@dojofoo/agent/experimental/local";
-import { ResumeFailedError } from "@dojofoo/agent/experimental";
+import { HarnessAgent, createLocalHarnessSandbox, createLocalSandbox, prepareHarnessEnvironment, ResumeFailedError } from "@dojofoo/agent/adapters";
 import { startHostPortFixture } from "@dojofoo/agent/host-port/fixture";
-import { createFileGuard, type GuardVerdict } from "@dojofoo/agent/file-guard";
-import { lifecycleHandlers } from "@dojofoo/agent/lifecycle";
+import { createFileGuard, type GuardVerdict, lifecycleHandlers, readOnlyToolNames } from "@dojofoo/agent/persona";
 import type { ResumeFailure } from "@dojofoo/protocol";
 import { personaRecordedFrom, type Persona } from "@dojofoo/protocol";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -18,7 +15,6 @@ import {
   type CaseContext, type LoopbackEndpoint, type TierAAgent, type ToolRequest,
 } from "./conformance.fixture";
 import { acpModels } from "./models";
-import { readOnlyToolNames } from "@dojofoo/agent/read-only";
 import { criterionIds, parseVerdict } from "../evaluation/judges";
 import { parseGeneratedFixture } from "../evaluation/learner-fixtures";
 import { evaluationPrompts } from "../evaluation/prompts";

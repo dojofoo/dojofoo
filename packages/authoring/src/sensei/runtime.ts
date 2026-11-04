@@ -55,8 +55,7 @@ export async function createSenseiRuntime(workspaceRoot: string, options: { agen
   const app = await preparePersonaApp(workspaceRoot, "sensei");
   const stateDirectory = localStateDirectory();
   const load = createRequire(import.meta.url);
-  const { createPersonaHost } = await import(load.resolve("@dojofoo/agent/persona-host")) as typeof import("@dojofoo/agent/persona-host");
-  const { lifecycleHookSlug } = await import(load.resolve("@dojofoo/agent/lifecycle")) as typeof import("@dojofoo/agent/lifecycle");
+  const { createPersonaHost, lifecycleHookSlug } = await import(load.resolve("@dojofoo/agent/persona")) as typeof import("@dojofoo/agent/persona");
   return createPersonaHost({
     appDir: app,
     processRecord: join(stateDirectory, "processes", `${workspaceId}.sensei.jsonl`),
