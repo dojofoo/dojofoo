@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { Client, ClientError, type ClientOptions } from "@dojofoo/agent/client";
 import { activeTurn, emptySessionView, foldEvents } from "@dojofoo/agent/events";
 import { setTimeout as delay } from "node:timers/promises";
-import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type Persona } from "@dojofoo/agent-api";
+import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type LifecycleStatus, type Persona } from "@dojofoo/agent-api";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { resolveAgent, writeAgent, writeAgentModel } from "@dojofoo/config/runtime";
 import { agentRow, isAgentId, latestConformance, offeredAgents, personaForKind, type AgentId } from "@dojofoo/protocol";
@@ -15,6 +15,8 @@ import { authorizeLaunchRequest } from "./launch-token";
 import { readRecords as read, saveRecord as save, updateRecord } from "./agent-session/records";
 import { afterDelivery, applyLifecycle, beforeDelivery } from "./agent-session/lifecycle";
 import { createDefaultSessions } from "./agent-session/default";
+import { sendHeld } from "./agent-session/check-reports";
+import { discardWindow, openWindow } from "./agent-session/guard";
 import { authoringWatchers } from "./authoring-watch";
 import { committedConformance } from "./conformance";
 import { forgetHost, hostPortUrl, registerHost } from "./host-port";
@@ -23,6 +25,9 @@ type RuntimeState = {
   agent: string; persona: Persona; workspaceId: string; status: AgentStatus; message?: string;
   endpoint?: Promise<AgentEndpoint>; owned?: OwnedRuntime; secret?: string;
 };
+
+/** What `deliveries.before` hands to `after`: the status before the delivery, and the guard window it opened */
+type DeliveryHandle = { before: LifecycleStatus; opened?: string };
 
 type OwnedRuntime = { start(): Promise<{ url: string; auth?: ClientOptions["auth"]; secret?: string; exited?: Promise<unknown> }>; close(): Promise<void> };
 /** Which host a start is for: the persona the workspace's kind runs, and where its host port listens */
@@ -140,7 +145,7 @@ export function createLocalAgentRuntime(options: {
       const ready = { baseUrl: url, headers: authorization(auth) };
       if (secret) {
         state.secret = secret;
-        registerHost(workspaceId, persona, { secret, endpoint: ready });
+        registerHost(workspaceId, persona, { secret, endpoint: ready, openDefault: request => runtime.sessions.openDefault(workspaceId, request) });
       }
       // A host that exits on its own starts again on the next request
       void exited?.catch(() => {}).finally(() => {
@@ -296,8 +301,22 @@ export function createLocalAgentRuntime(options: {
       },
     },
     deliveries: {
-      before: async (workspaceId, session) => beforeDelivery(root(workspaceId), session.id),
-      after: async (workspaceId, session, _delivery, outcome) => afterDelivery(root(workspaceId), session.id, outcome.handle, outcome.status),
+      // Rule 1: the guard window opens before the delivery can start or resume Sensei's model
+      before: async (workspaceId, session): Promise<DeliveryHandle> => {
+        const path = root(workspaceId);
+        const opened = await openWindow(path, workspaceId, session);
+        return { before: await beforeDelivery(path, session.id), ...(opened ? { opened } : {}) };
+      },
+      after: async (workspaceId, session, _delivery, outcome) => {
+        if (outcome.status >= 200 && outcome.status < 300) return;
+        const path = root(workspaceId);
+        const handle = (outcome.handle ?? {}) as Partial<DeliveryHandle>;
+        // Rule 2: only the window this delivery opened goes; one it joined belongs to the running turn
+        await discardWindow(path, handle.opened);
+        const restored = await afterDelivery(path, session.id, handle.before, outcome.status);
+        const ready = states.get(path)?.endpoint;
+        if (restored?.lifecycle?.status === "idle" && ready) await sendHeld(path, workspaceId, await ready, session.id).catch(() => undefined);
+      },
     },
     activity(workspaceId, kind) {
       const path = root(workspaceId);

@@ -21,8 +21,12 @@ const agent = t.Object({
 const lifecycle = t.Object({
   status: t.Union([t.Literal("idle"), t.Literal("working"), t.Literal("paused"), t.Literal("interrupted")]),
   turnId: t.Optional(t.String()),
-  beginPending: t.Optional(t.Object({ idempotencyKey: t.String(), sentAt: t.String() })),
+  beginPending: t.Optional(t.Object({ idempotencyKey: t.String(), sentAt: t.String(), attempt: t.Optional(t.Integer({ minimum: 0 })), cancelledAt: t.Optional(t.String()) })),
   resumeFailedAt: t.Optional(t.String()),
+  heldReport: t.Optional(t.Object({ observationId: t.String(), text: t.String(), heldAt: t.String() }, { description: "A check report waiting for the session to become idle." })),
+  sentReport: t.Optional(t.Object({ observationId: t.String(), deliveryId: t.Optional(t.String()), sentAt: t.String(), seenAt: t.Optional(t.String()) })),
+  interruptedAt: t.Optional(t.String({ description: "An agent switch timed out on this session's turn; the turn shows as stopped." })),
+  interruptedTurnId: t.Optional(t.String()),
   updatedAt: t.String(),
 }, { description: "Whether the session's turn is idle, working or waiting on the learner." });
 const sessionSummary = {
@@ -84,7 +88,9 @@ export const routes = {
   listSessions: {
     detail: details("listSessions", "List sessions", "A workspace's conversations, newest first, optionally for one coding agent or persona.", "Sessions"),
     params: t.Object(workspace),
-    query: t.Object({ ...page, agent: t.Optional(t.String({ description: "A coding agent's ID." })), persona: t.Optional(persona) }),
+    query: t.Object({ ...page, agent: t.Optional(t.String({ description: "A coding agent's ID." })), persona: t.Optional(persona),
+      course: t.Optional(t.String({ description: "Only the conversations of this course." })),
+      lesson: t.Optional(t.String({ description: "Only the conversations of this lesson; empty for those without a lesson." })) }),
     response: { 200: t.Object({ data: t.Array(t.Object(sessionSummary)), pagination }), 404: error },
   },
   createSession: {
@@ -122,7 +128,7 @@ export const routes = {
     response: { 200: t.Object(sessionSummary), 400: error, 404: error, 409: error },
   },
   eve: {
-    detail: details("eve", "Talk to the session", "The session's own Eve routes (`/eve/v1/session/{sessionId}/…`: its stream, messages, answers, cancel), as Eve's client calls them. Pass this session's URL as `baseUrl` to `useEveAgent` or `eve/client`.", "Sessions"),
+    detail: details("eve", "Talk to the session", "The session's own Eve routes (`/eve/v1/session/{sessionId}/…`: its stream, messages, answers, cancel), as Eve's client calls them. Pass this session's URL as `baseUrl` to `useEveAgent` or `eve/client`. A Sensei session refuses `clear` and `compact` with 409 `control_refused`.", "Sessions"),
     params: t.Object({ ...workspace, sessionId: t.String(), "*": t.String() }),
     parse: "none" as const,
   },

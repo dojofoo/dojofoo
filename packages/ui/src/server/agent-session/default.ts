@@ -1,11 +1,12 @@
 import { createRequire } from "node:module";
-import { setTimeout as delay } from "node:timers/promises";
 import { Client, ClientError } from "@dojofoo/agent/client";
 import { AgentApiError, type AgentEndpoint, type DefaultSessionRequest, type DefaultSessionResponse, type Persona, type SessionRecord } from "@dojofoo/agent-api";
 import { readAgentModel } from "@dojofoo/config/runtime";
 import { dojoTags, tagged, type AgentId, type LearnerEvidenceExcerpt } from "@dojofoo/protocol";
 import { senseiTurn } from "../lesson/instructions";
+import { sendServerTurn } from "./check-reports";
 import { learnerEvidence } from "./evidence";
+import { verifyWindow } from "./guard";
 import { readRecords, saveRecord, updateRecord } from "./records";
 
 export interface DefaultSessionDeps {
@@ -75,32 +76,20 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
     await new Client(endpoint).sessions.attach(record.id).end({ signal: AbortSignal.timeout(5_000) }).catch(() => {});
   }
 
-  /** The begin turn as a plain POST, because Eve's client takes no idempotency key; retries 409 session_not_ready for 20 s, as Eve's client does */
-  async function sendBegin(path: string, endpoint: AgentEndpoint, record: SessionRecord, begin: { idempotencyKey: string; message: string }) {
-    await updateRecord(path, record.id, current => ({ ...current, lifecycle: {
+  /** The begin turn (`begin:<id>:<attempt>`), sent through the server-turn path (window, pre-delivery, POST); `beginPending` names it.
+   *  A resend with the same key to a paused begin opens nothing: Eve answers it with the original receipt. */
+  async function sendBegin(path: string, workspaceId: string, endpoint: AgentEndpoint, record: SessionRecord, begin: { attempt: number; message: string }) {
+    const idempotencyKey = `begin:${record.id}:${begin.attempt}`;
+    const resend = record.lifecycle?.beginPending?.idempotencyKey === idempotencyKey && record.lifecycle.status === "paused";
+    const updated = await updateRecord(path, record.id, current => ({ ...current, lifecycle: {
       ...current.lifecycle ?? { status: "idle" as const, updatedAt: new Date().toISOString() },
-      beginPending: { idempotencyKey: begin.idempotencyKey, sentAt: new Date().toISOString() },
-      status: current.lifecycle?.status === "paused" ? "paused" : "working", updatedAt: new Date().toISOString(),
+      beginPending: { idempotencyKey, sentAt: new Date().toISOString(), attempt: begin.attempt }, updatedAt: new Date().toISOString(),
     } }));
-    const deadline = Date.now() + 20_000;
-    for (let wait = 250; ;) {
-      const response = await fetch(`${endpoint.baseUrl.replace(/\/$/u, "")}/eve/v1/session/${encodeURIComponent(record.id)}`, {
-        method: "POST", headers: { ...endpoint.headers, "content-type": "application/json" },
-        body: JSON.stringify({ message: begin.message, idempotencyKey: begin.idempotencyKey }), signal: AbortSignal.timeout(20_000),
-      });
-      if (response.ok) { void response.body?.cancel().catch(() => {}); return; }
-      const failure = await response.json().catch(() => ({})) as { code?: string; error?: string };
-      if (response.status === 409 && failure.code === "session_not_ready" && Date.now() < deadline) {
-        await delay(Math.min(wait, deadline - Date.now()));
-        wait = Math.min(wait * 2, 2_000);
-        continue;
-      }
-      throw new Error(failure.error ?? `The begin turn was refused (${response.status}).`);
-    }
+    await sendServerTurn(path, workspaceId, endpoint, updated, { text: begin.message, idempotencyKey, resend });
   }
 
   /** A bodyless Eve create, the record, then the hidden begin turn, seeded from the learner's evidence for this page key */
-  async function create(path: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest): Promise<SessionRecord> {
+  async function create(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest): Promise<SessionRecord> {
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
     const configured = agent === "codex" ? await (createRequire(import.meta.url)("@dojofoo/authoring/eve/models") as typeof import("@dojofoo/authoring/eve/models"))
       .configuredHarnessModel("codex").catch(() => undefined) : undefined;
@@ -111,17 +100,17 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
       ...(model ? { model } : {}), revision: 0, lifecycle: { status: "idle", updatedAt: now },
     };
     await saveRecord(path, record);
-    try { await sendBegin(path, endpoint, record, { idempotencyKey: `begin:${record.id}:0`, message: beginMessage(await learnerEvidence(path, request.course, request.lesson)) }); }
+    try { await sendBegin(path, workspaceId, endpoint, record, { attempt: 0, message: beginMessage(await learnerEvidence(path, request.course, request.lesson)) }); }
     catch (error) { throw new BeginFailed(record, error); }
     return (await readRecords(path)).find(item => item.id === record.id) ?? record;
   }
 
   /** Create; a failed begin replaces that session once inside the same request, and a second failure answers 503 agent_failed */
-  async function createWithRetry(path: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest): Promise<SessionRecord> {
+  async function createWithRetry(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest): Promise<SessionRecord> {
     let failed: SessionRecord | undefined;
     for (let attempt = 0; ; attempt++) {
       try {
-        const created = await create(path, endpoint, agent, request);
+        const created = await create(path, workspaceId, endpoint, agent, request);
         if (failed) await updateRecord(path, failed.id, current => ({ ...current, replacedBy: created.id })).catch(() => {});
         return created;
       } catch (error) {
@@ -137,19 +126,22 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
     }
   }
 
-  /** The Replacement rule: end the old Eve session if it has not ended, create, record replacedBy on the old one */
-  async function replace(path: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest, old: SessionRecord) {
+  /** The Replacement rule: verify the old session's window, end it in Eve if it has not ended, create, record replacedBy on the old one */
+  async function replace(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest, old: SessionRecord) {
+    await verifyWindow(path, workspaceId, old.id);
     await endEve(endpoint, old);
-    const created = await createWithRetry(path, endpoint, agent, request);
+    const created = await createWithRetry(path, workspaceId, endpoint, agent, request);
     await updateRecord(path, old.id, current => ({ ...current, replacedBy: created.id })).catch(() => {});
     return created;
   }
 
-  /** A record whose begin is still pending (a crash before it settled) gets it resent with the same key; Eve returns the original receipt */
-  async function resumeBegin(path: string, endpoint: AgentEndpoint, record: SessionRecord) {
+  /** A record whose begin is still pending (a crash before it settled) gets it resent with the same key, which Eve answers with the
+   *  original receipt; a begin a leave cancelled is resent as a new turn with the next attempt's key (D29) */
+  async function resumeBegin(path: string, workspaceId: string, endpoint: AgentEndpoint, record: SessionRecord) {
     const pending = record.lifecycle?.beginPending;
     if (!pending) return record;
-    await sendBegin(path, endpoint, record, { idempotencyKey: pending.idempotencyKey, message: beginMessage(await learnerEvidence(path, record.courseId!, record.lessonId)) }).catch(error =>
+    const attempt = (pending.attempt ?? 0) + (pending.cancelledAt ? 1 : 0);
+    await sendBegin(path, workspaceId, endpoint, record, { attempt, message: beginMessage(await learnerEvidence(path, record.courseId!, record.lessonId)) }).catch(error =>
       console.warn(`Could not resend the begin turn of ${record.id}: ${error instanceof Error ? error.message : String(error)}`));
     return (await readRecords(path)).find(item => item.id === record.id) ?? record;
   }
@@ -166,16 +158,16 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
       const records = await readRecords(path);
       const forPage = (record: SessionRecord) => record.persona === "sensei" && record.courseId === request.course && (record.lessonId ?? "") === lesson;
       const answer = async (record: SessionRecord, notice?: "picked-unavailable"): Promise<DefaultSessionResponse> => ({
-        session: await resumeBegin(path, endpoint, record), rewrite: record.id !== request.session, ...(notice ? { notice } : {}),
+        session: await resumeBegin(path, workspaceId, endpoint, record), rewrite: record.id !== request.session, ...(notice ? { notice } : {}),
       });
       if (request.new) {
         const from = request.from ? records.find(record => record.id === request.from) : undefined;
         // A second tab asking to replace the same conversation gets the same replacement (D28)
         if (from?.replacedBy) {
           const replacement = (await readRecords(path)).find(record => record.id === from.replacedBy);
-          if (replacement) return { session: await resumeBegin(path, endpoint, replacement), rewrite: true };
+          if (replacement) return { session: await resumeBegin(path, workspaceId, endpoint, replacement), rewrite: true };
         }
-        const created = from ? await replace(path, endpoint, agent, request, from) : await createWithRetry(path, endpoint, agent, request);
+        const created = from ? await replace(path, workspaceId, endpoint, agent, request, from) : await createWithRetry(path, workspaceId, endpoint, agent, request);
         return { session: created, rewrite: true };
       }
       let notice: "picked-unavailable" | undefined;
@@ -186,9 +178,9 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
       }
       const newest = (await readRecords(path)).filter(record => forPage(record) && record.agent === agent)
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
-      if (!newest) return { session: await createWithRetry(path, endpoint, agent, request), rewrite: true, ...(notice ? { notice } : {}) };
+      if (!newest) return { session: await createWithRetry(path, workspaceId, endpoint, agent, request), rewrite: true, ...(notice ? { notice } : {}) };
       if (!await usable(path, endpoint, newest)) return answer(newest, notice);
-      const replaced = await replace(path, endpoint, agent, request, (await readRecords(path)).find(record => record.id === newest.id) ?? newest);
+      const replaced = await replace(path, workspaceId, endpoint, agent, request, (await readRecords(path)).find(record => record.id === newest.id) ?? newest);
       return { session: replaced, rewrite: true, ...(notice ? { notice } : {}) };
     });
   };

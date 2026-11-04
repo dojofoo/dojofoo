@@ -66,7 +66,8 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
     // Sessions
     .get("/workspaces/:workspaceId/sessions", async ({ params, query }) => {
       const sessions = (await runtime.sessions.list(params.workspaceId))
-        .filter(item => (!query.agent || item.agent === query.agent) && (!query.persona || item.persona === query.persona))
+        .filter(item => (!query.agent || item.agent === query.agent) && (!query.persona || item.persona === query.persona)
+          && (query.course === undefined || item.courseId === query.course) && (query.lesson === undefined || (item.lessonId ?? "") === query.lesson))
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
       return paginate(sessions, query);
     }, routes.listSessions)
@@ -120,6 +121,10 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
         const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
         const parsed = body?.byteLength ? (() => { try { return JSON.parse(new TextDecoder().decode(body)); } catch { return Symbol.for("invalid"); } })() : undefined;
         const classified = classifyEveRequest(request.method, path.slice("/eve".length), parsed);
+        // A check report or a begin turn must never be cleared away, and Sensei keeps its whole conversation (D16)
+        if (saved.persona === "sensei" && classified.kind === "control" && (classified.control === "clear" || classified.control === "compact")) {
+          throw new AgentApiError(409, "control_refused", "Sensei's conversations can't be cleared or compacted.");
+        }
         const delivery = classified.kind === "delivery" ? classified.delivery : undefined;
         const handle = delivery ? await runtime.deliveries?.before(params.workspaceId, saved, delivery) : undefined;
         let upstream: Response;

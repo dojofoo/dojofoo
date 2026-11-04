@@ -19,15 +19,24 @@ export interface Agent {
 
 export type { ModelChoice } from "@dojofoo/protocol";
 
-export type LifecycleStatus = "idle" | "working" | "paused" | "interrupted";   // "interrupted" is written from step 5
+export type LifecycleStatus = "idle" | "working" | "paused" | "interrupted";
 export interface SessionLifecycle {
   status: LifecycleStatus;
   /** The turn the last turn.paused named; cleared at turn.settled */
   turnId?: string;
-  /** Set while the begin turn has not settled; resent with the same key on the next open (D29) */
-  beginPending?: { idempotencyKey: string; sentAt: string };
+  /** Set while the begin turn has not settled; resent on the next open (D29). `attempt` names the key `begin:<id>:<attempt>`;
+   *  `cancelledAt` is set when a leave cancelled the begin, so the next open resends with attempt + 1. A step-4 record reads as attempt 0. */
+  beginPending?: { idempotencyKey: string; sentAt: string; attempt?: number; cancelledAt?: string };
   /** The harness reported a failed resume (resume.failed); the record is unusable once that turn settles */
   resumeFailedAt?: string;
+  /** D16: the latest check report waiting for this session to become idle */
+  heldReport?: { observationId: string; text: string; heldAt: string };
+  /** The last report sent, until Sensei has seen it (delivery.consumed or a context read) */
+  sentReport?: { observationId: string; deliveryId?: string; sentAt: string; seenAt?: string };
+  /** An agent switch timed out on this session's turn (CUJ 3); the next delivery clears `interruptedAt`, never `interruptedTurnId` */
+  interruptedAt?: string;
+  /** The turn that was open when the switch timed out; no host may run a model call for it again */
+  interruptedTurnId?: string;
   updatedAt: string;
 }
 

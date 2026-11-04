@@ -154,6 +154,20 @@ describe("sessions", () => {
     expect(await (await json("/sessions/missing")).json()).toEqual({ error: "session_not_found", message: "Session not found." });
   });
 
+  it("GET /sessions filters by course and lesson", async () => {
+    const { json, runtime } = setup({ persona: "sensei" });
+    runtime.records.push(
+      { id: "course-only", agent: "codex", persona: "sensei", createdAt: "2026-10-01T00:00:00.000Z", courseId: "first", revision: 0 },
+      { id: "lesson-a", agent: "codex", persona: "sensei", createdAt: "2026-10-02T00:00:00.000Z", courseId: "first", lessonId: "a", revision: 0 },
+      { id: "other", agent: "codex", persona: "sensei", createdAt: "2026-10-03T00:00:00.000Z", courseId: "second", lessonId: "a", revision: 0 },
+    );
+    const ids = async (query: string) => (await (await json(`/sessions?${query}`)).json()).data.map((item: { id: string }) => item.id);
+    expect(await ids("course=first")).toEqual(["lesson-a", "course-only"]);
+    expect(await ids("course=first&lesson=a")).toEqual(["lesson-a"]);
+    expect(await ids("course=first&lesson=")).toEqual(["course-only"]);
+    expect(await ids("lesson=a")).toEqual(["other", "lesson-a"]);
+  });
+
   const senseiRecord = {
     id: "s-course", agent: "codex", persona: "sensei" as const, createdAt: "2026-10-04T00:00:00.000Z", courseId: "first", model: "gpt-5.4",
     revision: 2, endedAt: "2026-10-05T00:00:00.000Z", replacedBy: "s-next",
@@ -319,4 +333,16 @@ describe("a session's Eve routes", () => {
     expect(response.status).toBe(502);
     expect(await response.json()).toMatchObject({ code: "agent_unreachable" });
   });
+
+  it("clear and compact are refused for a Sensei session and pass through for Kyoshi", async () => {
+    const { runtime, call, created } = setup();
+    const { id } = await created();
+    runtime.records.push({ id: "s-sensei", agent: "codex", persona: "sensei", createdAt: "2026-10-01T00:00:00.000Z", revision: 0 });
+    for (const control of ["clear", "compact"]) {
+      const refused = await call(`/sessions/s-sensei/eve/v1/session/s-sensei/${control}`, { method: "POST" });
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toEqual({ error: "Sensei's conversations can't be cleared or compacted.", code: "control_refused" });
+      expect((await call(`/sessions/${id}/eve/v1/session/${id}/${control}`, { method: "POST" })).status).not.toBe(409);
+    }
+  }, 60_000);
 });

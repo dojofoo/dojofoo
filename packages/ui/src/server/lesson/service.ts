@@ -25,6 +25,7 @@ import { formatLessonContext, type DojoLessonContext, type LearnerEvidenceExcerp
 import { withPathLock, writeFileAtomic } from "@dojofoo/agent/file-guard";
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { learnerEvidence as storedLearnerEvidence } from "../agent-session/evidence";
+import { updateOpenWindows } from "../agent-session/guard-store";
 import { retainLearnerEvidence, lessonEvidence } from "./learner-evidence";
 import { recordLearnerObservation } from "./learner-observations";
 import { senseiInstructions, senseiTurn } from "./instructions";
@@ -380,8 +381,27 @@ export async function writeSolution(root: string, courseId: string, lessonId: st
   const target = lessonTarget(root, courseId, lessonId);
   await withPathLock(target.workspacePath, async () => {
     await writeFileAtomic(target.workspacePath, content);
+    // A save while Sensei works is the learner's, so the guard keeps it (D21); inside the lock, a verify cannot interleave
+    await updateOpenWindows(root, target.workspacePath, content);
   });
   markActive(root, courseId, lessonId);
+}
+
+/** The lesson's solution file, which the guard copies (design, "Write guard"). */
+export function solutionPath(root: string, courseId: string, lessonId: string): string {
+  return lessonTarget(root, courseId, lessonId).workspacePath;
+}
+
+/** A completed begin turn introduced the lesson (`progress[courseId].kataIntros`). */
+export function markLessonIntroduced(root: string, courseId: string, lessonId: string): void {
+  const rc = readDojoRc(root);
+  rc.progress ??= {};
+  rc.progress[courseId] ??= { completed: [], lastActive: null };
+  const progress = rc.progress[courseId];
+  progress.kataIntros ??= [];
+  if (progress.kataIntros.includes(lessonId)) return;
+  progress.kataIntros.push(lessonId);
+  writeDojoRc(root, rc);
 }
 
 /** `progress[courseId].lastActive` always; `currentKata` only for the CLI's current course (D30). */

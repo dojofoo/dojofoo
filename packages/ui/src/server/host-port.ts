@@ -1,13 +1,17 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { Client } from "@dojofoo/agent/client";
-import { createHostPortServer, HostPortFailure, type HostPortHandlers, type HostPortMethod } from "@dojofoo/agent/host-port";
-import type { AgentEndpoint, SessionRecord } from "@dojofoo/agent-api";
+import { createHostPortServer, hostPortAnswer, HostPortFailure, type HostPortHandlers, type HostPortMethod } from "@dojofoo/agent/host-port";
+import type { AgentEndpoint, DefaultSessionRequest, DefaultSessionResponse, SessionRecord } from "@dojofoo/agent-api";
 import { readCourseManifest, readDojoMd } from "@dojofoo/config";
 import type { InteractiveContext, Persona, SenseiSessionInfo } from "@dojofoo/protocol";
-import { applyLifecycle } from "./agent-session/lifecycle";
+import { applyLifecycle, type TurnOutcome } from "./agent-session/lifecycle";
 import { captureLearnerEvidence } from "./agent-session/evidence";
+import { dropHeld, markSeen, sendHeld } from "./agent-session/check-reports";
+import { guardedLesson, verifyWindow } from "./agent-session/guard";
+import { notifyPage, pageKeyOf } from "./agent-session/notify";
 import { readRecords } from "./agent-session/records";
+import { markLessonIntroduced } from "./lesson/service";
 import { resolveWorkspaceId } from "./control/workspace";
 import { getInteractiveLesson } from "./interactive/service";
 
@@ -19,7 +23,8 @@ export function hostPortUrl(environment: NodeJS.ProcessEnv = process.env): strin
   return `http://${loopback}:${environment.PORT || "4567"}/api/host-port`;
 }
 
-type Host = { secret: string; endpoint: AgentEndpoint };
+/** A running persona host. `openDefault` is its AgentRuntime's get-or-create, which a settle's replacement uses (D28). */
+type Host = { secret: string; endpoint: AgentEndpoint; openDefault?: (request: DefaultSessionRequest) => Promise<DefaultSessionResponse> };
 const hostsKey = Symbol.for("dojofoo.host-port.hosts");
 // Process-global: route modules may be loaded twice by the dev runner
 const hosts = ((globalThis as Record<symbol, unknown>)[hostsKey] ??= new Map<string, Host>()) as Map<string, Host>;
@@ -61,15 +66,38 @@ function interactiveContext(path: string, courseId: string): InteractiveContext 
 const read = <Input, Result>(handle: HostPortMethod<Input, Result>["handle"]): HostPortMethod<Input, Result> => ({ mutates: false, handle });
 const mutate = <Input, Result>(handle: HostPortMethod<Input, Result>["handle"]): HostPortMethod<Input, Result> => ({ mutates: true, handle });
 
-/** Both personas report their turns; a settled Sensei turn also keeps the learner's evidence. */
+const outcomeOf = (value: unknown): TurnOutcome => value === "failed" || value === "cancelled" ? value : "completed";
+
+/** The Replacement rule at a settle (D28, decision 18): under the page key's lock, so a browser asking at once gets the same one.
+ *  A held report moves to the replacement and goes out once its begin settles. */
+async function replaceAfterResumeFailure(path: string, workspaceId: string, host: Host, record: SessionRecord): Promise<void> {
+  if (!host.openDefault || !record.courseId) return;
+  const held = record.lifecycle?.heldReport;
+  // Moved, not dropped: the old session's end must not drop it on the way
+  if (held) await applyLifecycle(path, record.id, { type: "report-dropped" });
+  const { session } = await host.openDefault({ course: record.courseId, ...(record.lessonId ? { lesson: record.lessonId } : {}), new: true, from: record.id });
+  if (held) await applyLifecycle(path, session.id, { type: "report-held", observationId: held.observationId, text: held.text });
+  const key = pageKeyOf(workspaceId, record);
+  if (key) notifyPage(key, "session.replaced", { from: record.id, to: session.id });
+}
+
+/** Both personas report their turns; the guard verifies first (rule 2), a settled Sensei turn also keeps the learner's evidence,
+ *  and the work that must follow the hook's answer (open risk 4) runs after the body is read. */
 const lifecycleMethods = (persona: Persona): Record<string, HostPortMethod> => ({
   "turn.paused": mutate<{ turnId?: unknown }, { ok: true }>(async ({ workspaceId, sessionId, input }) => {
-    await applyLifecycle(workspacePath(workspaceId), sessionId, { type: "turn.paused", turnId: String(input?.turnId ?? "") });
+    const path = workspacePath(workspaceId);
+    const turnId = String(input?.turnId ?? "");
+    await verifyWindow(path, workspaceId, sessionId, { ...(turnId ? { turnId } : {}), at: "pause" });
+    await applyLifecycle(path, sessionId, { type: "turn.paused", turnId });
     return { ok: true };
   }),
-  "turn.settled": mutate<unknown, { ok: true }>(async ({ workspaceId, sessionId }) => {
+  "turn.settled": mutate<{ turnId?: unknown; outcome?: unknown }, unknown>(async ({ workspaceId, sessionId, input }) => {
     const path = workspacePath(workspaceId);
-    const record = await applyLifecycle(path, sessionId, { type: "turn.settled" });
+    const turnId = typeof input?.turnId === "string" && input.turnId ? input.turnId : undefined;
+    const outcome = outcomeOf(input?.outcome);
+    await verifyWindow(path, workspaceId, sessionId, turnId ? { turnId } : {});
+    const before = (await readRecords(path)).find(item => item.id === sessionId);
+    const record = await applyLifecycle(path, sessionId, { type: "turn.settled", outcome });
     const host = hosts.get(hostKey(workspaceId, persona));
     if (persona === "sensei" && record?.courseId && host) {
       try {
@@ -79,14 +107,30 @@ const lifecycleMethods = (persona: Persona): Record<string, HostPortMethod> => (
         console.warn(`Could not keep the learner's evidence for ${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
-    return { ok: true };
+    // A completed begin introduced the kata lesson
+    const lesson = before && guardedLesson(path, before);
+    if (lesson && before?.lifecycle?.beginPending && outcome === "completed" && before.lifecycle.status !== "interrupted") {
+      markLessonIntroduced(path, lesson.courseId, lesson.lessonId);
+    }
+    if (persona !== "sensei" || !record || !host) return { ok: true };
+    return hostPortAnswer({ ok: true }, async () => {
+      if (record.lifecycle?.resumeFailedAt) await replaceAfterResumeFailure(path, workspaceId, host, record);
+      await sendHeld(path, workspaceId, host.endpoint, sessionId);
+    });
   }),
   "session.ended": mutate<unknown, { ok: true }>(async ({ workspaceId, sessionId }) => {
-    await applyLifecycle(workspacePath(workspaceId), sessionId, { type: "session.ended" });
+    const path = workspacePath(workspaceId);
+    await dropHeld(path, workspaceId, sessionId);
+    await applyLifecycle(path, sessionId, { type: "session.ended" });
     return { ok: true };
   }),
   "resume.failed": mutate<unknown, { ok: true }>(async ({ workspaceId, sessionId }) => {
     await applyLifecycle(workspacePath(workspaceId), sessionId, { type: "resume.failed" });
+    return { ok: true };
+  }),
+  /** The lifecycle hook reports only a check report's consumption (D16: "Sensei saw this") */
+  "delivery.consumed": mutate<{ deliveryId?: unknown }, { ok: true }>(async ({ workspaceId, sessionId, input }) => {
+    if (typeof input?.deliveryId === "string" && input.deliveryId) await markSeen(workspacePath(workspaceId), workspaceId, sessionId, { deliveryId: input.deliveryId });
     return { ok: true };
   }),
 });

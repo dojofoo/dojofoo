@@ -184,6 +184,23 @@ describe("the default conversation", () => {
     }, { timeout: 30_000 });
   }, 60_000);
 
+  it("a cancelled begin after a leave keeps beginPending and the next open resends with a new key", async () => {
+    const { root, open } = workspace();
+    const id = await eveSession();
+    const pending = { idempotencyKey: `begin:${id}:0`, sentAt: "2026-11-03T00:00:00.000Z", attempt: 0 };
+    await saveRecord(root, record({ id, lifecycle: { status: "working", beginPending: pending, updatedAt: "2026-11-03T00:00:00.000Z" } }));
+    const { applyLifecycle } = await import("./lifecycle");
+    await applyLifecycle(root, id, { type: "leave" });
+    await applyLifecycle(root, id, { type: "turn.settled", outcome: "cancelled" });
+    expect((await readRecords(root))[0]?.lifecycle).toMatchObject({ status: "idle", beginPending: { ...pending, cancelledAt: expect.any(String) } });
+    const sent = watchFetch();
+    expect((await open({ course: "first" })).session.id).toBe(id);
+    expect(begins(sent).map(request => (request.body as { idempotencyKey: string }).idempotencyKey)).toEqual([`begin:${id}:1`]);
+    const resent = (await readRecords(root))[0]?.lifecycle?.beginPending;
+    expect(resent).toMatchObject({ idempotencyKey: `begin:${id}:1`, attempt: 1 });
+    expect(resent).not.toHaveProperty("cancelledAt");
+  }, 60_000);
+
   it("a failed begin replaces the session once, then answers agent_failed", async () => {
     const { root, open } = workspace();
     let failures = 1;

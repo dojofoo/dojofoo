@@ -54,6 +54,58 @@ describe("session lifecycle", () => {
     expect(transition(record({ status: "idle" }), { type: "reconcile" }, at).lifecycle).toMatchObject({ status: "idle", updatedAt: "2026-11-04T00:00:00.000Z" });
   });
 
+  it("pre-delivery: an interrupted conversation continues, clearing interruptedAt but keeping its interrupted turn", () => {
+    expect(transition(record({ status: "interrupted", interruptedAt: at, interruptedTurnId: "t1" }), { type: "pre-delivery" }, at).lifecycle)
+      .toEqual({ status: "working", interruptedTurnId: "t1", updatedAt: at });
+  });
+
+  it("turn.settled: an interrupted record stays interrupted", () => {
+    const interrupted = record({ status: "interrupted", interruptedAt: at, interruptedTurnId: "t1" });
+    expect(transition(interrupted, { type: "turn.settled", outcome: "failed" }, at)).toBe(interrupted);
+  });
+
+  it("turn.settled: a begin cancelled after a leave keeps beginPending; any other settle clears it", () => {
+    const begin = { idempotencyKey: "begin:s1:0", sentAt: at, attempt: 0, cancelledAt: at };
+    expect(transition(record({ status: "working", beginPending: begin }), { type: "turn.settled", outcome: "cancelled" }, at).lifecycle)
+      .toEqual({ status: "idle", beginPending: begin, updatedAt: at });
+    expect(transition(record({ status: "working", beginPending: begin }), { type: "turn.settled", outcome: "completed" }, at).lifecycle).toEqual({ status: "idle", updatedAt: at });
+    expect(transition(record({ status: "working", beginPending: { idempotencyKey: "begin:s1:0", sentAt: at } }), { type: "turn.settled", outcome: "cancelled" }, at).lifecycle)
+      .toEqual({ status: "idle", updatedAt: at });
+  });
+
+  it("session.ended drops a held report", () => {
+    expect(transition(record({ status: "working", heldReport: { observationId: "o1", text: "[dojo:check] Ran lesson checks.", heldAt: at } }), { type: "session.ended" }, at).lifecycle)
+      .toEqual({ status: "idle", updatedAt: at });
+  });
+
+  it("leave: a paused turn or a working begin drops its held report; a begin is marked cancelled; the status waits for the settle", () => {
+    const held = { observationId: "o1", text: "report", heldAt: at };
+    expect(transition(record({ status: "paused", turnId: "t1", heldReport: held }), { type: "leave" }, at).lifecycle).toEqual({ status: "paused", turnId: "t1", updatedAt: at });
+    expect(transition(record({ status: "working", beginPending: { idempotencyKey: "begin:s1:0", sentAt: at, attempt: 0 } }), { type: "leave" }, at).lifecycle)
+      .toEqual({ status: "working", beginPending: { idempotencyKey: "begin:s1:0", sentAt: at, attempt: 0, cancelledAt: at }, updatedAt: at });
+    const working = record({ status: "working", heldReport: held });
+    expect(transition(working, { type: "leave" }, at)).toBe(working);
+  });
+
+  it("switch-timeout: a working or paused turn becomes interrupted with its turn id", () => {
+    expect(transition(record({ status: "working" }), { type: "switch-timeout", turnId: "t9" }, at).lifecycle).toEqual({ status: "interrupted", interruptedAt: at, interruptedTurnId: "t9", updatedAt: at });
+    expect(transition(record({ status: "paused", turnId: "t2" }), { type: "switch-timeout" }, at).lifecycle).toMatchObject({ status: "interrupted", interruptedTurnId: "t2" });
+    const idle = record({ status: "idle" });
+    expect(transition(idle, { type: "switch-timeout", turnId: "t9" }, at)).toBe(idle);
+  });
+
+  it("report-held, report-sent, report-seen and report-dropped keep the status and move the report fields", () => {
+    const held = transition(record({ status: "working" }), { type: "report-held", observationId: "o1", text: "report" }, at);
+    expect(held.lifecycle).toEqual({ status: "working", heldReport: { observationId: "o1", text: "report", heldAt: at }, updatedAt: at });
+    expect(transition(held, { type: "report-dropped" }, at).lifecycle).toEqual({ status: "working", updatedAt: at });
+    const sent = transition(held, { type: "report-sent", observationId: "o1", deliveryId: "d1" }, at);
+    expect(sent.lifecycle).toEqual({ status: "working", sentReport: { observationId: "o1", deliveryId: "d1", sentAt: at }, updatedAt: at });
+    expect(transition(sent, { type: "report-seen", deliveryId: "d1" }, at).lifecycle?.sentReport).toEqual({ observationId: "o1", deliveryId: "d1", sentAt: at, seenAt: at });
+    expect(transition(sent, { type: "report-seen", deliveryId: "other" }, at)).toBe(sent);
+    // A context read of the held report's check sees it and drops it
+    expect(transition(held, { type: "report-seen", observationId: "o1" }, at).lifecycle).toEqual({ status: "working", updatedAt: at });
+  });
+
   it("a rejected delivery restores the status before it", async () => {
     const root = mkdtempSync(join(tmpdir(), "dojo-lifecycle-"));
     roots.push(root);
