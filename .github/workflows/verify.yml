@@ -11,7 +11,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 38
     permissions:
       contents: read
     steps:
@@ -73,6 +73,8 @@ jobs:
         run: pnpm --filter @dojofoo/ui test:lesson
       - name: Verify interactive courses on Eve with local inference
         run: pnpm --filter @dojofoo/ui test:interactive
+      - name: Verify course evaluation in the UI server with local inference
+        run: pnpm --filter @dojofoo/ui test:evaluation
       - name: Preserve failed browser traces
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -83,6 +85,7 @@ jobs:
             packages/ui/test-results
             /tmp/dojo-lesson-runtime-evidence-*
             /tmp/dojo-interactive-runtime-evidence-*
+            /tmp/dojo-evaluation-runtime-evidence-*
           if-no-files-found: ignore
           retention-days: 3
 

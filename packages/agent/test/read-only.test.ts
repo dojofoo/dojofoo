@@ -169,6 +169,16 @@ describe("read-only harness model", () => {
 });
 
 describe("read-only isolation", () => {
+  it("concurrent calls prepare one shared home", async () => {
+    const root = await temporary();
+    const user = join(root, "user");
+    await mkdir(join(user, ".ai-sdk-harness"), { recursive: true });
+    const state = join(root, "state");
+    const environments = await Promise.all([1, 2, 3].map(() => readOnlyEnvironment("opencode", { HOME: user, PATH: "/bin" }, { stateDirectory: state })));
+    expect(new Set(environments.map(environment => environment.HOME))).toEqual(new Set([join(state, "read-only-homes/opencode")]));
+    expect(readlinkSync(join(state, "read-only-homes/opencode/.ai-sdk-harness"))).toBe(join(user, ".ai-sdk-harness"));
+  });
+
   it("Grok gets one private home per Eve session, holding only the model tables of the user's config.toml", async () => {
     const root = await temporary();
     const user = join(root, "user");

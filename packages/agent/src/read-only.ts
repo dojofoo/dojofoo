@@ -113,7 +113,10 @@ async function link(path: string, target: string) {
   if (existing?.isSymbolicLink() && await readlink(path) === target) return;
   if (existing) await rm(path, { recursive: true, force: true });
   await mkdir(dirname(path), { recursive: true });
-  await symlink(target, path);
+  // Concurrent calls on a shared home (an evaluation's two judges) may both find no link; the second finds the first's
+  await symlink(target, path).catch(async (error: NodeJS.ErrnoException) => {
+    if (error.code !== "EEXIST" || await readlink(path).catch(() => undefined) !== target) throw error;
+  });
 }
 
 /** Only the `[models]` and `[model.*]` tables of a Grok config.toml, copied as text: every other table, MCP servers included, stays out. */

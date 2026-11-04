@@ -79,6 +79,8 @@ const completion = (): TrialTurn => ({ parts: [{ type: "text-delta", id: "t", de
 function fakeChannel(on: Partial<{ [K in keyof TrialChannel]: (...args: Parameters<TrialChannel[K]>) => ReturnType<TrialChannel[K]> | undefined }> & { review?: () => TrialTurn } = {}) {
   const calls: Array<{ method: string; args: unknown[] }> = [];
   const saved = new Map<string, string>();
+  // Set by trial(): the route's write of the learner's file in the trial's install
+  let write: ((courseId: string, lessonId: string, content: string) => void) | undefined;
   const attempts = new Map<string, number>();
   const answered: string[] = [];
   const channel: TrialChannel = {
@@ -94,7 +96,7 @@ function fakeChannel(on: Partial<{ [K in keyof TrialChannel]: (...args: Paramete
       answered.push(...args[1].map(answer => answer.optionId ?? answer.text ?? ""));
       return await on.answer?.(...args) ?? text("Let's look back at what you built.");
     },
-    async save(courseId, lessonId, content) { calls.push({ method: "save", args: [courseId, lessonId, content] }); saved.set(lessonId, content); },
+    async save(courseId, lessonId, content) { calls.push({ method: "save", args: [courseId, lessonId, content] }); saved.set(lessonId, content); write?.(courseId, lessonId, content); },
     async check(courseId, lessonId, signal, sessionId) {
       calls.push({ method: "check", args: [courseId, lessonId, sessionId] });
       const content = saved.get(lessonId) ?? "";
@@ -108,7 +110,7 @@ function fakeChannel(on: Partial<{ [K in keyof TrialChannel]: (...args: Paramete
     async advance(...args) { calls.push({ method: "advance", args }); },
     async cancel(...args) { calls.push({ method: "cancel", args }); },
   };
-  return { channel, calls, answered };
+  return { channel, calls, answered, writeWith: (writer: typeof write) => { write = writer; } };
 }
 
 const reviewReply = "I chose the empty case so the total starts from nothing.";
@@ -138,6 +140,7 @@ async function trial(count = 1, options: { channel?: ReturnType<typeof fakeChann
       const rc = readDojoRc(trialRoot());
       const path = solutionPath(trialRoot(), rc.currentDojo!, fixtureDraft.lessonIds[0]!);
       before = { file: existsSync(path) ? readFileSync(path, "utf8") : null, rc };
+      fake.writeWith((courseId, lessonId, content) => writeFileSync(solutionPath(trialRoot(), courseId, lessonId), content));
       return fake.channel;
     } });
   const evidence = () => JSON.parse(readFileSync(join(fixtureDraft.evidenceRoot, "evidence.json"), "utf8")) as Array<Record<string, unknown>>;
@@ -163,13 +166,18 @@ describe("evaluation trial", () => {
 
   it("fixtures that verify leave the lesson file and progress as they were", async () => {
     scriptedChecks();
-    const t = await trial();
+    let t: Awaited<ReturnType<typeof trial>>;
+    let atOpen: { file: string | null; rc: unknown; webState: boolean } | undefined;
+    // As Sensei's conversation opens, after every fixture was verified
+    const channel = fakeChannel({ open: () => {
+      const root = t.trialRoot();
+      const path = solutionPath(root, readDojoRc(root).currentDojo!, t.lessonIds[0]!);
+      atOpen = { file: existsSync(path) ? readFileSync(path, "utf8") : null, rc: readDojoRc(root), webState: existsSync(resolve(root, ".dojo/web.json")) };
+      return undefined;
+    } });
+    t = await trial(1, { channel });
     await t.run;
-    const root = t.trialRoot();
-    const path = solutionPath(root, readDojoRc(root).currentDojo!, t.lessonIds[0]!);
-    expect(existsSync(path) ? readFileSync(path, "utf8") : null).toBe(t.before().file);
-    expect(readDojoRc(root)).toEqual(t.before().rc);
-    expect(existsSync(resolve(root, ".dojo/web.json"))).toBe(false);
+    expect(atOpen).toEqual({ file: t.before().file, rc: t.before().rc, webState: false });
     for (const call of vi.mocked(execFileSync).mock.calls) expect(call[1]).toEqual(expect.arrayContaining(["--check", "--no-record"]));
     expect(t.evidence()).toEqual(expect.arrayContaining([expect.objectContaining({ fixturePreflight: "passed" })]));
   });

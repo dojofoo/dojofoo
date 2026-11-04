@@ -95,15 +95,17 @@ export async function judgePanel(evidence: Record<string, string>, signal: Abort
   await mkdir(directory, { recursive: true });
   await writeFile(join(directory, "prompt.txt"), prompt);
   await writeFile(join(directory, "schema.json"), JSON.stringify(judgeSchema));
-  // Independent judges share nothing but the prompt, so run them concurrently.
-  const results = await Promise.all(["judge-1", "judge-2"].map(async judge => {
+  // One after the other: both calls run on the course's agent, whose native setup in the shared read-only home is not safe to run twice
+  // at once (OpenCode renames one skills-manifest temp file); separate sessions still share nothing but the prompt.
+  const results = [];
+  for (const judge of ["judge-1", "judge-2"]) {
     const started = Date.now();
     const answer = await call(judge, prompt, signal);
     await writeFile(join(directory, `${judge}.json`), JSON.stringify({ answer, promptHash, durationMs: Date.now() - started }, null, 2));
     let verdict;
     try { verdict = parseVerdict(verdictText(answer)); }
     catch (error) { throw new Error(`${judge} returned no valid verdict (${error instanceof Error ? error.message : String(error)}); evidence: ${directory}`); }
-    return { judge, root: directory, promptHash, verdict };
-  }));
+    results.push({ judge, root: directory, promptHash, verdict });
+  }
   return requireJudgeResults(results);
 }

@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { isDeepStrictEqual } from "node:util";
-import { parse } from "yaml";
+import { parse, stringify } from "yaml";
 import { withPathLock, writeFileAtomic } from "@dojofoo/agent/file-guard";
 import { dojoDir, readDojoMd } from "@dojofoo/config";
 import { listWorkspaces } from "@dojofoo/config/local-state";
@@ -93,7 +93,17 @@ export async function runTrial(input: { draftRoot: string; lessonIds: string[]; 
   let failed = false;
   try {
     const installedCourse = dojoDir(root, courseId);
-    const protectedMaterial = await readMaterial(installedCourse);
+    // A trial's install holds the learner's state too: its lesson files (courses/<id>/…) and its progress (dojo.yaml `progress`)
+    const learnerFiles = new Set(lessonIds.map(id => relative(installedCourse, solutionPath(root, courseId, id))));
+    const installedMaterial = async () => {
+      const files = Object.fromEntries(Object.entries(await readMaterial(installedCourse)).filter(([path]) => !learnerFiles.has(path)));
+      if (files["dojo.yaml"]) {
+        const { progress: _progress, ...manifest } = parse(files["dojo.yaml"]) as Record<string, unknown>;
+        files["dojo.yaml"] = stringify(manifest);
+      }
+      return files;
+    };
+    const protectedMaterial = await installedMaterial();
     await writeFile(resolve(evidenceRoot, "installed-material.json"), JSON.stringify(protectedMaterial, null, 2));
     const fixtures = await roles.fixtures(lessonIds, await readLessonMaterial(draftRoot, lessonIds), signal);
     try {
@@ -198,7 +208,7 @@ export async function runTrial(input: { draftRoot: string; lessonIds: string[]; 
         if (providerError) throw new Error(`Teaching runtime returned a provider error during ${stage}: ${providerError}`);
         // The guard has restored the file already; its notice is the only trace of the write (decision 17)
         if ((await takeNotices(root!, courseId, lessonId)).length) throw new TeachingFailure("Sensei edited learner code");
-        if (!isDeepStrictEqual(await readMaterial(installedCourse), protectedMaterial)) throw new TeachingFailure("Sensei changed installed material");
+        if (!isDeepStrictEqual(await installedMaterial(), protectedMaterial)) throw new TeachingFailure("Sensei changed installed material");
       } finally {
         recordText();
         evidence.push({ lessonId, stage, learnerMessage, contextBeforeTurn: dojoLessonContext(before), parts, sourceBefore: before.code,

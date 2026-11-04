@@ -28,7 +28,9 @@ export function oneShotRoles(options: { agent: AgentId; model?: string; evidence
   oneShot?: (request: OneShotRequest) => Promise<{ text: string }> }): TrialRoles {
   const { agent, model, evidenceRoot, stateDirectory } = options;
   const call = async (request: { instructions?: string; prompt: string; signal: AbortSignal; timeoutMs: number }) => {
-    const oneShot = options.oneShot ?? (load("@dojofoo/agent/one-shot") as typeof import("@dojofoo/agent/one-shot")).oneShot;
+    // Resolved from @dojofoo/authoring, as the persona runtimes reach the adapters: the built CLI that serves this module depends on
+    // authoring, not on the harness package itself
+    const oneShot = options.oneShot ?? (createRequire(load.resolve("@dojofoo/authoring/package.json"))("@dojofoo/agent/one-shot") as typeof import("@dojofoo/agent/one-shot")).oneShot;
     const directory = join(stateDirectory, "evaluation", randomUUID());
     await mkdir(join(directory, "scratch"), { recursive: true });
     try {
