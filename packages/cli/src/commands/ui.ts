@@ -219,7 +219,18 @@ function startDirectUi(input: {
     }
   });
   if (background) child.unref();
-  else relayExit(child);
+  else {
+    // As in the portless path: the UI stops its persona hosts before it exits, so this process waits for it
+    const interrupt = () => child.kill("SIGINT");
+    const terminate = () => child.kill("SIGTERM");
+    process.once("SIGINT", interrupt);
+    process.once("SIGTERM", terminate);
+    child.once("exit", () => {
+      process.removeListener("SIGINT", interrupt);
+      process.removeListener("SIGTERM", terminate);
+    });
+    relayExit(child);
+  }
   if (shouldOpen) openBrowser(url);
 }
 
