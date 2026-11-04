@@ -1,11 +1,12 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { defineEval } from "@dojofoo/agent/evals";
 import { satisfies } from "@dojofoo/agent/evals/expect";
 import { readLessonMaterial, readMaterial } from "@dojofoo/authoring/evaluation/material";
 import { preservesAcceptedMaterial } from "../../src/accepted-material";
-import { evaluationConfiguration, executeEvaluationWorker } from "@dojofoo/authoring/evaluation/host";
+import { postEvaluation } from "../../src/ui-evaluation";
 import type { EvaluationReport } from "@dojofoo/authoring/evaluation/run";
 import instructions from "@dojofoo/authoring/eve/instructions";
 import { chainPrompts } from "./authoring-chain.eval";
@@ -71,11 +72,15 @@ export default defineEval({
       if (quick) { t.succeeded(); return; }
       // No more author turns after this point. Held-out failures are retained
       // for human review, not fed back into this attempt's revision loop.
-      const config = evaluationConfiguration();
-      if (!config || !accepted) throw new Error("Held-out acceptance requires the configured evaluation worker and accepted lessons");
-      const heldout = await executeEvaluationWorker(root, accepted.lessonIds, config, AbortSignal.timeout(2_160_000), "confident");
-      evidence.push({ heldout });
-      await t.require(unanimouslyPassed(heldout) && heldout.materialHash === accepted.materialHash && Boolean(accepted.teachingPolicyHash) && heldout.teachingPolicyHash === accepted.teachingPolicyHash && isDeepStrictEqual(heldout.lessonIds, accepted.lessonIds),
+      // A second product evaluation of the frozen lessons. It spends an attempt, and Kyoshi may have used all three on this lesson
+      // set; the eval workspace is throwaway, so its allowance is cleared first (decision 38)
+      const ui = process.env.DOJOFOO_EVAL_UI;
+      if (!ui || !accepted) throw new Error("Held-out acceptance requires the eval's UI server and accepted lessons");
+      await rm(join(root, ".dojo/evaluation-allowances"), { recursive: true, force: true });
+      const answer = await postEvaluation(ui, { lessonIds: accepted.lessonIds, callId: `heldout-${randomUUID()}` }, AbortSignal.timeout(2_160_000));
+      const heldout: EvaluationReport | undefined = answer.status === 200 ? answer.body.report : undefined;
+      evidence.push({ heldout: answer.body });
+      await t.require(unanimouslyPassed(heldout) && heldout?.materialHash === accepted.materialHash && Boolean(accepted.teachingPolicyHash) && heldout?.teachingPolicyHash === accepted.teachingPolicyHash && isDeepStrictEqual(heldout?.lessonIds, accepted.lessonIds),
         satisfies((valid: boolean) => valid, "The frozen lessons must also pass held-out teaching without author revision"));
       t.succeeded();
     } finally {

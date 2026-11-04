@@ -144,19 +144,8 @@ the completed first authoring turn; the replay uses that actual handover.
 `PdyxC1` then exposed teacher-level failures: a mechanical opening, a score-card
 story that disclosed the algorithm, and a review that supplied a trace of an old
 input. Both judges failed engagement and transfer. That full run was stopped;
-it is not acceptance. `replay-teaching.ts` reuses an evaluation's exact material
-and learner fixture through the existing production worker, skipping Kyoshi:
-
-```sh
-DOJO_CLI=/path/to/packages/cli/dist/index.js \
-DOJOFOO_EVAL_TEACHING_HARNESS=codex DOJOFOO_EVAL_TEACHING_MODEL=gpt-6-astra \
-DOJOFOO_EVAL_FIXTURE_HARNESS=pi DOJOFOO_EVAL_FIXTURE_MODEL=deepseek/deepseek-v4-pro \
-pnpm --filter @dojofoo/evals exec tsx src/replay-teaching.ts /path/to/evaluation/run-ID --live
-```
-
-This is a paid, focused lesson replay, not a full authoring run or a held-out
-case. The copied material, source reference and new reports stay in a fresh
-temporary directory. A failed raw judge criterion still exits nonzero.
+it is not acceptance. The focused replay that re-ran an evaluation's material and
+learner fixture (`replay-teaching.ts`) went with the evaluation worker in step 7.
 
 Teacher replay progression: `dojo-teaching-replay-MwhLkL` fixed withholding and
 transfer but still failed one engagement verdict; `dojo-teaching-replay-ETuQhn`
@@ -356,64 +345,24 @@ teaching failures. Editing the course during evaluation invalidates the result.
 Every attempt writes its material hash, snapshots, stage, and verdicts under
 `.dojo/evaluations/run-*`; it does not overwrite an earlier failed attempt.
 
-For the low-level `--run` replay, prepare `.dojo/learner-fixtures.json`. Key entries by
-lesson ID, each with `misconception`, `wrong`, `solved`, and `review` strings.
-Review these against the generated exports and tests. They are learner-side
-inputs, never extra teaching instructions. The worker teaches on the course's
-`.dojo/runtimes.json` agent; write `{ "agent": "codex" }` there to teach on Codex.
+The UI server runs every evaluation (step 7 of `docs/designs/agent-runtime.md`):
+Kyoshi's `dojo_authoring_evaluate` starts it through the host port and the authoring
+page posts `POST /api/authoring/evals`; both reach one evaluation per draft and the
+same three-attempt allowance. A trial installs the draft as a throwaway learner
+workspace (kind `evaluation-trial`) on the draft's coding agent and model, and its
+Sensei host runs with a per-trial usage ceiling. The simulated learner uses the
+learner's own routes: `POST …/sessions/default` opens the conversation, messages and
+answers go through the session API, and saves, checks and "Open next lesson" go
+through the lesson routes. The learner fixtures, the learner's replies and both
+judge panels are one-shot calls on the same agent and model; inputs and raw answers
+stay in the trial's `.dojo/handoffs/run-*` folder.
 
-```sh
-pnpm --filter dojofoo exec tsup
-CODEX_PATH=/path/to/installed/codex \
-  node packages/cli/dist/teaching-eval.js --run /path/to/authored-course
-
-pnpm --filter @dojofoo/evals exec tsx src/judge-handoff.ts \
-  /path/to/authored-course/.dojo/handoffs/run-ID --live
-
-# Same worker, with material and teaching judges (paid usage):
-DOJOFOO_EVAL_FIXTURE_HARNESS=pi \
-  DOJOFOO_EVAL_FIXTURE_MODEL=deepseek/deepseek-v4-pro \
-  node packages/cli/dist/teaching-eval.js \
-  --evaluate /path/to/authored-course 001-first-lesson
-```
-
-`--evaluate` generates its learner fixtures automatically after material review,
-using the official HarnessAgent with tools disabled and one fresh session per
-lesson. Inputs, raw responses, and parsed fixtures are retained in a separate
-temporary directory, referenced by trial evidence. No reference solutions are
-placed in the authored course or Sensei instructions. Invalid output fails the
-attempt without automatic retries or model substitution. Before Sensei starts,
-the production test adapter verifies that wrong code fails a test and solved code
-passes every test. Scaffold files are restored and these checks do not record
-completion or enter lesson history. Reports remain in the trial workspace's
-`.dojo/fixture-preflight.json`, including failures.
-
-For a controlled prompt comparison, set `DOJOFOO_EVAL_FIXTURE_PATH` to a saved
-`learner-fixtures.json` when using `--evaluate`. The worker validates and replays
-that fixture instead of generating a new mistake. Production preflight, adaptive
-review responses, and both judges still run. Held-out evaluation rejects this
-override and generates fresh fixtures. The handoff records the fixture path.
-
-Bounded live fixture verification (2026-10-07): Pi/DeepSeek generated one lesson's
-fixtures in `dojo-learner-fixtures-TTiAC7`. The first preflight exposed a missing
-`DOJO_PROJECT_ROOT` in the new direct runner path: checks loaded the installed
-stub. After fixing that path and adding a regression, a fresh trial
-`001-largest-number-ee7d42e3-c4c9-4df9-9c54-05eee4821fe6` reported 4/5 passing for
-the misconception and 5/5 for the solution, then restored the scaffold. The failed
-trial remains intact. This verifies one generated fixture, not teaching quality
-or the full autonomous authoring workflow.
-
-Omit the lesson ID for a two-lesson continuity evaluation. A one-lesson result
-does not establish continuity. This is one attempt, not an automatic retry loop;
-the worker has a 35-minute evaluation deadline and each judge call a 3-minute
-deadline. Cross-model matrices are not started by this command.
-
-The handoff uses the actual lesson services, coordinator routes, MCP tools, CLI
-checks, and production instructions. Evidence is retained per attempt, including
-model selection, actual learner messages, and separate session IDs. This internal
-worker runs outside the authoring server because the lesson runtime owns
-process-wide settings and harness processes. The opt-in live Vitest test calls
-the same runner; ordinary unit and worker smoke tests make no model calls.
+Before Sensei starts, each fixture is checked in the trial's install: wrong code
+must fail a test and solved code must pass every test (`kata --check --no-record`),
+and the lesson file is restored. Earlier lessons in a two-lesson request are seeded
+as completed; the last one is taught. `pnpm --filter @dojofoo/ui test:evaluation`
+runs one whole trial against the loopback model; ordinary unit tests make no model
+calls.
 Judges run only after deterministic
 lifecycle checks pass. Each teacher turn must leave both the learner file and
 installed teaching material/tests unchanged. Pi is currently supported by Kyoshi,
@@ -478,22 +427,11 @@ pass; structural checks alone do not establish good teaching.
 ## Verification boundaries / next cases
 
 Kyoshi exposes the native Eve tool `dojo_authoring_evaluate`. Its parameters
-are lesson IDs only: the host owns model selection and the immutable judge
-implementation. In the authoring UI, use **Evaluation settings** to choose the
-Sensei and simulated learner models and consent to paid trials. Preferences live
-in `.dojo/evaluation-settings.json`; no credentials or worker path are entered.
-The production evaluator is bundled with the CLI. For developer acceptance runs,
-the equivalent explicit configuration is:
-
-```sh
-DOJOFOO_EVAL_TEACHING_HARNESS=codex
-DOJOFOO_EVAL_TEACHING_MODEL=gpt-6-astra
-DOJOFOO_EVAL_FIXTURE_HARNESS=pi
-DOJOFOO_EVAL_FIXTURE_MODEL=deepseek/deepseek-v4-pro
-```
-
-These developer overrides must be environment variables of the authoring server.
-Missing or partial configuration never silently selects models. Each lesson set gets three persisted
+are lesson IDs only: every role runs on the draft's own coding agent and model, and
+the host owns the judge implementation. In the authoring UI, **Evaluation settings**
+is the consent to paid trials, kept as `{ "enabled": true }` in
+`.dojo/evaluation-settings.json`; there are no model pickers, credentials or worker
+paths. Each lesson set gets three persisted
 attempts (initial evaluation plus two possible revisions). Replaying an Eve call
 returns its saved report; an interrupted call without a report is not relaunched.
 Malformed `dojo.yaml` is a `MaterialFailure` precondition error: fix the authored
@@ -518,14 +456,17 @@ This verifies report interaction, not the quality of its judgments.
 Add `--quick` for the fast loop: one lesson authored and evaluated by Kyoshi,
 no second lesson and no held-out run (a few minutes).
 
-Run `eval:authoring --live --local-judges --workflow` with the configuration above
-to test the autonomous workflow. Build the CLI first (`pnpm --filter dojofoo build`,
-or `npx tsup` in `packages/cli`) and set `DOJO_CLI=$PWD/packages/cli/dist/index.js`:
-Kyoshi's evaluation tool runs the `teaching-eval.js` shipped beside it. It supplies learning goals only, requires Kyoshi
-to call its evaluation tool, checks one-lesson-at-a-time authoring, and rejects
-material edited after the passing evaluation. After both lessons pass, it runs a
-held-out confident learner against the frozen material and production teaching
-policy. No further author turn receives that held-out feedback. The host limits
+Run `eval:authoring --live --local-judges --workflow` to test the autonomous
+workflow. Build the CLI first (`pnpm --filter dojofoo build`) and set
+`DOJO_CLI=$PWD/packages/cli/dist/index.js`: the eval starts that CLI's UI server in
+the eval workspace, with its own `DOJOFOO_HOME`, allows evaluations there, and gives
+Kyoshi a host port that forwards its evaluations to the server. It supplies
+learning goals only, requires Kyoshi to call its evaluation tool, checks
+one-lesson-at-a-time authoring, and rejects material edited after the passing
+evaluation. After both lessons pass, it runs a second product evaluation of the
+frozen material, after clearing the throwaway workspace's allowance, and requires the
+same material and teaching-policy hashes. No further author turn receives that
+held-out feedback. The host limits
 each lesson set to three evaluation attempts; this is not a hard limit on every
 native model step.
 

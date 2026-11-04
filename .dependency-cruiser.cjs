@@ -11,7 +11,6 @@ const relativeExemptions = exempt(
   "packages/cli/test/learner-notes.integration.test.ts",         // run coordinator and lesson MCP: step 7
   "packages/cli/test/starter-courses.test.ts",                   // permanent: checks starters with the UI's parser
   "packages/evals/src/authoring-continuation.live.test.ts",      // eve/prepare: step 8
-  "packages/evals/src/live-course-matrix.ts",                    // codex-client: step 7
   "packages/uix/.storybook/language-api.ts",                     // permanent: Storybook dev server only
 );
 
@@ -31,9 +30,7 @@ module.exports = {
     { name: "config-depends-on-protocol-only", severity: "error", from: { path: "^packages/config/" }, to: { path: "^packages/(?!config/|protocol/)" } },
     { name: "uix-depends-on-protocol-only", severity: "error",
       from: { path: "^packages/uix/", pathNot: exempt("packages/uix/.storybook/language-api.ts") }, to: { path: "^packages/(?!uix/|protocol/)" } },
-    { name: "evals-depend-on-harness-and-agents", severity: "error",
-      from: { path: "^packages/evals/", pathNot: exempt("packages/evals/src/live-course-matrix.ts") },   // step 7
-      to: { path: "^packages/(ui|cli|uix)/" } },
+    { name: "evals-depend-on-harness-and-agents", severity: "error", from: { path: "^packages/evals/" }, to: { path: "^packages/(ui|cli|uix)/" } },
   ],
   options: {
     // Package imports resolve to dist; following into it would hide the importing package's edges

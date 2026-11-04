@@ -1,9 +1,9 @@
-import { acpAgentIds, type AcpAgentId } from "@dojofoo/protocol";
+import { agentRows, type AgentId } from "@dojofoo/protocol";
 
-/** Every ACP lesson agent, plus Pi on its own driver. */
-export const matrixHarnesses = [...acpAgentIds, "pi"] as const;
+/** Every coding agent with an AI SDK harness adapter. */
+export const matrixHarnesses: readonly AgentId[] = agentRows.filter(row => row.adapterId).map(row => row.id);
 
-export type MatrixHarness = AcpAgentId | "pi";
+export type MatrixHarness = AgentId;
 
 export type CourseLesson = {
   id: string;
