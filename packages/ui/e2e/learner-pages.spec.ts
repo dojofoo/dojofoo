@@ -118,7 +118,6 @@ test("the learner sidebar uses the Pages course card and Dashboard breadcrumb", 
   await page.route("**/api/workspaces/pages-course/**", route => {
     if (route.request().method() !== "GET") writes.push(route.request().url());
     const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/interactive/conversation")) return route.fulfill({ json: { sessionId: null, messages: [], model: null } });
     if (path.endsWith("/interactive")) return route.fulfill({ json: {
       dojo: "learner", title: "Learner course", lessonTitle: "First lesson", step: 0, totalSteps: 1, complete: false, response: null,
       lessonId: "first", lessonIndex: 0, completedLessons: 0, lessons: [{ id: "first", title: "First lesson", state: "active" }], slides: [], unlockedStep: 0, references: [],

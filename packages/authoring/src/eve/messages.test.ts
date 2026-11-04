@@ -27,6 +27,18 @@ describe("Eve chat projection", () => {
     expect(messages).toHaveLength(3);
   });
 
+  it("hides tagged turns anywhere in the conversation, but not dojo:// links", () => {
+    const messages: EveMessage[] = [
+      { id: "begin", role: "user", parts: [{ type: "text", text: "[dojo:begin] Begin the lesson.\n\nExcerpts from this learner's earlier conversation." }] },
+      { id: "reply", role: "assistant", parts: [{ type: "text", text: "Ready to teach." }] },
+      { id: "link", role: "user", parts: [{ type: "text", text: "dojo://courses/first explains it" }] },
+      { id: "check", role: "user", parts: [{ type: "text", text: "[dojo:check] Ran lesson checks." }] },
+      { id: "start", role: "user", parts: [{ type: "text", text: KYOSHI_START }] },
+      { id: "quoted", role: "user", parts: [{ type: "text", text: "Why does [dojo:begin] show up?" }] },
+    ];
+    expect(eveChatMessages(messages).map(message => message.id)).toEqual(["reply", "link", "quoted"]);
+  });
+
   it("preserves streamed arguments, identity and order without mutating source messages", () => {
     const messages: EveMessage[] = [{ id: "assistant-1", role: "assistant", parts: [
       { type: "reasoning", text: "Inspecting the course", stepIndex: 1 },

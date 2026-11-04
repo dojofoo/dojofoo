@@ -1,14 +1,11 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSentEventsResponse } from "@tanstack/ai";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, extname, relative, resolve } from "node:path";
 import { dojoDir, readDojoRc } from "@dojofoo/config";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { resolveRequestWorkspace, resolveWorkspaceId } from "../control/workspace";
 import { answerInteractiveQuestion, getInteractiveLesson, selectInteractiveMaterial } from "./service";
-import { answerInteractiveSensei, getInteractiveConversation, interactiveAgent, selectInteractiveHarness, setInteractiveModel, streamInteractiveSensei } from "./conversation";
-import { streamAcpAsAgUi } from "../lesson/agui-stream";
 
 const root = (c: Context) => c.req.param("workspaceId")
   ? resolveWorkspaceId(c.req.param("workspaceId")!) : resolveRequestWorkspace(c.req.raw);
@@ -30,38 +27,6 @@ export const interactiveRoutes = new Hono()
     const body = await c.req.json<{ answer?: string }>();
     if (typeof body.answer !== "string" || !body.answer.trim()) return c.json({ error: "An answer is required." }, 400);
     return c.json(answerInteractiveQuestion(root(c), body.answer, course(c)));
-  })
-  .get("/conversation", async c => c.json(await getInteractiveConversation(root(c), target(c))))
-  .put("/configuration/harness", async c => {
-    let body: unknown;
-    try { body = await c.req.json(); } catch { return c.json({ error: "Select a supported coding agent." }, 422); }
-    if (!body || typeof body !== "object" || !("harness" in body) || typeof body.harness !== "string" || !body.harness.trim() || Object.keys(body).some(key => key !== "harness")) return c.json({ error: "Select a supported coding agent." }, 422);
-    try { interactiveAgent(root(c), body.harness); }
-    catch (cause) { return c.json({ error: cause instanceof Error ? cause.message : String(cause) }, 422); }
-    try { return c.json(await selectInteractiveHarness(root(c), target(c), body.harness)); }
-    catch (cause) { return c.json({ error: cause instanceof Error ? cause.message : String(cause) }, 502); }
-  })
-  .put("/configuration/model", async c => {
-    const body = await c.req.json<{ value?: string }>();
-    if (!body.value?.trim()) return c.json({ error: "Model value is required" }, 422);
-    return c.json(await setInteractiveModel(root(c), target(c), body.value));
-  })
-  .post("/messages", async c => {
-    const projectRoot = root(c);
-    const dojo = target(c);
-    const raw = await c.req.json();
-    if (raw?.answers) {
-      answerInteractiveSensei(projectRoot, dojo, raw.answers);
-      return c.json({ ok: true }, 201);
-    }
-    const params = await chatParamsFromRequestBody(raw);
-    const last = convertMessagesToModelMessages(params.messages).findLast(message => message.role === "user")?.content;
-    const message = typeof last === "string" ? last : last?.flatMap(part => part.type === "text" ? [part.content] : []).join("") ?? "";
-    if (!message.trim()) return c.json({ error: "Message content is required" }, 422);
-    return toServerSentEventsResponse(streamAcpAsAgUi({
-      threadId: params.threadId, runId: params.runId,
-      execute: onPart => streamInteractiveSensei(projectRoot, dojo, message, onPart, c.req.raw.signal),
-    }));
   })
   .get("/asset", (c) => {
     const workspaceId = c.req.query("workspace");

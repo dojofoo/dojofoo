@@ -1,6 +1,6 @@
 import type { EveMessage, EveMessagePart } from "@dojofoo/agent/client";
 import type { MessagePart, ToolCallPart, UIMessage } from "@tanstack/ai";
-import { KYOSHI_START } from "./bootstrap";
+import { isTaggedTurn } from "@dojofoo/protocol";
 
 type EveToolPart = Extract<EveMessagePart, { type: "tool" }>;
 type EveInteractionPart = Extract<EveMessagePart, { type: "interaction" }>;
@@ -9,13 +9,18 @@ type EveInteractionPart = Extract<EveMessagePart, { type: "interaction" }>;
  * Eve keeps the history, the interactions and their answers.
  */
 export function eveChatMessages(messages: readonly EveMessage[]): UIMessage[] {
-  return messages.filter((message, index) => !(index === 0 && message.role === "user"
-    && message.parts.length === 1 && message.parts[0]!.type === "text" && message.parts[0]!.text === KYOSHI_START)).map(message => ({
+  // Hidden turns the server or a page sends: Kyoshi's start, Sensei's begin, check reports (step 5)
+  return messages.filter(message => !(message.role === "user" && isTaggedTurn(firstText(message)))).map(message => ({
     id: message.id,
     role: message.role,
     parts: message.parts.flatMap(projectPart),
   }));
 }
+
+const firstText = (message: EveMessage) => {
+  const part = message.parts.find(item => item.type === "text");
+  return part?.type === "text" ? part.text : "";
+};
 
 /** The Eve question a tool call (or a free question) carries, as Eve decided it. */
 export function eveQuestion(part: ToolCallPart) {

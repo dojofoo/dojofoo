@@ -16,7 +16,6 @@ test("authored material uses the UIX video player and keeps existing asset and e
       if (url.searchParams.get("path") === "lessons/first/demo.html") return route.fulfill({ contentType: "text/html", body: "<p>Sandboxed example</p>" });
       return route.fulfill({ contentType: "text/plain", body: "Course notes" });
     }
-    if (url.pathname.endsWith("/interactive/conversation")) return route.fulfill({ json: { sessionId: null, messages: [], model: null } });
     if (url.pathname.endsWith("/interactive")) return route.fulfill({ json: {
       dojo: "materials", title: "Course materials", lessonTitle: "Materials", step: 0, totalSteps: 1, complete: false, response: null,
       current: { id: "first", type: "present", title: "Materials", contentBase: "lessons/first", content: String.raw`<Video src="clip.webm" title="Lesson video" />
