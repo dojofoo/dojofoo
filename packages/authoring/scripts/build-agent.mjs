@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access, cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -15,6 +15,21 @@ const eve = JSON.parse(await readFile(installed.resolve("@dojofoo/agent/eve/pack
 // The prepared servers are deployed from this lockfile, which also pins dependency patches
 const lockfile = createHash("sha256").update(await readFile(resolve(packageRoot, "../../pnpm-lock.yaml"))).digest("hex");
 const names = { kyoshi: "Kyoshi", sensei: "Sensei" };
+
+// Workspace packages are injected as built, so their version does not change
+// when their code does; hash the built files that a prepared server copies.
+async function builtHash(...roots) {
+  const digest = createHash("sha256");
+  for (const root of roots) {
+    const entries = await readdir(root, { recursive: true, withFileTypes: true });
+    const files = entries.filter(entry => entry.isFile()).map(entry => join(entry.parentPath, entry.name))
+      .filter(file => !file.startsWith(join(packageRoot, "dist/prepared"))).sort();
+    for (const file of files) digest.update(file.slice(root.length)).update(await readFile(file));
+  }
+  return digest.digest("hex");
+}
+const sdkRoot = dirname(installed.resolve("@dojofoo/agent/package.json"));
+const built = await builtHash(join(sdkRoot, "dist"), join(sdkRoot, "patches"), join(packageRoot, "dist"));
 
 async function current(destination, hash, label) {
   try {
@@ -76,6 +91,7 @@ for (const persona of ["kyoshi", "sensei"]) {
     source: `dojofoo/${persona}@${release.version}`,
     sourceHash: hash,
     lockfile,
+    built,
   };
   if (await current(destination, hash, label)) {
     console.info(`${names[persona]} source and release match; reusing the prepared build.`);
