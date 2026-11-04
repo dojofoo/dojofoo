@@ -83,7 +83,7 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
   const onPrevention = options.onPrevention ?? ((record: PreventionRecord) => console.warn(JSON.stringify(record)));
   if (mode === "read-only" && !codingAgent) throw new Error("A read-only harness model needs its coding agent.");
   const sessionOptions = sandboxSession ? { sandboxSession } : {};
-  const provider = runtime.sandbox as { evict?(sandboxId: string): Promise<void> } | undefined;
+  const provider = runtime.sandbox as { evict?(sandboxId: string): Promise<void>; withdraw?(sandboxId: string): void } | undefined;
   const evict = provider?.evict ? (sandboxId: string) => provider.evict!(sandboxId) : undefined;
   const model: HarnessModel = {
     specificationVersion: "v4",
@@ -198,7 +198,9 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
       // The sandbox is created and resumed under the native session's id
       const forget = () => { if (eveSessionId) forgetHarnessSession(eveSessionId); };
       let stopped: Promise<HarnessAgentResumeSessionState> | undefined;
-      const stop = () => stopped ??= (forget(), session.stop());
+      // A cancelled turn's stop can outlast the next turn's start (OpenCode waits 5 s for its killed bridge); that turn must
+      // not resume this sandbox, or the stop kills its processes
+      const stop = () => stopped ??= (forget(), provider?.withdraw?.(session.sessionId), session.stop());
       const stopAfterFailure = async (error: unknown): Promise<unknown> => {
         try {
           await stop();

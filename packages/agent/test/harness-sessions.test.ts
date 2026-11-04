@@ -53,6 +53,50 @@ describe("harness session map", () => {
     expect(evicted).toEqual([]);
   });
 
+  it("the turn after a cancel never resumes the sandbox the cancelled turn is still stopping", async () => {
+    // As OpenCode's bridge after a learner's Stop: the abort kills it, and its stop then waits 5 s for a reply
+    const base = fakeHarness();
+    const release = Promise.withResolvers<void>();
+    const harness = { ...base.harness, async doStart(start: Parameters<typeof base.harness.doStart>[0]) {
+      const native = await base.harness.doStart(start);
+      let holding = false;
+      return { ...native,
+        async doPromptTurn(turn: { prompt: string; emit: (event: Record<string, unknown>) => void; abortSignal?: AbortSignal }) {
+          if (turn.prompt !== "Hold.") return native.doPromptTurn(turn);
+          holding = true;
+          const done = Promise.withResolvers<void>();
+          turn.emit({ type: "text-start", id: "h" });
+          turn.emit({ type: "text-delta", id: "h", delta: "Holding" });
+          turn.abortSignal?.addEventListener("abort", () => done.reject(turn.abortSignal?.reason), { once: true });
+          return { done: done.promise, async submitToolResult() {}, async submitToolApproval() {} };
+        },
+        async doStop() { if (holding) await release.promise; return native.doStop(); },
+        async doSuspendTurn() { if (holding) await release.promise; return native.doSuspendTurn(); },
+      };
+    } };
+    const root = await realpath(await mkdtemp(join(tmpdir(), "dojo-harness-sessions-")));
+    roots.push(root);
+    const local = createLocalHarnessSandbox(root);
+    const handed: unknown[] = [];
+    const sandbox = { ...local,
+      createSession: async (input?: Parameters<typeof local.createSession>[0]) => { const session = await local.createSession(input); handed.push(session); return session; },
+      resumeSession: async (input: Parameters<typeof local.resumeSession>[0]) => { const session = await local.resumeSession(input); handed.push(session); return session; } };
+    const { model } = experimental_createHarnessModel({ harness, sandbox }, { mode: "full", eveSessionId: "eve-cancelled" });
+    const first = await model.doGenerate({ prompt: userPrompt("Begin.") });
+    const text = first.content.find(part => part.type === "text") as { text: string; providerMetadata?: never };
+    const history = [...userPrompt("Begin."), { role: "assistant" as const, content: [{ type: "text" as const, text: text.text, providerOptions: text.providerMetadata }] }];
+    const held = await model.doStream({ prompt: [...history, ...userPrompt("Hold.")] });
+    const reader = held.stream.getReader();
+    while ((await reader.read()).value?.type !== "text-delta");
+    const cancelled = reader.cancel(new Error("Cancelled by the learner")).catch(() => {});
+    const next = await model.doGenerate({ prompt: [...history, ...userPrompt("Ask.")] });
+    expect(next.content.some(part => part.type === "text")).toBe(true);
+    expect(handed).toHaveLength(3);
+    expect(handed[2]).not.toBe(handed[1]);
+    release.resolve();
+    await cancelled;
+  });
+
   it("a failed resume is reported once and rethrown without a status code", async () => {
     const native = fakeHarness();
     const { sandbox } = await evictingSandbox();

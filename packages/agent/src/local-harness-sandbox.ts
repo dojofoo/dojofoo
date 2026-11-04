@@ -48,5 +48,10 @@ export function createLocalHarnessSandbox(directory: string, options: Omit<Optio
     async evict(sandboxId: string) {
       await live.get(sandboxId)?.stop();
     },
+    /** A session that is stopping keeps its sandbox until its stop ends; the next resume starts a fresh one,
+     *  which that stop cannot kill. */
+    withdraw(sandboxId: string) {
+      live.delete(sandboxId);
+    },
   };
 }
