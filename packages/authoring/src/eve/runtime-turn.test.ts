@@ -7,7 +7,7 @@ import { askQuestion } from "@dojofoo/agent/tools/ask_question";
 import { expect, it, vi } from "vitest";
 // Shared deterministic HTTP fixture; it performs no external inference.
 // @ts-expect-error Existing JavaScript test fixture has no declaration file.
-import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";
+import { startLoopbackModel } from "../../../harness/experiments/model-provider/loopback-openai.mjs";
 import { createKyoshiRuntime } from "./runtime";
 import instructions from "./instructions";
 

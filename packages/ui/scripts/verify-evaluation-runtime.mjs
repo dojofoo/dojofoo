@@ -16,7 +16,7 @@ const repo = fileURLToPath(new URL("../../..", import.meta.url));
 const artifacts = await mkdtemp(join(tmpdir(), "dojo-evaluation-runtime-evidence-"));
 console.log(`Evaluation runtime evidence: ${artifacts}`);
 const artifact = name => join(artifacts, name);
-const { startLoopbackModel } = await import(pathToFileURL(join(repo, "packages/agent/experiments/model-provider/loopback-openai.mjs")));
+const { startLoopbackModel } = await import(pathToFileURL(join(repo, "packages/harness/experiments/model-provider/loopback-openai.mjs")));
 const { observeWorkspacePath } = await import(pathToFileURL(join(repo, "packages/config/dist/local-state.js")));
 const scratch = await mkdtemp(join(tmpdir(), "dojo-evaluation-runtime-"));
 const draft = join(scratch, "draft");

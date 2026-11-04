@@ -13,9 +13,9 @@ const evidence = await mkdtemp(join(tmpdir(), "dojo-interactive-runtime-evidence
 const scratch = await mkdtemp(join(tmpdir(), "dojo-interactive-runtime-"));
 const artifact = name => join(evidence, name);
 console.log(`Interactive runtime evidence: ${evidence}`);
-const { startLoopbackModel } = await import(pathToFileURL(join(repo, "packages/agent/experiments/model-provider/loopback-openai.mjs")));
+const { startLoopbackModel } = await import(pathToFileURL(join(repo, "packages/harness/experiments/model-provider/loopback-openai.mjs")));
 const { observeLocalContext } = await import(pathToFileURL(join(repo, "packages/config/dist/local-state.js")));
-const { Client } = await import(pathToFileURL(join(repo, "packages/agent/dist/eve/dist/src/client/index.js")));
+const { Client } = await import(pathToFileURL(join(repo, "packages/harness/dist/eve/dist/src/client/index.js")));
 // Only "Ask me which example I prefer." asks the learner; every other prompt gets "Ready to teach."
 const askPrompt = "Ask me which example I prefer.";
 const endpoint = await startLoopbackModel({ selectResponsesTool: (input, requested) => {

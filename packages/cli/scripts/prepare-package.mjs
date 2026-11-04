@@ -11,9 +11,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const destination = resolve(root, ".package");
 const scratch = mkdtempSync(resolve(tmpdir(), "dojo-cli-runtime-"));
-const packages = ["protocol", "config", "agent", "authoring"].map(name => resolve(root, "..", name));
+const packages = ["protocol", "config", "harness", "authoring"].map(name => resolve(root, "..", name));
 // Retain the tested shutdown fix rather than reinstalling unpatched Nitro.
-packages.push(dirname(createRequire(resolve(root, "../agent/package.json")).resolve("nitro/package.json")));
+packages.push(dirname(createRequire(resolve(root, "../harness/package.json")).resolve("nitro/package.json")));
 // Warm installation and the prepared agent must use the same patched bootstrap.
 const authoring = createRequire(resolve(root, "../authoring/package.json"));
 packages.push(dirname(authoring.resolve("@ai-sdk/harness-opencode/package.json")));

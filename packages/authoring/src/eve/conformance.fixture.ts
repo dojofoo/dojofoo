@@ -18,7 +18,7 @@ import { agentRow, type ResumeFailure } from "@dojofoo/protocol";
 import { expect } from "vitest";
 // Shared deterministic HTTP fixture; it performs no external inference.
 // @ts-expect-error Shared JavaScript inference fixture has no declarations.
-import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";
+import { startLoopbackModel } from "../../../harness/experiments/model-provider/loopback-openai.mjs";
 // @ts-expect-error The conformance scripts are plain JavaScript without declarations.
 import { agentHome, caseBaseEnvironment, conformancePaths } from "../../scripts/conformance-install.mjs";
 

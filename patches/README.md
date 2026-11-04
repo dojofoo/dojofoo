@@ -83,11 +83,11 @@ upstream stops re-reporting failed writes to closed output.
 
 ## Bundled Eve patches (1.0.0-rc.1)
 
-Consumers do not apply these patches. `packages/agent/scripts/build-runtime.mjs`
+Consumers do not apply these patches. `packages/harness/scripts/build-runtime.mjs`
 checks the upstream tarball integrity, applies them while assembling the package,
 and ships the resulting runtime with Eve's notices.
 
-| Patch in `packages/agent/patches` | Purpose | Offline regression |
+| Patch in `packages/harness/patches` | Purpose | Offline regression |
 | --- | --- | --- |
 | `eve@1.0.0-rc.1.patch` | Delegate compaction to ready providers instead of summarizing harness-owned history | `experiments/model-provider/provider.test.mjs` and host fixtures |
 | `eve-native-turn@1.0.0-rc.1.patch` | Honor a native provider's completed turn and context-token accounting; preserve upstream sign-in parking | Provider/host continuation, sign-in parking and compaction fixtures |

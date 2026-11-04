@@ -30,7 +30,7 @@ Resolved from `packages/*/package.json` and the npm registry on 2026-10-18.
 
 | Package | Pinned | Latest | Used in (files importing) |
 | --- | --- | --- | --- |
-| `eve` | 0.53.0 + 3 patches | 0.80.1 | `packages/agent` only (8) |
+| `eve` | 0.53.0 + 3 patches | 0.80.1 | `packages/harness` only (8) |
 | `ai` | 7.0.98 (agent), ^7.0.77 (ui, evals) | 7.0.143 | agent, ui (2) |
 | `@ai-sdk/provider` | 4.0.14 | 4.0.29 | agent (1) |
 | `@ai-sdk/harness` | **1.0.108** (agent), **1.0.71** (ui), **1.0.85** (evals) | 1.0.154 | agent, ui, evals |
@@ -94,7 +94,7 @@ Each stage: one change, typecheck plus the existing offline/contract/cassette te
 | **A (recommended now)** | 1.0.153 | 1.0.155 | 1.0.67 | 1.0.67 | 1.0.91 | 1.0.153 | Keeps FX native logins; one release behind latest |
 | B | 1.0.154 | 1.0.156 | 1.0.68 | 1.0.69 | 1.0.92 | 1.0.154 | Latest; FX becomes Gateway-only |
 
-Recommendation: adopt Set A in `packages/agent`, `packages/authoring`, `packages/ui` **and** `packages/evals` (ends the separate eval stack). Revisit B when FX's direction is decided.
+Recommendation: adopt Set A in `packages/harness`, `packages/authoring`, `packages/ui` **and** `packages/evals` (ends the separate eval stack). Revisit B when FX's direction is decided.
 
 Changes required with either set:
 

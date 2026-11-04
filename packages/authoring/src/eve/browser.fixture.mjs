@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "node:net";
 import { scaffoldAuthoringWorkspace } from "../scaffold.ts";
-import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";
+import { startLoopbackModel } from "../../../harness/experiments/model-provider/loopback-openai.mjs";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 
 // Manual browser fixture: the real UI, server and harness; only inference is loopback.

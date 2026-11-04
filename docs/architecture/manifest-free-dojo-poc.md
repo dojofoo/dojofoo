@@ -53,9 +53,9 @@ Consumers do not apply patches; the existing release assembly embeds it.
 
 ```sh
 # Node 24; no model credentials or paid inference required
-pnpm --dir packages/agent build
-node --test packages/agent/experiments/model-provider/manifest-free-project.test.mjs
-node packages/agent/experiments/model-provider/packaging.mjs
+pnpm --dir packages/harness build
+node --test packages/harness/experiments/model-provider/manifest-free-project.test.mjs
+node packages/harness/experiments/model-provider/packaging.mjs
 ```
 
 The fixture runs outside the repository. It recursively rejects every local

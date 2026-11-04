@@ -5,7 +5,7 @@ import { createPi } from "@ai-sdk/harness-pi";
 import { HarnessAgent, createLocalSandbox } from "@dojofoo/agent/adapters";
 import { expect, it } from "vitest";
 // @ts-expect-error Shared inference fixture is JavaScript.
-import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";
+import { startLoopbackModel } from "../../../harness/experiments/model-provider/loopback-openai.mjs";
 
 it("official Pi reads and writes through a symlinked course without adapter overrides", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dojo-pi-path-")));

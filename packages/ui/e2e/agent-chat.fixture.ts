@@ -148,7 +148,7 @@ async function mount(page: Page, eve: Eve, servers: Server[], baseURL: string, o
 }
 
 /**
- * `eve` is a real Eve host running the fixture agent (`packages/agent/test/api/eve`), one per
+ * `eve` is a real Eve host running the fixture agent (`packages/harness/test/api/eve`), one per
  * worker; `mountAgentChat` serves a fresh agent API on it for the test's page.
  */
 /** A finished local setup, so pages open past onboarding whatever the server's DOJOFOO_HOME holds. A spec's own
