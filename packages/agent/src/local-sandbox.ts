@@ -1,7 +1,7 @@
 import type { HarnessV1NetworkSandboxSession } from "@ai-sdk/harness";
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, readFile, realpath, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { Readable, Writable } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
@@ -153,6 +153,27 @@ export async function createLocalSandbox(
       return startLine === 1 && endLine === Infinity ? text : text.split("\n").slice(startLine - 1, endLine).join("\n");
     },
     writeBinaryFile,
+    stat: async options => {
+      assertRunning();
+      options.abortSignal?.throwIfAborted();
+      const info = await stat(path(options.path)).catch(missing);
+      return info && { type: info.isFile() ? "file" : info.isDirectory() ? "directory" : "other", size: info.size };
+    },
+    listDirectory: async options => {
+      assertRunning();
+      options.abortSignal?.throwIfAborted();
+      const entries = await readdir(path(options.path), { withFileTypes: true }).catch(missing);
+      return entries && entries.map(entry => ({
+        name: entry.name,
+        type: entry.isFile() ? "file" : entry.isDirectory() ? "directory" : entry.isSymbolicLink() ? "symlink" : "other",
+      }));
+    },
+    deleteFile: async options => {
+      assertRunning();
+      options.abortSignal?.throwIfAborted();
+      if ((await lstat(path(options.path)).catch(missing))?.isDirectory()) throw new Error(`Cannot delete ${options.path}: it is a directory.`);
+      return unlink(path(options.path)).then(() => true, error => missing(error) ?? false);
+    },
     writeFile: async options => {
       const content = new Uint8Array(await new Response(options.content).arrayBuffer());
       await writeBinaryFile({ ...options, content });
@@ -185,6 +206,12 @@ export async function createLocalSandbox(
     restricted: () => files,
     stop, destroy: stop,
   };
+}
+
+/** Resolve a missing path to null and rethrow every other failure. */
+function missing(error: unknown): null {
+  if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+  throw error;
 }
 
 async function reapGroup(pid: number | undefined): Promise<void> {
