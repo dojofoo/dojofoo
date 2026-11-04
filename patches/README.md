@@ -45,6 +45,25 @@ GNU-only call). Regression: `kyoshi.harness.native-write` in
 `packages/authoring/src/eve/conformance.test.ts`, the FX row, run on macOS.
 Remove it when upstream resolves paths portably.
 
+## Grok Build turn usage
+
+`@ai-sdk/harness-acp@1.0.110` reads a turn's token usage only from the
+`session/prompt` response's `usage` field (unstable in ACP). Grok Build 1.0.49,
+the CLI `@ai-sdk/harness-grok-build@1.0.109` pins, never sets that field and sends
+no `usage_update`: it reports the turn's usage in the response's `_meta.usage`
+(`inputTokens` with cached reads included, `outputTokens` with reasoning included,
+`totalTokens`, `cachedReadTokens`, `cacheCreationTokens`, `reasoningTokens`). Every
+Grok turn therefore reached Eve with unknown usage, and an evaluation trial's usage
+ceiling never stopped a Grok Sensei. The patch reads `_meta.usage` when the
+bridge type is `grok-build` and `usage` is unset, and maps it to ACP's usage
+fields. Both bridge copies (`dist/bridge`, `dist/v1/bridge`) carry it; authoring's
+prepared servers bundle the patched package.
+
+Regression: `sensei.evaluation.trial-loopback` in
+`packages/authoring/src/eve/conformance.test.ts`, the Grok row (the second
+message opens Eve's budget prompt). Remove it when Grok Build sets the
+response's `usage` or the bridge reads Grok's `_meta.usage` itself.
+
 ## Nitro error reporting on closed output
 
 `nitro@3.0.260903-beta` reports uncaught errors with `console.error`. When a

@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
+  '@ai-sdk/harness-acp@1.0.110':
+    hash: ea89c7d5b73ab0cc93e51f5fe9debc67079811d4d6ec1c1d979e5e6c4c57bd5e
+    path: patches/@ai-sdk__harness-acp@1.0.110.patch
   '@ai-sdk/harness-fx@1.0.86':
     hash: 1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825
     path: patches/@ai-sdk__harness-fx@1.0.86.patch
@@ -10265,7 +10268,7 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.6.7
 
-  '@ai-sdk/harness-acp@1.0.110(zod@4.6.7)':
+  '@ai-sdk/harness-acp@1.0.110(patch_hash=ea89c7d5b73ab0cc93e51f5fe9debc67079811d4d6ec1c1d979e5e6c4c57bd5e)(zod@4.6.7)':
     dependencies:
       '@ai-sdk/harness': 1.0.170(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
@@ -10300,7 +10303,7 @@ snapshots:
   '@ai-sdk/harness-cursor@1.0.85(ws@8.21.0)(zod@4.6.7)':
     dependencies:
       '@ai-sdk/harness': 1.0.170(ws@8.21.0)(zod@4.6.7)
-      '@ai-sdk/harness-acp': 1.0.110(zod@4.6.7)
+      '@ai-sdk/harness-acp': 1.0.110(patch_hash=ea89c7d5b73ab0cc93e51f5fe9debc67079811d4d6ec1c1d979e5e6c4c57bd5e)(zod@4.6.7)
       '@ai-sdk/provider': 4.0.35
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
       zod: 4.6.7
@@ -10323,7 +10326,7 @@ snapshots:
   '@ai-sdk/harness-grok-build@1.0.109(ws@8.21.0)(zod@4.6.7)':
     dependencies:
       '@ai-sdk/harness': 1.0.170(ws@8.21.0)(zod@4.6.7)
-      '@ai-sdk/harness-acp': 1.0.110(zod@4.6.7)
+      '@ai-sdk/harness-acp': 1.0.110(patch_hash=ea89c7d5b73ab0cc93e51f5fe9debc67079811d4d6ec1c1d979e5e6c4c57bd5e)(zod@4.6.7)
       '@ai-sdk/provider': 4.0.35
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
       zod: 4.6.7

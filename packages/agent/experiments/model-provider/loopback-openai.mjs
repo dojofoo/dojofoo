@@ -114,10 +114,11 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
       const message = call ? { role: "assistant", content: null, tool_calls: [call] }
         : { role: "assistant", content: answer };
       const finishReason = call ? "tool_calls" : "stop";
+      const usage = { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 };
       if (!input.stream) {
         response.setHeader("Content-Type", "application/json");
         response.end(JSON.stringify({ ...base, choices: [{ index: 0,
-          message, finish_reason: finishReason }] }));
+          message, finish_reason: finishReason }], usage }));
         return;
       }
       response.writeHead(200, { "Content-Type": "text/event-stream" });
@@ -125,6 +126,8 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
         { index: 0, delta: call ? { role: "assistant", tool_calls: [{ index: 0, ...call }] } : message, finish_reason: null },
         { index: 0, delta: {}, finish_reason: finishReason },
       ]) response.write(`data: ${JSON.stringify({ ...base, object: "chat.completion.chunk", choices: [choice] })}\n\n`);
+      // As OpenAI with stream_options.include_usage: a last chunk with no choices carries the turn's usage
+      if (input.stream_options?.include_usage) response.write(`data: ${JSON.stringify({ ...base, object: "chat.completion.chunk", choices: [], usage })}\n\n`);
       response.end("data: [DONE]\n\n");
       return;
     }
