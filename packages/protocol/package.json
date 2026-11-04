@@ -5,14 +5,16 @@
   "license": "FSL-1.1-ALv2",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "src/conformance.json"
   ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    }
+    },
+    "./conformance.json": "./src/conformance.json"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

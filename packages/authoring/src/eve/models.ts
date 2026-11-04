@@ -7,7 +7,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { JSONRPCClient } from "json-rpc-2.0";
 import { parse } from "smol-toml";
-import { agentRow, type AgentId } from "@dojofoo/protocol";
+import { agentRow, type AgentId, type ModelChoice } from "@dojofoo/protocol";
 
 /** Preserve the native CLI choice when the caller has not selected a model. */
 export async function configuredHarnessModel(harness: string, codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex")): Promise<string | undefined> {
@@ -22,12 +22,8 @@ export async function configuredHarnessModel(harness: string, codexHome = proces
   return typeof model === "string" && model.trim() ? model : undefined;
 }
 
-export interface HarnessModelChoice {
-  id: string;
-  name: string;
-  efforts: string[];
-  defaultEffort?: string;
-}
+/** Removed in step 7 with SessionModelConfiguration. */
+export type HarnessModelChoice = ModelChoice;
 
 export async function harnessModels(agent: AgentId, signal: AbortSignal): Promise<HarnessModelChoice[]> {
   const discovery = agentRow(agent).modelDiscovery;

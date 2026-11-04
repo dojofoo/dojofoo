@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agentIds, agentRow, agentRows, isAcpAgentId, isAgentId, offeredAgents, personaForKind } from ".";
+import { agentIds, agentRow, agentRows, isAcpAgentId, isAgentId, isolationPlaceholders, offeredAgents, personaForKind } from ".";
 
 describe("coding-agent registry", () => {
   it("has one row per agent id, in onboarding order", () => {
@@ -18,6 +18,38 @@ describe("coding-agent registry", () => {
       expect(row.readOnly, row.id).toBeDefined();
       expect(row.modelDiscovery, row.id).toBeDefined();
     }
+  });
+
+  it("every isolation placeholder is one the harness resolves", () => {
+    const values = agentRows.flatMap(row => {
+      const isolation = row.readOnly?.userConfig;
+      return isolation ? [...Object.values(isolation.environment), ...Object.values(isolation.home?.links ?? {}), ...Object.keys(isolation.home?.links ?? {}),
+        ...Object.keys(isolation.home?.files ?? {})] : [];
+    });
+    const named = values.flatMap(value => [...value.matchAll(/\{([A-Za-z]+)\}/gu)].map(match => match[1]));
+    expect(named.length).toBeGreaterThan(0);
+    for (const placeholder of named) expect(isolationPlaceholders as readonly string[]).toContain(placeholder);
+    // Codex's config.toml is literal TOML; no placeholder hides in it
+    expect(agentRow("codex").readOnly?.userConfig.home?.files?.[".codex/config.toml"]).toContain("[features]");
+  });
+
+  it("Grok's private home is per session", () => {
+    expect(agentRow("grok").readOnly?.userConfig.home?.scope).toBe("session");
+    expect(agentRow("grok").readOnly?.userConfig.environment).toMatchObject({ HOME: "{home}", GROK_HOME: "{home}/.grok" });
+    for (const row of agentRows) if (row.id !== "grok") expect(row.readOnly?.userConfig.home?.scope ?? "agent", row.id).toBe("agent");
+  });
+
+  it("Claude Code offers only Read among its read-only built-ins (claude-spike.md)", () => {
+    expect(agentRow("claude").readOnly?.builtinTools).toEqual(["read"]);
+  });
+
+  it("Codex runs allow-all because its adapter accepts nothing else", () => {
+    expect(agentRow("codex").readOnly).toMatchObject({ permissionMode: "allow-all", builtinTools: [] });
+    for (const row of offeredAgents()) if (row.id !== "codex") expect(row.readOnly?.permissionMode, row.id).toBe("allow-reads");
+  });
+
+  it("every offered row names how to log in", () => {
+    for (const row of offeredAgents()) expect(row.login.trim(), row.id).not.toBe("");
   });
 
   it("Cursor resolves cursor-agent, not the agent command Grok also installs", () => {
