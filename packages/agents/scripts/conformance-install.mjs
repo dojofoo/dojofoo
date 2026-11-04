@@ -91,7 +91,7 @@ export async function installAgent(agent, record) {
   const pinned = await pinnedCli(agent);
   const expected = latestConformance(record, agent, "A")?.cli.version ?? firstRunPins[agent];
   if (pinned.cli.version !== expected) {
-    throw new Error(`${pinned.adapter.package} now pins ${pinned.cli.name} ${pinned.cli.version}; the record has ${expected}. Run tier A and append a record (pnpm --filter @dojofoo/authoring conformance:record).`);
+    throw new Error(`${pinned.adapter.package} now pins ${pinned.cli.name} ${pinned.cli.version}; the record has ${expected}. Run tier A and append a record (pnpm --filter @dojofoo/agents conformance:record).`);
   }
   const home = agentHome(agent);
   await mkdir(home, { recursive: true });
@@ -121,7 +121,7 @@ export async function needsInstall(agent) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (!existsSync(join(authoring, "dist/eve/install.js"))) {
-    console.error('Build authoring first: pnpm --filter "@dojofoo/authoring..." build');
+    console.error('Build authoring first: pnpm --filter "@dojofoo/agents..." build');
     process.exit(2);
   }
   const record = await readRecord();

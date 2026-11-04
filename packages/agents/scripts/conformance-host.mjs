@@ -31,7 +31,7 @@ const hostPortUrl = argument("--host-port");
 const workspaceId = argument("--workspace-id");
 const sessionArgument = argument("--session");
 if (!existsSync(new URL("../dist/eve/runtime.js", import.meta.url))) {
-  console.error('Build authoring first: pnpm --filter "@dojofoo/authoring..." build');
+  console.error('Build authoring first: pnpm --filter "@dojofoo/agents..." build');
   process.exit(2);
 }
 if (!scenarios[persona]?.includes(scenario) || !isAgentId(agent) || !agentRow(agent).adapterId || !root) {

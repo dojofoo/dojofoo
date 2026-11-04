@@ -4,13 +4,13 @@ import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { defineEval } from "@dojofoo/harness/evals";
 import { satisfies } from "@dojofoo/harness/evals/expect";
-import { readLessonMaterial, readMaterial } from "@dojofoo/authoring/evaluation/material";
+import { readLessonMaterial, readMaterial } from "@dojofoo/agents/evaluation/material";
 import { preservesAcceptedMaterial } from "../../src/accepted-material";
 import { postEvaluation } from "../../src/ui-evaluation";
-import type { EvaluationReport } from "@dojofoo/authoring/evaluation/run";
-import instructions from "@dojofoo/authoring/eve/instructions";
+import type { EvaluationReport } from "@dojofoo/agents/evaluation/run";
+import instructions from "@dojofoo/agents/eve/instructions";
 import { chainPrompts } from "./authoring-chain.eval";
-import { requireJudgeResults } from "@dojofoo/authoring/evaluation/judges";
+import { requireJudgeResults } from "@dojofoo/agents/evaluation/judges";
 
 function unanimouslyPassed(report: EvaluationReport | undefined): boolean {
   if (report?.status !== "passed") return false;

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { EvaluationReport } from "@dojofoo/authoring/evaluation/run";
+import type { EvaluationReport } from "@dojofoo/agents/evaluation/run";
 import { evaluationRunner, evaluations } from "./evaluations";
 
 const original = { ...evaluationRunner };

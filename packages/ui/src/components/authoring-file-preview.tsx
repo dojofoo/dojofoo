@@ -1,4 +1,4 @@
-import type { AuthoringDraft } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/agents/service";
 import { defineCatalog, type Spec } from "@json-render/core";
 import { defineRegistry, JSONUIProvider, Renderer } from "@json-render/react";
 import { schema } from "@json-render/react/schema";

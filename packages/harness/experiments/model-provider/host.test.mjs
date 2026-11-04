@@ -3,7 +3,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promi
 import { join } from "node:path";
 import { test } from "node:test";
 import { Client, SessionStore } from "@dojofoo/harness/client";
-import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox";
+import { createAuthoringSandbox } from "@dojofoo/agents/sandbox";
 
 import { createDevelopmentServer } from "@dojofoo/harness/server";
 
@@ -70,7 +70,7 @@ for (const specialist of [false, true]) test(`Eve's HTTP workflow host isolates 
     await writeFile(join(agent, "tools/write_file.ts"), 'export { default } from "@dojofoo/harness/tools/write_file";\n');
     await mkdir(join(agent, "sandbox/workspace"), { recursive: true });
     await writeFile(join(course, "note.md"), "Authored in the editor.\n");
-    await writeFile(join(agent, "sandbox/sandbox.ts"), `import { defineSandbox } from "@dojofoo/harness/sandbox"; import { createAuthoringSandbox } from "@dojofoo/authoring/sandbox"; export const environment = createAuthoringSandbox(${JSON.stringify(course)}); export default defineSandbox(() => environment.open());\n`);
+    await writeFile(join(agent, "sandbox/sandbox.ts"), `import { defineSandbox } from "@dojofoo/harness/sandbox"; import { createAuthoringSandbox } from "@dojofoo/agents/sandbox"; export const environment = createAuthoringSandbox(${JSON.stringify(course)}); export default defineSandbox(() => environment.open());\n`);
     await writeFile(join(agent, "sandbox/workspace/note.md"), "Original lesson note.\n");
     if (specialist) {
       await mkdir(join(agent, "subagents/reviewer/tools"), { recursive: true });

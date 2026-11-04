@@ -66,7 +66,7 @@
     "@ai-sdk/harness": "1.0.170",
     "@base-ui/react": "^1.9.0",
     "@dojofoo/harness": "workspace:*",
-    "@dojofoo/authoring": "workspace:*",
+    "@dojofoo/agents": "workspace:*",
     "@dojofoo/avatar": "workspace:*",
     "@dojofoo/config": "workspace:*",
     "@dojofoo/protocol": "workspace:*",

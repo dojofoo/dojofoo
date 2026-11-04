@@ -84,7 +84,7 @@ async function install(installArgs: string[]): Promise<void> {
   if (!installArgs.includes("--skills")) await bootstrapMise();
   await setup(process.cwd(), installArgs);
   if (installArgs.includes("--skills")) return;
-  const { prepareAuthoringHarness } = await import("@dojofoo/authoring/eve/install");
+  const { prepareAuthoringHarness } = await import("@dojofoo/agents/eve/install");
   const selected = new Set<AgentId>([...configuredAgents(process.cwd()), resolveAgent(process.cwd())]);
   for (const agent of selected) {
     if (!agentRow(agent).adapterId) continue;

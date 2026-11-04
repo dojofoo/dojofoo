@@ -13,7 +13,7 @@ import {
 } from "@dojofoo/config/local-state";
 import { advanceInteractiveLesson } from "../interactive/service";
 import { buildControlRoutes } from "./routes";
-import * as scaffold from "@dojofoo/authoring/scaffold";
+import * as scaffold from "@dojofoo/agents/scaffold";
 import { resolveRequestWorkspace, WORKSPACE_HEADER } from "./workspace";
 
 const temporaryPaths: string[] = [];

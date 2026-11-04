@@ -1,5 +1,5 @@
 {
-  "name": "@dojofoo/authoring",
+  "name": "@dojofoo/agents",
   "version": "0.1.1",
   "private": true,
   "description": "Course authoring tools and Kyoshi agents for Dojofoo.",

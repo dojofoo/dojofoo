@@ -5,9 +5,9 @@ import { courseArt } from "@/lib/course-color";
 import { CourseAuthoringSidebar } from "@dojofoo/uix/components/course-authoring-sidebar";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Eye, Code } from "@mynaui/icons-react";
-import type { EvaluationReport as AuthoringEvalReport } from "@dojofoo/authoring/evaluation/run";
+import type { EvaluationReport as AuthoringEvalReport } from "@dojofoo/agents/evaluation/run";
 import { httpError } from "@/lib/http-error";
-import type { AuthoringDraft } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/agents/service";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ExternalLink,
@@ -17,7 +17,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } 
 import { AuthoringFilePreview } from "@/components/authoring-file-preview";
 import { AuthoringEvaluationReport } from "@/components/authoring-evaluation-report";
 import { AuthoringEvaluationSettings } from "@/components/authoring-evaluation-settings";
-import type { EvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
+import type { EvaluationSettings } from "@dojofoo/agents/evaluation/settings";
 import { TreeTitleMenu, authoringEvaluationStatus } from "@/components/authoring-sidebar";
 import { AgentChat } from "@/components/agent-chat";
 import { ConversationHistory, type HistoryPick } from "@/components/conversation-history";

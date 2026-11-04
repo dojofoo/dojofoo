@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import chain, { chainJudgePrompt, chainPrompts } from "../authoring/evals/authoring-chain.eval";
-import { chainRubricVersion } from "@dojofoo/authoring/evaluation/prompts/suites";
-import { criterionIds } from "@dojofoo/authoring/evaluation/judges";
+import { chainRubricVersion } from "@dojofoo/agents/evaluation/prompts/suites";
+import { criterionIds } from "@dojofoo/agents/evaluation/judges";
 import { judgeMaterial } from "../authoring/evals/local-judges";
 import { verifyCourse } from "../authoring/evals/verify-course";
 

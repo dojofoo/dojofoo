@@ -94,9 +94,9 @@ against exact edits and complete recipes. These are development checks, not
 production teaching acceptance.
 
 ```sh
-DOJOFOO_EVAL_MATERIAL_CALIBRATION=1 pnpm --filter @dojofoo/authoring exec vitest run src/evaluation/material-support.live.test.ts
-DOJOFOO_EVAL_AGENT=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro DOJOFOO_EVAL_DESIGN=1 pnpm --filter @dojofoo/authoring exec vitest run src/evaluation/lesson-design.live.test.ts
-DOJOFOO_EVAL_JUDGE_CALIBRATION=1 pnpm --filter @dojofoo/authoring exec vitest run src/evaluation/solution-boundary.live.test.ts
+DOJOFOO_EVAL_MATERIAL_CALIBRATION=1 pnpm --filter @dojofoo/agents exec vitest run src/evaluation/material-support.live.test.ts
+DOJOFOO_EVAL_AGENT=pi DOJOFOO_EVAL_MODEL=deepseek/deepseek-v4-pro DOJOFOO_EVAL_DESIGN=1 pnpm --filter @dojofoo/agents exec vitest run src/evaluation/lesson-design.live.test.ts
+DOJOFOO_EVAL_JUDGE_CALIBRATION=1 pnpm --filter @dojofoo/agents exec vitest run src/evaluation/solution-boundary.live.test.ts
 ```
 
 All three explicitly opt into paid local-model calls and save inputs and verdicts
@@ -224,8 +224,8 @@ and conversations are untouched. No mandatory eval directory is added to courses
 ## Where prompts live
 
 Every prompt is a Markdown file owned by its role. Code only fills `{{slots}}`
-(`@dojofoo/authoring/prompts`); a missing or unused slot throws. Evaluation
-prompts are read by package specifier (`@dojofoo/authoring/evaluation/prompts/*.md`),
+(`@dojofoo/agents/prompts`); a missing or unused slot throws. Evaluation
+prompts are read by package specifier (`@dojofoo/agents/evaluation/prompts/*.md`),
 which resolves identically under Node, Vitest, Vite, the tsup worker and Eve's
 eval bundle. (Eve rejects `?raw` imports from outside the generated app.)
 
@@ -337,7 +337,7 @@ The probe is restored and never enters a Sensei trial.
 
 ## Production Sensei handoff
 
-The shared staged evaluator now lives in `@dojofoo/authoring/evaluation/run`.
+The shared staged evaluator now lives in `@dojofoo/agents/evaluation/run`.
 It records material review, the production trial, and teaching review separately;
 both judges must pass every criterion. Material failures stop before the trial.
 Provider failures are infrastructure; learner-code ownership violations are
@@ -891,7 +891,7 @@ complete recipe. Material and teaching judges share this boundary.
 Run its focused, paid calibration explicitly:
 
 ```sh
-DOJOFOO_EVAL_JUDGE_CALIBRATION=1 pnpm --filter @dojofoo/authoring test src/evaluation/solution-boundary.live.test.ts
+DOJOFOO_EVAL_JUDGE_CALIBRATION=1 pnpm --filter @dojofoo/agents test src/evaluation/solution-boundary.live.test.ts
 ```
 
 All four excerpts passed calibration with both existing judges: principle and

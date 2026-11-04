@@ -5,11 +5,11 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
-/** Read a shipped Markdown file by its `@dojofoo/authoring` export path. Package
+/** Read a shipped Markdown file by its `@dojofoo/agents` export path. Package
  * resolution works the same in Node, Vitest, Vite, tsup bundles and Eve's eval
  * bundle (which rejects `?raw` imports from outside the generated app). */
 export function readPrompt(path: string): string {
-  return readFileSync(createRequire(import.meta.url).resolve(`@dojofoo/authoring/${path}`), "utf8");
+  return readFileSync(createRequire(import.meta.url).resolve(`@dojofoo/agents/${path}`), "utf8");
 }
 
 const slot = /\{\{([a-zA-Z][\w-]*)\}\}/gu;

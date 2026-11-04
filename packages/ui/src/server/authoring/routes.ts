@@ -12,12 +12,12 @@ import {
   updateAuthoringAppearance,
   renameAuthoringLesson,
   readAuthoringDraft,
-} from "@dojofoo/authoring/service";
-import { readAuthoringFile, saveAuthoringFile } from "@dojofoo/authoring/files";
-import { readEvaluationSettings, writeEvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
-import { materialHash, readLessonMaterial } from "@dojofoo/authoring/evaluation/material";
-import type { EvaluationReceipt, EvaluationReport } from "@dojofoo/authoring/evaluation/run";
-import { decidePanel } from "@dojofoo/authoring/evaluation/panel";
+} from "@dojofoo/agents/service";
+import { readAuthoringFile, saveAuthoringFile } from "@dojofoo/agents/files";
+import { readEvaluationSettings, writeEvaluationSettings } from "@dojofoo/agents/evaluation/settings";
+import { materialHash, readLessonMaterial } from "@dojofoo/agents/evaluation/material";
+import type { EvaluationReceipt, EvaluationReport } from "@dojofoo/agents/evaluation/run";
+import { decidePanel } from "@dojofoo/agents/evaluation/panel";
 import type { EvaluationFailureCode } from "@dojofoo/protocol";
 import { readAgentModel, resolveAgent } from "@dojofoo/config/runtime";
 

@@ -7,7 +7,7 @@ import { releaseServerLock } from "../../src/server/server-lock";
 
 export default definePlugin(app => {
   app.hooks.hook("close", async () => {
-    const { closePersonaRuntimes } = createRequire(import.meta.url)("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
+    const { closePersonaRuntimes } = createRequire(import.meta.url)("@dojofoo/agents/eve/runtime") as typeof import("@dojofoo/agents/eve/runtime");
     await closePersonaRuntimes();
     // After the persona hosts, so the next server finds no host of this one running
     releaseServerLock(dirname(localStateDirectory()));

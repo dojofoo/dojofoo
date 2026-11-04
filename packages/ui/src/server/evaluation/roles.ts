@@ -3,11 +3,11 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { OneShotRequest } from "@dojofoo/harness/adapters";
-import { judgePanel } from "@dojofoo/authoring/evaluation/judges";
-import { learnerPrompt, parseLearnerAnswers, type LearnerDialogue, type LearnerQuestion } from "@dojofoo/authoring/evaluation/learner";
-import { fixtureGeneratorInstructions } from "@dojofoo/authoring/evaluation/prompts";
-import { fixturePrompt, parseGeneratedFixture, type LearnerFixture } from "@dojofoo/authoring/evaluation/learner-fixtures";
-import type { evaluateAuthoredCourse } from "@dojofoo/authoring/evaluation/run";
+import { judgePanel } from "@dojofoo/agents/evaluation/judges";
+import { learnerPrompt, parseLearnerAnswers, type LearnerDialogue, type LearnerQuestion } from "@dojofoo/agents/evaluation/learner";
+import { fixtureGeneratorInstructions } from "@dojofoo/agents/evaluation/prompts";
+import { fixturePrompt, parseGeneratedFixture, type LearnerFixture } from "@dojofoo/agents/evaluation/learner-fixtures";
+import type { evaluateAuthoredCourse } from "@dojofoo/agents/evaluation/run";
 import type { AgentId } from "@dojofoo/protocol";
 import { oneShotTimeLimitMs } from "./limits";
 
@@ -28,9 +28,9 @@ export function oneShotRoles(options: { agent: AgentId; model?: string; evidence
   oneShot?: (request: OneShotRequest) => Promise<{ text: string }> }): TrialRoles {
   const { agent, model, evidenceRoot, stateDirectory } = options;
   const call = async (request: { instructions?: string; prompt: string; signal: AbortSignal; timeoutMs: number }) => {
-    // Resolved from @dojofoo/authoring, as the persona runtimes reach the adapters: the built CLI that serves this module depends on
+    // Resolved from @dojofoo/agents, as the persona runtimes reach the adapters: the built CLI that serves this module depends on
     // authoring, not on the harness package itself
-    const oneShot = options.oneShot ?? (createRequire(load.resolve("@dojofoo/authoring/package.json"))("@dojofoo/harness/adapters") as typeof import("@dojofoo/harness/adapters")).oneShot;
+    const oneShot = options.oneShot ?? (createRequire(load.resolve("@dojofoo/agents/package.json"))("@dojofoo/harness/adapters") as typeof import("@dojofoo/harness/adapters")).oneShot;
     const directory = join(stateDirectory, "evaluation", randomUUID());
     await mkdir(join(directory, "scratch"), { recursive: true });
     try {

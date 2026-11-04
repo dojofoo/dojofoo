@@ -121,7 +121,7 @@ for project discovery. This proves a public CLI hosting path for Pi, not cold
 recovery of OpenCode's live native bridge.
 
 Authoring now exports `createAuthoringSandbox(courseRoot)` from
-`@dojofoo/authoring/sandbox`. Use it as an authored Eve sandbox definition. It
+`@dojofoo/agents/sandbox`. Use it as an authored Eve sandbox definition. It
 mounts the selected real directory at `/course` through upstream `ReadWriteFs`
 and `MountableFs`, preserving Eve's private filesystem at other paths. Relative
 paths and filesystem-root mounts are rejected; upstream symlink restrictions
@@ -144,13 +144,13 @@ The authoring package supplies Eve-authored modules without selecting a model:
 
 ```ts
 // instructions.ts in the consuming Eve agent
-export { default } from "@dojofoo/authoring/eve/instructions";
+export { default } from "@dojofoo/agents/eve/instructions";
 
 // tools/dojo_ui_ask.ts (a separate file)
-export { default } from "@dojofoo/authoring/eve/ask";
+export { default } from "@dojofoo/agents/eve/ask";
 ```
 
-Use `@dojofoo/authoring/sandbox` for the live `/course` mount and inject the harness
+Use `@dojofoo/agents/sandbox` for the live `/course` mount and inject the harness
 provider in the consumer's `agent.ts`. Eve's default filesystem tools remain
 enabled. The question definition is the official Eve tool, re-exported unchanged;
 the filename gives it the name used by the Kyoshi contract.

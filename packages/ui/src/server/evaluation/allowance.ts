@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import type { EvaluationReceipt, EvaluationReport } from "@dojofoo/authoring/evaluation/run";
+import type { EvaluationReceipt, EvaluationReport } from "@dojofoo/agents/evaluation/run";
 
 const statuses = ["passed", "material-failed", "teaching-failed", "infrastructure-failed", "stale"];
 function completedReport(value: unknown): EvaluationReport {
@@ -18,7 +18,7 @@ function completedReport(value: unknown): EvaluationReport {
 export async function withAllowance(root: string, lessonIds: string[], callId: string,
   run: (signal: AbortSignal) => Promise<EvaluationReport>, signal: AbortSignal): Promise<EvaluationReceipt> {
   // Loaded as the evaluation's other authoring modules are, so the refusal is the class the routes recognise
-  const { EvaluationRefused } = createRequire(import.meta.url)("@dojofoo/authoring/evaluation/failure") as typeof import("@dojofoo/authoring/evaluation/failure");
+  const { EvaluationRefused } = createRequire(import.meta.url)("@dojofoo/agents/evaluation/failure") as typeof import("@dojofoo/agents/evaluation/failure");
   const hash = (text: string) => createHash("sha256").update(text).digest("hex");
   const directory = join(root, ".dojo", "evaluation-allowances", hash(JSON.stringify([...lessonIds].sort())));
   await mkdir(directory, { recursive: true });

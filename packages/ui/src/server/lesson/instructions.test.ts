@@ -1,5 +1,5 @@
-import { readPrompt } from "@dojofoo/authoring/prompts";
-import { promptSection, promptSections } from "@dojofoo/authoring/prompts";
+import { readPrompt } from "@dojofoo/agents/prompts";
+import { promptSection, promptSections } from "@dojofoo/agents/prompts";
 import { expect, it } from "vitest";
 import { senseiTurn } from "./instructions";
 

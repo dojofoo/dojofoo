@@ -73,19 +73,20 @@ it("moves a course's app to this installation when another dojofoo prepared it",
 
 it("an app prepared under the old package names is rewritten and relinked", async () => {
   // Spelled in parts, so lint:names keeps finding real uses of the old names
-  const oldHarness = ["@dojofoo", "agent"].join("/");
+  const [oldHarness, oldAgents] = ["agent", "authoring"].map(name => `@dojofoo/${name}`);
   const root = await course();
   const app = join(root, ".dojo/kyoshi-app");
   await mkdir(join(app, "node_modules/@dojofoo"), { recursive: true });
   await writeFile(join(app, "package.json"), `${JSON.stringify({ name: "dojo-kyoshi-runtime", private: true, type: "module",
-    dependencies: { [oldHarness]: "*", "@dojofoo/authoring": "*" } }, null, 2)}\n`);
+    dependencies: { [oldHarness]: "*", [oldAgents]: "*" } }, null, 2)}\n`);
   const old = join(root, "old-harness");
   await mkdir(old);
   await writeFile(join(old, "package.json"), JSON.stringify({ name: oldHarness, version: "0.0.0-old" }));
   await symlink(old, join(app, "node_modules", oldHarness), "dir");
   await prepareKyoshiApp(root);
-  expect(JSON.parse(await readFile(join(app, "package.json"), "utf8")).dependencies).toEqual({ "@dojofoo/harness": "*", "@dojofoo/authoring": "*" });
+  expect(JSON.parse(await readFile(join(app, "package.json"), "utf8")).dependencies).toEqual({ "@dojofoo/harness": "*", "@dojofoo/agents": "*" });
   expect(JSON.parse(await readFile(join(app, "node_modules/@dojofoo/harness/package.json"), "utf8")).name).toBe("@dojofoo/harness");
+  expect(JSON.parse(await readFile(join(app, "node_modules/@dojofoo/agents/package.json"), "utf8")).name).toBe("@dojofoo/agents");
   expect(await readFile(join(app, "node_modules", oldHarness, "package.json"), "utf8")).toContain("0.0.0-old");
 });
 

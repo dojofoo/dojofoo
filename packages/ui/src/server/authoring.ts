@@ -1,7 +1,7 @@
 import { createAuthoringRoutes } from "./authoring/routes";
 import { resolveRequestWorkspace } from "./control/workspace";
 import { getTypeScriptHover } from "./lesson/typescript-language-service";
-import { senseiEvaluationPolicy } from "@dojofoo/authoring/sensei/instructions";
+import { senseiEvaluationPolicy } from "@dojofoo/agents/sensei/instructions";
 import { evaluations } from "./evaluation/evaluations";
 import { requestOrigin } from "./request-origin";
 

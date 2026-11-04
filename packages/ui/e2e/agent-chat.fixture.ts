@@ -5,8 +5,8 @@ import { createAgentApi, LAUNCH_TOKEN_HEADER, launchGuard, type Persona, type Se
 import { Client, type MessageContent } from "@dojofoo/harness/client";
 import type { AgentId } from "@dojofoo/protocol";
 import { startEve, testLaunchToken, testRuntime } from "@dojofoo/harness/api/fixtures";
-import type { AuthoringDraft } from "@dojofoo/authoring/service";
-import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
+import type { AuthoringDraft } from "@dojofoo/agents/service";
+import { KYOSHI_START } from "@dojofoo/agents/eve/bootstrap";
 
 export const workspaceId = "ws-1";
 /** The saved conversation's first message; the fixture agent replies `Echo: <message>` */

@@ -2,7 +2,7 @@ import { readPrompt } from "../prompts.ts";
 
 export type SenseiContract = "DOJOFOO.md" | "NATIVE.md" | "KATAS.md" | "INTERACTIVE.md";
 /** Reads one of Sensei's contracts. The prepared server embeds them at build time (agents/sensei/contracts.ts), because its
- *  bundle has no @dojofoo/authoring to resolve at run time; Node callers read the shipped files. */
+ *  bundle has no @dojofoo/agents to resolve at run time; Node callers read the shipped files. */
 export type ReadContract = (name: SenseiContract) => string;
 const shipped: ReadContract = name => readPrompt(`sensei/contracts/${name}`);
 const styles = { katas: "KATAS.md", interactive: "INTERACTIVE.md" } as const;

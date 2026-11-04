@@ -6,8 +6,8 @@ import { resolve } from "node:path";
 import { parse } from "yaml";
 import { localStateDirectory } from "@dojofoo/config/local-state";
 import { readAgentModel, resolveAgent } from "@dojofoo/config/runtime";
-import type { EvaluationReceipt, evaluateAuthoredCourse } from "@dojofoo/authoring/evaluation/run";
-import { senseiEvaluationPolicy } from "@dojofoo/authoring/sensei/instructions";
+import type { EvaluationReceipt, evaluateAuthoredCourse } from "@dojofoo/agents/evaluation/run";
+import { senseiEvaluationPolicy } from "@dojofoo/agents/sensei/instructions";
 import { agentRow, isAgentId, offeredAgents, type AgentId, type EvaluationFailureCode, type EvaluationTrialStatus } from "@dojofoo/protocol";
 import { withAllowance } from "./allowance";
 import { trialTimeLimitMs } from "./limits";
@@ -16,10 +16,10 @@ import { runTrial } from "./trial";
 
 // Outside Vite's module graph, as host-port.ts loaded the evaluation: one copy of authoring's evaluation, whose classes trial.ts shares
 const load = createRequire(import.meta.url);
-const run = () => load("@dojofoo/authoring/evaluation/run") as typeof import("@dojofoo/authoring/evaluation/run");
-const failures = () => load("@dojofoo/authoring/evaluation/failure") as typeof import("@dojofoo/authoring/evaluation/failure");
-const preflight = () => load("@dojofoo/authoring/evaluation/preflight") as typeof import("@dojofoo/authoring/evaluation/preflight");
-const settings = () => load("@dojofoo/authoring/evaluation/settings") as typeof import("@dojofoo/authoring/evaluation/settings");
+const run = () => load("@dojofoo/agents/evaluation/run") as typeof import("@dojofoo/agents/evaluation/run");
+const failures = () => load("@dojofoo/agents/evaluation/failure") as typeof import("@dojofoo/agents/evaluation/failure");
+const preflight = () => load("@dojofoo/agents/evaluation/preflight") as typeof import("@dojofoo/agents/evaluation/preflight");
+const settings = () => load("@dojofoo/agents/evaluation/settings") as typeof import("@dojofoo/agents/evaluation/settings");
 
 type EvaluationHost = { stop(workspaceId: string, agent: AgentId): Promise<unknown> };
 type Trial = { status: EvaluationTrialStatus; controller: AbortController };

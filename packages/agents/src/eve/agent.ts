@@ -20,7 +20,7 @@ export interface KyoshiRuntime {
 export function createKyoshiAgent(runtime: () => Promise<KyoshiRuntime>) {
   return defineAgent({
     // Native adapters load their bridge assets relative to their package files.
-    build: { externalDependencies: ["@dojofoo/harness", "@dojofoo/authoring", "@ai-sdk/harness",
+    build: { externalDependencies: ["@dojofoo/harness", "@dojofoo/agents", "@ai-sdk/harness",
       "@ai-sdk/harness-claude-code", "@ai-sdk/harness-codex", "@ai-sdk/harness-cursor", "@ai-sdk/harness-fx",
       "@ai-sdk/harness-grok-build", "@ai-sdk/harness-opencode", "@ai-sdk/harness-pi"] },
     // Ended sessions stay readable after a host restart (open risk 11)

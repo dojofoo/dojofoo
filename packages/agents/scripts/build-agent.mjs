@@ -49,7 +49,7 @@ async function build({ persona, source, destination, hash, label }) {
 
 try {
   // Use the locked production graph, without links back into the monorepo.
-  execFileSync(process.env.npm_execpath ?? "pnpm", ["--filter", "@dojofoo/authoring", "deploy",
+  execFileSync(process.env.npm_execpath ?? "pnpm", ["--filter", "@dojofoo/agents", "deploy",
     "--config.inject-workspace-packages=true", "--prod", "--ignore-scripts", isolated], {
     cwd: resolve(packageRoot, "../.."), stdio: "inherit",
   });

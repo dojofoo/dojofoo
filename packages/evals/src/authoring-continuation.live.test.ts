@@ -4,10 +4,10 @@ import { delimiter, dirname, join, resolve } from "node:path";
 import { expect, it } from "vitest";
 import { parse } from "yaml";
 import { HarnessAgent, createLocalHarnessSandbox, agentAdapter } from "@dojofoo/harness/adapters";
-import { readLessonMaterial, readMaterial } from "@dojofoo/authoring/evaluation/material";
-import { kyoshiInstructions } from "@dojofoo/authoring/eve/instructions";
+import { readLessonMaterial, readMaterial } from "@dojofoo/agents/evaluation/material";
+import { kyoshiInstructions } from "@dojofoo/agents/eve/instructions";
 import { isAgentId } from "@dojofoo/protocol";
-import { prepareKyoshiCommand, prepareKyoshiHarness } from "@dojofoo/authoring/eve/prepare";
+import { prepareKyoshiCommand, prepareKyoshiHarness } from "@dojofoo/agents/eve/prepare";
 import { preservesAcceptedMaterial, restoreMaterial } from "./accepted-material";
 
 // Replay a real accepted snapshot, without repeating its paid Sensei trial.

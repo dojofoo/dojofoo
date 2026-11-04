@@ -3,8 +3,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import { readMaterial } from "@dojofoo/authoring/evaluation/material";
-import { criterionIds } from "@dojofoo/authoring/evaluation/judges";
+import { readMaterial } from "@dojofoo/agents/evaluation/material";
+import { criterionIds } from "@dojofoo/agents/evaluation/judges";
 // The held-out run is the UI server's product evaluation, posted through the eval's long-request helper
 const heldout = vi.hoisted(() => ({ run: vi.fn() }));
 vi.mock("./ui-evaluation", () => ({ postEvaluation: heldout.run }));

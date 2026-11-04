@@ -1,4 +1,4 @@
-# @dojofoo/authoring
+# @dojofoo/agents
 
 ## 0.1.1
 

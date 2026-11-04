@@ -2,13 +2,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { scaffoldAuthoringWorkspace } from "@dojofoo/authoring/scaffold";
-import { readAuthoringDraft } from "@dojofoo/authoring/service";
+import { scaffoldAuthoringWorkspace } from "@dojofoo/agents/scaffold";
+import { readAuthoringDraft } from "@dojofoo/agents/service";
 import { execFileSync } from "node:child_process";
 import { bootstrapMise } from "../src/mise-bootstrap";
 import { ui } from "../src/commands/ui";
 import { kyoshi } from "../src/commands/kyoshi";
-import { writeEvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
+import { writeEvaluationSettings } from "@dojofoo/agents/evaluation/settings";
 import { listWorkspaces } from "@dojofoo/config/local-state";
 import { realpathSync } from "node:fs";
 

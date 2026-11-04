@@ -1,7 +1,7 @@
 ---
 "dojofoo": minor
 "@dojofoo/harness": minor
-"@dojofoo/authoring": patch
+"@dojofoo/agents": patch
 "@dojofoo/ui": patch
 "@dojofoo/evals": patch
 ---

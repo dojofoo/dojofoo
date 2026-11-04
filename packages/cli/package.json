@@ -50,7 +50,7 @@
     "prepack": "node scripts/prepare-package.mjs"
   },
   "dependencies": {
-    "@dojofoo/authoring": "workspace:*",
+    "@dojofoo/agents": "workspace:*",
     "@dojofoo/config": "workspace:*",
     "giget": "^3.3.1",
     "jiti": "^2.7.0",

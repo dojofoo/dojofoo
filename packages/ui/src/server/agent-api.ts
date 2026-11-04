@@ -385,7 +385,7 @@ export function createLocalAgentRuntime(options: {
     async models(workspaceId, agentId) {
       root(workspaceId);
       if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
-      const { harnessModels } = createRequire(import.meta.url)("@dojofoo/authoring/eve/models") as typeof import("@dojofoo/authoring/eve/models");
+      const { harnessModels } = createRequire(import.meta.url)("@dojofoo/agents/eve/models") as typeof import("@dojofoo/agents/eve/models");
       try { return await harnessModels(agentId, AbortSignal.timeout(20_000)); }
       catch (error) { throw new AgentApiError(502, "models_unavailable", error instanceof Error ? error.message : String(error)); }
     },
@@ -458,10 +458,10 @@ export const localAgentRuntime = createLocalAgentRuntime({
     // Native Node loading keeps Eve's runtime and workers outside Vite's UI module graph.
     const load = createRequire(import.meta.url);
     if (target.persona === "kyoshi") {
-      const { acquireKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
+      const { acquireKyoshiRuntime } = load("@dojofoo/agents/eve/runtime") as typeof import("@dojofoo/agents/eve/runtime");
       return acquireKyoshiRuntime(root, target);
     }
-    const { acquireSenseiRuntime } = load("@dojofoo/authoring/sensei/runtime") as typeof import("@dojofoo/authoring/sensei/runtime");
+    const { acquireSenseiRuntime } = load("@dojofoo/agents/sensei/runtime") as typeof import("@dojofoo/agents/sensei/runtime");
     return acquireSenseiRuntime(root, target);
   },
 });

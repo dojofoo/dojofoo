@@ -57,7 +57,7 @@ the pedagogical quality of generated material or other harnesses.
 The shared native lifecycle check is opt-in as well:
 
 ```sh
-DOJO_HARNESS_LIFECYCLE=1 pnpm --filter @dojofoo/authoring exec vitest run src/eve/harness-lifecycle.test.ts
+DOJO_HARNESS_LIFECYCLE=1 pnpm --filter @dojofoo/agents exec vitest run src/eve/harness-lifecycle.test.ts
 ```
 
 It sends no prompts, but may bootstrap native binaries and read existing login
@@ -484,7 +484,7 @@ The opt-in authoring startup check runs all six configured native adapters witho
 inference:
 
 ```sh
-DOJO_HARNESS_LIFECYCLE=1 pnpm --filter @dojofoo/authoring exec vitest run src/eve/harness-lifecycle.test.ts
+DOJO_HARNESS_LIFECYCLE=1 pnpm --filter @dojofoo/agents exec vitest run src/eve/harness-lifecycle.test.ts
 ```
 
 Codex, OpenCode and Pi restore an unprompted checkpoint. Cursor, Grok and FX
@@ -503,7 +503,7 @@ switch, a host-tool turn, cancelling an active turn and a pending host tool,
 compaction and a turn with seeded user config. Its host-level case runs Kyoshi's
 prepared host in a child process, parks a question, restarts and answers it.
 Every case ends with no native process left. Run it with
-`pnpm --filter @dojofoo/authoring conformance`.
+`pnpm --filter @dojofoo/agents conformance`.
 
 `runtime-turn.test.ts -t 'grok model|fx model'` additionally verifies authored
 instructions, native MCP tool discovery, an Eve question, full managed-server

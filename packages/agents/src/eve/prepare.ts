@@ -10,7 +10,7 @@ const manifest = (persona: PreparedPersona) => ({
   name: `dojo-${persona}-runtime`,
   private: true,
   type: "module",
-  dependencies: { "@dojofoo/harness": "*", "@dojofoo/authoring": "*" },
+  dependencies: { "@dojofoo/harness": "*", "@dojofoo/agents": "*" },
 });
 
 /** Link immutable packaged output; each workspace retains its own runtime and durable state. */
@@ -61,7 +61,7 @@ export async function preparePersonaApp(courseRoot: string, persona: PreparedPer
       await writeFile(packagePath, `${JSON.stringify({ ...current, dependencies }, null, 2)}\n`);
     }
   }
-  for (const name of ["@dojofoo/harness", "@dojofoo/authoring"]) {
+  for (const name of ["@dojofoo/harness", "@dojofoo/agents"]) {
     const target = dirname(require.resolve(`${name}/package.json`));
     const link = join(app, "node_modules", name);
     await mkdir(dirname(link), { recursive: true });

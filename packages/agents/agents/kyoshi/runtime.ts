@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { KyoshiRuntime } from "@dojofoo/authoring/eve/agent";
+import type { KyoshiRuntime } from "@dojofoo/agents/eve/agent";
 
 /** The host writes its private binding before starting this prepared application. */
 export async function runtime(): Promise<KyoshiRuntime & { auth: { username: string; password: string } }> {

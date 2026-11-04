@@ -64,7 +64,7 @@ it("answers not-configured without a host port", async () => {
 it("loads the evaluation tool in Eve's native Node runtime without a TS resolver", async () => {
   const { stdout } = await promisify(execFile)(process.execPath, [
     "--input-type=module", "--eval",
-    'const tool = await import("@dojofoo/authoring/eve/evaluate"); process.stdout.write(typeof tool.createKyoshiEvaluationTool);',
+    'const tool = await import("@dojofoo/agents/eve/evaluate"); process.stdout.write(typeof tool.createKyoshiEvaluationTool);',
   ], { env: { ...process.env, NODE_OPTIONS: "" }, timeout: 10_000 });
   expect(stdout).toBe("function");
 });

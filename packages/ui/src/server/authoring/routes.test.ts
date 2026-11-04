@@ -224,7 +224,7 @@ describe("authoring routes", () => {
     writeFileSync(resolve(context.root, "dojo.yaml"), "katas:\n  - name: first\n    template: src/first/solution.ts\n");
     mkdirSync(resolve(context.root, "src/first"), { recursive: true });
     writeFileSync(resolve(context.root, "src/first/SENSEI.md"), "# First\n");
-    const { materialHash, readLessonMaterial } = await import("@dojofoo/authoring/evaluation/material");
+    const { materialHash, readLessonMaterial } = await import("@dojofoo/agents/evaluation/material");
     const directory = resolve(context.root, ".dojo/evaluations/run-passed");
     mkdirSync(directory, { recursive: true });
     const panel = ["a", "b"].map(judge => ({ judge, verdict: { overall: "pass", criteria: [{ id: "engagement", pass: true }] } }));
@@ -314,7 +314,7 @@ describe("authoring routes", () => {
 
   it("a refused evaluation answers 409 with its code", async () => {
     authorLesson();
-    const { EvaluationRefused, MaterialFailure } = await import("@dojofoo/authoring/evaluation/failure");
+    const { EvaluationRefused, MaterialFailure } = await import("@dojofoo/agents/evaluation/failure");
     const post = () => authoringRoutes.request("/evals", { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ lessonIds: ["001-draw-a-boundary"], callId: "refused" }) });
     evaluate.mockRejectedValueOnce(new EvaluationRefused("evaluation_running", "An evaluation of this draft is already running."));

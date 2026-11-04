@@ -105,7 +105,7 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
   async function create(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest): Promise<SessionRecord> {
     if (request.course === undefined) return createKyoshi(path, workspaceId, endpoint, agent);
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
-    const configured = agent === "codex" ? await (createRequire(import.meta.url)("@dojofoo/authoring/eve/models") as typeof import("@dojofoo/authoring/eve/models"))
+    const configured = agent === "codex" ? await (createRequire(import.meta.url)("@dojofoo/agents/eve/models") as typeof import("@dojofoo/agents/eve/models"))
       .configuredHarnessModel("codex").catch(() => undefined) : undefined;
     const model = readAgentModel(path, agent) ?? configured;
     const now = new Date().toISOString();

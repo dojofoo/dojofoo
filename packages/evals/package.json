@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@dojofoo/harness": "workspace:*",
-    "@dojofoo/authoring": "workspace:*",
+    "@dojofoo/agents": "workspace:*",
     "@dojofoo/config": "workspace:*",
     "@dojofoo/protocol": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.2",

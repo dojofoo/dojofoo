@@ -1,4 +1,4 @@
-import type { AuthoringDraft } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/agents/service";
 import { describe, expect, it } from "vitest";
 import {
   authoringFiles,

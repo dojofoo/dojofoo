@@ -2,10 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { defineEval, type EveEvalContext } from "@dojofoo/harness/evals";
 import { satisfies } from "@dojofoo/harness/evals/expect";
-import { decidePanel } from "@dojofoo/authoring/evaluation/panel";
+import { decidePanel } from "@dojofoo/agents/evaluation/panel";
 import { judgeMaterial } from "./local-judges";
 import { readMaterial } from "./material";
-import { brief } from "@dojofoo/authoring/evaluation/prompts/suites";
+import { brief } from "@dojofoo/agents/evaluation/prompts/suites";
 
 export const authorBrief = brief("reverse-string");
 
@@ -17,7 +17,7 @@ export default defineEval({
     if (process.env.DOJOFOO_EVAL_LOCAL_JUDGES !== "1") return t.skip("Local judge usage requires --local-judges --live");
     const root = process.env.DOJOFOO_EVAL_WORKSPACE;
     if (!root) throw new Error("Isolated workspace is required");
-    const instructions = await readFile(new URL(import.meta.resolve("@dojofoo/authoring/KYOSHI.md")), "utf8");
+    const instructions = await readFile(new URL(import.meta.resolve("@dojofoo/agents/KYOSHI.md")), "utf8");
     await writeFile(join(root, ".dojo", "evaluated-KYOSHI.md"), instructions);
     const authored = await t.send(authorBrief);
     t.succeeded();

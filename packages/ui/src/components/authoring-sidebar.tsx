@@ -1,4 +1,4 @@
-import type { AuthoringDraft } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/agents/service";
 import { Filter as ListFilter, Dots as MoreHorizontal, Plus } from "@mynaui/icons-react";
 import {
   ContextMenu,

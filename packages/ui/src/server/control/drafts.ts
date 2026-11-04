@@ -1,4 +1,4 @@
-import { scaffoldAuthoringWorkspace } from "@dojofoo/authoring/scaffold";
+import { scaffoldAuthoringWorkspace } from "@dojofoo/agents/scaffold";
 import { writeDojoRc } from "@dojofoo/config";
 import { observeWorkspacePath, type LocalStateOptions, type LocalWorkspace, type WorkspaceKind } from "@dojofoo/config/local-state";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
@@ -55,6 +55,6 @@ export function createDraft(name: string, options: LocalStateOptions) {
 
 export async function closeDraftRuntime(root: string): Promise<void> {
   const load = createRequire(import.meta.url);
-  const { closeKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
+  const { closeKyoshiRuntime } = load("@dojofoo/agents/eve/runtime") as typeof import("@dojofoo/agents/eve/runtime");
   await closeKyoshiRuntime(root);
 }

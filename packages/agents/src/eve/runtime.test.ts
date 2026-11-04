@@ -75,11 +75,11 @@ it("boots shipped Kyoshi in a plain Node process without monorepo module paths",
 it("keeps native ownership when the UI module graph is invalidated", async () => {
   const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-reload-"));
   const load = createRequire(import.meta.url);
-  const before = load("@dojofoo/authoring/eve/runtime") as typeof import("./runtime");
+  const before = load("@dojofoo/agents/eve/runtime") as typeof import("./runtime");
   const runtime = await before.acquireKyoshiRuntime(root);
   try {
     vi.resetModules();
-    const after = load("@dojofoo/authoring/eve/runtime") as typeof import("./runtime");
+    const after = load("@dojofoo/agents/eve/runtime") as typeof import("./runtime");
     expect(await after.acquireKyoshiRuntime(root)).toBe(runtime);
   } finally {
     await runtime.close();

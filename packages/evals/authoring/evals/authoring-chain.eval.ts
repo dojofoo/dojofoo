@@ -2,10 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { defineEval, type EveEvalContext } from "@dojofoo/harness/evals";
 import { satisfies } from "@dojofoo/harness/evals/expect";
-import { decidePanel } from "@dojofoo/authoring/evaluation/panel";
-import instructions from "@dojofoo/authoring/eve/instructions";
+import { decidePanel } from "@dojofoo/agents/evaluation/panel";
+import instructions from "@dojofoo/agents/eve/instructions";
 import { judgeMaterial, requireJudgeResults } from "./local-judges";
-import { brief, chainJudgePrompt, chainRubricVersion } from "@dojofoo/authoring/evaluation/prompts/suites";
+import { brief, chainJudgePrompt, chainRubricVersion } from "@dojofoo/agents/evaluation/prompts/suites";
 import { readMaterial } from "./material";
 import { verifyCourse } from "./verify-course";
 
@@ -27,7 +27,7 @@ export default defineEval({
       rubric: chainRubricVersion,
       revisionPasses: process.env.DOJOFOO_EVAL_REVISE === "1" ? 1 : 0,
     }) };
-    await writeFile(join(root, ".dojo/evaluated-KYOSHI.md"), await readFile(new URL(import.meta.resolve("@dojofoo/authoring/KYOSHI.md")), "utf8"));
+    await writeFile(join(root, ".dojo/evaluated-KYOSHI.md"), await readFile(new URL(import.meta.resolve("@dojofoo/agents/KYOSHI.md")), "utf8"));
     if (typeof instructions.content !== "string") throw new Error("Capture resolved authoring instructions before evaluating dynamic guidance");
     await writeFile(join(root, ".dojo/evaluated-instructions.md"), instructions.content);
     let turnNumber = 0;

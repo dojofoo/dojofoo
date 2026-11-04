@@ -1,11 +1,11 @@
-import { scaffoldAuthoringWorkspace, type AuthoringStyle } from "@dojofoo/authoring/scaffold";
+import { scaffoldAuthoringWorkspace, type AuthoringStyle } from "@dojofoo/agents/scaffold";
 import { basename, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { ui } from "./ui";
 import { execFileSync } from "node:child_process";
-import { createAuthoringLesson, readAuthoringDraft } from "@dojofoo/authoring/service";
-import { readEvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
+import { createAuthoringLesson, readAuthoringDraft } from "@dojofoo/agents/service";
+import { readEvaluationSettings } from "@dojofoo/agents/evaluation/settings";
 import { bootstrapMise } from "../mise-bootstrap";
 
 export type TeachingStyle = AuthoringStyle;

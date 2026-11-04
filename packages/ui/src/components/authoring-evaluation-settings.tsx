@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { EvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
+import type { EvaluationSettings } from "@dojofoo/agents/evaluation/settings";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "@dojofoo/uix/components/button";
 import { Switch } from "@dojofoo/uix/components/switch";

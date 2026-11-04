@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { SenseiRuntime, UsageCeiling } from "@dojofoo/authoring/sensei/agent";
+import type { SenseiRuntime, UsageCeiling } from "@dojofoo/agents/sensei/agent";
 
 /** The host writes its private binding before starting this prepared application. */
 export async function runtime(): Promise<SenseiRuntime & { auth: { username: string; password: string } }> {

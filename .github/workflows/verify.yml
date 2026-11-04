@@ -42,9 +42,9 @@ jobs:
       - run: pnpm lint:deps
       - run: pnpm --filter @dojofoo/ui types:check
       - run: pnpm --filter @dojofoo/ui test --exclude '**/*.live.test.ts'
-      - run: pnpm --filter @dojofoo/authoring test --exclude '**/*.live.test.ts'
+      - run: pnpm --filter @dojofoo/agents test --exclude '**/*.live.test.ts'
       # Both prepared personas: cold open and resume, a relocated copy, no compiler, Sensei's tools and hook
-      - run: pnpm --filter @dojofoo/authoring test:prepared
+      - run: pnpm --filter @dojofoo/agents test:prepared
       # The session API's tests, and a clean consumer installed from registry.npmjs.org; no coding-agent CLI or login is needed
       - run: pnpm --filter @dojofoo/harness test
       - run: pnpm --filter dojofoo test
@@ -113,13 +113,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter "@dojofoo/authoring..." build
+      - run: pnpm --filter "@dojofoo/agents..." build
       # Tier A against the loopback model (docs/designs/agent-runtime.md, "Conformance tiers"). Each adapter installs
       # its own pinned CLI into DOJO_CONFORMANCE_HOME; FX and Pi run in-process. No login and no secret.
-      - run: pnpm --filter @dojofoo/authoring conformance:install
-      - run: pnpm --filter @dojofoo/authoring conformance:run
+      - run: pnpm --filter @dojofoo/agents conformance:install
+      - run: pnpm --filter @dojofoo/agents conformance:run
       # Fails only for agents whose committed record passes, and when the record is not append-only.
-      - run: pnpm --filter @dojofoo/authoring conformance:compare
+      - run: pnpm --filter @dojofoo/agents conformance:compare
       - name: Keep the conformance report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

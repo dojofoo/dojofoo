@@ -37,7 +37,7 @@ try {
   try { installedRequire.resolve("@dojofoo/protocol"); }
   catch { throw new Error("Packed CLI is missing @dojofoo/protocol."); }
   for (const persona of ["kyoshi", "sensei"]) {
-    const label = JSON.parse(readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/authoring/package.json")), `dist/prepared/${persona}/build.json`), "utf8"));
+    const label = JSON.parse(readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/agents/package.json")), `dist/prepared/${persona}/build.json`), "utf8"));
     if (label.dojofoo !== `dojofoo@${expectedPackage.version}` || label.source !== `dojofoo/${persona}@${expectedPackage.version}` || !label.sourceHash) {
       throw new Error(`The installed ${persona === "kyoshi" ? "Kyoshi" : "Sensei"} build is missing its release and source labels.`);
     }
@@ -55,7 +55,7 @@ try {
     throw new Error("The packed OpenCode adapter lost its native server shutdown patch.");
   }
   const { scaffoldAuthoringWorkspace } = await import(
-    pathToFileURL(installedRequire.resolve("@dojofoo/authoring/scaffold")).href
+    pathToFileURL(installedRequire.resolve("@dojofoo/agents/scaffold")).href
   );
   const authorRoot = resolve(scratch, "author");
   scaffoldAuthoringWorkspace({ root: authorRoot, name: "Packed course", style: "katas" });
@@ -67,7 +67,7 @@ try {
   // Boot the shipped master from an npm installation, not workspace links.
   // Readiness uses the release-built agent without compiling or sending a prompt.
   const { createKyoshiRuntime } = await import(
-    pathToFileURL(installedRequire.resolve("@dojofoo/authoring/eve/runtime")).href
+    pathToFileURL(installedRequire.resolve("@dojofoo/agents/eve/runtime")).href
   );
   mkdirSync(resolve(authorRoot, ".dojo"), { recursive: true });
   writeFileSync(resolve(authorRoot, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode" }));

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import type { EvaluationReport } from "@dojofoo/authoring/evaluation/run";
+import type { EvaluationReport } from "@dojofoo/agents/evaluation/run";
 import { withAllowance } from "./allowance";
 
 const roots: string[] = [];

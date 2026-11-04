@@ -1,5 +1,5 @@
 import { defineWorkflowTool } from "@dojofoo/harness/tools";
-import { senseiHostPort } from "@dojofoo/authoring/sensei/agent";
+import { senseiHostPort } from "@dojofoo/agents/sensei/agent";
 import { lessonCapabilities, type LessonNavigation, type SenseiSessionInfo } from "@dojofoo/protocol";
 import { z } from "zod";
 import { runtime } from "../runtime.ts";

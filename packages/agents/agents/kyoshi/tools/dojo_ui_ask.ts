@@ -1,1 +1,1 @@
-export { default } from "@dojofoo/authoring/eve/ask";
+export { default } from "@dojofoo/agents/eve/ask";

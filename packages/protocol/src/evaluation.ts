@@ -5,5 +5,5 @@ export type EvaluationFailureCode =
 /** host-port `evaluation.status` */
 export type EvaluationTrialStatus =
   | { status: "running" }
-  | { status: "finished"; result: unknown /* EvaluationReceipt, owned by @dojofoo/authoring */ }
+  | { status: "finished"; result: unknown /* EvaluationReceipt, owned by @dojofoo/agents */ }
   | { status: "failed"; error: string; code?: EvaluationFailureCode };

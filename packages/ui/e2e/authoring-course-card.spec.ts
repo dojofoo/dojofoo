@@ -1,5 +1,5 @@
 import type { WebSocketRoute } from "@playwright/test";
-import type { AuthoringDraft } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/agents/service";
 import { expect, test } from "./agent-chat.fixture";
 
 test("authoring keeps the live card, saves its color, groups chapters, and opens the evals window", async ({ page, mountAgentChat }) => {

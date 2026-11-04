@@ -1,7 +1,7 @@
 import { defineDynamic } from "@dojofoo/harness";
 import { defineInstructions } from "@dojofoo/harness/instructions";
-import { senseiHostPort } from "@dojofoo/authoring/sensei/agent";
-import { senseiCourseInstructions } from "@dojofoo/authoring/sensei/instructions";
+import { senseiHostPort } from "@dojofoo/agents/sensei/agent";
+import { senseiCourseInstructions } from "@dojofoo/agents/sensei/instructions";
 import type { SenseiContext, SenseiSessionInfo } from "@dojofoo/protocol";
 import { contract } from "../contracts.ts";
 import { runtime } from "../runtime.ts";

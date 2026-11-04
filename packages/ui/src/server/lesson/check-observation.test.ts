@@ -4,7 +4,7 @@ import { senseiTurn } from "./instructions";
 
 const report = (complete: boolean) => ({ complete }) as CheckObservation["report"];
 
-// Wording lives in @dojofoo/authoring's sensei/contracts/TURNS.md and is judged by live evals.
+// Wording lives in @dojofoo/agents's sensei/contracts/TURNS.md and is judged by live evals.
 // These tests pin the routing between turn prompts, not their sentences.
 describe("check observation turn routing", () => {
   it("selects one TURNS.md prompt per check situation", () => {

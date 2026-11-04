@@ -1,6 +1,6 @@
 import { httpBasic } from "@dojofoo/harness/channels/auth";
 import { defaultEveAuth, eveChannel } from "@dojofoo/harness/channels/eve";
-import { senseiHostPort } from "@dojofoo/authoring/sensei/agent";
+import { senseiHostPort } from "@dojofoo/agents/sensei/agent";
 import { formatKataContext, type SenseiContext } from "@dojofoo/protocol";
 import { runtime } from "../runtime.ts";
 

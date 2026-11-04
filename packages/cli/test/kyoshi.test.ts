@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { afterEach, describe, expect, it } from "vitest";
-import { scaffoldAuthoringWorkspace } from "@dojofoo/authoring/scaffold";
+import { scaffoldAuthoringWorkspace } from "@dojofoo/agents/scaffold";
 
 describe("kyoshi scaffold", () => {
   const roots: string[] = [];

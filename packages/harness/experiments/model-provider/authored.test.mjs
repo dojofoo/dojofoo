@@ -14,15 +14,15 @@ test("Kyoshi instructions and question tool compile with an independently suppli
   try {
     await writeFile(join(root, "package.json"), JSON.stringify({ name: "kyoshi-fixture", private: true, type: "module" }));
     await copyFile(new URL("authored-agent.fixture.ts", import.meta.url), join(root, "agent.ts"));
-    await writeFile(join(root, "instructions.ts"), 'export { default } from "@dojofoo/authoring/eve/instructions";\n');
+    await writeFile(join(root, "instructions.ts"), 'export { default } from "@dojofoo/agents/eve/instructions";\n');
     await mkdir(join(root, "tools"));
-    await writeFile(join(root, "tools/dojo_ui_ask.ts"), 'export { default } from "@dojofoo/authoring/eve/ask";\n');
+    await writeFile(join(root, "tools/dojo_ui_ask.ts"), 'export { default } from "@dojofoo/agents/eve/ask";\n');
     const compiled = await compileAgent({ startPath: root });
     assert.equal(compiled.metadata.status, "ready");
     assert.deepEqual(compiled.diagnostics.filter(item => item.severity === "error"), []);
     const instructions = compiled.manifest.instructions;
-    const policy = await readFile(new URL(import.meta.resolve("@dojofoo/authoring/KYOSHI.md")), "utf8");
-    const native = await readFile(new URL("./src/contracts/NATIVE-HARNESS.md", import.meta.resolve("@dojofoo/authoring/package.json")), "utf8");
+    const policy = await readFile(new URL(import.meta.resolve("@dojofoo/agents/KYOSHI.md")), "utf8");
+    const native = await readFile(new URL("./src/contracts/NATIVE-HARNESS.md", import.meta.resolve("@dojofoo/agents/package.json")), "utf8");
     assert.ok(instructions.some(item => item.role === "system" && item.content.includes(policy.trim())));
     assert.ok(instructions.some(item => item.content.includes(native.trim())));
     assert.ok(compiled.manifest.tools.some(item => item.name === "dojo_ui_ask"), JSON.stringify(compiled.manifest.tools));

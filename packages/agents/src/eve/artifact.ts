@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { globby } from "globby";
 
 const require = createRequire(import.meta.url);
-export const authoringPackageRoot = dirname(require.resolve("@dojofoo/authoring/package.json"));
+export const authoringPackageRoot = dirname(require.resolve("@dojofoo/agents/package.json"));
 
 /** Hash definitions and their installed implementation, never private runtime bindings. */
 export async function agentSourceHash(agentRoot: string): Promise<string> {

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import type { OneShotRequest } from "@dojofoo/harness/adapters";
-import { criterionIds } from "@dojofoo/authoring/evaluation/judges";
+import { criterionIds } from "@dojofoo/agents/evaluation/judges";
 import { oneShotRoles } from "./roles";
 
 const roots: string[] = [];

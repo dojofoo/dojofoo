@@ -9,12 +9,12 @@ import { withPathLock, writeFileAtomic } from "@dojofoo/harness/persona";
 import { dojoDir, readDojoMd } from "@dojofoo/config";
 import { listWorkspaces } from "@dojofoo/config/local-state";
 import { readAgentModel, resolveAgent } from "@dojofoo/config/runtime";
-import type { LearnerDialogue, LearnerQuestion } from "@dojofoo/authoring/evaluation/learner";
-import type { LearnerFixture } from "@dojofoo/authoring/evaluation/learner-fixtures";
-import { readLessonMaterial, readMaterial } from "@dojofoo/authoring/evaluation/material";
-import { scriptedLearner } from "@dojofoo/authoring/evaluation/prompts";
-import { createLessonTrial } from "@dojofoo/authoring/service";
-import { senseiSessionInstructions } from "@dojofoo/authoring/sensei/instructions";
+import type { LearnerDialogue, LearnerQuestion } from "@dojofoo/agents/evaluation/learner";
+import type { LearnerFixture } from "@dojofoo/agents/evaluation/learner-fixtures";
+import { readLessonMaterial, readMaterial } from "@dojofoo/agents/evaluation/material";
+import { scriptedLearner } from "@dojofoo/agents/evaluation/prompts";
+import { createLessonTrial } from "@dojofoo/agents/service";
+import { senseiSessionInstructions } from "@dojofoo/agents/sensei/instructions";
 import type { AgentId } from "@dojofoo/protocol";
 import { takeNotices } from "../agent-session/guard-store";
 import { launchToken } from "../launch-token";
@@ -25,7 +25,7 @@ import { maxTeachingQuestionReplies, turnIntervalMs, turnTimeLimitMs } from "./l
 import type { TrialRoles } from "./roles";
 
 // TeachingFailure as evaluateAuthoredCourse sees it: evaluations.ts loads run.ts outside Vite's module graph, so this does too
-const failures = () => createRequire(import.meta.url)("@dojofoo/authoring/evaluation/failure") as typeof import("@dojofoo/authoring/evaluation/failure");
+const failures = () => createRequire(import.meta.url)("@dojofoo/agents/evaluation/failure") as typeof import("@dojofoo/agents/evaluation/failure");
 
 const completionTitles = ["review", "move on", "pause"];
 
