@@ -1,6 +1,7 @@
 import type { HarnessV1NetworkSandboxSession } from "@ai-sdk/harness";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { lstat, mkdir, readdir, readFile, realpath, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { Readable, Writable } from "node:stream";
@@ -12,6 +13,9 @@ type Files = ReturnType<Session["restricted"]>;
 type ProcessHandle = Awaited<ReturnType<Files["spawn"]>>;
 type WritableProcessHandle = ProcessHandle & { stdin: WritableStream<Uint8Array> };
 type SpawnOptions = Parameters<Files["spawn"]>[0];
+
+// Harness adapters write their commands for bash (Pi strips realpath's newline with $'\n'); Debian's /bin/sh is dash
+const commandShell = existsSync("/bin/bash") ? "/bin/bash" : "/bin/sh";
 
 // Each command leads its own process group, which outlives this process unless
 // it kills them on the way out. Eve's server exits on SIGTERM; detached
@@ -66,7 +70,7 @@ export async function createLocalSandbox(
     assertRunning();
     options.abortSignal?.throwIfAborted();
     const cwd = options.workingDirectory ? path(options.workingDirectory) : root;
-    const child = spawn("/bin/sh", ["-c", options.command], {
+    const child = spawn(commandShell, ["-c", options.command], {
       cwd,
       // Harness adapters install themselves with pnpm into one folder per machine.
       // pnpm asks before replacing modules another pnpm version built, and a
