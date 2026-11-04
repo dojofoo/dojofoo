@@ -20,6 +20,7 @@ import { AuthoringEvaluationSettings } from "@/components/authoring-evaluation-s
 import type { EvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
 import { TreeTitleMenu, authoringEvaluationStatus } from "@/components/authoring-sidebar";
 import { AgentChat } from "@/components/agent-chat";
+import { ConversationHistory, type HistoryPick } from "@/components/conversation-history";
 import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
 import { CourseContent } from "@/components/course-content";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -60,12 +61,24 @@ function AuthoringPage() {
   const search = Route.useSearch();
   const { draftId } = Route.useParams();
   const [workspace, setWorkspace] = useState<AuthoringDraft | null>(null);
-  // A switch remounts the conversation, which finds none on the new agent and starts one there
+  // The conversation the chat asks for: the URL's (a link or a live history pick), or an ended one read-only, which the URL never names (D32)
+  const [chatView, setChatView] = useState<{ session?: string; readOnly: boolean }>({ ...(search.session ? { session: search.session } : {}), readOnly: false });
+  useEffect(() => { setChatView(current => current.readOnly ? current : { ...(search.session ? { session: search.session } : {}), readOnly: false }); }, [search.session]);
+  const [opened, setOpened] = useState<HistoryPick>();
+  const show = (next: { session?: string; readOnly: boolean }, replace = false) => {
+    setChatView(next);
+    void navigate({ to: "/authoring/$draftId", params: { draftId }, search: previous => ({ ...previous, session: next.readOnly ? undefined : next.session }), replace });
+  };
+  // A switch remounts the conversation, which finds none on the new agent and starts one there; a pick's switch opens the pick in the same update
   const [agentEpoch, setAgentEpoch] = useState(0);
-  const workspaceAgent = useWorkspaceAgent({ workspaceId: draftId, persona: "kyoshi", onSwitched: () => {
+  const workspaceAgent = useWorkspaceAgent({ workspaceId: draftId, persona: "kyoshi", onSwitched: (_agentId, pick) => {
     setAgentEpoch(epoch => epoch + 1);
-    void navigate({ to: "/authoring/$draftId", params: { draftId }, search: previous => ({ ...previous, session: undefined }), replace: true });
+    show(pick ? { session: pick.id, readOnly: pick.readOnly } : { readOnly: false }, !pick);
   } });
+  const pickConversation = (pick: HistoryPick) => {
+    if (pick.agent !== workspaceAgent.selected) workspaceAgent.request(pick.agent, { id: pick.id, readOnly: pick.readOnly });
+    else show({ session: pick.id, readOnly: pick.readOnly });
+  };
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [onlyCourseFiles, setOnlyCourseFiles] = useState(true);
   const [scope, setScope] = useState<"course" | "lesson">("course");
@@ -354,18 +367,21 @@ function AuthoringPage() {
 
   const brand = <Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>;
   const shell = { ...account, brand, workspace: "Dojo", sidebarWidth: "18rem", showNews: false, showOnboarding: false };
-  const conversation = <><AgentChat key={`${draftId}:${agentEpoch}`} embedded workspaceId={draftId} persona="kyoshi" sessionId={search.session}
+  const conversation = <><AgentChat key={`${draftId}:${agentEpoch}`} embedded workspaceId={draftId} persona="kyoshi" sessionId={chatView.session} readOnly={chatView.readOnly}
+    onOpened={setOpened} onContinued={() => setChatView({ readOnly: false })}
+    onSwitchRequest={agentId => { if (opened) workspaceAgent.request(agentId, { id: opened.id, readOnly: false }); }}
     agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching}
     clientContext={{ view: { scope, ...(scope === "lesson" && selectedLessonId ? { lessonId: selectedLessonId } : {}),
       ...(activeFilePath ? { file: activeFilePath, unsavedChanges: dirty } : {}),
-    } }} onSessionDropped={() => { void navigate({ to: "/authoring/$draftId", params: { draftId }, search: previous => ({ ...previous, session: undefined }), replace: true }); }} />{workspaceAgent.notice}{workspaceAgent.dialog}</>;
+    } }} onSessionDropped={() => show({ readOnly: false }, true)} />{workspaceAgent.notice}{workspaceAgent.dialog}</>;
+  const history = <ConversationHistory workspaceId={draftId} persona="kyoshi" current={opened?.id} agents={workspaceAgent.list} onPick={pickConversation} />;
   if (!workspace) return <div className="h-dvh overflow-hidden"><AgentChatWorkspace {...shell} navigation={[
     { id: "files", heading: "Course", items: [], before: !error && <WorkspaceSkeleton label="Loading course files" rows={4} /> },
   ]} crumbs={[dashboardCrumb, { label: "Authoring" }]} askAssistant={false}
     editor={<Editor flush>{error ? <div role="alert" className="p-5 text-sm"><p>{error}</p>
       <UIXButton className="mt-4" disabled={Boolean(busy)} onClick={() => void bootstrap()}>Reload workspace</UIXButton></div>
       : <WorkspaceSkeleton />}</Editor>}
-    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Kyoshi</b></span>}
+    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Kyoshi</b>{history}</span>}
     conversation={conversation} />
     {toast}</div>;
 
@@ -488,7 +504,7 @@ function AuthoringPage() {
         </CourseContent>
 
       </LessonBrief>}
-      header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Kyoshi</b><span className="ui-as-chat__speaker-note">Master of Senseis and course shaper</span></span>}
+      header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Kyoshi</b>{history}<span className="ui-as-chat__speaker-note">Master of Senseis and course shaper</span></span>}
       conversation={conversation}>
     </AgentChatWorkspace>
     {toast}

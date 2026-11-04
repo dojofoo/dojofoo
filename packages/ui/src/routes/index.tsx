@@ -44,6 +44,7 @@ import {
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
+import { ConversationHistory, type HistoryPick } from "@/components/conversation-history";
 import { codingAgents } from "@/lib/coding-agents";
 import { courseArt } from "@/lib/course-color";
 import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
@@ -246,10 +247,17 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
   const [agentEpoch, setAgentEpoch] = useState(0);
   const chat = useRef<{ send(text: string): void } | null>(null);
   const lessonUrl = useRef("");
-  const workspaceAgent = useWorkspaceAgent({ workspaceId, persona: "sensei", onSwitched: agentId => {
+  const [opened, setOpened] = useState<HistoryPick>();
+  /** A history pick: its address names it, and the chat asks for it at once (with a switch, in the same update: decision 17) */
+  const openPick = (id: string) => {
+    setSession(id);
+    void navigate({ to: "/learn/$runId", params: { runId }, search: { ...(selectedLessonId ? { lesson: selectedLessonId } : {}), session: id } });
+  };
+  const workspaceAgent = useWorkspaceAgent({ workspaceId, persona: "sensei", onSwitched: (agentId, pick) => {
     setCheckCards([]);
     setModelNotice(`Sensei now uses ${codingAgents.find(agent => agent.value === agentId)?.name ?? agentId} in this workspace.`);
     setAgentEpoch(epoch => epoch + 1);
+    if (pick) openPick(pick.id);
     // The lesson's agent is read again; its files and unsaved edits stay as they are
     if (lessonUrl.current) void fetch(`${lessonUrl.current}?prepare=false`).then(response => response.ok ? response.json() as Promise<LessonSnapshot> : undefined)
       .then(next => { if (next) setLesson(current => current ? { ...current, harness: next.harness } : current); }, () => {});
@@ -641,11 +649,15 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       <LessonMaterial lesson={lesson} workspaceId={workspaceId} />
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
     </div>}
-    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
+    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b>
+      <ConversationHistory workspaceId={workspaceId} persona="sensei" page={{ course: lesson.dojo, lesson: lesson.kata }} current={opened?.id} agents={workspaceAgent.list}
+        onPick={pick => { if (pick.agent !== workspaceAgent.selected) workspaceAgent.request(pick.agent, { id: pick.id, readOnly: false }); else openPick(pick.id); }} />
+      <span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     conversation={<div data-testid="chat-pane" className="contents" data-host-event-count={hostEvents.length}>
       <AgentChat key={`${workspaceId}:${lesson.dojo}:${lesson.kata}:${agentEpoch}`} embedded workspaceId={workspaceId} persona="sensei"
         page={{ course: lesson.dojo, lesson: lesson.kata }} sessionId={session}
-        onSessionDropped={() => { void navigate({ to: "/learn/$runId", params: { runId }, search: { lesson: lesson.kata }, replace: true }); }} hostEvents={hostEvents} fragments={lesson.fragments} onHighlight={highlightCode}
+        onSessionDropped={() => { void navigate({ to: "/learn/$runId", params: { runId }, search: { lesson: lesson.kata }, replace: true }); }} onOpened={setOpened}
+        onSwitchRequest={agentId => { if (opened) workspaceAgent.request(agentId, { id: opened.id, readOnly: false }); }} hostEvents={hostEvents} fragments={lesson.fragments} onHighlight={highlightCode}
         controls={chat} agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching} />
       {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}
       {workspaceAgent.notice}

@@ -55,6 +55,10 @@ test("CUJ 4: a stale link to another agent's conversation opens the selected age
   await expect(page.getByText("Echo: Started on OpenCode", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("alert").filter({ visible: true })).toHaveCount(0);
   await expect(page.getByText(/can't be continued/)).toHaveCount(0);
+  // The stale link's conversation is still there, live, on its own agent
+  await page.getByRole("button", { name: "Conversations", exact: true }).click();
+  const row = page.getByRole("list", { name: "Conversations", exact: true }).getByRole("listitem").filter({ hasText: "OpenCode" });
+  await expect(row).toContainText("live");
   expect(mounted.runtime.records.map(record => record.id)).toEqual([old.id, current.id]);
 });
 

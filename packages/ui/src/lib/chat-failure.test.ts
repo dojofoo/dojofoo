@@ -11,6 +11,13 @@ describe("chat failures (D33)", () => {
     expect(chatFailure(api(404, "session_not_found"))).toEqual({ kind: "default-open" });
   });
 
+  it("a picked conversation whose agent stopped being selected asks to switch back", () => {
+    expect(chatFailure(api(409, "agent_unavailable"), { picked: true })).toEqual({ kind: "confirm-switch" });
+    // Any other conversation opens the page's default, and a picked one that is gone does too
+    expect(chatFailure(api(409, "agent_unavailable"), { picked: false })).toEqual({ kind: "default-open" });
+    expect(chatFailure(api(404, "session_not_found"), { picked: true })).toEqual({ kind: "default-open" });
+  });
+
   it("a session that can't continue is replaced", () => {
     expect(chatFailure(notActive(false))).toEqual({ kind: "replace" });
     expect(chatFailure(api(409, "session_not_active"))).toEqual({ kind: "replace" });

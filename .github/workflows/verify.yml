@@ -66,7 +66,7 @@ jobs:
           (cd "$RUNNER_TEMP/dojofoo-ui" && HOST=127.0.0.1 node "$GITHUB_WORKSPACE/packages/cli/dist/index.js" ui --no-open --no-portless --port 4567 > "$RUNNER_TEMP/dojofoo-ui.log" 2>&1 &)
           for _ in $(seq 60); do curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" && break; sleep 1; done
           curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" || { cat "$RUNNER_TEMP/dojofoo-ui.log"; exit 1; }
-          pnpm --filter @dojofoo/ui exec playwright test agent-chat.spec.ts eve-authoring.spec.ts learner-pages.spec.ts workspace-loading.spec.ts agent-selector.spec.ts learner-agent-picker.spec.ts page-addressing.spec.ts
+          pnpm --filter @dojofoo/ui exec playwright test agent-chat.spec.ts eve-authoring.spec.ts learner-pages.spec.ts workspace-loading.spec.ts agent-selector.spec.ts learner-agent-picker.spec.ts page-addressing.spec.ts history-menu.spec.ts
       - name: Install native lesson harness
         run: npm install --global @opencode/cli@2.0.28
       - name: Verify kata lessons on Eve with local inference

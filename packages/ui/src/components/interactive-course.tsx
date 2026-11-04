@@ -16,6 +16,7 @@ import { courseArt } from "@/lib/course-color";
 import { BackIcon } from "@dojofoo/uix/icons";
 import { CourseContent } from "./course-content";
 import { AgentChat } from "./agent-chat";
+import { ConversationHistory, type HistoryPick } from "./conversation-history";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
 import { usePageSocket } from "@/hooks/use-page-socket";
@@ -98,12 +99,23 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
     finally { setStepBusy(false); }
   }
 
-  const workspaceAgent = useWorkspaceAgent({ workspaceId: workspace, persona: "sensei", onSwitched: () => { setAgentEpoch(epoch => epoch + 1); } });
+  // The conversation the chat asks for: the URL's (a link or a history pick), or one the server replaced it with
+  const [session, setSession] = useState(requestedSession);
+  useEffect(() => { setSession(requestedSession); }, [requestedSession]);
+  const [opened, setOpened] = useState<HistoryPick>();
+  /** A history pick: its address names it, and the chat asks for it at once (with a switch, in the same update: decision 17) */
+  const openPick = (id: string) => {
+    setSession(id);
+    void navigate({ to: "/learn/$runId", params: { runId }, search: { session: id } });
+  };
+  const workspaceAgent = useWorkspaceAgent({ workspaceId: workspace, persona: "sensei", onSwitched: (_agentId, pick) => {
+    setAgentEpoch(epoch => epoch + 1);
+    if (pick) openPick(pick.id);
+  } });
   // The course page's socket is its presence (D19); a conversation the server replaced opens in place of the requested one
-  const [replacement, setReplacement] = useState<string>();
   usePageSocket({ workspace, course: lesson?.dojo }, message => {
     const to = (message.params as { to?: unknown } | undefined)?.to;
-    if (message.method === "session.replaced" && typeof to === "string") setReplacement(to);
+    if (message.method === "session.replaced" && typeof to === "string") setSession(to);
   });
 
   const brand = <Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>;
@@ -152,9 +164,13 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
       </InteractiveLesson>
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
     </div>}
-    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
+    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b>
+      <ConversationHistory workspaceId={workspace} persona="sensei" page={{ course: lesson.dojo }} current={opened?.id} agents={workspaceAgent.list}
+        onPick={pick => { if (pick.agent !== workspaceAgent.selected) workspaceAgent.request(pick.agent, { id: pick.id, readOnly: false }); else openPick(pick.id); }} />
+      <span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     conversation={<><AgentChat key={`${workspace}:${lesson.dojo}:${agentEpoch}`} embedded workspaceId={workspace} persona="sensei" page={{ course: lesson.dojo }} controls={chat}
-      sessionId={replacement ?? requestedSession}
+      sessionId={session} onOpened={setOpened}
       onSessionDropped={() => { void navigate({ to: "/learn/$runId", params: { runId }, search: {}, replace: true }); }}
+      onSwitchRequest={agentId => { if (opened) workspaceAgent.request(agentId, { id: opened.id, readOnly: false }); }}
       agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching} />{workspaceAgent.notice}{workspaceAgent.dialog}</>} />{toast}</div>;
 }

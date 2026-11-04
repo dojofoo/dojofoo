@@ -1,8 +1,10 @@
 /** What a conversation does with a failure (D33): every error the chat can receive ends with an action. */
 export type ChatAction = "try-again" | "choose-agent" | "login" | "reload-page" | "dashboard";
 export type ChatFailure =
-  /** Open the page's default conversation again (Sensei: POST /sessions/default; Kyoshi: today's recovery) */
+  /** Open the page's default conversation again (POST /sessions/default) */
   | { kind: "default-open" }
+  /** A picked conversation's agent stopped being selected (another tab switched it): ask to switch back (D33) */
+  | { kind: "confirm-switch" }
   /** The conversation can't continue: Sensei replaces it (`new` + `from`); Kyoshi starts another */
   | { kind: "replace" }
   /** A cancel found nothing to stop, or an agent switch interrupted the turn: it shows as stopped, with no alert */
@@ -46,7 +48,9 @@ export function classifyTurnFailure(error: { code?: string; message?: string }):
 const retryTime = (message: string) => /(?:retry|try again)[^0-9]{0,20}(\d+\s*(?:ms|s|sec(?:ond)?s?|m|min(?:ute)?s?|h|hours?))/iu.exec(message)?.[1];
 
 /** Maps any error the chat receives to its action (step-4 plan, "Interactive courses on AgentChat", the outcome table). */
-export function chatFailure(error: unknown, context: { operation?: "load" | "send" | "cancel" | "answer"; file?: string; agentName?: string; crashes?: number } = {}): ChatFailure {
+export function chatFailure(error: unknown, context: { operation?: "load" | "send" | "cancel" | "answer"; file?: string; agentName?: string; crashes?: number;
+  /** The open conversation is one the page asked for and the server honoured (a history pick) */
+  picked?: boolean } = {}): ChatFailure {
   const status = typeof (error as { status?: unknown })?.status === "number" ? (error as { status: number }).status : undefined;
   const code = typeof (error as { code?: unknown })?.code === "string" ? (error as { code: string }).code : undefined;
   const message = error instanceof Error ? error.message : String(error);
@@ -58,6 +62,7 @@ export function chatFailure(error: unknown, context: { operation?: "load" | "sen
   }
   if (name === "LaunchTokenError" || (status === 403 && code === "launch_token_invalid")) return { kind: "alert", message: "This page is out of date.", actions: ["reload-page"] };
   if (status !== undefined) {
+    if (status === 409 && code === "agent_unavailable" && context.picked) return { kind: "confirm-switch" };
     if ((status === 409 && code === "agent_unavailable") || (status === 404 && code === "session_not_found")) return { kind: "default-open" };
     if (status === 409 && code === "session_not_active") return context.operation === "cancel" ? { kind: "stopped" } : { kind: "replace" };
     if ((status === 409 && (code === "session_stranded" || code === "session_version_unsupported")) || (status === 410 && code === "session_expired")) return { kind: "replace" };
