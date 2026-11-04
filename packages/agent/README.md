@@ -198,7 +198,10 @@ this constraint because the settings are part of the continuation handle.
 For session-aware Eve configuration, `defineDynamic(async ctx => ...)` runs before
 every model call and its context exposes the session. It can select the
 harness/workspace and return `{ model: experimental_createHarnessModel(runtime,
-sessionOptions).model, modelContextWindowTokens }`.
+{ mode, agent, eveSessionId: ctx.session.id }).model, modelContextWindowTokens }`.
+`mode` is `"read-only"` when omitted, which needs `agent` and allows only the
+agent's read-only built-ins and the call's Eve tools; a persona that writes,
+such as Kyoshi, passes `mode: "full"`.
 For adapters with package-relative bridge assets, retain their package boundary
 using Eve's existing `build.externalDependencies` configuration. The hosted
 OpenCode fixture externalizes `@ai-sdk/harness-opencode` and `@dojofoo/agent`;
@@ -227,7 +230,7 @@ const { model } = experimental_createHarnessModel({
     ...input,
     model: await selections.readModel(sessionId),
   }),
-});
+}, { mode: "full" });
 ```
 
 `selections` belongs to the caller; it is not another provider-owned session

@@ -69,7 +69,7 @@ const harness = {
   },
 };
 const sandbox = createJustBashSandbox();
-const { model } = experimental_createHarnessModel({ harness, sandbox: { ...sandbox, resumeSession: options => sandbox.createSession(options) } });
+const { model } = experimental_createHarnessModel({ harness, sandbox: { ...sandbox, resumeSession: options => sandbox.createSession(options) } }, { mode: "full" });
 const conversations = JSON.parse(readFileSync(0, "utf8"));
 const tools = { echo: tool({ inputSchema: jsonSchema({ type: "object", properties: { value: { type: "string" } }, required: ["value"] }) }) };
 const results = await Promise.all(conversations.map(messages => generateText({ model, messages, tools })));

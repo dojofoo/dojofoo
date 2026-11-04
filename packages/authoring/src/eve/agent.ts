@@ -21,7 +21,7 @@ export function createKyoshiAgent(runtime: () => Promise<KyoshiRuntime>) {
       "@ai-sdk/harness-claude-code", "@ai-sdk/harness-codex", "@ai-sdk/harness-cursor", "@ai-sdk/harness-fx",
       "@ai-sdk/harness-grok-build", "@ai-sdk/harness-opencode", "@ai-sdk/harness-pi"] },
     // Before every model call, as the harness may have restarted
-    model: defineDynamic(async () => {
+    model: defineDynamic(async ctx => {
       const settings = await runtime();
       const environment = await prepareHarnessEnvironment();
       if (settings.commandPath) environment.PATH = [settings.commandPath, environment.PATH].filter(Boolean).join(delimiter);
@@ -32,9 +32,10 @@ export function createKyoshiAgent(runtime: () => Promise<KyoshiRuntime>) {
         model: experimental_createHarnessModel({
           sandbox,
           sandboxConfig: { workDir: "course" },
-          harness: await agentAdapter(settings.harness),
+          harness: await agentAdapter(settings.harness, { mode: "full" }),
           model: settings.model,
-        }).model,
+        // Kyoshi writes the course; eveSessionId lets the lifecycle hook evict its detached turns
+        }, { mode: "full", agent: settings.harness, eveSessionId: ctx.session.id }).model,
         // A conservative Eve compaction budget, not a claimed model capacity.
         // The native harness retains its own model selection and compaction.
         modelContextWindowTokens: 32000,

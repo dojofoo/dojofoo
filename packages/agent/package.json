@@ -582,6 +582,16 @@
       "import": "./dist/tools-ask-question.js",
       "default": "./dist/tools-ask-question.js"
     },
+    "./read-only": {
+      "types": "./dist/read-only.d.ts",
+      "import": "./dist/read-only.js",
+      "default": "./dist/read-only.js"
+    },
+    "./process-groups": {
+      "types": "./dist/process-groups.d.ts",
+      "import": "./dist/process-groups.js",
+      "default": "./dist/process-groups.js"
+    },
     "./eve/package.json": "./dist/eve/package.json"
   },
   "scripts": {

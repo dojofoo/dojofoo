@@ -37,6 +37,7 @@ experimental_createHarnessModel({ harness: adapters.copilot });
 experimental_createHarnessModel({ harness: adapters.grok });
 experimental_createHarnessModel({ harness: adapters.opencode });
 experimental_createHarnessModel({ harness: adapters.pi });
+experimental_createHarnessModel({ harness: adapters.codex }, { mode: "read-only", agent: "codex" });
 
 // Widening the built-in schema constraint must not erase the harness contract.
 // @ts-expect-error An arbitrary object is not an official harness adapter.

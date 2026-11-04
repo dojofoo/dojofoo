@@ -28,7 +28,7 @@ test("Pi native filesystem remains usable after an Eve-owned tool boundary", { t
     harness: createPi({ agentDir: join(home, ".pi/agent"), auth: { OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL } }),
     model: "openai/gpt-4o",
     permissionMode: "allow-all",
-  }, { sandboxSession });
+  }, { mode: "full", sandboxSession });
   const tools = { ask_question: tool({
       inputSchema: jsonSchema({ type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] }),
     }) };

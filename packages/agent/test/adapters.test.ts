@@ -18,10 +18,32 @@ vi.mock("@ai-sdk/harness-pi", async (original) => {
 
 describe("coding-agent adapters", () => {
   it("reads Pi's native provider/model settings without copying credentials", async () => {
-    await agentAdapter("pi", {});
-    expect(createPi).toHaveBeenLastCalledWith({ agentDir: join(homedir(), ".pi", "agent") });
-    await agentAdapter("pi", { PI_CODING_AGENT_DIR: "/tmp/custom-pi" });
-    expect(createPi).toHaveBeenLastCalledWith({ agentDir: "/tmp/custom-pi" });
+    await agentAdapter("pi", { environment: {} });
+    expect(createPi).toHaveBeenLastCalledWith({ agentDir: join(homedir(), ".pi", "agent"), reattachInProcess: false });
+    await agentAdapter("pi", { environment: { PI_CODING_AGENT_DIR: "/tmp/custom-pi" } });
+    expect(createPi).toHaveBeenLastCalledWith({ agentDir: "/tmp/custom-pi", reattachInProcess: false });
+  });
+
+  it("read-only adapters are cached apart from full ones", async () => {
+    const full = await agentAdapter("opencode", { mode: "full" });
+    const readOnly = await agentAdapter("opencode", { mode: "read-only" });
+    expect(readOnly).not.toBe(full);
+    expect(await agentAdapter("opencode", { mode: "read-only" })).toBe(readOnly);
+    expect(await agentAdapter("opencode")).toBe(full);
+  });
+
+  it("Pi never reattaches in process", async () => {
+    await agentAdapter("pi", { mode: "full", environment: {} });
+    expect(createPi).toHaveBeenLastCalledWith(expect.objectContaining({ reattachInProcess: false }));
+    await agentAdapter("pi", { mode: "read-only", environment: { PI_CODING_AGENT_DIR: "/tmp/missing-pi" } });
+    expect(createPi).toHaveBeenLastCalledWith(expect.objectContaining({ reattachInProcess: false }));
+  });
+
+  it("a read-only Pi adapter has no agentDir", async () => {
+    await agentAdapter("pi", { mode: "read-only", environment: { PI_CODING_AGENT_DIR: "/tmp/missing-pi" } });
+    const settings = vi.mocked(createPi).mock.lastCall![0]!;
+    expect(settings).not.toHaveProperty("agentDir");
+    expect(settings).toHaveProperty("credentials");
   });
   it.each([
     ["claude", claudeCode],

@@ -248,7 +248,7 @@ const { model } = experimental_createHarnessModel({
     ...input,
     model: await readSelectedModel(),
   }),
-});
+}, { mode: "read-only", agent: "codex" });
 ```
 
 Keep this resolver scoped to the intended agent/session; do not put all learners'

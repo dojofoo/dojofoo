@@ -124,7 +124,7 @@ export default defineAgent({
       harness,
       model: `host:${context.session.id}`,
       sandbox: { ...sandbox, resumeSession: options => sandbox.createSession(options) },
-    }).model,
+    }, { mode: "full", eveSessionId: context.session.id }).model,
     modelContextWindowTokens: 32_000,
   })),
 });

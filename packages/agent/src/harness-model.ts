@@ -15,6 +15,12 @@ import type {
   SharedV4Warning,
 } from "@ai-sdk/provider";
 import { convertDataContentToBase64String, jsonSchema, Output, tool, type ModelMessage, type OutputInterface, type LanguageModelUsage, type ToolSet } from "ai";
+import type { AgentId, ResumeFailure } from "@dojofoo/protocol";
+import { forgetHarnessSession, trackHarnessSession } from "./harness-sessions.js";
+import { approvesHostTool, PreventionError, readOnlyHarnessSettings, readOnlyToolNames, type HarnessMode, type PreventionRecord } from "./read-only.js";
+
+export { evictHarnessSession, forgetHarnessSession, trackHarnessSession } from "./harness-sessions.js";
+export { PreventionError, type HarnessMode, type PreventionRecord } from "./read-only.js";
 
 // Harnesses that only compact on their own (Codex, ACP agents, FX). Adapters
 // declare no capabilities; one refusal is the evidence.
@@ -36,6 +42,34 @@ export type HarnessModelRuntime<Adapter extends HarnessAgentAdapter<any>> = Runt
   HarnessAgentSettings<Adapter, ToolSet, Record<string, unknown>, OutputInterface>
 >;
 
+/** How a model call runs: `read-only` (the default) allows only the row's read-only built-ins and the call's Eve tools. */
+export interface HarnessModelSessionOptions<Adapter extends HarnessAgentAdapter<any>> {
+  sandboxSession?: NonNullable<Parameters<HarnessAgent<Adapter, ToolSet>["createSession"]>[0]>["sandboxSession"];
+  mode?: HarnessMode;
+  agent?: AgentId;
+  /** Tracks a detached turn's sandbox under this id, so the lifecycle hook can evict it. */
+  eveSessionId?: string;
+  onResumeFailure?(failure: ResumeFailure): Promise<void> | void;
+  onPrevention?(record: PreventionRecord): void;
+}
+
+/** The checkpoint could not be resumed. No statusCode, so Eve fails the turn without retrying (D28). */
+export class ResumeFailedError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "ResumeFailedError";
+  }
+}
+
+/** HarnessAgent settings for doStream and compaction alike; read-only spreads its allow-list after the runtime, so a caller cannot widen it. */
+function harnessAgentSettings<Adapter extends HarnessAgentAdapter<any>>(
+  runtime: HarnessModelRuntime<Adapter>, sessionOptions: HarnessModelSessionOptions<Adapter>, eveToolNames: readonly string[],
+): HarnessModelRuntime<Adapter> {
+  if ((sessionOptions.mode ?? "read-only") === "full") return runtime;
+  if (!sessionOptions.agent) throw new Error("A read-only harness model needs its coding agent.");
+  return { ...runtime, ...readOnlyHarnessSettings(sessionOptions.agent, eveToolNames) } as HarnessModelRuntime<Adapter>;
+}
+
 /**
  * Native handles travel through standard content-level provider metadata.
  * No conversation state is retained on the model instance. Compaction/rewrite
@@ -43,8 +77,14 @@ export type HarnessModelRuntime<Adapter extends HarnessAgentAdapter<any>> = Runt
  */
 export function experimental_createHarnessModel<Adapter extends HarnessAgentAdapter<any>>(
   runtime: HarnessModelRuntime<Adapter>,
-  sessionOptions: Pick<NonNullable<Parameters<HarnessAgent<Adapter, ToolSet>["createSession"]>[0]>, "sandboxSession"> = {},
+  options: HarnessModelSessionOptions<Adapter> = {},
 ): { model: HarnessModel } {
+  const { mode = "read-only", agent: codingAgent, eveSessionId, onResumeFailure, sandboxSession } = options;
+  const onPrevention = options.onPrevention ?? ((record: PreventionRecord) => console.warn(JSON.stringify(record)));
+  if (mode === "read-only" && !codingAgent) throw new Error("A read-only harness model needs its coding agent.");
+  const sessionOptions = sandboxSession ? { sandboxSession } : {};
+  const provider = runtime.sandbox as { evict?(sandboxId: string): Promise<void> } | undefined;
+  const evict = provider?.evict ? (sandboxId: string) => provider.evict!(sandboxId) : undefined;
   const model: HarnessModel = {
     specificationVersion: "v4",
     provider: "harness",
@@ -64,7 +104,8 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
         return messages;
       }
       const checkpointIndex = messages.findLastIndex(message => readCheckpoint([message]) !== undefined);
-      const agent = new HarnessAgent({ ...runtime });
+      // No Eve tools take part in compaction
+      const agent = new HarnessAgent({ ...harnessAgentSettings(runtime, options, []) });
       const session = await agent.createSession({ ...sessionOptions, ...checkpoint, abortSignal });
       try {
         abortSignal?.throwIfAborted();
@@ -108,8 +149,12 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
       }
       if (continuing && !checkpoint) throw new Error("Tool continuation requires a native checkpoint.");
       const format = options.responseFormat;
+      const eveToolNames = (options.tools ?? []).map(definition => definition.name);
+      const settings = harnessAgentSettings(runtime, { mode, agent: codingAgent }, eveToolNames);
+      const allowed = mode === "read-only" ? readOnlyToolNames(codingAgent!, eveToolNames) : undefined;
+      const prevention = (record: PreventionRecord) => { try { onPrevention(record); } catch {} };
       const agent = new HarnessAgent<Adapter, ToolSet, Record<string, unknown>, OutputInterface>({
-          ...runtime,
+          ...settings,
           headers: Object.fromEntries([
             ...Object.entries(runtime.headers ?? {}),
             // AI SDK supplies its own user-agent; HarnessAgent owns the native
@@ -138,9 +183,22 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
         .flatMap(message => message.role === "tool" ? message.content : []) : [];
       const toolResults = toolParts.filter(part => part.type === "tool-result");
       const toolApprovals = toolParts.filter(part => part.type === "tool-approval-response");
-      const session = await agent.createSession({ ...sessionOptions, ...checkpoint, abortSignal });
+      let reported = false;
+      const resumeFailed = async (error: unknown): Promise<unknown> => {
+        if (!checkpoint || abortSignal.aborted || reported) return error;
+        reported = true;
+        const message = error instanceof Error ? error.message : String(error);
+        try { await onResumeFailure?.({ sessionId: eveSessionId ?? "", agent: codingAgent ?? runtime.harness.harnessId as AgentId, message, at: new Date().toISOString() }); }
+        catch {}
+        return new ResumeFailedError(`The coding agent could not resume this conversation: ${message}`, { cause: error });
+      };
+      let session: Awaited<ReturnType<typeof agent.createSession>>;
+      try { session = await agent.createSession({ ...sessionOptions, ...checkpoint, abortSignal }); }
+      catch (error) { throw await resumeFailed(error); }
+      // The sandbox is created and resumed under the native session's id
+      const forget = () => { if (eveSessionId) forgetHarnessSession(eveSessionId); };
       let stopped: Promise<HarnessAgentResumeSessionState> | undefined;
-      const stop = () => stopped ??= session.stop();
+      const stop = () => stopped ??= (forget(), session.stop());
       const stopAfterFailure = async (error: unknown): Promise<unknown> => {
         try {
           await stop();
@@ -150,6 +208,14 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
           }
         }
         return error;
+      };
+      // A detached turn keeps its sandbox running; the lifecycle hook evicts it when the turn is cancelled or the session ends
+      const detach = () => {
+        if (eveSessionId && evict) {
+          const sandboxId = session.sessionId;
+          trackHarnessSession(eveSessionId, { sandboxId, evict: () => evict(sandboxId) });
+        }
+        return session.detach();
       };
       let result: Awaited<ReturnType<typeof agent.stream>>;
       const promptNext = () => {
@@ -163,6 +229,7 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
       try {
         result = continuing
           ? await agent.continueStream({ session, toolResultContinuations: toolResults, toolApprovalContinuations: toolApprovals, abortSignal })
+              .catch(async error => { throw await resumeFailed(error); })
           : await promptNext();
       } catch (error) {
         throw await stopAfterFailure(error);
@@ -178,6 +245,9 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
             let pending: CheckpointPart | undefined;
             const calls = new Set<string>();
             let approvals: Extract<LanguageModelV4StreamPart, { type: "tool-approval-request" }>[] = [];
+            // Read-only: approvals this model answers itself, and native calls outside the allow-list awaiting their result
+            let approved: string[] = [];
+            const outside = new Map<string, string>();
             const usages: LanguageModelV4Usage[] = [];
             let contextTokens: number | undefined;
             const flush = () => {
@@ -196,6 +266,13 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
                   // New deliveries can follow a parked background tool receipt.
                   // Finish its official continuation before starting that input.
                   // If it suspends again, retain the input beside the checkpoint.
+                  if (approved.length) {
+                    // As Eve's own answer would arrive: the same session continues with the approval
+                    const responses = approved.map(approvalId => ({ type: "tool-approval-response" as const, approvalId, approved: true }));
+                    approved = [];
+                    result = await agent.continueStream({ session, toolApprovalContinuations: responses, abortSignal });
+                    continue;
+                  }
                   if (session.hasUnfinishedTurn() || pendingPrompts.length === 0) return;
                   result = await promptNext();
                 }
@@ -233,11 +310,27 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
                     hold({ type: part.type, data: { type: "data", data: part.file.uint8Array }, mediaType: part.file.mediaType, providerMetadata: part.providerMetadata });
                     break;
                   case "tool-approval-request":
+                    if (mode === "read-only") {
+                      // Never shown as a card: a read-only persona approves only calls to this call's own Eve tools
+                      if (approvesHostTool(codingAgent!, { toolName: part.toolCall.toolName, input: part.toolCall.input }, eveToolNames)) {
+                        approved.push(part.approvalId);
+                        break;
+                      }
+                      const record: PreventionRecord = { type: "dojofoo.prevention", kind: "approval-refused", agent: codingAgent!,
+                        tool: part.toolCall.toolName, ...(eveSessionId ? { eveSessionId } : {}), at: new Date().toISOString() };
+                      prevention(record);
+                      throw new PreventionError(record);
+                    }
                     // AI SDK retains checkpoint metadata on the call, not the approval.
                     // Keep their order while annotating the call when the turn parks.
                     approvals.push({ type: part.type, approvalId: part.approvalId, toolCallId: part.toolCall.toolCallId });
                     break;
                   case "tool-call":
+                    if (allowed && part.providerExecuted) {
+                      const native = (part.providerMetadata?.[runtime.harness.harnessId] as { nativeToolName?: unknown } | undefined)?.nativeToolName;
+                      const names = [part.toolName, ...(typeof native === "string" ? [native] : [])];
+                      if (!names.some(name => allowed.keys.includes(name) || allowed.native.includes(name))) outside.set(part.toolCallId, typeof native === "string" ? native : part.toolName);
+                    }
                     if (!settled.has(part.toolCallId)) {
                       calls.add(part.toolCallId);
                       hold({
@@ -250,6 +343,11 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
                     }
                     break;
                   case "tool-result": case "tool-error":
+                    if (outside.has(part.toolCallId)) {
+                      prevention({ type: "dojofoo.prevention", kind: "native-call-outside-allow-list", agent: codingAgent!, tool: outside.get(part.toolCallId)!,
+                        failed: part.type === "tool-error", ...(eveSessionId ? { eveSessionId } : {}), at: new Date().toISOString() });
+                      outside.delete(part.toolCallId);
+                    }
                     if (!settled.has(part.toolCallId)) {
                       // HarnessAgent suppresses the resumed approval's call replay.
                       // AI SDK requires the matching call in this model result.
@@ -279,7 +377,7 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
                 sessionId: session.sessionId,
                 // Host-tool results must resume the parked native turn with its
                 // sandbox still alive. stop() tears down that owned sandbox.
-                resumeFrom: JSON.parse(JSON.stringify(await (stopped ??= session.hasUnfinishedTurn() ? session.detach() : session.stop()))),
+                resumeFrom: JSON.parse(JSON.stringify(await (stopped ??= session.hasUnfinishedTurn() ? detach() : stop()))),
                 ...(pendingPrompts.length ? { pendingPrompts: JSON.parse(JSON.stringify(pendingPrompts.map(message => ({ ...message,
                   content: message.content.map(part => part.type === "file" ? { ...part,
                     data: part.data.type === "data" ? { type: "data", data: convertDataContentToBase64String(part.data.data) } : part.data,

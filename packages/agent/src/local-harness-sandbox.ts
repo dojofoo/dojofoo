@@ -44,5 +44,9 @@ export function createLocalHarnessSandbox(directory: string, options: Omit<Optio
       abortSignal?.throwIfAborted();
       return Promise.resolve(live.get(sessionId) ?? acquire(sessionId));
     },
+    /** Stops a detached session's sandbox and its native processes; the next resume starts a fresh one. */
+    async evict(sandboxId: string) {
+      await live.get(sandboxId)?.stop();
+    },
   };
 }

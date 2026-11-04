@@ -57,7 +57,7 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
               provider: "openai", port: 0, startupTimeoutMs: 30000,
               openCodeConfig: { small_model: "openai/gpt-4o", enabled_providers: ["openai"] },
             }),
-          }).model, modelContextWindowTokens: 32000 };
+          }, { mode: "full" }).model, modelContextWindowTokens: 32000 };
         }),
       });
     `);

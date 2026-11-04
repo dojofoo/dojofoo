@@ -74,7 +74,7 @@ test("public Eve CLI restores a Pi question and native history after process res
           model: experimental_createHarnessModel({
             harness: createPi({ auth: { OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: ${JSON.stringify(endpoint.baseURL)} } }),
             model: "openai/gpt-4o", permissionMode: "allow-all",
-          }, { sandboxSession: await createLocalSandbox(${JSON.stringify(runtime)}) }).model,
+          }, { mode: "full", sandboxSession: await createLocalSandbox(${JSON.stringify(runtime)}) }).model,
           modelContextWindowTokens: 32000,
         })),
       });

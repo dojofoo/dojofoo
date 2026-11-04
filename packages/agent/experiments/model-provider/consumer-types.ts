@@ -9,6 +9,7 @@ import { createLocalHarnessSandbox, createLocalSandbox } from "@dojofoo/agent/ex
 declare const harness: HarnessAgentAdapter;
 const sandboxSession = await createJustBashSandbox().createSession();
 const { model } = experimental_createHarnessModel({ harness }, { sandboxSession });
+experimental_createHarnessModel({ harness }, { mode: "read-only", agent: "codex" });
 defineAgent({ model, modelContextWindowTokens: 32_000 });
 declare const courseDirectory: string;
 const server = createDevelopmentServer(courseDirectory, { host: "127.0.0.1", port: 0 });

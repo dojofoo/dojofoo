@@ -52,7 +52,7 @@ for (const backend of ["official", "provider", "process", "eve", "eve-tools", "e
         continuationToken: "native-eve-test", sessionId: "native-eve-test", history: [],
       };
       for (const message of ["Introduce the lesson.", "Continue the lesson."]) {
-        const { model } = experimental_createHarnessModel(runtime, { sandboxSession });
+        const { model } = experimental_createHarnessModel(runtime, { mode: "full", sandboxSession });
         let step = createToolLoopHarness({ mode: "conversation", resolveModel: async () => model, tools });
         let output;
         for (let index = 0; step && index < 5; index++) {
@@ -80,7 +80,7 @@ for (const backend of ["official", "provider", "process", "eve", "eve-tools", "e
         assert.match(JSON.stringify(session.history), /NATIVE_FILE_EVIDENCE_/);
       }
     } else if (backend !== "official") {
-      const makeModel = () => experimental_createHarnessModel(runtime, { sandboxSession }).model;
+      const makeModel = () => experimental_createHarnessModel(runtime, { mode: "full", sandboxSession }).model;
       const generate = async messages => {
         if (backend === "process") return runWorker({ root, baseURL: endpoint.baseURL, messages });
         const result = await generateText({ model: makeModel(), messages, abortSignal: AbortSignal.timeout(90000), maxRetries: 0 });

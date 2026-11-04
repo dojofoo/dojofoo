@@ -59,7 +59,7 @@ for (const mode of ["conversation", "tool", ...(process.env.EVE_NATIVE_COMPACTIO
   const sandboxSession = await createJustBashSandbox().createSession();
   try {
     const harness = createPi({ auth: { OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: `${baseUrl}/v1` } });
-    const { model } = experimental_createHarnessModel({ harness, model: "openai/gpt-4o", permissionMode: "allow-all" }, { sandboxSession });
+    const { model } = experimental_createHarnessModel({ harness, model: "openai/gpt-4o", permissionMode: "allow-all" }, { mode: "full", sandboxSession });
     const tools = question ? { ask_question: tool({ inputSchema: jsonSchema({ type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] }) }) } : undefined;
     const introduction = mode === "compaction" ? "Earlier lesson evidence. ".repeat(4000) : "Introduce the lesson.";
     const first = await generateText({ model, tools, system: "Teach one concept at a time.", prompt: introduction });

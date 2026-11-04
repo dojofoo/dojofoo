@@ -1,10 +1,11 @@
 import type { HarnessV1NetworkSandboxSession } from "@ai-sdk/harness";
-import { execFileSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { lstat, mkdir, readdir, readFile, realpath, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { Readable, Writable } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
+import { forgetProcessGroup, killTree, recordProcessGroup } from "./process-groups.js";
 
 type Session = HarnessV1NetworkSandboxSession;
 type Files = ReturnType<Session["restricted"]>;
@@ -22,37 +23,13 @@ process.once("exit", () => {
   }
 });
 
-/** SIGKILL a command's group and any group its processes started. OpenCode's
- * bridge runs its server in a group of its own, which it stops only gracefully. */
-function killTree(pid: number): void {
-  let rows: number[][] = [];
-  try {
-    rows = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" })
-      .trim().split("\n").map(line => line.trim().split(/\s+/u).map(Number));
-  } catch {}
-  const tree = new Set(rows.filter(([, , group]) => group === pid).map(([member]) => member!));
-  for (let grown = true; grown;) {
-    grown = false;
-    for (const [member, parent] of rows) {
-      if (!tree.has(member!) && tree.has(parent!)) { tree.add(member!); grown = true; }
-    }
-  }
-  const own = rows.find(([member]) => member === process.pid)?.[2];
-  const targets = new Set([pid, ...rows.filter(([member]) => tree.has(member!)).map(([, , group]) => group!)]);
-  for (const group of targets) {
-    if (group <= 1 || group === own) continue;
-    try { process.kill(-group, "SIGKILL"); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
-  }
-}
-
 /** Host execution, NOT isolation. Caller owns this session and its lifetime.
  * Course files are never deleted. Absolute paths retain their host meaning.
  * Internal until bridge authentication and native-adapter tests are complete.
  */
 export async function createLocalSandbox(
   directory: string,
-  options: { id?: string; environment?: NodeJS.ProcessEnv } = {},
+  options: { id?: string; environment?: NodeJS.ProcessEnv; processRecord?: string } = {},
 ): Promise<Session> {
   if (options.id !== undefined && !options.id.trim()) throw new Error("Local sandbox identity must be non-empty.");
   if (process.platform === "win32") throw new Error("Local harness execution currently requires POSIX process groups.");
@@ -61,6 +38,7 @@ export async function createLocalSandbox(
   if (root === dirname(root) || !(await stat(root)).isDirectory()) throw new Error("Local workspace must be a non-root directory.");
   const processes = new Set<ProcessHandle>();
   const environment = { ...(options.environment ?? process.env) };
+  const { processRecord } = options;
   let stopping: Promise<void> | undefined;
   const assertRunning = () => {
     if (stopping) throw new Error("Local sandbox has stopped.");
@@ -111,7 +89,11 @@ export async function createLocalSandbox(
     // A process may fail before the caller asks for wait(). Keep that rejection
     // handled without changing the promise returned to the caller.
     void completion.catch(() => {});
-    if (child.pid) groups.add(child.pid);
+    if (child.pid) {
+      groups.add(child.pid);
+      // The in-process exit handler above misses a crash; the record lets the next host start reap the group.
+      if (processRecord) recordProcessGroup(processRecord, child.pid);
+    }
     let killing: Promise<void> | undefined;
     const handle: ProcessHandle = {
       pid: child.pid,
@@ -131,7 +113,10 @@ export async function createLocalSandbox(
     void completion.finally(() => {
       options.abortSignal?.removeEventListener("abort", abort);
       processes.delete(handle);
-      if (child.pid) groups.delete(child.pid);
+      if (child.pid) {
+        groups.delete(child.pid);
+        if (processRecord) forgetProcessGroup(processRecord, child.pid);
+      }
     }).catch(() => {});
     return options.stdin ? { ...handle, stdin: Writable.toWeb(child.stdin!) } : handle;
   }

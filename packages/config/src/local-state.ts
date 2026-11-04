@@ -409,6 +409,11 @@ function readSessionFromDatabase(db: DatabaseSync, sessionId: string): LocalSess
   `).get(sessionId) as LocalSession | undefined) ?? null;
 }
 
+/** `<stateHome>/state`: per-machine runtime state (private homes, process records, Sensei's scratch directories). */
+export function localStateDirectory(options: LocalStateOptions = {}): string {
+  return resolve(options.stateHome ?? process.env.DOJOFOO_HOME ?? resolve(homedir(), ".dojofoo"), "state");
+}
+
 export function workspaceIdFor(root: string): string {
   const directory = resolve(root, ".dojo");
   const path = resolve(directory, "instance.json");

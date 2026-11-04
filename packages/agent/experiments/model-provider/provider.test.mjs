@@ -7,7 +7,10 @@ import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
 import { generateText, jsonSchema, Output, streamText, tool } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
 import { defineAgent } from "@dojofoo/agent";
-import { experimental_createHarnessModel as createHarnessModel } from "@dojofoo/agent/experimental";
+import { experimental_createHarnessModel } from "@dojofoo/agent/experimental";
+
+// Harness-level tests of the full-access path: native tools and approval cards stay on.
+const createHarnessModel = (runtime, options = {}) => experimental_createHarnessModel(runtime, { mode: "full", ...options });
 
 // Exercise the exact runtime shipped to consumers, not a workspace dependency.
 const eveRoot = new URL("./", import.meta.resolve("@dojofoo/agent/eve/package.json"));
