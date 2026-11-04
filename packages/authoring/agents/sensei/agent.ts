@@ -1,4 +1,4 @@
 import { createSenseiAgent } from "@dojofoo/authoring/sensei/agent";
-import { runtime } from "./runtime.ts";
+import { runtime, usageCeiling } from "./runtime.ts";
 
-export default createSenseiAgent(runtime);
+export default createSenseiAgent(runtime, usageCeiling);

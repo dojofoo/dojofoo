@@ -70,6 +70,7 @@ export async function createSenseiRuntime(workspaceRoot: string, options: { agen
         harness,
         model: options.model,
         processRecord,
+        ...(options.usageCeiling ? { usageCeiling: options.usageCeiling } : {}),
         ...(options.hostPortUrl ? { hostPort: { url: options.hostPortUrl, workspaceId, persona: "sensei", secret,
           readOnly: { agent: harness, stateDirectory } } } : {}),
       };

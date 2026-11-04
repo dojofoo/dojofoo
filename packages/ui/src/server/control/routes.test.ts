@@ -69,6 +69,17 @@ describe("local control-plane API", () => {
     stop.mockRestore();
   });
 
+  it("an evaluation trial of an installed course does not make the dashboard refuse", async () => {
+    const learner = fixture();
+    const trial = fixture();
+    const learnerId = observeWorkspacePath(learner.root, { stateHome: learner.stateHome });
+    observeLocalContext(trial.root, { stateHome: learner.stateHome, kind: "evaluation-trial" });
+    const app = buildControlRoutes({ stateHome: learner.stateHome });
+    const response = await app.request("/courses");
+    expect(response.status).toBe(200);
+    expect((await response.json()).map((course: { workspaceId: string }) => course.workspaceId)).toEqual([learnerId]);
+  });
+
   it("deletes only the selected managed authoring draft and its registration", async () => {
     const { root, stateHome } = fixture();
     const app = buildControlRoutes({ stateHome });

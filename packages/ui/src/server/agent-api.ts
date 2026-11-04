@@ -24,6 +24,7 @@ import { authoringWatchers } from "./authoring-watch";
 import { forgetHost, hostPortUrl, registerHost, runningHost } from "./host-port";
 import { presence as pageHub } from "./agent-session/presence";
 import { pageKeyOf, type PageKey } from "./agent-session/notify";
+import { trialUsageCeiling } from "./evaluation/limits";
 
 type RuntimeState = {
   agent: string; persona: Persona; workspaceId: string; status: AgentStatus; message?: string;
@@ -34,8 +35,8 @@ type RuntimeState = {
 type DeliveryHandle = { before: LifecycleStatus; opened?: string };
 
 type OwnedRuntime = { start(): Promise<{ url: string; auth?: ClientOptions["auth"]; secret?: string; exited?: Promise<unknown> }>; close(): Promise<void> };
-/** Which host a start is for: the persona the workspace's kind runs, and where its host port listens */
-export type RuntimeTarget = { persona: Persona; workspaceId: string; hostPortUrl: string };
+/** Which host a start is for: the persona the workspace's kind runs, where its host port listens, and an evaluation trial's ceiling */
+export type RuntimeTarget = { persona: Persona; workspaceId: string; hostPortUrl: string; usageCeiling?: typeof trialUsageCeiling };
 
 /** The agent saved in `.dojo/runtimes.json`, as written, even when it is no longer offered. */
 function savedSelection(path: string): string | undefined {
@@ -176,7 +177,9 @@ export function createLocalAgentRuntime(options: {
       // No host starts before startup has verified the persisted windows (startup step 3)
       await startupVerified();
       if (persona === "sensei") await recoveryWindows(path, workspaceId, agent);
-      state.owned = await options.runtime(path, { persona, workspaceId, hostPortUrl: hostPortUrl() });
+      const workspace = listWorkspaces(options.state).find(item => item.id === workspaceId);
+      const trial = workspace !== undefined && workspaceKind(workspace, options.state ?? {}) === "evaluation-trial";
+      state.owned = await options.runtime(path, { persona, workspaceId, hostPortUrl: hostPortUrl(), ...(trial ? { usageCeiling: trialUsageCeiling } : {}) });
       const { url, auth, exited, secret } = await state.owned.start();
       const ready = { baseUrl: url, headers: authorization(auth) };
       if (secret) {

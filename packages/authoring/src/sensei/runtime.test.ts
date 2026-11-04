@@ -48,6 +48,21 @@ it("Sensei's scratch directory is outside the workspace and empty", async () => 
   } finally { await runtime.close(); }
 }, 60_000);
 
+it("the ceiling reaches runtime.json", async () => {
+  const { workspace: path } = await workspace();
+  const usageCeiling = { newInputTokens: 3_000_000, outputTokens: 300_000 };
+  const runtime = await createSenseiRuntime(path, { workspaceId: "w1", usageCeiling });
+  try {
+    await runtime.start();
+    expect(JSON.parse(await readFile(join(path, ".dojo/sensei-app/agents/sensei/runtime.json"), "utf8")).usageCeiling).toEqual(usageCeiling);
+  } finally { await runtime.close(); }
+  const learner = await createSenseiRuntime(path, { workspaceId: "w1" });
+  try {
+    await learner.start();
+    expect(JSON.parse(await readFile(join(path, ".dojo/sensei-app/agents/sensei/runtime.json"), "utf8"))).not.toHaveProperty("usageCeiling");
+  } finally { await learner.close(); }
+}, 60_000);
+
 it("runtime.json carries the host port, the agent and the process record", async () => {
   const { workspace: path, home } = await workspace();
   const runtime = await createSenseiRuntime(path, { workspaceId: "w1", hostPortUrl: "http://127.0.0.1:9/api/host-port" });

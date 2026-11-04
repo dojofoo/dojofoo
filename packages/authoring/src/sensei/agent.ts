@@ -21,6 +21,14 @@ export interface SenseiRuntime {
   /** Where the lifecycle hook and the context reads go, with this start's secret */
   hostPort?: HostPortBinding;
   processRecord?: string;
+  /** An evaluation trial's ceiling; a learner's host has none */
+  usageCeiling?: UsageCeiling;
+}
+
+/** Per-session spend at which an evaluation trial's Sensei stops (design, "Evaluation"). */
+export interface UsageCeiling {
+  newInputTokens: number;
+  outputTokens: number;
 }
 
 /** The host port for this start, or undefined when the host runs without a UI server. */
@@ -41,8 +49,9 @@ export async function sessionForModelCall(port: HostPortClient | undefined, ctx:
   return ctx.memo(["sensei-model", ctx.turn?.id ?? "none"], () => port.call<SenseiSessionInfo>("session", ctx.session.id, {}));
 }
 
-/** Sensei is read-only (D18, D34): native reads only, its own two tools, and none of the user's configuration. */
-export function createSenseiAgent(runtime: () => Promise<SenseiRuntime>) {
+/** Sensei is read-only (D18, D34): native reads only, its own two tools, and none of the user's configuration. `usageCeiling` is
+ *  read synchronously, because Eve calls `sessionUsage` without awaiting it. */
+export function createSenseiAgent(runtime: () => Promise<SenseiRuntime>, usageCeiling: () => UsageCeiling | undefined = () => undefined) {
   return defineAgent({
     // Native adapters load their bridge assets relative to their package files.
     build: { externalDependencies: ["@dojofoo/agent", "@dojofoo/authoring", "@ai-sdk/harness",
@@ -50,8 +59,15 @@ export function createSenseiAgent(runtime: () => Promise<SenseiRuntime>) {
       "@ai-sdk/harness-grok-build", "@ai-sdk/harness-opencode", "@ai-sdk/harness-pi"] },
     // Only ask_question and dojo_context: no bash, file writes, web or subagents
     defaultTools: false,
-    // A learner's conversation never times out or runs out of budget, and stays readable after it ends (open risk 11)
-    limits: { sessionTimeoutMs: false, sessionUsage: false },
+    // A learner's conversation never times out or runs out of budget, and stays readable after it ends (open risk 11); an
+    // evaluation trial's host stops at its ceiling with Eve's budget prompt
+    limits: {
+      sessionTimeoutMs: false,
+      sessionUsage: ({ total }) => {
+        const ceiling = usageCeiling();
+        return ceiling ? total.inputTokens - total.cacheReadTokens >= ceiling.newInputTokens || total.outputTokens >= ceiling.outputTokens : false;
+      },
+    },
     experimental: { workflow: { retention: "default" } },
     // Before every model call, as the host may have restarted
     model: defineDynamic(async ctx => {

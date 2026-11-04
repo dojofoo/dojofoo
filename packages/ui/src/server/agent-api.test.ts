@@ -105,6 +105,22 @@ describe("local agent runtime", () => {
     expect(targets).toEqual([{ persona: "sensei", workspaceId, hostPortUrl: expect.stringMatching(/^http:\/\/.+\/api\/host-port$/u) }]);
   });
 
+  it("an evaluation-trial host starts with the trial ceiling and a learner host without one", async () => {
+    const learner = workspace();
+    const trial = workspace();
+    setWorkspaceKind(trial.workspaceId, "evaluation-trial", trial.state);
+    const targets: unknown[] = [];
+    const owned = { start: vi.fn(async () => ({ url: "http://127.0.0.1:9", secret: "s".repeat(64) })), close: vi.fn(async () => {}) };
+    for (const { state, workspaceId } of [learner, trial]) {
+      const local = createLocalAgentRuntime({ state, runtime: async (_root, target) => { targets.push(target); return owned; } });
+      await local.connect(workspaceId, { agent: "codex", persona: "sensei" });
+    }
+    expect(targets).toEqual([
+      { persona: "sensei", workspaceId: learner.workspaceId, hostPortUrl: expect.any(String) },
+      { persona: "sensei", workspaceId: trial.workspaceId, hostPortUrl: expect.any(String), usageCeiling: { newInputTokens: 3_000_000, outputTokens: 300_000 } },
+    ]);
+  });
+
   it("refuses a saved selection that is no longer offered with 409 agent_not_offered", async () => {
     const { local, workspaceId, root, owned } = runtime();
     writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "agy" }));

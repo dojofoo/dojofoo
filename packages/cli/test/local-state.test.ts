@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
@@ -14,6 +14,7 @@ import {
   sessionFromEnvironment,
   setSessionLifecycle,
 } from "@dojofoo/config/local-state";
+import { courseInstallations, findInstalledCourse } from "@dojofoo/config/course-installations";
 
 describe("local dojo state", () => {
   const paths: string[] = [];
@@ -223,6 +224,19 @@ describe("local dojo state", () => {
     observeLocalContext(root, { stateHome });
     observeWorkspacePath(root, { stateHome, kind: "draft" });
     expect(kindOf(root, stateHome)).toBe("evaluation-trial");
+  });
+
+  it("an evaluation trial's course is not an installation", () => {
+    const learner = fixture();
+    const trial = fixture();
+    for (const { root } of [learner, trial]) {
+      mkdirSync(resolve(root, ".dojos", "effect-ts"), { recursive: true });
+      writeFileSync(resolve(root, ".dojos", "effect-ts", "dojo.yaml"), "name: effect-ts\nversion: 1.0.0\ndescription: A course.\ntest: echo ok\nkatas:\n  - name: first\n    template: first.ts\n");
+    }
+    observeLocalContext(learner.root, { stateHome: learner.stateHome });
+    observeLocalContext(trial.root, { stateHome: learner.stateHome, kind: "evaluation-trial" });
+    expect(courseInstallations("effect-ts", { stateHome: learner.stateHome }).map(course => course.root)).toEqual([learner.root]);
+    expect(findInstalledCourse("effect-ts", { stateHome: learner.stateHome }).root).toBe(learner.root);
   });
 
   it("adds an empty kind to an existing version-two database for the UI server to backfill", () => {

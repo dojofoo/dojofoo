@@ -14,6 +14,8 @@ import { closeSenseiRuntimes } from "../sensei/runtime.ts";
 export interface PersonaRuntimeTarget {
   workspaceId?: string;
   hostPortUrl?: string;
+  /** An evaluation trial's Sensei ceiling (Sensei only) */
+  usageCeiling?: { newInputTokens: number; outputTokens: number };
 }
 
 // Native Node module lifetime, not Vite's reloadable route-module lifetime.

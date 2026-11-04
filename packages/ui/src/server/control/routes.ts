@@ -120,6 +120,8 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       const { workspaces, runs } = readLocalSnapshot(stateOptions());
       const courses = workspaces
         .flatMap((workspace) => {
+          // An evaluation trial's throwaway install is not the learner's course
+          if (workspace.kind === "evaluation-trial") return [];
           try {
             const rc = readDojoRc(workspace.path);
             return listDojos(workspace.path).flatMap(dojo => {
