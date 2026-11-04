@@ -1770,6 +1770,732 @@
         },
         "guardWriteAfterPause": true
       }
+    },
+    {
+      "agent": "claude",
+      "tier": "A",
+      "recordedAt": "2026-11-04T17:55:33.420Z",
+      "commit": "7c4b299a206a71f88211e25546886bf5d99c1159",
+      "platform": "linux-x64",
+      "step": 7,
+      "adapter": {
+        "package": "@ai-sdk/harness-claude-code",
+        "version": "1.0.174"
+      },
+      "cli": {
+        "name": "@anthropic-ai/claude-code",
+        "version": "2.1.290",
+        "source": "adapter-bootstrap"
+      },
+      "cliRange": "=2.1.290",
+      "personas": {
+        "sensei": "pass",
+        "kyoshi": "pass"
+      },
+      "cases": {
+        "kyoshi.harness.resume-after-stop": "passed",
+        "kyoshi.harness.model-switch": "passed",
+        "kyoshi.harness.host-tool-turn": "passed",
+        "kyoshi.harness.cancel-active-turn": "passed",
+        "kyoshi.harness.cancel-pending-host-tool": "passed",
+        "kyoshi.harness.compaction": "passed",
+        "kyoshi.harness.user-config-seed": "passed",
+        "kyoshi.host.ask-answer-across-restart": "passed",
+        "kyoshi.host.cancel-pending-host-tool": "passed",
+        "kyoshi.host.resume-after-eviction": "passed",
+        "kyoshi.host.processes-after-host-crash": "passed",
+        "kyoshi.harness.native-write": "passed",
+        "sensei.interactive.host-tool-turn": "passed",
+        "sensei.interactive.ask-answer-across-restart": "passed",
+        "sensei.interactive.cancel-pending-host-tool": "passed",
+        "sensei.interactive.resume-after-eviction": "passed",
+        "sensei.interactive.model-switch": "passed",
+        "sensei.read-only.tool-list": "passed",
+        "sensei.read-only.adversarial-native-calls": "passed",
+        "sensei.read-only.user-mcp-write": "passed",
+        "sensei.isolation.user-config": "passed",
+        "sensei.read-only.absolute-path-reads": "passed",
+        "sensei.resume-failure.one-replacement": "passed",
+        "sensei.host-port.rerun-no-duplicate": "passed",
+        "sensei.kata.host-tool-turn": "passed",
+        "sensei.kata.ask-answer-across-restart": "passed",
+        "sensei.kata.cancel-pending-host-tool": "passed",
+        "sensei.kata.resume-after-eviction": "passed",
+        "sensei.guard.write-restored": "passed",
+        "sensei.guard.delete-restored": "passed",
+        "sensei.guard.create-restored": "passed",
+        "sensei.guard.write-after-pause": "passed",
+        "sensei.guard.host-port-down-at-pause": "passed",
+        "sensei.check.during-working-turn": "passed",
+        "sensei.switch.timeout-marks-interrupted": "passed",
+        "sensei.switch.during-working-turn": "passed",
+        "sensei.host.start-after-eve-version-change": "passed",
+        "kyoshi.switch.away-and-back": "passed",
+        "sensei.switch.away-and-back": "passed",
+        "kyoshi.switch.new-agent-new-session": "passed",
+        "sensei.switch.new-agent-new-session": "passed",
+        "sensei.evaluation.trial-loopback": "passed"
+      },
+      "latency": null,
+      "absolutePathReads": [
+        {
+          "path": "<case root>/outside/secret.txt",
+          "read": true
+        }
+      ],
+      "userConfig": {
+        "kyoshi": {
+          "mcp": true,
+          "skill": true,
+          "rules": true
+        },
+        "sensei": {
+          "mcp": false,
+          "skill": false,
+          "rules": false
+        }
+      },
+      "observations": {
+        "senseiAnswerAfterRestart": false,
+        "prevention": {
+          "sensei": {
+            "records": [
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "Write"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "Edit"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "Write"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "Bash"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "Bash"
+              }
+            ]
+          }
+        },
+        "hostPortRerun": {
+          "calls": 1,
+          "keys": 1,
+          "outcome": "open"
+        },
+        "modelBeforeSettleHookAnswered": false,
+        "interruptedTurnRecovery": "open",
+        "interruptedTurnError": null,
+        "historyAfterSwitchBack": {
+          "kyoshi": true,
+          "sensei": true
+        },
+        "oneShotProcessesLeft": 0,
+        "budgetPromptOnMessage": 2,
+        "guardWriteAfterPause": true
+      }
+    },
+    {
+      "agent": "codex",
+      "tier": "A",
+      "recordedAt": "2026-11-04T17:55:33.421Z",
+      "commit": "7c4b299a206a71f88211e25546886bf5d99c1159",
+      "platform": "linux-x64",
+      "step": 7,
+      "adapter": {
+        "package": "@ai-sdk/harness-codex",
+        "version": "1.0.172"
+      },
+      "cli": {
+        "name": "@openai/codex",
+        "version": "0.160.1",
+        "source": "adapter-bootstrap"
+      },
+      "cliRange": "=0.160.1",
+      "personas": {
+        "sensei": "pass",
+        "kyoshi": "pass"
+      },
+      "cases": {
+        "kyoshi.harness.resume-after-stop": "passed",
+        "kyoshi.harness.model-switch": "passed",
+        "kyoshi.harness.host-tool-turn": "passed",
+        "kyoshi.harness.cancel-active-turn": "passed",
+        "kyoshi.harness.cancel-pending-host-tool": "passed",
+        "kyoshi.harness.compaction": "passed",
+        "kyoshi.harness.user-config-seed": "passed",
+        "kyoshi.host.ask-answer-across-restart": "passed",
+        "kyoshi.host.cancel-pending-host-tool": "passed",
+        "kyoshi.host.resume-after-eviction": "passed",
+        "kyoshi.host.processes-after-host-crash": "passed",
+        "kyoshi.harness.native-write": "passed",
+        "sensei.interactive.host-tool-turn": "passed",
+        "sensei.interactive.ask-answer-across-restart": "passed",
+        "sensei.interactive.cancel-pending-host-tool": "passed",
+        "sensei.interactive.resume-after-eviction": "passed",
+        "sensei.interactive.model-switch": "passed",
+        "sensei.read-only.tool-list": "passed",
+        "sensei.read-only.adversarial-native-calls": "passed",
+        "sensei.read-only.user-mcp-write": "passed",
+        "sensei.isolation.user-config": "passed",
+        "sensei.read-only.absolute-path-reads": "passed",
+        "sensei.resume-failure.one-replacement": "passed",
+        "sensei.host-port.rerun-no-duplicate": "passed",
+        "sensei.kata.host-tool-turn": "passed",
+        "sensei.kata.ask-answer-across-restart": "passed",
+        "sensei.kata.cancel-pending-host-tool": "passed",
+        "sensei.kata.resume-after-eviction": "passed",
+        "sensei.guard.write-restored": "passed",
+        "sensei.guard.delete-restored": "passed",
+        "sensei.guard.create-restored": "passed",
+        "sensei.guard.write-after-pause": "passed",
+        "sensei.guard.host-port-down-at-pause": "passed",
+        "sensei.check.during-working-turn": "passed",
+        "sensei.switch.timeout-marks-interrupted": "passed",
+        "sensei.switch.during-working-turn": "passed",
+        "sensei.host.start-after-eve-version-change": "passed",
+        "kyoshi.switch.away-and-back": "passed",
+        "sensei.switch.away-and-back": "passed",
+        "kyoshi.switch.new-agent-new-session": "passed",
+        "sensei.switch.new-agent-new-session": "passed",
+        "sensei.evaluation.trial-loopback": "passed"
+      },
+      "latency": null,
+      "absolutePathReads": [
+        {
+          "path": "<case root>/outside/secret.txt",
+          "read": false
+        }
+      ],
+      "userConfig": {
+        "kyoshi": {
+          "mcp": true,
+          "skill": true,
+          "rules": true
+        },
+        "sensei": {
+          "mcp": false,
+          "skill": false,
+          "rules": false
+        }
+      },
+      "observations": {
+        "senseiAnswerAfterRestart": false,
+        "prevention": {
+          "sensei": {
+            "records": []
+          }
+        },
+        "hostPortRerun": {
+          "calls": 1,
+          "keys": 1,
+          "outcome": "open"
+        },
+        "modelBeforeSettleHookAnswered": false,
+        "interruptedTurnRecovery": "open",
+        "interruptedTurnError": null,
+        "historyAfterSwitchBack": {
+          "kyoshi": true,
+          "sensei": true
+        },
+        "oneShotProcessesLeft": 0,
+        "budgetPromptOnMessage": 2,
+        "guardWriteAfterPause": true
+      }
+    },
+    {
+      "agent": "grok",
+      "tier": "A",
+      "recordedAt": "2026-11-04T17:55:33.421Z",
+      "commit": "7c4b299a206a71f88211e25546886bf5d99c1159",
+      "platform": "linux-x64",
+      "step": 7,
+      "adapter": {
+        "package": "@ai-sdk/harness-grok-build",
+        "version": "1.0.109"
+      },
+      "cli": {
+        "name": "@xai-official/grok",
+        "version": "1.0.49",
+        "source": "adapter-bootstrap"
+      },
+      "cliRange": "=1.0.49",
+      "personas": {
+        "sensei": "pass",
+        "kyoshi": "pass"
+      },
+      "cases": {
+        "kyoshi.harness.resume-after-stop": "passed",
+        "kyoshi.harness.model-switch": "passed",
+        "kyoshi.harness.host-tool-turn": "passed",
+        "kyoshi.harness.cancel-active-turn": "passed",
+        "kyoshi.harness.cancel-pending-host-tool": "passed",
+        "kyoshi.harness.compaction": "passed",
+        "kyoshi.harness.user-config-seed": "passed",
+        "kyoshi.host.ask-answer-across-restart": "passed",
+        "kyoshi.host.cancel-pending-host-tool": "passed",
+        "kyoshi.host.resume-after-eviction": "passed",
+        "kyoshi.host.processes-after-host-crash": "passed",
+        "kyoshi.harness.native-write": "passed",
+        "sensei.interactive.host-tool-turn": "passed",
+        "sensei.interactive.ask-answer-across-restart": "passed",
+        "sensei.interactive.cancel-pending-host-tool": "passed",
+        "sensei.interactive.resume-after-eviction": "passed",
+        "sensei.interactive.model-switch": "passed",
+        "sensei.read-only.tool-list": "passed",
+        "sensei.read-only.adversarial-native-calls": "passed",
+        "sensei.read-only.user-mcp-write": "passed",
+        "sensei.isolation.user-config": "passed",
+        "sensei.read-only.absolute-path-reads": "passed",
+        "sensei.resume-failure.one-replacement": "passed",
+        "sensei.host-port.rerun-no-duplicate": "passed",
+        "sensei.acp.rerun-after-model-change": "passed",
+        "sensei.acp.model-probe": "passed",
+        "sensei.kata.host-tool-turn": "passed",
+        "sensei.kata.ask-answer-across-restart": "passed",
+        "sensei.kata.cancel-pending-host-tool": "passed",
+        "sensei.kata.resume-after-eviction": "passed",
+        "sensei.guard.write-restored": "passed",
+        "sensei.guard.delete-restored": "passed",
+        "sensei.guard.create-restored": "passed",
+        "sensei.guard.write-after-pause": "passed",
+        "sensei.guard.host-port-down-at-pause": "passed",
+        "sensei.check.during-working-turn": "passed",
+        "sensei.switch.timeout-marks-interrupted": "passed",
+        "sensei.switch.during-working-turn": "passed",
+        "sensei.host.start-after-eve-version-change": "passed",
+        "kyoshi.switch.away-and-back": "passed",
+        "sensei.switch.away-and-back": "passed",
+        "kyoshi.switch.new-agent-new-session": "passed",
+        "sensei.switch.new-agent-new-session": "passed",
+        "sensei.evaluation.trial-loopback": "passed"
+      },
+      "latency": null,
+      "absolutePathReads": [
+        {
+          "path": "<case root>/outside/secret.txt",
+          "read": true
+        }
+      ],
+      "userConfig": {
+        "kyoshi": {
+          "mcp": true,
+          "skill": true,
+          "rules": true
+        },
+        "sensei": {
+          "mcp": false,
+          "skill": false,
+          "rules": false
+        }
+      },
+      "observations": {
+        "senseiAnswerAfterRestart": false,
+        "prevention": {
+          "sensei": {
+            "records": [
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "fileChange"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "write"
+              }
+            ]
+          }
+        },
+        "hostPortRerun": {
+          "calls": 1,
+          "keys": 1,
+          "outcome": "open"
+        },
+        "acpRerunAfterModelChange": {
+          "completed": true
+        },
+        "grokFirstRunChangedHome": [],
+        "modelBeforeSettleHookAnswered": false,
+        "interruptedTurnRecovery": "open",
+        "interruptedTurnError": null,
+        "historyAfterSwitchBack": {
+          "kyoshi": true,
+          "sensei": true
+        },
+        "oneShotProcessesLeft": 0,
+        "budgetPromptOnMessage": 2,
+        "guardWriteAfterPause": true
+      }
+    },
+    {
+      "agent": "opencode",
+      "tier": "A",
+      "recordedAt": "2026-11-04T17:55:33.422Z",
+      "commit": "7c4b299a206a71f88211e25546886bf5d99c1159",
+      "platform": "linux-x64",
+      "step": 7,
+      "adapter": {
+        "package": "@ai-sdk/harness-opencode",
+        "version": "1.0.173"
+      },
+      "cli": {
+        "name": "opencode-ai",
+        "version": "1.18.34",
+        "source": "adapter-bootstrap"
+      },
+      "cliRange": "=1.18.34",
+      "personas": {
+        "sensei": "pass",
+        "kyoshi": "pass"
+      },
+      "cases": {
+        "kyoshi.harness.resume-after-stop": "passed",
+        "kyoshi.harness.model-switch": "passed",
+        "kyoshi.harness.host-tool-turn": "passed",
+        "kyoshi.harness.cancel-active-turn": "passed",
+        "kyoshi.harness.cancel-pending-host-tool": "passed",
+        "kyoshi.harness.compaction": "passed",
+        "kyoshi.harness.user-config-seed": "passed",
+        "kyoshi.host.ask-answer-across-restart": "passed",
+        "kyoshi.host.cancel-pending-host-tool": "passed",
+        "kyoshi.host.resume-after-eviction": "passed",
+        "kyoshi.host.processes-after-host-crash": "passed",
+        "kyoshi.harness.native-write": "passed",
+        "sensei.interactive.host-tool-turn": "passed",
+        "sensei.interactive.ask-answer-across-restart": "passed",
+        "sensei.interactive.cancel-pending-host-tool": "passed",
+        "sensei.interactive.resume-after-eviction": "passed",
+        "sensei.interactive.model-switch": "passed",
+        "sensei.read-only.tool-list": "passed",
+        "sensei.read-only.adversarial-native-calls": "passed",
+        "sensei.read-only.user-mcp-write": "passed",
+        "sensei.isolation.user-config": "passed",
+        "sensei.read-only.absolute-path-reads": "passed",
+        "sensei.resume-failure.one-replacement": "passed",
+        "sensei.host-port.rerun-no-duplicate": "passed",
+        "sensei.kata.host-tool-turn": "passed",
+        "sensei.kata.ask-answer-across-restart": "passed",
+        "sensei.kata.cancel-pending-host-tool": "passed",
+        "sensei.kata.resume-after-eviction": "passed",
+        "sensei.guard.write-restored": "passed",
+        "sensei.guard.delete-restored": "passed",
+        "sensei.guard.create-restored": "passed",
+        "sensei.guard.write-after-pause": "passed",
+        "sensei.guard.host-port-down-at-pause": "passed",
+        "sensei.check.during-working-turn": "passed",
+        "sensei.switch.timeout-marks-interrupted": "passed",
+        "sensei.switch.during-working-turn": "passed",
+        "sensei.host.start-after-eve-version-change": "passed",
+        "kyoshi.switch.away-and-back": "passed",
+        "sensei.switch.away-and-back": "passed",
+        "kyoshi.switch.new-agent-new-session": "passed",
+        "sensei.switch.new-agent-new-session": "passed",
+        "sensei.evaluation.trial-loopback": "passed"
+      },
+      "latency": null,
+      "absolutePathReads": [
+        {
+          "path": "<case root>/outside/secret.txt",
+          "read": false
+        }
+      ],
+      "userConfig": {
+        "kyoshi": {
+          "mcp": true,
+          "skill": true,
+          "rules": true
+        },
+        "sensei": {
+          "mcp": false,
+          "skill": false,
+          "rules": false
+        }
+      },
+      "observations": {
+        "senseiAnswerAfterRestart": false,
+        "prevention": {
+          "sensei": {
+            "records": [
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "invalid"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "invalid"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "invalid"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "invalid"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "invalid"
+              }
+            ]
+          }
+        },
+        "hostPortRerun": {
+          "calls": 1,
+          "keys": 1,
+          "outcome": "open"
+        },
+        "modelBeforeSettleHookAnswered": false,
+        "interruptedTurnRecovery": "open",
+        "interruptedTurnError": null,
+        "historyAfterSwitchBack": {
+          "kyoshi": true,
+          "sensei": true
+        },
+        "oneShotProcessesLeft": 0,
+        "budgetPromptOnMessage": 2,
+        "guardWriteAfterPause": true
+      }
+    },
+    {
+      "agent": "fx",
+      "tier": "A",
+      "recordedAt": "2026-11-04T17:55:33.422Z",
+      "commit": "7c4b299a206a71f88211e25546886bf5d99c1159",
+      "platform": "linux-x64",
+      "step": 7,
+      "adapter": {
+        "package": "@ai-sdk/harness-fx",
+        "version": "1.0.86"
+      },
+      "cli": {
+        "name": "libfx",
+        "version": "0.0.14",
+        "source": "in-process"
+      },
+      "cliRange": "=0.0.14",
+      "personas": {
+        "sensei": "pass",
+        "kyoshi": "pass"
+      },
+      "cases": {
+        "kyoshi.harness.resume-after-stop": "passed",
+        "kyoshi.harness.model-switch": "passed",
+        "kyoshi.harness.host-tool-turn": "passed",
+        "kyoshi.harness.cancel-active-turn": "passed",
+        "kyoshi.harness.cancel-pending-host-tool": "passed",
+        "kyoshi.harness.compaction": "passed",
+        "kyoshi.harness.user-config-seed": "passed",
+        "kyoshi.host.ask-answer-across-restart": "passed",
+        "kyoshi.host.cancel-pending-host-tool": "passed",
+        "kyoshi.host.resume-after-eviction": "passed",
+        "kyoshi.host.processes-after-host-crash": "passed",
+        "kyoshi.harness.native-write": "passed",
+        "sensei.interactive.host-tool-turn": "passed",
+        "sensei.interactive.ask-answer-across-restart": "passed",
+        "sensei.interactive.cancel-pending-host-tool": "passed",
+        "sensei.interactive.resume-after-eviction": "passed",
+        "sensei.interactive.model-switch": "passed",
+        "sensei.read-only.tool-list": "passed",
+        "sensei.read-only.adversarial-native-calls": "passed",
+        "sensei.read-only.user-mcp-write": "passed",
+        "sensei.isolation.user-config": "passed",
+        "sensei.read-only.absolute-path-reads": "passed",
+        "sensei.resume-failure.one-replacement": "passed",
+        "sensei.host-port.rerun-no-duplicate": "passed",
+        "sensei.kata.host-tool-turn": "passed",
+        "sensei.kata.ask-answer-across-restart": "passed",
+        "sensei.kata.cancel-pending-host-tool": "passed",
+        "sensei.kata.resume-after-eviction": "passed",
+        "sensei.guard.write-restored": "passed",
+        "sensei.guard.delete-restored": "passed",
+        "sensei.guard.create-restored": "passed",
+        "sensei.guard.write-after-pause": "passed",
+        "sensei.guard.host-port-down-at-pause": "passed",
+        "sensei.check.during-working-turn": "passed",
+        "sensei.switch.timeout-marks-interrupted": "passed",
+        "sensei.switch.during-working-turn": "passed",
+        "sensei.host.start-after-eve-version-change": "passed",
+        "kyoshi.switch.away-and-back": "passed",
+        "sensei.switch.away-and-back": "passed",
+        "kyoshi.switch.new-agent-new-session": "passed",
+        "sensei.switch.new-agent-new-session": "passed",
+        "sensei.evaluation.trial-loopback": "passed"
+      },
+      "latency": null,
+      "absolutePathReads": [
+        {
+          "path": "<case root>/outside/secret.txt",
+          "read": false
+        }
+      ],
+      "userConfig": {
+        "kyoshi": {
+          "mcp": false,
+          "skill": false,
+          "rules": false
+        },
+        "sensei": {
+          "mcp": false,
+          "skill": false,
+          "rules": false
+        }
+      },
+      "observations": {
+        "senseiAnswerAfterRestart": true,
+        "prevention": {
+          "sensei": {
+            "records": []
+          }
+        },
+        "hostPortRerun": {
+          "calls": 1,
+          "keys": 1,
+          "outcome": "open"
+        },
+        "modelBeforeSettleHookAnswered": false,
+        "interruptedTurnRecovery": "open",
+        "interruptedTurnError": null,
+        "historyAfterSwitchBack": {
+          "kyoshi": true,
+          "sensei": true
+        },
+        "oneShotProcessesLeft": 0,
+        "budgetPromptOnMessage": 2,
+        "guardWriteAfterPause": true
+      }
+    },
+    {
+      "agent": "pi",
+      "tier": "A",
+      "recordedAt": "2026-11-04T17:55:33.422Z",
+      "commit": "7c4b299a206a71f88211e25546886bf5d99c1159",
+      "platform": "linux-x64",
+      "step": 7,
+      "adapter": {
+        "package": "@ai-sdk/harness-pi",
+        "version": "1.0.173"
+      },
+      "cli": {
+        "name": "@earendil-works/pi-coding-agent",
+        "version": "1.3.0",
+        "source": "in-process"
+      },
+      "cliRange": "=1.3.0",
+      "personas": {
+        "sensei": "pass",
+        "kyoshi": "pass"
+      },
+      "cases": {
+        "kyoshi.harness.resume-after-stop": "passed",
+        "kyoshi.harness.model-switch": "passed",
+        "kyoshi.harness.host-tool-turn": "passed",
+        "kyoshi.harness.cancel-active-turn": "passed",
+        "kyoshi.harness.cancel-pending-host-tool": "passed",
+        "kyoshi.harness.compaction": "passed",
+        "kyoshi.harness.user-config-seed": "passed",
+        "kyoshi.host.ask-answer-across-restart": "passed",
+        "kyoshi.host.cancel-pending-host-tool": "passed",
+        "kyoshi.host.resume-after-eviction": "passed",
+        "kyoshi.host.processes-after-host-crash": "passed",
+        "kyoshi.harness.native-write": "passed",
+        "sensei.interactive.host-tool-turn": "passed",
+        "sensei.interactive.ask-answer-across-restart": "passed",
+        "sensei.interactive.cancel-pending-host-tool": "passed",
+        "sensei.interactive.resume-after-eviction": "passed",
+        "sensei.interactive.model-switch": "passed",
+        "sensei.read-only.tool-list": "passed",
+        "sensei.read-only.adversarial-native-calls": "passed",
+        "sensei.read-only.user-mcp-write": "passed",
+        "sensei.isolation.user-config": "passed",
+        "sensei.read-only.absolute-path-reads": "passed",
+        "sensei.resume-failure.one-replacement": "passed",
+        "sensei.host-port.rerun-no-duplicate": "passed",
+        "sensei.kata.host-tool-turn": "passed",
+        "sensei.kata.ask-answer-across-restart": "passed",
+        "sensei.kata.cancel-pending-host-tool": "passed",
+        "sensei.kata.resume-after-eviction": "passed",
+        "sensei.guard.write-restored": "passed",
+        "sensei.guard.delete-restored": "passed",
+        "sensei.guard.create-restored": "passed",
+        "sensei.guard.write-after-pause": "passed",
+        "sensei.guard.host-port-down-at-pause": "passed",
+        "sensei.check.during-working-turn": "passed",
+        "sensei.switch.timeout-marks-interrupted": "passed",
+        "sensei.switch.during-working-turn": "passed",
+        "sensei.host.start-after-eve-version-change": "passed",
+        "kyoshi.switch.away-and-back": "passed",
+        "sensei.switch.away-and-back": "passed",
+        "kyoshi.switch.new-agent-new-session": "passed",
+        "sensei.switch.new-agent-new-session": "passed",
+        "sensei.evaluation.trial-loopback": "passed"
+      },
+      "latency": null,
+      "absolutePathReads": [
+        {
+          "path": "<case root>/outside/secret.txt",
+          "read": false
+        }
+      ],
+      "userConfig": {
+        "kyoshi": {
+          "mcp": false,
+          "skill": false,
+          "rules": false
+        },
+        "sensei": {
+          "mcp": false,
+          "skill": false,
+          "rules": false
+        }
+      },
+      "observations": {
+        "senseiAnswerAfterRestart": true,
+        "prevention": {
+          "sensei": {
+            "records": [
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "write"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "edit"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "write"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "bash"
+              },
+              {
+                "kind": "native-call-outside-allow-list",
+                "tool": "bash"
+              }
+            ]
+          }
+        },
+        "hostPortRerun": {
+          "calls": 1,
+          "keys": 1,
+          "outcome": "open"
+        },
+        "modelBeforeSettleHookAnswered": false,
+        "interruptedTurnRecovery": "open",
+        "interruptedTurnError": null,
+        "historyAfterSwitchBack": {
+          "kyoshi": true,
+          "sensei": true
+        },
+        "oneShotProcessesLeft": 0,
+        "budgetPromptOnMessage": 2,
+        "guardWriteAfterPause": true
+      }
     }
   ]
 }

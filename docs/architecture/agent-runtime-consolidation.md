@@ -1,3 +1,5 @@
+Superseded by `docs/designs/agent-runtime.md` (approved 2026-11-03); kept for history.
+
 # Agent runtime consolidation: review proposal
 
 Status: revised after adversarial review; consolidation is not yet approved. Dependency maintenance is being implemented separately in the [upgrade ledger](./dependency-upgrade-ledger.md). Its completed checks do not authorize migrating learning onto a different authentication path.
