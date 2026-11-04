@@ -12,7 +12,7 @@ function offeredTools(route, input) {
 }
 
 /** Deterministic Responses, Chat Completions, FX gateway and Anthropic Messages endpoint; real harness/CLI, no external inference. */
-export async function startLoopbackModel({ toolRequest, responses = true, selectChatTool, selectResponsesTool, selectMessagesTool, latencyMs = 0 } = {}) {
+export async function startLoopbackModel({ toolRequest, responses = true, selectChatTool, selectResponsesTool, selectMessagesTool, selectGatewayTool, latencyMs = 0 } = {}) {
   const requests = [];
   const requestedModels = [];
   const paths = [];
@@ -88,8 +88,8 @@ export async function startLoopbackModel({ toolRequest, responses = true, select
       const discover = !contextTool && discovery && requestedTools.length === 0 && input.tools?.some(tool => tool.name === discovery.name);
       const permissionReview = input.tools?.length === 1 && input.tools[0].name === "permission_decision";
       const selected = permissionReview ? { name: "permission_decision", input: { risk: "low", decision: "clear", rationale: "Local test fixture" } }
-        : contextTool && !requestedTools.includes(contextTool.name)
-        ? { name: contextTool.name, input: toolRequest.input } : discover ? discovery : undefined;
+        : selectGatewayTool?.(input, requestedTools) ?? (contextTool && !requestedTools.includes(contextTool.name)
+        ? { name: contextTool.name, input: toolRequest.input } : discover ? discovery : undefined);
       if (selected) {
         if (!permissionReview) requestedTools.push(selected.name);
         events = [

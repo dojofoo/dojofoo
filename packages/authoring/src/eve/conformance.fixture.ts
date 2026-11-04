@@ -11,6 +11,10 @@ import { createFx } from "@ai-sdk/harness-fx";
 import { createGrokBuild } from "@ai-sdk/harness-grok-build";
 import { createOpenCode } from "@ai-sdk/harness-opencode";
 import { createPi } from "@ai-sdk/harness-pi";
+import { experimental_createHarnessModel, type PreventionRecord } from "@dojofoo/agent/experimental";
+import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
+import { readOnlyAdapterSettings, readOnlyEnvironment, readOnlyToolNames, withoutBuiltinFiltering } from "@dojofoo/agent/read-only";
+import { agentRow, type ResumeFailure } from "@dojofoo/protocol";
 import { expect } from "vitest";
 // Shared deterministic HTTP fixture; it performs no external inference.
 // @ts-expect-error Shared JavaScript inference fixture has no declarations.
@@ -53,9 +57,12 @@ function grokSelect({ name, input }: ToolRequest) {
   };
 }
 
+type Adapter = ReturnType<typeof createClaudeCode | typeof createCodex | typeof createFx | typeof createGrokBuild | typeof createOpenCode | typeof createPi>;
 export interface AgentWiring {
   /** The harness-level adapter, configured the way Kyoshi's model is apart from its auth. */
-  adapter(endpoint: LoopbackEndpoint, home: string): ReturnType<typeof createClaudeCode | typeof createCodex | typeof createFx | typeof createGrokBuild | typeof createOpenCode | typeof createPi>;
+  adapter(endpoint: LoopbackEndpoint, home: string): Adapter;
+  /** The read-only adapter, as agentAdapter(…, { mode: "read-only" }) builds it, with the fixture's auth (Pi without agentDir). */
+  readOnly(endpoint: LoopbackEndpoint, settings: Record<string, unknown>): Adapter;
   /** The adapter's fixture credentials; the host child gets them as environment variables. */
   auth(endpoint: LoopbackEndpoint): Auth;
   /** Environment beyond HOME and PATH, for harness-level sandboxes and the host child alike. */
@@ -79,6 +86,7 @@ const onceEndingWith = (suffix: string) => (requestedTools: string[]) => request
 export const wiring: Record<TierAAgent, AgentWiring> = {
   claude: {
     adapter: endpoint => createClaudeCode({ port: 0, auth: { ANTHROPIC_API_KEY: "fixture-only", ANTHROPIC_BASE_URL: endpoint.anthropicBaseURL } }),
+    readOnly: (endpoint, settings) => createClaudeCode({ port: 0, ...settings, auth: { ANTHROPIC_API_KEY: "fixture-only", ANTHROPIC_BASE_URL: endpoint.anthropicBaseURL } }),
     // In the host child agentAdapter auto-detects from the environment, where either gateway variable would win.
     auth: endpoint => ({ ANTHROPIC_API_KEY: "fixture-only", ANTHROPIC_BASE_URL: endpoint.anthropicBaseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "" }),
     environment: () => ({ CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1", DISABLE_AUTOUPDATER: "1" }),
@@ -93,6 +101,7 @@ export const wiring: Record<TierAAgent, AgentWiring> = {
   },
   codex: {
     adapter: endpoint => createCodex({ port: 0, auth: openai(endpoint) }),
+    readOnly: (endpoint, settings) => createCodex({ port: 0, ...settings, auth: openai(endpoint) }),
     auth: openai,
     environment: home => ({ CODEX_HOME: join(home, ".codex") }),
     prepareHome: async home => { await mkdir(join(home, ".codex"), { recursive: true }); },
@@ -104,6 +113,7 @@ export const wiring: Record<TierAAgent, AgentWiring> = {
   },
   grok: {
     adapter: endpoint => createGrokBuild({ port: 0, auth: { XAI_API_KEY: "fixture-only", GROK_XAI_API_BASE_URL: endpoint.baseURL, GROK_MODELS_BASE_URL: endpoint.baseURL } }),
+    readOnly: (endpoint, settings) => createGrokBuild({ port: 0, ...settings, auth: { XAI_API_KEY: "fixture-only", GROK_XAI_API_BASE_URL: endpoint.baseURL, GROK_MODELS_BASE_URL: endpoint.baseURL } }),
     auth: endpoint => ({ XAI_API_KEY: "fixture-only", GROK_XAI_API_BASE_URL: endpoint.baseURL, GROK_MODELS_BASE_URL: endpoint.baseURL }),
     // Grok updates its own binary in GROK_HOME/bin unless told not to; tier A must run the adapter's pin.
     environment: home => ({ GROK_HOME: join(home, ".grok"), GROK_DISABLE_AUTOUPDATER: "1" }),
@@ -128,6 +138,8 @@ export const wiring: Record<TierAAgent, AgentWiring> = {
   opencode: {
     adapter: endpoint => createOpenCode({ port: 0, auth: openai(endpoint), provider: "openai",
       openCodeConfig: { small_model: "openai/gpt-4o", enabled_providers: ["openai"] } }),
+    readOnly: (endpoint, settings) => createOpenCode({ port: 0, ...settings, auth: openai(endpoint), provider: "openai",
+      openCodeConfig: { small_model: "openai/gpt-4o", enabled_providers: ["openai"] } }),
     auth: openai,
     environment: home => ({ XDG_CONFIG_HOME: join(home, ".config"), XDG_DATA_HOME: join(home, ".local/share"), XDG_CACHE_HOME: join(home, ".cache") }),
     prepareHome: async home => {
@@ -143,6 +155,7 @@ export const wiring: Record<TierAAgent, AgentWiring> = {
   },
   fx: {
     adapter: endpoint => createFx({ auth: { AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: gatewayBase(endpoint) } }),
+    readOnly: (endpoint, settings) => createFx({ ...settings, auth: { AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: gatewayBase(endpoint) } }),
     auth: endpoint => ({ AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: gatewayBase(endpoint), VERCEL_OIDC_TOKEN: "" }),
     // FX's own loopback overrides; its requests do not use the adapter's generic AI_GATEWAY_BASE_URL.
     environment: (_home, endpoint) => ({
@@ -159,6 +172,7 @@ export const wiring: Record<TierAAgent, AgentWiring> = {
   },
   pi: {
     adapter: (endpoint, home) => createPi({ agentDir: join(home, ".pi/agent"), auth: openai(endpoint) }),
+    readOnly: (endpoint, settings) => createPi({ reattachInProcess: false, ...settings, auth: openai(endpoint) }),
     // agentAdapter("pi") passes no auth, so Pi reads OPENAI_* from the host child's environment.
     auth: openai,
     environment: home => ({ PI_CODING_AGENT_DIR: join(home, ".pi/agent") }),
@@ -301,7 +315,7 @@ export interface CaseContext {
   wiring: AgentWiring;
   markers: string[];
   /** Starts this case's loopback model, prepares the case home for it and closes it with the case. */
-  loopback(toolRequest?: ToolRequest): Promise<LoopbackEndpoint>;
+  loopback(toolRequest?: ToolRequest, options?: Record<string, unknown>): Promise<LoopbackEndpoint>;
   /** The allow-listed environment of a harness-level sandbox. */
   environment(endpoint: LoopbackEndpoint): NodeJS.ProcessEnv;
   defer(cleanup: () => Promise<unknown> | unknown): void;
@@ -329,8 +343,8 @@ export async function openCase(agent: TierAAgent, id: string, harnessPath: strin
   const markers = [...new Set([root, shared, await realpath(shared)])];
   const context: CaseContext = {
     agent, id, root, home, course: join(root, "course"), wiring: wiring[agent], markers,
-    async loopback(toolRequest) {
-      const endpoint: LoopbackEndpoint = await startLoopbackModel(wiring[agent].loopback(toolRequest));
+    async loopback(toolRequest, options = {}) {
+      const endpoint: LoopbackEndpoint = await startLoopbackModel({ ...wiring[agent].loopback(toolRequest), ...options });
       cleanups.push(() => endpoint.close());
       await wiring[agent].prepareHome(home, endpoint);
       return endpoint;
@@ -351,8 +365,22 @@ export async function openCase(agent: TierAAgent, id: string, harnessPath: strin
 
 export interface HostResult { results: Array<Record<string, unknown>>; error?: string; exitCode: number | null; output: string }
 
-/** Runs scripts/conformance-host.mjs in a child process group with the host environment; kills the group after 180 s. */
-export async function runKyoshiHost(context: CaseContext, endpoint: LoopbackEndpoint, harnessPath: string, model?: string): Promise<HostResult> {
+/** A running conformance-host.mjs child: its results so far, a line to its stdin, and its end. */
+export interface HostRun {
+  results: Array<Record<string, unknown>>;
+  /** The first result with this step, once the driver prints it */
+  step(name: string, timeoutMs?: number): Promise<Record<string, unknown>>;
+  send(line: string): void;
+  /** SIGKILL to the driver's process group (crash-after-park) */
+  kill(): void;
+  pid: number;
+  done: Promise<HostResult>;
+}
+
+/** Runs scripts/conformance-host.mjs in a child process group with the host environment; kills the group after 180 s.
+ *  `hostPort` is the host-port fixture's URL; Sensei's host reads its session and course through it. */
+export function runHost(context: CaseContext, endpoint: LoopbackEndpoint, harnessPath: string,
+  options: { scenario: string; persona: "kyoshi" | "sensei"; hostPort?: string; model?: string; workspaceId?: string }): HostRun {
   const environment = {
     ...context.environment(endpoint),
     PATH: [join(authoring, "node_modules/.bin"), harnessPath].join(delimiter),
@@ -360,22 +388,164 @@ export async function runKyoshiHost(context: CaseContext, endpoint: LoopbackEndp
     NODE_ENV: "development", EVE_MOCK_AUTHORED_MODELS: "0", CI: "", TEST: "",
     ...context.wiring.auth(endpoint),
   };
-  const child = spawn(process.execPath, ["scripts/conformance-host.mjs", "ask-answer-across-restart", context.agent, context.root, ...(model ? [model] : [])],
-    { cwd: authoring, env: environment, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+  const args = ["scripts/conformance-host.mjs", options.scenario, context.agent, context.root, ...(options.model ? [options.model] : []),
+    "--persona", options.persona, ...(options.hostPort ? ["--host-port", options.hostPort] : []), "--workspace-id", options.workspaceId ?? `w-${context.agent}`];
+  const child = spawn(process.execPath, args, { cwd: authoring, env: environment, detached: true, stdio: ["pipe", "pipe", "pipe"] });
   let output = "";
-  child.stdout.on("data", chunk => { output += chunk; });
+  const results: Array<Record<string, unknown>> = [];
+  const waiting: Array<{ name: string; resolve(value: Record<string, unknown>): void }> = [];
+  let pending = "";
+  child.stdout.on("data", chunk => {
+    output += chunk;
+    pending += chunk;
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("CONFORMANCE_RESULT ")) continue;
+      const result = JSON.parse(line.slice("CONFORMANCE_RESULT ".length)) as Record<string, unknown>;
+      results.push(result);
+      for (const waiter of waiting.filter(entry => entry.name === result.step)) waiter.resolve(result);
+    }
+  });
   child.stderr.on("data", chunk => { output += chunk; });
   const killGroup = () => { try { process.kill(-child.pid!, "SIGKILL"); } catch {} };
   context.defer(killGroup);
   const timer = setTimeout(killGroup, 180_000);
-  const exitCode = await new Promise<number | null>((resolve, reject) => {
+  const done = new Promise<number | null>((resolve, reject) => {
     child.once("error", reject);
     child.once("close", code => resolve(code));
-  }).finally(() => clearTimeout(timer));
-  const lines = output.split("\n");
+  }).finally(() => clearTimeout(timer)).then(exitCode => {
+    const lines = output.split("\n");
+    return { results, error: lines.find(line => line.startsWith("CONFORMANCE_ERROR "))?.slice("CONFORMANCE_ERROR ".length), exitCode, output };
+  });
   return {
-    results: lines.flatMap(line => line.startsWith("CONFORMANCE_RESULT ") ? [JSON.parse(line.slice("CONFORMANCE_RESULT ".length))] : []),
-    error: lines.find(line => line.startsWith("CONFORMANCE_ERROR "))?.slice("CONFORMANCE_ERROR ".length),
-    exitCode, output,
+    results, pid: child.pid!, done,
+    send: line => { child.stdin.write(`${line}\n`); },
+    kill: killGroup,
+    step: (name, timeoutMs = 150_000) => {
+      const found = results.find(result => result.step === name);
+      if (found) return Promise.resolve(found);
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error(`No "${name}" from the host driver: ${output.slice(-3000)}`)), timeoutMs);
+        waiting.push({ name, resolve: value => { clearTimeout(timeout); resolve(value); } });
+        void done.then(result => { if (!results.some(entry => entry.step === name)) { clearTimeout(timeout); reject(new Error(`The host driver ended without "${name}": ${result.error ?? result.output.slice(-3000)}`)); } });
+      });
+    },
   };
+}
+
+/** Kyoshi's ask-answer-across-restart run to its end (step 3's helper). */
+export async function runKyoshiHost(context: CaseContext, endpoint: LoopbackEndpoint, harnessPath: string, model?: string): Promise<HostResult> {
+  return runHost(context, endpoint, harnessPath, { scenario: "ask-answer-across-restart", persona: "kyoshi", model }).done;
+}
+
+/** Native processes of the agent only: neither the host driver nor its Eve server. */
+export async function agentProcesses(markers: readonly string[]) {
+  return (await nativeProcesses(markers)).filter(row => !row.command.includes("conformance-host.mjs") && !row.command.includes(".output/server/index.mjs"));
+}
+
+/** Calls the loopback makes in order on main-loop requests, by name whether the agent offers them or not, then "Ready to teach.". */
+export function scriptedCalls(sequence: ToolRequest[]): Record<string, unknown> {
+  let index = 0;
+  const next = (input: { tools?: unknown[] }) => (input.tools?.length && index < sequence.length ? sequence[index++] : undefined);
+  return { selectMessagesTool: next, selectChatTool: next, selectResponsesTool: next, selectGatewayTool: next };
+}
+
+/** Native calls per agent, as each runtime names them on the wire at the pinned versions (read from the loopback's tool lists). */
+export const nativeCalls: Record<TierAAgent, {
+  write(path: string, content: string): ToolRequest;
+  edit(path: string, from: string, to: string): ToolRequest;
+  shell(command: string): ToolRequest;
+  read(path: string): ToolRequest;
+}> = {
+  claude: {
+    write: (path, content) => ({ name: "Write", input: { file_path: path, content } }),
+    edit: (path, from, to) => ({ name: "Edit", input: { file_path: path, old_string: from, new_string: to } }),
+    shell: command => ({ name: "Bash", input: { command } }),
+    read: path => ({ name: "Read", input: { file_path: path } }),
+  },
+  // Codex has no file tool: it writes, edits and reads through its shell
+  codex: {
+    write: (path, content) => ({ name: "exec_command", input: { cmd: `printf '%s' '${content}' > '${path}'` } }),
+    edit: (path, from, to) => ({ name: "exec_command", input: { cmd: `sed -i.bak 's/${from}/${to}/' '${path}'` } }),
+    shell: command => ({ name: "exec_command", input: { cmd: command } }),
+    read: path => ({ name: "exec_command", input: { cmd: `cat '${path}'` } }),
+  },
+  grok: {
+    write: (path, content) => ({ name: "write", input: { file_path: path, content } }),
+    edit: (path, from, to) => ({ name: "search_replace", input: { file_path: path, old_string: from, new_string: to } }),
+    shell: command => ({ name: "run_terminal_command", input: { command } }),
+    read: path => ({ name: "read_file", input: { target_file: path } }),
+  },
+  opencode: {
+    write: (path, content) => ({ name: "write", input: { filePath: path, content } }),
+    edit: (path, from, to) => ({ name: "edit", input: { filePath: path, oldString: from, newString: to } }),
+    shell: command => ({ name: "bash", input: { command } }),
+    read: path => ({ name: "read", input: { filePath: path } }),
+  },
+  fx: {
+    write: (path, content) => ({ name: "write", input: { file_path: path, content } }),
+    edit: (path, from, to) => ({ name: "edit", input: { file_path: path, old_string: from, new_string: to } }),
+    shell: command => ({ name: "bash", input: { command } }),
+    read: path => ({ name: "read", input: { file_path: path } }),
+  },
+  pi: {
+    write: (path, content) => ({ name: "write", input: { file_path: path, content } }),
+    edit: (path, from, to) => ({ name: "edit", input: { file_path: path, old_string: from, new_string: to } }),
+    shell: command => ({ name: "bash", input: { command } }),
+    read: path => ({ name: "read", input: { file_path: path } }),
+  },
+};
+
+/** Tool names a read-only offer may carry beyond readOnlyToolNames(…).native, with why. */
+export const toolListExtras: Record<TierAAgent, Record<string, string>> = {
+  claude: {},
+  codex: { tool_search: "Codex's catalog search, which reaches only host tools in a read-only call", request_user_input: "Codex's own question tool, answered by the host" },
+  // A deny row (D18): its built-ins stay registered, and every call outside the allow-list is refused (sensei.read-only.adversarial-native-calls)
+  grok: Object.fromEntries(["run_terminal_command", "search_replace", "write", "kill_command_or_subagent", "todo_write", "get_command_or_subagent_output",
+    "scheduler_create", "scheduler_delete", "scheduler_list", "monitor", "workflow", "enter_plan_mode", "exit_plan_mode", "ask_user_question",
+    "send_feedback", "web_search", "image_gen", "image_edit", "image_to_video", "reference_to_video"]
+    .map(name => [name, "Grok keeps its built-ins registered (deny row); a call outside the allow-list is refused"])),
+  opencode: {},
+  fx: { capability_search: "FX discovers host tools through it", askUserQuestions: "FX's question tool, answered by the host" },
+  pi: {},
+};
+
+export const senseiTools = [
+  { type: "function" as const, name: "ask_question", description: "Ask the learner one question.",
+    inputSchema: { type: "object" as const, properties: { question: { type: "string" } }, required: ["question"] } },
+  { type: "function" as const, name: "dojo_context", description: "Retrieve the current course.", inputSchema: { type: "object" as const, properties: {} } },
+];
+
+/** One read-only model call, the path Sensei's model takes: production readOnlyEnvironment and adapter settings, the fixture's auth only. */
+export async function runSenseiModel(context: CaseContext, endpoint: LoopbackEndpoint, options: {
+  prompt: string; eveSessionId?: string; sandbox?: ReturnType<typeof createLocalHarnessSandbox>; onResumeFailure?(failure: ResumeFailure): void;
+  checkpoint?: Array<Record<string, unknown>>;
+} ) {
+  const eveSessionId = options.eveSessionId ?? `eve-${context.agent}-${Date.now()}`;
+  const stateDirectory = join(context.home, ".dojofoo/state");
+  const environment = await readOnlyEnvironment(context.agent, context.environment(endpoint), { stateDirectory, eveSessionId });
+  const settings = await readOnlyAdapterSettings(context.agent, context.environment(endpoint));
+  const adapter = context.wiring.readOnly(endpoint, settings);
+  const harness = agentRow(context.agent).readOnly?.prevention === "deny" ? withoutBuiltinFiltering(adapter) : adapter;
+  const sandbox = options.sandbox ?? createLocalHarnessSandbox(context.root, { environment });
+  const records: PreventionRecord[] = [];
+  const { model } = experimental_createHarnessModel({ harness, sandbox, sandboxConfig: { workDir: "course" },
+    ...(context.wiring.firstModel ? { model: context.wiring.firstModel } : {}) } as never,
+  { mode: "read-only", agent: context.agent, eveSessionId, onPrevention: record => records.push(record), onResumeFailure: options.onResumeFailure });
+  const prompt = [...(options.checkpoint ?? []), { role: "user", content: [{ type: "text", text: options.prompt }] }];
+  const parts: Array<Record<string, unknown>> = [];
+  let failure: unknown;
+  try {
+    const { stream } = await model.doStream({ prompt: prompt as never, tools: senseiTools, abortSignal: AbortSignal.timeout(120_000) });
+    for await (const part of stream as unknown as AsyncIterable<Record<string, unknown>>) parts.push(part);
+  } catch (error) { failure = error; }
+  const text = parts.filter(part => part.type === "text-delta").map(part => part.delta).join("");
+  const harnessMetadata = ([...parts].reverse().find(part => (part.providerMetadata as { harness?: { resumeFrom?: unknown } } | undefined)?.harness?.resumeFrom)
+    ?.providerMetadata as { harness?: unknown } | undefined)?.harness;
+  return { parts, records, text, failure, eveSessionId, sandbox, environment,
+    /** The assistant message that carries this turn's checkpoint, for the next call's prompt */
+    checkpoint: harnessMetadata ? [{ role: "user", content: [{ type: "text", text: options.prompt }] },
+      { role: "assistant", content: [{ type: "text", text, providerOptions: { harness: harnessMetadata } }] }] : undefined,
+    ...readOnlyToolNames(context.agent, senseiTools.map(tool => tool.name)) };
 }

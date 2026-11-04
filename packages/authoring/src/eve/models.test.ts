@@ -102,7 +102,7 @@ const acpServer = (log: string, session: string, close: boolean) => ["--input-ty
     const request = JSON.parse(line);
     appendFileSync(${JSON.stringify(log)}, request.method + '\\n');
     if (!('id' in request)) return;
-    const result = request.method === 'initialize' ? { protocolVersion: 1, agentCapabilities: ${close ? "{ sessionCapabilities: { close: {} } }" : "{}"} }
+    const result = request.method === 'initialize' ? { protocolVersion: 1, agentCapabilities: ${close ? "{ sessionCapabilities: { close: {}, delete: {} } }" : "{}"} }
       : request.method === 'session/new' ? ${session} : {};
     process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: request.id, result }) + '\\n');
   });
@@ -132,6 +132,7 @@ describe("ACP model probes", () => {
   });
 
   it("closes the probe session when the agent supports it and always stops the probe", async () => {
+    // and deletes it when the agent can, so the probe leaves no session in the agent's history (open risk 3)
     const directory = await mkdtemp(join(tmpdir(), "dojo-acp-models-"));
     try {
       const session = "{ sessionId: 's1', models: { availableModels: [] } }";
@@ -139,7 +140,7 @@ describe("ACP model probes", () => {
         const log = join(directory, name);
         await acpModels("grok", AbortSignal.timeout(5000), { executable: process.execPath, args: acpServer(log, session, close) });
         const [pid, ...methods] = (await readFile(log, "utf8")).trim().split("\n");
-        expect(methods).toEqual(["initialize", "session/new", ...(close ? ["session/close"] : [])]);
+        expect(methods).toEqual(["initialize", "session/new", ...(close ? ["session/close", "session/delete"] : [])]);
         const alive = () => { try { process.kill(Number(pid!.slice(4)), 0); return true; } catch { return false; } };
         await vi.waitFor(() => expect(alive()).toBe(false), { timeout: 5000 });
       }

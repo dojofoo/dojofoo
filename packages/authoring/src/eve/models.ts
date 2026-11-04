@@ -79,8 +79,13 @@ export async function acpModels(agent: "cursor" | "grok", signal: AbortSignal,
     const initialized = await request("initialize", { protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false } });
     const session = await request("session/new", { cwd, mcpServers: [] });
     const choices = agent === "cursor" ? cursorModels(session?.configOptions) : grokModels(session?.models?.availableModels);
-    if (initialized?.agentCapabilities?.sessionCapabilities?.close && typeof session?.sessionId === "string") {
+    const capabilities = initialized?.agentCapabilities?.sessionCapabilities;
+    if (capabilities?.close && typeof session?.sessionId === "string") {
       await request("session/close", { sessionId: session.sessionId }).catch(() => {});
+    }
+    // The probe is not a conversation: it leaves no session in the agent's history when the agent can delete one (open risk 3)
+    if (capabilities?.delete && typeof session?.sessionId === "string") {
+      await request("session/delete", { sessionId: session.sessionId }).catch(() => {});
     }
     return choices;
   } catch (error) {
