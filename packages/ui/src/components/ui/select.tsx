@@ -46,7 +46,7 @@ const selectionAckMs = 300;
 interface SelectContextValue {
   value: string;
   open: boolean;
-  actionsRef: React.RefObject<{ unmount: () => void } | null>;
+  actionsRef: React.RefObject<SelectPrimitive.Root.Actions | null>;
 }
 
 const SelectContext = createContext<SelectContextValue | null>(null);
@@ -124,7 +124,7 @@ function Select({
 }: SelectProps) {
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
   const [open, setOpen] = useState(false);
-  const actionsRef = useRef<{ unmount: () => void } | null>(null);
+  const actionsRef = useRef<SelectPrimitive.Root.Actions | null>(null);
   const currentValue = value !== undefined ? value : internalValue;
 
   const items = useMemo(() => collectSelectItems(children), [children]);
@@ -153,7 +153,9 @@ function Select({
   // press, trigger toggle, focus-out) closes immediately and cancels any
   // pending acknowledgment; re-picking within the window restarts it.
   const handleOpenChange = useCallback(
-    (nextOpen: boolean, eventDetails: { reason: string }) => {
+    (nextOpen: boolean, eventDetails: SelectPrimitive.Root.OpenChangeEventDetails) => {
+      // Keep the popup mounted until the exit spring releases it through actionsRef.
+      if (!nextOpen) eventDetails.preventUnmountOnClose();
       if (!nextOpen && eventDetails.reason === "item-press") {
         cancelAckClose();
         ackTimeoutRef.current = window.setTimeout(() => {
