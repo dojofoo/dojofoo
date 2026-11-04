@@ -304,6 +304,9 @@ importers:
       '@dojofoo/agent':
         specifier: workspace:*
         version: link:../agent
+      '@dojofoo/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       elysia:
         specifier: ^1.4.18
         version: 1.4.29(@sinclair/typebox@0.34.52)(@types/bun@1.4.3)(exact-mirror@0.2.7(@sinclair/typebox@0.34.52))(file-type@22.0.1)(openapi-types@12.1.3)(typescript@6.0.3)

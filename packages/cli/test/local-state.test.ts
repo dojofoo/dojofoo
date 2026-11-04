@@ -2,12 +2,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { DatabaseSync } from "node:sqlite";
 import {
   listDojoRuns,
   listEvents,
   listSessions,
   listWorkspaces,
   observeLocalContext,
+  observeWorkspacePath,
   recordDojoLifecycle,
   sessionFromEnvironment,
   setSessionLifecycle,
@@ -48,6 +50,7 @@ describe("local dojo state", () => {
       path: root,
       firstSeenAt: 100,
       lastSeenAt: 200,
+      kind: "learner",
     }]);
     expect(listDojoRuns({ stateHome })).toEqual([{
       id: first.dojoRunId,
@@ -189,6 +192,65 @@ describe("local dojo state", () => {
     expect(observeLocalContext(root, { stateHome, now: 200 })).toEqual(first);
     expect(listWorkspaces({ stateHome })).toHaveLength(1);
     expect(listDojoRuns({ stateHome })).toHaveLength(1);
+  });
+
+  const kindOf = (root: string, stateHome: string) => listWorkspaces({ stateHome }).find(workspace => workspace.path === root)?.kind;
+
+  it("registers a new workspace as a learner unless an authoring entry point says draft", () => {
+    const learner = fixture();
+    const draft = fixture();
+    observeLocalContext(learner.root, { stateHome: learner.stateHome });
+    observeWorkspacePath(draft.root, { stateHome: learner.stateHome, kind: "draft" });
+    expect(kindOf(learner.root, learner.stateHome)).toBe("learner");
+    expect(kindOf(draft.root, learner.stateHome)).toBe("draft");
+  });
+
+  it("a draft registration upgrades a learner workspace and nothing turns a draft back", () => {
+    const { root, stateHome } = fixture();
+    observeLocalContext(root, { stateHome });
+    expect(kindOf(root, stateHome)).toBe("learner");
+    observeWorkspacePath(root, { stateHome, kind: "draft" });
+    expect(kindOf(root, stateHome)).toBe("draft");
+    observeLocalContext(root, { stateHome });
+    observeWorkspacePath(root, { stateHome, kind: "learner" });
+    observeLocalContext(root, { stateHome, kind: "evaluation-trial" });
+    expect(kindOf(root, stateHome)).toBe("draft");
+  });
+
+  it("an evaluation trial keeps its kind", () => {
+    const { root, stateHome } = fixture();
+    observeLocalContext(root, { stateHome, kind: "evaluation-trial" });
+    observeLocalContext(root, { stateHome });
+    observeWorkspacePath(root, { stateHome, kind: "draft" });
+    expect(kindOf(root, stateHome)).toBe("evaluation-trial");
+  });
+
+  it("adds an empty kind to an existing version-two database for the UI server to backfill", () => {
+    const { root, stateHome } = fixture();
+    const db = new DatabaseSync(resolve(stateHome, "dojofoo.db"));
+    db.exec(`
+      CREATE TABLE workspaces (id TEXT PRIMARY KEY, path TEXT NOT NULL UNIQUE, first_seen_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL);
+      CREATE TABLE dojo_runs (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL REFERENCES workspaces(id), dojo TEXT NOT NULL,
+        started_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL, completed_at INTEGER);
+      CREATE TABLE sessions (id TEXT PRIMARY KEY, harness TEXT NOT NULL, native_id TEXT NOT NULL, cwd TEXT, transcript_path TEXT,
+        first_seen_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL, ownership TEXT NOT NULL DEFAULT 'external',
+        harness_session_id TEXT, lifecycle_state TEXT, UNIQUE(harness, native_id));
+      CREATE TABLE events (id TEXT PRIMARY KEY, type TEXT NOT NULL, occurred_at INTEGER NOT NULL, workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+        dojo_run_id TEXT REFERENCES dojo_runs(id), session_id TEXT REFERENCES sessions(id), kata TEXT, data TEXT);
+      PRAGMA user_version = 2;
+    `);
+    db.prepare("INSERT INTO workspaces (id, path, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?)").run("existing", root, 100, 100);
+    db.close();
+
+    expect(listWorkspaces({ stateHome })).toEqual([{ id: "existing", path: root, firstSeenAt: 100, lastSeenAt: 100, kind: null }]);
+    const version = new DatabaseSync(resolve(stateHome, "dojofoo.db"));
+    expect(version.prepare("PRAGMA user_version").get()).toEqual({ user_version: 3 });
+    version.close();
+    // Registration never guesses learner for an existing row
+    observeLocalContext(root, { stateHome, now: 200 });
+    expect(kindOf(root, stateHome)).toBeNull();
+    observeWorkspacePath(root, { stateHome, kind: "draft" });
+    expect(kindOf(root, stateHome)).toBe("draft");
   });
 
   it("keeps the indexed workspace when its on-disk instance identity changes", () => {

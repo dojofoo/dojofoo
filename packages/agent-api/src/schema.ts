@@ -1,12 +1,12 @@
 import { t } from "elysia";
-import type { Persona } from "./runtime";
+import { personas } from "./runtime";
 
 // The public Course API's conventions: `{ error, message }` errors, `{ data, pagination }`
 // collections with zero-based `page` and `per_page`, verb-noun operation IDs.
 const count = () => t.Integer({ minimum: 0 });
 export const error = t.Object({ error: t.String(), message: t.String() }, { additionalProperties: false });
 const pagination = t.Object({ page: count(), perPage: t.Integer(), total: count(), hasMore: t.Boolean() });
-const persona = t.Union([t.Literal("sensei" satisfies Persona), t.Literal("kyoshi" satisfies Persona)], {
+const persona = t.Union([t.Literal(personas[0]), t.Literal(personas[1])], {
   description: "The persona the coding agent speaks as: Sensei teaches, Kyoshi authors.",
 });
 const workspace = { workspaceId: t.String({ description: "The workspace's ID." }) };
@@ -58,9 +58,9 @@ export const routes = {
     response: { 200: t.Object({ data: t.Array(t.Object(sessionSummary)), pagination }), 404: error },
   },
   createSession: {
-    detail: details("createSession", "Create a session", "Starts a conversation with a persona on a coding agent (the workspace's selected one by default). Its first run starts with `message`, or the persona's greeting.", "Sessions"),
+    detail: details("createSession", "Create a session", "Starts a conversation on a coding agent (the workspace's selected one by default), with the persona the workspace's kind runs: Kyoshi for a draft, Sensei otherwise. A `persona` in the body is ignored. Its first run starts with `message`, or the persona's greeting.", "Sessions"),
     params: t.Object(workspace),
-    body: t.Object({ persona, agent: t.Optional(t.String()), message: t.Optional(t.String({ minLength: 1 })),
+    body: t.Object({ persona: t.Optional(persona), agent: t.Optional(t.String()), message: t.Optional(t.String({ minLength: 1 })),
       clientContext: t.Optional(t.Record(t.String(), t.Unknown(), { description: "Page context for the first turn, as Eve's `clientContext`: the agent sees it, the conversation doesn't keep it." })),
     }),
     response: { 201: t.Object(sessionSummary), 404: error, 409: error },

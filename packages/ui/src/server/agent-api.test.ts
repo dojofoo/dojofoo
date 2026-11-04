@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { observeWorkspacePath } from "@dojofoo/config/local-state";
+import { observeLocalContext, observeWorkspacePath } from "@dojofoo/config/local-state";
+import { DatabaseSync } from "node:sqlite";
 import { writeAgent } from "@dojofoo/config/runtime";
 import { app } from "./app";
 import { createLocalAgentRuntime } from "./agent-api";
@@ -115,6 +116,39 @@ describe("local agent runtime", () => {
     await vi.waitFor(async () => expect((await local.agents(workspaceId))[0].status).toBe("stopped"));
     await local.connect(workspaceId, { agent: "codex", persona: "kyoshi" });
     expect(owned.start).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("persona", () => {
+  it("a draft runs Kyoshi", async () => {
+    const { root, state } = workspace();
+    const workspaceId = observeWorkspacePath(root, { ...state, kind: "draft" });
+    expect(await createLocalAgentRuntime({ state, runtime: async () => { throw new Error("unused"); } }).persona(workspaceId)).toBe("kyoshi");
+  });
+
+  it("a learner workspace and an evaluation trial run Sensei", async () => {
+    const learner = workspace();
+    const trial = workspace();
+    const trialId = observeLocalContext(trial.root, { ...learner.state, kind: "evaluation-trial" })!.workspaceId;
+    const local = createLocalAgentRuntime({ state: learner.state, runtime: async () => { throw new Error("unused"); } });
+    expect(await local.persona(learner.workspaceId)).toBe("sensei");
+    expect(await local.persona(trialId)).toBe("sensei");
+  });
+
+  it("an unknown workspace is not found", async () => {
+    const { local } = runtime();
+    await expect(local.persona("missing")).rejects.toMatchObject({ status: 404, code: "workspace_not_found" });
+  });
+
+  it("a workspace without a kind uses the draft rule", async () => {
+    const { root, state, workspaceId } = workspace();
+    const db = new DatabaseSync(resolve(state.stateHome, "dojofoo.db"));
+    db.exec("UPDATE workspaces SET kind = NULL");
+    db.close();
+    const local = createLocalAgentRuntime({ state, runtime: async () => { throw new Error("unused"); } });
+    expect(await local.persona(workspaceId)).toBe("sensei");
+    writeFileSync(resolve(root, ".dojo", "kyoshi.json"), "{}");
+    expect(await local.persona(workspaceId)).toBe("kyoshi");
   });
 });
 

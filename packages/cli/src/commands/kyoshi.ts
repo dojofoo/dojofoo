@@ -47,7 +47,7 @@ export async function kyoshi(root: string, args: string[]): Promise<void> {
     style,
     name: valueAfter(args, "--name") ?? basename(resolve(root)),
   });
-  observeWorkspacePath(root);
+  observeWorkspacePath(root, { kind: "draft" });
   process.stdout.write(`Kyoshi workspace ready in ${resolve(root)}\n`);
   await ui(root, ["--authoring", ...forwardedUiArgs(args)]);
 }

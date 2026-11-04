@@ -59,7 +59,8 @@ export function createAgentApi(runtime: AgentRuntime) {
       return paginate(sessions, query);
     }, routes.listSessions)
     .post("/workspaces/:workspaceId/sessions", async ({ params, body, request, set }) => {
-      const persona: Persona = body.persona;
+      // The workspace decides who speaks, not the page
+      const persona: Persona = await runtime.persona(params.workspaceId);
       const agents = await runtime.agents(params.workspaceId);
       const agent = body.agent ?? agents.find(item => item.selected)?.id;
       if (!agent || !agents.some(item => item.id === agent)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");

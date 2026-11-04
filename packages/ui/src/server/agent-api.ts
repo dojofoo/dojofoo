@@ -4,10 +4,11 @@ import { dirname, join } from "node:path";
 import type { ClientOptions } from "@dojofoo/agent/client";
 import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type SessionRecord } from "@dojofoo/agent-api";
 import { resolveAgent } from "@dojofoo/config/runtime";
-import { agentRow, isAgentId, offeredAgents, type AgentId } from "@dojofoo/protocol";
-import type { LocalStateOptions } from "@dojofoo/config/local-state";
+import { agentRow, isAgentId, offeredAgents, personaForKind, type AgentId } from "@dojofoo/protocol";
+import { listWorkspaces, type LocalStateOptions } from "@dojofoo/config/local-state";
 import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
 import { resolveWorkspaceId } from "./control/workspace";
+import { workspaceKind } from "./control/drafts";
 
 type RuntimeState = { agent: string; status: AgentStatus; message?: string; endpoint?: Promise<AgentEndpoint>; owned?: OwnedRuntime };
 
@@ -135,6 +136,11 @@ export function createLocalAgentRuntime(options: {
       return endpoint(path);
     },
     greeting: persona => persona === "kyoshi" ? KYOSHI_START : "",
+    async persona(workspaceId) {
+      const workspace = listWorkspaces(options.state).find(item => item.id === workspaceId);
+      if (!workspace) throw new AgentApiError(404, "workspace_not_found", "Workspace not found.");
+      return personaForKind(workspaceKind(workspace, options.state ?? {}));
+    },
     sessions: {
       list: async workspaceId => read(root(workspaceId)),
       get: async (workspaceId, sessionId) => (await read(root(workspaceId))).find(item => item.id === sessionId),

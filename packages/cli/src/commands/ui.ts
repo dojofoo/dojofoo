@@ -42,7 +42,7 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
   const background = args.includes("--background");
   const shouldOpen = !args.includes("--no-open") && process.env.DOJO_UI_NO_OPEN !== "1";
   const openPath = resolveUiOpenPath(args);
-  if (args.includes("--authoring")) observeWorkspacePath(process.env.DOJO_PROJECT_ROOT ?? cwd);
+  if (args.includes("--authoring")) observeWorkspacePath(process.env.DOJO_PROJECT_ROOT ?? cwd, { kind: "draft" });
   const port = valueAfter(args, "--port") ?? process.env.DOJO_UI_PORT ?? process.env.PORT ?? "4567";
   if (!/^\d+$/u.test(port) || Number(port) < 1 || Number(port) > 65_535) {
     throw new Error(`Invalid dojo UI port: ${port}`);

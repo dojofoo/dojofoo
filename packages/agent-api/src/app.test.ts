@@ -9,8 +9,8 @@ let eve: Awaited<ReturnType<typeof startEve>>;
 beforeAll(async () => { eve = await startEve(); }, 120_000);
 afterAll(async () => { await eve?.close(); }, 60_000);
 
-function setup() {
-  const runtime = testRuntime(eve ?? { baseUrl: "http://eve.invalid" });
+function setup(options: Parameters<typeof testRuntime>[2] = {}) {
+  const runtime = testRuntime(eve ?? { baseUrl: "http://eve.invalid" }, "ws-1", options);
   const app = createAgentApi(runtime);
   const call = (path: string, init?: RequestInit) => app.handle(new Request(`${base}${path}`, init));
   const json = (path: string, method = "GET", body?: unknown) => call(path, {
@@ -85,6 +85,19 @@ describe("sessions", () => {
     await vi.waitFor(async () => {
       const { events } = await session(record.id).snapshot();
       expect(events.some(event => event.type === "content.completed" && JSON.stringify(event.data).includes("Echo: Hello kyoshi"))).toBe(true);
+    }, { timeout: 30_000 });
+  }, 60_000);
+
+  it("creates a session with the workspace's persona, ignoring a persona in the body", async () => {
+    const { json, runtime, session } = setup({ persona: "sensei" });
+    const created = await json("/sessions", "POST", { persona: "kyoshi" });
+    expect(created.status).toBe(201);
+    const record = await created.json();
+    expect(record).toMatchObject({ agent: "codex", persona: "sensei" });
+    expect(runtime.records).toEqual([record]);
+    await vi.waitFor(async () => {
+      const { events } = await session(record.id).snapshot();
+      expect(events.some(event => event.type === "content.completed" && JSON.stringify(event.data).includes("Echo: Hello sensei"))).toBe(true);
     }, { timeout: 30_000 });
   }, 60_000);
 

@@ -107,7 +107,7 @@ export function readAuthoringDraft(root: string): AuthoringDraft {
   };
 }
 
-export function createLessonTrial(root: string, lessonId: string, options: { agent?: AgentId } = {}): {
+export function createLessonTrial(root: string, lessonId: string, options: { agent?: AgentId; kind?: WorkspaceKind } = {}): {
   workspaceId: string;
   courseId: string;
   lessonId: string;
@@ -153,7 +153,7 @@ export function createLessonTrial(root: string, lessonId: string, options: { age
     const template = resolve(courseRoot, templatePath);
     const starters = createStateDirectory(trialRoot, courseId, "starters");
     writeFileSync(resolve(starters, lessonId), readFileSync(template));
-    const observed = observeLocalContext(trialRoot);
+    const observed = observeLocalContext(trialRoot, { kind: options.kind ?? "learner" });
     if (!observed) throw new Error("Could not register the lesson trial workspace");
     return { workspaceId: observed.workspaceId, courseId, lessonId };
   } catch (error) {
@@ -449,4 +449,4 @@ function substantiveMarkdown(markdown: string): boolean {
   return markdown.replace(/^#.*$/gmu, "").trim().length > 0;
 }
 import { resolveAgent } from "@dojofoo/config/runtime";
-import type { AgentId } from "@dojofoo/protocol";
+import type { AgentId, WorkspaceKind } from "@dojofoo/protocol";

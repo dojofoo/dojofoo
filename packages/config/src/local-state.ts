@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { AgentId } from "./agents";
+import type { WorkspaceKind } from "@dojofoo/protocol";
 import { courseMode, hasWorkspaceConfiguration, readCourseManifest, readDojoRc } from "./index";
 
 export type HarnessSession = {
@@ -11,6 +12,8 @@ export type HarnessSession = {
   nativeId: string;
   transcriptPath?: string | null;
 };
+
+export type { WorkspaceKind };
 
 export type LocalStateOptions = {
   stateHome?: string;
@@ -29,6 +32,8 @@ export type LocalWorkspace = {
   path: string;
   firstSeenAt: number;
   lastSeenAt: number;
+  /** `null` only for rows registered before kinds existed; the UI server backfills them */
+  kind: WorkspaceKind | null;
 };
 
 export type LocalDojoRun = {
@@ -105,14 +110,14 @@ export function sessionFromEnvironment(
   return null;
 }
 
-export function observeLocalContext(root: string, options: LocalStateOptions = {}): LocalContext | null {
+export function observeLocalContext(root: string, options: LocalStateOptions & { kind?: WorkspaceKind } = {}): LocalContext | null {
   if (!hasWorkspaceConfiguration(root)) return null;
   const rc = readDojoRc(root);
 
   const now = options.now ?? Date.now();
   const db = openDatabase(options);
   try {
-    const workspaceId = observeWorkspace(db, root, now);
+    const workspaceId = observeWorkspace(db, root, now, options.kind);
     if (!rc.currentDojo) {
       return { workspaceId, dojoRunId: null, sessionId: null };
     }
@@ -189,9 +194,17 @@ export function forgetLocalCourse(workspaceId: string, dojo: string | null, opti
 
 export function listWorkspaces(options: LocalStateOptions = {}): LocalWorkspace[] {
   return readRows<LocalWorkspace>(options, `
-    SELECT id, path, first_seen_at AS firstSeenAt, last_seen_at AS lastSeenAt
+    SELECT id, path, first_seen_at AS firstSeenAt, last_seen_at AS lastSeenAt, kind
     FROM workspaces ORDER BY first_seen_at
   `);
+}
+
+/** Only the UI server's startup backfill sets a kind directly. */
+export function setWorkspaceKind(workspaceId: string, kind: WorkspaceKind, options: LocalStateOptions = {}): void {
+  const db = openDatabase(options);
+  try {
+    db.prepare("UPDATE workspaces SET kind = ? WHERE id = ?").run(kind, workspaceId);
+  } finally { db.close(); }
 }
 
 /** An installed course's durable learning session, independent of agent conversations. */
@@ -206,10 +219,10 @@ export function observeCourseRun(root: string, dojo: string, options: LocalState
 }
 
 /** Register a filesystem workspace without requiring an installed dojo. */
-export function observeWorkspacePath(root: string, options: LocalStateOptions = {}): string {
+export function observeWorkspacePath(root: string, options: LocalStateOptions & { kind?: WorkspaceKind } = {}): string {
   const db = openDatabase(options);
   try {
-    return observeWorkspace(db, root, options.now ?? Date.now());
+    return observeWorkspace(db, root, options.now ?? Date.now(), options.kind);
   } finally {
     db.close();
   }
@@ -246,7 +259,7 @@ export function readLocalSnapshot(options: LocalStateOptions = {}): LocalSnapsho
   try {
     return {
       workspaces: readRowsFromDatabase<LocalWorkspace>(db, `
-        SELECT id, path, first_seen_at AS firstSeenAt, last_seen_at AS lastSeenAt
+        SELECT id, path, first_seen_at AS firstSeenAt, last_seen_at AS lastSeenAt, kind
         FROM workspaces ORDER BY first_seen_at
       `),
       runs: readRowsFromDatabase<LocalDojoRun>(db, `
@@ -378,6 +391,13 @@ function migrate(db: DatabaseSync): void {
     PRAGMA user_version = 2;
     COMMIT;
   `);
+  // Existing rows keep NULL until the UI server backfills them from the dashboard's draft rule
+  if (version < 3) db.exec(`
+    BEGIN;
+    ALTER TABLE workspaces ADD COLUMN kind TEXT CHECK (kind IS NULL OR kind IN ('learner','draft','evaluation-trial'));
+    PRAGMA user_version = 3;
+    COMMIT;
+  `);
 }
 
 function readSessionFromDatabase(db: DatabaseSync, sessionId: string): LocalSession | null {
@@ -406,20 +426,27 @@ export function workspaceIdFor(root: string): string {
   return instanceId;
 }
 
-function observeWorkspace(db: DatabaseSync, root: string, now: number): string {
+/** A new row is a learner workspace unless an authoring entry point says draft. Only a draft registration
+ * changes an existing row, and only from learner or NULL: nothing turns a draft back. */
+function observeWorkspace(db: DatabaseSync, root: string, now: number, kind?: WorkspaceKind): string {
   const workspacePath = resolve(root);
   const existing = db.prepare("SELECT id FROM workspaces WHERE path = ?")
     .get(workspacePath) as { id: string } | undefined;
   if (existing) {
-    db.prepare("UPDATE workspaces SET last_seen_at = ? WHERE id = ?").run(now, existing.id);
+    db.prepare(`
+      UPDATE workspaces SET last_seen_at = ?,
+        kind = CASE WHEN ? = 'draft' AND (kind IS NULL OR kind = 'learner') THEN 'draft' ELSE kind END
+      WHERE id = ?
+    `).run(now, kind ?? null, existing.id);
     return existing.id;
   }
   const workspaceId = workspaceIdFor(root);
   db.prepare(`
-    INSERT INTO workspaces (id, path, first_seen_at, last_seen_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET path = excluded.path, last_seen_at = excluded.last_seen_at
-  `).run(workspaceId, workspacePath, now, now);
+    INSERT INTO workspaces (id, path, first_seen_at, last_seen_at, kind)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET path = excluded.path, last_seen_at = excluded.last_seen_at,
+      kind = CASE WHEN excluded.kind = 'draft' AND (workspaces.kind IS NULL OR workspaces.kind = 'learner') THEN 'draft' ELSE workspaces.kind END
+  `).run(workspaceId, workspacePath, now, now, kind ?? "learner");
   return workspaceId;
 }
 

@@ -14,7 +14,7 @@ import { Hono } from "hono";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { closeDraftRuntime, createDraft, isManagedDraft } from "./drafts";
+import { closeDraftRuntime, createDraft, isManagedDraft, newestKyoshiSession, workspaceKind } from "./drafts";
 import { requestOrigin } from "../request-origin";
 import { resolveWorkspaceId } from "./workspace";
 import { installStarter, starterCourseIds, uninstallCourse } from "./starters";
@@ -194,8 +194,8 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
       const workspace = listWorkspaces(stateOptions()).find(item => item.id === c.req.param("workspaceId"));
       if (!workspace) return c.json({ error: "This authoring course does not exist." }, 404);
+      if (workspaceKind(workspace, stateOptions()) !== "draft") return c.json({ error: "This workspace is not an authoring course." }, 422);
       const managed = isManagedDraft(workspace.path, stateOptions());
-      if (!managed && !existsSync(resolve(workspace.path, ".dojo", "kyoshi.json"))) return c.json({ error: "This workspace is not an authoring course." }, 422);
       await closeDraftRuntime(workspace.path);
       if (managed) rmSync(workspace.path, { recursive: true });
       forgetLocalCourse(workspace.id, null, stateOptions());
@@ -233,9 +233,9 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
     })
     .get("/authoring", (c) => c.json(listWorkspaces(stateOptions()).flatMap((workspace) => {
       try {
+        if (workspaceKind(workspace, stateOptions()) !== "draft") return [];
+        // A legacy ACP draft has no Eve session to resume
         const session = newestKyoshiSession(workspace.path);
-        // A legacy ACP pointer still marks a draft, but its session cannot resume in Eve.
-        if (!session && !existsSync(resolve(workspace.path, ".dojo", "kyoshi.json")) && !isManagedDraft(workspace.path, stateOptions())) return [];
         const manifest = readCourseManifestSource(workspace.path);
         return [{
           workspaceId: workspace.id,
@@ -281,15 +281,6 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
 }
 
 export const controlRoutes = buildControlRoutes();
-
-/** The newest Kyoshi session in the course's agent-api session list. */
-function newestKyoshiSession(root: string): { id: string } | undefined {
-  const path = resolve(root, ".dojo", "agent-sessions.json");
-  if (!existsSync(path)) return undefined;
-  const { sessions } = JSON.parse(readFileSync(path, "utf8")) as { sessions?: { id: string; persona: string; createdAt: string }[] };
-  return (sessions ?? []).filter(session => session.persona === "kyoshi")
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
-}
 
 function readCourseManifestSource(root: string): Record<string, unknown> {
   return parseYaml(readFileSync(resolve(root, "dojo.yaml"), "utf8")) as Record<string, unknown>;

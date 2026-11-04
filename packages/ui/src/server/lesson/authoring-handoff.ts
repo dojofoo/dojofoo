@@ -79,7 +79,7 @@ export async function runAuthoringHandoff(signal: AbortSignal = new AbortControl
   const evidence: unknown[] = [{ learnerProfile, priorLessons, maxTeachingQuestionReplies, harness: agent, model: process.env.DOJOFOO_HANDOFF_MODEL, learnerPath, turnIntervalMs }];
   const persist = () => writeFile(evidencePath, JSON.stringify(evidence, null, 2));
   await mkdir(process.env.DOJOFOO_HOME, { recursive: true });
-  const trial = createLessonTrial(authoredRoot, lessons[0].name, { agent });
+  const trial = createLessonTrial(authoredRoot, lessons[0].name, { agent, kind: "evaluation-trial" });
   const root = listWorkspaces().find(workspace => workspace.id === trial.workspaceId)?.path;
   if (!root) throw new Error("Production trial did not register its workspace");
   evidence.push({ trialWorkspace: root });

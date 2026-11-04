@@ -31,8 +31,8 @@ export async function startEve(): Promise<AgentEndpoint & { close(): Promise<voi
   };
 }
 
-/** A runtime with one workspace whose selected coding agent is Codex, served by `endpoint`. */
-export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1"): AgentRuntime & { records: SessionRecord[]; started: string[] } {
+/** A runtime with one draft workspace (Kyoshi unless `options.persona` says otherwise) whose selected coding agent is Codex, served by `endpoint`. */
+export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", options: { persona?: Persona } = {}): AgentRuntime & { records: SessionRecord[]; started: string[] } {
   const records: SessionRecord[] = [];
   const started: string[] = [];
   const known = (id: string) => { if (id !== workspaceId) throw new AgentApiError(404, "workspace_not_found", "Workspace not found."); };
@@ -52,6 +52,7 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1"): Agen
     stop: async (id, agentId) => { known(id); return { ...agents().find(agent => agent.id === agentId)!, status: "stopped" }; },
     connect: async id => { known(id); return endpoint; },
     greeting: (persona: Persona) => `Hello ${persona}`,
+    persona: async id => { known(id); return options.persona ?? "kyoshi"; },
     sessions: {
       list: async id => { known(id); return records; },
       get: async (id, sessionId) => { known(id); return records.find(item => item.id === sessionId); },

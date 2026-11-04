@@ -1,6 +1,7 @@
+import type { Persona } from "@dojofoo/protocol";
+
 /** Who the conversation is with: the same chat, with that persona's prompts and tools. */
-export const personas = ["sensei", "kyoshi"] as const;
-export type Persona = (typeof personas)[number];
+export { personas, type Persona } from "@dojofoo/protocol";
 
 export type AgentStatus = "stopped" | "starting" | "migrating" | "ready" | "failed";
 
@@ -46,6 +47,8 @@ export interface AgentRuntime {
   connect(workspaceId: string, target: { agent: string; persona: Persona }): Promise<AgentEndpoint>;
   /** The persona's first message when a session starts without one */
   greeting(persona: Persona): string;
+  /** From the workspace's kind: a draft runs Kyoshi; a learner workspace or an evaluation trial runs Sensei. */
+  persona(workspaceId: string): Promise<Persona>;
   sessions: {
     list(workspaceId: string): Promise<SessionRecord[]>;
     get(workspaceId: string, sessionId: string): Promise<SessionRecord | undefined>;

@@ -9,6 +9,8 @@ import { bootstrapMise } from "../src/mise-bootstrap";
 import { ui } from "../src/commands/ui";
 import { kyoshi } from "../src/commands/kyoshi";
 import { writeEvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
+import { listWorkspaces } from "@dojofoo/config/local-state";
+import { realpathSync } from "node:fs";
 
 vi.mock("../src/commands/ui", () => ({ ui: vi.fn() }));
 vi.mock("../src/mise-bootstrap", () => ({ bootstrapMise: vi.fn(async () => "/managed/mise") }));
@@ -74,4 +76,18 @@ it("rejects a misspelled command instead of silently scaffolding", async () => {
   await expect(kyoshi(root, ["evalute"])).rejects.toThrow("Unknown Kyoshi command");
   expect(ui).not.toHaveBeenCalled();
   expect(readAuthoringDraft(root).lessons).toEqual([]);
+});
+
+it("opening authoring registers the folder as a draft workspace", async () => {
+  const stateHome = mkdtempSync(join(tmpdir(), "dojo-kyoshi-command-home-"));
+  vi.stubEnv("DOJOFOO_HOME", stateHome);
+  try {
+    await kyoshi(root, ["--style", "katas"]);
+    expect(ui).toHaveBeenCalledWith(root, ["--authoring"]);
+    expect(listWorkspaces({ stateHome }).map(({ path, kind }) => ({ path: realpathSync(path), kind })))
+      .toEqual([{ path: realpathSync(root), kind: "draft" }]);
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(stateHome, { recursive: true, force: true });
+  }
 });
