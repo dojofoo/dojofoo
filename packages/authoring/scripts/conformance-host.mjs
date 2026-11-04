@@ -3,7 +3,8 @@
 //   node scripts/conformance-host.mjs <scenario> <agent> <root> [<model>] [--persona kyoshi|sensei] [--host-port <url>] [--workspace-id <id>]
 // It starts the persona's prepared host on exactly <agent>; the test process, where the loopback model and the host-port fixture run,
 // makes the assertions. A scenario that must hold its host open waits for a line on stdin.
-import { existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
@@ -41,6 +42,16 @@ const start = async options => {
   result({ step: "started", harness: configuration.harness, secret: started.secret });
   return { runtime, client: new Client({ baseUrl: started.url, auth: started.auth }) };
 };
+/** Native processes of this case still running (their command names the case root or the harness bootstrap), not this driver's */
+const caseProcesses = () => {
+  const bootstrap = join(process.env.HOME ?? root, ".ai-sdk-harness");
+  const markers = [root, ...(existsSync(bootstrap) ? [realpathSync(bootstrap)] : [])];
+  try {
+    return execFileSync("ps", ["-axww", "-o", "pid=,command="], { encoding: "utf8" }).split("\n")
+      .filter(line => markers.some(marker => line.includes(marker)) && !line.includes("conformance-host.mjs") && !line.includes(".output/server/index.mjs"))
+      .map(line => line.trim().slice(0, 300));
+  } catch (error) { return [`ps failed: ${String(error)}`]; }
+};
 const lines = createInterface({ input: process.stdin });
 const received = [];
 const listeners = [];
@@ -70,9 +81,12 @@ async function open(client, message) {
 const firstPrompt = persona === "kyoshi" ? "Help me author a course." : "Introduce the lesson.";
 const settledTurn = (events, outcome) => events.find(event => event.type === "turn.settled" && (!outcome || event.data.outcome === outcome));
 let runtime;
+// The client and session a failure's event dump reads
+let latest;
 try {
   const first = await start(model ? { model } : {});
   runtime = first.runtime;
+  latest = { client: first.client };
   if (scenario === "restart-only") {
     await runtime.close();
     runtime = undefined;
@@ -81,6 +95,7 @@ try {
   }
   const created = await open(first.client, firstPrompt);
   const state = () => created.session.state;
+  latest.state = state;
   if (scenario === "ask-answer-across-restart" || scenario === "crash-after-park") {
     const parked = await created.delivery.result({ signal: turn() });
     result({ step: "parked", status: parked.status,
@@ -88,13 +103,17 @@ try {
     if (scenario === "crash-after-park") await new Promise(() => {});   // the test kills this process group
     await runtime.close();
     runtime = undefined;
+    // What the closed host left running (the next start reaps a crashed host's recorded groups)
+    result({ step: "closed", processes: caseProcesses() });
     const second = await start({});
     runtime = second.runtime;
+    latest.client = second.client;
     const session = second.client.sessions.attach(state().sessionId, state());
     // Kyoshi answers the question's option; Sensei's learner answers by typing in the composer, a plain message
     const delivery = persona === "kyoshi"
       ? await session.respond([{ interactionId: parked.interactions[0]?.interactionId, optionId: "Beginner" }], { signal: turn() })
       : await session.send("Beginner", { signal: turn() });
+    result({ step: "responded", deliveryId: delivery.deliveryId });
     const answered = await delivery.result({ signal: turn() });
     result({ step: "answered", status: answered.status, reply: answered.reply, sessionId: state().sessionId });
     if (argument("--debug")) {
@@ -145,6 +164,12 @@ try {
   process.exit(0);
 } catch (error) {
   console.log(`CONFORMANCE_ERROR ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+  // What the host's session recorded up to the failure, from the host that was running then
+  const sessionId = latest?.state?.()?.sessionId;
+  if (runtime && sessionId) {
+    const { events } = await latest.client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(10_000) }).catch(reason => ({ events: [{ type: "snapshot failed", data: String(reason) }] }));
+    console.log(`CONFORMANCE_EVENTS ${JSON.stringify(events.map(event => [event.type, event.data?.outcome ?? event.data?.status ?? event.data?.kind ?? ""])).slice(0, 3000)}`);
+  }
   await runtime?.close().catch(() => {});
   process.exit(1);
 }

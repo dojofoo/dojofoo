@@ -439,6 +439,18 @@ export async function runKyoshiHost(context: CaseContext, endpoint: LoopbackEndp
   return runHost(context, endpoint, harnessPath, { scenario: "ask-answer-across-restart", persona: "kyoshi", model }).done;
 }
 
+/** Where an agent writes its own log under the case home */
+const nativeLogDirectories: Partial<Record<TierAAgent, string>> = { opencode: ".local/share/opencode/log" };
+
+/** The last lines of each of the agent's own log files in the case home, for a failing case's diagnostics. */
+export async function nativeLogTail(context: CaseContext, lines = 25): Promise<Record<string, string>> {
+  const directory = nativeLogDirectories[context.agent];
+  if (!directory) return {};
+  const files = await readdir(join(context.home, directory)).catch(() => [] as string[]);
+  return Object.fromEntries(await Promise.all(files.map(async name =>
+    [name, (await readFile(join(context.home, directory, name), "utf8").catch(() => "")).trimEnd().split("\n").slice(-lines).join("\n")])));
+}
+
 /** Native processes of the agent only: neither the host driver nor its Eve server. */
 export async function agentProcesses(markers: readonly string[]) {
   return (await nativeProcesses(markers)).filter(row => !row.command.includes("conformance-host.mjs") && !row.command.includes(".output/server/index.mjs"));

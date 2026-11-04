@@ -11,7 +11,7 @@ import { personaRecordedFrom, type Persona } from "@dojofoo/protocol";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-  agentProcesses, caseBaseEnvironment, expectNoNativeProcesses, nativeCalls, nativeProcesses, observe, openCase, requestsCarrying, runHost, runKyoshiHost,
+  agentProcesses, caseBaseEnvironment, expectNoNativeProcesses, nativeCalls, nativeLogTail, nativeProcesses, observe, openCase, requestsCarrying, runHost, runKyoshiHost,
   runSenseiModel, scriptedCalls, seedMarkers, snapshotDirectory, stopAfterCancel, toolListExtras, userConfigSeeds,
   type CaseContext, type LoopbackEndpoint, type TierAAgent, type ToolRequest,
 } from "./conformance.fixture";
@@ -279,8 +279,9 @@ const cases: ConformanceCase[] = [
     async run(context) {
       const endpoint = await context.loopback({ name: "dojo_ui_ask", input: question });
       const host = await runKyoshiHost(context, endpoint, harnessPath, context.wiring.hostModel);
-      const diagnostics = JSON.stringify({ exitCode: host.exitCode, error: host.error, output: host.output.slice(-4000),
-        requestedTools: endpoint.requestedTools, toolLists: endpoint.toolLists, paths: endpoint.paths });
+      // The driver's output carries the session's events at a failure and what the first host left running
+      const diagnostics = JSON.stringify({ exitCode: host.exitCode, error: host.error, output: host.output.slice(-6000),
+        requestedTools: endpoint.requestedTools, toolLists: endpoint.toolLists, paths: endpoint.paths, nativeLogs: await nativeLogTail(context) });
       expect(host.error, diagnostics).toBeUndefined();
       expect(host.exitCode, diagnostics).toBe(0);
       const started = host.results.filter(result => result.step === "started");

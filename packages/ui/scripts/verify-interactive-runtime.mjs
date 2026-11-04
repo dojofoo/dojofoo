@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -40,6 +40,8 @@ const environment = { ...process.env, DOJOFOO_HOME: stateHome, DO_NOT_TRACK: "1"
   OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "", NODE_PATH: undefined, CI: "", TEST: "" };
 delete environment.OPENCODE_CONFIG_CONTENT;
 let server;
+// Reads the Sensei session's events for a failure's evidence, once the page has opened it
+let failureEvents;
 let output = "";
 let browser;
 let page;
@@ -135,6 +137,7 @@ try {
   assert.match(await fetch(new URL(href, origin)).then(response => response.text()), /first/);
   await expect.poll(async () => (await records()).length, { timeout: 60_000 }).toBe(1);
   const [initial] = await records();
+  failureEvents = () => snapshot(initial.id);
   assert.equal(initial.courseId, "first");
   assert.equal(initial.model, "openai/gpt-4o");
 
@@ -275,6 +278,14 @@ try {
   }
 } catch (error) {
   console.error(output);
+  // The session's events and the tail of OpenCode's own log (the learner's XDG data home) beside the requests
+  if (failureEvents) {
+    const events = await failureEvents().then(({ events }) => events, reason => [{ type: "snapshot failed", data: String(reason) }]);
+    await writeFile(artifact("session-events.json"), JSON.stringify(events.map(event => [event.type, event.data]), null, 2));
+  }
+  const logs = join(scratch, "data/opencode/log");
+  const tails = await readdir(logs).then(names => Promise.all(names.map(async name => `== ${name}\n${(await readFile(join(logs, name), "utf8")).split("\n").slice(-200).join("\n")}`)), () => []);
+  await writeFile(artifact("opencode-log-tail.txt"), tails.join("\n"));
   await writeFile(artifact("native-requests.json"), JSON.stringify(endpoint.requests, null, 2));
   if (page) { await page.screenshot({ path: artifact("failure.png") }); await writeFile(artifact("failure.html"), await page.content()); }
   throw error;
