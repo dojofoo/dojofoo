@@ -9,7 +9,7 @@ export type LifecycleEvent =
   | { type: "turn.settled" }
   | { type: "session.ended" }
   | { type: "resume.failed" }
-  /** The host became ready and Eve has no open turn for a working or paused record */
+  /** The host became ready and Eve has no open turn for a working or paused record; a pending begin stays for the next open */
   | { type: "reconcile" };
 
 const statusOf = (record: SessionRecord): LifecycleStatus => record.lifecycle?.status ?? "idle";
@@ -35,8 +35,12 @@ export function transition(record: SessionRecord, event: LifecycleEvent, now = n
       return { ...settled(), endedAt: record.endedAt ?? now };
     case "resume.failed":
       return { ...record, lifecycle: { ...current, resumeFailedAt: current.resumeFailedAt ?? now, updatedAt: now } };
-    case "reconcile":
-      return status === "working" || status === "paused" ? settled() : record;
+    case "reconcile": {
+      if (status !== "working" && status !== "paused") return record;
+      // A begin left pending may never have reached Eve; the next open resends it with the same key, which Eve answers once
+      const { turnId: _turnId, ...rest } = current;
+      return { ...record, lifecycle: { ...rest, status: "idle", updatedAt: now } };
+    }
   }
 }
 

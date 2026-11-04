@@ -95,6 +95,21 @@ export const routes = {
     }),
     response: { 201: t.Object(sessionSummary), 404: error, 409: error },
   },
+  openDefaultSession: {
+    detail: details("openDefaultSession", "Open a page's default conversation", "Gets or creates the conversation a Sensei page opens: the newest usable one for the course (and lesson) on the selected coding agent, else a new one that starts with a hidden begin turn. `session` is honoured when it belongs to the page; `new` with `from` replaces that conversation once. Only the UI's own pages can call it: it takes the page's launch token.", "Sessions"),
+    params: t.Object(workspace),
+    body: t.Object({
+      course: t.String({ minLength: 1 }),
+      lesson: t.Optional(t.String({ minLength: 1 })),
+      session: t.Optional(t.String({ minLength: 1 })),
+      new: t.Optional(t.Literal(true)),
+      from: t.Optional(t.String({ minLength: 1 })),
+    }),
+    response: {
+      200: t.Object({ session: t.Object(sessionSummary), rewrite: t.Boolean(), notice: t.Optional(t.Literal("picked-unavailable")) }),
+      400: error, 403: error, 404: error, 409: error, 503: error,
+    },
+  },
   getSession: {
     detail: details("getSession", "Get a session", "A conversation's coding agent and persona.", "Sessions"),
     params: t.Object({ ...workspace, sessionId: t.String() }),

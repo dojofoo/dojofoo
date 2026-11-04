@@ -88,6 +88,11 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
       set.status = 201;
       return saved;
     }, routes.createSession)
+    // The second token-checked route: only the UI's own pages open their default conversation
+    .post("/workspaces/:workspaceId/sessions/default", async ({ params, body, request }) => {
+      options.authorize?.(request);
+      return runtime.sessions.openDefault(params.workspaceId, body);
+    }, routes.openDefaultSession)
     .get("/workspaces/:workspaceId/sessions/:sessionId", async ({ params }) =>
       record(params.workspaceId, params.sessionId), routes.getSession)
     .patch("/workspaces/:workspaceId/sessions/:sessionId", async ({ params, body }) =>

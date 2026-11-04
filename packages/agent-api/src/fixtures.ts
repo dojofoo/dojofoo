@@ -1,4 +1,5 @@
 import { cp, mkdir, rm } from "node:fs/promises";
+import { Client } from "@dojofoo/agent/client";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Agent, AgentEndpoint, AgentRuntime, EveDelivery, Persona, SessionRecord } from "./runtime";
@@ -97,6 +98,18 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", optio
         if (index < 0) throw new AgentApiError(404, "session_not_found", "Session not found.");
         records[index] = change({ ...records[index]!, revision: records[index]!.revision ?? 0 });
         return records[index]!;
+      },
+      // The newest record for the course, or one made with a bodyless create on the endpoint
+      openDefault: async (id, request) => {
+        known(id);
+        const newest = records.filter(item => item.courseId === request.course && !request.new)
+          .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+        if (newest) return { session: newest, rewrite: newest.id !== request.session };
+        const { session } = await new Client(endpoint).sessions.create();
+        const created: SessionRecord = { id: session.id, agent: selected, persona: options.persona ?? "kyoshi", createdAt: new Date().toISOString(),
+          courseId: request.course, ...(request.lesson ? { lessonId: request.lesson } : {}), revision: 0 };
+        records.push(created);
+        return { session: created, rewrite: true };
       },
       patch: async (id, sessionId, { model }) => {
         known(id);

@@ -47,8 +47,10 @@ describe("session lifecycle", () => {
     expect(transition(record({ status: "working" }), { type: "resume.failed" }, at).lifecycle).toEqual({ status: "working", resumeFailedAt: at, updatedAt: at });
   });
 
-  it("host ready, reconcile: working and paused without an open turn become idle, as turn.settled", () => {
+  it("host ready, reconcile: working and paused without an open turn become idle, keeping a pending begin for the next open", () => {
     expect(transition(record({ status: "paused", turnId: "t1" }), { type: "reconcile" }, at).lifecycle).toEqual({ status: "idle", updatedAt: at });
+    expect(transition(record({ status: "working", beginPending: { idempotencyKey: "begin:s1:0", sentAt: at } }), { type: "reconcile" }, at).lifecycle)
+      .toEqual({ status: "idle", beginPending: { idempotencyKey: "begin:s1:0", sentAt: at }, updatedAt: at });
     expect(transition(record({ status: "idle" }), { type: "reconcile" }, at).lifecycle).toMatchObject({ status: "idle", updatedAt: "2026-11-04T00:00:00.000Z" });
   });
 

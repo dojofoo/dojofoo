@@ -13,6 +13,7 @@ import { workspaceKind } from "./control/drafts";
 import { authorizeLaunchRequest } from "./launch-token";
 import { readRecords as read, saveRecord as save, updateRecord } from "./agent-session/records";
 import { afterDelivery, applyLifecycle, beforeDelivery } from "./agent-session/lifecycle";
+import { createDefaultSessions } from "./agent-session/default";
 import { authoringWatchers } from "./authoring-watch";
 import { committedConformance } from "./conformance";
 import { forgetHost, hostPortUrl, registerHost } from "./host-port";
@@ -226,7 +227,7 @@ export function createLocalAgentRuntime(options: {
   };
   setInterval(() => { void stopIdle().catch(() => {}); }, options.idleCheckMs ?? 60_000).unref();
 
-  return {
+  const runtime: AgentRuntime = {
     async agents(workspaceId) {
       const path = root(workspaceId);
       const current = selected(path);
@@ -287,6 +288,8 @@ export function createLocalAgentRuntime(options: {
       get: async (workspaceId, sessionId) => (await read(root(workspaceId))).find(item => item.id === sessionId),
       save: async (workspaceId, session) => save(root(workspaceId), session),
       update: async (workspaceId, sessionId, change) => updateRecord(root(workspaceId), sessionId, change),
+      // Assigned below, once the runtime it connects through exists
+      openDefault: async () => { throw new Error("openDefault is not ready"); },
       async patch(workspaceId, sessionId, { model }) {
         const path = root(workspaceId);
         const updated = await updateRecord(path, sessionId, record => {
@@ -317,6 +320,13 @@ export function createLocalAgentRuntime(options: {
       };
     },
   };
+  const openDefault = createDefaultSessions({
+    root, persona: workspacePersona, selected,
+    connect: (workspaceId, target) => runtime.connect(workspaceId, target),
+    refuses: agent => senseiRefusesCursor(agent) ? cursorRefusal : undefined,
+  });
+  runtime.sessions.openDefault = openDefault;
+  return runtime;
 }
 
 /** This machine's agent runtime: Kyoshi hosts for drafts, Sensei hosts for every other workspace. */

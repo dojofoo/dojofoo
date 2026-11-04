@@ -207,6 +207,32 @@ describe("sessions", () => {
   });
 });
 
+describe("the default conversation route", () => {
+  it("POST /sessions/default needs the launch token", async () => {
+    const { json, runtime } = setup({ persona: "sensei" });
+    for (const headers of [{}, { [LAUNCH_TOKEN_HEADER]: "an-earlier-launch" }] as Array<Record<string, string>>) {
+      const refused = await json("/sessions/default", "POST", { course: "first" }, headers);
+      expect(refused.status).toBe(403);
+      expect(await refused.json()).toMatchObject({ error: "launch_token_invalid" });
+    }
+    expect(runtime.records).toEqual([]);
+    const opened = await json("/sessions/default", "POST", { course: "first" }, { [LAUNCH_TOKEN_HEADER]: testLaunchToken, origin: "http://local" });
+    expect(opened.status).toBe(200);
+    expect(await opened.json()).toEqual({ session: expect.objectContaining({ courseId: "first", revision: 0 }), rewrite: true });
+    expect((await json("/sessions/default", "POST", {}, { [LAUNCH_TOKEN_HEADER]: testLaunchToken })).status).toBe(400);
+  }, 60_000);
+
+  it("no other POST route matches /sessions/default", async () => {
+    const { json, runtime } = setup({ persona: "sensei" });
+    runtime.records.push({ id: "default", agent: "codex", persona: "sensei", createdAt: "2026-10-01T00:00:00.000Z", revision: 0 });
+    // GET still reads a session named "default"; POST is the default-conversation route, never a proxy to that session's Eve routes
+    expect(await (await json("/sessions/default")).json()).toMatchObject({ id: "default" });
+    const opened = await json("/sessions/default", "POST", { course: "first" }, { [LAUNCH_TOKEN_HEADER]: testLaunchToken });
+    expect(await opened.json()).toMatchObject({ rewrite: true, session: { courseId: "first" } });
+    expect(runtime.delivered).toEqual([]);
+  }, 60_000);
+});
+
 describe("a session's Eve routes", () => {
   it("serve Eve's own client: a turn with a tool call", async () => {
     const { session, created } = setup();

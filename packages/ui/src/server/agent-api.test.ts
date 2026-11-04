@@ -150,7 +150,8 @@ describe("local agent runtime", () => {
       await local.sessions.save(workspaceId, { ...working, id: "s-other-agent", agent: "claude" });
       await local.connect(workspaceId, kyoshi);
       expect((await local.sessions.get(workspaceId, "s-working"))?.lifecycle).toMatchObject({ status: "idle" });
-      expect((await local.sessions.get(workspaceId, "s-working"))?.lifecycle).not.toHaveProperty("beginPending");
+      // A pending begin stays for the next open to resend with its key
+      expect((await local.sessions.get(workspaceId, "s-working"))?.lifecycle).toHaveProperty("beginPending");
       expect((await local.sessions.get(workspaceId, "s-other-agent"))?.lifecycle).toMatchObject({ status: "working" });
     } finally { await eve.close(); }
   });

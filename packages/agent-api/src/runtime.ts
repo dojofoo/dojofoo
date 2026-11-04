@@ -50,6 +50,26 @@ export interface SessionRecord {
 
 export interface SessionPatch { model: string }
 
+export interface DefaultSessionRequest {
+  course: string;
+  /** Kata lessons only (step 5); an interactive course has no lesson */
+  lesson?: string;
+  /** From the URL or a history pick: honoured only if it belongs to the page key, the workspace and the selected agent, and is usable */
+  session?: string;
+  /** Skip the lookup and create a new conversation */
+  new?: true;
+  /** With `new`: the session this one replaces. `replacedBy` is recorded on it, the new one is seeded from learner evidence (Sensei),
+   *  and a second request with the same `from` returns the same replacement instead of making another (D28). */
+  from?: string;
+}
+export interface DefaultSessionResponse {
+  session: SessionRecord;
+  /** The browser must put this session in the URL (or drop the one it sent) */
+  rewrite: boolean;
+  /** "picked-unavailable": the requested session could not be continued and the default opened instead */
+  notice?: "picked-unavailable";
+}
+
 /** A request that starts or continues a turn: a message, or answers to a pending question. */
 export type EveDelivery = { kind: "message"; text: string; idempotencyKey?: string } | { kind: "answer"; idempotencyKey?: string };
 
@@ -85,6 +105,8 @@ export interface AgentRuntime {
     save(workspaceId: string, session: SessionRecord): Promise<void>;
     /** One serialised read-modify-write of one record (the store's write queue); 404 session_not_found */
     update(workspaceId: string, sessionId: string, change: (record: SessionRecord) => SessionRecord): Promise<SessionRecord>;
+    /** POST /sessions/default (D29). 400 invalid_request for a draft workspace until step 6. */
+    openDefault(workspaceId: string, request: DefaultSessionRequest): Promise<DefaultSessionResponse>;
     /** PATCH /sessions/{id}: writes `model`, raises `revision`, and saves the model as the workspace's last for that agent (D26) */
     patch(workspaceId: string, sessionId: string, patch: SessionPatch): Promise<SessionRecord>;
   };
