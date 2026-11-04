@@ -323,6 +323,19 @@ export interface CaseContext {
   close(): Promise<void>;
 }
 
+/** Links the agent's shared bootstrap (`.ai-sdk-harness`, and Grok's `bin`) into a case home; returns the shared home. */
+async function linkBootstrap(home: string, agent: TierAAgent) {
+  const shared = agentHome(agent);
+  await mkdir(join(shared, ".ai-sdk-harness"), { recursive: true });
+  await symlink(join(shared, ".ai-sdk-harness"), join(home, ".ai-sdk-harness"));
+  if (agent === "grok") {
+    await mkdir(join(shared, ".grok/bin"), { recursive: true });
+    await mkdir(join(home, ".grok"));
+    await symlink(join(shared, ".grok/bin"), join(home, ".grok/bin"));
+  }
+  return shared;
+}
+
 /** A case root with a clean user home that reuses the agent's shared bootstrap (step 3 plan, conformance.fixture.ts). */
 export async function openCase(agent: TierAAgent, id: string, harnessPath: string, { course = true } = {}): Promise<CaseContext> {
   const root = await realpath(await mkdtemp(join(tmpdir(), `dojo-conformance-${agent}-${id}-`)));
@@ -332,14 +345,7 @@ export async function openCase(agent: TierAAgent, id: string, harnessPath: strin
     await mkdir(join(root, "course"));
     await writeFile(join(root, "course/lesson.md"), "# Lesson\n\nTeach one concept at a time.\n");
   }
-  const shared = agentHome(agent);
-  await mkdir(join(shared, ".ai-sdk-harness"), { recursive: true });
-  await symlink(join(shared, ".ai-sdk-harness"), join(home, ".ai-sdk-harness"));
-  if (agent === "grok") {
-    await mkdir(join(shared, ".grok/bin"), { recursive: true });
-    await mkdir(join(home, ".grok"));
-    await symlink(join(shared, ".grok/bin"), join(home, ".grok/bin"));
-  }
+  const shared = await linkBootstrap(home, agent);
   const cleanups: Array<() => Promise<unknown> | unknown> = [];
   const markers = [...new Set([root, shared, await realpath(shared)])];
   const context: CaseContext = {
@@ -364,6 +370,17 @@ export async function openCase(agent: TierAAgent, id: string, harnessPath: strin
   return context;
 }
 
+/** The home of the agent a step-6 case switches away to (`<case root>/away-home`): its own bootstrap and its own wiring, pointed at the
+ *  case's loopback, so a request its host made would reach that loopback. Its shared home joins the case's process markers. */
+export async function awayHome(context: CaseContext, away: TierAAgent, endpoint: LoopbackEndpoint): Promise<string> {
+  const home = join(context.root, "away-home");
+  await mkdir(home);
+  const shared = await linkBootstrap(home, away);
+  await wiring[away].prepareHome(home, endpoint);
+  for (const marker of [shared, await realpath(shared)]) if (!context.markers.includes(marker)) context.markers.push(marker);
+  return home;
+}
+
 export interface HostResult { results: Array<Record<string, unknown>>; error?: string; exitCode: number | null; output: string }
 
 /** A running conformance-host.mjs child: its results so far, a line to its stdin, and its end. */
@@ -379,17 +396,20 @@ export interface HostRun {
 }
 
 /** Runs scripts/conformance-host.mjs in a child process group with the host environment; kills the group after 180 s.
- *  `hostPort` is the host-port fixture's URL; Sensei's host reads its session and course through it. */
+ *  `hostPort` is the host-port fixture's URL; Sensei's host reads its session and course through it. With `agent` and `home` the child
+ *  runs on that agent, with that home and that agent's wiring (a step-6 case's away host); otherwise on the case's. */
 export function runHost(context: CaseContext, endpoint: LoopbackEndpoint, harnessPath: string,
-  options: { scenario: string; persona: "kyoshi" | "sensei"; hostPort?: string; model?: string; workspaceId?: string; args?: string[] }): HostRun {
+  options: { scenario: string; persona: "kyoshi" | "sensei"; hostPort?: string; model?: string; workspaceId?: string; args?: string[]; agent?: TierAAgent; home?: string }): HostRun {
+  const agent = options.agent ?? context.agent;
+  const home = options.home ?? context.home;
   const environment = {
-    ...context.environment(endpoint),
+    ...(options.agent || options.home ? { ...caseBaseEnvironment(home), HOME: home, ...wiring[agent].environment(home, endpoint) } : context.environment(endpoint)),
     PATH: [join(authoring, "node_modules/.bin"), harnessPath].join(delimiter),
     // Eve substitutes mock models under NODE_ENV=test; srvx skips its shutdown handlers under CI and TEST.
     NODE_ENV: "development", EVE_MOCK_AUTHORED_MODELS: "0", CI: "", TEST: "",
-    ...context.wiring.auth(endpoint),
+    ...wiring[agent].auth(endpoint),
   };
-  const args = ["scripts/conformance-host.mjs", options.scenario, context.agent, context.root, ...(options.model ? [options.model] : []),
+  const args = ["scripts/conformance-host.mjs", options.scenario, agent, context.root, ...(options.model ? [options.model] : []),
     "--persona", options.persona, ...(options.hostPort ? ["--host-port", options.hostPort] : []), "--workspace-id", options.workspaceId ?? `w-${context.agent}`,
     ...(options.args ?? [])];
   const child = spawn(process.execPath, args, { cwd: authoring, env: environment, detached: true, stdio: ["pipe", "pipe", "pipe"] });

@@ -1,6 +1,7 @@
 // Host-level conformance driver, run as a child process by conformance.fixture.ts
 // (docs/designs/agent-runtime.steps/step-3.md and step-4.md, "conformance-host.mjs"):
 //   node scripts/conformance-host.mjs <scenario> <agent> <root> [<model>] [--persona kyoshi|sensei] [--host-port <url>] [--workspace-id <id>]
+//     [--session <id>] [--prompt <text>] [--inspect <id>]
 // It starts the persona's prepared host on exactly <agent>; the test process, where the loopback model and the host-port fixture run,
 // makes the assertions. A scenario that must hold its host open waits for a line on stdin.
 import { execFileSync } from "node:child_process";
@@ -10,13 +11,15 @@ import { createInterface } from "node:readline";
 import { join } from "node:path";
 import { agentRow, isAgentId } from "@dojofoo/protocol";
 
+// Step 6, both personas: a turn on a new or a named session, and a host that only starts and stops (the agent switched away to)
+const switchScenarios = ["turn-on-session", "away"];
 const scenarios = {
-  kyoshi: ["ask-answer-across-restart", "cancel-pending-host-tool", "resume-after-eviction", "crash-after-park", "restart-only"],
+  kyoshi: ["ask-answer-across-restart", "cancel-pending-host-tool", "resume-after-eviction", "crash-after-park", "restart-only", ...switchScenarios],
   sensei: ["ask-answer-across-restart", "cancel-pending-host-tool", "resume-after-eviction", "crash-after-park", "restart-only",
     "host-tool-turn", "model-switch", "rerun-no-duplicate",
     // Step 5: a report during a working turn, a switch's cancel, a killed host whose turn is interrupted, a settle hook lost to a crash,
     // and the restarts that read what those left (`--session <id>`)
-    "check-during-turn", "switch-during-turn", "interrupted-after-kill", "settle-hook-lost", "recover-session", "inspect-session"],
+    "check-during-turn", "switch-during-turn", "interrupted-after-kill", "settle-hook-lost", "recover-session", "inspect-session", ...switchScenarios],
 };
 const argument = name => { const index = process.argv.indexOf(name); return index === -1 ? undefined : process.argv[index + 1]; };
 const positional = process.argv.slice(2).filter((value, index, all) => !value.startsWith("--") && !all[index + 1 - 1 - 1]?.startsWith("--"));
@@ -91,9 +94,8 @@ async function until(client, sessionId, test, timeoutMs = 90_000) {
   const { events } = await client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(10_000) }).catch(() => ({ events: [] }));
   throw new Error(`The session did not reach the expected state in time: ${JSON.stringify(events.map(event => [event.type, event.data?.outcome ?? event.data?.status ?? ""]))}`);
 }
-/** A Sensei conversation as the UI server opens it: a bodyless create, then its first message (so the channel knows the session) */
+/** A conversation as the UI server opens it for either persona: a bodyless create, then its first message (step-6 plan, decision 26) */
 async function open(client, message) {
-  if (persona === "kyoshi") return client.sessions.create({ message, signal: turn() });
   const { session } = await client.sessions.create({ signal: turn() });
   return { session, delivery: await session.send(message, { signal: turn() }) };
 }
@@ -122,6 +124,35 @@ try {
     }
     // Long enough for a hook Eve might run again to reach the host port
     await sleep(3_000);
+    await runtime.close();
+    runtime = undefined;
+    result({ step: "closed", processes: caseProcesses() });
+    process.exit(0);
+  }
+  if (scenario === "away") {
+    // The agent the workspace switched to and away from again: it starts on the same case root and is never sent a message
+    result({ step: "away-started" });
+    await waitForLine("away-checked");
+    await runtime.close();
+    runtime = undefined;
+    result({ step: "closed", processes: caseProcesses() });
+    process.exit(0);
+  }
+  if (scenario === "turn-on-session") {
+    // One turn: on the session `--session` names, or on a new conversation; with `--inspect`, another session's settled turns too
+    const prompt = argument("--prompt") ?? firstPrompt;
+    const settledIds = events => events.filter(event => event.type === "turn.settled").map(event => event.data.turnId);
+    const earlier = sessionArgument ? settledIds((await first.client.sessions.attach(sessionArgument).snapshot({ signal: turn() })).events) : [];
+    const created = sessionArgument ? undefined : await open(first.client, prompt);
+    const sessionId = sessionArgument ?? created.session.state.sessionId;
+    latest.state = () => ({ sessionId });
+    const delivery = created?.delivery ?? await first.client.sessions.attach(sessionId).send(prompt, { signal: turn() });
+    const replied = await delivery.result({ signal: turn() });
+    const settled = await until(first.client, sessionId, events => events.find(event => event.type === "turn.settled" && event.data.outcome === "completed"
+      && !earlier.includes(event.data.turnId)));
+    result({ step: "turned", sessionId, turnId: settled.data.turnId, status: replied.status, reply: replied.reply });
+    const inspect = argument("--inspect");
+    if (inspect) result({ step: "inspected", sessionId: inspect, settled: settledIds((await first.client.sessions.attach(inspect).snapshot({ signal: turn() })).events) });
     await runtime.close();
     runtime = undefined;
     result({ step: "closed", processes: caseProcesses() });

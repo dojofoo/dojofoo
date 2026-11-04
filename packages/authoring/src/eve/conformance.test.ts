@@ -13,8 +13,8 @@ import { personaRecordedFrom, type Persona } from "@dojofoo/protocol";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-  agentProcesses, caseBaseEnvironment, expectNoNativeProcesses, nativeCalls, nativeLogTail, nativeProcesses, observe, openCase, requestsCarrying, runHost, runKyoshiHost,
-  runScriptedModel, runSenseiModel, scriptedCalls, seedMarkers, snapshotDirectory, stopAfterCancel, toolListExtras, userConfigSeeds,
+  agentProcesses, awayHome, caseBaseEnvironment, expectNoNativeProcesses, nativeCalls, nativeLogTail, nativeProcesses, observe, openCase, requestsCarrying, runHost, runKyoshiHost,
+  runScriptedModel, runSenseiModel, scriptedCalls, seedMarkers, snapshotDirectory, stopAfterCancel, toolListExtras, userConfigSeeds, wiring,
   type CaseContext, type LoopbackEndpoint, type TierAAgent, type ToolRequest,
 } from "./conformance.fixture";
 import { acpModels } from "./models";
@@ -24,7 +24,7 @@ import instructions from "./instructions";
 
 // Tier A of docs/designs/agent-runtime.md, "Conformance tiers": every registry row with an adapter except Cursor,
 // against the loopback model. The case list, its tags and its runner are docs/designs/agent-runtime.steps/step-3.md.
-const implementedStep = 5;                                   // each later step raises it
+const implementedStep = 6;                                   // each later step raises it
 interface ConformanceCase {
   id: string;                 // "<persona>.<level>.<name>", the record's key; never reused
   persona: Persona;
@@ -172,6 +172,55 @@ async function expectEvicted(context: CaseContext) {
     await new Promise(resolve => setTimeout(resolve, 250));
   }
   expect(left, "native processes left after the cancel").toEqual([]);
+}
+
+/** The agent a step-6 case switches away to: Codex, or OpenCode when the case runs on Codex (decision 8) */
+const awayAgent = (agent: TierAAgent): TierAAgent => agent === "codex" ? "opencode" : "codex";
+
+/** Step 6 (D29, D31): three driver processes on one case root, so one Eve World: a turn on the case's agent A, a host on the away agent P in
+ *  its own home that is never sent a message, then a turn on A again, on the first session (`away-and-back`) or on a new one */
+async function switchAwayAndBack(context: CaseContext, persona: Persona, back: "same-session" | "new-session") {
+  const endpoint = await context.loopback();
+  const port = await hostPort(context);
+  const onAgent = (scenario: string, args: string[]) => runHost(context, endpoint, harnessPath, { scenario, persona, hostPort: port.url, model: context.wiring.hostModel, args });
+  const marker = back === "same-session" ? "AWAY-BACK-MARKER" : "OLD-SESSION-MARKER";
+  const first = await onAgent("turn-on-session", ["--prompt", `${persona === "kyoshi" ? "Help me author a course." : "Introduce the lesson."} ${marker}`]).done;
+  expect(first.error, diagnosticsOf(endpoint, first.output)).toBeUndefined();
+  const before = first.results.find(entry => entry.step === "turned") as { sessionId: string; turnId: string; reply: string };
+  expect(before?.reply, diagnosticsOf(endpoint, first.output)).toMatch(/Ready to teach\.$/u);
+  // The agent switched to: its host starts on the same root, and nothing reaches the loopback while it runs
+  const away = awayAgent(context.agent);
+  const home = await awayHome(context, away, endpoint);
+  const awayHost = runHost(context, endpoint, harnessPath, { scenario: "away", persona, hostPort: port.url, model: wiring[away].hostModel, agent: away, home });
+  await awayHost.step("away-started");
+  const requests = endpoint.requests.length;
+  await new Promise(resolve => setTimeout(resolve, 2_000));
+  expect(endpoint.requests.length, "no model request while the away agent's host runs").toBe(requests);
+  awayHost.send("away-checked");
+  const awayEnded = await awayHost.done;
+  expect(awayEnded.error, awayEnded.output.slice(-3000)).toBeUndefined();
+  expect((awayEnded.results.find(entry => entry.step === "closed") as { processes: string[] })?.processes).toEqual([]);
+  const from = endpoint.requests.length;
+  const again = await onAgent("turn-on-session", back === "same-session"
+    ? ["--session", before.sessionId, "--prompt", "Continue the lesson."] : ["--inspect", before.sessionId]).done;
+  const diagnostics = diagnosticsOf(endpoint, again.output);
+  expect(again.error, diagnostics).toBeUndefined();
+  const after = again.results.find(entry => entry.step === "turned") as { sessionId: string; turnId: string; reply: string };
+  expect(after?.reply, diagnostics).toMatch(/Ready to teach\.$/u);
+  if (back === "same-session") {
+    // The old conversation continues on its own session with a new turn; whether the native agent resent its history after the cold
+    // restart is the adapter's recovery, observed as after a host restart (decision 25)
+    expect(after.sessionId).toBe(before.sessionId);
+    expect(after.turnId).not.toBe(before.turnId);
+    const request = requestsCarrying(endpoint, "Continue the lesson.").at(-1);
+    expect(request, diagnostics).toBeDefined();
+    await observe(context.agent, `historyAfterSwitchBack.${persona}`, JSON.stringify(request!.request).includes(marker));
+  } else {
+    // A new session on the agent inherits nothing from the old one, which keeps exactly its one settled turn (decision 27)
+    expect(after.sessionId).not.toBe(before.sessionId);
+    expect(endpoint.requests.slice(from).filter(request => JSON.stringify(request).includes(marker)), diagnostics).toEqual([]);
+    expect((again.results.find(entry => entry.step === "inspected") as { settled: string[] })?.settled).toEqual([before.turnId]);
+  }
 }
 
 const cases: ConformanceCase[] = [
@@ -1021,10 +1070,14 @@ const cases: ConformanceCase[] = [
       expect(await guard.list()).toEqual([]);
     },
   },
-  later(6, "kyoshi", "kyoshi.switch.away-and-back", "Switching away and back continues the old Kyoshi conversation (D31)"),
-  later(6, "sensei", "sensei.switch.away-and-back", "Switching away and back continues the old Sensei conversation (D31)"),
-  later(6, "kyoshi", "kyoshi.switch.new-agent-new-session", "After an agent switch the page opens a new Kyoshi session (D29)"),
-  later(6, "sensei", "sensei.switch.new-agent-new-session", "After an agent switch the page opens a new Sensei session (D29)"),
+  later(6, "kyoshi", "kyoshi.switch.away-and-back", "Switching away and back continues the old Kyoshi conversation (D31)",
+    { run: context => switchAwayAndBack(context, "kyoshi", "same-session") }),
+  later(6, "sensei", "sensei.switch.away-and-back", "Switching away and back continues the old Sensei conversation (D31)",
+    { run: context => switchAwayAndBack(context, "sensei", "same-session") }),
+  later(6, "kyoshi", "kyoshi.switch.new-agent-new-session", "After an agent switch the page opens a new Kyoshi session (D29)",
+    { run: context => switchAwayAndBack(context, "kyoshi", "new-session") }),
+  later(6, "sensei", "sensei.switch.new-agent-new-session", "After an agent switch the page opens a new Sensei session (D29)",
+    { run: context => switchAwayAndBack(context, "sensei", "new-session") }),
   later(7, "sensei", "sensei.evaluation.trial-loopback", "An evaluation trial runs against the loopback model"),
   later(8, "sensei", "sensei.tier-b.latency", "Median time to first output is at most 15 s", { tier: "B" }),
   later(8, "sensei", "sensei.tier-b.leave-cancels-begin-turns", "Leaving N lessons cancels their begin turns", { tier: "B" }),
