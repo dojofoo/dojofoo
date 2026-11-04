@@ -29,7 +29,7 @@ Commands:
   remove <name>       Remove a dojo
   ui                  Open or control the lesson UI from scripts and agents
   track               Record the active agent session as a cassette
-  kyoshi              Author, inspect, scaffold, check, or evaluate a course (--help)
+  kyoshi              Author, inspect, scaffold or check a course (--help)
 
 Flags:
   --test/--check      Show overall progress

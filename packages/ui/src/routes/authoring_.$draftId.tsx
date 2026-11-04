@@ -487,7 +487,8 @@ function AuthoringPage() {
               <button type="button" className="shrink-0 underline" onClick={() => setTrialError(null)}>Dismiss</button>
             </div> : null}
             <div className="flex min-h-11 shrink-0 flex-wrap justify-end border-t border-[var(--line-soft)]">
-              <AuthoringEvaluationSettings open={evaluationSettingsOpen} onOpenChange={setEvaluationSettingsOpen} api={authoringApi} onSaved={() => setEvaluationError(null)} />
+              <AuthoringEvaluationSettings open={evaluationSettingsOpen} onOpenChange={setEvaluationSettingsOpen} api={authoringApi} onSaved={() => setEvaluationError(null)}
+                agentName={workspaceAgent.list.find(agent => agent.selected)?.name ?? "this draft's coding agent"} />
               <div className="flex flex-wrap items-center justify-end gap-1 p-1">
                 <WorkspaceAction disabled={Boolean(busy)} onClick={() => setEvaluationSettingsOpen(true)}>Evaluation settings</WorkspaceAction>
                 <WorkspaceAction icon={<RefreshCw className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}>Refresh</WorkspaceAction>

@@ -25,7 +25,7 @@ vi.mock("@dojofoo/config/local-state", () => ({
 }));
 
 const { createAuthoringRoutes } = await import("./routes");
-const evaluate = vi.fn<typeof import("../evaluation/host").evaluateFromAuthoring>();
+const evaluate = vi.fn<import("./routes").AuthoringEvaluate>();
 const teachingPolicy = vi.fn((mode: string) => `Teach ${mode}`);
 const authoringRoutes = createAuthoringRoutes({
   evaluate,
@@ -310,6 +310,23 @@ describe("authoring routes", () => {
       lessonId: "001-draw-a-boundary",
       runId: "trial-run",
     });
+  });
+
+  it("a refused evaluation answers 409 with its code", async () => {
+    authorLesson();
+    const { EvaluationRefused, MaterialFailure } = await import("../evaluation/failure.ts");
+    const post = () => authoringRoutes.request("/evals", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ lessonIds: ["001-draw-a-boundary"], callId: "refused" }) });
+    evaluate.mockRejectedValueOnce(new EvaluationRefused("evaluation_running", "An evaluation of this draft is already running."));
+    let response = await post();
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "An evaluation of this draft is already running.", code: "evaluation_running" });
+    evaluate.mockRejectedValueOnce(new MaterialFailure("Lesson preflight failed; no attempt was used."));
+    response = await post();
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "Lesson preflight failed; no attempt was used.", code: "preflight_failed" });
+    evaluate.mockRejectedValueOnce(new Error("disk full"));
+    expect((await post()).status).toBe(500);
   });
 
   it("trials authored files without copying Kyoshi runtime or repository state", async () => {

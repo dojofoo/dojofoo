@@ -382,22 +382,16 @@ test("a course without lessons has no empty report button", async ({ page }) => 
   expect(posts).toEqual([]);
 });
 
-test("evaluation settings save model choices, not secrets or worker paths, without starting an evaluation", async ({ page, mountAgentChat }) => {
+test("evaluation settings save only consent, without starting an evaluation", async ({ page, mountAgentChat }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const writes: unknown[] = [];
   const evaluations: string[] = [];
-  const catalogs: Array<{ workspace: string | null; harness: string | null }> = [];
+  const catalogs: string[] = [];
   await page.route("**/api/authoring/**", async route => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
-    if (path.endsWith("/models")) {
-      const params = new URL(route.request().url()).searchParams;
-      catalogs.push({ workspace: params.get("workspace"), harness: params.get("harness") });
-      return route.fulfill({ json: params.get("harness") === "pi"
-        ? [{ id: "deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro", efforts: [] }]
-        : [{ id: "zai/glm-5.3", name: "GLM 5.3", efforts: [] }] });
-    }
+    if (path.endsWith("/models")) catalogs.push(path);
     if (path.endsWith("/evaluation-settings")) {
       if (route.request().method() === "PUT") {
         const value = route.request().postDataJSON();
@@ -424,44 +418,24 @@ test("evaluation settings save model choices, not secrets or worker paths, witho
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Teaching evaluations", exact: true });
   expect(await dialog.evaluate(boxStyle)).toEqual(accountMenuStyle);
-  const teacherAgent = dialog.getByRole("button", { name: "teacher agent: OpenCode", exact: true });
-  await expect(teacherAgent).toBeVisible({ timeout: 5000 });
-  await teacherAgent.click();
-  expect(await page.locator(".ui-as-popover").evaluate(boxStyle)).toEqual(accountMenuStyle);
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeVisible();
-  await expect(teacherAgent).toBeFocused();
-  await teacherAgent.click();
-  await page.getByRole("menuitemradio", { name: "Codex", exact: true }).click();
-  await dialog.getByRole("button", { name: "teacher agent: Codex", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: "OpenCode", exact: true }).click();
-  await dialog.getByRole("button", { name: "Choose teacher model", exact: true }).click();
-  expect(await page.locator(".ui-as-popover").evaluate(boxStyle)).toEqual(accountMenuStyle);
-  await page.screenshot({ path: test.info().outputPath("authoring-settings-model-menu.png"), animations: "disabled" });
-  await page.getByRole("menuitemradio", { name: /^GLM 5\.3/ }).click();
-  await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toHaveValue("zai/glm-5.3");
-  await dialog.getByRole("button", { name: "Choose learner model", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: /^DeepSeek V4 Pro/ }).click();
-  await dialog.getByRole("textbox", { name: "learner model", exact: true }).fill("custom/provider-model");
-  await expect(dialog.getByRole("textbox", { name: "learner model", exact: true })).toHaveValue("custom/provider-model");
-  await dialog.getByRole("textbox", { name: "learner model", exact: true }).fill("deepseek/deepseek-v4-pro");
-  await dialog.getByRole("switch", { name: "Allow teaching evaluations", exact: true }).click();
-  const teacher = await dialog.getByRole("textbox", { name: "teacher model", exact: true }).boundingBox();
-  const learner = await dialog.getByRole("textbox", { name: "learner model", exact: true }).boundingBox();
-  expect(Math.abs(teacher!.x - learner!.x)).toBeLessThan(1);
+  // Every role runs on the draft's coding agent: the dialog names it and offers no agent or model fields
+  await expect(dialog).toContainText("Allow Kyoshi to run teaching evaluations on Codex.");
+  await expect(dialog.getByRole("textbox")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: /agent|model/u })).toHaveCount(0);
+  const consent = dialog.getByRole("switch", { name: "Allow teaching evaluations", exact: true });
+  await expect(consent).toBeEnabled();
+  await consent.click();
+  await expect(consent).toBeFocused();
+  await expect(consent).toBeChecked();
   await page.screenshot({ path: test.info().outputPath("authoring-settings.png"), animations: "disabled" });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await expect(dialog.getByRole("textbox", { name: "learner model", exact: true })).toHaveValue("deepseek/deepseek-v4-pro");
   await page.screenshot({ path: test.info().outputPath("authoring-settings-phone.png"), animations: "disabled" });
   await dialog.getByRole("button", { name: "Save evaluation settings" }).click();
   await expect(dialog).toHaveCount(0);
-  expect(writes).toEqual([{ enabled: true, teacher: { harness: "opencode", model: "zai/glm-5.3" }, learner: { harness: "pi", model: "deepseek/deepseek-v4-pro" } }]);
+  expect(writes).toEqual([{ enabled: true }]);
   expect(evaluations).toEqual([]);
-  expect(catalogs).toEqual(expect.arrayContaining([
-    { workspace: "isolated-course", harness: "opencode" },
-    { workspace: "isolated-course", harness: "pi" },
-  ]));
+  expect(catalogs).toEqual([]);
 });
 
 test("evaluation settings cannot overwrite saved choices after a failed reload", async ({ page }) => {
@@ -472,25 +446,25 @@ test("evaluation settings cannot overwrite saved choices after a failed reload",
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
-    if (path.endsWith("/models")) return route.fulfill({ status: 502, contentType: "text/plain", body: "Model catalog unavailable" });
     if (path.endsWith("/evaluation-settings")) {
       if (route.request().method() === "PUT") writes.push(route.request().postDataJSON());
       return broken ? route.fulfill({ status: 503, contentType: "text/plain", body: "Settings storage unavailable" })
-        : route.fulfill({ json: { enabled: true, teacher: { harness: "codex", model: "teacher" }, learner: { harness: "pi", model: "learner" } } });
+        : route.fulfill({ json: { enabled: true } });
     }
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
   await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toHaveValue("teacher");
-  await expect(dialog.getByText("Model catalog unavailable", { exact: true })).toHaveCount(2);
+  const consent = dialog.getByRole("switch", { name: "Allow teaching evaluations", exact: true });
+  await expect(consent).toBeChecked();
+  await expect(consent).toBeEnabled();
   await page.keyboard.press("Escape");
   broken = true;
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText("Settings storage unavailable");
   await expect(dialog.getByRole("button", { name: "Save evaluation settings" })).toBeDisabled();
-  await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toBeDisabled();
+  await expect(consent).toBeDisabled();
   expect(writes).toEqual([]);
 });
 

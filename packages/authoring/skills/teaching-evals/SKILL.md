@@ -45,5 +45,6 @@ Treat judge suggestions as diagnoses, not text to copy. Change the smallest thin
 
 - **Pass:** both judges pass every material and teaching criterion. Stop editing the tested files, including wording and formatting. Hand them over unchanged; list any correction or polish as an unapplied proposal. An edit needs another evaluation, even if it looks harmless.
 - **Infrastructure failure or exhausted attempts:** stop, report the evidence and your proposed change unapplied, and never claim a pass.
-- **Not configured:** say so once and stop; leave the judges and models as they are.
+- **Not allowed:** say once that the author can allow evaluations in Evaluation settings, and stop.
+- **Already running or agent unavailable:** say so once and stop.
 - **Evidence:** your own rehearsal and preflight are development evals. Only the production trial supports a teaching verdict.

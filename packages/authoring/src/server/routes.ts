@@ -14,20 +14,20 @@ import {
   readAuthoringDraft,
 } from "./service";
 import { readAuthoringFile, saveAuthoringFile } from "./files";
-import { evaluateFromAuthoring } from "../evaluation/host.ts";
-import { UnsupportedAgentError } from "../evaluation/failure.ts";
-import { configuredEvaluation, readEvaluationSettings, writeEvaluationSettings } from "../evaluation/settings.ts";
+import { readEvaluationSettings, writeEvaluationSettings } from "../evaluation/settings.ts";
 import { materialHash, readLessonMaterial } from "../evaluation/material.ts";
-import type { EvaluationReport } from "../evaluation/run";
+import type { EvaluationReceipt, EvaluationReport } from "../evaluation/run";
 import { decidePanel } from "../evaluation/panel";
-import { harnessModels } from "../eve/models.ts";
-import { agentRow, isAgentId } from "@dojofoo/protocol";
+import type { EvaluationFailureCode } from "@dojofoo/protocol";
 import { readAgentModel, resolveAgent } from "@dojofoo/config/runtime";
 
 export type AuthoringEvalReport = EvaluationReport;
 
+/** The UI server's evaluation of a draft's lessons; it throws EvaluationRefused or MaterialFailure before any attempt is spent. */
+export type AuthoringEvaluate = (input: { root: string; lessonIds: string[]; callId: string; signal: AbortSignal }) => Promise<EvaluationReceipt>;
+
 export type AuthoringRouteDependencies = {
-  evaluate?: typeof evaluateFromAuthoring;
+  evaluate: AuthoringEvaluate;
   teachingPolicy(mode: string): string;
   resolveWorkspace(request: Request): string;
 };
@@ -36,13 +36,6 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
   return new Hono()
   .onError((error, c) => c.json({ error: errorMessage(error) }, 500))
   .get("/draft", (c) => c.json(readAuthoringDraft(dependencies.resolveWorkspace(c.req.raw))))
-  .get("/models", async c => {
-    // Resolve authorization before accessing this machine's native harnesses.
-    dependencies.resolveWorkspace(c.req.raw);
-    const harness = c.req.query("harness");
-    if (!isAgentId(harness) || !agentRow(harness).adapterId) return c.json({ error: "Select a supported harness" }, 422);
-    return c.json(await harnessModels(harness, AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(20_000)])));
-  })
   .get("/evaluation-settings", async c => c.json(await readEvaluationSettings(dependencies.resolveWorkspace(c.req.raw))))
   .put("/evaluation-settings", async c => {
     try { return c.json(await writeEvaluationSettings(dependencies.resolveWorkspace(c.req.raw), await c.req.json())); }
@@ -172,16 +165,22 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
     }
     let result;
     try {
-      result = await (dependencies.evaluate ?? evaluateFromAuthoring)({
-        root, lessonIds, callId: input.callId, signal: c.req.raw.signal,
-        config: await configuredEvaluation(root),
-      });
+      result = await dependencies.evaluate({ root, lessonIds, callId: input.callId, signal: c.req.raw.signal });
     } catch (error) {
-      if (error instanceof UnsupportedAgentError) return c.json({ error: error.message, code: error.code }, 409);
+      const code = refusalCode(error);
+      if (code) return c.json({ error: errorMessage(error), code }, 409);
       throw error;
     }
     return c.json({ root, ...result });
   });
+}
+
+/** A refused evaluation's code. By name: the UI server loads the evaluation outside its module graph, so its classes are not this
+ *  module's (step-7 plan, decision 46). */
+function refusalCode(error: unknown): EvaluationFailureCode | undefined {
+  if (!(error instanceof Error)) return undefined;
+  if (error.name === "EvaluationRefused") return (error as Error & { code: EvaluationFailureCode }).code;
+  return error.name === "MaterialFailure" ? "preflight_failed" : undefined;
 }
 
 function errorMessage(cause: unknown): string {

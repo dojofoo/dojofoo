@@ -26,12 +26,13 @@ afterEach(() => { rmSync(root, { recursive: true, force: true }); vi.restoreAllM
 
 it("discovers commands without opening a session or installing tools", async () => {
   await kyoshi(root, ["--help"]);
-  expect(process.stdout.write).toHaveBeenCalledWith(expect.stringContaining("evaluate <lesson-id>"));
+  expect(process.stdout.write).toHaveBeenCalledWith(expect.stringContaining("inspect"));
+  expect(process.stdout.write).not.toHaveBeenCalledWith(expect.stringContaining("evaluate"));
   expect(ui).not.toHaveBeenCalled();
   expect(bootstrapMise).not.toHaveBeenCalled();
 });
 
-it.each(["lesson", "setup", "check", "evaluate", "inspect"])("%s help never mutates the course or starts work", async action => {
+it.each(["lesson", "setup", "check", "inspect"])("%s help never mutates the course or starts work", async action => {
   await kyoshi(root, [action, "--help"]);
   expect(process.stdout.write).toHaveBeenCalledWith(expect.stringContaining("Usage:"));
   expect(readAuthoringDraft(root).lessons).toEqual([]);
@@ -55,12 +56,11 @@ it("adds one lesson and inspects the same course without starting an agent", asy
   expect(ui).not.toHaveBeenCalled();
 });
 
-it("exposes only evaluation preferences to the agent, not worker paths or credentials", async () => {
-  const evaluation = { enabled: true, teacher: { harness: "codex", model: "gpt-6-astra" }, learner: { harness: "pi", model: "deepseek/pro" } };
-  await writeEvaluationSettings(root, evaluation);
+it("exposes only evaluation consent to the agent, not worker paths or credentials", async () => {
+  await writeEvaluationSettings(root, { enabled: true, teacher: { harness: "codex", model: "gpt-6-astra" } });
   await kyoshi(root, ["inspect"]);
   const output = vi.mocked(process.stdout.write).mock.calls.at(-1)?.[0];
-  expect(JSON.parse(String(output)).evaluation).toEqual(evaluation);
+  expect(JSON.parse(String(output)).evaluation).toEqual({ enabled: true });
   expect(output).not.toContain("workerPath");
 });
 
@@ -71,6 +71,11 @@ for (const task of ["setup", "check"]) {
     expect(ui).not.toHaveBeenCalled();
   });
 }
+
+it("kyoshi evaluate is an unknown command", async () => {
+  await expect(kyoshi(root, ["evaluate", "001-first"])).rejects.toThrow("Unknown Kyoshi command: evaluate. Use inspect, lesson, setup, check, or no subcommand to open authoring.");
+  expect(ui).not.toHaveBeenCalled();
+});
 
 it("rejects a misspelled command instead of silently scaffolding", async () => {
   await expect(kyoshi(root, ["evalute"])).rejects.toThrow("Unknown Kyoshi command");

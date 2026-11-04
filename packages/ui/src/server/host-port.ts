@@ -1,10 +1,9 @@
-import { createHash, randomUUID } from "node:crypto";
-import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
 import { Client } from "@dojofoo/agent/client";
 import { createHostPortServer, hostPortAnswer, HostPortFailure, type HostPortHandlers, type HostPortMethod } from "@dojofoo/agent/host-port";
 import type { AgentEndpoint, DefaultSessionRequest, DefaultSessionResponse, SessionRecord } from "@dojofoo/agent-api";
 import { readCourseManifest, readDojoMd } from "@dojofoo/config";
-import type { AgentId, InteractiveContext, KataContext, LessonCheck, LessonNavigation, Persona, SenseiContext, SenseiSessionInfo } from "@dojofoo/protocol";
+import type { AgentId, EvaluationTrialStatus, InteractiveContext, KataContext, LessonCheck, LessonNavigation, Persona, SenseiContext, SenseiSessionInfo } from "@dojofoo/protocol";
 import { applyLifecycle, type TurnOutcome } from "./agent-session/lifecycle";
 import { captureLearnerEvidence } from "./agent-session/evidence";
 import { dropHeld, markSeen, runLessonCheck, sendHeld } from "./agent-session/check-reports";
@@ -16,6 +15,7 @@ import { advanceLesson, dojoLessonContext, dojoLessonFragment, latestObservation
 import { resolveWorkspaceId } from "./control/workspace";
 import { getInteractiveLesson } from "./interactive/service";
 import { loopbackOrigin } from "./loopback";
+import { evaluations } from "./evaluation/evaluations";
 
 /** Where persona hosts reach the host port: the UI server's loopback origin. */
 export function hostPortUrl(environment: NodeJS.ProcessEnv = process.env): string {
@@ -177,21 +177,6 @@ const lifecycleMethods = (persona: Persona): Record<string, HostPortMethod> => (
   }),
 });
 
-type Trial = { status: "running" } | { status: "finished"; result: unknown } | { status: "failed"; error: string };
-const trialsKey = Symbol.for("dojofoo.host-port.trials");
-const trials = ((globalThis as Record<symbol, unknown>)[trialsKey] ??= new Map<string, Trial>()) as Map<string, Trial>;
-
-/** Kyoshi's evaluation, today's evaluateFromAuthoring run in the background (step 7 moves Kyoshi's tool onto these methods).
- *  `run` is replaceable for tests: authoring loads through Node's require, outside Vite's module graph. */
-export const evaluationRunner = { run: startEvaluation };
-async function startEvaluation(root: string, lessonIds: string[], callId: string): Promise<unknown> {
-  const load = createRequire(import.meta.url);
-  const { evaluateFromAuthoring, evaluationConfiguration } = load("@dojofoo/authoring/evaluation/host") as typeof import("@dojofoo/authoring/evaluation/host");
-  const { configuredEvaluation, readEvaluationSettings } = load("@dojofoo/authoring/evaluation/settings") as typeof import("@dojofoo/authoring/evaluation/settings");
-  const config = await readEvaluationSettings(root) ? await configuredEvaluation(root) : evaluationConfiguration();
-  return evaluateFromAuthoring({ root, config, lessonIds, callId, signal: AbortSignal.timeout(60 * 60_000) });
-}
-
 export const hostPortHandlers: HostPortHandlers = {
   sensei: {
     session: read<unknown, SenseiSessionInfo>(async ({ workspaceId, sessionId }) => {
@@ -254,23 +239,23 @@ export const hostPortHandlers: HostPortHandlers = {
     ...lifecycleMethods("sensei"),
   },
   kyoshi: {
+    /** Kyoshi's evaluate tool (D22): the UI server's evaluation of this draft, keyed by the tool call (`<session>:<callId>`) */
     "evaluation.start": mutate<{ lessonIds?: unknown }, { trialId: string }>(async ({ workspaceId, idempotencyKey, input }) => {
       const lessonIds = input?.lessonIds;
       if (!Array.isArray(lessonIds) || !lessonIds.length || lessonIds.some(id => typeof id !== "string" || !id)) {
         throw new HostPortFailure(422, "invalid_request", "Name the lessons to evaluate.");
       }
-      const root = workspacePath(workspaceId);
-      const trialId = randomUUID();
-      trials.set(trialId, { status: "running" });
-      void evaluationRunner.run(root, lessonIds as string[], idempotencyKey).then(
-        result => trials.set(trialId, { status: "finished", result }),
-        error => trials.set(trialId, { status: "failed", error: error instanceof Error ? error.message : String(error) }));
-      return { trialId };
+      return evaluations.start({ root: workspacePath(workspaceId), lessonIds: lessonIds as string[], callId: idempotencyKey });
     }),
-    "evaluation.status": read<{ trialId?: unknown }, Trial>(({ input }) => {
-      const trial = typeof input?.trialId === "string" ? trials.get(input.trialId) : undefined;
+    "evaluation.status": read<{ trialId?: unknown }, EvaluationTrialStatus>(({ input }) => {
+      const trial = typeof input?.trialId === "string" ? evaluations.status(input.trialId) : undefined;
       if (!trial) throw new HostPortFailure(404, "trial_not_found", "No such evaluation.");
       return trial;
+    }),
+    /** The tool was aborted: the trial's signal aborts, which cancels its open turn and stops its host */
+    "evaluation.cancel": mutate<{ trialId?: unknown }, { ok: true }>(({ input }) => {
+      if (typeof input?.trialId !== "string" || !evaluations.cancel(input.trialId)) throw new HostPortFailure(404, "trial_not_found", "No such evaluation.");
+      return { ok: true };
     }),
     ...lifecycleMethods("kyoshi"),
   },

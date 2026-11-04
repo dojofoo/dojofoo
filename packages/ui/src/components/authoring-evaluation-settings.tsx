@@ -2,17 +2,14 @@ import { useEffect, useState } from "react";
 import type { EvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "@dojofoo/uix/components/button";
-import { MenuButton } from "@dojofoo/uix/components/app-shell";
 import { Switch } from "@dojofoo/uix/components/switch";
-import { codingAgents } from "@/lib/coding-agents";
-import { agentRows, offeredAgents } from "@dojofoo/protocol";
-import { HarnessModelInput } from "./harness-model-input";
 import { httpError } from "@/lib/http-error";
 
-const empty: EvaluationSettings = { enabled: false, teacher: { harness: "opencode", model: "" }, learner: { harness: "pi", model: "" } };
+const empty: EvaluationSettings = { enabled: false };
 
-export function AuthoringEvaluationSettings({ open, onOpenChange, api, onSaved }: {
-  open: boolean; onOpenChange(open: boolean): void; api(path: string): string; onSaved(): void;
+/** Consent only (D10): every role of an evaluation runs on the draft's coding agent, `agentName`, and its model. */
+export function AuthoringEvaluationSettings({ open, onOpenChange, api, onSaved, agentName }: {
+  open: boolean; onOpenChange(open: boolean): void; api(path: string): string; onSaved(): void; agentName: string;
 }) {
   const [settings, setSettings] = useState(empty);
   const [error, setError] = useState<string>();
@@ -41,7 +38,7 @@ export function AuthoringEvaluationSettings({ open, onOpenChange, api, onSaved }
     setError(undefined);
     try {
       const response = await fetch(api("/api/authoring/evaluation-settings"), {
-        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(settings),
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: settings.enabled }),
       });
       if (!response.ok) throw await httpError(response);
       onSaved();
@@ -52,25 +49,11 @@ export function AuthoringEvaluationSettings({ open, onOpenChange, api, onSaved }
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="ui-as"
     style={{ borderRadius: "calc(12px * var(--squircle-factor, 1))", background: "var(--card)", boxShadow: "var(--shadow-4)" }}>
     <DialogTitle>Teaching evaluations</DialogTitle>
-    <DialogDescription>Uses your local harness logins. Trials a Sensei and simulated learner, then asks independent Codex and Claude judges to review. No API keys or worker paths to enter.</DialogDescription>
+    <DialogDescription>Trials a Sensei and a simulated learner on this draft's coding agent, {agentName}, then asks two judges on that agent to review. Uses your local login; no API keys or worker paths to enter.</DialogDescription>
     <form className="mt-4 space-y-4" onSubmit={event => { event.preventDefault(); void save(); }}>
-      {(["teacher", "learner"] as const).map(role => <fieldset key={role} disabled={busy || !loaded} className="space-y-2">
-        <legend className="mb-2 text-sm font-semibold">{role === "teacher" ? "Sensei" : "Simulated learner"}</legend>
-        {role === "teacher" ? <p className="text-xs text-muted-foreground">Sensei teaches on this draft's coding agent; the model applies when it is that agent.</p> : null}
-        <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
-          <div className="text-xs">Coding agent<div className="mt-1">
-            <MenuButton label={`${role} agent`} value={settings[role].harness} disabled={busy || !loaded} align="start"
-              icon={codingAgents.find(agent => agent.value === settings[role].harness)?.icon}
-              options={(role === "teacher" ? offeredAgents() : agentRows.filter(row => row.adapterId)).map(({ id: value }) => ({ value, label: codingAgents.find(agent => agent.value === value)!.name }))}
-              onChange={harness => setSettings(current => ({ ...current, [role]: { harness, model: "" } }))} />
-          </div></div>
-          <HarnessModelInput harness={settings[role].harness} value={settings[role].model} label={`${role} model`} api={api}
-            onChange={model => setSettings(current => ({ ...current, [role]: { ...current[role], model } }))} />
-        </div>
-      </fieldset>)}
-      <label className="flex items-start gap-2 text-sm"><Switch aria-label="Allow teaching evaluations" checked={settings.enabled} disabled={busy || !loaded} onCheckedChange={enabled => setSettings(current => ({ ...current, enabled }))} /><span>Allow Kyoshi to run teaching evaluations using these models and the two judges. Up to three attempts per lesson set; subscription quota or API charges may apply.</span></label>
+      <label className="flex items-start gap-2 text-sm"><Switch aria-label="Allow teaching evaluations" checked={settings.enabled} disabled={busy || !loaded} onCheckedChange={enabled => setSettings(current => ({ ...current, enabled }))} /><span>Allow Kyoshi to run teaching evaluations on {agentName}. Each trial makes one call per lesson to write practice solutions, about eleven Sensei turns, up to six simulated-learner replies and four judge calls. Up to three attempts per lesson set; subscription quota or API charges may apply.</span></label>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" disabled={busy || !loaded || !settings.teacher.model.trim() || !settings.learner.model.trim()}>{busy ? "Please wait…" : "Save evaluation settings"}</Button>
+      <Button type="submit" disabled={busy || !loaded}>{busy ? "Please wait…" : "Save evaluation settings"}</Button>
     </form>
   </DialogContent></Dialog>;
 }

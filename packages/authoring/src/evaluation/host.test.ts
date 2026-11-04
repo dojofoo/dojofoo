@@ -1,8 +1,6 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { afterEach, expect, it, vi } from "vitest";
 import { evaluateFromAuthoring, evaluationConfiguration, executeEvaluationWorker, type EvaluationConfiguration } from "./host";
 import type { EvaluationReport } from "./run";
@@ -16,13 +14,6 @@ vi.mock("@dojofoo/config/runtime", async importOriginal => {
 
 const roots: string[] = [];
 const validSensei = "# Lesson\n\n## Start\n\n- **Hook:** h\n- **Builds on:** b\n- **First move:** f\n\n## Teach\n\n## Stumbling points\n\n## Evidence\n\n## Review\n\n- **Boundary:** b\n- **Predict:** p\n";
-it("loads the evaluation tool in Eve's native Node runtime without a TS resolver", async () => {
-  const { stdout } = await promisify(execFile)(process.execPath, [
-    "--input-type=module", "--eval",
-    'const tool = await import("@dojofoo/authoring/eve/evaluate"); process.stdout.write(typeof tool.createKyoshiEvaluationTool);',
-  ], { env: { ...process.env, NODE_OPTIONS: "" }, timeout: 10_000 });
-  expect(stdout).toBe("function");
-});
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "dojo-eval-host-")); roots.push(root);
@@ -204,17 +195,4 @@ it("a Pi draft gets the unsupported-agent result and spends no attempt", async (
   expect(refused.message).toBe("Pi can't run course evaluations yet. Switch this draft to another coding agent to evaluate it.");
   expect(f.run).not.toHaveBeenCalled();
   expect((await f.evaluate("after-switch")).remaining).toBe(2);
-});
-
-it("the evaluate tool answers unsupported-agent", async () => {
-  const f = await fixture();
-  vi.mocked(resolveAgent).mockReturnValueOnce("pi");
-  const { createKyoshiEvaluationTool } = await import("../eve/evaluate.ts");
-  const tool = createKyoshiEvaluationTool(async () => ({ courseRoot: f.root, evaluation: f.config })) as unknown as {
-    execute(input: { lessonIds: string[] }, context: { callId: string; abortSignal: AbortSignal }): Promise<Record<string, unknown>>;
-  };
-  expect(await tool.execute({ lessonIds: ["first"] }, { callId: "tool-call", abortSignal: AbortSignal.timeout(5000) })).toEqual({
-    status: "unsupported-agent", error: "Pi can't run course evaluations yet. Switch this draft to another coding agent to evaluate it.",
-    next: "Tell the author once; evaluating needs another coding agent for now.",
-  });
 });

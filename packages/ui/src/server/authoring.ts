@@ -1,11 +1,14 @@
 import { createAuthoringRoutes } from "@dojofoo/authoring/server";
 import { resolveRequestWorkspace } from "./control/workspace";
 import { getTypeScriptHover } from "./lesson/typescript-language-service";
-import { senseiEvaluationPolicy } from "./lesson/instructions";
+import { senseiEvaluationPolicy } from "@dojofoo/authoring/sensei/instructions";
+import { evaluations } from "./evaluation/evaluations";
 import { requestOrigin } from "./request-origin";
 
 export const authoringRoutes = createAuthoringRoutes({
-  teachingPolicy: senseiEvaluationPolicy,
+  evaluate: evaluations.run,
+  // The policy a report records is Sensei's on Eve (decision 14)
+  teachingPolicy: mode => senseiEvaluationPolicy(mode === "interactive" ? "interactive" : "katas"),
   resolveWorkspace: resolveRequestWorkspace,
 });
 

@@ -206,7 +206,10 @@ const evaluationStatuses: Record<string, string> = {
   "teaching-failed": "Trial teaching needs a revision",
   "infrastructure-failed": "Evaluation could not finish",
   "preflight-failed": "Preflight found gaps to fix (no attempt used)",
-  "not-configured": "Evaluations are not configured",
+  "not-configured": "Evaluations are not allowed for this draft",
+  "invalid-request": "The evaluation request needs other lessons",
+  "already-running": "An evaluation of this draft is already running",
+  "agent-unavailable": "This draft's coding agent can't run an evaluation",
   "allowance-exhausted": "All three attempts are used",
   stale: "Result no longer matches the lesson",
 };

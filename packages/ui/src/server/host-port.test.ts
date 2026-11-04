@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { tmpdir } from "node:os";
@@ -6,8 +6,10 @@ import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import type { SessionRecord } from "@dojofoo/agent-api";
+import type { EvaluationReport } from "@dojofoo/authoring/evaluation/run";
 import { app } from "./app";
-import { evaluationRunner, forgetHost, hostPortUrl, registerHost } from "./host-port";
+import { forgetHost, hostPortUrl, registerHost } from "./host-port";
+import { evaluationRunner } from "./evaluation/evaluations";
 import { readRecords, saveRecord } from "./agent-session/records";
 import { execFileSync } from "node:child_process";
 import * as preparation from "@dojofoo/config/project-preparation";
@@ -177,23 +179,60 @@ describe("host port in the UI server", () => {
     expect((await readRecords(root))[0]?.lifecycle).toMatchObject({ resumeFailedAt: expect.any(String) });
   });
 
-  it("Kyoshi's evaluation.start returns a trial id and evaluation.status reports it", async () => {
-    const { workspaceId } = workspace("draft");
+  /** A draft that passes the evaluation's request checks, with consent unless `enabled` is false */
+  function evaluationDraft(enabled = true) {
+    const root = mkdtempSync(resolve(tmpdir(), "dojo-host-port-draft-"));
+    roots.push(root);
+    vi.stubEnv("DOJOFOO_HOME", resolve(root, "state"));
+    mkdirSync(resolve(root, "src/first"), { recursive: true });
+    writeFileSync(resolve(root, "dojo.yaml"), "katas:\n  - name: first\n    template: src/first/solution.ts\n");
+    writeFileSync(resolve(root, "README.md"), "# Course\n\nWhat the learner builds.\n");
+    writeFileSync(resolve(root, "src/INTRO.md"), "# Chapter\n\nWhat this chapter covers.\n");
+    writeFileSync(resolve(root, "src/first/INTRO.md"), "# First\n\nWhat this lesson covers.\n");
+    writeFileSync(resolve(root, "src/first/SENSEI.md"), "Check whether the learner can explain the boundary before assuming it is understood.");
+    writeFileSync(resolve(root, "src/first/solution.test.ts"), 'it("works", () => {});');
+    mkdirSync(resolve(root, ".dojo"), { recursive: true });
+    writeFileSync(resolve(root, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode" }));
+    writeFileSync(resolve(root, ".dojo/evaluation-settings.json"), JSON.stringify({ enabled }));
+    const workspaceId = observeWorkspacePath(root, { kind: "draft" });
     register(workspaceId, "kyoshi");
+    return { root, workspaceId };
+  }
+  const report: EvaluationReport = { version: 1, directory: "/evidence", materialHash: "hash", lessonIds: ["first"], status: "passed", stage: "teaching", startedAt: "s", completedAt: "e" };
+  const status = async (workspaceId: string, trialId: string) => (await (await call(workspaceId, "kyoshi", "evaluation.status", { trialId })).json()).result;
+
+  it("evaluation.start runs the UI server's evaluation once per key and evaluation.status reports it", async () => {
+    const { workspaceId, root } = evaluationDraft();
     const finished = Promise.withResolvers<void>();
-    // evaluateFromAuthoring itself, mocked: it would run a real trial
-    const evaluateFromAuthoring = vi.spyOn(evaluationRunner, "run").mockImplementationOnce(async () => { await finished.promise; return { attempt: 1, report: { status: "passed" } }; });
-    const started = await (await call(workspaceId, "kyoshi", "evaluation.start", { lessonIds: ["001"] }, { key: "wrun_1:call_1" })).json();
+    // evaluateAuthoredCourse itself, replaced: it would run a real trial
+    const course = vi.spyOn(evaluationRunner, "course").mockImplementationOnce(async () => { await finished.promise; return report; });
+    const started = await (await call(workspaceId, "kyoshi", "evaluation.start", { lessonIds: ["first"] }, { key: "wrun_1:call_1" })).json();
     expect(started.result.trialId).toEqual(expect.any(String));
-    expect(evaluateFromAuthoring).toHaveBeenCalledWith(expect.any(String), ["001"], "wrun_1:call_1");
-    const status = async () => (await call(workspaceId, "kyoshi", "evaluation.status", { trialId: started.result.trialId })).json();
-    expect((await status()).result).toEqual({ status: "running" });
+    await vi.waitFor(() => expect(course).toHaveBeenCalledWith(expect.objectContaining({ root: realpathSync(root), lessonIds: ["first"] })));
+    expect(await status(workspaceId, started.result.trialId)).toEqual({ status: "running" });
     finished.resolve();
-    await vi.waitFor(async () => expect((await status()).result).toEqual({ status: "finished", result: { attempt: 1, report: { status: "passed" } } }));
+    await vi.waitFor(async () => expect(await status(workspaceId, started.result.trialId)).toEqual({ status: "finished", result: { attempt: 1, remaining: 2, report } }));
     // The same key and input return the same trial without starting another
-    const again = await (await call(workspaceId, "kyoshi", "evaluation.start", { lessonIds: ["001"] }, { key: "wrun_1:call_1" })).json();
+    const again = await (await call(workspaceId, "kyoshi", "evaluation.start", { lessonIds: ["first"] }, { key: "wrun_1:call_1" })).json();
     expect(again.result.trialId).toBe(started.result.trialId);
-    expect(evaluateFromAuthoring).toHaveBeenCalledTimes(1);
+    expect(course).toHaveBeenCalledTimes(1);
+    expect((await call(workspaceId, "kyoshi", "evaluation.status", { trialId: "unknown" })).status).toBe(404);
+  });
+
+  it("evaluation.cancel aborts it", async () => {
+    const { workspaceId } = evaluationDraft();
+    vi.spyOn(evaluationRunner, "course").mockImplementationOnce(input => new Promise((_resolve, reject) =>
+      input.signal.addEventListener("abort", () => reject(input.signal.reason), { once: true })));
+    const { result: { trialId } } = await (await call(workspaceId, "kyoshi", "evaluation.start", { lessonIds: ["first"] }, { key: "wrun_1:call_2" })).json();
+    await vi.waitFor(() => expect(evaluationRunner.course).toHaveBeenCalled());
+    expect((await call(workspaceId, "kyoshi", "evaluation.cancel", { trialId }, { key: "wrun_1:call_2:cancel" })).status).toBe(200);
+    await vi.waitFor(async () => expect(await status(workspaceId, trialId)).toEqual({ status: "failed", error: "The evaluation was cancelled before it finished." }));
+  });
+
+  it("a refused start reports its code", async () => {
+    const { workspaceId } = evaluationDraft(false);
+    const { result: { trialId } } = await (await call(workspaceId, "kyoshi", "evaluation.start", { lessonIds: ["first"] }, { key: "wrun_1:call_3" })).json();
+    await vi.waitFor(async () => expect(await status(workspaceId, trialId)).toMatchObject({ status: "failed", code: "not_enabled" }));
   });
 
   it("hostPortUrl uses loopback for a wildcard HOST", () => {

@@ -466,6 +466,7 @@ From a clean `pnpm install --frozen-lockfile`:
 48. **(Implementation, commit 4.) `agent_not_offered` reads the saved agent from `runtimes.json` as written.** `resolveAgent` falls back from a saved agent that is not offered (Cursor) to another agent, so testing its answer would evaluate a Cursor draft on that other agent; the AgentRuntime's `offered` check reads the raw selection the same way (`agent-api.ts`, `savedSelection`).
 49. **(Implementation, commit 4.) The allowance's exhausted error is `EvaluationRefused("allowance_exhausted")` with today's message,** so `failureCode` reads a code instead of matching text; replay, claims and crash receipts are `host.ts`'s.
 50. **(Implementation, commit 4.) Each stage's turn, with its questions answered, is bounded by `turnTimeLimitMs` (120 s, added to `limits.ts`),** the worker's per-turn bound (`authoring-handoff.ts`, `AbortSignal.timeout(120_000)`). Without it, a check report that never reached a turn would wait out the whole 35-minute trial limit.
+51. **(Implementation, commit 5.) `POST /api/authoring/evals` recognises a refusal by the error's `name` (`EvaluationRefused`, `MaterialFailure`), not `instanceof`.** The UI server bundles `@dojofoo/authoring/server` but loads the evaluation through `createRequire` (decision 46), so the classes it throws are not the route module's. `createKyoshiEvaluationTool` also takes `{ pollMs }`, for its tests, beside the 5-second default.
 
 No finding of either review was rejected.
 

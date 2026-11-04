@@ -3,7 +3,6 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { agentAdapter } from "@dojofoo/agent/adapters";
 import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiOutput } from "./prepare.ts";
-import { evaluationConfiguration } from "../evaluation/host.ts";
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { localStateDirectory, workspaceIdFor } from "@dojofoo/config/local-state";
 import type { AgentId } from "@dojofoo/protocol";
@@ -102,9 +101,6 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
         model,
         modelSource: selectedModel === undefined && model !== undefined ? "native" : undefined,
         harness,
-        // A half-configured evaluator must not stop Kyoshi from starting;
-        // the evaluation tool then reports "not configured" instead.
-        evaluation: (() => { try { return evaluationConfiguration(); } catch { return undefined; } })(),
         commandPath,
         processRecord,
         ...(options.hostPortUrl ? { hostPort: { url: options.hostPortUrl, workspaceId, persona: "kyoshi", secret } } : {}),
