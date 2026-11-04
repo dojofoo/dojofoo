@@ -1,4 +1,4 @@
-import type { AgentId, Persona } from "@dojofoo/protocol";
+import { dojoTags, type AgentId, type Persona } from "@dojofoo/protocol";
 import { defineHook, type HookDefinition } from "eve/hooks";
 import { evictHarnessSession } from "./harness-sessions.js";
 import { createHostPortClient } from "./host-port/client.js";
@@ -37,6 +37,14 @@ export function lifecycleHandlers(binding: () => Promise<HostPortBinding | undef
     console.warn(`dojofoo lifecycle hook: ${name} failed: ${error instanceof Error ? error.message : String(error)}`);
   });
   return {
+    // Only a check report's consumption matters to the UI server (D16), so ordinary messages cost no host-port call
+    async "delivery.consumed"(event: { data: unknown }, ctx: { session: { id: string } }) {
+      const data = record(event.data);
+      const first = (Array.isArray(data.parts) ? data.parts : []).map(record).find(part => part.kind === "text");
+      if (typeof first?.text !== "string" || !first.text.startsWith(dojoTags.check)) return;
+      const deliveryId = String(data.deliveryId ?? "");
+      await guarded("delivery.consumed", () => report("delivery.consumed", ctx.session.id, { deliveryId }, `${ctx.session.id}:${deliveryId}:consumed`));
+    },
     async "turn.paused"(event: { data: unknown }, ctx: { session: { id: string } }) {
       const data = record(event.data);
       const turnId = String(data.turnId ?? "");
@@ -66,7 +74,7 @@ export function lifecycleHandlers(binding: () => Promise<HostPortBinding | undef
   };
 }
 
-/** An Eve hook for every persona host: reports turn.paused/settled and session.ended to the host port, evicting first when a turn
+/** An Eve hook for every persona host: reports a check report's delivery.consumed, turn.paused/settled and session.ended to the host port, evicting first when a turn
  *  settles cancelled or failed or the session ends. Catches and logs its own errors. Without a binding it only evicts. */
 export function createLifecycleHook(binding: () => Promise<HostPortBinding | undefined>): HookDefinition {
   return defineHook({ events: lifecycleHandlers(binding) }) as HookDefinition;

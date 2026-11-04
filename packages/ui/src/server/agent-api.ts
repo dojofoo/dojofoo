@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { Client, ClientError, type ClientOptions } from "@dojofoo/agent/client";
+import { activeTurn, emptySessionView, foldEvents } from "@dojofoo/agent/events";
 import { setTimeout as delay } from "node:timers/promises";
 import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type Persona } from "@dojofoo/agent-api";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
@@ -168,14 +169,7 @@ export function createLocalAgentRuntime(options: {
   const turnOpen = async (client: Client, sessionId: string) => {
     try {
       const { events } = await client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(2_000) });
-      const open = new Set<string>();
-      for (const event of events) {
-        const turnId = (event.data as { turnId?: unknown } | undefined)?.turnId;
-        if (typeof turnId !== "string") continue;
-        if (event.type === "turn.started") open.add(turnId);
-        else if (event.type === "turn.settled") open.delete(turnId);
-      }
-      return open.size > 0;
+      return activeTurn(foldEvents(emptySessionView(), events)) !== undefined;
     } catch (error) {
       // An ended or expired session has no turn left to settle
       return !(error instanceof ClientError && (error.status === 409 || error.status === 410));

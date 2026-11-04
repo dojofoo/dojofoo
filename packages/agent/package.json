@@ -612,6 +612,16 @@
       "import": "./dist/persona-host.js",
       "default": "./dist/persona-host.js"
     },
+    "./file-guard": {
+      "types": "./dist/file-guard.d.ts",
+      "import": "./dist/file-guard.js",
+      "default": "./dist/file-guard.js"
+    },
+    "./scripted-harness": {
+      "types": "./dist/scripted-harness.d.ts",
+      "import": "./dist/scripted-harness.js",
+      "default": "./dist/scripted-harness.js"
+    },
     "./eve/package.json": "./dist/eve/package.json"
   },
   "scripts": {

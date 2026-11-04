@@ -76,4 +76,15 @@ describe("lifecycle hook", () => {
     expect(existsSync(ended!)).toBe(false);
     expect(existsSync(other!)).toBe(true);
   });
+
+  it("reports delivery.consumed only for check reports", async () => {
+    const { port, binding } = await fixture();
+    const handlers = lifecycleHandlers(async () => binding);
+    await handlers["delivery.consumed"]({ data: { deliveryId: "d-plain", turnId: "t1", parts: [{ kind: "text", text: "Hello Sensei" }] } }, ctx("eve-1"));
+    await handlers["delivery.consumed"]({ data: { deliveryId: "d-begin", turnId: "t1", parts: [{ kind: "text", text: "[dojo:begin] Begin the lesson." }] } }, ctx("eve-1"));
+    await handlers["delivery.consumed"]({ data: { deliveryId: "d-check", turnId: "t2", parts: [{ kind: "text", text: "[dojo:check] Ran lesson checks." }] } }, ctx("eve-1"));
+    expect(port.calls.map(({ method, idempotencyKey, input }) => ({ method, idempotencyKey, input }))).toEqual([
+      { method: "delivery.consumed", idempotencyKey: "eve-1:d-check:consumed", input: { deliveryId: "d-check" } },
+    ]);
+  });
 });

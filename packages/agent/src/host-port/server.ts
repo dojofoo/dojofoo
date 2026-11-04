@@ -20,6 +20,15 @@ export class HostPortFailure extends Error {
   }
 }
 
+const answerKey = Symbol.for("dojofoo.host-port.answer");
+/** A handler result whose `afterAnswer` runs once, after the response body has been read (open risk 4: work that must not
+ *  start before the hook's call has its answer). A stored idempotent result never reruns it. */
+export interface HostPortAnswer<Result = unknown> { [answerKey]: true; result: Result; afterAnswer: () => unknown }
+export function hostPortAnswer<Result>(result: Result, afterAnswer: () => unknown): HostPortAnswer<Result> {
+  return { [answerKey]: true, result, afterAnswer };
+}
+const isAnswer = (value: unknown): value is HostPortAnswer => typeof value === "object" && value !== null && answerKey in value;
+
 type Stored = { hash: string; result: Promise<unknown> };
 const limit = 1024;
 const storeKey = Symbol.for("dojofoo.host-port.idempotency");
@@ -58,7 +67,13 @@ export function createHostPortServer(options: {
     if (typeof sessionId !== "string" || typeof idempotencyKey !== "string" || !idempotencyKey) {
       return failure(422, "invalid_request", "A host-port call needs sessionId, idempotencyKey and input.");
     }
-    const run = () => Promise.resolve().then(() => handler.handle({ workspaceId, persona, sessionId, idempotencyKey, input }));
+    let afterAnswer: (() => unknown) | undefined;
+    const run = () => Promise.resolve().then(() => handler.handle({ workspaceId, persona, sessionId, idempotencyKey, input }))
+      .then(value => {
+        if (!isAnswer(value)) return value;
+        afterAnswer = value.afterAnswer;
+        return value.result;
+      });
     let result: Promise<unknown>;
     if (handler.mutates) {
       const hostKey = `${workspaceId}\0${persona}`;
@@ -78,7 +93,19 @@ export function createHostPortServer(options: {
       }
     } else result = run();
     try {
-      return json(200, { result: await result });
+      const body = JSON.stringify({ result: await result });
+      const after = afterAnswer;
+      if (!after) return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+      const bytes = new TextEncoder().encode(body);
+      let sent = false;
+      const stream = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (!sent) { sent = true; controller.enqueue(bytes); return; }
+          controller.close();
+          Promise.resolve().then(after).catch(error => console.warn(`host port: work after the answer failed: ${error instanceof Error ? error.message : String(error)}`));
+        },
+      });
+      return new Response(stream, { status: 200, headers: { "content-type": "application/json", "content-length": String(bytes.byteLength) } });
     } catch (error) {
       if (error instanceof HostPortFailure || (error && typeof error === "object" && "status" in error && "code" in error
         && typeof error.status === "number" && typeof error.code === "string")) {

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
-import { createHostPortClient, createHostPortServer, HostPortError, HostPortFailure } from "../src/host-port/index.ts";
+import { createHostPortClient, createHostPortServer, hostPortAnswer, HostPortError, HostPortFailure } from "../src/host-port/index.ts";
 
 const secret = "a".repeat(64);
 function server(counts: Record<string, number> = {}) {
@@ -100,5 +100,24 @@ describe("host port", () => {
       listener.closeAllConnections();
       await new Promise(resolve => listener.close(resolve));
     }
+  });
+
+  it("afterAnswer runs after the body is read, once, and not for a stored result", async () => {
+    const order: string[] = [];
+    const handle = createHostPortServer({
+      secret: () => secret,
+      handlers: { sensei: { "turn.settled": { mutates: true, handle: () => { order.push("handled"); return hostPortAnswer({ ok: true }, () => { order.push("after"); }); } } } },
+    });
+    const body = { sessionId: "s-after", idempotencyKey: "s-after:t1:settled", input: { turnId: "t1" } };
+    const response = await post(handle, "w1/sensei/turn.settled", body);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(order).toEqual(["handled"]);
+    expect(await response.json()).toEqual({ result: { ok: true } });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(order).toEqual(["handled", "after"]);
+    const repeat = await post(handle, "w1/sensei/turn.settled", body);
+    expect(await repeat.json()).toEqual({ result: { ok: true } });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(order).toEqual(["handled", "after"]);
   });
 });
