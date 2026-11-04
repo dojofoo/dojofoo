@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "noEmit": false,
+    "resolveJsonModule": true,
     "declaration": true,
     "rootDir": "src",
     "outDir": "dist"

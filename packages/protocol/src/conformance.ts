@@ -1,4 +1,5 @@
-import { isAgentId, type AgentId } from "./agents.js";
+import { agentRows, isAgentId, type AgentId, type AgentRow } from "./agents.js";
+import shipped from "./conformance.json" with { type: "json" };
 import { personas, type Persona } from "./personas.js";
 
 /** Tier A runs on every pull request against the loopback model; tier B against real models with the user's logins. */
@@ -90,4 +91,20 @@ export function latestConformance(record: ConformanceRecord, agent: AgentId, tie
     if (entry.agent === agent && (tier === undefined || entry.tier === tier)) return entry;
   }
   return undefined;
+}
+
+let shippedRecord: ConformanceRecord | undefined;
+
+/** The record this package ships (`src/conformance.json`), parsed once. */
+export function shippedConformance(): ConformanceRecord {
+  return shippedRecord ??= parseConformanceRecord(shipped);
+}
+
+/** Rows with an adapter whose latest entry passes both personas (design, "Offered agents": from step 5). */
+export function offeredFrom(record: ConformanceRecord): readonly AgentRow[] {
+  return agentRows.filter(row => {
+    if (!row.adapterId) return false;
+    const latest = latestConformance(record, row.id);
+    return latest?.personas.kyoshi === "pass" && latest.personas.sensei === "pass";
+  });
 }

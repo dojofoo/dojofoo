@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { latestConformance, parseConformanceRecord, type ConformanceEntry } from ".";
+import { latestConformance, offeredFrom, parseConformanceRecord, shippedConformance, type ConformanceEntry } from ".";
 
 const entry = (overrides: Partial<ConformanceEntry> = {}): ConformanceEntry => ({
   agent: "codex", tier: "A", recordedAt: "2026-11-04T12:00:00Z", commit: "c4f6245".padEnd(40, "0"), platform: "linux-x64", step: 3,
@@ -47,5 +47,29 @@ describe("conformance record", () => {
     expect(() => parseConformanceRecord(record(entry({ cliRange: ">=0.160.1" })))).toThrow("Invalid conformance entry 0: cliRange");
     expect(() => parseConformanceRecord(record(entry({ cliRange: "=0.160.0" })))).toThrow("Invalid conformance entry 0: cliRange");
     expect(() => parseConformanceRecord(record(entry({ tier: "B", cliRange: ">=0.160.1" })))).not.toThrow();
+  });
+
+  it("offers only agents whose latest entry passes both personas", () => {
+    const parsed = parseConformanceRecord(record(
+      entry({ step: 5, personas: { kyoshi: "pass", sensei: "pass" } }),
+      entry({ agent: "pi", step: 5, personas: { kyoshi: "pass", sensei: "fail" }, cli: { name: "pi", version: "1.0.0", source: "adapter-bootstrap" }, cliRange: "=1.0.0" }),
+    ));
+    expect(offeredFrom(parsed).map(row => row.id)).toEqual(["codex"]);
+  });
+
+  it("an agent without an entry is not offered", () => {
+    expect(offeredFrom(parseConformanceRecord(record()))).toEqual([]);
+  });
+
+  it("a later failing entry withdraws an earlier pass", () => {
+    const parsed = parseConformanceRecord(record(
+      entry({ step: 5, personas: { kyoshi: "pass", sensei: "pass" } }),
+      entry({ step: 5, personas: { kyoshi: "pass", sensei: "fail" } }),
+    ));
+    expect(offeredFrom(parsed)).toEqual([]);
+  });
+
+  it("the shipped record is the committed file", () => {
+    expect(shippedConformance()).toEqual(JSON.parse(readFileSync(new URL("./conformance.json", import.meta.url), "utf8")));
   });
 });
