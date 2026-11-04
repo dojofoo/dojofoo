@@ -16,7 +16,7 @@
     "@dojofoo/agent": "workspace:*",
     "@dojofoo/protocol": "workspace:*",
     "elysia": "^1.4.30",
-    "exact-mirror": "1.2.6"
+    "exact-mirror": "0.2.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
