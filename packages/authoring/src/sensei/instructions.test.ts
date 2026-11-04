@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readPrompt } from "../prompts.ts";
 import { contract as embedded } from "../../agents/sensei/contracts.ts";
-import { senseiCourseInstructions, senseiPersonaInstructions } from "./instructions.ts";
+import { senseiCourseInstructions, senseiEvaluationPolicy, senseiPersonaInstructions, senseiSessionInstructions } from "./instructions.ts";
 
 const contract = (name: string) => readPrompt(`sensei/contracts/${name}`).trim();
 
@@ -37,5 +37,17 @@ describe("Sensei instructions", () => {
 
   it("TURNS.md seeds a new conversation with the learner's evidence", () => {
     expect(contract("TURNS.md")).toContain("## evidence-seed\n\nExcerpts from this learner's earlier conversation in this course, for continuity. Don't quote them back or treat them as proof of mastery.");
+  });
+
+  it("the evaluation policy is the persona instructions, the style and TURNS.md", () => {
+    expect(senseiEvaluationPolicy("katas")).toBe([senseiPersonaInstructions(), contract("KATAS.md"), contract("TURNS.md")].join("\n\n"));
+    expect(senseiEvaluationPolicy("interactive")).toContain(contract("INTERACTIVE.md"));
+    expect(senseiEvaluationPolicy("interactive")).not.toContain(contract("KATAS.md"));
+  });
+
+  it("a session's instructions are the persona and course instructions joined", () => {
+    const input = { mode: "katas" as const, guidance: "PRIVATE-GUIDANCE-first", lesson: { source: "SENSEI-GUIDANCE-MARKER", fragmentIds: [] } };
+    expect(senseiSessionInstructions(input)).toBe(`${senseiPersonaInstructions()}\n\n${senseiCourseInstructions(input)}`);
+    expect(senseiSessionInstructions(input)).toContain("SENSEI-GUIDANCE-MARKER");
   });
 });

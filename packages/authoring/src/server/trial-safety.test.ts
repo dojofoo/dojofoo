@@ -118,3 +118,13 @@ it("a trial returns its course run", () => {
   expect(second.courseId).toBe(first.courseId);
   expect(second.runId).not.toBe(first.runId);
 });
+
+it("a trial carries the draft's model for its agent", () => {
+  const f = fixture();
+  const created = createLessonTrial(f.course, f.lesson, { agent: "opencode", model: "openai/gpt-4o", kind: "evaluation-trial" });
+  const workspace = listWorkspaces().find(item => item.id === created.workspaceId)!;
+  expect(JSON.parse(readFileSync(resolve(workspace.path, ".dojo/runtimes.json"), "utf8"))).toEqual({ agent: "opencode", models: { opencode: "openai/gpt-4o" } });
+  const plain = createLessonTrial(f.course, f.lesson, { agent: "codex" });
+  const other = listWorkspaces().find(item => item.id === plain.workspaceId)!;
+  expect(JSON.parse(readFileSync(resolve(other.path, ".dojo/runtimes.json"), "utf8"))).toEqual({ agent: "codex" });
+});

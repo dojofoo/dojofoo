@@ -53,6 +53,12 @@
       "import": "./dist/evaluation/learner-fixtures.js",
       "default": "./dist/evaluation/learner-fixtures.js"
     },
+    "./evaluation/learner": {
+      "types": "./src/evaluation/learner.ts",
+      "development": "./src/evaluation/learner.ts",
+      "import": "./dist/evaluation/learner.js",
+      "default": "./dist/evaluation/learner.js"
+    },
     "./evaluation/learner-response": {
       "types": "./src/evaluation/learner-response.ts",
       "development": "./src/evaluation/learner-response.ts",

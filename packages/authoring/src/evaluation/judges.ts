@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -71,6 +71,39 @@ export async function judgeMaterial(evidence: Record<string, string>, signal: Ab
       ? JSON.parse(await readFile(join(root, `${judge.id}-result.json`), "utf8"))
       : JSON.parse(output.stdout).structured_output;
     return { judge: judge.id, root, promptHash, verdict: parseVerdict(response) };
+  }));
+  return requireJudgeResults(results);
+}
+
+export type Panel = Awaited<ReturnType<typeof judgeMaterial>>;
+/** One judge's model call: its whole prompt in, its raw answer out. */
+export type JudgeCall = (judge: string, prompt: string, signal: AbortSignal) => Promise<string>;
+
+/** A verdict as a model writes it: a JSON object, a surrounding code fence allowed. */
+function verdictText(text: string): unknown {
+  const fenced = /^\s*```(?:json)?\s*\n([\s\S]*?)\n\s*```\s*$/u.exec(text);
+  return JSON.parse(fenced ? fenced[1]! : text);
+}
+
+/** Two isolated judges through `call`, ids `judge-1` and `judge-2`; prompt, schema and raw answers saved in `directory`.
+ *  The same shape judgeMaterial returns. */
+export async function judgePanel(evidence: Record<string, string>, signal: AbortSignal, call: JudgeCall,
+  options: { directory: string; buildPrompt?: typeof judgePrompt }): Promise<Panel> {
+  const { directory, buildPrompt = judgePrompt } = options;
+  const prompt = buildPrompt(evidence, judgeSchema);
+  const promptHash = createHash("sha256").update(prompt).digest("hex");
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "prompt.txt"), prompt);
+  await writeFile(join(directory, "schema.json"), JSON.stringify(judgeSchema));
+  // Independent judges share nothing but the prompt, so run them concurrently.
+  const results = await Promise.all(["judge-1", "judge-2"].map(async judge => {
+    const started = Date.now();
+    const answer = await call(judge, prompt, signal);
+    await writeFile(join(directory, `${judge}.json`), JSON.stringify({ answer, promptHash, durationMs: Date.now() - started }, null, 2));
+    let verdict;
+    try { verdict = parseVerdict(verdictText(answer)); }
+    catch (error) { throw new Error(`${judge} returned no valid verdict (${error instanceof Error ? error.message : String(error)}); evidence: ${directory}`); }
+    return { judge, root: directory, promptHash, verdict };
   }));
   return requireJudgeResults(results);
 }

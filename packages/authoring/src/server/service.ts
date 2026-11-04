@@ -107,7 +107,8 @@ export function readAuthoringDraft(root: string): AuthoringDraft {
   };
 }
 
-export function createLessonTrial(root: string, lessonId: string, options: { agent?: AgentId; kind?: WorkspaceKind } = {}): {
+/** `model` is the trial's last model for its agent (runtimes.json `models[agent]`); without one Sensei uses the agent's default. */
+export function createLessonTrial(root: string, lessonId: string, options: { agent?: AgentId; model?: string; kind?: WorkspaceKind } = {}): {
   workspaceId: string;
   courseId: string;
   lessonId: string;
@@ -134,7 +135,8 @@ export function createLessonTrial(root: string, lessonId: string, options: { age
   // mkdtemp owns this exact isolated workspace; cleanup never targets the draft.
   try {
     mkdirSync(resolve(trialRoot, ".dojo"), { recursive: true });
-    writeFileSync(resolve(trialRoot, ".dojo/runtimes.json"), JSON.stringify({ agent: options.agent ?? resolveAgent(root) }));
+    const agent = options.agent ?? resolveAgent(root);
+    writeFileSync(resolve(trialRoot, ".dojo/runtimes.json"), JSON.stringify({ agent, ...(options.model ? { models: { [agent]: options.model } } : {}) }));
     mkdirSync(dirname(courseRoot), { recursive: true });
     mkdirSync(courseRoot, { recursive: true });
     const include = trialCopyFilter(root);

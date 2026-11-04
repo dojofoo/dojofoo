@@ -22,6 +22,7 @@ import type { EvaluationReport } from "../evaluation/run";
 import { decidePanel } from "../evaluation/panel";
 import { harnessModels } from "../eve/models.ts";
 import { agentRow, isAgentId } from "@dojofoo/protocol";
+import { readAgentModel, resolveAgent } from "@dojofoo/config/runtime";
 
 export type AuthoringEvalReport = EvaluationReport;
 
@@ -131,11 +132,11 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
       return c.json({ error: errorMessage(cause) }, 422);
     }
   })
-  .post("/lessons/:lessonId/trials", (c) =>
-    c.json(createLessonTrial(
-      dependencies.resolveWorkspace(c.req.raw),
-      c.req.param("lessonId")
-    ), 201))
+  .post("/lessons/:lessonId/trials", (c) => {
+    const root = dependencies.resolveWorkspace(c.req.raw);
+    const agent = resolveAgent(root);
+    return c.json(createLessonTrial(root, c.req.param("lessonId"), { agent, model: readAgentModel(root, agent) }), 201);
+  })
   .get("/report", async (c) => {
     const root = dependencies.resolveWorkspace(c.req.raw);
     const report = await readReport(root, dependencies.teachingPolicy, c.req.query("lessonId"));

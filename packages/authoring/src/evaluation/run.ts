@@ -1,13 +1,12 @@
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { judgeMaterial, requireJudgeResults } from "./judges";
+import { judgeMaterial, requireJudgeResults, type Panel } from "./judges";
 import { materialHash, readLessonMaterial } from "./material";
 import { teachingJudgePrompt, teachingRubricVersion } from "./teaching-rubric";
 import { TeachingFailure } from "./failure";
 import { decidePanel, type PanelDecision } from "./panel";
 
-type Panel = Awaited<ReturnType<typeof judgeMaterial>>;
 export type EvaluationReport = {
   version: 1;
   directory: string;
@@ -26,6 +25,9 @@ export type EvaluationReport = {
   trialDirectory?: string;
   error?: string;
 };
+
+/** One evaluation attempt as the allowance answers it: its number, the attempts left, and the report. */
+export type EvaluationReceipt = { attempt: number; remaining: number; report: EvaluationReport };
 
 const requiredStages = ["introduction", "uncertainty", "unfamiliar-terminology", "misconception", "failure-1", "failure-2", "frustration", "independence", "success", "review"];
 const explanationStages = new Set(["introduction", "uncertainty", "unfamiliar-terminology", "misconception", "frustration", "review"]);

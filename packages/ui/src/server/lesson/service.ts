@@ -470,6 +470,12 @@ export async function advanceLesson(root: string, courseId: string, lessonId: st
   return snapshot;
 }
 
+/** The lesson's checks on whatever its file holds, recording nothing: no completion, no web.json result (an evaluation's fixtures). */
+export async function runLessonTests(root: string, courseId: string, lessonId: string): Promise<TestReport> {
+  await prepareWorkspace(root);
+  return parseTestReport(runDojo(root, ["kata", lessonId, "--check", "--course", courseId, "--no-record", "--reporter=json"]));
+}
+
 export async function checkLesson(
   root: string,
   courseId: string,

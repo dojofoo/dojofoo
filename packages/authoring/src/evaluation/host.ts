@@ -3,13 +3,11 @@ import { createHash } from "node:crypto";
 import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
-import { parse, YAMLParseError } from "yaml";
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { agentRow, isAcpAgentId } from "@dojofoo/protocol";
-import { MaterialFailure, UnsupportedAgentError } from "./failure.ts";
-import { preflightLessons } from "./preflight.ts";
-import { readLessonSensei } from "./sensei.ts";
-import type { EvaluationReport } from "./run";
+import { EvaluationRefused, UnsupportedAgentError } from "./failure.ts";
+import { checkEvaluationRequest } from "./preflight.ts";
+import type { EvaluationReceipt, EvaluationReport } from "./run";
 
 const execute = promisify(execFile);
 export interface EvaluationConfiguration {
@@ -19,7 +17,6 @@ export interface EvaluationConfiguration {
   fixtureHarness: string;
   fixtureModel: string;
 }
-type EvaluationReceipt = { attempt: number; remaining: number; report: EvaluationReport };
 
 export function evaluationConfiguration(env: NodeJS.ProcessEnv = process.env): EvaluationConfiguration | undefined {
   const values = [env.DOJOFOO_EVAL_TEACHING_HARNESS, env.DOJOFOO_EVAL_TEACHING_MODEL, env.DOJOFOO_EVAL_FIXTURE_HARNESS, env.DOJOFOO_EVAL_FIXTURE_MODEL];
@@ -69,36 +66,8 @@ export async function evaluateFromAuthoring({ root, lessonIds, callId, config, s
   const agent = resolveAgent(root);
   if (!isAcpAgentId(agent)) throw new UnsupportedAgentError(agent, `${agentRow(agent).name} can't run course evaluations yet. Switch this draft to another coding agent to evaluate it.`);
   signal.throwIfAborted();
-  if (!callId || !lessonIds.length || lessonIds.length > 2 || new Set(lessonIds).size !== lessonIds.length) throw new Error("Evaluate one lesson or two distinct lessons for continuity");
-  const source = await readFile(join(root, "dojo.yaml"), "utf8");
-  let manifest;
-  try { manifest = parse(source); }
-  catch (error) {
-    if (error instanceof YAMLParseError) throw new MaterialFailure(`Invalid authored dojo.yaml: ${error.message}`);
-    throw error;
-  }
-  if (!manifest || typeof manifest !== "object" || !Array.isArray(manifest.katas)) {
-    throw new MaterialFailure("Invalid authored dojo.yaml: expected a katas list");
-  }
-  if (manifest.katas.some((entry: unknown) => !entry || typeof entry !== "object" || !("name" in entry) || typeof entry.name !== "string" || !entry.name.trim())) {
-    throw new MaterialFailure("Invalid authored dojo.yaml: each kata needs a name");
-  }
-  const names = new Set<string>();
-  for (const { name } of manifest.katas as Array<{ name: string }>) {
-    if (names.has(name)) throw new MaterialFailure(`Duplicate lesson ID: ${name}. Keep one entry in dojo.yaml.`);
-    names.add(name);
-  }
-  if (!lessonIds.every(id => manifest.katas?.some((entry: { name: string }) => entry.name === id))) throw new Error("Evaluation lesson is not in this course");
-  for (const id of lessonIds) {
-    const template = manifest.katas.find((entry: { name: string; template?: unknown }) => entry.name === id)?.template;
-    if (typeof template !== "string" || !template.trim()) throw new MaterialFailure(`Lesson ${id} needs a template`);
-    await readLessonSensei(root, template);
-  }
-  // Free checks first: a structural gap never spends a paid attempt.
-  const failing = (await preflightLessons(root, lessonIds)).filter(({ pass }) => !pass);
-  if (failing.length) {
-    throw new MaterialFailure(`Lesson preflight failed; no attempt was used.\n${failing.map(({ lessonId, findings }) => `${lessonId}:\n${findings.map(finding => `- ${finding}`).join("\n")}`).join("\n")}`);
-  }
+  if (!callId) throw new EvaluationRefused("invalid_request", "Evaluate one lesson or two distinct lessons for continuity");
+  await checkEvaluationRequest(root, lessonIds);
   await access(config.workerPath);
   const hash = (text: string) => createHash("sha256").update(text).digest("hex");
   const directory = join(root, ".dojo", "evaluation-allowances", hash(JSON.stringify([...lessonIds].sort())));

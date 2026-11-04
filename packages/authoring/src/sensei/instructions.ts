@@ -20,3 +20,15 @@ export function senseiCourseInstructions(input: { mode: keyof typeof styles; gui
     `Sensei lesson source:\n${input.lesson.source}`] : [];
   return [read(styles[input.mode]).trim(), ...(guidance ? [`DOJO.md for this course:\n${guidance}`] : []), ...lesson].join("\n\n");
 }
+
+/** The policy a report records: the persona instructions, the mode's style contract and TURNS.md, the hidden turns Sensei is sent.
+ *  TURNS.md is read in Node only; the prepared server never needs this. */
+export function senseiEvaluationPolicy(mode: keyof typeof styles, read: ReadContract = shipped): string {
+  return [senseiPersonaInstructions(read), read(styles[mode]).trim(), readPrompt("sensei/contracts/TURNS.md").trim()].join("\n\n");
+}
+
+/** What one Sensei session is told: the persona instructions and the session's course instructions; a trial saves it as
+ *  <lessonId>-instructions.md for the judges. */
+export function senseiSessionInstructions(input: Parameters<typeof senseiCourseInstructions>[0], read: ReadContract = shipped): string {
+  return [senseiPersonaInstructions(read), senseiCourseInstructions(input, read)].join("\n\n");
+}

@@ -29,6 +29,27 @@ export function parseLearnerFixture(text: string): LearnerFixture {
   return fixture;
 }
 
+/** parseLearnerFixture, plus the lesson-specific uncertainty and terminology questions a new generation must have. */
+export function parseGeneratedFixture(text: string): LearnerFixture {
+  const fixture = parseLearnerFixture(text);
+  if (!fixture.uncertainty || !fixture.terminology) {
+    throw new Error("Generated learner fixtures need lesson-specific uncertainty and terminology questions");
+  }
+  return fixture;
+}
+
+/** A simulated learner must not quote or depend on private teacher guidance.
+ *  Keep tests for constructing/verifying code fixtures, not teaching notes. */
+export function learnerMaterial(material: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(material).filter(([path]) =>
+    !["SENSEI.md", "SENSEI.mdx", "production-teaching-policy.md"].includes(basename(path))));
+}
+
+/** The fixture generator's prompt for one lesson, over learnerMaterial of the course files. */
+export function fixturePrompt(input: { lessonId: string; completedBefore: string[]; material: Record<string, string> }): string {
+  return JSON.stringify({ lessonId: input.lessonId, completedBefore: input.completedBefore, material: learnerMaterial(input.material) });
+}
+
 const instructions = fixtureGeneratorInstructions;
 
 /** One isolated, tool-free model turn per lesson. These references stay outside
@@ -50,11 +71,8 @@ export async function generateLearnerFixtures({ material, lessonIds, harness, mo
   signal.throwIfAborted();
   const directory = await mkdtemp(join(tmpdir(), "dojo-learner-fixtures-"));
   const fixtures: Record<string, LearnerFixture> = {};
-  // A simulated learner must not quote or depend on private teacher guidance.
-  // Keep tests for constructing/verifying code fixtures, not teaching notes.
-  const learnerMaterial = Object.fromEntries(Object.entries(material).filter(([path]) =>
-    !["SENSEI.md", "SENSEI.mdx", "production-teaching-policy.md"].includes(basename(path))));
-  await writeFile(join(directory, "input.json"), JSON.stringify({ harness, model, lessonIds, material: learnerMaterial, instructions }, null, 2));
+  const learner = learnerMaterial(material);
+  await writeFile(join(directory, "input.json"), JSON.stringify({ harness, model, lessonIds, material: learner, instructions }, null, 2));
   const agent = new HarnessAgent({
     id: "dojo-learner-fixtures",
     harness: await agentAdapter(harness),
@@ -69,13 +87,9 @@ export async function generateLearnerFixtures({ material, lessonIds, harness, mo
     let session: Awaited<ReturnType<typeof agent.createSession>> | undefined;
     try {
       session = await agent.createSession({ abortSignal, sandboxSession });
-      const result = await agent.generate({ session, abortSignal, prompt: JSON.stringify({ lessonId, completedBefore: lessonIds.slice(0, index), material: learnerMaterial }) });
+      const result = await agent.generate({ session, abortSignal, prompt: fixturePrompt({ lessonId, completedBefore: lessonIds.slice(0, index), material: learner }) });
       await writeFile(join(directory, `${index + 1}-response.txt`), result.text);
-      const fixture = parseLearnerFixture(result.text);
-      if (!fixture.uncertainty || !fixture.terminology) {
-        throw new Error("Generated learner fixtures need lesson-specific uncertainty and terminology questions");
-      }
-      fixtures[lessonId] = fixture;
+      fixtures[lessonId] = parseGeneratedFixture(result.text);
     } finally {
       try { await session?.destroy(); }
       finally { await sandboxSession.stop(); }

@@ -16,7 +16,7 @@ vi.mock("@dojofoo/agent/harness", () => ({ HarnessAgent: class {
 vi.mock("@dojofoo/agent/experimental/local", () => ({ createLocalSandbox: async (directory: string) => ({ directory, stop: mocks.stop }) }));
 vi.mock("@dojofoo/agent/adapters", () => ({ agentAdapter: () => ({}) }));
 
-import { generateLearnerFixtures, parseLearnerFixture } from "./learner-fixtures";
+import { fixturePrompt, generateLearnerFixtures, parseGeneratedFixture, parseLearnerFixture } from "./learner-fixtures";
 import { answerAsLearner, respondAsLearner } from "./learner-response";
 
 const fixture = {
@@ -41,6 +41,24 @@ it("can replay old captured fixtures without changing their learner questions", 
   expect(uncertainty).toBeTruthy();
   expect(terminology).toBeTruthy();
   expect(parseLearnerFixture(JSON.stringify(legacy))).toEqual(legacy);
+});
+
+it("fixturePrompt leaves out SENSEI and the policy", () => {
+  const prompt = JSON.parse(fixturePrompt({ lessonId: "second", completedBefore: ["first"], material: {
+    "DOJO.md": "Course", "src/first/SENSEI.md": "Private teacher strategy", "src/second/SENSEI.mdx": "Private presentation",
+    "production-teaching-policy.md": "Private policy", "src/second/kata.ts": "Public scaffold",
+  } }));
+  expect(prompt).toEqual({ lessonId: "second", completedBefore: ["first"], material: { "DOJO.md": "Course", "src/second/kata.ts": "Public scaffold" } });
+});
+
+it("parseGeneratedFixture requires the uncertainty and terminology questions", () => {
+  expect(parseGeneratedFixture(JSON.stringify(fixture))).toEqual(fixture);
+  const { uncertainty: _uncertainty, ...withoutUncertainty } = fixture;
+  const { terminology: _terminology, ...withoutTerminology } = fixture;
+  for (const partial of [withoutUncertainty, withoutTerminology]) {
+    expect(() => parseGeneratedFixture(JSON.stringify(partial))).toThrow("lesson-specific uncertainty and terminology");
+  }
+  expect(() => parseGeneratedFixture(JSON.stringify({ ...fixture, wrong: fixture.solved }))).toThrow("must differ");
 });
 
 it("requires question fields on new fixtures instead of silently using replay fallbacks", async () => {

@@ -1,7 +1,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { chapterCurriculum, courseContent } from "@dojofoo/config";
-import { parse } from "yaml";
+import { parse, YAMLParseError } from "yaml";
+import { EvaluationRefused, MaterialFailure } from "./failure.ts";
 
 /** Free, deterministic lesson checks: the "unit tests" of a lesson that run on
  * every save and before any paid trial. They catch what needs no judge: a
@@ -59,4 +60,42 @@ export async function preflightLessons(root: string, lessonIds?: string[]): Prom
     else findings.push(...checkSensei(await readFile(resolve(folder, sensei), "utf8"), { mdx: sensei.endsWith(".mdx") }));
     return { lessonId: String(name), pass: !findings.length, findings };
   }));
+}
+
+/** The checks an evaluation request passes before any attempt is spent: one lesson or two distinct ones, a well-formed dojo.yaml that
+ *  lists them with templates, then the free lesson preflight. Throws EvaluationRefused("invalid_request") or MaterialFailure. */
+export async function checkEvaluationRequest(root: string, lessonIds: string[]): Promise<void> {
+  if (!lessonIds.length || lessonIds.length > 2 || new Set(lessonIds).size !== lessonIds.length) {
+    throw new EvaluationRefused("invalid_request", "Evaluate one lesson or two distinct lessons for continuity");
+  }
+  const source = await readFile(resolve(root, "dojo.yaml"), "utf8");
+  let manifest;
+  try { manifest = parse(source); }
+  catch (error) {
+    if (error instanceof YAMLParseError) throw new MaterialFailure(`Invalid authored dojo.yaml: ${error.message}`);
+    throw error;
+  }
+  if (!manifest || typeof manifest !== "object" || !Array.isArray(manifest.katas)) {
+    throw new MaterialFailure("Invalid authored dojo.yaml: expected a katas list");
+  }
+  if (manifest.katas.some((entry: unknown) => !entry || typeof entry !== "object" || !("name" in entry) || typeof entry.name !== "string" || !entry.name.trim())) {
+    throw new MaterialFailure("Invalid authored dojo.yaml: each kata needs a name");
+  }
+  const names = new Set<string>();
+  for (const { name } of manifest.katas as Array<{ name: string }>) {
+    if (names.has(name)) throw new MaterialFailure(`Duplicate lesson ID: ${name}. Keep one entry in dojo.yaml.`);
+    names.add(name);
+  }
+  if (!lessonIds.every(id => manifest.katas?.some((entry: { name: string }) => entry.name === id))) {
+    throw new EvaluationRefused("invalid_request", "Evaluation lesson is not in this course");
+  }
+  for (const id of lessonIds) {
+    const template = manifest.katas.find((entry: { name: string; template?: unknown }) => entry.name === id)?.template;
+    if (typeof template !== "string" || !template.trim()) throw new MaterialFailure(`Lesson ${id} needs a template`);
+  }
+  // Free checks first: a structural gap never spends a paid attempt.
+  const failing = (await preflightLessons(root, lessonIds)).filter(({ pass }) => !pass);
+  if (failing.length) {
+    throw new MaterialFailure(`Lesson preflight failed; no attempt was used.\n${failing.map(({ lessonId, findings }) => `${lessonId}:\n${findings.map(finding => `- ${finding}`).join("\n")}`).join("\n")}`);
+  }
 }
