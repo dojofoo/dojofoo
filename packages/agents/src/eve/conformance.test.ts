@@ -1,39 +1,45 @@
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { tool } from "@ai-sdk/provider-utils";
-import { HarnessAgent, createLocalHarnessSandbox, createLocalSandbox, prepareHarnessEnvironment, ResumeFailedError } from "@dojofoo/harness/adapters";
+import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
+import { HarnessAgent, agentAdapter, createLocalHarnessSandbox, createLocalSandbox, prepareHarnessEnvironment, ResumeFailedError } from "@dojofoo/harness/adapters";
 import { startHostPortFixture } from "@dojofoo/harness/host-port/fixture";
 import { createFileGuard, type GuardVerdict, lifecycleHandlers, readOnlyToolNames } from "@dojofoo/harness/persona";
-import type { ResumeFailure } from "@dojofoo/protocol";
+import type { AgentId, ResumeFailure } from "@dojofoo/protocol";
 import { personaRecordedFrom, type Persona } from "@dojofoo/protocol";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-  agentProcesses, awayHome, caseBaseEnvironment, expectNoNativeProcesses, nativeCalls, nativeLogTail, nativeProcesses, observe, openCase, requestsCarrying, runHost, runKyoshiHost,
-  runScriptedModel, runSenseiModel, scriptedCalls, seedMarkers, snapshotDirectory, stopAfterCancel, toolListExtras, userConfigSeeds, wiring,
-  type CaseContext, type LoopbackEndpoint, type TierAAgent, type ToolRequest,
+  agentProcesses, awayHome, caseBaseEnvironment, expectNoNativeProcesses, hostProcesses, nativeCalls, nativeLogTail, nativeProcesses, observe, openCase, openTierBCase,
+  requestsCarrying, residentMemory, runHost, runKyoshiHost, runScriptedModel, runSenseiModel, scriptedCalls, seedMarkers, snapshotDirectory, stopAfterCancel, toolListExtras,
+  userConfigSeeds, wiring, type AgentWiring, type CaseContext, type HostRun, type LoopbackEndpoint, type TierAAgent, type TierBContext, type ToolRequest,
 } from "./conformance.fixture";
-import { acpModels } from "./models";
-import { criterionIds, parseVerdict } from "../evaluation/judges";
+import { acpModels, configuredHarnessModel } from "./models";
+import { criterionIds, judgePanel, parseVerdict } from "../evaluation/judges";
 import { parseGeneratedFixture } from "../evaluation/learner-fixtures";
 import { evaluationPrompts } from "../evaluation/prompts";
 // @ts-expect-error The conformance scripts are plain JavaScript without declarations.
-import { agentHome, bootstrapBinary, conformancePaths, installAgent, needsInstall, pinnedCli, readRecord, tierAAgents } from "../../scripts/conformance-install.mjs";
+import { agentHome, bootstrapBinary, conformancePaths, installAgent, needsInstall, pinnedCli, readRecord, tierAAgents, tierBAgents } from "../../scripts/conformance-install.mjs";
 import instructions from "./instructions";
 
 // Tier A of docs/designs/agent-runtime.md, "Conformance tiers": every registry row with an adapter except Cursor,
 // against the loopback model. The case list, its tags and its runner are docs/designs/agent-runtime.steps/step-3.md.
-const implementedStep = 7;                                   // each later step raises it
+// Tier B (DOJO_CONFORMANCE_TIER=B): every row with an adapter, on real models and the user's logins (step-8 plan, "Tier-B cases").
+const implementedStep = 8;                                   // each later step raises it
+const tier = process.env.DOJO_CONFORMANCE_TIER === "B" ? "B" : "A";
 interface ConformanceCase {
   id: string;                 // "<persona>.<level>.<name>", the record's key; never reused
   persona: Persona;
   since: 3 | 4 | 5 | 6 | 7 | 8;
   tier: "A" | "B";
-  /** "scripted": runs once on the scripted HarnessV1 fixture (guard cases); a list: only those tier-A agents (step-4 plan, decision 16) */
-  agents: "tier-a" | "scripted" | readonly TierAAgent[];
+  /** "scripted": runs once on the scripted HarnessV1 fixture (guard cases); "tier-b": every tier-B agent; a list: only those agents
+   *  (step-4 plan, decision 16) */
+  agents: "tier-a" | "tier-b" | "scripted" | readonly AgentId[];
   title: string;
   run?(context: CaseContext): Promise<void>;
+  /** A tier-B case's body: no loopback, the agent's default model */
+  runTierB?(context: TierBContext): Promise<void>;
 }
 
 const later = (since: ConformanceCase["since"], persona: Persona, id: string, title: string, options: Partial<ConformanceCase> = {}): ConformanceCase =>
@@ -94,8 +100,9 @@ const kataCheck = { observationId: "fixture-check", report: { passed: 0, failed:
 
 /** The host-port fixture a Sensei or Kyoshi host reports to; Sensei's session and course come from it. Its tool-call reads
  *  (keys `<session>:<callId>`) run once per key, as the UI server's idempotency keeps a mutating call's result. A kata fixture
- *  (`mode: "katas"`) answers the kata context, `check`, `turn.check` (409 for a turn the case marked interrupted) and `navigate`. */
-async function hostPort(context: CaseContext, options: { model?: () => string | undefined; context?: (key: string) => Promise<void> | void;
+ *  (`mode: "katas"`) answers the kata context, `check`, `turn.check` (409 for a turn the case marked interrupted) and `navigate`.
+ *  A tier-B case has no wiring, so the session names no model and the host runs on the agent's default. */
+async function hostPort(context: Pick<CaseContext, "defer"> & { wiring?: AgentWiring }, options: { model?: () => string | undefined; context?: (key: string) => Promise<void> | void;
   mode?: "katas" | "interactive"; check?: (key: string) => Promise<void> | void; interrupted?: Set<string>;
   handlers?: Record<string, (input: any, call: any) => unknown>; onAnswered?: (call: any) => void } = {}) {
   const kata = options.mode === "katas";
@@ -110,8 +117,8 @@ async function hostPort(context: CaseContext, options: { model?: () => string | 
   };
   const port = await startHostPortFixture({ onAnswered: options.onAnswered, handlers: {
     session: () => ({ courseId: kata ? "kata-course" : "first", ...(kata ? { lessonId: "first" } : {}), mode: kata ? "katas" : "interactive", revision: 0,
-      ...(options.model?.() ?? context.wiring.hostModel ?? context.wiring.firstModel
-      ? { model: options.model?.() ?? context.wiring.hostModel ?? context.wiring.firstModel } : {}) }),
+      ...(options.model?.() ?? context.wiring?.hostModel ?? context.wiring?.firstModel
+      ? { model: options.model?.() ?? context.wiring?.hostModel ?? context.wiring?.firstModel } : {}) }),
     context: (_input, call) => {
       const body = kata ? kataContext : { kind: "interactive", hash: "fixture", course: { id: "first", title: "First" }, guidance: "SENSEI-GUIDANCE-MARKER",
         lesson: { title: "Lesson", marker: "ONMESSAGE-CONTEXT-MARKER" } };
@@ -1079,11 +1086,15 @@ const cases: ConformanceCase[] = [
   later(6, "sensei", "sensei.switch.new-agent-new-session", "After an agent switch the page opens a new Sensei session (D29)",
     { run: context => switchAwayAndBack(context, "sensei", "new-session") }),
   later(7, "sensei", "sensei.evaluation.trial-loopback", "An evaluation trial runs against the loopback model", { run: trialLoopback }),
-  later(8, "sensei", "sensei.tier-b.latency", "Median time to first output is at most 15 s", { tier: "B" }),
-  later(8, "sensei", "sensei.tier-b.leave-cancels-begin-turns", "Leaving N lessons cancels their begin turns", { tier: "B" }),
-  later(8, "sensei", "sensei.tier-b.two-hosts-one-agent", "Two hosts on one agent (open risk 6)", { tier: "B" }),
-  later(8, "sensei", "sensei.tier-b.host-memory", "Host memory", { tier: "B" }),
-  later(8, "kyoshi", "kyoshi.tier-b.cold-start", "Kyoshi cold start", { tier: "B" }),
+  later(8, "sensei", "sensei.tier-b.latency", "Median time to first output is at most 15 s", { tier: "B", agents: "tier-b", runTierB: tierBLatency }),
+  later(8, "sensei", "sensei.tier-b.leave-cancels-begin-turns", "Leaving N lessons cancels their begin turns", { tier: "B", agents: "tier-b", runTierB: tierBBeginTurns }),
+  later(8, "sensei", "sensei.tier-b.two-hosts-one-agent", "Two hosts on one agent (open risk 6)", { tier: "B", agents: "tier-b", runTierB: tierBTwoHosts }),
+  later(8, "sensei", "sensei.tier-b.host-memory", "Host memory", { tier: "B", agents: "tier-b", runTierB: tierBHostMemory }),
+  later(8, "kyoshi", "kyoshi.tier-b.cold-start", "Kyoshi cold start", { tier: "B", agents: "tier-b", runTierB: tierBColdStart }),
+  later(8, "sensei", "sensei.tier-b.one-shot-and-ceiling", "An evaluation's one-shot calls and a trial's usage ceiling on the real model (decision 26)",
+    { tier: "B", agents: "tier-b", runTierB: tierBOneShotAndCeiling }),
+  later(8, "sensei", "sensei.tier-b.cursor-asks-before-write", "Cursor asks before it writes under allow-reads (open risk 1, cursor-spike.md)",
+    { tier: "B", agents: ["cursor"], runTierB: cursorAsksBeforeWrite }),
 ];
 
 /** Step 7's per-agent half of an evaluation trial (step-7 plan, "Conformance cases"; the whole trial is test:evaluation): the learner,
@@ -1140,17 +1151,253 @@ async function trialLoopback(context: CaseContext) {
   await observe(context.agent, "budgetPromptOnMessage", second.budgetPromptOnMessage);
 }
 
+// Tier B (step-8 plan, "Tier-B cases"): real models, so a case records what it measured before it asserts
+/** A host driver's bound in tier B: a real model's turns take longer than the loopback's */
+const tierBHostMs = 540_000;
+const tierBStepMs = 300_000;
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+/** A turn tier B counts as complete (decision 42): it settled `completed`, or `awaiting-input` on the persona's question, which the
+ *  next message answers as the learner types in the composer */
+const answered = (status: unknown) => status === "completed" || status === "awaiting-input";
+interface TierBTurn {
+  phase: "begin" | "message"; message?: string; status: string; ms: number; firstOutputMs: number | null; error: { code?: string } | null;
+  usage: Record<string, number>;
+}
+const tierBTurns = (ended: { results: Array<Record<string, unknown>> }) => ended.results.filter(result => result.step === "turn") as unknown as TierBTurn[];
+const median = (values: number[]) => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+};
+/** A learner's kata host port, whose session names the model the UI server picks for a workspace without one: the agent's own configured
+ *  choice (ui/src/server/agent-session/default.ts; FX's first listed model, Codex's config.toml, otherwise none) */
+async function learnerPort(context: TierBContext) {
+  const model = await configuredHarnessModel(context.agent).catch(() => undefined);
+  return hostPort(context, { mode: "katas", model: () => model });
+}
+
+/** The begin turn and five messages on the kata lesson; the median time from a message to Sensei's first text (design, "Conformance tiers") */
+async function tierBLatency(context: TierBContext) {
+  const port = await learnerPort(context);
+  const ended = await runHost(context, undefined, harnessPath, { scenario: "tier-b-turns", persona: "sensei", hostPort: port.url,
+    args: ["--messages", "5"], killAfterMs: tierBHostMs }).done;
+  const turns = tierBTurns(ended);
+  const messages = turns.filter(entry => entry.phase === "message");
+  const samples = messages.map(entry => entry.firstOutputMs);
+  await observe(context.agent, "latencySamples", messages.map(({ message, status, ms, firstOutputMs, usage }) => ({ message, status, ms, firstOutputMs, usage })));
+  const diagnostics = JSON.stringify(turns) + ended.output.slice(-4000);
+  expect(ended.error, diagnostics).toBeUndefined();
+  expect(turns.map(entry => entry.phase), diagnostics).toEqual(["begin", "message", "message", "message", "message", "message"]);
+  for (const entry of turns) expect(answered(entry.status), diagnostics).toBe(true);
+  expect(samples.every(ms => typeof ms === "number"), diagnostics).toBe(true);
+  const middle = median(samples as number[]);
+  // The target flags an agent, never fails it
+  await observe(context.agent, "latency", { medianFirstOutputMs: middle, slow: middle > 15_000 });
+}
+
+/** Three lessons opened at once; the two left ones' working begin turns are cancelled as the leave rule cancels them (decision 19) */
+async function tierBBeginTurns(context: TierBContext) {
+  const port = await learnerPort(context);
+  const host = runHost(context, undefined, harnessPath, { scenario: "tier-b-begin-turns", persona: "sensei", hostPort: port.url,
+    args: ["--lessons", "3"], killAfterMs: tierBHostMs });
+  const working = await host.step("working", tierBStepMs) as { sessions: string[] };
+  const before = (await agentProcesses(context.markers)).length;
+  host.send("cancel");
+  const cancelled = await host.step("cancelled", tierBStepMs) as { sessions: Array<{ sessionId: string; outcome: string; ms: number }> };
+  // The cancelled turns' native processes go; the last lesson's begin turn may still run its own
+  let after = (await agentProcesses(context.markers)).length;
+  for (const deadline = Date.now() + 10_000; after > 1 && Date.now() < deadline; after = (await agentProcesses(context.markers)).length) await sleep(250);
+  const settled = await host.step("settled", tierBStepMs) as { lastStatus: string; sessions: Array<{ sessionId: string; outcome: string | null; usage: unknown }> };
+  host.send("done");
+  const ended = await host.done;
+  await observe(context.agent, "beginTurns", { processes: { before, after }, cancelled: cancelled.sessions, lastStatus: settled.lastStatus, sessions: settled.sessions });
+  const diagnostics = JSON.stringify({ cancelled, settled }) + ended.output.slice(-4000);
+  expect(ended.error, diagnostics).toBeUndefined();
+  expect(working.sessions).toHaveLength(3);
+  expect(cancelled.sessions.map(entry => entry.outcome), diagnostics).toEqual(["cancelled", "cancelled"]);
+  for (const entry of cancelled.sessions) expect(entry.ms, diagnostics).toBeLessThan(10_000);
+  expect(after, diagnostics).toBeLessThanOrEqual(1);
+}
+
+/** Two learner workspaces, one host each, on the same agent at once (open risk 6, D33): every turn settles, or fails with a typed error */
+async function tierBTwoHosts(context: TierBContext) {
+  const port = await learnerPort(context);
+  const workspaces = [await context.workspace("first"), await context.workspace("second")];
+  const ended = await Promise.all(workspaces.map((workspace, index) => runHost(context, undefined, harnessPath, { scenario: "tier-b-turns", persona: "sensei",
+    hostPort: port.url, workspace, workspaceId: `w-${context.agent}-${index + 1}`, args: ["--messages", "1"], killAfterMs: tierBHostMs }).done));
+  const turns = ended.flatMap((result, index) => tierBTurns(result)
+    .map(entry => ({ host: index + 1, phase: entry.phase, status: entry.status, ms: entry.ms, errorCode: entry.error?.code ?? null })));
+  await observe(context.agent, "twoHosts", turns);
+  const diagnostics = JSON.stringify(turns) + ended.map(result => result.output.slice(-2000)).join("\n");
+  for (const result of ended) expect(result.error, diagnostics).toBeUndefined();
+  expect(turns, diagnostics).toHaveLength(4);
+  for (const entry of turns) {
+    expect(entry.ms, diagnostics).toBeLessThan(120_000);
+    expect(answered(entry.status) || (entry.status === "failed" && Boolean(entry.errorCode)), diagnostics).toBe(true);
+  }
+}
+
+/** The host's resident memory after ready and after one message's turn, and its native processes' peak during that turn */
+async function tierBHostMemory(context: TierBContext) {
+  const port = await learnerPort(context);
+  const host: HostRun = runHost(context, undefined, harnessPath, { scenario: "tier-b-memory", persona: "sensei", hostPort: port.url, killAfterMs: tierBHostMs });
+  const server = async () => (await residentMemory((await hostProcesses(context.root)).map(row => row.pid)))[0] ?? null;
+  await host.step("ready", tierBStepMs);
+  const afterReadyKb = await server();
+  host.send("begin");
+  await host.step("begun", tierBStepMs);
+  let finished = false;
+  void host.done.then(() => { finished = true; });
+  let nativePeakKb = 0;
+  let samples = 0;
+  while (!finished && !host.results.some(result => result.step === "turned")) {
+    const resident = await residentMemory((await agentProcesses(context.markers)).map(row => row.pid));
+    nativePeakKb = Math.max(nativePeakKb, resident.reduce<number>((sum, kb) => sum + (kb ?? 0), 0));
+    samples++;
+    await sleep(500);
+  }
+  const turned = await host.step("turned", tierBStepMs) as unknown as TierBTurn;
+  const afterTurnKb = await server();
+  host.send("done");
+  const ended = await host.done;
+  await observe(context.agent, "hostMemory", { hostAfterReadyKb: afterReadyKb, hostAfterTurnKb: afterTurnKb, nativePeakKb, samples });
+  const diagnostics = JSON.stringify(turned) + ended.output.slice(-4000);
+  expect(ended.error, diagnostics).toBeUndefined();
+  expect(answered(turned.status), diagnostics).toBe(true);
+  expect([afterReadyKb, afterTurnKb].every(kb => typeof kb === "number"), "the host's memory was read").toBe(true);
+}
+
+/** Kyoshi from host start to ready, then one message to its first output */
+async function tierBColdStart(context: TierBContext) {
+  const ended = await runHost(context, undefined, harnessPath, { scenario: "tier-b-cold-start", persona: "kyoshi", killAfterMs: tierBHostMs }).done;
+  const cold = ended.results.find(result => result.step === "cold-start") as unknown as (TierBTurn & { startToReadyMs: number }) | undefined;
+  if (cold) {
+    await observe(context.agent, "coldStart", { startToReadyMs: cold.startToReadyMs, messageToFirstOutputMs: cold.firstOutputMs, status: cold.status, ms: cold.ms,
+      usage: cold.usage });
+  }
+  const diagnostics = JSON.stringify(cold) + ended.output.slice(-4000);
+  expect(ended.error, diagnostics).toBeUndefined();
+  expect(answered(cold?.status), diagnostics).toBe(true);
+  expect(typeof cold?.firstOutputMs, diagnostics).toBe("number");
+}
+
+/** Step 7's one-shot and usage-ceiling scenarios on the real model (decision 26): each role's answer passes the parser the evaluation
+ *  reads it with, and the ceiling opens Eve's budget prompt on the second message */
+async function tierBOneShotAndCeiling(context: TierBContext) {
+  const shots = await runHost(context, undefined, harnessPath, { scenario: "one-shot", persona: "sensei", killAfterMs: tierBHostMs }).done;
+  const answers = shots.results.filter(result => result.step === "one-shot") as unknown as Array<{ role: string; text: string; processes: string[]; ms: number; usage: unknown }>;
+  await observe(context.agent, "oneShots", answers.map(({ role, ms, usage }) => ({ role, ms, usage })));
+  const diagnostics = JSON.stringify(answers) + shots.output.slice(-4000);
+  expect(shots.error, diagnostics).toBeUndefined();
+  const byRole = Object.fromEntries(answers.map(answer => [answer.role, answer]));
+  // As ui/src/server/evaluation/roles.ts reads them: the learner's reply is any text, the fixture parses, and each judge's verdict parses
+  expect(byRole.learner?.text.trim(), diagnostics).toBeTruthy();
+  expect(() => parseGeneratedFixture(byRole.fixture?.text ?? ""), diagnostics).not.toThrow();
+  await expect(judgePanel({}, AbortSignal.timeout(10_000), async () => byRole.judge?.text ?? "", { directory: join(context.root, "judge-parse"),
+    buildPrompt: () => "parse only" })).resolves.toHaveLength(2);
+  expect(answers.map(answer => answer.processes.length), diagnostics).toEqual([0, 0, 0]);
+
+  const port = await hostPort(context);
+  const host = runHost(context, undefined, harnessPath, { scenario: "usage-ceiling", persona: "sensei", hostPort: port.url, killAfterMs: tierBHostMs });
+  const first = await host.step("first", tierBStepMs) as { status: string; budget: boolean };
+  expect(first, JSON.stringify(host.results)).toMatchObject({ budget: false });
+  host.send("second");
+  const second = await host.step("second", tierBStepMs) as { budgetPromptOnMessage: number | null };
+  await observe(context.agent, "budgetPromptOnMessage", second.budgetPromptOnMessage);
+  expect(second.budgetPromptOnMessage, JSON.stringify(host.results)).toBe(2);
+  expect(await host.step("cancelled", tierBStepMs)).toMatchObject({ outcome: "cancelled" });
+  expect(await host.step("closed", tierBStepMs)).toMatchObject({ processes: [] });
+  expect((await host.done).exitCode).toBe(0);
+}
+
+/** cursor-spike.md's procedure (open risk 1) with every approval denied; then the same through a `cursor-agent` wrapper first on PATH that
+ *  passes `--trust` before `acp` (the spike's question 2), whose outcome is recorded, not required (decision 46) */
+async function cursorAsksBeforeWrite(context: TierBContext) {
+  const real = resolveAgentExecutable("cursor");
+  expect(real, "cursor-agent is not installed").toBeTruthy();
+  const attempt = async (name: string) => {
+    const root = join(context.root, name);
+    const home = join(root, "home");
+    await mkdir(join(root, "course"), { recursive: true });
+    await mkdir(home);
+    // The adapter's bootstrap and its `agent` link land in a scratch HOME; the link runs cursor-agent with the user's HOME (local-cursor.ts)
+    const sandbox = await createLocalSandbox(root, { environment: { ...await prepareHarnessEnvironment(context.environment()), HOME: home } });
+    context.defer(() => sandbox.stop());
+    const agent = new HarnessAgent({ harness: await agentAdapter("cursor"), model: "default", permissionMode: "allow-reads", sandboxConfig: { workDir: "course" } });
+    const session = await agent.createSession({ sandboxSession: sandbox, abortSignal: AbortSignal.timeout(180_000) });
+    context.defer(() => session.destroy().catch(() => {}));
+    const probe = join(root, "course/probe.txt");
+    const approvals: Array<{ approvalId: string; toolName: string }> = [];
+    let wroteBeforeAsking: boolean | undefined;
+    let result = await agent.generate({ session, prompt: "Create the file probe.txt containing ok, then reply done.", abortSignal: AbortSignal.timeout(180_000) });
+    for (let round = 0; round < 5; round++) {
+      const requests = result.content.flatMap(part => part.type === "tool-approval-request" ? [part] : []);
+      if (!requests.length) break;
+      wroteBeforeAsking ??= existsSync(probe);
+      approvals.push(...requests.map(part => ({ approvalId: part.approvalId, toolName: part.toolCall.toolName })));
+      result = await agent.continueGenerate({ session, abortSignal: AbortSignal.timeout(180_000), toolApprovalContinuations: requests.map(part =>
+        ({ type: "tool-approval-response" as const, approvalId: part.approvalId, approved: false, reason: "Tier B denies every approval." })) });
+    }
+    return { approvals, wroteBeforeAsking: wroteBeforeAsking ?? existsSync(probe), probeExists: existsSync(probe), text: result.text };
+  };
+  const plain = await attempt("plain");
+  const wrapper = join(context.root, "wrapper");
+  await mkdir(wrapper);
+  await writeFile(join(wrapper, "cursor-agent"), `#!/bin/sh\n# cursor-agent with --trust before acp (cursor-spike.md, question 2)\n`
+    + `for argument do shift; [ "$argument" = acp ] && set -- "$@" --trust; set -- "$@" "$argument"; done\n`
+    + `exec '${real!.replaceAll("'", "'\\''")}' "$@"\n`, { mode: 0o755 });
+  // resolveAgentExecutable reads this process's PATH when the adapter writes its `agent` link
+  const path = process.env.PATH;
+  process.env.PATH = [wrapper, path].join(delimiter);
+  let trusted: Awaited<ReturnType<typeof attempt>> | { error: string };
+  try { trusted = await attempt("trusted"); }
+  catch (error) { trusted = { error: error instanceof Error ? error.message : String(error) }; }
+  finally { process.env.PATH = path; }
+  await observe(context.agent, "cursorSpike", { plain, trusted });
+  expect(plain.approvals.length, JSON.stringify(plain)).toBeGreaterThan(0);
+  expect(plain.wroteBeforeAsking, JSON.stringify(plain)).toBe(false);
+  expect(plain.probeExists, JSON.stringify(plain)).toBe(false);
+}
+
 // A step cannot raise implementedStep and leave a case behind; this throws at collection, in every run.
 for (const entry of cases) {
-  if (entry.since <= implementedStep && !entry.run) throw new Error(`${entry.id} is due in step ${entry.since} but has no body`);
+  if (entry.since <= implementedStep && !(entry.tier === "B" ? entry.runTierB : entry.run)) throw new Error(`${entry.id} is due in step ${entry.since} but has no body`);
 }
-const allAgents: TierAAgent[] = tierAAgents({});
-const agents: TierAAgent[] = tierAAgents();   // narrowed by DOJO_CONFORMANCE_AGENTS
+// Each tier lists its own agents, so a tier-B run that names Cursor does not throw (decision 27)
+const allAgents: AgentId[] = tier === "B" ? tierBAgents({}) : tierAAgents({});
+const agents: AgentId[] = tier === "B" ? tierBAgents() : tierAAgents();   // narrowed by DOJO_CONFORMANCE_AGENTS
 const due = cases.filter(entry => entry.since <= implementedStep && entry.tier === "A");
-const runsOn = (entry: ConformanceCase, agent: TierAAgent) => entry.agents === "tier-a" || (Array.isArray(entry.agents) && entry.agents.includes(agent));
+const dueB = cases.filter(entry => entry.since <= implementedStep && entry.tier === "B");
+const runsOn = (entry: ConformanceCase, agent: AgentId) => entry.agents === (tier === "B" ? "tier-b" : "tier-a")
+  || (Array.isArray(entry.agents) && entry.agents.includes(agent));
 const title = (entry: ConformanceCase) => `${entry.id} [${entry.persona}, step ${entry.since}]`;
 
-describe.skipIf(process.env.DOJO_HARNESS_LIFECYCLE !== "1")("tier A", () => {
+describe.skipIf(process.env.DOJO_HARNESS_LIFECYCLE !== "1" || tier !== "B")("tier B", () => {
+  beforeAll(async () => {
+    const { out } = conformancePaths();
+    await mkdir(out, { recursive: true });
+    // Every tier-B agent, whichever subset this process runs; each per-agent process writes the same file.
+    await writeFile(join(out, "cases.json"), `${JSON.stringify({ implementedStep, personaRecordedFrom, agents: allAgents,
+      cases: cases.map(({ id, persona, since, tier, agents: runsOn }) => ({ id, persona, since, tier, agents: runsOn })) }, null, 2)}\n`);
+    // The user's own installs: the caller's PATH, which each host prepares its toolchain from as the UI server's hosts do (decision 47)
+    harnessPath = process.env.PATH ?? "";
+  });
+
+  for (const agent of agents) {
+    describe(agent, () => {
+      for (const entry of dueB.filter(item => runsOn(item, agent))) {
+        it(title(entry), async () => {
+          const context = await openTierBCase(agent, entry.id);
+          try { await entry.runTierB!(context); }
+          finally { await context.close(); }
+          await expectNoNativeProcesses(context.markers);
+        }, 900_000);
+      }
+    });
+  }
+});
+
+describe.skipIf(process.env.DOJO_HARNESS_LIFECYCLE !== "1" || tier === "B")("tier A", () => {
   beforeAll(async () => {
     const { out } = conformancePaths();
     await mkdir(out, { recursive: true });
@@ -1186,7 +1433,10 @@ describe.skipIf(process.env.DOJO_HARNESS_LIFECYCLE !== "1")("tier A", () => {
       }, 120_000);
     }
   });
-  describe("due in a later step", () => {
-    for (const entry of cases.filter(item => item.since > implementedStep)) it.todo(title(entry));
-  });
+  // Vitest fails an empty suite, so there is none while no case waits for a later step
+  if (cases.some(item => item.since > implementedStep)) {
+    describe("due in a later step", () => {
+      for (const entry of cases.filter(item => item.since > implementedStep)) it.todo(title(entry));
+    });
+  }
 });

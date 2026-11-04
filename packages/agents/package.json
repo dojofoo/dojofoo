@@ -229,6 +229,7 @@
     "conformance:run": "node scripts/conformance-run.mjs",
     "conformance:compare": "node scripts/conformance-compare.mjs",
     "conformance:record": "node scripts/conformance-record.mjs",
+    "conformance:tier-b": "node scripts/conformance-run.mjs --tier B",
     "types:check": "tsc --noEmit",
     "build": "tsup && node scripts/build-agent.mjs"
   },

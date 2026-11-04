@@ -1,13 +1,14 @@
 // Installs each tier-A agent's pinned CLI through its adapter's own bootstrap recipe
 // (docs/designs/agent-runtime.steps/step-3.md, "conformance-install.mjs"). Nothing is installed globally.
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire, findPackageJSON } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { prepareHarnessEnvironment } from "@dojofoo/harness/adapters";
 import { agentRow, agentRows, latestConformance, parseConformanceRecord } from "@dojofoo/protocol";
 
@@ -45,6 +46,16 @@ export function tierAAgents(environment = process.env) {
   return agents.filter(agent => subset.includes(agent));
 }
 
+/** Every registry row with an adapter, Cursor included, or the DOJO_CONFORMANCE_AGENTS subset, in registry order (step-8 plan, decision 27). */
+export function tierBAgents(environment = process.env) {
+  const agents = agentRows.filter(row => row.adapterId).map(row => row.id);
+  const subset = environment.DOJO_CONFORMANCE_AGENTS?.split(",").map(agent => agent.trim()).filter(Boolean);
+  if (!subset?.length) return agents;
+  const unknown = subset.filter(agent => !agents.includes(agent));
+  if (unknown.length) throw new Error(`Not a tier-B agent: ${unknown.join(", ")}`);
+  return agents.filter(agent => subset.includes(agent));
+}
+
 /** The CLI versions the first tier-A run expects, before the record has an entry for the agent. */
 export const firstRunPins = { claude: "2.1.290", codex: "0.160.1", opencode: "1.18.34", grok: "1.0.49", fx: "0.0.14", pi: "1.3.0" };
 
@@ -71,6 +82,24 @@ export async function pinnedCli(agent) {
   // These libraries export no ./package.json (step 3 plan, fact 11).
   const library = findPackageJSON(name, adapterJson);
   return { adapter, adapterJson, cli: { name, version: JSON.parse(await readFile(library, "utf8")).version, source: "in-process" } };
+}
+
+/** What a tier-B run ran on (step-8 plan, commit 11): the harness's installed adapter, and the in-process library (FX, Pi) or the user's
+ *  own binary and its --version. Tier B installs nothing. */
+export async function tierBVersion(agent, environment = process.env) {
+  const adapterPackage = `@ai-sdk/harness-${agentRow(agent).adapterId}`;
+  // Real paths: pnpm links a package's own dependencies next to its real folder
+  const harnessJson = realpathSync(findPackageJSON("@dojofoo/harness", join(authoring, "package.json")));
+  const adapterJson = realpathSync(findPackageJSON(adapterPackage, harnessJson));
+  const adapter = { package: adapterPackage, version: JSON.parse(await readFile(adapterJson, "utf8")).version };
+  const library = inProcess[agent];
+  if (library) {
+    return { adapter, cli: { name: library, version: JSON.parse(await readFile(findPackageJSON(library, adapterJson), "utf8")).version, source: "in-process" } };
+  }
+  const binary = resolveAgentExecutable(agent, { environment });
+  if (!binary) throw new Error(`${agentRow(agent).command} is not installed`);
+  const { stdout } = await execute(binary, ["--version"], { env: environment, timeout: 60_000 });
+  return { adapter, cli: { name: agentRow(agent).command, version: stdout.match(/\d+\.\d+\.\d+[^\s,)]*/u)?.[0] ?? stdout.trim(), source: "user-install" } };
 }
 
 /** The bootstrap environment of an agent: its own home under DOJO_CONFORMANCE_HOME. */

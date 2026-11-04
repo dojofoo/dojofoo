@@ -1,7 +1,7 @@
 import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -14,7 +14,7 @@ import { createPi } from "@ai-sdk/harness-pi";
 import { experimental_createHarnessModel, type PreventionRecord, createLocalHarnessSandbox } from "@dojofoo/harness/adapters";
 import { readOnlyAdapterSettings, readOnlyEnvironment, readOnlyToolNames, withoutBuiltinFiltering } from "@dojofoo/harness/persona";
 import { scriptedHarness } from "@dojofoo/harness/scripted-harness";
-import { agentRow, type ResumeFailure } from "@dojofoo/protocol";
+import { agentRow, type AgentId, type ResumeFailure } from "@dojofoo/protocol";
 import { expect } from "vitest";
 // Shared deterministic HTTP fixture; it performs no external inference.
 // @ts-expect-error Shared JavaScript inference fixture has no declarations.
@@ -295,7 +295,7 @@ export async function snapshotDirectory(path: string): Promise<Record<string, st
 }
 
 /** Records a value under `<out>/observations/<agent>.json`, at a dotted key such as "userConfig.kyoshi". */
-export async function observe(agent: TierAAgent, key: string, value: unknown) {
+export async function observe(agent: AgentId, key: string, value: unknown) {
   const path = join(conformancePaths().out, "observations", `${agent}.json`);
   await mkdir(dirname(path), { recursive: true });
   const observations = existsSync(path) ? JSON.parse(await readFile(path, "utf8")) : {};
@@ -335,15 +335,21 @@ async function linkBootstrap(home: string, agent: TierAAgent) {
   return shared;
 }
 
+/** The fixture course every case's workspace holds: `course/lesson.md` */
+async function fixtureCourse(root: string) {
+  await mkdir(join(root, "course"), { recursive: true });
+  await writeFile(join(root, "course/lesson.md"), "# Lesson\n\nTeach one concept at a time.\n");
+}
+
+const isTierA = (agent: AgentId): agent is TierAAgent => agent in wiring;
+
 /** A case root with a clean user home that reuses the agent's shared bootstrap (step 3 plan, conformance.fixture.ts). */
-export async function openCase(agent: TierAAgent, id: string, harnessPath: string, { course = true } = {}): Promise<CaseContext> {
+export async function openCase(agent: AgentId, id: string, harnessPath: string, { course = true } = {}): Promise<CaseContext> {
+  if (!isTierA(agent)) throw new Error(`Not a tier-A agent: ${agent}`);
   const root = await realpath(await mkdtemp(join(tmpdir(), `dojo-conformance-${agent}-${id}-`)));
   const home = join(root, "home");
   await mkdir(home);
-  if (course) {
-    await mkdir(join(root, "course"));
-    await writeFile(join(root, "course/lesson.md"), "# Lesson\n\nTeach one concept at a time.\n");
-  }
+  if (course) await fixtureCourse(root);
   const shared = await linkBootstrap(home, agent);
   const cleanups: Array<() => Promise<unknown> | unknown> = [];
   const markers = [...new Set([root, shared, await realpath(shared)])];
@@ -367,6 +373,57 @@ export async function openCase(agent: TierAAgent, id: string, harnessPath: strin
     },
   };
   return context;
+}
+
+/** A tier-B case (step-8 plan, commit 11): real models on the user's own logins and installs, so no loopback and no bootstrap home. */
+export interface TierBContext {
+  agent: AgentId;
+  id: string;
+  /** The case's workspace, with the fixture course tier A uses */
+  root: string;
+  course: string;
+  /** The caller's HOME, where the agent's login lives */
+  home: string;
+  /** The case's own DOJOFOO_HOME, so process records and read-only homes stay out of the user's (decision 36) */
+  dojofooHome: string;
+  markers: string[];
+  /** The caller's environment with the case's DOJOFOO_HOME */
+  environment(): NodeJS.ProcessEnv;
+  /** Another learner workspace in the case (`<root>/workspaces/<name>`), with the same course */
+  workspace(name: string): Promise<string>;
+  defer(cleanup: () => Promise<unknown> | unknown): void;
+  close(): Promise<void>;
+}
+
+/** A tier-B case root. Its process markers are the root and the user's own bootstrap folder, where the adapters install their CLIs
+ *  under the user's HOME (decision 43). */
+export async function openTierBCase(agent: AgentId, id: string): Promise<TierBContext> {
+  const root = await realpath(await mkdtemp(join(tmpdir(), `dojo-conformance-b-${agent}-${id}-`)));
+  await fixtureCourse(root);
+  const dojofooHome = join(root, "dojofoo-home");
+  await mkdir(dojofooHome);
+  const home = process.env.HOME ?? homedir();
+  const bootstrap = join(home, ".ai-sdk-harness");
+  const markers = [...new Set([root, bootstrap, ...(existsSync(bootstrap) ? [await realpath(bootstrap)] : [])])];
+  const cleanups: Array<() => Promise<unknown> | unknown> = [];
+  return {
+    agent, id, root, course: join(root, "course"), home, dojofooHome, markers,
+    environment: () => ({ ...process.env, DOJOFOO_HOME: dojofooHome }),
+    async workspace(name) {
+      const workspace = join(root, "workspaces", name);
+      await fixtureCourse(workspace);
+      return workspace;
+    },
+    defer: cleanup => { cleanups.push(cleanup); },
+    async close() {
+      const failures: unknown[] = [];
+      for (const cleanup of cleanups.reverse()) {
+        try { await cleanup(); } catch (error) { failures.push(error); }
+      }
+      await rm(root, { recursive: true, force: true, maxRetries: 3 });
+      if (failures.length) throw new AggregateError(failures, `Closing ${agent} ${id} failed`);
+    },
+  };
 }
 
 /** The home of the agent a step-6 case switches away to (`<case root>/away-home`): its own bootstrap and its own wiring, pointed at the
@@ -394,21 +451,30 @@ export interface HostRun {
   done: Promise<HostResult>;
 }
 
-/** Runs scripts/conformance-host.mjs in a child process group with the host environment; kills the group after 180 s.
+/** What runHost needs of a case: tier A's CaseContext, or tier B's TierBContext, which has no loopback */
+type HostCase = Pick<CaseContext, "root" | "home" | "defer"> & { agent: AgentId; environment(endpoint?: LoopbackEndpoint): NodeJS.ProcessEnv };
+
+/** Runs scripts/conformance-host.mjs in a child process group with the host environment; kills the group after `killAfterMs` (180 s).
  *  `hostPort` is the host-port fixture's URL; Sensei's host reads its session and course through it. With `agent` and `home` the child
- *  runs on that agent, with that home and that agent's wiring (a step-6 case's away host); otherwise on the case's. */
-export function runHost(context: CaseContext, endpoint: LoopbackEndpoint, harnessPath: string,
-  options: { scenario: string; persona: "kyoshi" | "sensei"; hostPort?: string; model?: string; workspaceId?: string; args?: string[]; agent?: TierAAgent; home?: string }): HostRun {
+ *  runs on that agent, with that home and that agent's wiring (a step-6 case's away host); otherwise on the case's. Without an endpoint
+ *  (tier B) it passes no loopback variables: the adapters use the user's login, as in production. `workspace` is the host's workspace
+ *  root (default the case root). */
+export function runHost(context: HostCase, endpoint: LoopbackEndpoint | undefined, harnessPath: string,
+  options: { scenario: string; persona: "kyoshi" | "sensei"; hostPort?: string; model?: string; workspaceId?: string; args?: string[]; agent?: TierAAgent; home?: string;
+    workspace?: string; killAfterMs?: number }): HostRun {
   const agent = options.agent ?? context.agent;
   const home = options.home ?? context.home;
+  // A loopback runs only on tier-A agents
+  const loopback = endpoint ? { endpoint, wiring: wiring[agent as TierAAgent] } : undefined;
   const environment = {
-    ...(options.agent || options.home ? { ...caseBaseEnvironment(home), HOME: home, ...wiring[agent].environment(home, endpoint) } : context.environment(endpoint)),
+    ...(!loopback ? context.environment() : options.agent || options.home
+      ? { ...caseBaseEnvironment(home), HOME: home, ...loopback.wiring.environment(home, loopback.endpoint) } : context.environment(loopback.endpoint)),
     PATH: [join(authoring, "node_modules/.bin"), harnessPath].join(delimiter),
     // Eve substitutes mock models under NODE_ENV=test; srvx skips its shutdown handlers under CI and TEST.
     NODE_ENV: "development", EVE_MOCK_AUTHORED_MODELS: "0", CI: "", TEST: "",
-    ...wiring[agent].auth(endpoint),
+    ...loopback?.wiring.auth(loopback.endpoint),
   };
-  const args = ["scripts/conformance-host.mjs", options.scenario, agent, context.root, ...(options.model ? [options.model] : []),
+  const args = ["scripts/conformance-host.mjs", options.scenario, agent, options.workspace ?? context.root, ...(options.model ? [options.model] : []),
     "--persona", options.persona, ...(options.hostPort ? ["--host-port", options.hostPort] : []), "--workspace-id", options.workspaceId ?? `w-${context.agent}`,
     ...(options.args ?? [])];
   const child = spawn(process.execPath, args, { cwd: authoring, env: environment, detached: true, stdio: ["pipe", "pipe", "pipe"] });
@@ -431,7 +497,7 @@ export function runHost(context: CaseContext, endpoint: LoopbackEndpoint, harnes
   child.stderr.on("data", chunk => { output += chunk; });
   const killGroup = () => { try { process.kill(-child.pid!, "SIGKILL"); } catch {} };
   context.defer(killGroup);
-  const timer = setTimeout(killGroup, 180_000);
+  const timer = setTimeout(killGroup, options.killAfterMs ?? 180_000);
   const done = new Promise<number | null>((resolve, reject) => {
     child.once("error", reject);
     child.once("close", code => resolve(code));
@@ -475,6 +541,19 @@ export async function nativeLogTail(context: CaseContext, lines = 25): Promise<R
 /** Native processes of the agent only: neither the host driver nor its Eve server. */
 export async function agentProcesses(markers: readonly string[]) {
   return (await nativeProcesses(markers)).filter(row => !row.command.includes("conformance-host.mjs") && !row.command.includes(".output/server/index.mjs"));
+}
+
+/** The Eve servers of hosts on workspaces under `root` (a persona host's own process) */
+export async function hostProcesses(root: string) {
+  return (await nativeProcesses([root])).filter(row => row.command.includes(".output/server/index.mjs"));
+}
+
+/** Resident memory in KiB of each process (`ps -o rss= -p <pid>`), null for one that has exited */
+export async function residentMemory(pids: readonly number[]): Promise<Array<number | null>> {
+  return Promise.all(pids.map(async pid => {
+    const { stdout } = await promisify(execFile)("ps", ["-o", "rss=", "-p", String(pid)]).catch(() => ({ stdout: "" }));
+    return stdout.trim() ? Number(stdout.trim()) : null;
+  }));
 }
 
 /** Calls the loopback makes in order on main-loop requests, by name whether the agent offers them or not, then "Ready to teach.". */

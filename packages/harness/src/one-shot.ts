@@ -1,5 +1,5 @@
 import type { AgentId } from "@dojofoo/protocol";
-import { generateText } from "ai";
+import { generateText, type LanguageModelUsage } from "ai";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -29,8 +29,8 @@ export interface OneShotRequest {
 }
 
 /** One tool-free model turn: generateText over experimental_createHarnessModel in read-only mode, no Eve tools, maxRetries 0.
- *  The native session is stopped when the call settles or aborts. */
-export async function oneShot(request: OneShotRequest): Promise<{ text: string }> {
+ *  The native session is stopped when the call settles or aborts. `usage` is the call's tokens, as tier B records them. */
+export async function oneShot(request: OneShotRequest): Promise<{ text: string; usage: LanguageModelUsage }> {
   const { agent, stateDirectory } = request;
   const eveSessionId = `one-shot-${randomUUID()}`;
   const base = request.environment ?? await prepareHarnessEnvironment();
@@ -44,14 +44,14 @@ export async function oneShot(request: OneShotRequest): Promise<{ text: string }
       sandboxConfig: { workDir: "scratch" },
       ...(request.model ? { model: request.model } : {}),
     }, { mode: "read-only", agent });
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model,
       ...(request.instructions ? { system: request.instructions } : {}),
       prompt: request.prompt,
       abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(request.timeoutMs)]),
       maxRetries: 0,
     });
-    return { text };
+    return { text, usage };
   } finally {
     await removeReadOnlyHome(agent, { stateDirectory, eveSessionId });
   }

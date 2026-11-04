@@ -45,7 +45,7 @@ describe("oneShot", () => {
     const native = fakeHarness({ builtins: claudeBuiltins, script: turn => { prompts.push(turn.prompt); reply(turn.emit, "I am not sure what a reducer is."); } });
     const { turns, ended } = observed(native);
     const result = await oneShot(await request(native, { instructions: "You are a struggling learner." }));
-    expect(result).toEqual({ text: "I am not sure what a reducer is." });
+    expect(result).toMatchObject({ text: "I am not sure what a reducer is.", usage: expect.any(Object) });
     expect(prompts).toEqual(["Answer as the learner."]);
     expect(native.starts).toHaveLength(1);
     expect(native.starts[0]).toMatchObject({ permissionMode: "allow-reads", builtinToolFiltering: { mode: "allow", toolNames: ["read"] } });
