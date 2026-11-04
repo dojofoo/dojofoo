@@ -411,8 +411,9 @@ real Auto model access, and requires explicit opt-in/usage approval.
 | Cursor | Passed | Unverified | Passed | Unsupported (tested) | Unverified |
 
 Evidence: `experiments/model-provider/pi.test.mjs`, `opencode-startup.test.mjs`,
-`cli-host.test.mjs`, and the authoring package's `native-harness-contract.test.ts`
-and `runtime-turn.test.ts`. Cursor startup is covered separately, but its official
+`cli-host.test.mjs`, and the authoring package's `conformance.test.ts` (tier A;
+results per agent in `packages/protocol/src/conformance.json`) and
+`runtime-turn.test.ts`. Cursor startup is covered separately, but its official
 adapter cannot change provider routing; startup is not evidence for these gates.
 The opt-in `cursor-acceptance.test.ts` exercises the real subscription path
 (`DOJO_CURSOR_ACCEPTANCE=1`; explicit usage approval required). The latest local
@@ -475,14 +476,17 @@ conversation on its first prompt, so an unused checkpoint has no native session
 ID. This check does **not** establish their recovery after a real conversation,
 tool use, or model access.
 
-The separate `native-harness-contract.test.ts` opt-in test uses the real Codex,
-OpenCode, Pi, Grok and FX runtimes and official adapters with isolated homes and
-loopback inference endpoints (Responses for Codex/OpenCode/Pi, Responses/Chat
-Completions for Grok, Gateway events for FX). It verifies two
-text turns, checkpoint restoration, stable session ID,
-and the first turn remaining in the second model request. It also holds the
-next user turn's model request and cancels it through the official SDK, verifying
-an abort rather than a timeout; background model requests do not trigger the test.
+Tier-A conformance (`packages/authoring/src/eve/conformance.test.ts`) runs every
+registry row with an adapter except Cursor: Claude Code, Codex, Grok, OpenCode, FX
+and Pi, each with its adapter's own pinned CLI and an isolated home. Its
+harness-level cases run each adapter at the HarnessAgent level against loopback
+endpoints (Responses for Codex, OpenCode and Pi; Chat Completions for Grok;
+gateway events for FX; Messages for Claude Code): resume after stop, a model
+switch, a host-tool turn, cancelling an active turn and a pending host tool,
+compaction and a turn with seeded user config. Its host-level case runs Kyoshi's
+prepared host in a child process, parks a question, restarts and answers it.
+Every case ends with no native process left. Run it with
+`pnpm --filter @dojofoo/authoring conformance`.
 
 `runtime-turn.test.ts -t 'grok model|fx model'` additionally verifies authored
 instructions, native MCP tool discovery, an Eve question, full managed-server

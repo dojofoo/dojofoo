@@ -17,6 +17,7 @@ packages/cli/.package/
 packages/config/dist/
 packages/protocol/dist/
 packages/authoring/dist/
+packages/authoring/.conformance/
 packages/authoring/agents/*/.eve/
 packages/authoring/agents/*/runtime.json
 # local eval scratch builds and Storybook crash logs

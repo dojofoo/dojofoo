@@ -86,9 +86,43 @@ jobs:
 
   conformance:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 40
     permissions:
       contents: read
+    env:
+      DO_NOT_TRACK: "1"
+      DOJO_HARNESS_LIFECYCLE: "1"
+      # The PR head, not the pull_request merge commit that HEAD names, so a record made from this run names a real commit
+      DOJO_CONFORMANCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      # Step 3 of docs/designs/agent-runtime.md fills this job with each coding agent's conformance cases
-      - run: echo "No conformance cases yet"
+      # A job's env cannot read the runner context, so the runner-temp paths are exported here
+      - run: |
+          echo "DOJO_CONFORMANCE_HOME=$RUNNER_TEMP/conformance-home" >> "$GITHUB_ENV"
+          echo "DOJO_CONFORMANCE_OUT=$RUNNER_TEMP/conformance" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        with:
+          install: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@dojofoo/authoring..." build
+      # Tier A against the loopback model (docs/designs/agent-runtime.md, "Conformance tiers"). Each adapter installs
+      # its own pinned CLI into DOJO_CONFORMANCE_HOME; FX and Pi run in-process. No login and no secret.
+      - run: pnpm --filter @dojofoo/authoring conformance:install
+      - run: pnpm --filter @dojofoo/authoring conformance:run
+      # Fails only for agents whose committed record passes, and when the record is not append-only.
+      - run: pnpm --filter @dojofoo/authoring conformance:compare
+      - name: Keep the conformance report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: conformance
+          path: ${{ runner.temp }}/conformance
+          if-no-files-found: ignore
+          retention-days: 7

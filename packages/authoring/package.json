@@ -203,6 +203,11 @@
   "scripts": {
     "test": "vitest run",
     "test:prepared": "node scripts/verify-agent.mjs",
+    "conformance": "node scripts/conformance-install.mjs && node scripts/conformance-run.mjs && node scripts/conformance-compare.mjs",
+    "conformance:install": "node scripts/conformance-install.mjs",
+    "conformance:run": "node scripts/conformance-run.mjs",
+    "conformance:compare": "node scripts/conformance-compare.mjs",
+    "conformance:record": "node scripts/conformance-record.mjs",
     "types:check": "tsc --noEmit",
     "build": "tsup && node scripts/build-agent.mjs"
   },

@@ -31,6 +31,23 @@ it("defaults to the native Codex model, preserving saved and explicit selections
   }
 }, 30_000);
 
+it("an explicit agent wins over the workspace's selection", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-agent-"));
+  vi.stubEnv("DOJOFOO_HOME", root);
+  try {
+    await mkdir(join(root, ".dojo"), { recursive: true });
+    await writeFile(join(root, ".dojo/runtimes.json"), JSON.stringify({ agent: "codex" }));
+    const runtime = await createKyoshiRuntime(root, { agent: "pi" });
+    try {
+      await runtime.start();
+      expect(JSON.parse(await readFile(join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json"), "utf8")).harness).toBe("pi");
+    } finally { await runtime.close(); }
+  } finally {
+    vi.unstubAllEnvs();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30_000);
+
 it("boots shipped Kyoshi in a plain Node process without monorepo module paths", async () => {
   const root = await mkdtemp(join(tmpdir(), "dojo-master-native-"));
   await mkdir(join(root, ".dojo/kyoshi"), { recursive: true });

@@ -6,6 +6,7 @@ import { agentAdapter } from "@dojofoo/agent/adapters";
 import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiOutput } from "./prepare.ts";
 import { evaluationConfiguration } from "../evaluation/host.ts";
 import { resolveAgent } from "@dojofoo/config/runtime";
+import type { AgentId } from "@dojofoo/protocol";
 import { configuredHarnessModel } from "./models.ts";
 
 // Native Node module lifetime, not Vite's reloadable route-module lifetime.
@@ -48,9 +49,10 @@ export async function acquireKyoshiRuntime(courseRoot: string) {
   return runtime;
 }
 
-/** Owns infrastructure, never the course files or the harness credentials. */
-export async function createKyoshiRuntime(courseRoot: string, options: { model?: string } = {}) {
-  const harness = resolveAgent(courseRoot);
+/** Owns infrastructure, never the course files or the harness credentials. An explicit agent is for the
+ * conformance host driver only (scripts/conformance-host.mjs); every other caller uses the workspace's selection. */
+export async function createKyoshiRuntime(courseRoot: string, options: { model?: string; agent?: AgentId } = {}) {
+  const harness = options.agent ?? resolveAgent(courseRoot);
   // An unsupported agent fails here, before anything is prepared
   await agentAdapter(harness);
   const app = await prepareKyoshiApp(courseRoot);

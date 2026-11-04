@@ -29,8 +29,8 @@ existing legacy prompt API. Initial selection and subsequent model changes use
 the same session and API; native defaults remain untouched when no model is set.
 Compaction already supplies its model to the legacy summarize API.
 
-Regression coverage: `packages/authoring/src/eve/native-harness-contract.test.ts`,
-the OpenCode case, checks initial and changed models through the native agent.
+Regression coverage: `kyoshi.harness.model-switch` in `packages/authoring/src/eve/conformance.test.ts`,
+the OpenCode row, checks initial and changed models through the native agent.
 This is a dependency patch, not a replacement harness. Authoring bundles the
 tested adapter and its bridge assets so npm consumers receive the same fix;
 the packed-install smoke verifies model selection against that shipped bridge.

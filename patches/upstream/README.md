@@ -14,8 +14,8 @@ These are local contribution drafts, not published issues or PRs.
   its model to the legacy summarize API.
 - Source patch: [harness-opencode-legacy-model.patch](./harness-opencode-legacy-model.patch).
   Paths are relative to the published adapter package, not the monorepo root.
-- Regression: `packages/authoring/src/eve/native-harness-contract.test.ts`.
-  The OpenCode case checks initial and changed models through the
+- Regression: `kyoshi.harness.model-switch` in `packages/authoring/src/eve/conformance.test.ts`.
+  The OpenCode row checks initial and changed models through the
   native OpenCode agent, including retained conversation history and session ID.
 - Stop/destroy also need the bridge's existing `closeRuntime` callback. Without
   it, answering a parked tool and stopping the resumed session leaves OpenCode's

@@ -527,11 +527,13 @@ No credentials and no login are needed: every agent talks to the loopback with `
     env:
       DO_NOT_TRACK: "1"
       DOJO_HARNESS_LIFECYCLE: "1"
-      DOJO_CONFORMANCE_HOME: ${{ runner.temp }}/conformance-home
-      DOJO_CONFORMANCE_OUT: ${{ runner.temp }}/conformance
       # The PR head, not the pull_request merge commit that HEAD names, so a record made from this run names a real commit
       DOJO_CONFORMANCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
+      # A job's env cannot read the runner context, so the runner-temp paths are exported here (decision 25)
+      - run: |
+          echo "DOJO_CONFORMANCE_HOME=$RUNNER_TEMP/conformance-home" >> "$GITHUB_ENV"
+          echo "DOJO_CONFORMANCE_OUT=$RUNNER_TEMP/conformance" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -640,6 +642,12 @@ From a clean `pnpm install --frozen-lockfile`:
 18. **The install script reuses `prepareAuthoringHarness` with an options parameter** instead of a second copy of the adapter-bootstrap code. The CLI and the lifecycle test keep its defaults.
 19. **The Claude Code spike is its own commit (5), before any case body.** Tool use over the new Messages route, alias resolution and side-request shape are unverified (facts 3 and 12). Claude Code is the only agent new to the loopback, and a failure there would block the step-3 gate. Learning it before commit 6 keeps the case bodies from being written against a guess. The spike's script stays out of the repository; its record does not.
 20. **(Implementation) `personaRecordedFrom` lives in `@dojofoo/protocol` next to the parser, and `conformance.test.ts` imports it.** The parser enforces "untested before the persona's first recorded step" for every persona with the same table, so the test, `cases.json` and the record cannot disagree. `protocol/src/conformance.test.ts` reads node types through a `/// <reference types="node" />` line, because protocol's tsconfig (TypeScript 6, no `types` default) gives its sources no Node globals and its build must stay free of them.
+21. **(Implementation) `harness-model.ts` keeps a held call held across `tool-input-end` and `raw` parts.** `kyoshi.host.ask-answer-across-restart` failed on Claude Code: answering the parked question after the host restart ended with "Tool continuation requires a native checkpoint." Claude Code's adapter reports `tool-input-end` and a `raw` `message_stop` after the tool call, and both flushed the held call, so the checkpoint was never attached to it. Without the fix Claude Code fails a step-3 Kyoshi case, which D1 does not allow; the change is in `packages/agent/src/harness-model.ts`, outside this plan's file list, and the conformance case is its regression test.
+22. **(Implementation) Pi's compaction case writes `<agentDir>/settings.json` with `{ "compaction": { "keepRecentTokens": 1 } }`.** Fact 13 holds at runtime only for a conversation larger than Pi's default 20,000 kept tokens; with the default, `compact()` rejects with "Nothing to compact (session too small)". The setting is a fixture setting, like Grok's `config.toml`.
+23. **(Implementation) `conformance-run.mjs` starts Vitest's own entry with `process.execPath`, not `pnpm exec vitest`.** Where `pnpm` is a version-manager shim (mise on the step 3 machine), the shim reads the developer's config, and with the allow-listed `HOME` mise treats `~/.config/mise/conf.d` above the repository as untrusted project config and exits before Vitest starts.
+24. **(Implementation) `cases.json` lists every tier-A agent, not the `DOJO_CONFORMANCE_AGENTS` subset.** Every per-agent Vitest process writes the same file. `conformance-compare.mjs` checks the agents `tierAAgents()` names (the same variable narrows it), and `conformance-record.mjs` records every agent that has a report.
+25. **(Implementation) The CI job exports `DOJO_CONFORMANCE_HOME` and `DOJO_CONFORMANCE_OUT` in its first step through `$GITHUB_ENV`.** A job-level `env` cannot read the `runner` context (GitHub's context availability: `jobs.<job_id>.env` allows github, needs, strategy, matrix, vars, secrets and inputs only), so the job under "CI job" would not have loaded.
+26. **(Implementation) Grok runs with `GROK_DISABLE_AUTOUPDATER=1`, in the install script and in every Grok case environment.** Without it the bootstrapped Grok 1.0.49 downloaded 1.0.70 into the shared `GROK_HOME/bin` during the first tier-A run and switched its `grok` link to it, so later cases ran an unpinned CLI and the next install failed its version check. With the variable set, the link stays on 1.0.49 through a full Grok run.
 
 ## Open questions for the user
 

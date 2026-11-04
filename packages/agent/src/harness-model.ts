@@ -219,9 +219,14 @@ export function experimental_createHarnessModel<Adapter extends HarnessAgentAdap
                     flush();
                     output.enqueue({ type: part.type, id: part.id, delta: part.text, providerMetadata: part.providerMetadata });
                     break;
-                  case "tool-input-start": case "tool-input-delta": case "tool-input-end":
-                  case "source": case "custom": case "raw":
+                  case "tool-input-start": case "tool-input-delta":
+                  case "source": case "custom":
                     flush();
+                    output.enqueue(part);
+                    break;
+                  case "tool-input-end": case "raw":
+                    // Claude Code reports these after the call they close. Keep that call
+                    // held, so the checkpoint below still lands on the parked call.
                     output.enqueue(part);
                     break;
                   case "file": case "reasoning-file":

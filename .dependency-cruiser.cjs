@@ -4,7 +4,7 @@
 const exempt = (...files) => files.map(file => `^${file.replaceAll(".", "\\.")}$`);
 const relativeExemptions = exempt(
   "packages/authoring/src/eve/browser.fixture.mjs",              // loopback: step 8; ui/server/harness/opencode.ts: step 7
-  "packages/authoring/src/eve/native-harness-contract.test.ts",  // step 3 deletes the file
+  "packages/authoring/src/eve/conformance.fixture.ts",           // loopback model: step 8
   "packages/authoring/src/eve/pi-workspace.test.ts",             // loopback model: step 8
   "packages/authoring/src/eve/runtime-turn.test.ts",             // loopback model: step 8
   "packages/cli/src/teaching-eval.ts",                           // step 7 deletes the file
