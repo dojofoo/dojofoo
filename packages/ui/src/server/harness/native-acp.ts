@@ -34,7 +34,7 @@ export function createNativeAcpHarnessAdapter(options: NativeAcpOptions): Harnes
 export const cursorHarnessAdapter = createNativeAcpHarnessAdapter({
   kind: "cursor",
   contextualInstructions: true,
-  process: () => ({ command: resolveAgentExecutable("cursor") ?? "agent", args: ["--yolo", "--trust", "acp"] }),
+  process: () => ({ command: resolveAgentExecutable("cursor") ?? "cursor-agent", args: ["--yolo", "--trust", "acp"] }),
 });
 
 export const grokHarnessAdapter = createNativeAcpHarnessAdapter({

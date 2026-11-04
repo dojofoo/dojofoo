@@ -1,4 +1,4 @@
-import { agentDefinitions, type AgentDefinition, type AgentId, type AgentInstallation } from "@dojofoo/config/agents";
+import { agentRows, type AgentRow, type AgentId, type AgentInstallation } from "@dojofoo/protocol";
 import { Switch } from "../components/switch";
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { AppearanceSettings } from "./appearance-settings";
@@ -40,10 +40,10 @@ export type SetupValues = { agents: string[]; courses: string[]; name: string; f
 /** A course to offer: shown as its card – its color, its effect, who made it and its rating */
 export type SetupCourse = { id: string; title: string; color: string; shader?: CardShaderKind; mark?: ReactNode; author: string; rating?: number; lessons?: number; hours?: number };
 
-type Agent = AgentDefinition & { icon: IconGlyph; found: boolean };
+type Agent = AgentRow & { icon: IconGlyph; found: boolean };
 // The standalone Storybook preview supplies example availability. Production
 // receives the core inventory from the local API.
-const agents: Agent[] = agentDefinitions.map(agent => ({ ...agent, icon: agentIcons[agent.id], found: agent.id === "claude" || agent.id === "codex" }));
+const agents: Agent[] = agentRows.map(agent => ({ ...agent, icon: agentIcons[agent.id], found: agent.id === "claude" || agent.id === "codex" }));
 
 /** The other ways in: an account whose plan or credits pay for the agent's requests. ChatGPT – Sign in with ChatGPT,
     OAuth with PKCE to a loopback listener, a token that spends the user's plan; OpenRouter – its OAuth with PKCE to a

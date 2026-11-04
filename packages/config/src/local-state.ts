@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import type { AgentId } from "./agents";
 import { courseMode, hasWorkspaceConfiguration, readCourseManifest, readDojoRc } from "./index";
 
 export type HarnessSession = {
@@ -85,14 +86,14 @@ export type LocalSnapshot = {
 
 type CourseEventName = "installed" | "started" | "kata_completed" | "finished";
 
-const SESSION_ENVIRONMENTS = [
+const SESSION_ENVIRONMENTS: ReadonlyArray<readonly [AgentId, string]> = [
   ["codex", "CODEX_THREAD_ID"],
   ["claude", "CLAUDE_SESSION_ID"],
   ["claude", "CLAUDE_CONVERSATION_ID"],
   ["opencode", "OPENCODE_SESSION_ID"],
   ["pi", "PI_SESSION_ID"],
   ["pi", "PI_THREAD_ID"],
-] as const;
+];
 
 export function sessionFromEnvironment(
   environment: Record<string, string | undefined> = process.env,

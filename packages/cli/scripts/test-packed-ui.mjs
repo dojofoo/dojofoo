@@ -34,6 +34,8 @@ try {
   });
 
   const installedRequire = createRequire(resolve(installRoot, "node_modules/dojofoo/package.json"));
+  try { installedRequire.resolve("@dojofoo/protocol"); }
+  catch { throw new Error("Packed CLI is missing @dojofoo/protocol."); }
   const label = JSON.parse(readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/authoring/package.json")), "dist/prepared/kyoshi/build.json"), "utf8"));
   if (label.dojofoo !== `dojofoo@${expectedPackage.version}` || !label.sourceHash) {
     throw new Error("The installed Kyoshi build is missing its release and source labels.");
