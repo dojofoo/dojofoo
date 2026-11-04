@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { codexModels, configuredHarnessModel, fxModels, parseFxModels, parseOpenCodeModels, piModels } from "./models.ts";
+import { acpModels, codexModels, configuredHarnessModel, fxModels, parseFxModels, parseOpenCodeModels, piModels } from "./models.ts";
 
 const createModelRuntime = vi.hoisted(() => vi.fn());
 const thinkingLevels = vi.hoisted(() => vi.fn());
@@ -89,5 +89,64 @@ describe("native model discovery", () => {
   });
   it("cancels an unresponsive catalog without waiting for a model turn", async () => {
     await expect(codexModels(AbortSignal.timeout(50), process.execPath, ["-e", "setInterval(() => {}, 1000)"])).rejects.toThrow("cancelled");
+  });
+});
+
+// A fake ACP agent: answers initialize and session/new, records every method in a log file, and may advertise session/close
+const acpServer = (log: string, session: string, close: boolean) => ["--input-type=module", "-e", `
+  import { appendFileSync } from 'node:fs';
+  import { createInterface } from 'node:readline';
+  appendFileSync(${JSON.stringify(log)}, 'pid ' + process.pid + '\\n');
+  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'session/update', params: {} }) + '\\n');
+  createInterface({ input: process.stdin }).on('line', line => {
+    const request = JSON.parse(line);
+    appendFileSync(${JSON.stringify(log)}, request.method + '\\n');
+    if (!('id' in request)) return;
+    const result = request.method === 'initialize' ? { protocolVersion: 1, agentCapabilities: ${close ? "{ sessionCapabilities: { close: {} } }" : "{}"} }
+      : request.method === 'session/new' ? ${session} : {};
+    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: request.id, result }) + '\\n');
+  });
+`];
+
+describe("ACP model probes", () => {
+  it("lists Cursor models from an ACP probe's configOptions", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "dojo-acp-models-"));
+    try {
+      const session = `{ sessionId: 's1', configOptions: [{ id: 'mode', type: 'select', options: [{ value: 'ask', name: 'Ask' }] },
+        { id: 'model', type: 'select', category: 'model', currentValue: 'auto', options: [{ value: 'auto', name: 'Auto' },
+          { name: 'Frontier', options: [{ value: 'gpt-5.5', name: 'GPT-5.5' }, { value: 'auto', name: 'Auto again' }] }] }] }`;
+      expect(await acpModels("cursor", AbortSignal.timeout(5000), { executable: process.execPath, args: acpServer(join(directory, "log"), session, false) })).toEqual([
+        { id: "auto", name: "Auto", efforts: [] }, { id: "gpt-5.5", name: "GPT-5.5", efforts: [] },
+      ]);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it("lists Grok models from an ACP probe's session models", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "dojo-acp-models-"));
+    try {
+      const session = `{ sessionId: 's1', models: { currentModelId: 'fixture-first', availableModels: [{ modelId: 'fixture-first', name: 'Fixture first' }, { modelId: 'fixture-second', name: 'Fixture second' }] } }`;
+      expect(await acpModels("grok", AbortSignal.timeout(5000), { executable: process.execPath, args: acpServer(join(directory, "log"), session, false) })).toEqual([
+        { id: "fixture-first", name: "Fixture first", efforts: [] }, { id: "fixture-second", name: "Fixture second", efforts: [] },
+      ]);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it("closes the probe session when the agent supports it and always stops the probe", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "dojo-acp-models-"));
+    try {
+      const session = "{ sessionId: 's1', models: { availableModels: [] } }";
+      for (const [name, close] of [["closing", true], ["plain", false]] as const) {
+        const log = join(directory, name);
+        await acpModels("grok", AbortSignal.timeout(5000), { executable: process.execPath, args: acpServer(log, session, close) });
+        const [pid, ...methods] = (await readFile(log, "utf8")).trim().split("\n");
+        expect(methods).toEqual(["initialize", "session/new", ...(close ? ["session/close"] : [])]);
+        const alive = () => { try { process.kill(Number(pid!.slice(4)), 0); return true; } catch { return false; } };
+        await vi.waitFor(() => expect(alive()).toBe(false), { timeout: 5000 });
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it("lists no ACP models when the CLI is missing", async () => {
+    expect(await acpModels("cursor", AbortSignal.timeout(5000), { executable: "/does-not-exist/cursor-agent" })).toEqual([]);
   });
 });

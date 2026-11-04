@@ -6,13 +6,14 @@ import { Client, type MessageContent } from "@dojofoo/agent/client";
 import type { AgentId } from "@dojofoo/protocol";
 import { startEve, testLaunchToken, testRuntime } from "@dojofoo/agent-api/fixtures";
 import type { AuthoringDraft } from "@dojofoo/authoring/service";
+import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
 
 export const workspaceId = "ws-1";
 /** The saved conversation's first message; the fixture agent replies `Echo: <message>` */
 export const savedMessage = "Help with this course";
 export const savedReply = `Echo: ${savedMessage}`;
 /** The first reply of a conversation the page starts: the fixture runtime greets kyoshi */
-export const greetingReply = "Echo: Hello kyoshi";
+export const greetingReply = `Echo: ${KYOSHI_START}`;
 export const draft: AuthoringDraft = { root: "/tmp/agent-course", style: "katas", name: "Agent course", description: "A course", language: "TypeScript", manifestSource: "name: Agent course\n", courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: Agent course\n" }], lessons: [], issues: [], courseChecks: [] };
 
 type Eve = Awaited<ReturnType<typeof startEve>>;
@@ -83,7 +84,7 @@ async function serve(handle: (request: Request) => Promise<Response>): Promise<S
 export async function startConversation(eve: Eve, runtime: ReturnType<typeof testRuntime>, message: MessageContent, agent = "codex"): Promise<SessionRecord> {
   const { session, delivery } = await new Client({ baseUrl: eve.baseUrl }).sessions.create({ message });
   await delivery.result();
-  const record: SessionRecord = { id: session.state.sessionId, agent, persona: "kyoshi", createdAt: "2026-10-28T00:00:00Z" };
+  const record: SessionRecord = { id: session.state.sessionId, agent, persona: "kyoshi", createdAt: "2026-10-28T00:00:00Z", revision: 0 };
   runtime.records.push(record);
   return record;
 }

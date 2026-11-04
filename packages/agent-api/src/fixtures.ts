@@ -64,12 +64,31 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", optio
       selected = agentId;
       return describe(agentId);
     },
-    greeting: (persona: Persona) => `Hello ${persona}`,
     persona: async id => { known(id); return options.persona ?? "kyoshi"; },
+    models: async (id, agentId) => {
+      known(id);
+      if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
+      return [{ id: "fixture-model", name: "Fixture model", efforts: [] }];
+    },
     sessions: {
       list: async id => { known(id); return records; },
       get: async (id, sessionId) => { known(id); return records.find(item => item.id === sessionId); },
       save: async (id, session) => { known(id); records.push(session); },
+      update: async (id, sessionId, change) => {
+        known(id);
+        const index = records.findIndex(item => item.id === sessionId);
+        if (index < 0) throw new AgentApiError(404, "session_not_found", "Session not found.");
+        records[index] = change({ ...records[index]!, revision: records[index]!.revision ?? 0 });
+        return records[index]!;
+      },
+      patch: async (id, sessionId, { model }) => {
+        known(id);
+        const record = records.find(item => item.id === sessionId);
+        if (!record) throw new AgentApiError(404, "session_not_found", "Session not found.");
+        if (record.lifecycle?.status === "paused") throw new AgentApiError(409, "turn_paused", "Change the model after Sensei's question is answered.");
+        Object.assign(record, { model, revision: (record.revision ?? 0) + 1 });
+        return record;
+      },
     },
   };
 }

@@ -89,7 +89,7 @@ describe("local agent runtime", () => {
 
   it("keeps sessions in the workspace's .dojo folder", async () => {
     const { local, workspaceId, root } = runtime();
-    const session = { id: "s1", agent: "codex", persona: "kyoshi" as const, createdAt: "2026-10-28T12:00:00.000Z" };
+    const session = { id: "s1", agent: "codex", persona: "kyoshi" as const, createdAt: "2026-10-28T12:00:00.000Z", revision: 0 };
     await Promise.all([local.sessions.save(workspaceId, session), local.sessions.save(workspaceId, { ...session, id: "s2" })]);
     expect(await local.sessions.list(workspaceId)).toEqual([session, { ...session, id: "s2" }]);
     expect(JSON.parse(readFileSync(resolve(root, ".dojo", "agent-sessions.json"), "utf8")).sessions).toHaveLength(2);
@@ -170,8 +170,8 @@ describe("select", () => {
       const { root, state, workspaceId } = workspace();
       const owned = { start: vi.fn(async () => ({ url: eve.url })), close: vi.fn(async () => {}) };
       const local = createLocalAgentRuntime({ state, runtime: async () => owned, switchSettleMs: 200 });
-      for (const id of ["s1", "s2"]) await local.sessions.save(workspaceId, { id, agent: "codex", persona: "kyoshi", createdAt: "2026-11-01T00:00:00.000Z" });
-      await local.sessions.save(workspaceId, { id: "other-agent", agent: "claude", persona: "kyoshi", createdAt: "2026-11-01T00:00:00.000Z" });
+      for (const id of ["s1", "s2"]) await local.sessions.save(workspaceId, { id, agent: "codex", persona: "kyoshi", createdAt: "2026-11-01T00:00:00.000Z", revision: 0 });
+      await local.sessions.save(workspaceId, { id: "other-agent", agent: "claude", persona: "kyoshi", createdAt: "2026-11-01T00:00:00.000Z", revision: 0 });
       await local.connect(workspaceId, kyoshi);
       const started = performance.now();
       await local.select(workspaceId, "opencode");

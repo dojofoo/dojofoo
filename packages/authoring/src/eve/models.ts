@@ -1,9 +1,9 @@
 import { execFile, spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { promisify } from "node:util";
 import { createInterface } from "node:readline";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { JSONRPCClient } from "json-rpc-2.0";
 import { parse } from "smol-toml";
@@ -28,7 +28,7 @@ export type HarnessModelChoice = ModelChoice;
 export async function harnessModels(agent: AgentId, signal: AbortSignal): Promise<HarnessModelChoice[]> {
   const discovery = agentRow(agent).modelDiscovery;
   if (discovery?.method === "cli-aliases") return discovery.aliases.map(id => ({ id, name: id, efforts: [] }));
-  // ACP probing (Cursor, Grok) lands in step 4; until then the agent's default model is used
+  if (discovery?.method === "acp-probe") return agent === "cursor" || agent === "grok" ? acpModels(agent, signal) : [];
   if (discovery?.method !== "native") return [];
   if (agent === "codex") return codexModels(signal);
   if (agent === "fx") return fxModels(signal);
@@ -40,6 +40,81 @@ export async function harnessModels(agent: AgentId, signal: AbortSignal): Promis
   }
   throw new Error(`${agentRow(agent).name} model discovery is not available here yet. Use its native CLI to select a model.`);
 }
+
+const acpLaunch = { cursor: ["--disable-auto-update", "acp"], grok: ["agent", "stdio"] } as const;
+
+/** Cursor and Grok list their models only in an ACP session: start one in an empty folder, read its model list, close it and stop
+ *  the CLI. No prompt is sent. A missing CLI lists none. */
+export async function acpModels(agent: "cursor" | "grok", signal: AbortSignal,
+  options: { executable?: string; args?: readonly string[]; environment?: NodeJS.ProcessEnv } = {}): Promise<HarnessModelChoice[]> {
+  const executable = options.executable ?? resolveAgentExecutable(agent);
+  if (!executable) return [];
+  const cwd = await mkdtemp(join(tmpdir(), `dojo-${agent}-models-`));
+  const child = spawn(executable, [...(options.args ?? acpLaunch[agent])], { cwd, env: options.environment ?? process.env, stdio: ["pipe", "pipe", "ignore"] });
+  const rpc = new JSONRPCClient(request => new Promise<void>((resolve, reject) => {
+    child.stdin.write(`${JSON.stringify(request)}\n`, error => error ? reject(error) : resolve());
+  }));
+  const lines = createInterface({ input: child.stdout });
+  let failure: Error | undefined;
+  let missing = false;
+  const fail = (error: Error) => { failure ??= error; rpc.rejectAllPendingRequests(error.message); };
+  const abort = () => { fail(new Error("Model discovery cancelled")); child.kill(); };
+  const timeout = setTimeout(() => fail(new Error(`${agentRow(agent).name} did not list its models in time`)), 15_000);
+  child.on("error", error => { if ((error as NodeJS.ErrnoException).code === "ENOENT") missing = true; fail(error); });
+  child.stdin.on("error", fail);
+  child.on("exit", () => fail(new Error(`${agentRow(agent).name} exited before model discovery completed`)));
+  lines.on("line", line => {
+    let message: { method?: unknown; id?: unknown; result?: unknown; error?: unknown };
+    try { message = JSON.parse(line); } catch { return; }
+    // Only answers to this probe; the agent's own requests and notifications are not part of it
+    if (message.method === undefined && message.id !== undefined) rpc.receive(message as Parameters<typeof rpc.receive>[0]);
+  });
+  signal.addEventListener("abort", abort, { once: true });
+  const request = async (method: string, params: unknown) => {
+    signal.throwIfAborted();
+    if (failure) throw failure;
+    return rpc.request(method, params);
+  };
+  try {
+    const initialized = await request("initialize", { protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false } });
+    const session = await request("session/new", { cwd, mcpServers: [] });
+    const choices = agent === "cursor" ? cursorModels(session?.configOptions) : grokModels(session?.models?.availableModels);
+    if (initialized?.agentCapabilities?.sessionCapabilities?.close && typeof session?.sessionId === "string") {
+      await request("session/close", { sessionId: session.sessionId }).catch(() => {});
+    }
+    return choices;
+  } catch (error) {
+    if (missing) return [];
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    signal.removeEventListener("abort", abort);
+    lines.close();
+    rpc.rejectAllPendingRequests("Model discovery finished");
+    child.stdin.end();
+    child.kill();
+    await rm(cwd, { recursive: true, force: true });
+  }
+}
+
+type AcpSelectOption = { value?: unknown; name?: unknown; options?: AcpSelectOption[] };
+/** Cursor's model select among the session's config options, as the ACP lesson client reads it (codex-client.ts, modelConfiguration). */
+function cursorModels(configOptions: unknown): HarnessModelChoice[] {
+  if (!Array.isArray(configOptions)) return [];
+  const option = configOptions.find(candidate => candidate?.type === "select" && candidate.id === "model")
+    ?? configOptions.find(candidate => candidate?.type === "select" && candidate.category === "model");
+  if (!option || !Array.isArray(option.options)) return [];
+  const values = (option.options as AcpSelectOption[]).flatMap(candidate => Array.isArray(candidate.options) ? candidate.options : [candidate]);
+  return unique(values.flatMap(value => typeof value.value === "string" ? [{ id: value.value, name: typeof value.name === "string" ? value.name : value.value, efforts: [] }] : []));
+}
+
+function grokModels(available: unknown): HarnessModelChoice[] {
+  if (!Array.isArray(available)) return [];
+  return unique(available.flatMap(model => typeof model?.modelId === "string"
+    ? [{ id: model.modelId, name: typeof model.name === "string" ? model.name : model.modelId, efforts: [] }] : []));
+}
+
+const unique = (choices: HarnessModelChoice[]) => choices.filter((choice, index) => choices.findIndex(other => other.id === choice.id) === index);
 
 export function parseOpenCodeModels(output: string): HarnessModelChoice[] {
   const ids = output.split(/\r?\n/u).map(line => line.trim()).filter(Boolean);

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import { resolveAgent, writeAgent } from "@dojofoo/config/runtime";
+import { readAgentModel, resolveAgent, writeAgent, writeAgentModel } from "@dojofoo/config/runtime";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -116,4 +116,21 @@ it("writeAgent keeps other keys, drops authoring and lesson, and refuses agents 
   const fresh = join(workspace, "fresh");
   writeAgent(fresh, "opencode");
   expect(JSON.parse(readFileSync(join(fresh, ".dojo/runtimes.json"), "utf8"))).toEqual({ agent: "opencode" });
+});
+
+it("the workspace keeps one last model per agent next to its agent", () => {
+  const { workspace, options } = fixture();
+  const path = join(workspace, ".dojo/runtimes.json");
+  writeFileSync(path, JSON.stringify({ agent: "codex", theme: "dark" }));
+  expect(readAgentModel(workspace, "codex")).toBeUndefined();
+  writeAgentModel(workspace, "codex", "gpt-5.5");
+  writeAgentModel(workspace, "opencode", "openai/gpt-4o-mini");
+  writeAgentModel(workspace, "codex", "gpt-5.4");
+  expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ agent: "codex", theme: "dark", models: { codex: "gpt-5.4", opencode: "openai/gpt-4o-mini" } });
+  expect(readAgentModel(workspace, "codex")).toBe("gpt-5.4");
+  expect(readAgentModel(workspace, "opencode")).toBe("openai/gpt-4o-mini");
+  expect(readAgentModel(workspace, "claude")).toBeUndefined();
+  // Selecting another agent keeps the models
+  writeAgent(workspace, "opencode", options);
+  expect(JSON.parse(readFileSync(path, "utf8"))).toMatchObject({ agent: "opencode", models: { codex: "gpt-5.4" } });
 });

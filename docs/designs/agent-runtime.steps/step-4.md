@@ -604,6 +604,7 @@ From a clean `pnpm install --frozen-lockfile`:
 31. **(Implementation, commit 5.) `test-packed-ui.mjs` gives `pnpm pack` a 64 MiB output buffer.** pnpm lists every packed file, and with two prepared persona servers its listing passed the 1 MiB default (`spawnSync pnpm ENOBUFS`).
 32. **(Implementation, commit 5.) Observed, not changed: Sensei's empty just-bash sandbox logs "background sandbox preparation failed" (`SandboxTemplateNotProvisionedError`) on a session's first turn,** because the template `eve build` prepared stays in the isolated build folder. No Sensei tool uses Eve's sandbox (`defaultTools: false`, `ask_question` and `dojo_context` only), so nothing fails; giving the environment a custom `filesystem`, as Kyoshi's has, did not silence it, and why Kyoshi does not log it is unverified.
 33. **(Implementation, commit 5.) `verify-agent.mjs` runs with a private `DOJOFOO_HOME`,** so its process records and Sensei's scratch directory do not land in the developer's own state; and `prepareSenseiHarness` only creates `scratch/`, never empties it, because adapters may keep per-session state under the working directory.
+34. **(Implementation, commit 6.) `@dojofoo/authoring` exports `./eve/models`,** because the UI server's models route calls `harnessModels` and the package exported no path to it; it is loaded with `createRequire`, as the UI server loads authoring's runtimes. A discovery error answers 502 `models_unavailable` with its message.
 
 ## Open questions for the user
 

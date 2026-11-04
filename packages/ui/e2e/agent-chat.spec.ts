@@ -184,7 +184,7 @@ test("opening an in-flight conversation rejoins it in the same session", async (
   // A turn still running when the page opens (the fixture agent pauses 5s on "pause")
   const { session } = await new Client({ baseUrl: eve.baseUrl }).sessions.create({ message: "Reply after a pause" });
   const sessionId = session.state.sessionId;
-  runtime.records.push({ id: sessionId, agent: "codex", persona: "kyoshi", createdAt: "2026-10-28T00:00:00Z" });
+  runtime.records.push({ id: sessionId, agent: "codex", persona: "kyoshi", createdAt: "2026-10-28T00:00:00Z", revision: 0 });
   await page.goto(`/authoring?workspace=${workspaceId}&session=${sessionId}`);
   await expect(page.getByText("Reply after a pause", { exact: true })).toBeVisible({ timeout: 4000 });
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();

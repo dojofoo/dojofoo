@@ -25,9 +25,9 @@ function setup(options: Parameters<typeof testRuntime>[2] = {}) {
     return request.url.startsWith("http://local/") ? app.handle(request) : network(request);
   }) as typeof fetch);
   const session = (id: string) => new Client({ baseUrl: `${base}/sessions/${encodeURIComponent(id)}` }).sessions.attach(id);
-  /** A new session, once its greeting turn has settled (a message sent sooner steers that turn) */
+  /** A new session, once its first turn has settled (a message sent sooner steers that turn) */
   const created = async () => {
-    const record = await (await json("/sessions", "POST", { persona: "kyoshi" })).json() as { id: string };
+    const record = await (await json("/sessions", "POST", { persona: "kyoshi", message: "Hello kyoshi" })).json() as { id: string };
     await vi.waitFor(async () => expect((await session(record.id).snapshot()).events.some(event => event.type === "turn.settled")).toBe(true), { timeout: 30_000 });
     return record;
   };
@@ -73,7 +73,7 @@ describe("agents", () => {
     expect(await selected.json()).toEqual({ id: "opencode", name: "OpenCode", selected: true, status: "stopped" });
     expect(runtime.selections).toEqual(["opencode"]);
     expect((await (await json("/agents")).json()).data[0]).toMatchObject({ id: "opencode", selected: true });
-    const created = await json("/sessions", "POST", { persona: "kyoshi" });
+    const created = await json("/sessions", "POST", { persona: "kyoshi", message: "Hello kyoshi" });
     expect(await created.json()).toMatchObject({ agent: "opencode" });
   }, 60_000);
 
@@ -110,12 +110,12 @@ describe("agents", () => {
 });
 
 describe("sessions", () => {
-  it("creates a session on the selected coding agent, whose first turn is the persona's greeting", async () => {
+  it("creates a session on the selected coding agent, whose first turn is the message in the body", async () => {
     const { json, runtime, session } = setup();
-    const created = await json("/sessions", "POST", { persona: "kyoshi", clientContext: { view: { scope: "course" } } });
+    const created = await json("/sessions", "POST", { persona: "kyoshi", message: "Hello kyoshi", clientContext: { view: { scope: "course" } } });
     expect(created.status).toBe(201);
     const record = await created.json();
-    expect(record).toMatchObject({ agent: "codex", persona: "kyoshi" });
+    expect(record).toMatchObject({ agent: "codex", persona: "kyoshi", revision: 0 });
     expect(runtime.records).toEqual([record]);
     expect(await (await json(`/sessions/${record.id}`)).json()).toEqual(record);
     await vi.waitFor(async () => {
@@ -126,7 +126,7 @@ describe("sessions", () => {
 
   it("creates a session with the workspace's persona, ignoring a persona in the body", async () => {
     const { json, runtime, session } = setup({ persona: "sensei" });
-    const created = await json("/sessions", "POST", { persona: "kyoshi" });
+    const created = await json("/sessions", "POST", { persona: "kyoshi", message: "Hello sensei" });
     expect(created.status).toBe(201);
     const record = await created.json();
     expect(record).toMatchObject({ agent: "codex", persona: "sensei" });
@@ -140,9 +140,9 @@ describe("sessions", () => {
   it("filters sessions by coding agent and persona, newest first", async () => {
     const { json, runtime } = setup();
     runtime.records.push(
-      { id: "a", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T00:00:00.000Z" },
-      { id: "b", agent: "opencode", persona: "sensei", createdAt: "2026-10-02T00:00:00.000Z" },
-      { id: "c", agent: "codex", persona: "sensei", createdAt: "2026-10-03T00:00:00.000Z" },
+      { id: "a", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T00:00:00.000Z", revision: 0 },
+      { id: "b", agent: "opencode", persona: "sensei", createdAt: "2026-10-02T00:00:00.000Z", revision: 0 },
+      { id: "c", agent: "codex", persona: "sensei", createdAt: "2026-10-03T00:00:00.000Z", revision: 0 },
     );
     const codex = await (await json("/sessions?agent=codex")).json();
     expect(codex.data.map((item: { id: string }) => item.id)).toEqual(["c", "a"]);
@@ -152,6 +152,58 @@ describe("sessions", () => {
     expect(invalid.status).toBe(400);
     expect(await invalid.json()).toMatchObject({ error: "invalid_request" });
     expect(await (await json("/sessions/missing")).json()).toEqual({ error: "session_not_found", message: "Session not found." });
+  });
+
+  const senseiRecord = {
+    id: "s-course", agent: "codex", persona: "sensei" as const, createdAt: "2026-10-04T00:00:00.000Z", courseId: "first", model: "gpt-5.4",
+    revision: 2, endedAt: "2026-10-05T00:00:00.000Z", replacedBy: "s-next",
+    lifecycle: { status: "idle" as const, beginPending: { idempotencyKey: "begin:s-course:0", sentAt: "2026-10-04T00:00:01.000Z" }, updatedAt: "2026-10-04T00:00:02.000Z" },
+  };
+
+  it("a record carries course, lesson, model, revision and lifecycle through the API", async () => {
+    const { json, runtime } = setup({ persona: "sensei" });
+    runtime.records.push(senseiRecord, { ...senseiRecord, id: "s-lesson", lessonId: "lesson-1", lifecycle: { status: "paused", turnId: "turn-3", updatedAt: "2026-10-04T00:00:03.000Z" } });
+    expect(await (await json("/sessions/s-course")).json()).toEqual(senseiRecord);
+    const listed = await (await json("/sessions?persona=sensei")).json();
+    expect(listed.data.find((item: { id: string }) => item.id === "s-lesson")).toMatchObject({ lessonId: "lesson-1", lifecycle: { status: "paused", turnId: "turn-3" } });
+  });
+
+  it("PATCH sets the model and raises the revision", async () => {
+    const { json, runtime } = setup({ persona: "sensei" });
+    runtime.records.push({ ...senseiRecord, endedAt: undefined, replacedBy: undefined });
+    const patched = await json("/sessions/s-course", "PATCH", { model: "gpt-5.5" });
+    expect(patched.status).toBe(200);
+    expect(await patched.json()).toMatchObject({ id: "s-course", model: "gpt-5.5", revision: 3 });
+    expect(runtime.records[0]).toMatchObject({ model: "gpt-5.5", revision: 3 });
+    expect((await json("/sessions/s-course", "PATCH", { model: "" })).status).toBe(400);
+    expect(await (await json("/sessions/missing", "PATCH", { model: "x" })).json()).toEqual({ error: "session_not_found", message: "Session not found." });
+  });
+
+  it("PATCH refuses a paused session with 409 turn_paused", async () => {
+    const { json, runtime } = setup({ persona: "sensei" });
+    runtime.records.push({ ...senseiRecord, lifecycle: { status: "paused", turnId: "turn-3", updatedAt: "2026-10-04T00:00:03.000Z" } });
+    const refused = await json("/sessions/s-course", "PATCH", { model: "gpt-5.5" });
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({ error: "turn_paused", message: "Change the model after Sensei's question is answered." });
+    expect(runtime.records[0]).toMatchObject({ model: "gpt-5.4", revision: 2 });
+  });
+
+  it("lists a coding agent's models in the collection shape", async () => {
+    const { json } = setup();
+    const response = await json("/agents/codex/models");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ data: [{ id: "fixture-model", name: "Fixture model", efforts: [] }], pagination: { page: 0, perPage: 100, total: 1, hasMore: false } });
+    expect(await (await json("/agents/nope/models")).json()).toMatchObject({ error: "agent_not_found" });
+  });
+
+  it("POST /sessions without a message is invalid_request", async () => {
+    const { json, runtime } = setup();
+    for (const body of [{ persona: "kyoshi" }, { message: "" }]) {
+      const refused = await json("/sessions", "POST", body);
+      expect(refused.status).toBe(400);
+      expect(await refused.json()).toMatchObject({ error: "invalid_request" });
+    }
+    expect(runtime.records).toEqual([]);
   });
 });
 
@@ -198,7 +250,7 @@ describe("a session's Eve routes", () => {
 
   it("report an unreachable host in Eve's error shape", async () => {
     const runtime = testRuntime({ baseUrl: "http://127.0.0.1:9" });
-    runtime.records.push({ id: "s1", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T00:00:00.000Z" });
+    runtime.records.push({ id: "s1", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T00:00:00.000Z", revision: 0 });
     const response = await createAgentApi(runtime).handle(new Request(`${base}/sessions/s1/eve/v1/session/s1/stream`));
     expect(response.status).toBe(502);
     expect(await response.json()).toMatchObject({ code: "agent_unreachable" });

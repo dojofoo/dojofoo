@@ -1,6 +1,7 @@
 import { useEveAgent } from "@dojofoo/agent/react";
 import { ClientError, SessionNotActiveError, type SendTurnOptions } from "@dojofoo/agent/client";
 import type { Persona } from "@dojofoo/agent-api";
+import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
 import { eveChatMessages } from "@dojofoo/authoring/eve/messages";
 import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -47,7 +48,8 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
   const placeholder = persona === "kyoshi" ? "Shape this lesson with Kyoshi…" : "Ask your Sensei…";
   const context: PageContext = { ...clientContext, workspaceId };
   const create = (signal: AbortSignal) => json<Session>(agentApi(workspaceId, "/sessions"), {
-    method: "POST", signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ persona, clientContext: context }),
+    // Kyoshi is the only caller of POST /sessions until step 6; its hidden first turn starts the conversation
+    method: "POST", signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ message: KYOSHI_START, clientContext: context }),
   });
   /** Open a conversation, as the URL's or the newest on the selected agent, or a new one */
   const open = (selected: Session) => {

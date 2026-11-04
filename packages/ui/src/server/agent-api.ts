@@ -1,16 +1,14 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
 import { Client, ClientError, type ClientOptions } from "@dojofoo/agent/client";
 import { setTimeout as delay } from "node:timers/promises";
 import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type SessionRecord } from "@dojofoo/agent-api";
-import { resolveAgent, writeAgent } from "@dojofoo/config/runtime";
+import { resolveAgent, writeAgent, writeAgentModel } from "@dojofoo/config/runtime";
 import { agentRow, isAgentId, offeredAgents, personaForKind, type AgentId } from "@dojofoo/protocol";
 import { listWorkspaces, type LocalStateOptions } from "@dojofoo/config/local-state";
-import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
 import { resolveWorkspaceId } from "./control/workspace";
 import { workspaceKind } from "./control/drafts";
 import { authorizeLaunchRequest } from "./launch-token";
+import { readRecords as read, saveRecord as save, updateRecord } from "./agent-session/records";
 
 type RuntimeState = { agent: string; status: AgentStatus; message?: string; endpoint?: Promise<AgentEndpoint>; owned?: OwnedRuntime };
 
@@ -91,27 +89,6 @@ export function createLocalAgentRuntime(options: {
     });
     state.endpoint.catch(() => {});
     return state.endpoint;
-  };
-
-  const file = (path: string) => join(path, ".dojo", "agent-sessions.json");
-  const read = async (path: string): Promise<SessionRecord[]> => {
-    try { return (JSON.parse(await readFile(file(path), "utf8")) as { sessions: SessionRecord[] }).sessions; }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-      throw error;
-    }
-  };
-  let writing = Promise.resolve();
-  const save = async (path: string, session: SessionRecord) => {
-    const write = writing.then(async () => {
-      const sessions = [...(await read(path)).filter(item => item.id !== session.id), session];
-      await mkdir(dirname(file(path)), { recursive: true });
-      const temporary = `${file(path)}.${process.pid}.tmp`;
-      await writeFile(temporary, `${JSON.stringify({ sessions }, null, 2)}\n`);
-      await rename(temporary, file(path));
-    });
-    writing = write.catch(() => {});
-    await write;
   };
 
   /** Whether a session still has a turn that started and has not settled; a paused turn is open */
@@ -203,15 +180,33 @@ export function createLocalAgentRuntime(options: {
       try { return await next; }
       finally { if (switching.get(path) === next) switching.delete(path); }
     },
-    greeting: persona => persona === "kyoshi" ? KYOSHI_START : "",    async persona(workspaceId) {
+    async persona(workspaceId) {
       const workspace = listWorkspaces(options.state).find(item => item.id === workspaceId);
       if (!workspace) throw new AgentApiError(404, "workspace_not_found", "Workspace not found.");
       return personaForKind(workspaceKind(workspace, options.state ?? {}));
+    },
+    async models(workspaceId, agentId) {
+      root(workspaceId);
+      if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
+      const { harnessModels } = createRequire(import.meta.url)("@dojofoo/authoring/eve/models") as typeof import("@dojofoo/authoring/eve/models");
+      try { return await harnessModels(agentId, AbortSignal.timeout(20_000)); }
+      catch (error) { throw new AgentApiError(502, "models_unavailable", error instanceof Error ? error.message : String(error)); }
     },
     sessions: {
       list: async workspaceId => read(root(workspaceId)),
       get: async (workspaceId, sessionId) => (await read(root(workspaceId))).find(item => item.id === sessionId),
       save: async (workspaceId, session) => save(root(workspaceId), session),
+      update: async (workspaceId, sessionId, change) => updateRecord(root(workspaceId), sessionId, change),
+      async patch(workspaceId, sessionId, { model }) {
+        const path = root(workspaceId);
+        const updated = await updateRecord(path, sessionId, record => {
+          if (record.lifecycle?.status === "paused") throw new AgentApiError(409, "turn_paused", "Change the model after Sensei's question is answered.");
+          return { ...record, model, revision: record.revision + 1 };
+        });
+        // The workspace's last model for this agent, for its next new conversation (D26)
+        if (isAgentId(updated.agent)) writeAgentModel(path, updated.agent, model);
+        return updated;
+      },
     },
   };
 }

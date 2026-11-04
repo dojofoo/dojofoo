@@ -75,3 +75,23 @@ export function writeAgent(root: string, agent: AgentId, _options: AgentSelectio
   writeFileSync(temporary, `${JSON.stringify({ ...other, agent }, null, 2)}\n`);
   renameSync(temporary, path);
 }
+
+/** The workspace's last model for a coding agent: <root>/.dojo/runtimes.json `models[agent]` (D26). */
+export function readAgentModel(root: string, agent: AgentId): string | undefined {
+  const { models } = readRuntimes(resolve(root, ".dojo", "runtimes.json"));
+  if (!models || typeof models !== "object" || Array.isArray(models)) return undefined;
+  const model = (models as Record<string, unknown>)[agent];
+  return typeof model === "string" && model.trim() ? model : undefined;
+}
+
+/** Saves `models[agent]` in <root>/.dojo/runtimes.json through a temp file and rename, keeping `agent` and every other key. */
+export function writeAgentModel(root: string, agent: AgentId, model: string): void {
+  if (!isAgentId(agent)) throw new Error(`Unsupported coding agent: ${String(agent)}`);
+  const path = resolve(root, ".dojo", "runtimes.json");
+  const current = readRuntimes(path);
+  const models = current.models && typeof current.models === "object" && !Array.isArray(current.models) ? current.models as Record<string, unknown> : {};
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify({ ...current, models: { ...models, [agent]: model } }, null, 2)}\n`);
+  renameSync(temporary, path);
+}

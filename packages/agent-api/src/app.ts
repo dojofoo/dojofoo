@@ -59,6 +59,8 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
       options.authorize?.(request);
       return runtime.select(params.workspaceId, params.agentId);
     }, routes.selectAgent)
+    .get("/workspaces/:workspaceId/agents/:agentId/models", async ({ params, query }) =>
+      paginate(await runtime.models(params.workspaceId, params.agentId), query), routes.listModels)
 
     // Sessions
     .get("/workspaces/:workspaceId/sessions", async ({ params, query }) => {
@@ -76,17 +78,19 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
       const client = new Client(await runtime.connect(params.workspaceId, { agent, persona }));
       // Eve starts the first turn on acceptance; the client follows it on the session's stream.
       const { session } = await client.sessions.create({
-        message: body.message ?? runtime.greeting(persona),
+        message: body.message,
         ...(body.clientContext ? { clientContext: body.clientContext } : {}),
         signal: request.signal,
       });
-      const saved: SessionRecord = { id: session.state.sessionId, agent, persona, createdAt: new Date().toISOString() };
+      const saved: SessionRecord = { id: session.state.sessionId, agent, persona, createdAt: new Date().toISOString(), revision: 0 };
       await runtime.sessions.save(params.workspaceId, saved);
       set.status = 201;
       return saved;
     }, routes.createSession)
     .get("/workspaces/:workspaceId/sessions/:sessionId", async ({ params }) =>
       record(params.workspaceId, params.sessionId), routes.getSession)
+    .patch("/workspaces/:workspaceId/sessions/:sessionId", async ({ params, body }) =>
+      runtime.sessions.patch(params.workspaceId, params.sessionId, { model: body.model }), routes.updateSession)
 
     // The session's own Eve routes, for this session only
     .all("/workspaces/:workspaceId/sessions/:sessionId/eve/*", async ({ params, request }) => {

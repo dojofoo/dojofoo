@@ -170,6 +170,12 @@
       "import": "./dist/eve/messages.js",
       "default": "./dist/eve/messages.js"
     },
+    "./eve/models": {
+      "types": "./src/eve/models.ts",
+      "development": "./src/eve/models.ts",
+      "import": "./dist/eve/models.js",
+      "default": "./dist/eve/models.js"
+    },
     "./sensei/agent": {
       "types": "./src/sensei/agent.ts",
       "development": "./src/sensei/agent.ts",
