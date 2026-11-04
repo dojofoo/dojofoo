@@ -17,7 +17,8 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "lint:deps": "depcruise --config .dependency-cruiser.cjs packages"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -33,7 +34,9 @@
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
     "@xmldom/xmldom": "^0.9.12",
+    "dependency-cruiser": "18.7.2",
     "turbo": "^2.11.9",
+    "typescript": "6.0.3",
     "vitest": "^5.0.5",
     "youch": "^4.1.1"
   }

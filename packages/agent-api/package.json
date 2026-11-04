@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Versioned workspace agent API (sessions, runs, coding agents) as a mountable Elysia app.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./fixtures": "./src/fixtures.ts"
   },
   "scripts": {
     "test": "vitest run",

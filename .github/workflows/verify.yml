@@ -39,6 +39,7 @@ jobs:
       - run: pnpm --filter @dojofoo/protocol test
       - run: pnpm --filter @dojofoo/web types:check
       - run: pnpm build
+      - run: pnpm lint:deps
       - run: pnpm --filter @dojofoo/ui types:check
       - run: pnpm --filter @dojofoo/ui test --exclude '**/*.live.test.ts'
       - run: pnpm --filter @dojofoo/agent-api test

@@ -4,7 +4,7 @@ import { test as base, type Page } from "@playwright/test";
 import { createAgentApi, LAUNCH_TOKEN_HEADER, launchGuard, type Persona, type SessionRecord } from "@dojofoo/agent-api";
 import { Client, type MessageContent } from "@dojofoo/agent/client";
 import type { AgentId } from "@dojofoo/protocol";
-import { startEve, testLaunchToken, testRuntime } from "../../agent-api/src/fixtures";
+import { startEve, testLaunchToken, testRuntime } from "@dojofoo/agent-api/fixtures";
 import type { AuthoringDraft } from "@dojofoo/authoring/service";
 
 export const workspaceId = "ws-1";

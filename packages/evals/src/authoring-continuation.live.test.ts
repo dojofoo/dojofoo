@@ -6,7 +6,7 @@ import { parse } from "yaml";
 import { HarnessAgent } from "@dojofoo/agent/harness";
 import { createLocalHarnessSandbox } from "@dojofoo/agent/experimental/local";
 import { readLessonMaterial, readMaterial } from "@dojofoo/authoring/evaluation/material";
-import { kyoshiInstructions } from "../../authoring/src/eve/instructions";
+import { kyoshiInstructions } from "@dojofoo/authoring/eve/instructions";
 import { agentAdapter } from "@dojofoo/agent/adapters";
 import { isAgentId } from "@dojofoo/protocol";
 import { prepareKyoshiCommand, prepareKyoshiHarness } from "../../authoring/src/eve/prepare";
