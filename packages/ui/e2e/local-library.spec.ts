@@ -10,11 +10,13 @@ import { fileURLToPath } from "node:url";
 import { observeLocalContext } from "@dojofoo/config/local-state";
 
 test("the UIX library separates installed sessions from course previews and preserves sidebar navigation", async ({ page, mountAgentChat }, info) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const scratch = await mkdtemp(join(tmpdir(), "dojo-library-browser-"));
   const home = join(scratch, "state");
   const cli = fileURLToPath(new URL("../../cli/dist/index.js", import.meta.url));
-  const environment = { ...process.env, DOJOFOO_HOME: home, DO_NOT_TRACK: "1" };
+  // The agent-chat fixture's Eve dev server sets its workflow transport in this process; a host the CLI starts must not inherit it
+  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(EVE_|WORKFLOW_)/u.test(key) && key !== "PORT"));
+  const environment = { ...inherited, DOJOFOO_HOME: home, DO_NOT_TRACK: "1" };
   const workspaces = [join(scratch, "alpha"), join(scratch, "beta")];
   let server: ReturnType<typeof spawn> | undefined;
   let output = "";
@@ -332,7 +334,8 @@ test("the UIX library separates installed sessions from course previews and pres
     releaseRefresh();
     await page.goto("about:blank").catch(() => {});
     if (server?.pid && server.exitCode === null && server.signalCode === null) {
-      const exited = once(server, "exit", { signal: AbortSignal.timeout(10_000) });
+      // The CLI waits for the UI, which stops its persona hosts; Eve kills a host that has not exited after 20 s
+      const exited = once(server, "exit", { signal: AbortSignal.timeout(30_000) });
       process.kill(process.platform === "win32" ? server.pid : -server.pid, "SIGTERM");
       await exited;
     }
