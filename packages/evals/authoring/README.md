@@ -365,9 +365,9 @@ runs one whole trial against the loopback model; ordinary unit tests make no mod
 calls.
 Judges run only after deterministic
 lifecycle checks pass. Each teacher turn must leave both the learner file and
-installed teaching material/tests unchanged. Pi is currently supported by Kyoshi,
-not the production ACP lesson path. Do not substitute a custom Pi teacher and
-call it production.
+installed teaching material/tests unchanged. Production Sensei runs on Eve for
+every offered agent, Pi included. Do not substitute a custom teacher and call it
+production.
 
 An authoring pass alone is insufficient. Acceptance requires the generated
 files to drive isolated production Sensei sessions through uncertainty,
