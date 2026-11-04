@@ -21,7 +21,7 @@ it.skipIf(process.platform === "win32").each([false, true])("awaits Nitro close 
       DOJO_PROJECT_ROOT: root, DOJO_NITRO_RUNTIME_ROOT: native ? root : "",
       // Exercise the colored readiness output emitted by the CI runner.
       FORCE_COLOR: "1", NO_COLOR: undefined,
-      DOJOFOO_HOME: join(root, "home"), EVE_BASE_URL: "" },
+      DOJOFOO_HOME: join(root, "home") },
   });
   let output = "";
   const ready = Promise.withResolvers<string>();

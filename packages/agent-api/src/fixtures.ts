@@ -1,7 +1,7 @@
 import { cp, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Agent, AgentEndpoint, AgentRuntime, Persona, SessionRecord } from "./runtime";
+import type { Agent, AgentEndpoint, AgentRuntime, EveDelivery, Persona, SessionRecord } from "./runtime";
 import { AgentApiError } from "./runtime";
 import { agentRow, isAgentId, offeredAgents, type AgentId } from "@dojofoo/protocol";
 
@@ -37,8 +37,16 @@ export const testLaunchToken = "test-launch-token";
 
 /** A runtime with one draft workspace (Kyoshi unless `options.persona` says otherwise) whose selected coding agent is
  * `options.agent` (Codex), served by `endpoint`. `select` switches it and records each selection. */
-export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", options: { persona?: Persona; agent?: AgentId } = {}): AgentRuntime & { records: SessionRecord[]; started: string[]; selections: string[] } {
+export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", options: { persona?: Persona; agent?: AgentId } = {}): AgentRuntime & {
+  records: SessionRecord[]; started: string[]; selections: string[];
+  /** Each delivery the proxy reported, before and after Eve answered it */
+  delivered: Array<{ phase: "before" | "after"; sessionId: string; delivery: EveDelivery; status?: number; deliveryId?: string; handle?: unknown }>;
+  /** Presence currently held, by kind */
+  presence: { request: number; stream: number };
+} {
   const records: SessionRecord[] = [];
+  const delivered: Array<{ phase: "before" | "after"; sessionId: string; delivery: EveDelivery; status?: number; deliveryId?: string; handle?: unknown }> = [];
+  const presence = { request: 0, stream: 0 };
   const started: string[] = [];
   const selections: string[] = [];
   let selected: AgentId = options.agent ?? "codex";
@@ -46,7 +54,16 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", optio
   const describe = (id: AgentId): Agent => ({ id, name: agentRow(id).name, selected: id === selected, status: id === selected && started.includes(id) ? "ready" : "stopped" });
   const agents = (): Agent[] => [selected, ...offeredAgents().map(row => row.id).filter(id => id !== selected)].map(describe);
   return {
-    records, started, selections,
+    records, started, selections, delivered, presence,
+    deliveries: {
+      before: async (_id, session, delivery) => { delivered.push({ phase: "before", sessionId: session.id, delivery }); return `handle:${delivered.length}`; },
+      after: async (_id, session, delivery, outcome) => { delivered.push({ phase: "after", sessionId: session.id, delivery, ...outcome }); },
+    },
+    activity: (_id, kind) => {
+      presence[kind]++;
+      let released = false;
+      return () => { if (!released) { released = true; presence[kind]--; } };
+    },
     agents: async id => { known(id); return agents(); },
     start: async (id, agentId) => {
       known(id);

@@ -1,4 +1,6 @@
-import { listWorkspaces, setWorkspaceKind, type LocalStateOptions } from "@dojofoo/config/local-state";
+import { join } from "node:path";
+import { listWorkspaces, localStateDirectory, setWorkspaceKind, type LocalStateOptions } from "@dojofoo/config/local-state";
+import { reapAllProcessGroups } from "@dojofoo/agent/process-groups";
 import { isAuthoringWorkspace } from "./control/drafts";
 
 /** Gives each workspace registered before kinds existed the kind the dashboard's draft rule finds. */
@@ -9,7 +11,9 @@ export function backfillWorkspaceKinds(options: LocalStateOptions = {}): void {
   }
 }
 
-/** Runs once when the UI server starts. Steps 4 and 5 add reaping, recovery and the server lock here. */
+/** Runs once when the UI server starts: the kind backfill, then the native process groups a crashed host left behind.
+ *  Each host reconciles its sessions when it becomes ready; step 5 adds the server lock here. */
 export function startUiServer(options: LocalStateOptions = {}): void {
   backfillWorkspaceKinds(options);
+  reapAllProcessGroups(join(localStateDirectory(options), "processes"));
 }

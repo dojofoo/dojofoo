@@ -64,7 +64,7 @@ await writeFile(join(source, "src/installed-start/kata.ts"), "export const start
 await writeFile(join(source, "dojo.yaml"), "mode: katas\nname: browser-authoring-fixture\nversion: 0.0.1\ndescription: Learn pure functions.\ntest: npx vitest run {template}\nkatas:\n  - name: installed-start\n    template: src/installed-start/kata.ts\n");
 const environment = { ...process.env, NODE_ENV: "production", EVE_MOCK_AUTHORED_MODELS: "0",
     NODE_PATH: undefined,
-    EVE_BASE_URL: "", DOJO_PROJECT_ROOT: undefined,
+    DOJO_PROJECT_ROOT: undefined,
     DOJO_UI_DISABLE_PORTLESS: "1",
     DOJO_CLI: cli, DOJOFOO_HOME: join(home, ".dojofoo"),
     MISE_TRUSTED_CONFIG_PATHS: root,

@@ -4,8 +4,8 @@ import { createRequire } from "node:module";
 
 export default definePlugin(app => {
   app.hooks.hook("close", () => {
-    const { closeKyoshiRuntimes } = createRequire(import.meta.url)("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
-    return closeKyoshiRuntimes();
+    const { closePersonaRuntimes } = createRequire(import.meta.url)("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
+    return closePersonaRuntimes();
   });
   app.hooks.hook("close", () => authoringWatchers.close());
 });

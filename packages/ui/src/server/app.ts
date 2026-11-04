@@ -17,6 +17,7 @@ import { controlRoutes } from "./control/routes";
 import { interactiveRoutes } from "./interactive/routes";
 import { authoringRoutes } from "./authoring";
 import { agentApi } from "./agent-api";
+import { hostPortServer } from "./host-port";
 import { teachingRoutes } from "./teaching-routes";
 import { requestOrigin } from "./request-origin";
 
@@ -89,6 +90,8 @@ function buildApp() {
   app.route("/api/workspaces/:workspaceId/courses/:courseId/interactive", interactiveRoutes);
   app.route("/api/authoring", authoringRoutes);
   app.route("/api/teaching", teachingRoutes);
+  // Persona hosts call back here with their per-start secret; browsers never do
+  app.post("/api/host-port/*", c => hostPortServer(c.req.raw));
   app.mount("/api/v1", request => agentApi.handle(request), { replaceRequest: false });
   // A2A endpoints.
   app.get("/.well-known/agent-card.json", honoAgentCardHandler(requestHandler));

@@ -1,5 +1,6 @@
 import { Client, ClientError } from "@dojofoo/agent/client";
 import { Elysia } from "elysia";
+import { classifyEveRequest } from "./delivery";
 import { AgentApiError, type AgentRuntime, type Persona, type SessionRecord } from "./runtime";
 import { routes } from "./schema";
 
@@ -101,22 +102,46 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
       if ((path !== own && !path.startsWith(`${own}/`)) || /%2f|%5c|\\|(^|\/)\.\.?(\/|$)|%2e/iu.test(params["*"])) {
         throw new AgentApiError(404, "not_found", "Not found.");
       }
-      const endpoint = await runtime.connect(params.workspaceId, { agent: saved.agent, persona: saved.persona });
-      const target = new URL(`${endpoint.baseUrl.replace(/\/$/u, "")}${path}`);
-      target.search = new URL(request.url).search;
-      const headers = new Headers(endpoint.headers);
-      for (const [name, value] of request.headers) {
-        if (name === "content-type" || name === "accept" || name.startsWith("x-eve-")) headers.set(name, value);
+      // Every proxied request counts as presence; an open stream until its body ends
+      const releaseRequest = runtime.activity?.(params.workspaceId, "request");
+      try {
+        const endpoint = await runtime.connect(params.workspaceId, { agent: saved.agent, persona: saved.persona });
+        const target = new URL(`${endpoint.baseUrl.replace(/\/$/u, "")}${path}`);
+        target.search = new URL(request.url).search;
+        const headers = new Headers(endpoint.headers);
+        for (const [name, value] of request.headers) {
+          if (name === "content-type" || name === "accept" || name.startsWith("x-eve-")) headers.set(name, value);
+        }
+        const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
+        const parsed = body?.byteLength ? (() => { try { return JSON.parse(new TextDecoder().decode(body)); } catch { return Symbol.for("invalid"); } })() : undefined;
+        const classified = classifyEveRequest(request.method, path.slice("/eve".length), parsed);
+        const delivery = classified.kind === "delivery" ? classified.delivery : undefined;
+        const handle = delivery ? await runtime.deliveries?.before(params.workspaceId, saved, delivery) : undefined;
+        let upstream: Response;
+        try {
+          upstream = await fetch(target, { method: request.method, headers, signal: request.signal, redirect: "manual", ...(body ? { body } : {}) });
+        } catch (error) {
+          if (delivery) await runtime.deliveries?.after(params.workspaceId, saved, delivery, { handle, status: 502 });
+          throw error;
+        }
+        if (delivery) {
+          // Eve answers an accepted delivery with 202 { ok, sessionId, deliveryId }
+          const deliveryId = upstream.status === 202
+            ? await upstream.clone().json().then((answer: { deliveryId?: unknown }) => typeof answer.deliveryId === "string" ? answer.deliveryId : undefined, () => undefined)
+            : undefined;
+          await runtime.deliveries?.after(params.workspaceId, saved, delivery, { handle, status: upstream.status, ...(deliveryId ? { deliveryId } : {}) });
+        }
+        const returned = new Headers();
+        for (const [name, value] of upstream.headers) {
+          if (name === "content-type" || name === "cache-control" || name.startsWith("x-eve-")) returned.set(name, value);
+        }
+        const releaseStream = classified.kind === "read" && upstream.body ? runtime.activity?.(params.workspaceId, "stream") : undefined;
+        const streamed = releaseStream && upstream.body ? upstream.body.pipeThrough(new TransformStream({ flush: () => releaseStream() })) : upstream.body;
+        if (releaseStream) request.signal.addEventListener("abort", releaseStream, { once: true });
+        return new Response(streamed, { status: upstream.status, headers: returned });
+      } finally {
+        releaseRequest?.();
       }
-      const upstream = await fetch(target, {
-        method: request.method, headers, signal: request.signal, redirect: "manual",
-        ...(request.method === "GET" || request.method === "HEAD" ? {} : { body: await request.arrayBuffer() }),
-      });
-      const returned = new Headers();
-      for (const [name, value] of upstream.headers) {
-        if (name === "content-type" || name === "cache-control" || name.startsWith("x-eve-")) returned.set(name, value);
-      }
-      return new Response(upstream.body, { status: upstream.status, headers: returned });
     }, routes.eve);
 }
 

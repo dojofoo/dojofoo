@@ -184,8 +184,7 @@ its cleanup. This supports warm continuation with an existing sandbox, not cold
 recovery of an in-memory filesystem. Native OpenCode disk recovery is tested as
 described above. Remaining integration gaps include pending native questions
 after process termination, the broader native built-in tool set, and the full model-options
-contract. Authoring starts its managed Eve runtime automatically; `EVE_BASE_URL`
-optionally selects an externally managed host. The browser acceptance test covers
+contract. Authoring starts its managed Eve runtime automatically. The browser acceptance test covers
 course creation, restart, question recovery and learner trial through the native
 OpenCode harness against a deterministic local model endpoint. This verifies
 integration, not teaching quality from a paid model.
@@ -266,7 +265,7 @@ failures identify the workflow stage without changing runtime behavior.
 | Unsupported options | Explicit warnings for sampling/token limits, non-default reasoning/tool choice, provider options and raw-chunk requests. Configure adapter-specific behavior through runtime settings. |
 | Sources/generated files | Unsupported by the installed HarnessAgent adapter event union. Provider has standard output mappings, but no end-to-end capability is claimed. |
 | Full workflow host | Conversation/isolation, pending-question recovery, persistent filesystem tools, root-copy and declared-specialist delegation with automatic parent wake-up pass through real Nitro and local workflow storage. Specialist instructions, tools, files and conversation are isolated. Real inference through that host remains unverified. |
-| Authoring UI | Automatic managed runtime by default, bound to the startup workspace. `EVE_BASE_URL` remains an explicit override. The real OpenCode browser test verifies course-file saves, restart with a pending question, answer recovery and an isolated learner trial response, without route mocks. Other browser fixtures cover failed-answer retry, read-only reconnect and unavailable-session errors. |
+| Authoring UI | Automatic managed runtime, bound to the startup workspace; tests use the fixture runtime. The real OpenCode browser test verifies course-file saves, restart with a pending question, answer recovery and an isolated learner trial response, without route mocks. Other browser fixtures cover failed-answer retry, read-only reconnect and unavailable-session errors. |
 
 Approval checkpoints stay on their associated tool call because AI SDK does not
 retain approval-request metadata. When HarnessAgent suppresses a resumed call's
@@ -331,8 +330,7 @@ Credentials remain with the native harness.
 The generated-app OpenCode integration test covers a pending question across
 server restart using a loopback model endpoint, without paid inference.
 
-The UI accepts `EVE_BASE_URL` for an externally owned host, which it never closes.
-Without it, the UI prepares and starts the managed application described above;
+The UI prepares and starts the managed application described above (tests use the fixture runtime);
 concurrent requests share one startup, and startup failures reach the frontend
 without automatic retries or fallback.
 The draft's `.dojo/runtimes.json` `agent` selects its official adapter (OpenCode by default); there is no

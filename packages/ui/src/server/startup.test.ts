@@ -5,7 +5,9 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, expect, it } from "vitest";
 import { listWorkspaces, observeWorkspacePath, setWorkspaceKind } from "@dojofoo/config/local-state";
 import { buildControlRoutes } from "./control/routes";
-import { backfillWorkspaceKinds } from "./startup";
+import { spawn } from "node:child_process";
+import { recordProcessGroup } from "@dojofoo/agent/process-groups";
+import { backfillWorkspaceKinds, startUiServer } from "./startup";
 
 const temporaryPaths: string[] = [];
 afterEach(() => { for (const path of temporaryPaths.splice(0)) rmSync(path, { recursive: true, force: true }); });
@@ -44,4 +46,20 @@ it("backfills a missing kind from the dashboard's draft rule", async () => {
   expect(kinds).toEqual({ [managed]: "draft", [legacy]: "draft", [recorded]: "draft", [plain]: "learner", [labelled]: "evaluation-trial" });
   expect((await (await buildControlRoutes({ stateHome }).request("/authoring")).json() as Array<{ workspaceId: string; sessionId: string | null }>)
     .find(draft => draft.workspaceId === ids[legacy])).toMatchObject({ sessionId: null });
+});
+
+it("reaps recorded process groups at startup", async () => {
+  const stateHome = mkdtempSync(join(tmpdir(), "dojofoo-startup-reap-"));
+  temporaryPaths.push(stateHome);
+  const sleeper = spawn("sleep", ["30"], { detached: true, stdio: "ignore" });
+  try {
+    const exited = new Promise(accept => sleeper.once("exit", accept));
+    const record = resolve(stateHome, "state/processes/w1.sensei.jsonl");
+    for (let attempt = 0; attempt < 50 && !(await import("node:fs")).existsSync(record); attempt++) {
+      recordProcessGroup(record, sleeper.pid!);
+      await new Promise(accept => setTimeout(accept, 20));
+    }
+    startUiServer({ stateHome });
+    await expect(Promise.race([exited.then(() => "exited"), new Promise(accept => setTimeout(() => accept("running"), 5_000))])).resolves.toBe("exited");
+  } finally { try { process.kill(-sleeper.pid!, "SIGKILL"); } catch {} }
 });

@@ -50,6 +50,9 @@ export interface SessionRecord {
 
 export interface SessionPatch { model: string }
 
+/** A request that starts or continues a turn: a message, or answers to a pending question. */
+export type EveDelivery = { kind: "message"; text: string; idempotencyKey?: string } | { kind: "answer"; idempotencyKey?: string };
+
 /** Where an Eve host serves its routes (`/eve/v1/*`), and the credentials it takes. */
 export interface AgentEndpoint {
   baseUrl: string;
@@ -85,6 +88,13 @@ export interface AgentRuntime {
     /** PATCH /sessions/{id}: writes `model`, raises `revision`, and saves the model as the workspace's last for that agent (D26) */
     patch(workspaceId: string, sessionId: string, patch: SessionPatch): Promise<SessionRecord>;
   };
+  /** Called by the session API before it forwards a message or answer, and after Eve answers it */
+  deliveries?: {
+    before(workspaceId: string, session: SessionRecord, delivery: EveDelivery): Promise<unknown>;
+    after(workspaceId: string, session: SessionRecord, delivery: EveDelivery, outcome: { handle: unknown; status: number; deliveryId?: string }): Promise<void>;
+  };
+  /** Presence for idle stop: every proxied request, and each open stream until it closes. Returns the release. */
+  activity?(workspaceId: string, kind: "request" | "stream"): () => void;
 }
 
 /** An error with a stable code, sent as `{ error, message }` like the public API. */

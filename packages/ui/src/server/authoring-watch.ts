@@ -62,6 +62,10 @@ export function createAuthoringWatchers() {
         }
       };
     },
+    /** Whether a page is watching this workspace (idle stop keeps its host) */
+    watching(path: string): boolean {
+      try { return entries.has(realpathSync(path)); } catch { return false; }
+    },
     async close() {
       const active = [...entries.values()];
       entries.clear();

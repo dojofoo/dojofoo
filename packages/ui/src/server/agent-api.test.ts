@@ -10,6 +10,14 @@ import { writeAgent } from "@dojofoo/config/runtime";
 import { app } from "./app";
 import { createLocalAgentRuntime } from "./agent-api";
 
+// Cursor's CLI is looked up on this machine; the tests decide whether it is installed
+const installed = vi.hoisted(() => ({ cursor: false }));
+vi.mock("@dojofoo/config/agent-installations", async original => {
+  const actual = await original<typeof import("@dojofoo/config/agent-installations")>();
+  return { ...actual, resolveAgentExecutable: (id: string, ...rest: unknown[]) => id === "cursor" ? (installed.cursor ? "/opt/cursor/cursor-agent" : null)
+    : (actual.resolveAgentExecutable as (...args: unknown[]) => unknown)(id, ...rest) };
+});
+
 const temporaryPaths: string[] = [];
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -79,12 +87,104 @@ describe("local agent runtime", () => {
     await expect(local.connect(workspaceId, { agent: "codex", persona: "kyoshi" })).rejects.toMatchObject({ status: 503, code: "agent_failed" });
   });
 
-  it("refuses unknown workspaces, other coding agents and personas it can't run", async () => {
+  it("refuses unknown workspaces and other coding agents", async () => {
     const { local, workspaceId } = runtime();
     await expect(local.agents("missing")).rejects.toMatchObject({ status: 404, code: "workspace_not_found" });
     await expect(local.start(workspaceId, "pi")).rejects.toMatchObject({ status: 409, code: "agent_unavailable" });
     await expect(local.start(workspaceId, "nope")).rejects.toMatchObject({ status: 404, code: "agent_not_found" });
-    await expect(local.connect(workspaceId, { agent: "codex", persona: "sensei" })).rejects.toMatchObject({ status: 409, code: "persona_unavailable" });
+  });
+
+  it("connects a learner workspace to its Sensei host", async () => {
+    const { state, workspaceId } = workspace();
+    const targets: unknown[] = [];
+    const owned = { start: vi.fn(async () => ({ url: "http://127.0.0.1:9", secret: "s".repeat(64) })), close: vi.fn(async () => {}) };
+    const local = createLocalAgentRuntime({ state, runtime: async (_root, target) => { targets.push(target); return owned; } });
+    await expect(local.connect(workspaceId, { agent: "codex", persona: "sensei" })).resolves.toEqual({ baseUrl: "http://127.0.0.1:9", headers: {} });
+    expect(targets).toEqual([{ persona: "sensei", workspaceId, hostPortUrl: expect.stringMatching(/^http:\/\/.+\/api\/host-port$/u) }]);
+  });
+
+  it("refuses a saved selection that is no longer offered with 409 agent_not_offered", async () => {
+    const { local, workspaceId, root, owned } = runtime();
+    writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "pi" }));
+    const agent = (await local.agents(workspaceId))[0]!.id;
+    await expect(local.connect(workspaceId, { agent, persona: "sensei" })).rejects.toMatchObject({ status: 409, code: "agent_not_offered" });
+    await expect(local.start(workspaceId, agent)).rejects.toMatchObject({ status: 409, code: "agent_not_offered" });
+    expect(owned.start).not.toHaveBeenCalled();
+  });
+
+  it("stops a host after the idle bound when nothing uses it", async () => {
+    const { state, workspaceId } = workspace();
+    const owned = { start: vi.fn(async () => ({ url: "http://127.0.0.1:9" })), close: vi.fn(async () => {}) };
+    const local = createLocalAgentRuntime({ state, runtime: async () => owned, idleStopMs: 100, idleCheckMs: 20 });
+    await local.connect(workspaceId, kyoshi);
+    // A request and an open stream are presence
+    const stream = local.activity!(workspaceId, "stream");
+    await new Promise(resolve => setTimeout(resolve, 250));
+    expect(owned.close).not.toHaveBeenCalled();
+    stream();
+    await vi.waitFor(() => expect(owned.close).toHaveBeenCalledTimes(1), { timeout: 2_000 });
+    expect((await local.agents(workspaceId))[0]!.status).toBe("stopped");
+  });
+
+  it("keeps a host with a paused session", async () => {
+    const { state, workspaceId } = workspace();
+    const owned = { start: vi.fn(async () => ({ url: "http://127.0.0.1:9" })), close: vi.fn(async () => {}) };
+    const local = createLocalAgentRuntime({ state, runtime: async () => owned, idleStopMs: 50, idleCheckMs: 20 });
+    await local.sessions.save(workspaceId, { id: "s-paused", agent: "codex", persona: "sensei", createdAt: "2026-11-04T00:00:00.000Z", revision: 0,
+      lifecycle: { status: "paused", turnId: "turn_0", updatedAt: "2026-11-04T00:00:00.000Z" } });
+    // The reconcile at connect reads the turn as open: the host is unreachable, so nothing settles it
+    await local.connect(workspaceId, kyoshi);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    expect(owned.close).not.toHaveBeenCalled();
+  });
+
+  it("reconciles a working record without an open turn to idle when the host is ready", async () => {
+    const eve = await streamEve([{ type: "turn.started", turnId: "turn_0" }, { type: "turn.settled", turnId: "turn_0" }]);
+    try {
+      const { state, workspaceId } = workspace();
+      const owned = { start: vi.fn(async () => ({ url: eve.url })), close: vi.fn(async () => {}) };
+      const local = createLocalAgentRuntime({ state, runtime: async () => owned });
+      const working = { id: "s-working", agent: "codex", persona: "sensei" as const, createdAt: "2026-11-04T00:00:00.000Z", revision: 0,
+        lifecycle: { status: "working" as const, beginPending: { idempotencyKey: "begin:s-working:0", sentAt: "2026-11-04T00:00:00.000Z" }, updatedAt: "2026-11-04T00:00:00.000Z" } };
+      await local.sessions.save(workspaceId, working);
+      await local.sessions.save(workspaceId, { ...working, id: "s-other-agent", agent: "claude" });
+      await local.connect(workspaceId, kyoshi);
+      expect((await local.sessions.get(workspaceId, "s-working"))?.lifecycle).toMatchObject({ status: "idle" });
+      expect((await local.sessions.get(workspaceId, "s-working"))?.lifecycle).not.toHaveProperty("beginPending");
+      expect((await local.sessions.get(workspaceId, "s-other-agent"))?.lifecycle).toMatchObject({ status: "working" });
+    } finally { await eve.close(); }
+  });
+
+  it("connect refuses Cursor for Sensei with 409 agent_not_offered while no passing Sensei record exists", async () => {
+    installed.cursor = true;
+    try {
+      const { root, state, workspaceId } = workspace();
+      writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "cursor" }));
+      const runtimeStub = vi.fn(async () => ({ start: async () => ({ url: "http://127.0.0.1:9" }), close: async () => {} }));
+      const local = createLocalAgentRuntime({ state, runtime: runtimeStub });
+      await expect(local.connect(workspaceId, { agent: "cursor", persona: "sensei" })).rejects.toMatchObject({ status: 409, code: "agent_not_offered",
+        message: "Cursor can't teach here yet: its Sensei checks haven't passed. Choose another coding agent." });
+      expect(runtimeStub).not.toHaveBeenCalled();
+    } finally { installed.cursor = false; }
+  });
+
+  it("connect still starts Kyoshi on Cursor for a draft", async () => {
+    installed.cursor = true;
+    try {
+      const { root, state } = workspace();
+      const workspaceId = observeWorkspacePath(root, { ...state, kind: "draft" });
+      writeFileSync(resolve(root, ".dojo", "runtimes.json"), JSON.stringify({ agent: "cursor" }));
+      const targets: Array<{ persona: string }> = [];
+      const local = createLocalAgentRuntime({ state, runtime: async (_root, target) => { targets.push(target); return { start: async () => ({ url: "http://127.0.0.1:9" }), close: async () => {} }; } });
+      await expect(local.connect(workspaceId, { agent: "cursor", persona: "kyoshi" })).resolves.toBeDefined();
+      expect(targets.map(target => target.persona)).toEqual(["kyoshi"]);
+    } finally { installed.cursor = false; }
+  });
+
+  it("select still accepts Cursor for a learner workspace", async () => {
+    const { local, workspaceId, root } = runtime();
+    expect(await local.select(workspaceId, "cursor")).toMatchObject({ id: "cursor", selected: true });
+    expect(savedAgent(root)).toBe("cursor");
   });
 
   it("keeps sessions in the workspace's .dojo folder", async () => {
@@ -151,6 +251,25 @@ async function unsettledEve() {
   await once(server, "listening");
   const { port } = server.address() as { port: number };
   return { url: `http://127.0.0.1:${port}`, cancels, close: () => new Promise<void>(accept => server.close(() => accept())) };
+}
+
+/** An Eve host whose session stream holds the given turn events (it answers every session). */
+async function streamEve(facts: Array<{ type: string; turnId: string }>) {
+  const server = createServer((request, response) => {
+    if (!/^\/eve\/v1\/session\/[^/]+\/stream/u.test(new URL(request.url!, "http://eve").pathname)) return response.writeHead(404).end();
+    const at = new Date().toISOString();
+    const lines = [
+      { at, facts: [{ type: "session.started", data: { runtime: { agentId: "fake", agentName: "fake", eveVersion: "1.0.0-rc.1" } } }] },
+      ...facts.map(fact => ({ at, facts: [{ type: fact.type, data: fact.type === "turn.started"
+        ? { cause: { deliveryId: "d1" }, follows: null, turnId: fact.turnId } : { turnId: fact.turnId, outcome: "completed", reply: [] }, scope: { turnId: fact.turnId } }] })),
+    ];
+    response.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "x-eve-stream-version": "27", "x-eve-stream-format": "ndjson",
+      "x-eve-stream-tail-index": String(lines.length - 1) }).end(lines.map(line => JSON.stringify(line)).join("\n") + "\n");
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = server.address() as { port: number };
+  return { url: `http://127.0.0.1:${port}`, close: () => new Promise<void>(accept => server.close(() => accept())) };
 }
 
 describe("select", () => {

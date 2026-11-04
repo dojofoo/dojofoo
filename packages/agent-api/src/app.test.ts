@@ -248,6 +248,44 @@ describe("a session's Eve routes", () => {
     expect(await unknown.json()).toEqual({ error: "Session not found.", code: "session_not_found" });
   }, 60_000);
 
+  it("the proxy tells the runtime about each delivery before and after it, with Eve's deliveryId", async () => {
+    const { runtime, session, created, call } = setup();
+    const { id } = await created();
+    runtime.delivered.length = 0;
+    const delivery = await session(id).send("Hello again");
+    expect(await delivery.result()).toMatchObject({ status: "completed" });
+    const [before, after] = runtime.delivered;
+    expect(before).toMatchObject({ phase: "before", sessionId: id, delivery: { kind: "message", text: "Hello again" } });
+    expect(after).toMatchObject({ phase: "after", sessionId: id, delivery: { kind: "message" }, handle: "handle:1", status: 202, deliveryId: expect.any(String) });
+    // A prepare and a control are not deliveries
+    await call(`/sessions/${id}/eve/v1/session/${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    await call(`/sessions/${id}/eve/v1/session/${id}/cancel`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    expect(runtime.delivered).toHaveLength(2);
+  }, 60_000);
+
+  it("a rejected delivery reaches after with its status", async () => {
+    const { runtime, call } = setup();
+    runtime.records.push({ id: "wrun_missing", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T00:00:00.000Z", revision: 0 });
+    const response = await call("/sessions/wrun_missing/eve/v1/session/wrun_missing", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: "Hello" }) });
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(runtime.delivered.map(entry => entry.phase)).toEqual(["before", "after"]);
+    expect(runtime.delivered[1]).toMatchObject({ status: response.status });
+    expect(runtime.delivered[1]).not.toHaveProperty("deliveryId");
+  }, 60_000);
+
+  it("a stream counts as activity until it closes", async () => {
+    const { runtime, call, created } = setup();
+    const { id } = await created();
+    const controller = new AbortController();
+    const response = await call(`/sessions/${id}/eve/v1/session/${id}/stream`, { signal: controller.signal });
+    expect(response.status).toBe(200);
+    expect(runtime.presence).toEqual({ request: 0, stream: 1 });
+    await response.body!.cancel();
+    controller.abort();
+    await vi.waitFor(() => expect(runtime.presence).toEqual({ request: 0, stream: 0 }));
+  }, 60_000);
+
   it("report an unreachable host in Eve's error shape", async () => {
     const runtime = testRuntime({ baseUrl: "http://127.0.0.1:9" });
     runtime.records.push({ id: "s1", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T00:00:00.000Z", revision: 0 });
