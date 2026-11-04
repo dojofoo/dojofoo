@@ -45,6 +45,10 @@ GNU-only call). Regression: `kyoshi.harness.native-write` in
 `packages/authoring/src/eve/conformance.test.ts`, the FX row, run on macOS.
 Remove it when upstream resolves paths portably.
 
+The CLI package bundles the patched FX adapter and the patched ACP bridge
+(`packages/cli/scripts/prepare-package.mjs`), as it does OpenCode's, so an npm
+install bootstraps the same bridge the prepared servers run.
+
 ## Grok Build turn usage
 
 `@ai-sdk/harness-acp@1.0.110` reads a turn's token usage only from the
