@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { codexModels, configuredHarnessModel, parseOpenCodeModels, piModels } from "./models.ts";
+import { codexModels, configuredHarnessModel, fxModels, parseFxModels, parseOpenCodeModels, piModels } from "./models.ts";
 
 const createModelRuntime = vi.hoisted(() => vi.fn());
 const thinkingLevels = vi.hoisted(() => vi.fn());
@@ -50,6 +50,20 @@ describe("native model discovery", () => {
       { id: "deepseek/v4", name: "deepseek/v4", efforts: [] },
     ]);
     expect(() => parseOpenCodeModels("Error: authentication failed")).toThrow("invalid model catalog");
+  });
+  it("accepts only FX's JSON model list", () => {
+    expect(parseFxModels(JSON.stringify({ kind: "models", ids: ["gpt-6-sol", "gpt-6-luna", "gpt-6-sol"] }))).toEqual([
+      { id: "gpt-6-sol", name: "gpt-6-sol", efforts: [] },
+      { id: "gpt-6-luna", name: "gpt-6-luna", efforts: [] },
+    ]);
+    expect(() => parseFxModels("Error: not signed in")).toThrow("invalid model catalog");
+  });
+  it("lists FX models through its CLI without starting a session", async () => {
+    expect(await fxModels(AbortSignal.timeout(2000), process.execPath, ["-e", "process.stdout.write(JSON.stringify({ kind: 'models', ids: ['a'] }))"]))
+      .toEqual([{ id: "a", name: "a", efforts: [] }]);
+  });
+  it("lists no FX models when the CLI is not installed", async () => {
+    expect(await fxModels(AbortSignal.timeout(2000), null)).toEqual([]);
   });
   it("uses Codex's catalog and advertised efforts across pages without creating a turn", async () => {
     const models = await codexModels(AbortSignal.timeout(2000), process.execPath, server(`

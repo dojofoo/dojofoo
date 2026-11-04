@@ -21,7 +21,6 @@ export interface ReadOnlyProfile {
 export type ModelDiscovery =
   | { method: "native" }
   | { method: "acp-probe" }
-  | { method: "adapter" }
   | { method: "cli-aliases"; aliases: readonly string[] };
 export interface AgentRow {
   id: AgentId;
@@ -109,7 +108,7 @@ export const agentRows: readonly AgentRow[] = [
       prevention: "filter", permissionMode: "allow-reads", builtinTools: ["read", "grep", "glob", "ls"],
       userConfig: { status: "environment", home: "empty-directory", environment: {}, note: "A HOME override only; filtering goes through @ai-sdk/harness-fx." },
     },
-    modelDiscovery: { method: "adapter" },
+    modelDiscovery: { method: "native" },
   },
   {
     id: "pi", name: "Pi", short: "Pi", command: "pi", install: "curl -fsSL https://pi.dev/install.sh | sh", docs: "pi.dev",

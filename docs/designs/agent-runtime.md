@@ -517,7 +517,7 @@ One default live Sensei conversation per (course, lesson) on the selected agent,
 | --- | --- |
 | Codex, OpenCode, Pi | existing native discovery (`packages/authoring/src/eve/models.ts`) |
 | Cursor, Grok | an ACP probe written like `codexModels` (child process plus `json-rpc-2.0`): `initialize`, `session/new`, read `configOptions` (Cursor) or the session's `models` (Grok), end the probe session, stop |
-| FX | its adapter's own discovery; if none, the CLI's model flag values (unverified, settled in step 3) |
+| FX | `fx models --json` from the installed FX CLI, which lists its active provider's models; none when the CLI is missing (`agent-runtime.steps/fx-spike.md`) |
 | Claude Code | the CLI's `--model` aliases |
 
 One `ModelChoice { id, name, efforts, defaultEffort? }` type in protocol replaces `HarnessModelChoice` and `SessionModelConfiguration`.
@@ -653,7 +653,7 @@ Alternatives with a single deciding reason give only a Reason; the others give P
 
 Each risk names its mitigation and the step or test that settles it.
 
-1.  Cursor and Grok over ACP may not send `session/request_permission` for writes in `allow-reads` mode (unverified). Mitigation: an agent that writes without asking is not offered (D24). Settled by step 3's Cursor spike record and the tier-A Grok cases.
+1.  Cursor and Grok over ACP may not send `session/request_permission` for writes in `allow-reads` mode (unverified). Mitigation: an agent that writes without asking is not offered (D24). Grok's part is settled by step 4's tier-A case `sensei.read-only.adversarial-native-calls` (Sensei is the first read-only persona on Eve). Cursor's part needs Cursor's spike (`agent-runtime.steps/cursor-spike.md`), which needs a Cursor login that the step 3 machine did not have; until it runs, tier B settles it.
 2.  `experimental_createHarnessModel` is dojofoo's own experimental code; a change in an adapter or in Eve can break every persona at once. Mitigation: pin adapter versions; rerun conformance on every adapter upgrade. Settled continuously by tier A.
 3.  The ACP model probe may leave a visible session in Cursor or Grok history (unverified). Mitigation: end the probe session; fall back to the CLI's model flag. Settled in step 4.
 4.  A held check report sent while the settle hook's host-port call is still running could start its model call before the hook returns (unverified; `packages/agent/dist/eve/dist/src/public/definitions/hook.d.ts:161` suggests the model call waits). Mitigation: the UI server sends a held report only after it has answered the hook's call. Settled by a step 5 conformance case: Check during a working turn, then settle.

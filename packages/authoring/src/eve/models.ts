@@ -32,9 +32,10 @@ export interface HarnessModelChoice {
 export async function harnessModels(agent: AgentId, signal: AbortSignal): Promise<HarnessModelChoice[]> {
   const discovery = agentRow(agent).modelDiscovery;
   if (discovery?.method === "cli-aliases") return discovery.aliases.map(id => ({ id, name: id, efforts: [] }));
-  // ACP probing (Cursor, Grok) and adapter discovery (FX) are not available yet; the agent's default model is used
+  // ACP probing (Cursor, Grok) lands in step 4; until then the agent's default model is used
   if (discovery?.method !== "native") return [];
   if (agent === "codex") return codexModels(signal);
+  if (agent === "fx") return fxModels(signal);
   if (agent === "pi") return piModels(signal);
   if (agent === "opencode") {
     const executable = process.env.OPENCODE_BIN ?? resolveAgentExecutable("opencode") ?? "opencode";
@@ -48,6 +49,22 @@ export function parseOpenCodeModels(output: string): HarnessModelChoice[] {
   const ids = output.split(/\r?\n/u).map(line => line.trim()).filter(Boolean);
   if (ids.some(id => !/^[\w.-]+\/[^\s]+$/u.test(id))) throw new Error("OpenCode returned an invalid model catalog");
   return [...new Set(ids)].map(id => ({ id, name: id, efforts: [] }));
+}
+
+/** FX on Eve runs libfx in-process and has no catalog; the installed CLI lists its active provider's models. */
+export async function fxModels(signal: AbortSignal, executable = resolveAgentExecutable("fx"), args = ["models", "--json"]): Promise<HarnessModelChoice[]> {
+  if (!executable) return [];
+  const { stdout } = await promisify(execFile)(executable, args, { signal, timeout: 15_000, maxBuffer: 1024 * 1024 });
+  return parseFxModels(stdout);
+}
+
+/** Accepts only `fx models --json` output: an object whose `ids` is a list of non-empty strings. */
+export function parseFxModels(output: string): HarnessModelChoice[] {
+  let catalog: unknown;
+  try { catalog = JSON.parse(output); } catch { throw new Error("FX returned an invalid model catalog"); }
+  const ids = catalog && typeof catalog === "object" && "ids" in catalog ? catalog.ids : undefined;
+  if (!Array.isArray(ids) || ids.some(id => typeof id !== "string" || !id.trim())) throw new Error("FX returned an invalid model catalog");
+  return [...new Set(ids as string[])].map(id => ({ id, name: id, efforts: [] }));
 }
 
 /** Native discovery only. This does not create a conversation or run inference. */
