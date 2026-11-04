@@ -592,6 +592,26 @@
       "import": "./dist/process-groups.js",
       "default": "./dist/process-groups.js"
     },
+    "./host-port": {
+      "types": "./dist/host-port/index.d.ts",
+      "import": "./dist/host-port/index.js",
+      "default": "./dist/host-port/index.js"
+    },
+    "./host-port/fixture": {
+      "types": "./dist/host-port/fixture.d.ts",
+      "import": "./dist/host-port/fixture.js",
+      "default": "./dist/host-port/fixture.js"
+    },
+    "./lifecycle": {
+      "types": "./dist/lifecycle.d.ts",
+      "import": "./dist/lifecycle.js",
+      "default": "./dist/lifecycle.js"
+    },
+    "./persona-host": {
+      "types": "./dist/persona-host.d.ts",
+      "import": "./dist/persona-host.js",
+      "default": "./dist/persona-host.js"
+    },
     "./eve/package.json": "./dist/eve/package.json"
   },
   "scripts": {
