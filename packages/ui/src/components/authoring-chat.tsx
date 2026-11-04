@@ -10,9 +10,12 @@ import { ChatTranscript } from "./chat/assistant-response";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 
 /** An agent conversation's presentation */
-export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent }: {
+export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent, agents, onAgentChange, agentChanging }: {
   embedded?: boolean;
   agent?: ComposerAgent;
+  agents?: ComposerAgent[];
+  onAgentChange?(id: string): void;
+  agentChanging?: boolean;
   placeholder?: string;
   messages: UIMessage[];
   status: string;
@@ -40,6 +43,7 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
     </div>;
   const composer = <div data-testid="authoring-chat-composer">
       <Composer tray={false} attachments={attachments || "unavailable"} files={files} onFilesChange={onFilesChange} dictation={false} plugins={false} models={[]} agent={agent ?? { name: "Coding agent", icon: AiBrain01Icon }}
+        agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging}
         // A message sent while the agent works joins its turn, so the composer stays open
         disabled={inputDisabled || readOnly} busy={active} onStop={onStop} queueing
         history={messages.filter(({ role }) => role === "user").map(entry => entry.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}

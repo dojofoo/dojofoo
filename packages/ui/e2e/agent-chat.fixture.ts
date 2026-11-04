@@ -1,9 +1,10 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { test as base, type Page } from "@playwright/test";
-import { createAgentApi, type SessionRecord } from "@dojofoo/agent-api";
+import { createAgentApi, LAUNCH_TOKEN_HEADER, launchGuard, type Persona, type SessionRecord } from "@dojofoo/agent-api";
 import { Client, type MessageContent } from "@dojofoo/agent/client";
-import { startEve, testRuntime } from "../../agent-api/src/fixtures";
+import type { AgentId } from "@dojofoo/protocol";
+import { startEve, testLaunchToken, testRuntime } from "../../agent-api/src/fixtures";
 import type { AuthoringDraft } from "@dojofoo/authoring/service";
 
 export const workspaceId = "ws-1";
@@ -27,6 +28,12 @@ export interface MountOptions {
   failRead?: () => boolean;
   failRun?: () => boolean;
   failCancel?: () => boolean;
+  /** The fixture workspace's persona (Kyoshi, a draft) */
+  persona?: Persona;
+  /** The workspace's selected coding agent (Codex) */
+  agent?: AgentId;
+  /** The tokens `GET /api/control/launch-token` serves in order (repeating the last), and the one select accepts */
+  launch?: { served: string[]; accepted: string };
 }
 export interface MountedAgentChat {
   runtime: ReturnType<typeof testRuntime>;
@@ -38,6 +45,10 @@ export interface MountedAgentChat {
   cancelled: string[];
   /** The saved conversation's id, when `existingSession` isn't false */
   sessionId: string;
+  /** Every select request, with the launch token it carried */
+  selects: Array<{ agentId: string; token: string | null }>;
+  /** Tokens served to the page, in order */
+  tokenReads: string[];
 }
 
 const sessionRoute = /\/sessions\/([^/]+)\/eve\/v1\/session\/[^/]+(\/[a-z]+)?$/u;
@@ -69,27 +80,36 @@ async function serve(handle: (request: Request) => Promise<Response>): Promise<S
 }
 
 /** Starts a saved kyoshi conversation on the Eve host once its first turn has finished (or asks). */
-export async function startConversation(eve: Eve, runtime: ReturnType<typeof testRuntime>, message: MessageContent): Promise<SessionRecord> {
+export async function startConversation(eve: Eve, runtime: ReturnType<typeof testRuntime>, message: MessageContent, agent = "codex"): Promise<SessionRecord> {
   const { session, delivery } = await new Client({ baseUrl: eve.baseUrl }).sessions.create({ message });
   await delivery.result();
-  const record: SessionRecord = { id: session.state.sessionId, agent: "codex", persona: "kyoshi", createdAt: "2026-10-28T00:00:00Z" };
+  const record: SessionRecord = { id: session.state.sessionId, agent, persona: "kyoshi", createdAt: "2026-10-28T00:00:00Z" };
   runtime.records.push(record);
   return record;
 }
 
-async function mount(page: Page, eve: Eve, servers: Server[], options: MountOptions = {}): Promise<MountedAgentChat> {
+async function mount(page: Page, eve: Eve, servers: Server[], baseURL: string, options: MountOptions = {}): Promise<MountedAgentChat> {
   const id = options.workspaceId ?? workspaceId;
   const selectedDraft = options.draft ?? draft;
-  const runtime = testRuntime(eve, id);
+  const runtime = testRuntime(eve, id, { persona: options.persona, agent: options.agent });
   const saved = options.existingSession === false ? undefined
-    : await startConversation(eve, runtime, typeof options.existingSession === "string" ? options.existingSession : savedMessage);
-  const api = createAgentApi(runtime);
+    : await startConversation(eve, runtime, typeof options.existingSession === "string" ? options.existingSession : savedMessage, options.agent);
+  const launch = options.launch ?? { served: [testLaunchToken], accepted: testLaunchToken };
+  // The page's own origin, as the UI server checks it
+  const api = createAgentApi(runtime, { authorize: launchGuard({ token: () => launch.accepted, origin: () => new URL(baseURL).origin }) });
   const server = await serve(request => api.handle(request));
   servers.push(server);
   const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const calls: string[] = [];
   const sent: MountedAgentChat["sent"] = [];
   const cancelled: string[] = [];
+  const selects: MountedAgentChat["selects"] = [];
+  const tokenReads: string[] = [];
+  await page.route("**/api/control/launch-token", route => {
+    const token = launch.served[Math.min(tokenReads.length, launch.served.length - 1)]!;
+    tokenReads.push(token);
+    return route.fulfill({ json: { token }, headers: { "cache-control": "no-store" } });
+  });
   if (options.files !== false) {
     await page.routeWebSocket("**/api/authoring/changes*", () => {});
     await page.route("**/api/authoring/**", route => {
@@ -103,6 +123,8 @@ async function mount(page: Page, eve: Eve, servers: Server[], options: MountOpti
     const request = route.request();
     const url = new URL(request.url());
     calls.push(`${request.method()} ${url.pathname}`);
+    const select = request.method() === "POST" ? /\/agents\/([^/]+)\/select$/u.exec(url.pathname) : null;
+    if (select) selects.push({ agentId: decodeURIComponent(select[1]!), token: await request.headerValue(LAUNCH_TOKEN_HEADER) });
     const eveRoute = request.method() === "POST" ? sessionRoute.exec(url.pathname) : null;
     if (request.method() === "GET" && /\/sessions\/[^/]+$/u.test(url.pathname) && options.failRead?.()) {
       return route.fulfill({ status: 503, json: { error: "temporarily_unavailable", message: "Conversation temporarily unavailable" } });
@@ -119,7 +141,7 @@ async function mount(page: Page, eve: Eve, servers: Server[], options: MountOpti
     }
     return route.continue({ url: `${origin}${url.pathname}${url.search}` });
   });
-  return { runtime, calls, sent, cancelled, sessionId: saved?.id ?? "" };
+  return { runtime, calls, sent, cancelled, sessionId: saved?.id ?? "", selects, tokenReads };
 }
 
 /**
@@ -140,12 +162,12 @@ export const test = base.extend<{ mountAgentChat: (page: Page, options?: MountOp
     await use(eve);
     await eve.close();
   }, { scope: "worker", timeout: 120_000 }],
-  mountAgentChat: async ({ eve, page }, use) => {
+  mountAgentChat: async ({ eve, page, baseURL }, use) => {
     // The page aborts superseded previews; on the dev server an aborted POST raises Vite's error
     // overlay over the page. Registered first, so a spec's own preview route still wins.
     await page.route("**/api/teaching/preview", route => route.fulfill({ json: { blocks: [] } }));
     const servers: Server[] = [];
-    await use((page, options) => mount(page, eve, servers, options));
+    await use((page, options) => mount(page, eve, servers, baseURL!, options));
     for (const server of servers) {
       server.closeAllConnections();
       await new Promise(resolve => server.close(resolve));

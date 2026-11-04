@@ -23,6 +23,7 @@ import { ChatTranscript } from "./chat/assistant-response";
 import { StreamedChatMessage } from "./chat/streamed-message";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useAccountMenu } from "@/hooks/use-account-menu";
+import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
 import { chatAcceptsInput } from "@/lib/chat-internal";
 import { codingAgents } from "@/lib/coding-agents";
 import { lessonResources } from "@/lib/lesson-resources";
@@ -136,6 +137,8 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     if (lesson) void loadConversation();
     return () => { conversationRequest.current += 1; };
   }, [lesson?.dojo, loadConversation]);
+  // After a switch the course reads the new agent's own conversation
+  const workspaceAgent = useWorkspaceAgent({ workspaceId: workspace, persona: "sensei", onSwitched: () => { void loadConversation(); } });
 
   async function send(value: string) {
     if (!acceptsInput || !value.trim()) return;
@@ -231,7 +234,8 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     composer={<Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === conversation?.harness) ?? { value: conversation?.harness, name: conversation?.harness ?? "Coding agent", icon: AiMagicIcon }}
-      agentChanging={agentChanging || sessionLoading} id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={question} onValueChange={setQuestion}
+      agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request}
+      agentChanging={workspaceAgent.switching || agentChanging || sessionLoading} id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={question} onValueChange={setQuestion}
       disabled={!acceptsInput} busy={working} onStop={stop} onSend={value => { void send(value); }}
       history={messages.filter(message => message.role === "user").map(message => message.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
       model={model?.currentValue} models={model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging} onModelChange={value => { void changeModel(value); }}
@@ -245,6 +249,8 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
       <ChatTranscript messages={messages} streaming={working} renderMessage={(message, streaming) => <StreamedChatMessage key={message.id} fragments={{}} workspaceId={workspace} message={message} streaming={streaming} onToolAnswer={answerTool} />} />
       {(conversationError || chatError) && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{conversationError ?? chatError?.message}</p>}
       {conversationError && !working && <Button variant="secondary" onClick={() => void loadConversation()}>Reload conversation</Button>}
+      {workspaceAgent.notice}
+      {workspaceAgent.dialog}
     </div>
   </AgentChatWorkspace>{toast}</div>;
 }

@@ -43,6 +43,7 @@ import {
 } from "@dojofoo/ui/dialog";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useAccountMenu } from "@/hooks/use-account-menu";
+import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
 import { codingAgents } from "@/lib/coding-agents";
 import { courseArt } from "@/lib/course-color";
 import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
@@ -236,7 +237,6 @@ export function LessonPage({ initialLesson, requestedCourseId, requestedLessonId
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [modelChanging, setModelChanging] = useState(false);
-  const [agentChanging, setAgentChanging] = useState(false);
   const navigationRequest = useRef<AbortController | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -249,6 +249,12 @@ export function LessonPage({ initialLesson, requestedCourseId, requestedLessonId
   const introductions = useRef(new Set<string>());
   const [pendingCheckObservation, setPendingCheckObservation] = useState<import("@/server/lesson/service").CheckObservation | null>(null);
   const [hostChatEvents, setHostChatEvents] = useState<AnchoredChatEvent[]>([]);
+  const workspaceAgent = useWorkspaceAgent({ workspaceId, persona: "sensei", onSwitched: agentId => {
+    // The lesson is read again; it starts this lesson's thread on the new agent
+    setHostChatEvents([]);
+    setModelNotice(`Sensei now uses ${codingAgents.find(agent => agent.value === agentId)?.name ?? agentId} in this workspace.`);
+    setConversationAttempt(attempt => attempt + 1);
+  } });
   const messagesRef = useRef<UIMessage[]>([]);
   const forwardedProps = useRef<Record<string, unknown>>({});
   const sessionSocket = useRef<WebSocket | null>(null);
@@ -802,12 +808,15 @@ export function LessonPage({ initialLesson, requestedCourseId, requestedLessonId
     scroller={chatViewportRef}
     composer={<div data-testid="chat-composer">
       <Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === lesson.harness) ?? { value: lesson.harness, name: lesson.harness ?? "Coding agent", icon: AiMagicIcon }}
-        agentChanging={agentChanging || (!conversationReady && !conversationError)} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
-        placeholder="Ask your Sensei…" disabled={!chatCanAcceptInput || agentChanging} busy={chatIsWorking} onStop={stop}
+        agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request}
+        agentChanging={workspaceAgent.switching || (!conversationReady && !conversationError)} id="course-message" label="Message the sensei" value={question} onValueChange={setQuestion}
+        placeholder="Ask your Sensei…" disabled={!chatCanAcceptInput || workspaceAgent.switching} busy={chatIsWorking} onStop={stop}
         history={messages.filter(item => item.role === "user").map(item => item.parts.flatMap(part => part.type === "text" && !isInternalLessonMessage(part.content) ? [part.content] : []).join("")).filter(Boolean)}
         onSend={message => { void sendQuestion(message); }} model={lesson.model?.currentValue} models={lesson.model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging}
         onModelChange={value => { void changeModel(value); }} />
       {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}
+      {workspaceAgent.notice}
+      {workspaceAgent.dialog}
     </div>}>
     <div data-chat-error={chatError?.message} data-chat-status={chatStatus} data-host-event-count={hostChatEvents.length} data-testid="chat-pane" className="ui-as-chat__turns">
       {conversationError && <div role="alert" className="space-y-3 p-3 text-sm text-destructive"><p>{conversationError}</p>

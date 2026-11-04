@@ -9,6 +9,7 @@ import { httpError } from "@/lib/http-error";
 import { chatMessageContent } from "@/lib/chat-files";
 import { codingAgents } from "@/lib/coding-agents";
 import { AiBrain01Icon } from "@dojofoo/uix/icons";
+import type { ComposerAgent } from "@dojofoo/uix/containers/assistant-home";
 
 type Session = { id: string; agent: string };
 type Agent = { id: string; selected: boolean };
@@ -24,8 +25,12 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 /** Every persona uses the same conversation, uploads and session lifecycle. */
-export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded, clientContext }: {
+export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded, clientContext, agents, onAgentChange, agentChanging }: {
   embedded?: boolean;
+  /** The workspace's agent menu (useWorkspaceAgent) */
+  agents?: ComposerAgent[];
+  onAgentChange?(id: string): void;
+  agentChanging?: boolean;
   workspaceId: string;
   persona: Persona;
   sessionId?: string;
@@ -86,17 +91,19 @@ export function AgentChat({ workspaceId, persona, sessionId, onSession, embedded
   }, [sessionId, workspaceId, persona, loadAttempt]);
   if (!session) return <AuthoringChat embedded={embedded} placeholder={placeholder} messages={[]} status="ready" busy={!error} inputDisabled
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles} onSend={() => {}} onAnswer={() => {}} error={error}
+    agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging}
     onRetryLoad={error ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
   return <AgentConversation key={session.id} embedded={embedded} workspaceId={workspaceId} session={session} placeholder={placeholder}
-    clientContext={context}
+    clientContext={context} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging}
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles}
     onReload={() => { setSession(null); setLoadAttempt(attempt => attempt + 1); }}
     onEnded={() => { void create(new AbortController().signal).then(open, cause => setError(String(cause))); }} />;
 }
 
 /** The session is Eve's: its own client resumes it, streams it, and takes messages and answers. */
-function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext }: {
+function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext, agents, onAgentChange, agentChanging }: {
   embedded?: boolean; workspaceId: string; session: Session; onReload(): void;
+  agents?: ComposerAgent[]; onAgentChange?(id: string): void; agentChanging?: boolean;
   /** Eve can't continue this session: an older Eve built it, it ended, or its coding agent isn't selected */
   onEnded(): void;
   value: string; onValueChange(value: string): void; files: File[]; onFilesChange(files: File[]): void;
@@ -142,7 +149,7 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
     onEnded();
   }, [ended]);
   const failure = error ?? agent.error?.message;
-  return <AuthoringChat embedded={embedded} agent={selectedAgent} placeholder={placeholder} messages={messages}
+  return <AuthoringChat embedded={embedded} agent={selectedAgent} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} placeholder={placeholder} messages={messages}
     status={agent.status === "busy" ? "streaming" : "ready"} busy={agent.status === "resuming"}
     // Eve takes no input until the session has caught up
     inputDisabled={agent.status === "resuming"}

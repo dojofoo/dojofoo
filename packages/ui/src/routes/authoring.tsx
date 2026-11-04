@@ -21,6 +21,7 @@ import type { EvaluationSettings } from "@dojofoo/authoring/evaluation/settings"
 import { TreeTitleMenu, authoringEvaluationStatus } from "@/components/authoring-sidebar";
 import { AuthoringChat } from "@/components/authoring-chat";
 import { AgentChat } from "@/components/agent-chat";
+import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
 import { CourseContent } from "@/components/course-content";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthoringFiles } from "@/hooks/use-authoring-files";
@@ -61,6 +62,12 @@ function AuthoringPage() {
   const search = Route.useSearch();
   const [workspace, setWorkspace] = useState<AuthoringDraft | null>(null);
   const agentWorkspace = useAgentWorkspace(search.workspace, workspace?.root);
+  // A switch remounts the conversation, which finds none on the new agent and starts one there
+  const [agentEpoch, setAgentEpoch] = useState(0);
+  const workspaceAgent = useWorkspaceAgent({ workspaceId: agentWorkspace.id, persona: "kyoshi", onSwitched: () => {
+    setAgentEpoch(epoch => epoch + 1);
+    void navigate({ to: "/authoring", search: previous => ({ ...previous, session: undefined }), replace: true });
+  } });
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [onlyCourseFiles, setOnlyCourseFiles] = useState(true);
   const [scope, setScope] = useState<"course" | "lesson">("course");
@@ -349,13 +356,14 @@ function AuthoringPage() {
 
   const brand = <Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>;
   const shell = { ...account, brand, workspace: "Dojo", sidebarWidth: "18rem", showNews: false, showOnboarding: false };
-  const conversation = agentWorkspace.id ? <AgentChat key={agentWorkspace.id} embedded workspaceId={agentWorkspace.id} persona="kyoshi" sessionId={search.session}
+  const conversation = agentWorkspace.id ? <><AgentChat key={`${agentWorkspace.id}:${agentEpoch}`} embedded workspaceId={agentWorkspace.id} persona="kyoshi" sessionId={search.session}
+    agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching}
     clientContext={{ view: { scope, ...(scope === "lesson" && selectedLessonId ? { lessonId: selectedLessonId } : {}),
       ...(activeFilePath ? { file: activeFilePath, unsavedChanges: dirty } : {}),
     } }} onSession={id => {
       rememberAuthoringSession(agentWorkspace.id!, id);
       void navigate({ to: "/authoring", search: previous => ({ ...previous, workspace: agentWorkspace.id, session: id }), replace: true });
-    }} /> : <AuthoringChat embedded messages={[]} status="ready" busy={!agentWorkspace.error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}}
+    }} />{workspaceAgent.notice}{workspaceAgent.dialog}</> : <AuthoringChat embedded messages={[]} status="ready" busy={!agentWorkspace.error} inputDisabled value="" onValueChange={() => {}} onSend={() => {}} onAnswer={() => {}}
       error={agentWorkspace.error} onRetryLoad={agentWorkspace.retry} />;
   if (!workspace) return <div className="h-dvh overflow-hidden"><AgentChatWorkspace {...shell} navigation={[
     { id: "files", heading: "Course", items: [], before: !error && <WorkspaceSkeleton label="Loading course files" rows={4} /> },
