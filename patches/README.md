@@ -47,6 +47,16 @@ without GNU coreutils. The patch writes `chmod -- 700 <folder>`, which both
 accept. Regression: `packages/authoring/src/eve/runtime-turn.test.ts`, the FX
 case, run on macOS without coreutils. Remove it when upstream reorders the call.
 
+FX's file tools resolve every path with `realpath -mz`, and macOS `realpath`
+has neither option, so on a Mac FX could not read or write a file through its
+tools ("Unable to resolve sandbox path"). The patch keeps GNU `realpath -mz`
+and, where it fails, resolves the deepest existing folder with plain `realpath`
+and appends the missing rest. It stops at a symlink, so a dangling link fails
+the resolution instead of passing the workspace check (1.0.89 still has the
+GNU-only call). Regression: `kyoshi.harness.native-write` in
+`packages/authoring/src/eve/conformance.test.ts`, the FX row, run on macOS.
+Remove it when upstream resolves paths portably.
+
 ## Nitro error reporting on closed output
 
 `nitro@3.0.260903-beta` reports uncaught errors with `console.error`. When a

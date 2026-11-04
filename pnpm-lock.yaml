@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@ai-sdk/harness-fx@1.0.86':
-    hash: 315310bbba8626f03b7b362fb1429f26d27c35f6768cd6d1427bda49fd54c7fc
+    hash: 1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825
     path: patches/@ai-sdk__harness-fx@1.0.86.patch
   '@ai-sdk/harness-opencode@1.0.173':
     hash: b97fffa11b8180f659cae1cfe053a80de34944477f174eafe6baf3d49fae6edc
@@ -257,7 +257,7 @@ importers:
         version: 1.0.85(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/harness-fx':
         specifier: 1.0.86
-        version: 1.0.86(patch_hash=315310bbba8626f03b7b362fb1429f26d27c35f6768cd6d1427bda49fd54c7fc)(ws@8.21.0)(zod@4.6.7)
+        version: 1.0.86(patch_hash=1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825)(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/harness-grok-build':
         specifier: 1.0.109
         version: 1.0.109(ws@8.21.0)(zod@4.6.7)
@@ -346,7 +346,7 @@ importers:
         version: 1.0.85(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/harness-fx':
         specifier: 1.0.86
-        version: 1.0.86(patch_hash=315310bbba8626f03b7b362fb1429f26d27c35f6768cd6d1427bda49fd54c7fc)(ws@8.21.0)(zod@4.6.7)
+        version: 1.0.86(patch_hash=1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825)(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/harness-grok-build':
         specifier: 1.0.109
         version: 1.0.109(ws@8.21.0)(zod@4.6.7)
@@ -10485,7 +10485,7 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@ai-sdk/harness-fx@1.0.86(patch_hash=315310bbba8626f03b7b362fb1429f26d27c35f6768cd6d1427bda49fd54c7fc)(ws@8.21.0)(zod@4.6.7)':
+  '@ai-sdk/harness-fx@1.0.86(patch_hash=1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825)(ws@8.21.0)(zod@4.6.7)':
     dependencies:
       '@ai-sdk/harness': 1.0.170(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
