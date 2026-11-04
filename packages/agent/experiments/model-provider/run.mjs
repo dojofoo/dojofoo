@@ -38,7 +38,7 @@ try {
   }
   // Additional compile-only adapters; these are never started or authenticated.
   for (const [adapter, version] of Object.entries({
-    "claude-code": "1.0.171", cline: "1.0.95", deepagents: "1.0.167",
+    "claude-code": "1.0.174", cline: "1.0.95", deepagents: "1.0.167",
     "github-copilot": "1.0.63",
   })) {
     dependencies[`@ai-sdk/harness-${adapter}`] = version;

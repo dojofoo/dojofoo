@@ -1,8 +1,8 @@
 diff --git a/dist/bridge/index.mjs b/dist/bridge/index.mjs
-index 438703786ec0823a66b1dcc38d74142e07fa4862..7d25da87d417dcd674074f6e9d0468a9a381b8e2 100644
+index b399873..75ccf31 100644
 --- a/dist/bridge/index.mjs
 +++ b/dist/bridge/index.mjs
-@@ -1866,7 +1866,12 @@ await runBridge({
+@@ -1867,7 +1867,12 @@ await runBridge({
  	bridgeType: "opencode",
  	bridgeStateDir,
  	onStart: runTurn,
@@ -16,7 +16,7 @@ index 438703786ec0823a66b1dcc38d74142e07fa4862..7d25da87d417dcd674074f6e9d0468a9
  });
  async function runTurn(start, turn) {
  	currentTurn = turn;
-@@ -1881,11 +1886,6 @@ async function runTurn(start, turn) {
+@@ -1882,11 +1887,6 @@ async function runTurn(start, turn) {
  			start,
  			emit
  		});
@@ -28,7 +28,7 @@ index 438703786ec0823a66b1dcc38d74142e07fa4862..7d25da87d417dcd674074f6e9d0468a9
  		if (start.operation === "compact") await runCompaction({
  			client,
  			sessionId,
-@@ -1917,18 +1917,6 @@ async function runTurn(start, turn) {
+@@ -1918,18 +1918,6 @@ async function runTurn(start, turn) {
  		});
  	}
  }
@@ -47,7 +47,7 @@ index 438703786ec0823a66b1dcc38d74142e07fa4862..7d25da87d417dcd674074f6e9d0468a9
  async function ensureRuntime({ start }) {
  	if (runtime.client && isDeepStrictEqual(runtime.openCodeConfig, start.openCodeConfig) && isDeepStrictEqual(runtime.inactiveBuiltinToolNames, start.inactiveBuiltinToolNames)) return;
  	closeRuntime();
-@@ -2106,8 +2094,10 @@ async function legacySessionCreate({ client }) {
+@@ -2107,8 +2095,10 @@ async function legacySessionCreate({ client }) {
  }
  async function legacySessionPrompt({ client, sessionId, start, prompt }) {
  	const session = client.session;
@@ -60,7 +60,7 @@ index 438703786ec0823a66b1dcc38d74142e07fa4862..7d25da87d417dcd674074f6e9d0468a9
  		...start.responseFormat?.type === "json" && start.responseFormat.schema != null ? { format: {
 diff --git a/dist/bridge/opencode-sdk-process.patch b/dist/bridge/opencode-sdk-process.patch
 new file mode 100644
-index 0000000000000000000000000000000000000000..4a6d66b2068f43c34ab82b6f4e2288d2e0843a85
+index 0000000..4a6d66b
 --- /dev/null
 +++ b/dist/bridge/opencode-sdk-process.patch
 @@ -0,0 +1,31 @@
@@ -96,7 +96,7 @@ index 0000000000000000000000000000000000000000..4a6d66b2068f43c34ab82b6f4e2288d2
 +             ...process.env,
 +             OPENCODE_CONFIG_CONTENT: JSON.stringify(options.config ?? {}),
 diff --git a/dist/bridge/package.json b/dist/bridge/package.json
-index c1aad55cd041f95deb9fc98ac6545f23313eb77d..909d699be0f71d7f615a6ce3bc6716bc7f245775 100644
+index c1aad55..909d699 100644
 --- a/dist/bridge/package.json
 +++ b/dist/bridge/package.json
 @@ -2,6 +2,7 @@
@@ -108,7 +108,7 @@ index c1aad55cd041f95deb9fc98ac6545f23313eb77d..909d699be0f71d7f615a6ce3bc6716bc
    "dependencies": {
      "@modelcontextprotocol/sdk": "1.32.1",
 diff --git a/dist/bridge/pnpm-lockfile.yaml b/dist/bridge/pnpm-lockfile.yaml
-index ee1ceddc080554e4dca508aaae70f9a74b937573..3c2de98079215a325fd995ce7c643fbedb066429 100644
+index ee1cedd..3c2de98 100644
 --- a/dist/bridge/pnpm-lockfile.yaml
 +++ b/dist/bridge/pnpm-lockfile.yaml
 @@ -4,6 +4,11 @@ settings:
@@ -174,7 +174,7 @@ index ee1ceddc080554e4dca508aaae70f9a74b937573..3c2de98079215a325fd995ce7c643fbe
  
    ajv@8.20.0:
 diff --git a/dist/bridge/pnpm-workspace.yaml b/dist/bridge/pnpm-workspace.yaml
-index ca93fb1e8d591d6aa55624dfeadcdafe9992b479..de594d676a1a170504759b3d18eb7f9d4c978466 100644
+index ca93fb1..de594d6 100644
 --- a/dist/bridge/pnpm-workspace.yaml
 +++ b/dist/bridge/pnpm-workspace.yaml
 @@ -1,2 +1,4 @@
@@ -183,7 +183,7 @@ index ca93fb1e8d591d6aa55624dfeadcdafe9992b479..de594d676a1a170504759b3d18eb7f9d
 +patchedDependencies:
 +  '@opencode-ai/sdk@1.18.34': patches/@opencode-ai__sdk@1.18.34.patch
 diff --git a/dist/index.js b/dist/index.js
-index 5f6cdf95c87630da39a4809eade42399a5b4dd42..405c78404abbc71dabdaae08ecc8f9a21092b17b 100644
+index 72fd6a5..bdf0142 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -12,23 +12,25 @@ const readBridgeAsset = createReadBridgeAsset({
@@ -216,7 +216,7 @@ index 5f6cdf95c87630da39a4809eade42399a5b4dd42..405c78404abbc71dabdaae08ecc8f9a2
  				path: `${OPENCODE_BOOTSTRAP_DIR}/package.json`,
  				content: pkg
 diff --git a/src/opencode-bootstrap.ts b/src/opencode-bootstrap.ts
-index 3bb56c4410f6d5772693115cc61a3bdfdac1c634..b853660782a94ff683d5e2b6a3e2dc78a3c0a2c3 100644
+index 3bb56c4..b853660 100644
 --- a/src/opencode-bootstrap.ts
 +++ b/src/opencode-bootstrap.ts
 @@ -16,6 +16,7 @@ const readBridgeAsset = createReadBridgeAsset({

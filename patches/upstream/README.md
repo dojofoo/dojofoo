@@ -4,7 +4,7 @@ These are local contribution drafts, not published issues or PRs.
 
 ## OpenCode: native model selection and runtime cleanup
 
-- Affected artifact: `@ai-sdk/harness-opencode@1.0.169`.
+- Affected artifact: `@ai-sdk/harness-opencode@1.0.173`.
 - The bridge creates/restores a legacy session, then calls
   `client.v2.session.switchModel` against a different session store.
   This can fail before inference with a missing-session/foreign-key error.
@@ -27,7 +27,7 @@ These are local contribution drafts, not published issues or PRs.
   behavior. A direct SDK start/close probe drops from one surviving native
   process to zero; the full browser restart/shutdown gate remains required.
 - Packaged bridge patch:
-  [../@ai-sdk__harness-opencode@1.0.169.patch](../@ai-sdk__harness-opencode@1.0.169.patch).
+  [../@ai-sdk__harness-opencode@1.0.173.patch](../@ai-sdk__harness-opencode@1.0.173.patch).
 
 ## TanStack: preserve queued input while an interrupt owns the turn
 

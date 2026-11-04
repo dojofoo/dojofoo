@@ -20,7 +20,7 @@ waiting for an answer and accepting messages during the resumed stream.
 
 ## OpenCode adapter compatibility
 
-`@ai-sdk/harness-opencode@1.0.169` creates legacy OpenCode sessions but calls the
+`@ai-sdk/harness-opencode@1.0.173` creates legacy OpenCode sessions but calls the
 v2 `switchModel` endpoint before every turn. That endpoint uses a different
 session store and can fail with a foreign-key constraint before inference.
 
@@ -36,11 +36,11 @@ tested adapter and its bridge assets so npm consumers receive the same fix;
 the packed-install smoke verifies model selection against that shipped bridge.
 Remove it when
 the upstream adapter consistently uses a compatible session/model API. The
-published 1.0.169 bridge still mixes these APIs, so the compatibility patch remains.
+published 1.0.173 bridge still mixes these APIs, so the compatibility patch remains.
 
 ## FX state folder on macOS
 
-`@ai-sdk/harness-fx@1.0.83` creates its private state folder with
+`@ai-sdk/harness-fx@1.0.86` creates its private state folder with
 `chmod 700 -- <folder>`. GNU `chmod` accepts that; macOS `chmod` reads the `--`
 after the mode as a file name and fails, so FX could not start a turn on a Mac
 without GNU coreutils. The patch writes `chmod -- 700 <folder>`, which both
