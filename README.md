@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand/dojofoo-dark.svg" />
-    <img src="assets/brand/dojofoo-light.svg" alt="dojofoo" width="360" />
+    <img src="assets/brand/dojofoo-light.svg" alt="dojofoo" width="240" />
   </picture>
 </p>
 
