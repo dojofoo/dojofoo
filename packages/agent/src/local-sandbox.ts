@@ -190,7 +190,11 @@ export async function createLocalSandbox(
 async function reapGroup(pid: number | undefined): Promise<void> {
   if (!pid) return;
   try { process.kill(-pid, "SIGKILL"); }
-  catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") return; throw error; }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ESRCH") return;
+    // macOS answers EPERM for a group whose last process is exiting; observe it below instead
+    if ((error as NodeJS.ErrnoException).code !== "EPERM") throw error;
+  }
   const deadline = Date.now() + 5000;
   let observationError: unknown;
   while (true) {
