@@ -15,6 +15,7 @@ import {
 } from "./service";
 import { readAuthoringFile, saveAuthoringFile } from "./files";
 import { evaluateFromAuthoring } from "../evaluation/host.ts";
+import { UnsupportedAgentError } from "../evaluation/failure.ts";
 import { configuredEvaluation, readEvaluationSettings, writeEvaluationSettings } from "../evaluation/settings.ts";
 import { materialHash, readLessonMaterial } from "../evaluation/material.ts";
 import type { EvaluationReport } from "../evaluation/run";
@@ -168,10 +169,16 @@ export function createAuthoringRoutes(dependencies: AuthoringRouteDependencies) 
         missing,
       }, 409);
     }
-    const result = await (dependencies.evaluate ?? evaluateFromAuthoring)({
-      root, lessonIds, callId: input.callId, signal: c.req.raw.signal,
-      config: await configuredEvaluation(root),
-    });
+    let result;
+    try {
+      result = await (dependencies.evaluate ?? evaluateFromAuthoring)({
+        root, lessonIds, callId: input.callId, signal: c.req.raw.signal,
+        config: await configuredEvaluation(root),
+      });
+    } catch (error) {
+      if (error instanceof UnsupportedAgentError) return c.json({ error: error.message, code: error.code }, 409);
+      throw error;
+    }
     return c.json({ root, ...result });
   });
 }

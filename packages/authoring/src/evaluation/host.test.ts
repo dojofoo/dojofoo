@@ -6,6 +6,13 @@ import { promisify } from "node:util";
 import { afterEach, expect, it, vi } from "vitest";
 import { evaluateFromAuthoring, evaluationConfiguration, executeEvaluationWorker, type EvaluationConfiguration } from "./host";
 import type { EvaluationReport } from "./run";
+import { resolveAgent } from "@dojofoo/config/runtime";
+
+// Pi is not offered until the step-5 record, so the workspace's saved Pi is read through this mock
+vi.mock("@dojofoo/config/runtime", async importOriginal => {
+  const actual = await importOriginal<typeof import("@dojofoo/config/runtime")>();
+  return { ...actual, resolveAgent: vi.fn(actual.resolveAgent) };
+});
 
 const roots: string[] = [];
 const validSensei = "# Lesson\n\n## Start\n\n- **Hook:** h\n- **Builds on:** b\n- **First move:** f\n\n## Teach\n\n## Stumbling points\n\n## Evidence\n\n## Review\n\n- **Boundary:** b\n- **Predict:** p\n";
@@ -187,4 +194,27 @@ it("allows free-form teaching notes through preflight without certifying their q
   await writeFile(join(f.root, "src", "first", "SENSEI.md"), "A callback is a function passed to another function. Check whether the learner distinguishes passing a function from calling it before assuming this is understood.");
   expect((await f.evaluate("notes")).attempt).toBe(1);
   expect(f.run).toHaveBeenCalledOnce();
+});
+
+it("a Pi draft gets the unsupported-agent result and spends no attempt", async () => {
+  const f = await fixture();
+  vi.mocked(resolveAgent).mockReturnValueOnce("pi");
+  const refused = await f.evaluate("pi-call").catch(error => error);
+  expect(refused).toMatchObject({ name: "UnsupportedAgentError", code: "agent_unsupported", agent: "pi" });
+  expect(refused.message).toBe("Pi can't run course evaluations yet. Switch this draft to another coding agent to evaluate it.");
+  expect(f.run).not.toHaveBeenCalled();
+  expect((await f.evaluate("after-switch")).remaining).toBe(2);
+});
+
+it("the evaluate tool answers unsupported-agent", async () => {
+  const f = await fixture();
+  vi.mocked(resolveAgent).mockReturnValueOnce("pi");
+  const { createKyoshiEvaluationTool } = await import("../eve/evaluate.ts");
+  const tool = createKyoshiEvaluationTool(async () => ({ courseRoot: f.root, evaluation: f.config })) as unknown as {
+    execute(input: { lessonIds: string[] }, context: { callId: string; abortSignal: AbortSignal }): Promise<Record<string, unknown>>;
+  };
+  expect(await tool.execute({ lessonIds: ["first"] }, { callId: "tool-call", abortSignal: AbortSignal.timeout(5000) })).toEqual({
+    status: "unsupported-agent", error: "Pi can't run course evaluations yet. Switch this draft to another coding agent to evaluate it.",
+    next: "Tell the author once; evaluating needs another coding agent for now.",
+  });
 });

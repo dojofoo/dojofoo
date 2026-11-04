@@ -5,7 +5,8 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { parse, YAMLParseError } from "yaml";
 import { resolveAgent } from "@dojofoo/config/runtime";
-import { MaterialFailure } from "./failure.ts";
+import { agentRow, isAcpAgentId } from "@dojofoo/protocol";
+import { MaterialFailure, UnsupportedAgentError } from "./failure.ts";
 import { preflightLessons } from "./preflight.ts";
 import { readLessonSensei } from "./sensei.ts";
 import type { EvaluationReport } from "./run";
@@ -65,6 +66,8 @@ export async function evaluateFromAuthoring({ root, lessonIds, callId, config, s
   run?: typeof executeEvaluationWorker;
 }): Promise<EvaluationReceipt> {
   if (!config) throw new Error("Teaching evaluations are not configured. Select evaluation harnesses/models before spending usage.");
+  const agent = resolveAgent(root);
+  if (!isAcpAgentId(agent)) throw new UnsupportedAgentError(agent, `${agentRow(agent).name} can't run course evaluations yet. Switch this draft to another coding agent to evaluate it.`);
   signal.throwIfAborted();
   if (!callId || !lessonIds.length || lessonIds.length > 2 || new Set(lessonIds).size !== lessonIds.length) throw new Error("Evaluate one lesson or two distinct lessons for continuity");
   const source = await readFile(join(root, "dojo.yaml"), "utf8");

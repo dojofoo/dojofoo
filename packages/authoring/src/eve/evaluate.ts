@@ -1,6 +1,6 @@
 import { defineTool } from "@dojofoo/agent/tools";
 import { z } from "zod";
-import { MaterialFailure } from "../evaluation/failure.ts";
+import { MaterialFailure, UnsupportedAgentError } from "../evaluation/failure.ts";
 import { evaluateFromAuthoring, type EvaluationConfiguration } from "../evaluation/host.ts";
 import { configuredEvaluation, readEvaluationSettings } from "../evaluation/settings.ts";
 
@@ -20,6 +20,7 @@ export function createKyoshiEvaluationTool(runtime: () => Promise<{ courseRoot: 
       } catch (error) {
         // Expected outcomes are results for Kyoshi to act on, not tool crashes.
         const message = error instanceof Error ? error.message : String(error);
+        if (error instanceof UnsupportedAgentError) return { status: "unsupported-agent", error: message, next: "Tell the author once; evaluating needs another coding agent for now." };
         if (error instanceof MaterialFailure) return { status: "preflight-failed", error: message, next: "Fix these findings and call again; no attempt was used." };
         if (!config) return { status: "not-configured", error: message, next: "Tell the author once and stop; do not choose models." };
         if (message.includes("not in this course") || message.includes("Evaluate one lesson")) return { status: "invalid-request", error: message, next: "Use lesson IDs from dojo.yaml: the lesson, optionally preceded by its predecessor." };
