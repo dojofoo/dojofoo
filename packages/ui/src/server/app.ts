@@ -12,7 +12,6 @@ import { honoAgentCardHandler } from "./a2a/agent-card";
 import { honoJsonRpcHandler } from "./a2a/jsonrpc";
 import { projectRoutes } from "./project/routes";
 import { lessonRoutes } from "./lesson/routes";
-import { runRoutes } from "./run/routes";
 import { controlRoutes } from "./control/routes";
 import { interactiveRoutes } from "./interactive/routes";
 import { authoringRoutes } from "./authoring";
@@ -84,7 +83,6 @@ function buildApp() {
   // Local senpai project API.
   app.route("/api/project", projectRoutes);
   app.route("/api/workspaces", lessonRoutes);
-  app.route("/api/run-command", runRoutes);
   app.route("/api/control", controlRoutes);
   app.route("/api/interactive", interactiveRoutes);
   app.route("/api/workspaces/:workspaceId/courses/:courseId/interactive", interactiveRoutes);

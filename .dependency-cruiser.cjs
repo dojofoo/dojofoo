@@ -3,11 +3,10 @@
 // step of the design's roadmap that removes it.
 const exempt = (...files) => files.map(file => `^${file.replaceAll(".", "\\.")}$`);
 const relativeExemptions = exempt(
-  "packages/authoring/src/eve/browser.fixture.mjs",              // loopback: step 8; ui/server/harness/opencode.ts: step 7
+  "packages/authoring/src/eve/browser.fixture.mjs",              // loopback: step 8
   "packages/authoring/src/eve/conformance.fixture.ts",           // loopback model: step 8
   "packages/authoring/src/eve/pi-workspace.test.ts",             // loopback model: step 8
   "packages/authoring/src/eve/runtime-turn.test.ts",             // loopback model: step 8
-  "packages/cli/test/learner-notes.integration.test.ts",         // run coordinator and lesson MCP: step 7
   "packages/cli/test/starter-courses.test.ts",                   // permanent: checks starters with the UI's parser
   "packages/evals/src/authoring-continuation.live.test.ts",      // eve/prepare: step 8
   "packages/uix/.storybook/language-api.ts",                     // permanent: Storybook dev server only
@@ -23,9 +22,7 @@ module.exports = {
       to: { path: "^packages/(authoring|ui|cli|evals|uix|avatar)/" } },
     { name: "harness-reads-only-agent-installations-from-config", severity: "error", from: { path: "^packages/(agent|agent-api)/" },
       to: { path: "^packages/config/", pathNot: "^packages/config/(src|dist)/agent-installations\\.(ts|js)$" } },
-    { name: "agents-below-ui-and-cli", severity: "error",
-      from: { path: "^packages/authoring/", pathNot: exempt("packages/authoring/src/eve/browser.fixture.mjs") },   // step 7
-      to: { path: "^packages/(ui|cli|evals|uix)/" } },
+    { name: "agents-below-ui-and-cli", severity: "error", from: { path: "^packages/authoring/" }, to: { path: "^packages/(ui|cli|evals|uix)/" } },
     { name: "config-depends-on-protocol-only", severity: "error", from: { path: "^packages/config/" }, to: { path: "^packages/(?!config/|protocol/)" } },
     { name: "uix-depends-on-protocol-only", severity: "error",
       from: { path: "^packages/uix/", pathNot: exempt("packages/uix/.storybook/language-api.ts") }, to: { path: "^packages/(?!uix/|protocol/)" } },

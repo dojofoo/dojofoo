@@ -5,18 +5,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { readDojoRc } from "@dojofoo/config";
 import * as preparation from "@dojofoo/config/project-preparation";
 import { execFileSync } from "node:child_process";
-import { answerSenseiQuestion, checkLesson, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, readLesson, readLessonFile, saveLearnerObservation, shouldIntroduceLesson, setLessonModel, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile, writeSolution } from "./service";
+import { checkLesson, dojoLessonContext, dojoLessonFragment, readLesson, readLessonFile, writeLessonFile, writeSolution } from "./service";
 import { writeAgent } from "@dojofoo/config/runtime";
-import { acpClient } from "./codex-client";
-import { readPrompt } from "@dojofoo/authoring/prompts";
 
 // The real CLI unless a test scripts its answer
 vi.mock("node:child_process", async importOriginal => {
   const actual = await importOriginal<typeof import("node:child_process")>();
   return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
 });
-
-const kataTeaching = readPrompt("sensei/contracts/KATAS.md");
 
 const roots: string[] = [];
 
@@ -64,11 +60,9 @@ describe("fresh lesson state", () => {
     const root = freshCourse();
     const manifest = resolve(root, ".dojos", "starter", "dojo.yaml");
     writeFileSync(manifest, "name: '@test/starter'\nversion: 1.0.0\ndescription: Chapter course\ntest: echo ok\nchapters:\n  - id: foundations\n    title: Foundations\n    path: katas/001-first\n    lessons:\n      - id: 001-first\n        template: katas/001-first/solution.ts\n  - id: advanced\n    title: Advanced\n    path: katas/002-second\n    lessons:\n      - id: 002-second\n        template: katas/002-second/solution.ts\n");
-    const start = vi.spyOn(acpClient, "startThread");
-    const lesson = await getLesson(root, "001-first", { prepareSession: false });
+    const lesson = await readLesson(root, "starter", "001-first");
     expect(lesson?.course?.chapters?.map(chapter => chapter.title)).toEqual(["Foundations", "Advanced"]);
     expect(lesson?.lessons.map(lesson => lesson.chapter?.id)).toEqual(["foundations", "advanced"]);
-    expect(start).not.toHaveBeenCalled();
   });
 
   it("loads course README and chapter/lesson INTRO prose separately from Sensei guidance", async () => {
@@ -78,7 +72,7 @@ describe("fresh lesson state", () => {
     mkdirSync(resolve(course, "src"));
     writeFileSync(resolve(course, "src/INTRO.md"), "# Default\n\nMeet the first chapter.");
     writeFileSync(resolve(course, "katas/001-first/INTRO.mdx"), "# First lesson\n\nThis is the learner-facing goal.");
-    const lesson = await getLesson(root, "001-first", { prepareSession: false });
+    const lesson = await readLesson(root, "starter", "001-first");
     expect(lesson?.course?.intro?.content).toContain("Course overview");
     expect(lesson?.chapter?.intro?.content).toContain("Meet the first chapter");
     expect(lesson?.intro).toMatchObject({ path: "katas/001-first/INTRO.mdx", format: "mdx" });
@@ -88,39 +82,9 @@ describe("fresh lesson state", () => {
 
   it("exposes installed course details for the learner card without starting a session", async () => {
     const root = freshCourse();
-    const start = vi.spyOn(acpClient, "startThread");
-    const lesson = await getLesson(root, "001-first");
+    const lesson = await readLesson(root, "starter", "001-first");
     expect(lesson?.course).toMatchObject({ name: "@test/starter", version: "1.0.0", description: "A fresh course.", lessons: 2 });
-    expect(lesson?.harnesses).toEqual(expect.arrayContaining(["codex", "opencode"]));
-    expect(lesson?.harnesses).not.toContain("pi");
     expect(lesson?.harness).toBe("opencode");
-    expect(start).not.toHaveBeenCalled();
-  });
-
-  it("restores the explicitly selected model with its existing lesson session", async () => {
-    const root = freshCourse();
-    vi.spyOn(acpClient, "startThread").mockResolvedValue("model-session");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    const configuration = { id: "model", name: "Model", currentValue: "provider/default", options: [
-      { value: "provider/default", name: "Default" }, { value: "provider/chosen", name: "Chosen" },
-    ] };
-    vi.spyOn(acpClient, "modelConfiguration").mockImplementation(() => configuration);
-    const setModel = vi.spyOn(acpClient, "setModel").mockImplementation(async (_session, value) => {
-      configuration.currentValue = value;
-      return configuration;
-    });
-    await startLessonSession(root, "001-first");
-    await setLessonModel(root, "001-first", "provider/chosen");
-    expect(JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).threads["starter/001-first"].model).toBe("provider/chosen");
-    configuration.currentValue = "provider/default"; // A fresh native process loads its default.
-    const resumed = await getLesson(root, "001-first");
-    expect(resumed?.sessionId).toBe("model-session");
-    expect(resumed?.model?.currentValue).toBe("provider/chosen");
-    expect(setModel).toHaveBeenLastCalledWith("model-session", "provider/chosen");
-    setModel.mockRejectedValueOnce(new Error("Model unavailable"));
-    await expect(setLessonModel(root, "001-first", "provider/unavailable")).rejects.toThrow("Model unavailable");
-    expect(JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).threads["starter/001-first"].model).toBe("provider/chosen");
   });
 
   it("awaits the normal workspace setup before checking a fresh trial", async () => {
@@ -130,253 +94,30 @@ describe("fresh lesson state", () => {
     expect(setup).toHaveBeenCalledExactlyOnceWith(root);
   });
 
-  it("a lesson opened after the workspace switches agents starts its thread on the new agent and never resumes the old one", async () => {
-    const root = freshCourse();
-    writeAgent(root, "codex");
-    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("codex-1");
-    const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    await startLessonSession(root, "001-first");
-    resume.mockClear();
-    writeAgent(root, "claude");
-    start.mockResolvedValueOnce("claude-1");
-    const lesson = await getLesson(root, "001-first");
-    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "claude" }));
-    expect(resume).not.toHaveBeenCalledWith("codex-1", expect.anything());
-    expect(lesson).toMatchObject({ sessionId: "claude-1", harness: "claude", messages: [] });
-    const state = JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8"));
-    expect(state.threads["starter/001-first"]).toMatchObject({ sessionId: "claude-1", harness: "claude" });
-    expect(state.threads["starter/001-first"].aliases).toContain("codex-1");
-  });
-
-  it("startLessonSession has no agent parameter and writes no defaultHarness", async () => {
-    const root = freshCourse();
-    mkdirSync(resolve(root, ".dojo"), { recursive: true });
-    writeFileSync(resolve(root, ".dojo/web.json"), JSON.stringify({ version: 4, defaultHarness: "codex", threads: {}, results: {}, checkpoints: {} }));
-    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("opencode-1");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    expect(startLessonSession).toHaveLength(3);
-    expect((await startLessonSession(root, "001-first", "starter")).harness).toBe("opencode");
-    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "opencode" }));
-    expect(JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8"))).not.toHaveProperty("defaultHarness");
-  });
-
   it("loads the course named by a route without changing the CLI selection or starting an agent", async () => {
     const root = freshCourse();
     const selection = JSON.stringify({ currentDojo: "another-course", currentKata: "another-lesson", editor: "code", progress: {} });
     writeFileSync(resolve(root, ".dojorc"), selection);
-    const start = vi.spyOn(acpClient, "startThread");
-    await expect(getLesson(root, "001-first", { prepareSession: false, courseId: "starter" })).resolves.toMatchObject({ dojo: "starter", kata: "001-first" });
+    await expect(readLesson(root, "starter", "001-first")).resolves.toMatchObject({ dojo: "starter", kata: "001-first" });
     expect(readFileSync(resolve(root, ".dojorc"), "utf8")).toBe(selection);
-    expect(start).not.toHaveBeenCalled();
-  });
-
-  it("opens saved course state while its coding agent is unavailable", async () => {
-    const root = freshCourse();
-    vi.spyOn(acpClient, "startThread").mockResolvedValue("saved-session");
-    const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    await startLessonSession(root, "001-first");
-    history.mockResolvedValue([{ role: "assistant", text: "Saved learner guidance" }]);
-    const before = readFileSync(resolve(root, ".dojo/web.json"), "utf8");
-    resume.mockRejectedValue(new Error("Coding agent unavailable"));
-    await expect(getLesson(root, "001-first", { prepareSession: false })).resolves.toMatchObject({
-      dojo: "starter", kata: "001-first", sessionId: "saved-session", fileId: "solution",
-      messages: [{ role: "assistant", parts: [{ type: "text", content: "Saved learner guidance" }] }],
-    });
-    expect(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).toBe(before);
-    await expect(getLesson(root, "001-first")).rejects.toThrow("Coding agent unavailable");
-  });
-
-  it("surfaces a resume failure without replacing the conversation and recovers on retry", async () => {
-    const root = freshCourse();
-    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("recoverable-session");
-    const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    vi.spyOn(acpClient, "send").mockResolvedValue("");
-    await startLessonSession(root, "001-first");
-    const before = readFileSync(resolve(root, ".dojo/web.json"), "utf8");
-    resume.mockRejectedValueOnce(new Error("Provider unavailable"));
-    await expect(getLesson(root, "001-first")).rejects.toThrow("Provider unavailable");
-    expect(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).toBe(before);
-    await streamSensei(root, "001-first", "Try again", () => {});
-    expect((await getLesson(root, "001-first"))?.sessionId).toBe("recoverable-session");
-    expect(start).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps a conversation on its agent while the selection stays the same", async () => {
-    const root = freshCourse();
-    writeAgent(root, "codex");
-    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("owned-session");
-    const resume = vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    vi.spyOn(acpClient, "send").mockResolvedValue("");
-    await startLessonSession(root, "001-first");
-
-    expect(await getLesson(root, "001-first")).toMatchObject({ sessionId: "owned-session", harness: "codex" });
-    await streamSensei(root, "001-first", "Please explain this", () => {});
-    expect(start).toHaveBeenCalledTimes(1);
-    expect(resume).toHaveBeenLastCalledWith("owned-session", expect.objectContaining({ harness: "codex" }));
-    expect((await getLesson(root, "002-second"))?.kata).toBe("002-second");
-    start.mockResolvedValueOnce("replacement-session");
-    expect((await startLessonSession(root, "001-first", "starter")).sessionId).toBe("replacement-session");
-    expect(start).toHaveBeenLastCalledWith(expect.objectContaining({ harness: "codex" }));
-    const state = JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8"));
-    expect(state.threads["starter/001-first"].aliases).toContain("owned-session");
-    await expect(startLessonSession(root, "001-first", "another-course")).rejects.toThrow("Course not found");
-    expect(start).toHaveBeenCalledTimes(2);
   });
 
   it("supplies completed lesson context without claiming unseen implementation details", async () => {
     const root = freshCourse();
-    const initial = await getLesson(root, "001-first");
+    const initial = await readLesson(root, "starter", "001-first");
     expect(dojoLessonContext(initial!).course).toEqual({ id: "starter", completedLessons: [] });
     const rc = readDojoRc(root);
     rc.progress = { starter: { completed: ["001-first"], lastActive: "001-first" } };
     writeFileSync(resolve(root, ".dojorc"), JSON.stringify(rc));
-    const next = await getLesson(root, "002-second");
+    const next = await readLesson(root, "starter", "002-second");
     expect(dojoLessonContext(next!).course).toEqual({
       id: "starter",
       completedLessons: [{ id: "001-first", title: initial!.title, summary: initial!.lessons[0].summary }],
     });
   });
 
-  it("carries source-linked learner statements and help into a subsequent lesson after history is unavailable", async () => {
-    const root = freshCourse();
-    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("first-thread");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    await startLessonSession(root, "001-first");
-    history.mockResolvedValue([
-      { role: "user", kind: "message", text: "I do not know callbacks yet." },
-      { role: "assistant", kind: "message", text: "A callback is a function passed to another function." },
-    ]);
-    await getLesson(root, "001-first");
-    const rc = readDojoRc(root);
-    rc.progress = { starter: { completed: ["001-first"], lastActive: "001-first" } };
-    writeFileSync(resolve(root, ".dojorc"), JSON.stringify(rc));
-    history.mockResolvedValue([]);
-    const next = await getLesson(root, "002-second");
-    const evidence = dojoLessonContext(next!).learner.evidence;
-    expect(evidence?.map(entry => [entry.role, entry.text])).toEqual([
-      ["user", "I do not know callbacks yet."],
-      ["assistant", "A callback is a function passed to another function."],
-    ]);
-    expect(evidence?.every(entry => entry.source.sessionId === "first-thread" && entry.source.lessonId === "001-first")).toBe(true);
-    expect(dojoLessonContext(next!).learner).not.toHaveProperty("mastery");
-    start.mockResolvedValue("second-thread");
-    const send = vi.spyOn(acpClient, "send").mockRejectedValue(new Error("capture context"));
-    await expect(streamLessonIntroduction(root, "002-second", () => {})).rejects.toThrow("capture context");
-    expect(send).toHaveBeenLastCalledWith("second-thread", "Begin the lesson.", expect.any(Function), expect.objectContaining({
-      context: [expect.objectContaining({ text: expect.stringContaining('"text":"I do not know callbacks yet."') })],
-    }));
-    expect(dojoLessonContext((await getLesson(freshCourse(), "002-second"))!).learner.evidence).toBeUndefined();
-  });
-
-  it("preserves newer state changes while capturing native history", async () => {
-    const root = freshCourse();
-    vi.spyOn(acpClient, "startThread").mockResolvedValue("first-thread");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    await startLessonSession(root, "001-first");
-    history.mockImplementationOnce(async () => {
-      const path = resolve(root, ".dojo/web.json");
-      const state = JSON.parse(readFileSync(path, "utf8"));
-      state.observations.concurrent = { code: "new work", failureSignature: "updated", attempt: 2 };
-      writeFileSync(path, JSON.stringify(state));
-      return [{ role: "user", kind: "message", text: "I want to try independently." }];
-    });
-    await getLesson(root, "001-first");
-    const state = JSON.parse(readFileSync(resolve(root, ".dojo/web.json"), "utf8"));
-    expect(state.observations.concurrent).toEqual({ code: "new work", failureSignature: "updated", attempt: 2 });
-    expect(state.learnerEvidence["starter/001-first"][0].text).toBe("I want to try independently.");
-  });
-
-  it("keeps historical help when an existing lesson starts a fresh agent session", async () => {
-    const root = freshCourse();
-    const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("old-thread");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    await startLessonSession(root, "001-first");
-    history.mockResolvedValue([{ role: "assistant", kind: "message", text: "We discussed how a block body returns a value." }]);
-    await getLesson(root, "001-first");
-    start.mockResolvedValue("fresh-thread");
-    history.mockResolvedValue([]);
-    const fresh = await startLessonSession(root, "001-first", "starter");
-    expect(fresh.sessionId).toBe("fresh-thread");
-    const evidence = dojoLessonContext(fresh).learner.evidence;
-    expect(evidence).toEqual([expect.objectContaining({
-      text: "We discussed how a block body returns a value.",
-      source: expect.objectContaining({ sessionId: "old-thread" }),
-    })]);
-    const unchanged = readFileSync(resolve(root, ".dojo/web.json"), "utf8");
-    await getLesson(root, "001-first");
-    expect(readFileSync(resolve(root, ".dojo/web.json"), "utf8")).toBe(unchanged);
-  });
-
-  it("persists and corrects source-backed interpretations across lessons without keeping stale advice active", async () => {
-    const root = freshCourse();
-    vi.spyOn(acpClient, "startThread").mockResolvedValue("first-thread");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    const history = vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    await startLessonSession(root, "001-first");
-    history.mockResolvedValue([{ role: "user", kind: "message", text: "I do not know what a callback is." }]);
-    const initial = await getLesson(root, "001-first");
-    const citation = (index: number, snapshot = initial!) => {
-      const { sessionId, messageId, sha256 } = snapshot.learnerEvidence![index]!.source;
-      return { sessionId, messageId, sha256 };
-    };
-    const note = await saveLearnerObservation(root, "001-first", {
-      category: "uncertainty", interpretation: "Learner reports unfamiliarity with callbacks.", status: "active", source: citation(0),
-    });
-    history.mockResolvedValue([
-      { role: "user", kind: "message", text: "I do not know what a callback is." },
-      { role: "assistant", kind: "message", text: "A callback is a function passed to another function." },
-      { role: "user", kind: "message", text: "I understand the term now; I still need to try applying it." },
-    ]);
-    const updated = await getLesson(root, "001-first");
-    await expect(saveLearnerObservation(root, "001-first", {
-      category: "understanding", interpretation: "Learner understands callbacks.", status: "resolved", source: citation(1, updated!),
-    })).rejects.toThrow("needs a user message");
-    const replacement = await saveLearnerObservation(root, "001-first", {
-      category: "uncertainty", interpretation: "Learner reports the term is clear; application remains untested.", status: "resolved", source: citation(2, updated!), replaces: note.id,
-    });
-    history.mockResolvedValue([]);
-    const rc = readDojoRc(root);
-    rc.progress = { starter: { completed: ["001-first"], lastActive: "001-first" } };
-    writeFileSync(resolve(root, ".dojorc"), JSON.stringify(rc));
-    const next = dojoLessonContext((await getLesson(root, "002-second"))!);
-    expect(next.learner.interpretations).toEqual([replacement]);
-    expect(next.learner.interpretations?.some(entry => entry.id === note.id)).toBe(false);
-    expect(next.learner.interpretations?.[0]?.evidence.text).toContain("still need to try");
-    expect(dojoLessonContext((await getLesson(freshCourse(), "002-second"))!).learner.interpretations).toBeUndefined();
-  });
-
-  it("retries an introduction until the lifecycle marks it complete", () => {
-    expect(shouldIntroduceLesson({ introduced: false })).toBe(true);
-    expect(shouldIntroduceLesson({ introduced: true })).toBe(false);
-  });
-
-  it("starts with lesson context without a second code-owned teaching prompt", async () => {
-    const root = freshCourse();
-    vi.spyOn(acpClient, "startThread").mockResolvedValue("intro-session");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    // Stop after observing the request; do not invoke the CLI completion marker.
-    const send = vi.spyOn(acpClient, "send").mockRejectedValue(new Error("captured intro"));
-    await expect(streamLessonIntroduction(root, "001-first", () => {})).rejects.toThrow("captured intro");
-    expect(send).toHaveBeenCalledWith("intro-session", "Begin the lesson.", expect.any(Function), expect.objectContaining({
-      visible: false,
-      context: [expect.objectContaining({
-        uri: "dojo://courses/starter/lessons/001-first/context",
-        text: expect.stringContaining('"phase":"start"'),
-      })],
-    }));
-  });
-
   it("presents the first lesson without requiring mutable current-kata state", async () => {
-    const lesson = await getLesson(freshCourse(), "001-first");
+    const lesson = await readLesson(freshCourse(), "starter", "001-first");
 
     expect(lesson).toMatchObject({
       kata: "001-first",
@@ -388,7 +129,7 @@ describe("fresh lesson state", () => {
   });
 
   it("gives the sensei authoritative learner code without requiring file inspection", async () => {
-    const lesson = await getLesson(freshCourse(), "001-first");
+    const lesson = await readLesson(freshCourse(), "starter", "001-first");
 
     expect(dojoLessonContext(lesson!).learner.file).toEqual({
       path: "katas/001-first/solution.ts",
@@ -410,108 +151,11 @@ describe("fresh lesson state", () => {
       .toBe("export const answer = 1;\n");
   });
 
-  it("sends current numbered source to the agent while keeping editable context raw", async () => {
-    const root = freshCourse();
-    vi.spyOn(acpClient, "startThread").mockResolvedValue("context-session");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    const send = vi.spyOn(acpClient, "send").mockResolvedValue("");
-
-    await streamSensei(root, "001-first", "Where should I start?", () => {});
-    expect(send).toHaveBeenLastCalledWith("context-session", expect.any(String), expect.any(Function), expect.objectContaining({
-      context: expect.arrayContaining([expect.objectContaining({
-        mimeType: "text/plain",
-        text: expect.stringContaining("L1: export const answer = 0;\nL2: "),
-      })]),
-    }));
-
-    const code = "\n// learner note\nexport const answer = 1;\n";
-    await writeLessonFile(root, "starter", "001-first", "solution", code);
-    await streamSensei(root, "001-first", "What changed?", () => {});
-    expect(send).toHaveBeenLastCalledWith("context-session", expect.any(String), expect.any(Function), expect.objectContaining({
-      context: expect.arrayContaining([expect.objectContaining({
-        text: expect.stringContaining("L1: \nL2: // learner note\nL3: export const answer = 1;\nL4: "),
-      })]),
-    }));
-    expect(dojoLessonContext((await getLesson(root, "001-first"))!).learner.file.content).toBe(code);
-  });
-
-  it("advances by materializing the next lesson without spawning the CLI", async () => {
-    const root = freshCourse();
-    const rc = readDojoRc(root);
-    rc.currentKata = "001-first";
-    rc.progress = { starter: { completed: ["001-first"], lastActive: "001-first" } };
-    writeFileSync(resolve(root, ".dojorc"), `${JSON.stringify(rc)}\n`);
-
-    const next = await nextLesson(root, { checkpointCurrent: false });
-
-    expect(next).toMatchObject({ kata: "002-second", isCurrent: true, state: "ongoing" });
-    expect(readFileSync(resolve(root, "katas/002-second/solution.ts"), "utf8"))
-      .toBe("export const second = 0;\n");
-  });
-
-  it("starts a distinct session while retaining the previous session as history", async () => {
-    const root = freshCourse();
-    mkdirSync(resolve(root, ".dojo"), { recursive: true });
-    writeFileSync(resolve(root, ".dojo", "web.json"), JSON.stringify({
-      version: 4,
-      threads: {
-        "starter/001-first": {
-          sessionId: "old-session",
-          harness: "opencode",
-          contractHash: "old-contract",
-          aliases: [],
-        },
-      },
-      results: {},
-      checkpoints: {},
-      observations: {},
-    }));
-    vi.spyOn(acpClient, "startThread").mockResolvedValue("new-session");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-
-    const lesson = await startLessonSession(root, "001-first");
-    const state = JSON.parse(readFileSync(resolve(root, ".dojo", "web.json"), "utf8"));
-
-    expect(lesson.sessionId).toBe("new-session");
-    // Legacy kata manifests omit mode; they still need the kata lifecycle
-    // contract, including returning to the completion prompt after Review.
-    expect(acpClient.startThread).toHaveBeenCalledWith(expect.objectContaining({
-      developerInstructions: expect.stringContaining(kataTeaching),
-    }));
-    expect(state.threads["starter/001-first"]).toMatchObject({
-      sessionId: "new-session",
-      aliases: ["old-session"],
-    });
-  });
-
-  it("answers Review without navigation and Move on materializes the next lesson", async () => {
-    const root = freshCourse();
-    vi.spyOn(acpClient, "startThread").mockResolvedValue("completion-session");
-    vi.spyOn(acpClient, "history").mockResolvedValue([]);
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    const answer = vi.spyOn(acpClient, "answerUserInput").mockImplementation(() => {});
-    await startLessonSession(root, "001-first");
-    const rc = readDojoRc(root);
-    rc.progress = { starter: { completed: ["001-first"], lastActive: "001-first" } };
-    rc.currentKata = "001-first";
-    writeFileSync(resolve(root, ".dojorc"), JSON.stringify(rc));
-
-    await expect(answerSenseiQuestion(root, "001-first", { completion: ["Review"] })).resolves.toEqual({ ok: true });
-    expect(readDojoRc(root).currentKata).toBe("001-first");
-    const next = await answerSenseiQuestion(root, "001-first", { completion: ["Move on"] });
-    expect(next).toMatchObject({ kata: "002-second", isCurrent: true });
-    expect(answer).toHaveBeenLastCalledWith("completion-session", { completion: ["Move on"] });
-    expect(readDojoRc(root).currentKata).toBe("002-second");
-    expect(readFileSync(resolve(root, "katas/002-second/solution.ts"), "utf8")).toBe("export const second = 0;\n");
-  });
-
   it("allows only authored fragments from the active lesson", async () => {
     const root = freshCourse();
     const lessonPath = resolve(root, ".dojos", "starter", "katas", "001-first", "SENSEI.md");
     writeFileSync(lessonPath, '# First lesson\n\n<Present id="example">Visible material</Present>');
-    const lesson = await getLesson(root, "001-first");
+    const lesson = await readLesson(root, "starter", "001-first");
     expect(lesson).not.toBeNull();
 
     expect(dojoLessonFragment(lesson!, "example")).toEqual({ fragmentId: "example" });
@@ -527,7 +171,7 @@ describe("fresh lesson state", () => {
 
     it("a lesson of a course that is not current is read, written and checked without changing currentDojo", async () => {
       const root = notCurrent();
-      await expect(readLesson(root, "starter", "001-first")).resolves.toMatchObject({ dojo: "starter", kata: "001-first", sessionId: null, messages: [] });
+      await expect(readLesson(root, "starter", "001-first")).resolves.toMatchObject({ dojo: "starter", kata: "001-first" });
       await writeLessonFile(root, "starter", "001-first", "solution", "export const answer = 42;\n");
       expect(readFileSync(resolve(root, "katas/001-first/solution.ts"), "utf8")).toBe("export const answer = 42;\n");
       vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
@@ -550,12 +194,8 @@ describe("fresh lesson state", () => {
       const root = freshCourse();
       mkdirSync(resolve(root, ".dojo"), { recursive: true });
       writeFileSync(resolve(root, ".dojo/web.json"), JSON.stringify({ version: 4, threads: { "starter/001-first": { sessionId: "missing-thread", harness: "opencode", contractHash: "", aliases: [] } }, results: {}, checkpoints: {} }));
-      const history = vi.spyOn(acpClient, "history").mockRejectedValue(new Error("No such ACP thread"));
-      const resume = vi.spyOn(acpClient, "resumeThread").mockRejectedValue(new Error("No such ACP thread"));
-      await expect(readLesson(root, "starter", "001-first")).resolves.toMatchObject({ sessionId: null, messages: [], harness: "opencode" });
+      await expect(readLesson(root, "starter", "001-first")).resolves.toMatchObject({ kata: "001-first", harness: "opencode" });
       await expect(readLessonFile(root, "starter", "001-first", "solution")).resolves.toMatchObject({ attributes: { content: "export const answer = 0;\n" } });
-      expect(history).not.toHaveBeenCalled();
-      expect(resume).not.toHaveBeenCalled();
     });
   });
 });

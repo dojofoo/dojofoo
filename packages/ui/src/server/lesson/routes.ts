@@ -1,24 +1,14 @@
 import { Hono } from "hono";
-import { chatParamsFromRequestBody, convertMessagesToModelMessages, toServerSentEventsResponse } from "@tanstack/ai";
 import {
   advanceLesson,
-  answerSenseiQuestion,
   checkLesson,
   courseView,
-  getLesson,
   readLesson,
   readLessonFile,
-  setLessonModel,
-  startLessonSession,
-  streamLessonIntroduction,
-  streamCheckObservation,
-  streamSensei,
   writeLessonFile,
 } from "./service";
 import { getTypeScriptCompletions, getTypeScriptDiagnostics, getTypeScriptHover } from "./typescript-language-service";
 import { resolveWorkspaceId } from "../control/workspace";
-import type { AcpStreamPart } from "./codex-client";
-import { streamAcpAsAgUi } from "./agui-stream";
 import { readCourseManifest, readDojoRc, writeDojoRc } from "@dojofoo/config";
 import { requestOrigin } from "../request-origin";
 import { advanceInteractiveLesson, getInteractiveLesson } from "../interactive/service";
@@ -42,46 +32,11 @@ function assertCourse(actual: string, requested: string): void {
 
 app.get("/:workspaceId/courses/:courseId/lessons/:lessonId", async (c) => {
   const { root, courseId, lessonId } = context(c);
-  // The learner's read never touches ACP; the prepared read stays for the ACP routes evaluation still uses (step 7 deletes them)
-  const lesson = c.req.query("prepare") === "false" ? await readLesson(root, courseId, lessonId)
-    : await getLesson(root, lessonId, { prepareSession: true, courseId });
+  // `?prepare` is still accepted and means nothing: no read opens a conversation (decision 28)
+  const lesson = await readLesson(root, courseId, lessonId);
   if (!lesson) return c.json({ error: "Lesson not found" }, 404);
   assertCourse(lesson.dojo, courseId);
   return c.json(lesson);
-});
-
-app.get("/:workspaceId/courses/:courseId/lessons/:lessonId/messages", async (c) => {
-  const { root, courseId, lessonId } = context(c);
-  const lesson = await getLesson(root, lessonId);
-  if (!lesson) return c.json({ error: "Lesson not found" }, 404);
-  assertCourse(lesson.dojo, courseId);
-  return c.json({
-    data: lesson.messages,
-  });
-});
-
-app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/sessions", async (c) => {
-  try {
-    const { root, courseId, lessonId } = context(c);
-    // The new thread runs on the workspace's coding agent; a body is ignored.
-    return c.json(await startLessonSession(root, lessonId, courseId), 201);
-  } catch (cause) {
-    return c.json({ error: cause instanceof Error ? cause.message : "Could not start a new lesson session" }, 502);
-  }
-});
-
-app.put("/:workspaceId/courses/:courseId/lessons/:lessonId/configuration/model", async (c) => {
-  const { root, courseId, lessonId } = context(c);
-  const lesson = await getLesson(root, lessonId);
-  if (!lesson) return c.json({ error: "Lesson not found" }, 404);
-  assertCourse(lesson.dojo, courseId);
-  const body = await c.req.json<{ value?: string }>();
-  if (!body.value?.trim()) return c.json({ error: "Model value is required" }, 422);
-  try {
-    return c.json(await setLessonModel(root, lessonId, body.value));
-  } catch (cause) {
-    return c.json({ error: cause instanceof Error ? cause.message : "Could not change the harness model" }, 502);
-  }
 });
 
 // "Make this my current course": the only web write of `currentDojo` (D30), with the course's last active lesson
@@ -155,56 +110,6 @@ app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/progressions", async
     return c.json({ error: cause instanceof Error ? cause.message : "Could not continue the course" }, 409);
   }
 });
-
-app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/messages", async (c) => {
-  const { root, courseId, lessonId } = context(c);
-  const lesson = await getLesson(root, lessonId);
-  if (!lesson) return c.json({ error: "Lesson not found" }, 404);
-  assertCourse(lesson.dojo, courseId);
-  const rawBody = await c.req.json<unknown>();
-  if (rawBody && typeof rawBody === "object" && "answers" in rawBody) {
-    const answers = (rawBody as { answers?: Record<string, string[]> }).answers;
-    if (answers) return c.json(await answerSenseiQuestion(root, lessonId, answers), 201);
-  }
-  const params = await chatParamsFromRequestBody(rawBody);
-  const forwarded = params.forwardedProps as {
-    kind?: "check-observation" | "introduction" | "text";
-    message?: string;
-    answers?: Record<string, string[]>;
-    observation?: import("./service").CheckObservation;
-  };
-  const body = {
-    ...forwarded,
-    message: forwarded.message ?? latestUserText(params.messages),
-  };
-  if (body.kind === "check-observation" && !body.observation) {
-    return c.json({ error: "Check observation is required" }, 422);
-  }
-  if (body.kind !== "introduction" && body.kind !== "check-observation" && !body.message?.trim()) {
-    return c.json({ error: "Message content is required" }, 422);
-  }
-
-  const stream = streamAcpAsAgUi({
-    threadId: params.threadId,
-    runId: params.runId,
-    execute: async (onPart: (part: AcpStreamPart) => void) => {
-      if (body.kind === "introduction") {
-        await streamLessonIntroduction(root, lessonId, onPart, c.req.raw.signal);
-      } else if (body.kind === "check-observation" && body.observation) {
-        await streamCheckObservation(root, lessonId, body.observation, onPart, c.req.raw.signal);
-      } else {
-        await streamSensei(root, lessonId, body.message!, onPart, c.req.raw.signal);
-      }
-    },
-  });
-  return toServerSentEventsResponse(stream);
-});
-
-function latestUserText(messages: Parameters<typeof convertMessagesToModelMessages>[0]): string {
-  const message = convertMessagesToModelMessages(messages).findLast(candidate => candidate.role === "user");
-  const content = message?.content;
-  return typeof content === "string" ? content : content?.flatMap(part => part.type === "text" ? [part.content] : []).join("") ?? "";
-}
 
 app.post("/:workspaceId/courses/:courseId/lessons/:lessonId/files/:fileId/diagnostics", async (c) => {
   const { root } = context(c);

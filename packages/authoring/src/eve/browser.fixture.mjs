@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { createServer } from "node:net";
 import { scaffoldAuthoringWorkspace } from "../scaffold.ts";
 import { startLoopbackModel } from "../../../agent/experiments/model-provider/loopback-openai.mjs";
-import { opencodeExecutable } from "../../../ui/src/server/harness/opencode.ts";
+import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 
 // Manual browser fixture: real UI/server/harness; only inference is loopback.
 const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-browser-"));
@@ -18,7 +18,7 @@ const course = join(learning, "courses/browser-authoring-fixture");
 const home = join(root, "home");
 // Resolve the installed CLI before isolating HOME. Otherwise trials can fall
 // back to an unrelated (and potentially pre-ACP) executable on PATH.
-const opencode = opencodeExecutable();
+const opencode = process.env.OPENCODE_BIN || (resolveAgentExecutable("opencode") ?? "opencode");
 const endpoint = await startLoopbackModel({ latencyMs: 1500,
   selectResponsesTool(input) {
     const history = Array.isArray(input.input) ? input.input : [];

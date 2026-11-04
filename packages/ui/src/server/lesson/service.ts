@@ -1,7 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { courseTitle } from "@dojofoo/config/course-installations";
 import { prepareWorkspace } from "@dojofoo/config/project-preparation";
-import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import {
@@ -15,31 +14,23 @@ import {
   findNextKata,
   kataState,
   readCatalog,
-  readDojoMd,
   readDojoRc,
   resolveAllKatas,
   writeDojoRc,
 } from "@dojofoo/config";
-import type { UIMessage } from "@tanstack/ai-client";
-import { formatLessonContext, type DojoLessonContext, type LearnerEvidenceExcerpt, type LearnerObservation } from "@dojofoo/protocol";
+import type { DojoLessonContext, LearnerEvidenceExcerpt, LearnerObservation } from "@dojofoo/protocol";
 import { withPathLock, writeFileAtomic } from "@dojofoo/agent/file-guard";
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { learnerEvidence as storedLearnerEvidence } from "../agent-session/evidence";
 import { updateOpenWindows } from "../agent-session/guard-store";
-import { retainLearnerEvidence, lessonEvidence } from "./learner-evidence";
+import { lessonEvidence } from "./learner-evidence";
 import { recordLearnerObservation } from "./learner-observations";
-import { senseiInstructions, senseiTurn } from "./instructions";
-import type { HarnessKind } from "../harness/adapter";
-import { lessonAgent, lessonHarnesses } from "../harness/registry";
-import { acpClient, type AcpStreamPart, type SessionModelConfiguration, type TranscriptMessage } from "./codex-client";
+import { senseiTurn } from "./instructions";
 import { parseSenseiContent } from "./sensei-content";
 
 type WebState = {
   version: 4;
-  threads: Record<string, { sessionId: string; harness: HarnessKind; contractHash: string; aliases: string[]; model?: string; resumeFailed?: boolean }>;
   results: Record<string, TestReport>;
-  checkpoints: Record<string, { at: string; threadId?: string }>;
-  learnerEvidence: Record<string, LearnerEvidenceExcerpt[]>;
   learnerObservations: Record<string, LearnerObservation[]>;
   observations: Record<string, {
     /** The latest check's observation id, so a kata context read can mark its report seen (D16) */
@@ -96,15 +87,10 @@ export type LessonSnapshot = {
   filePath: string;
   language: "javascript" | "typescript" | "python";
   introduced: boolean;
-  checkpointed: boolean;
-  sessionId: string | null;
-  model: SessionModelConfiguration | null;
   harness?: string;
-  harnesses?: HarnessKind[];
   state: "completed" | "ongoing" | "not-started";
   isCurrent: boolean;
   result: TestReport | null;
-  messages: UIMessage[];
   learnerEvidence?: LearnerEvidenceExcerpt[];
   learnerObservations?: LearnerObservation[];
   fragments: Record<string, string>;
@@ -153,113 +139,6 @@ export function dojoLessonFragment(snapshot: LessonSnapshot, fragmentId: string)
   return { fragmentId };
 }
 
-export function shouldIntroduceLesson(snapshot: Pick<LessonSnapshot, "introduced">): boolean {
-  return !snapshot.introduced;
-}
-
-function dojoContextResource(snapshot: LessonSnapshot) {
-  return {
-    uri: `dojo://courses/${encodeURIComponent(snapshot.dojo)}/lessons/${encodeURIComponent(snapshot.kata)}/context`,
-    mimeType: "text/plain",
-    text: formatLessonContext(dojoLessonContext(snapshot)),
-  };
-}
-
-export async function getLesson(root: string, requestedKata?: string, { prepareSession = true, courseId }: { prepareSession?: boolean; courseId?: string } = {}): Promise<LessonSnapshot | null> {
-  const stored = readDojoRc(root);
-  // Resource reads are scoped by their course URL, independent of the CLI's active course.
-  const rc = courseId && stored.currentDojo !== courseId
-    ? { ...stored, currentDojo: courseId, currentKata: stored.progress?.[courseId]?.lastActive ?? null }
-    : stored;
-  if (!rc.currentDojo) return null;
-  const catalog = readCatalog(root, rc.currentDojo);
-  const katas = resolveAllKatas(root, rc, catalog);
-  const progress = rc.progress?.[rc.currentDojo];
-  const current = findCurrentKata(katas, rc.currentKata) ?? findNextKata(katas, progress);
-  const selected = requestedKata
-    ? findKataByIdOrName(katas, requestedKata)
-    : current;
-  if (!selected) return null;
-
-  const key = lessonKey(rc.currentDojo, selected.name);
-  const agent = lessonAgent(root);
-  let webState = readWebState(root);
-  const storedThread = webState.threads[key];
-  // A thread runs on the agent it started on; after the workspace switches agents it is never resumed
-  let threadId: string | undefined = storedThread?.harness === agent ? storedThread.sessionId : undefined;
-  const sensei = readFileSync(selected.senseiPath, "utf8");
-  const instructions = lessonInstructions(root, rc.currentDojo, sensei);
-  const contractHash = lessonContractHash(instructions);
-  const senseiContent = parseSenseiContent(sensei);
-  let messages: UIMessage[] = [];
-  if (threadId && prepareSession) {
-    // A provider outage is not a new lesson. Let the route expose the error;
-    // an explicit retry resumes the same durable conversation.
-    await acpClient.resumeThread(threadId, {
-      root,
-      runtimeKey: lessonRuntimeKey(root, key, agent),
-      harness: agent,
-      developerInstructions: instructions,
-    });
-    if (storedThread?.model && acpClient.modelConfiguration(threadId)?.currentValue !== storedThread.model) {
-      await acpClient.setModel(threadId, storedThread.model);
-    }
-    messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
-    if (storedThread?.contractHash !== contractHash) {
-      webState.threads[key] = {
-        ...storedThread,
-        sessionId: threadId,
-        harness: agent,
-        contractHash,
-        aliases: storedThread?.aliases ?? [],
-      };
-      writeWebState(root, webState);
-    }
-  } else if (storedThread && prepareSession && (!courseId || stored.currentDojo === courseId)) {
-    // The old agent's thread stays in the aliases; the new agent starts its own, without a prompt
-    threadId = (await lessonThread(root, selected.name)).threadId;
-    webState = readWebState(root);
-  }
-
-  if (threadId && !prepareSession) messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
-
-  if (threadId && prepareSession) {
-    webState.learnerEvidence = rememberLearnerEvidence(root, key, selected.name, threadId, messages);
-  }
-  const priorLesson = katas.slice(0, katas.indexOf(selected)).reverse().find(kata => kataState(kata, progress) === "completed");
-  const learnerEvidence = lessonEvidence(webState.learnerEvidence[key] ?? [],
-    priorLesson ? webState.learnerEvidence[lessonKey(rc.currentDojo, priorLesson.name)] ?? [] : []);
-
-  const selectedState = kataState(selected, progress);
-  let result: TestReport | null = webState.results[key] ?? null;
-  let resultChanged = false;
-  if (prepareSession && selectedState === "completed" && catalog.runner?.coverage === true && !result?.coverage) {
-    try {
-      result = parseTestReport(runDojo(root, ["kata", selected.name, "--check", "--reporter=json"]));
-      resultChanged = true;
-    } catch {
-      if (!result) {
-        result = completedTestReport(sensei);
-        resultChanged = true;
-      }
-    }
-  } else if (prepareSession && !result && selectedState === "completed") {
-    result = completedTestReport(sensei);
-    resultChanged = true;
-  }
-  if (result && (resultChanged || !webState.results[key])) {
-    webState.results[key] = result;
-    writeWebState(root, webState);
-  }
-  return lessonSnapshot(root, { rc, catalog, katas, progress, current, selected, sensei, senseiContent, webState, result, learnerEvidence }, {
-    sessionId: threadId ?? null,
-    model: threadId ? acpClient.modelConfiguration(threadId) : null,
-    harness: agent,
-    harnesses: lessonHarnesses,
-    messages,
-  });
-}
-
 type LessonParts = {
   rc: ReturnType<typeof readDojoRc>;
   catalog: ReturnType<typeof readCatalog>;
@@ -274,10 +153,9 @@ type LessonParts = {
   learnerEvidence: LearnerEvidenceExcerpt[];
 };
 
-/** The snapshot both reads share; the conversation fields come from the caller (ACP for getLesson, none for readLesson). */
-function lessonSnapshot(root: string, parts: LessonParts, conversation: Pick<LessonSnapshot, "sessionId" | "model" | "harness" | "harnesses" | "messages">): LessonSnapshot {
+/** A lesson as the learner's page reads it; `conversation` names the workspace's coding agent. */
+function lessonSnapshot(root: string, parts: LessonParts, conversation: Pick<LessonSnapshot, "harness">): LessonSnapshot {
   const { rc, catalog, katas, progress, current, selected, sensei, senseiContent, webState, result, learnerEvidence } = parts;
-  const key = lessonKey(rc.currentDojo, selected.name);
   const selectedState = kataState(selected, progress);
   const scaffoldPath = selected.starterPath ?? resolve(dojoDir(root, rc.currentDojo), selected.template);
   const starterCode = existsSync(scaffoldPath) ? readFileSync(scaffoldPath, "utf8") : "";
@@ -299,7 +177,6 @@ function lessonSnapshot(root: string, parts: LessonParts, conversation: Pick<Les
     filePath: relative(root, selected.workspacePath),
     language: editorLanguage(selected.workspacePath),
     introduced: progress?.kataIntros?.includes(selected.name) === true,
-    checkpointed: Boolean(webState.checkpoints[key]),
     ...conversation,
     state: selectedState,
     isCurrent: selected.name === current?.name,
@@ -324,7 +201,7 @@ export function courseView(stored: ReturnType<typeof readDojoRc>, courseId: stri
     : { ...stored, currentDojo: courseId, currentKata: stored.progress?.[courseId]?.lastActive ?? null };
 }
 
-/** The learner's read of a lesson of any course: no ACP thread, history or evidence, and no web.json threads (constraint 2). */
+/** The learner's read of a lesson of any course. */
 export async function readLesson(root: string, courseId: string, lessonId: string): Promise<LessonSnapshot | null> {
   const stored = readDojoRc(root);
   const rc = courseView(stored, courseId);
@@ -344,7 +221,7 @@ export async function readLesson(root: string, courseId: string, lessonId: strin
   const result = webState.results[lessonKey(courseId, selected.name)]
     ?? (kataState(selected, progress) === "completed" ? completedTestReport(sensei) : null);
   return { ...lessonSnapshot(root, { rc, catalog, katas, progress, current, selected, sensei, senseiContent: parseSenseiContent(sensei), webState, result, learnerEvidence: evidence },
-    { sessionId: null, model: null, harness: resolveAgent(root), messages: [] }), courseCurrent: stored.currentDojo === courseId };
+    { harness: resolveAgent(root) }), courseCurrent: stored.currentDojo === courseId };
 }
 
 export async function readLessonFile(
@@ -531,165 +408,6 @@ function lineDelta(previous: string, current: string): string {
   return lines.slice(0, 40).join("\n") || "Code changed.";
 }
 
-export function transcriptToUIMessages(transcript: TranscriptMessage[], sessionId: string): UIMessage[] {
-  const messages: UIMessage[] = [];
-  let hiddenUserBoundary = false;
-  for (const entry of transcript) {
-    const visibleText = visibleTranscriptText(entry);
-    if (!visibleText) {
-      if (entry.role === "user") hiddenUserBoundary = true;
-      continue;
-    }
-    if (entry.kind === "reasoning" && entry.text.trim().startsWith("Introduce this lesson in your own words.")) continue;
-    const durationMs = entry.startedAt !== undefined && entry.completedAt !== undefined
-      ? Math.max(0, entry.completedAt - entry.startedAt)
-      : undefined;
-    const part = entry.kind === "reasoning"
-      ? { type: "thinking" as const, content: visibleText, ...(durationMs === undefined ? {} : { durationMs }) }
-      : entry.kind === "tool" && visibleText.startsWith("{")
-        ? (() => {
-            const tool = JSON.parse(visibleText) as { name: string; input: unknown; output: unknown };
-            if (tool.name === "dojo_lesson_verify" && isTestReport(tool.output)) {
-              return {
-                type: "tool-call" as const,
-                name: tool.name,
-                id: `${sessionId}:tool:${messages.length}`,
-                state: "complete" as const,
-                arguments: jsonText(tool.input),
-                input: tool.input,
-                output: tool.output,
-                ...(durationMs === undefined ? {} : { durationMs }),
-              };
-            }
-            return {
-              type: "tool-call" as const,
-              name: tool.name,
-              id: `${sessionId}:tool:${messages.length}`,
-              state: "complete" as const,
-              arguments: jsonText(tool.input),
-              input: tool.input,
-              output: tool.output,
-              ...(durationMs === undefined ? {} : { durationMs }),
-            };
-          })()
-      : { type: "text" as const, content: visibleText };
-    const previous = messages.at(-1);
-    const standaloneCheck = part.type === "tool-call" && part.name === "dojo_lesson_verify";
-    if (entry.role === "assistant" && previous?.role === "assistant" && !hiddenUserBoundary && !standaloneCheck) {
-      previous.parts.push(part);
-      continue;
-    }
-    messages.push({
-      id: `${sessionId}:${messages.length}`,
-      role: entry.role,
-      parts: [part],
-    });
-    hiddenUserBoundary = false;
-  }
-  return messages;
-}
-
-function jsonText(value: unknown): string {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-const checkResourceMarker = /^\[?(?:dojo|dojofoo):\/\/lessons\/[^\]\s]+\/checks\/[^\]\s]+\]?\s*/u;
-
-export function visibleTranscriptText(entry: TranscriptMessage): string {
-  const text = entry.text.replace(checkResourceMarker, "").trim();
-  if (!text) return "";
-  if (entry.role !== "user") return text;
-  if (text.startsWith(senseiTurn("learner-evidence"))) return "";
-  if (text.startsWith('{"instruction":"This check already completed.')) return "";
-  return text;
-}
-
-function isTestReport(value: unknown): value is TestReport {
-  if (!value || typeof value !== "object") return false;
-  const report = value as Partial<TestReport>;
-  return typeof report.total === "number"
-    && typeof report.passed === "number"
-    && typeof report.failed === "number"
-    && Array.isArray(report.tests);
-}
-
-export async function answerSenseiQuestion(
-  root: string,
-  kataName: string | undefined,
-  answers: Record<string, string[]>,
-): Promise<{ ok: true } | LessonSnapshot> {
-  const rc = readDojoRc(root);
-  if (!rc.currentDojo) throw new Error("No current dojo");
-  const kata = kataName ?? rc.currentKata;
-  if (!kata) throw new Error("No lesson selected");
-  const threadId = readWebState(root).threads[lessonKey(rc.currentDojo, kata)]?.sessionId;
-  if (!threadId) throw new Error("No active sensei session");
-  const moveOn = wantsNextLesson(answers);
-  acpClient.answerUserInput(threadId, answers);
-  if (moveOn) {
-    return nextLesson(root, { checkpointCurrent: false });
-  }
-  return { ok: true };
-}
-
-export async function streamSensei(
-  root: string,
-  kataName: string | undefined,
-  message: string,
-  onPart: (part: AcpStreamPart) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  const snapshot = await getLesson(root, kataName);
-  if (!snapshot) throw new Error("No lesson selected");
-  const { threadId } = await lessonThread(root, snapshot.kata);
-  const evidence = snapshot.result ? testEvidence(snapshot.result) : "No test run has been recorded yet.";
-  const evidenceContext = `${senseiTurn("learner-evidence")}\n${evidence}`;
-  await acpClient.send(
-    threadId,
-    message,
-    onPart,
-    {
-      signal,
-      context: [{
-        uri: `dojo://lessons/${encodeURIComponent(snapshot.kata)}/checks/latest`,
-        mimeType: "text/plain",
-        text: evidenceContext,
-      }, dojoContextResource(snapshot)],
-    },
-  );
-}
-
-export async function streamCheckObservation(
-  root: string,
-  kataName: string,
-  observation: CheckObservation,
-  onPart: (part: AcpStreamPart) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  const snapshot = await getLesson(root, kataName);
-  if (!snapshot) throw new Error("No lesson selected");
-  const { threadId } = await lessonThread(root, snapshot.kata);
-  await acpClient.send(threadId, senseiTurn("checks-ran"), onPart, {
-    signal,
-    visible: false,
-    context: [dojoContextResource(snapshot), {
-      uri: `dojo://lessons/${encodeURIComponent(kataName)}/checks/${observation.id}`,
-      mimeType: "application/json",
-      text: JSON.stringify({
-        instruction: checkObservationInstruction(observation),
-        attempt: observation.attempt,
-        codeChanged: observation.codeChanged,
-        diff: observation.diff,
-        report: observation.report,
-      }),
-    }],
-  });
-}
-
 export function checkObservationInstruction(observation: Pick<CheckObservation, "attempt" | "codeChanged" | "report">): string {
   const step = observation.report.complete ? senseiTurn("check-passed")
     : observation.codeChanged ? senseiTurn("check-changed")
@@ -697,187 +415,6 @@ export function checkObservationInstruction(observation: Pick<CheckObservation, 
     : observation.attempt === 2 ? senseiTurn("check-unchanged-again")
     : senseiTurn("check-repeated", { attempt: String(observation.attempt) });
   return `${senseiTurn("check-base")} ${step}`;
-}
-
-export async function streamLessonIntroduction(
-  root: string,
-  lessonId: string,
-  onPart: (part: AcpStreamPart) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  const snapshot = await getLesson(root, lessonId);
-  if (!snapshot) throw new Error("No lesson selected");
-  if (!shouldIntroduceLesson(snapshot)) return;
-  const { threadId } = await lessonThread(root, snapshot.kata);
-  await acpClient.send(
-    threadId,
-    senseiTurn("begin"),
-    onPart,
-    {
-      signal,
-      visible: false,
-      context: [dojoContextResource(snapshot)],
-    },
-  );
-  if (!snapshot.introduced) runDojo(root, ["kata", "intro", "--done"]);
-}
-
-function testEvidence(report: TestReport): string {
-  const summary = report.tests
-    .map((test) => `${test.status.toUpperCase()}: ${[...test.suite, test.name].join(" > ")}`)
-    .join("\n");
-  return `${report.passed}/${report.total} passing.\n${summary}`;
-}
-
-export async function nextLesson(
-  root: string,
-  options: { checkpointCurrent?: boolean } = {},
-): Promise<LessonSnapshot> {
-  const rc = readDojoRc(root);
-  const catalog = readCatalog(root, rc.currentDojo);
-  const katas = resolveAllKatas(root, rc, catalog);
-  const next = findNextKata(katas, rc.progress?.[rc.currentDojo]);
-  if (!next) throw new Error("The dojo is complete");
-  if (rc.currentKata) {
-    const state = readWebState(root);
-    const key = lessonKey(rc.currentDojo, rc.currentKata);
-    const threadId = state.threads[key]?.sessionId;
-    if (threadId) {
-      // Use already received events; navigation must not restart an old harness.
-      const messages = transcriptToUIMessages(await acpClient.history(threadId), threadId);
-      rememberLearnerEvidence(root, key, rc.currentKata, threadId, messages);
-    }
-    if (threadId && options.checkpointCurrent !== false) await acpClient.checkpoint(threadId);
-    if (options.checkpointCurrent !== false) {
-      const current = readWebState(root);
-      current.checkpoints[key] = { at: new Date().toISOString(), ...(threadId ? { threadId } : {}) };
-      writeWebState(root, current);
-    }
-  }
-  const scaffoldPath = resolve(dojoDir(root, rc.currentDojo), next.template);
-  if (!existsSync(scaffoldPath)) throw new Error(`Lesson scaffold not found: ${next.name}`);
-  await writeLessonFile(root, rc.currentDojo, next.name, "solution", readFileSync(scaffoldPath, "utf8"));
-  const nextSnapshot = await getLesson(root, next.name);
-  if (!nextSnapshot) throw new Error("No next lesson is available");
-  return nextSnapshot;
-}
-
-export function wantsNextLesson(answers: Record<string, string[]>): boolean {
-  return Object.values(answers).flat().some((value) =>
-    /^(?:move on|next|continue)$/iu.test(value.trim())
-    || /\b(?:move|go|continue|advance|start)\b[\s\S]*\bnext\b/iu.test(value)
-    || /\bfinish(?: it| this| up)?\b[\s\S]*\bmove\b/iu.test(value)
-  );
-}
-
-async function lessonThread(root: string, kataName: string, options: { forceNew?: boolean } = {}) {
-  const rc = readDojoRc(root);
-  const key = lessonKey(rc.currentDojo, kataName);
-  const state = readWebState(root);
-  const existing = state.threads[key];
-  const harness = lessonAgent(root);
-  const runtimeKey = lessonRuntimeKey(root, key, harness);
-  if (!options.forceNew && existing?.harness === harness) {
-    const catalog = readCatalog(root, rc.currentDojo);
-    const kata = findKataByIdOrName(resolveAllKatas(root, rc, catalog), kataName);
-    if (!kata) throw new Error(`Kata not found: ${kataName}`);
-    const sensei = readFileSync(kata.senseiPath, "utf8");
-    const instructions = lessonInstructions(root, rc.currentDojo, sensei);
-    const contractHash = lessonContractHash(instructions);
-    await acpClient.resumeThread(existing.sessionId, {
-      root,
-      runtimeKey,
-      harness,
-      developerInstructions: instructions,
-      lessonContext: async () => {
-        const current = await getLesson(root, kataName);
-        if (!current) throw new Error(`Lesson not found: ${kataName}`);
-        return dojoLessonContext(current);
-      },
-      lessonFragment: (fragmentId) => lessonFragment(root, kataName, fragmentId),
-      learnerObservation: (input) => saveLearnerObservation(root, kataName, input),
-    });
-    // Native processes may apply their configured default when loading a session.
-    // Retain a model explicitly chosen for this lesson, using the native setter.
-    if (existing.model && acpClient.modelConfiguration(existing.sessionId)?.currentValue !== existing.model) {
-      await acpClient.setModel(existing.sessionId, existing.model);
-    }
-    if (existing.contractHash !== contractHash) {
-      state.threads[key] = { ...existing, contractHash };
-      writeWebState(root, state);
-    }
-    return { threadId: existing.sessionId, created: false };
-  }
-
-  const catalog = readCatalog(root, rc.currentDojo);
-  const kata = findKataByIdOrName(resolveAllKatas(root, rc, catalog), kataName);
-  if (!kata) throw new Error(`Kata not found: ${kataName}`);
-  const sensei = readFileSync(kata.senseiPath, "utf8");
-  const instructions = lessonInstructions(root, rc.currentDojo, sensei);
-  const threadId = await acpClient.startThread({
-    root,
-    runtimeKey,
-    harness,
-    developerInstructions: instructions,
-    lessonContext: async () => {
-      const current = await getLesson(root, kataName);
-      if (!current) throw new Error(`Lesson not found: ${kataName}`);
-      return dojoLessonContext(current);
-    },
-    lessonFragment: (fragmentId) => lessonFragment(root, kataName, fragmentId),
-    learnerObservation: (input) => saveLearnerObservation(root, kataName, input),
-  });
-  state.threads[key] = {
-    sessionId: threadId,
-    harness,
-    contractHash: lessonContractHash(instructions),
-    aliases: existing
-      ? [...new Set([...existing.aliases, existing.sessionId])]
-      : [],
-  };
-  writeWebState(root, state);
-  return { threadId, created: true };
-}
-
-async function lessonFragment(root: string, kataName: string, fragmentId: string): Promise<{ fragmentId: string }> {
-  const current = await getLesson(root, kataName);
-  if (!current) throw new Error(`Lesson not found: ${kataName}`);
-  return dojoLessonFragment(current, fragmentId);
-}
-
-export async function setLessonModel(
-  root: string,
-  kataName: string,
-  value: string,
-): Promise<SessionModelConfiguration> {
-  const { threadId } = await lessonThread(root, kataName);
-  const configured = await acpClient.setModel(threadId, value);
-  const state = readWebState(root);
-  const key = lessonKey(readDojoRc(root).currentDojo, kataName);
-  const thread = state.threads[key];
-  if (thread?.sessionId === threadId) {
-    state.threads[key] = { ...thread, model: configured.currentValue };
-    writeWebState(root, state);
-  }
-  return configured;
-}
-
-export async function startLessonSession(
-  root: string,
-  kataName: string,
-  courseId?: string,
-): Promise<LessonSnapshot> {
-  // ACP threads are keyed by the current course, so this path still refuses another one
-  if (courseId && readDojoRc(root).currentDojo !== courseId) throw new Error(`Course not found: ${courseId}`);
-  if (courseId) lessonTarget(root, courseId, kataName);
-  await lessonThread(root, kataName, { forceNew: true });
-  const lesson = await getLesson(root, kataName);
-  if (!lesson) throw new Error(`Lesson not found: ${kataName}`);
-  return lesson;
-}
-
-function lessonInstructions(root: string, dojo: string, sensei: string): string {
-  return senseiInstructions({ mode: readCatalog(root, dojo).mode ?? "katas", dojo: readDojoMd(root, dojo) ?? "", sensei });
 }
 
 function lessonTarget(root: string, courseId: string, lessonId: string) {
@@ -1018,28 +555,8 @@ function lessonKey(dojo: string, kata: string): string {
   return `${dojo}/${kata}`;
 }
 
-function lessonRuntimeKey(root: string, key: string, harness: HarnessKind): string {
-  return `${harness}\0${resolve(root)}\0${key}`;
-}
-
-function lessonContractHash(instructions: string): string {
-  return `sha256:${createHash("sha256").update(instructions).digest("hex")}`;
-}
-
 function webStatePath(root: string): string {
   return resolve(root, ".dojo", "web.json");
-}
-
-export async function saveLearnerObservation(root: string, lessonId: string, input: unknown): Promise<LearnerObservation> {
-  const snapshot = await getLesson(root, lessonId);
-  if (!snapshot) throw new Error("No lesson selected");
-  const state = readWebState(root);
-  const sources = Object.entries(state.learnerEvidence)
-    .filter(([key]) => key.startsWith(`${snapshot.dojo}/`)).flatMap(([, entries]) => entries);
-  const result = recordLearnerObservation(state.learnerObservations[snapshot.dojo] ?? [], input, sources);
-  state.learnerObservations[snapshot.dojo] = result.observations;
-  writeWebState(root, state);
-  return result.observation;
 }
 
 /** A kata observation from the host port (decision 12): its sources are Eve's evidence store, it is kept in web.json. */
@@ -1053,13 +570,11 @@ export function saveObservation(root: string, courseId: string, input: unknown, 
 
 function readWebState(root: string): WebState {
   const path = webStatePath(root);
-  if (!existsSync(path)) return { version: 4, threads: {}, results: {}, checkpoints: {}, observations: {}, learnerEvidence: {}, learnerObservations: {} };
+  if (!existsSync(path)) return { version: 4, results: {}, observations: {}, learnerObservations: {} };
+  // A file with the ACP lesson's threads, checkpoints and learnerEvidence reads fine; they are dropped on the next write
   const stored = JSON.parse(readFileSync(path, "utf8")) as {
-    threads?: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; model?: string; resumeFailed?: boolean }>;
     results?: Record<string, string | TestReport>;
-    checkpoints?: Record<string, { at: string; threadId?: string }>;
     observations?: WebState["observations"];
-    learnerEvidence?: WebState["learnerEvidence"];
     learnerObservations?: WebState["learnerObservations"];
   };
   const results = Object.fromEntries(
@@ -1070,43 +585,10 @@ function readWebState(root: string): WebState {
   );
   return {
     version: 4,
-    threads: normalizeLessonThreads(stored.threads),
     results,
-    checkpoints: stored.checkpoints ?? {},
     observations: stored.observations ?? {},
-    learnerEvidence: stored.learnerEvidence ?? {},
     learnerObservations: stored.learnerObservations ?? {},
   };
-}
-
-function rememberLearnerEvidence(root: string, key: string, lessonId: string, sessionId: string, messages: UIMessage[]): WebState["learnerEvidence"] {
-  // Re-read after awaiting native history so recording it cannot overwrite
-  // test results or other state written while that history was loading.
-  const state = readWebState(root);
-  const previous = state.learnerEvidence[key] ?? [];
-  const retained = retainLearnerEvidence(previous, messages, lessonId, sessionId);
-  if (JSON.stringify(previous) !== JSON.stringify(retained)) {
-    state.learnerEvidence[key] = retained;
-    writeWebState(root, state);
-  }
-  return state.learnerEvidence;
-}
-
-export function normalizeLessonThreads(
-  threads: Record<string, string | { sessionId: string; harness?: HarnessKind; contractHash?: string; aliases?: string[]; model?: string; resumeFailed?: boolean }> = {},
-): WebState["threads"] {
-  // A bare string is a pointer no live lesson writes any more: it is dropped, not migrated
-  return Object.fromEntries(Object.entries(threads).flatMap(([key, thread]) => typeof thread === "string" ? [] : [[
-    key,
-    {
-      sessionId: thread.sessionId,
-      harness: thread.harness ?? "codex",
-      contractHash: thread.contractHash ?? "",
-      aliases: thread.aliases ?? [],
-      ...(thread.model ? { model: thread.model } : {}),
-      ...(thread.resumeFailed ? { resumeFailed: true } : {}),
-    },
-  ]]));
 }
 
 function normalizeStoredTestReport(report: TestReport | Record<string, unknown>): TestReport {

@@ -21,7 +21,6 @@ import { resolveWorkspaceId } from "./workspace";
 import { installStarter, starterCourseIds, uninstallCourse } from "./starters";
 import { courseInstallations, courseTitle, findInstalledCourse, type CourseInstallation } from "@dojofoo/config/course-installations";
 
-import { acpClient } from "../lesson/codex-client";
 import { getInteractiveLesson } from "../interactive/service";
 
 export type CoursePosition = { lessonId: string; lessonTitle: string; lessonIndex: number; totalLessons: number; completedLessons: number; complete: boolean; slide?: number; totalSlides?: number };
@@ -175,7 +174,6 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       let course;
       try { course = findInstalledCourse(c.req.param("courseId"), stateOptions()); }
       catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
-      acpClient.stopCourse(course.root, course.id);
       await (options.uninstallCourse ?? uninstallCourse)(course.root, course.id);
       const rc = readDojoRc(course.root);
       if (rc.progress) delete rc.progress[course.id];

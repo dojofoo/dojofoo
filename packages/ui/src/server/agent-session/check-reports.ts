@@ -12,7 +12,7 @@ import { dropHeld, notifyReport } from "./report-state";
 
 export { dropHeld } from "./report-state";
 
-/** `[dojo:check] Ran lesson checks.`, a blank line, and the JSON the ACP context resource carried (`service.ts` streamCheckObservation). */
+/** `[dojo:check] Ran lesson checks.`, a blank line, and the check's JSON: its instruction, attempt, code change, diff and report. */
 export function reportText(observation: CheckObservation): string {
   return `${tagged(dojoTags.check, senseiTurn("checks-ran"))}\n\n${JSON.stringify({
     instruction: checkObservationInstruction(observation), attempt: observation.attempt, codeChanged: observation.codeChanged,

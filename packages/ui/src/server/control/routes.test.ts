@@ -11,7 +11,6 @@ import {
   observeWorkspacePath,
   recordDojoLifecycle,
 } from "@dojofoo/config/local-state";
-import { acpClient } from "../lesson/codex-client";
 import { advanceInteractiveLesson } from "../interactive/service";
 import { buildControlRoutes } from "./routes";
 import * as scaffold from "@dojofoo/authoring/scaffold";
@@ -50,23 +49,20 @@ function fixture() {
 }
 
 describe("local control-plane API", () => {
-  it("stops and removes a study's installation, progress and runs without deleting its workspace", async () => {
+  it("removes a study's installation, progress and runs without deleting its workspace", async () => {
     const { root, stateHome } = fixture();
     const workspaceId = observeWorkspacePath(root, { stateHome });
-    const stop = vi.spyOn(acpClient, "stopCourse").mockImplementation(() => {});
     const uninstall = vi.fn(async () => { rmSync(resolve(root, ".dojos/starter"), { recursive: true }); });
     const app = buildControlRoutes({ stateHome, uninstallCourse: uninstall });
     await app.request("/courses");
     expect((await app.request("/courses/starter", { method: "DELETE", headers: { Origin: "https://foreign.invalid" } })).status).toBe(403);
     expect(uninstall).not.toHaveBeenCalled();
     expect((await app.request("/courses/starter", { method: "DELETE" })).status).toBe(204);
-    expect(stop).toHaveBeenCalledWith(root, "starter");
     expect(uninstall).toHaveBeenCalledWith(root, "starter");
     expect(listWorkspaces({ stateHome }).some(workspace => workspace.id === workspaceId)).toBe(true);
     expect(listDojoRuns({ stateHome })).toEqual([]);
     expect(JSON.parse(readFileSync(resolve(root, ".dojorc"), "utf8")).progress.starter).toBeUndefined();
     expect(await (await app.request("/courses")).json()).toEqual([]);
-    stop.mockRestore();
   });
 
   it("an evaluation trial of an installed course does not make the dashboard refuse", async () => {
