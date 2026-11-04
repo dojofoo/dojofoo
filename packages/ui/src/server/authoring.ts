@@ -1,4 +1,4 @@
-import { createAuthoringRoutes } from "@dojofoo/authoring/server";
+import { createAuthoringRoutes } from "./authoring/routes";
 import { resolveRequestWorkspace } from "./control/workspace";
 import { getTypeScriptHover } from "./lesson/typescript-language-service";
 import { senseiEvaluationPolicy } from "@dojofoo/authoring/sensei/instructions";

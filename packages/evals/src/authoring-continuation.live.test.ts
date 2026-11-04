@@ -7,7 +7,7 @@ import { HarnessAgent, createLocalHarnessSandbox, agentAdapter } from "@dojofoo/
 import { readLessonMaterial, readMaterial } from "@dojofoo/authoring/evaluation/material";
 import { kyoshiInstructions } from "@dojofoo/authoring/eve/instructions";
 import { isAgentId } from "@dojofoo/protocol";
-import { prepareKyoshiCommand, prepareKyoshiHarness } from "../../authoring/src/eve/prepare";
+import { prepareKyoshiCommand, prepareKyoshiHarness } from "@dojofoo/authoring/eve/prepare";
 import { preservesAcceptedMaterial, restoreMaterial } from "./accepted-material";
 
 // Replay a real accepted snapshot, without repeating its paid Sensei trial.

@@ -113,6 +113,12 @@
       "import": "./dist/eve/install.js",
       "default": "./dist/eve/install.js"
     },
+    "./eve/prepare": {
+      "types": "./src/eve/prepare.ts",
+      "development": "./src/eve/prepare.ts",
+      "import": "./dist/eve/prepare.js",
+      "default": "./dist/eve/prepare.js"
+    },
     "./eve/artifact": {
       "types": "./src/eve/artifact.ts",
       "development": "./src/eve/artifact.ts",
@@ -206,12 +212,6 @@
       "import": "./dist/server/files.js",
       "default": "./dist/server/files.js"
     },
-    "./server": {
-      "types": "./src/server/routes.ts",
-      "development": "./src/server/routes.ts",
-      "import": "./dist/server/routes.js",
-      "default": "./dist/server/routes.js"
-    },
     "./service": {
       "types": "./src/server/service.ts",
       "development": "./src/server/service.ts",
@@ -249,7 +249,6 @@
     "@earendil-works/pi-ai": "1.4.0",
     "@earendil-works/pi-coding-agent": "1.4.0",
     "globby": "16.2.4",
-    "hono": "^4.13.14",
     "json-rpc-2.0": "1.8.1",
     "just-bash": "3.6.0",
     "smol-toml": "1.9.1",

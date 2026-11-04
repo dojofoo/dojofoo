@@ -5,7 +5,7 @@ import { courseArt } from "@/lib/course-color";
 import { CourseAuthoringSidebar } from "@dojofoo/uix/components/course-authoring-sidebar";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Eye, Code } from "@mynaui/icons-react";
-import type { AuthoringEvalReport } from "@dojofoo/authoring/server";
+import type { EvaluationReport as AuthoringEvalReport } from "@dojofoo/authoring/evaluation/run";
 import { httpError } from "@/lib/http-error";
 import type { AuthoringDraft } from "@dojofoo/authoring/service";
 import { createFileRoute } from "@tanstack/react-router";

@@ -364,9 +364,6 @@ importers:
       globby:
         specifier: 16.2.4
         version: 16.2.4
-      hono:
-        specifier: ^4.13.14
-        version: 4.13.14
       json-rpc-2.0:
         specifier: 1.8.1
         version: 1.8.1

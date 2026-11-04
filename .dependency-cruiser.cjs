@@ -8,7 +8,6 @@ const relativeExemptions = exempt(
   "packages/authoring/src/eve/pi-workspace.test.ts",             // loopback model: step 8
   "packages/authoring/src/eve/runtime-turn.test.ts",             // loopback model: step 8
   "packages/cli/test/starter-courses.test.ts",                   // permanent: checks starters with the UI's parser
-  "packages/evals/src/authoring-continuation.live.test.ts",      // eve/prepare: step 8
   "packages/uix/.storybook/language-api.ts",                     // permanent: Storybook dev server only
 );
 // The harness's entry points (agent-runtime.steps/step-8.md, "The harness's entry points"): the UI server, the CLI and the browser

@@ -12,12 +12,12 @@ import {
   updateAuthoringAppearance,
   renameAuthoringLesson,
   readAuthoringDraft,
-} from "./service";
-import { readAuthoringFile, saveAuthoringFile } from "./files";
-import { readEvaluationSettings, writeEvaluationSettings } from "../evaluation/settings.ts";
-import { materialHash, readLessonMaterial } from "../evaluation/material.ts";
-import type { EvaluationReceipt, EvaluationReport } from "../evaluation/run";
-import { decidePanel } from "../evaluation/panel";
+} from "@dojofoo/authoring/service";
+import { readAuthoringFile, saveAuthoringFile } from "@dojofoo/authoring/files";
+import { readEvaluationSettings, writeEvaluationSettings } from "@dojofoo/authoring/evaluation/settings";
+import { materialHash, readLessonMaterial } from "@dojofoo/authoring/evaluation/material";
+import type { EvaluationReceipt, EvaluationReport } from "@dojofoo/authoring/evaluation/run";
+import { decidePanel } from "@dojofoo/authoring/evaluation/panel";
 import type { EvaluationFailureCode } from "@dojofoo/protocol";
 import { readAgentModel, resolveAgent } from "@dojofoo/config/runtime";
 
