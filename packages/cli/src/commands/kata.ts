@@ -52,10 +52,10 @@ Flags:
   --open              Open kata in editor
   --note "text"       Record a learning observation`;
 
-function recordCompletion(rc: DojoRc, kataName: string): void {
+function recordCompletion(rc: DojoRc, courseId: string, kataName: string): void {
   rc.progress ??= {};
-  rc.progress[rc.currentDojo] ??= { completed: [], lastActive: null };
-  const progress = rc.progress[rc.currentDojo];
+  rc.progress[courseId] ??= { completed: [], lastActive: null };
+  const progress = rc.progress[courseId];
   if (!progress.completed.includes(kataName)) {
     progress.completed.push(kataName);
   }
@@ -280,7 +280,14 @@ export function startKata(root: string): void {
 
 function check(root: string, args: string[]): void {
   const jsonReporter = args.includes("--reporter=json");
-  const rc = readDojoRc(root);
+  const stored = readDojoRc(root);
+  // `--course <id>` checks a lesson of that course without changing the current one (the UI server's lesson pages, D30)
+  const courseFlag = args.indexOf("--course");
+  const courseId = courseFlag >= 0 ? args[courseFlag + 1] : undefined;
+  if (courseFlag >= 0 && (!courseId || courseId.startsWith("--"))) throw new Error(`Usage: ${CLI} kata <lesson> --check --course <id>`);
+  const rc: DojoRc = courseId
+    ? { ...stored, currentDojo: courseId, currentKata: stored.progress?.[courseId]?.lastActive ?? null }
+    : stored;
 
   if (!rc.currentDojo) {
     console.log(`No dojo active. Add one with:
@@ -293,7 +300,7 @@ function check(root: string, args: string[]): void {
   const dojoPath = dojoDir(root, rc.currentDojo);
   const progress = getProgress(rc);
 
-  const query = args.find((a) => !a.startsWith("--"));
+  const query = args.find((a, index) => !a.startsWith("--") && (courseFlag < 0 || index !== courseFlag + 1));
   const target = query
     ? findKataByIdOrName(katas, query)
     : findCurrentKata(katas, rc.currentKata);
@@ -329,10 +336,11 @@ function check(root: string, args: string[]): void {
 
   if (result.passed === result.total && result.total > 0) {
     // Record completion
-    recordCompletion(rc, target.name);
-    writeDojoRc(root, rc);
+    // The real rc, never the course view, so currentDojo stays as it was
+    recordCompletion(stored, rc.currentDojo, target.name);
+    writeDojoRc(root, stored);
     queueCourseEvent(root, catalog.name, "kata_completed", target.name);
-    if (completedCount(katas, getProgress(rc)) === katas.length) {
+    if (completedCount(katas, stored.progress?.[rc.currentDojo]) === katas.length) {
       queueCourseEvent(root, catalog.name, "finished", target.name);
     }
 

@@ -54,3 +54,16 @@ it("returns an explicit new-session failure as JSON without a fake empty convers
   expect(response.status).toBe(502);
   expect(await response.json()).toEqual({ error: "Provider unavailable" });
 });
+
+it("GET checks and files serve a course that is not current", async () => {
+  const read = vi.spyOn(service, "readLesson").mockResolvedValue({ dojo: "other-course", result: { passed: 1, total: 1 } } as service.LessonSnapshot);
+  const file = vi.spyOn(service, "readLessonFile").mockResolvedValue({ type: "lesson-files", id: "solution" } as service.LessonFileResource);
+  const prepared = vi.spyOn(service, "getLesson");
+  const checks = await lessonRoutes.request("/workspace/courses/other-course/lessons/first/checks");
+  expect(checks.status).toBe(200);
+  expect(await checks.json()).toEqual({ data: [{ type: "checks", id: "latest", attributes: { passed: 1, total: 1 } }] });
+  expect(read).toHaveBeenCalledWith("/course", "other-course", "first");
+  expect((await lessonRoutes.request("/workspace/courses/other-course/lessons/first/files/solution")).status).toBe(200);
+  expect(file).toHaveBeenCalledWith("/course", "other-course", "first", "solution");
+  expect(prepared).not.toHaveBeenCalled();
+});

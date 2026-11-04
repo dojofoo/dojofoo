@@ -4,10 +4,17 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readDojoRc } from "@dojofoo/config";
 import * as preparation from "@dojofoo/config/project-preparation";
-import { answerSenseiQuestion, checkLesson, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, saveLearnerObservation, shouldIntroduceLesson, setLessonModel, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile } from "./service";
+import { execFileSync } from "node:child_process";
+import { answerSenseiQuestion, checkLesson, dojoLessonContext, dojoLessonFragment, getLesson, nextLesson, readLesson, readLessonFile, saveLearnerObservation, shouldIntroduceLesson, setLessonModel, startLessonSession, streamLessonIntroduction, streamSensei, writeLessonFile, writeSolution } from "./service";
 import { writeAgent } from "@dojofoo/config/runtime";
 import { acpClient } from "./codex-client";
 import { readPrompt } from "@dojofoo/authoring/prompts";
+
+// The real CLI unless a test scripts its answer
+vi.mock("node:child_process", async importOriginal => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
+});
 
 const kataTeaching = readPrompt("sensei/contracts/KATAS.md");
 
@@ -509,5 +516,46 @@ describe("fresh lesson state", () => {
 
     expect(dojoLessonFragment(lesson!, "example")).toEqual({ fragmentId: "example" });
     expect(() => dojoLessonFragment(lesson!, "invented")).toThrow("Lesson fragment not found");
+  });
+
+  describe("a course that is not current", () => {
+    const notCurrent = () => {
+      const root = freshCourse();
+      writeFileSync(resolve(root, ".dojorc"), JSON.stringify({ currentDojo: "another-course", currentKata: "another-lesson", editor: "code", progress: {} }));
+      return root;
+    };
+
+    it("a lesson of a course that is not current is read, written and checked without changing currentDojo", async () => {
+      const root = notCurrent();
+      await expect(readLesson(root, "starter", "001-first")).resolves.toMatchObject({ dojo: "starter", kata: "001-first", sessionId: null, messages: [] });
+      await writeLessonFile(root, "starter", "001-first", "solution", "export const answer = 42;\n");
+      expect(readFileSync(resolve(root, "katas/001-first/solution.ts"), "utf8")).toBe("export const answer = 42;\n");
+      vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
+      vi.mocked(execFileSync).mockImplementationOnce((() => JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "answers", status: "passed" }], error: null })) as never);
+      const { lesson, observation } = await checkLesson(root, "starter", "001-first");
+      expect(vi.mocked(execFileSync).mock.calls.at(-1)?.[1]).toEqual(expect.arrayContaining(["kata", "001-first", "--check", "--course", "starter", "--reporter=json"]));
+      expect(observation.report.complete).toBe(true);
+      expect(lesson.result?.complete).toBe(true);
+      expect(readDojoRc(root)).toMatchObject({ currentDojo: "another-course", currentKata: "another-lesson" });
+    });
+
+    it("writing a non-current course's solution sets its lastActive but not currentKata", async () => {
+      const root = notCurrent();
+      await writeSolution(root, "starter", "002-second", "export const second = 2;\n");
+      expect(readDojoRc(root)).toMatchObject({ currentDojo: "another-course", currentKata: "another-lesson", progress: { starter: { lastActive: "002-second" } } });
+      expect(readFileSync(resolve(root, "katas/002-second/solution.ts"), "utf8")).toBe("export const second = 2;\n");
+    });
+
+    it("readLesson and readLessonFile never read web.json threads", async () => {
+      const root = freshCourse();
+      mkdirSync(resolve(root, ".dojo"), { recursive: true });
+      writeFileSync(resolve(root, ".dojo/web.json"), JSON.stringify({ version: 4, threads: { "starter/001-first": { sessionId: "missing-thread", harness: "opencode", contractHash: "", aliases: [] } }, results: {}, checkpoints: {} }));
+      const history = vi.spyOn(acpClient, "history").mockRejectedValue(new Error("No such ACP thread"));
+      const resume = vi.spyOn(acpClient, "resumeThread").mockRejectedValue(new Error("No such ACP thread"));
+      await expect(readLesson(root, "starter", "001-first")).resolves.toMatchObject({ sessionId: null, messages: [], harness: "opencode" });
+      await expect(readLessonFile(root, "starter", "001-first", "solution")).resolves.toMatchObject({ attributes: { content: "export const answer = 0;\n" } });
+      expect(history).not.toHaveBeenCalled();
+      expect(resume).not.toHaveBeenCalled();
+    });
   });
 });

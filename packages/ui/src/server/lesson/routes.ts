@@ -5,6 +5,7 @@ import {
   checkLesson,
   getLesson,
   nextLesson,
+  readLesson,
   readLessonFile,
   setLessonModel,
   startLessonSession,
@@ -36,6 +37,7 @@ function assertCourse(actual: string, requested: string): void {
 
 app.get("/:workspaceId/courses/:courseId/lessons/:lessonId", async (c) => {
   const { root, courseId, lessonId } = context(c);
+  // The ACP lesson page reads its thread id from both forms until it moves to Eve (decision 41)
   const lesson = await getLesson(root, lessonId, { prepareSession: c.req.query("prepare") !== "false", courseId });
   if (!lesson) return c.json({ error: "Lesson not found" }, 404);
   assertCourse(lesson.dojo, courseId);
@@ -78,7 +80,7 @@ app.put("/:workspaceId/courses/:courseId/lessons/:lessonId/configuration/model",
 
 app.get("/:workspaceId/courses/:courseId/lessons/:lessonId/checks", async (c) => {
   const { root, courseId, lessonId } = context(c);
-  const lesson = await getLesson(root, lessonId);
+  const lesson = await readLesson(root, courseId, lessonId);
   if (!lesson) return c.json({ error: "Lesson not found" }, 404);
   assertCourse(lesson.dojo, courseId);
   return c.json({
