@@ -4,46 +4,56 @@ import { dirname, join, resolve } from "node:path";
 import { authoringPackageRoot } from "./artifact.ts";
 
 const require = createRequire(import.meta.url);
-const manifest = {
-  name: "dojo-kyoshi-runtime",
+export type PreparedPersona = "kyoshi" | "sensei";
+const names: Record<PreparedPersona, string> = { kyoshi: "Kyoshi", sensei: "Sensei" };
+const manifest = (persona: PreparedPersona) => ({
+  name: `dojo-${persona}-runtime`,
   private: true,
   type: "module",
   dependencies: { "@dojofoo/agent": "*", "@dojofoo/authoring": "*" },
-};
+});
 
 /** Link immutable packaged output; each workspace retains its own runtime and durable state. */
-export async function prepareKyoshiOutput(app: string): Promise<void> {
-  const target = join(authoringPackageRoot, "dist/prepared/kyoshi");
+export async function preparePersonaOutput(app: string, persona: PreparedPersona): Promise<void> {
+  const target = join(authoringPackageRoot, "dist/prepared", persona);
   try { await access(join(target, "server/index.mjs")); }
-  catch (cause) { throw new Error("The shipped Kyoshi server is missing. Reinstall Dojofoo.", { cause }); }
+  catch (cause) { throw new Error(`The shipped ${names[persona]} server is missing. Reinstall Dojofoo.`, { cause }); }
   const output = join(app, ".output");
   let existing;
   try { existing = await lstat(output); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   if (existing) {
-    if (!existing.isSymbolicLink()) throw new Error("Refusing to replace existing Kyoshi output.");
+    if (!existing.isSymbolicLink()) throw new Error(`Refusing to replace existing ${names[persona]} output.`);
     if (resolve(dirname(output), await readlink(output)) === resolve(target)) return;
     await unlink(output);
   }
   await symlink(target, output, "dir");
 }
 
+export function prepareKyoshiOutput(app: string): Promise<void> {
+  return preparePersonaOutput(app, "kyoshi");
+}
+
+export function prepareKyoshiApp(courseRoot: string): Promise<string> {
+  return preparePersonaApp(courseRoot, "kyoshi");
+}
+
 /** Managed infrastructure only. Never modifies the course's package or lessons. */
-export async function prepareKyoshiApp(courseRoot: string): Promise<string> {
+export async function preparePersonaApp(courseRoot: string, persona: PreparedPersona): Promise<string> {
   const course = await realpath(courseRoot);
   if (course === dirname(course)) throw new Error("A course cannot be a filesystem root.");
-  const app = join(course, ".dojo", "kyoshi-app");
+  const app = join(course, ".dojo", `${persona}-app`);
   await mkdir(app, { recursive: true });
   // This entire directory is managed runtime state, including local credentials.
   await writeFile(join(app, ".gitignore"), "*\n");
   const packagePath = join(app, "package.json");
   try {
-    await writeFile(packagePath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: "wx" });
+    await writeFile(packagePath, `${JSON.stringify(manifest(persona), null, 2)}\n`, { flag: "wx" });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     const current = JSON.parse(await readFile(packagePath, "utf8"));
-    if (current.name !== manifest.name || current.private !== true) {
-      throw new Error(`Refusing to replace an unmanaged Kyoshi app: ${app}`);
+    if (current.name !== manifest(persona).name || current.private !== true) {
+      throw new Error(`Refusing to replace an unmanaged ${names[persona]} app: ${app}`);
     }
   }
   for (const name of ["@dojofoo/agent", "@dojofoo/authoring"]) {
@@ -53,7 +63,7 @@ export async function prepareKyoshiApp(courseRoot: string): Promise<string> {
     try { await symlink(target, link, "dir"); }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      if (!(await lstat(link)).isSymbolicLink()) throw new Error(`Refusing to replace a Kyoshi dependency that is not a link: ${link}`);
+      if (!(await lstat(link)).isSymbolicLink()) throw new Error(`Refusing to replace a ${names[persona]} dependency that is not a link: ${link}`);
       // Another dojofoo (an upgrade, another checkout) prepared this course: its links are ours to move
       if (await realpath(link).catch(() => "") !== await realpath(target)) {
         await unlink(link);
@@ -61,12 +71,17 @@ export async function prepareKyoshiApp(courseRoot: string): Promise<string> {
       }
     }
   }
-  const agent = join(app, "agents", "kyoshi");
+  const agent = join(app, "agents", persona);
   await mkdir(agent, { recursive: true });
   return agent;
 }
 
-export async function prepareKyoshiHarness(courseRoot: string): Promise<string> {
+export function prepareKyoshiHarness(courseRoot: string): Promise<string> {
+  return preparePersonaHarness(courseRoot);
+}
+
+/** Kyoshi's harness root: `.dojo/kyoshi-harness` with a `course` link. Sensei's lives outside the workspace (sensei/runtime.ts). */
+export async function preparePersonaHarness(courseRoot: string): Promise<string> {
   const course = await realpath(courseRoot);
   if (course === dirname(course)) throw new Error("A course cannot be a filesystem root.");
   const root = join(course, ".dojo", "kyoshi-harness");

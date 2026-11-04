@@ -1,13 +1,19 @@
-import { readFile, realpath, writeFile } from "node:fs/promises";
-import { randomBytes } from "node:crypto";
+import { readFile, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { agentAdapter } from "@dojofoo/agent/adapters";
 import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiOutput } from "./prepare.ts";
 import { evaluationConfiguration } from "../evaluation/host.ts";
 import { resolveAgent } from "@dojofoo/config/runtime";
+import { localStateDirectory, workspaceIdFor } from "@dojofoo/config/local-state";
 import type { AgentId } from "@dojofoo/protocol";
 import { configuredHarnessModel } from "./models.ts";
+
+/** Which host a composition root asks for: the workspace it serves and where its host port listens. */
+export interface PersonaRuntimeTarget {
+  workspaceId?: string;
+  hostPortUrl?: string;
+}
 
 // Native Node module lifetime, not Vite's reloadable route-module lifetime.
 // These are owned process resources. Eve remains the only session/history owner.
@@ -21,6 +27,13 @@ export async function closeKyoshiRuntimes(): Promise<void> {
   if (failures.length) throw new AggregateError(failures, "Failed to close authoring runtimes.");
 }
 
+/** Every persona host this process owns (the Nitro close hook). */
+export async function closePersonaRuntimes(): Promise<void> {
+  const results = await Promise.allSettled([closeKyoshiRuntimes()]);
+  const failures = results.flatMap(result => result.status === "rejected" ? [result.reason] : []);
+  if (failures.length) throw new AggregateError(failures, "Failed to close persona runtimes.");
+}
+
 /** Close only this course's owned runtime before its files are removed. */
 export async function closeKyoshiRuntime(courseRoot: string): Promise<void> {
   const root = await realpath(courseRoot);
@@ -28,11 +41,11 @@ export async function closeKyoshiRuntime(courseRoot: string): Promise<void> {
   if (owner) await (await owner).close();
 }
 
-export async function acquireKyoshiRuntime(courseRoot: string) {
+export async function acquireKyoshiRuntime(courseRoot: string, target: PersonaRuntimeTarget = {}) {
   const root = await realpath(courseRoot);
   let runtime = runtimes.get(root);
   if (!runtime) {
-    runtime = createKyoshiRuntime(root).then(server => ({
+    runtime = createKyoshiRuntime(root, target).then(server => ({
       start: server.start,
       async close() {
         try { await server.close(); }
@@ -51,10 +64,10 @@ export async function acquireKyoshiRuntime(courseRoot: string) {
 
 /** Owns infrastructure, never the course files or the harness credentials. An explicit agent is for the
  * conformance host driver only (scripts/conformance-host.mjs); every other caller uses the workspace's selection. */
-export async function createKyoshiRuntime(courseRoot: string, options: { model?: string; agent?: AgentId } = {}) {
+export async function createKyoshiRuntime(courseRoot: string, options: { model?: string; agent?: AgentId } & PersonaRuntimeTarget = {}) {
   const harness = options.agent ?? resolveAgent(courseRoot);
   // An unsupported agent fails here, before anything is prepared
-  await agentAdapter(harness);
+  await agentAdapter(harness, { mode: "full" });
   const app = await prepareKyoshiApp(courseRoot);
   const harnessRoot = await prepareKyoshiHarness(courseRoot);
   const runtimePath = join(app, "runtime.json");
@@ -69,64 +82,33 @@ export async function createKyoshiRuntime(courseRoot: string, options: { model?:
   }
   const selectedModel = model;
   model ??= await configuredHarnessModel(harness);
+  const workspaceId = options.workspaceId ?? workspaceIdFor(courseRoot);
   // Keep Node workers and the coordinator in the same installed package scope.
   const load = createRequire(import.meta.url);
-  const { startProductionServer } = await import(load.resolve("@dojofoo/agent/server/production")) as typeof import("@dojofoo/agent/server/production");
-  const { Client } = await import(load.resolve("@dojofoo/agent/client")) as typeof import("@dojofoo/agent/client");
-  const auth = { basic: { username: "dojo-host", password: randomBytes(32).toString("hex") } };
-  let production: Awaited<ReturnType<typeof startProductionServer>> | undefined;
-  const server = {
-      async start() {
-        await prepareKyoshiOutput(app);
-        production = await startProductionServer(app, { host: "127.0.0.1", port: 0 });
-        return production;
-      },
-      async close() { await production?.close(); },
-    };
-  let starting: Promise<{ url: string; auth: typeof auth; exited: Promise<void> }> | undefined;
-  let closing: Promise<void> | undefined;
-  const cleanup = async () => {
-    await server.close();
-  };
-  return {
-    start() {
-      if (closing) return Promise.reject(new Error("Kyoshi runtime is closed."));
-      return starting ??= (async () => {
-        const commandPath = process.env.DOJO_CLI ? await prepareKyoshiCommand(harnessRoot, process.env.DOJO_CLI) : undefined;
-        try {
-          await writeFile(runtimePath, JSON.stringify({
-            courseRoot,
-            auth: auth?.basic,
-            harnessRoot,
-            model,
-            modelSource: selectedModel === undefined && model !== undefined ? "native" : undefined,
-            harness,
-            // A half-configured evaluator must not stop Kyoshi from starting;
-            // the evaluation tool then reports "not configured" instead.
-            evaluation: (() => { try { return evaluationConfiguration(); } catch { return undefined; } })(),
-            commandPath,
-          }), { mode: 0o600 });
-          const started = await server.start();
-          // A bound port is not proof that Eve can load the authored agent.
-          // This endpoint resolves the active compiled generation without a model turn.
-          await new Client({ baseUrl: started.url, auth }).info({
-            signal: AbortSignal.timeout(10_000),
-          });
-          // A server that exits on its own leaves this runtime to start a new one
-          const exited = started.wait().finally(() => { if (!closing) starting = undefined; });
-          exited.catch(() => {});
-          return { url: started.url, auth, exited };
-        } catch (error) {
-          await cleanup();
-          throw error;
-        }
-      })();
+  const { createPersonaHost } = await import(load.resolve("@dojofoo/agent/persona-host")) as typeof import("@dojofoo/agent/persona-host");
+  const { lifecycleHookSlug } = await import(load.resolve("@dojofoo/agent/lifecycle")) as typeof import("@dojofoo/agent/lifecycle");
+  return createPersonaHost({
+    appDir: app,
+    processRecord: join(localStateDirectory(), "processes", `${workspaceId}.kyoshi.jsonl`),
+    async runtimeConfig({ secret, processRecord }) {
+      await prepareKyoshiOutput(app);
+      const commandPath = process.env.DOJO_CLI ? await prepareKyoshiCommand(harnessRoot, process.env.DOJO_CLI) : undefined;
+      return {
+        courseRoot,
+        harnessRoot,
+        model,
+        modelSource: selectedModel === undefined && model !== undefined ? "native" : undefined,
+        harness,
+        // A half-configured evaluator must not stop Kyoshi from starting;
+        // the evaluation tool then reports "not configured" instead.
+        evaluation: (() => { try { return evaluationConfiguration(); } catch { return undefined; } })(),
+        commandPath,
+        processRecord,
+        ...(options.hostPortUrl ? { hostPort: { url: options.hostPortUrl, workspaceId, persona: "kyoshi", secret } } : {}),
+      };
     },
-    close() {
-      return closing ??= (async () => {
-        await starting?.catch(() => {});
-        await cleanup();
-      })();
+    verify(info) {
+      if (!info.hooks.some(hook => hook.slug === lifecycleHookSlug)) throw new Error("The prepared Kyoshi build lacks dojofoo's lifecycle hook. Reinstall Dojofoo.");
     },
-  };
+  });
 }

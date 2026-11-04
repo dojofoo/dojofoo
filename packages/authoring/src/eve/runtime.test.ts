@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -158,3 +158,74 @@ it("owns a real packaged Eve server and releases it without launching a model", 
     await rm(root, { recursive: true, force: true });
   }
 }, 60_000);
+
+it("a new secret on every start, and runtime.json stays 0600", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-secret-"));
+  vi.stubEnv("DOJOFOO_HOME", join(root, "home"));
+  const runtimePath = join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json");
+  try {
+    const secrets: string[] = [];
+    for (let start = 0; start < 2; start++) {
+      const runtime = await createKyoshiRuntime(root, { workspaceId: "workspace-1", hostPortUrl: "http://127.0.0.1:9/api/host-port" });
+      try {
+        const ready = await runtime.start();
+        const saved = JSON.parse(await readFile(runtimePath, "utf8"));
+        expect(saved.auth.password).toBe(ready.secret);
+        expect(saved.hostPort).toEqual({ url: "http://127.0.0.1:9/api/host-port", workspaceId: "workspace-1", persona: "kyoshi", secret: ready.secret });
+        expect(saved.processRecord).toBe(join(root, "home/state/processes/workspace-1.kyoshi.jsonl"));
+        expect((await stat(runtimePath)).mode & 0o777).toBe(0o600);
+        secrets.push(ready.secret);
+      } finally { await runtime.close(); }
+    }
+    expect(secrets[0]).not.toBe(secrets[1]);
+  } finally {
+    vi.unstubAllEnvs();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+it("the prepared host lists dojofoo's lifecycle hook", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-hook-"));
+  vi.stubEnv("DOJOFOO_HOME", join(root, "home"));
+  const runtime = await createKyoshiRuntime(root);
+  try {
+    const ready = await runtime.start();
+    const info = await new Client({ baseUrl: ready.url, auth: ready.auth }).info();
+    expect(info.hooks.map(hook => hook.slug)).toContain("dojofoo-lifecycle");
+  } finally {
+    await runtime.close();
+    vi.unstubAllEnvs();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30_000);
+
+it("an ended session stays readable after a host restart (retention \"default\", open risk 11)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dojo-kyoshi-retention-"));
+  vi.stubEnv("DOJOFOO_HOME", join(root, "home"));
+  vi.stubEnv("EVE_MOCK_AUTHORED_MODELS", "1");
+  try {
+    const first = await createKyoshiRuntime(root);
+    let sessionId: string;
+    try {
+      const ready = await first.start();
+      // A bodyless create has no stream to end yet, so the session starts with a turn on Eve's mock model (EVE_MOCK_AUTHORED_MODELS)
+      const { session, delivery } = await new Client({ baseUrl: ready.url, auth: ready.auth }).sessions.create({ message: "Hello.", signal: AbortSignal.timeout(20_000) });
+      sessionId = session.id;
+      await delivery.result({ signal: AbortSignal.timeout(30_000) });
+      // The end closes the stream, so its delivery never settles there (Eve docs, "Delivery"); wait for session.ended instead
+      await session.end({ signal: AbortSignal.timeout(20_000) });
+      for (const deadline = Date.now() + 20_000; Date.now() < deadline; await new Promise(resolve => setTimeout(resolve, 100))) {
+        if ((await session.snapshot({ signal: AbortSignal.timeout(5_000) })).events.some(event => event.type === "session.ended")) break;
+      }
+    } finally { await first.close(); }
+    const second = await createKyoshiRuntime(root);
+    try {
+      const ready = await second.start();
+      const snapshot = await new Client({ baseUrl: ready.url, auth: ready.auth }).sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(20_000) });
+      expect(snapshot.events.map(event => event.type)).toContain("session.ended");
+    } finally { await second.close(); }
+  } finally {
+    vi.unstubAllEnvs();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 90_000);
