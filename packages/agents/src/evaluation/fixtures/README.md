@@ -11,7 +11,7 @@ Review the proposed references before treating this as a golden dataset. Labels
 apply only to the listed criteria; an excerpt cannot pass a whole lesson.
 The judge receives context and dialogue, never the expected labels or notes.
 
-From `packages/authoring`, validate the data without model usage:
+From `packages/agents`, validate the data without model usage:
 
 ```sh
 pnpm exec vitest run src/evaluation/teaching-moments.test.ts

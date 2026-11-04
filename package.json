@@ -18,7 +18,8 @@
     "changeset": "changeset",
     "version": "changeset version",
     "release": "pnpm build && changeset publish",
-    "lint:deps": "depcruise --config .dependency-cruiser.cjs packages"
+    "lint:deps": "depcruise --config .dependency-cruiser.cjs packages",
+    "lint:names": "git grep -n -P '@dojofoo/(agent(?![s-])|agent-api|authoring)\\b|packages/(agent|agent-api|authoring)\\b' -- . ':!.changeset/' ':!**/CHANGELOG.md' ':!docs/architecture/' ':!docs/designs/' ':!docs/research/' ':!.prd/'; test $? -eq 1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
