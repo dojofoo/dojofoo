@@ -29,18 +29,6 @@
       "import": "./dist/evaluation/material.js",
       "default": "./dist/evaluation/material.js"
     },
-    "./evaluation/sensei": {
-      "types": "./src/evaluation/sensei.ts",
-      "development": "./src/evaluation/sensei.ts",
-      "import": "./dist/evaluation/sensei.js",
-      "default": "./dist/evaluation/sensei.js"
-    },
-    "./evaluation/host": {
-      "types": "./src/evaluation/host.ts",
-      "development": "./src/evaluation/host.ts",
-      "import": "./dist/evaluation/host.js",
-      "default": "./dist/evaluation/host.js"
-    },
     "./evaluation/settings": {
       "types": "./src/evaluation/settings.ts",
       "development": "./src/evaluation/settings.ts",
@@ -58,12 +46,6 @@
       "development": "./src/evaluation/learner.ts",
       "import": "./dist/evaluation/learner.js",
       "default": "./dist/evaluation/learner.js"
-    },
-    "./evaluation/learner-response": {
-      "types": "./src/evaluation/learner-response.ts",
-      "development": "./src/evaluation/learner-response.ts",
-      "import": "./dist/evaluation/learner-response.js",
-      "default": "./dist/evaluation/learner-response.js"
     },
     "./evaluation/judges": {
       "types": "./src/evaluation/judges.ts",

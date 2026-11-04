@@ -7,7 +7,6 @@ const relativeExemptions = exempt(
   "packages/authoring/src/eve/conformance.fixture.ts",           // loopback model: step 8
   "packages/authoring/src/eve/pi-workspace.test.ts",             // loopback model: step 8
   "packages/authoring/src/eve/runtime-turn.test.ts",             // loopback model: step 8
-  "packages/cli/src/teaching-eval.ts",                           // step 7 deletes the file
   "packages/cli/test/learner-notes.integration.test.ts",         // run coordinator and lesson MCP: step 7
   "packages/cli/test/starter-courses.test.ts",                   // permanent: checks starters with the UI's parser
   "packages/evals/src/authoring-continuation.live.test.ts",      // eve/prepare: step 8

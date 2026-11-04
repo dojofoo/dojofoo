@@ -8,17 +8,6 @@ export class TeachingFailure extends Error {
   }
 }
 
-/** The draft's coding agent can't run course evaluations yet (they still teach on ACP until step 7); no attempt is spent. */
-export class UnsupportedAgentError extends Error {
-  readonly code = "agent_unsupported";
-  readonly agent: string;
-  constructor(agent: string, message: string) {
-    super(message);
-    this.name = "UnsupportedAgentError";
-    this.agent = agent;
-  }
-}
-
 /** The UI server will not run this evaluation; `code` survives the host-port hop to Kyoshi's tool. No attempt is spent. */
 export class EvaluationRefused extends Error {
   readonly code: EvaluationFailureCode;

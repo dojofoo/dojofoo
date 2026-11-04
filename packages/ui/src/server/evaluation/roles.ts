@@ -6,7 +6,7 @@ import type { OneShotRequest } from "@dojofoo/agent/one-shot";
 import { judgePanel } from "@dojofoo/authoring/evaluation/judges";
 import { learnerPrompt, parseLearnerAnswers, type LearnerDialogue, type LearnerQuestion } from "@dojofoo/authoring/evaluation/learner";
 import { fixtureGeneratorInstructions } from "@dojofoo/authoring/evaluation/prompts";
-import type { LearnerFixture } from "@dojofoo/authoring/evaluation/learner-fixtures";
+import { fixturePrompt, parseGeneratedFixture, type LearnerFixture } from "@dojofoo/authoring/evaluation/learner-fixtures";
 import type { evaluateAuthoredCourse } from "@dojofoo/authoring/evaluation/run";
 import type { AgentId } from "@dojofoo/protocol";
 import { oneShotTimeLimitMs } from "./limits";
@@ -50,15 +50,13 @@ export function oneShotRoles(options: { agent: AgentId; model?: string; evidence
   let panels = 0;
   return {
     async fixtures(lessonIds, material, signal) {
-      // learner-fixtures still loads the harness adapters for generateLearnerFixtures
-      const fixtures = load("@dojofoo/authoring/evaluation/learner-fixtures") as typeof import("@dojofoo/authoring/evaluation/learner-fixtures");
       const generated: Record<string, LearnerFixture> = {};
       for (const [index, lessonId] of lessonIds.entries()) {
-        const prompt = fixtures.fixturePrompt({ lessonId, completedBefore: lessonIds.slice(0, index), material });
+        const prompt = fixturePrompt({ lessonId, completedBefore: lessonIds.slice(0, index), material });
         await writeFile(join(evidenceRoot, `fixtures-${lessonId}-input.json`), JSON.stringify({ agent, model, instructions: fixtureGeneratorInstructions, prompt }, null, 2));
         const text = await call({ instructions: fixtureGeneratorInstructions, prompt, signal, timeoutMs: oneShotTimeLimitMs.fixtures });
         await writeFile(join(evidenceRoot, `fixtures-${lessonId}-response.txt`), text);
-        generated[lessonId] = fixtures.parseGeneratedFixture(text);
+        generated[lessonId] = parseGeneratedFixture(text);
       }
       await writeFile(join(evidenceRoot, "learner-fixtures.json"), JSON.stringify(generated, null, 2));
       return generated;
