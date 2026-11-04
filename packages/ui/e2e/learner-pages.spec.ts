@@ -62,6 +62,8 @@ for (const [courseId, title] of [["create-your-own-dojo", "Create your own dojo"
       if (request.method() !== "GET") writes.push(path);
       if (path === "/api/control/courses" || path === "/api/control/authoring" || path === "/api/control/starters") return route.fulfill({ json: [] });
       if (path === `/api/control/courses/${courseId}`) return installed ? route.fulfill({ json: course }) : route.fulfill({ status: 404, json: { error: "Course not installed" } });
+      // The installed run's page: an id that is not a run would land on the dashboard (D33)
+      if (path === "/api/control/learning-sessions/starter-run") return installed ? route.fulfill({ json: course }) : route.fulfill({ status: 404, json: { error: "This learning session does not exist." } });
       if (path === `/api/control/starters/${courseId}/install`) {
         installs.push(request.postDataJSON());
         installed = true;
@@ -77,7 +79,7 @@ for (const [courseId, title] of [["create-your-own-dojo", "Create your own dojo"
     await expect(page.getByRole("button", { name: "Install course", exact: true })).toBeEnabled();
     expect(writes).toEqual([]);
     await page.getByRole("button", { name: "Install course", exact: true }).click();
-    await expect(page).toHaveURL(/\/session\/starter-run$/);
+    await expect(page).toHaveURL(/\/learn\/starter-run$/);
     expect(installs).toEqual([{}]);
     expect(writes).toEqual([`/api/control/starters/${courseId}/install`]);
   });
@@ -209,11 +211,11 @@ test("Explore installs a starter and retries after a failed installation", async
   await expect(page.getByRole("alert")).toContainText("Installation unavailable");
   expect(writes).toEqual([{}]);
   await install.click();
-  await expect(page).toHaveURL(/\/session\/beta-run$/);
+  await expect(page).toHaveURL(/\/learn\/beta-run$/);
   await expect(page.getByRole("heading", { name: "Choose an audience", exact: true })).toBeVisible();
   expect(writes).toEqual([{}, {}]);
   await page.goto("/explore");
   await page.getByRole("button", { name: "Continue Create your own dojo", exact: true }).click();
-  await expect(page).toHaveURL(/\/session\/beta-run$/);
+  await expect(page).toHaveURL(/\/learn\/beta-run$/);
   expect(writes).toHaveLength(2);
 });

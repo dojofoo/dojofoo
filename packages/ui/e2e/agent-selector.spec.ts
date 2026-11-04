@@ -96,7 +96,7 @@ test("a lesson opened after a switch runs on the new agent", async ({ page, moun
     return route.fulfill({ status: 404, json: { error: "Not in this spec" } });
   });
 
-  await page.goto("/session/learn-run");
+  await page.goto("/learn/learn-run");
   // The kata page's conversation is the fixture runtime's, on AgentChat
   const composer = page.getByTestId("authoring-chat-composer");
   const agent = composer.getByRole("button", { name: "Agent", exact: true });

@@ -69,7 +69,7 @@ for (const operation of ["save", "reset", "model"] as const) test(`a delayed ${o
   const { conversations } = await lessonPage(page, eve, mountAgentChat, held);
   first = conversations.first!;
   try {
-    await page.goto("/session/learn-run");
+    await page.goto("/learn/learn-run");
     const composer = page.getByTestId("authoring-chat-composer");
     await expect(page.getByText("Echo: Hello from first", { exact: true })).toBeVisible({ timeout: 15_000 });
     await composer.getByRole("textbox").fill("First lesson question");
@@ -114,7 +114,7 @@ for (const operation of ["save", "reset", "model"] as const) test(`a delayed ${o
 
 test("a reopened conversation sends no automatic turn", async ({ page, mountAgentChat, eve }) => {
   const { sent } = await lessonPage(page, eve, mountAgentChat);
-  await page.goto("/session/learn-run");
+  await page.goto("/learn/learn-run");
   const composer = page.getByTestId("authoring-chat-composer");
   await expect(page.getByText("Echo: Hello from first", { exact: true })).toBeVisible({ timeout: 15_000 });
   await composer.getByRole("textbox").fill("Pick up where we left off");
@@ -147,7 +147,7 @@ for (const operation of ["save", "reset"] as const) test(`a delayed file-${opera
   const { conversations } = await lessonPage(page, eve, mountAgentChat, held);
   first = conversations.first!;
   try {
-    await page.goto("/session/learn-run");
+    await page.goto("/learn/learn-run");
     await expect(page.getByText("Echo: Hello from first", { exact: true })).toBeVisible({ timeout: 15_000 });
     const editor = page.getByRole("textbox", { name: "Code editor", exact: true });
     await editor.press("ControlOrMeta+End");

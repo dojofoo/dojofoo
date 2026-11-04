@@ -123,7 +123,7 @@ try {
   const opencodeProcesses = () => execFileSync("ps", ["-axww", "-o", "pid=,command="], { encoding: "utf8" }).split("\n")
     .filter(line => line.includes(".harness-bootstrap/opencode")).map(line => Number(line.trim().split(/\s+/u)[0]));
   const foreignOpencode = new Set(opencodeProcesses());
-  const route = `${origin}/session/${courses[0].runId}`;
+  const route = `${origin}/learn/${courses[0].runId}`;
   const chatPane = () => page.getByTestId("authoring-chat-pane");
   const composer = () => page.getByTestId("authoring-chat-composer").getByRole("textbox");
   const send = async text => {

@@ -18,6 +18,7 @@ import { Route as InteractiveRouteImport } from './routes/interactive'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as CourseCourseIdRouteImport } from './routes/course.$courseId'
 import { Route as KataNameRouteImport } from './routes/kata.$name'
+import { Route as LearnRunIdRouteImport } from './routes/learn.$runId'
 import { Route as SessionSessionIdRouteImport } from './routes/session.$sessionId'
 import { Route as StarterCourseIdRouteImport } from './routes/starter.$courseId'
 
@@ -66,6 +67,11 @@ const KataNameRoute = KataNameRouteImport.update({
   path: '/kata/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnRunIdRoute = LearnRunIdRouteImport.update({
+  id: '/learn/$runId',
+  path: '/learn/$runId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SessionSessionIdRoute = SessionSessionIdRouteImport.update({
   id: '/session/$sessionId',
   path: '/session/$sessionId',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
+  '/learn/$runId': typeof LearnRunIdRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
+  '/learn/$runId': typeof LearnRunIdRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
+  '/learn/$runId': typeof LearnRunIdRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/course/$courseId'
     | '/kata/$name'
+    | '/learn/$runId'
     | '/session/$sessionId'
     | '/starter/$courseId'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/course/$courseId'
     | '/kata/$name'
+    | '/learn/$runId'
     | '/session/$sessionId'
     | '/starter/$courseId'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/course/$courseId'
     | '/kata/$name'
+    | '/learn/$runId'
     | '/session/$sessionId'
     | '/starter/$courseId'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   CourseCourseIdRoute: typeof CourseCourseIdRoute
   KataNameRoute: typeof KataNameRoute
+  LearnRunIdRoute: typeof LearnRunIdRoute
   SessionSessionIdRoute: typeof SessionSessionIdRoute
   StarterCourseIdRoute: typeof StarterCourseIdRoute
 }
@@ -238,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KataNameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn/$runId': {
+      id: '/learn/$runId'
+      path: '/learn/$runId'
+      fullPath: '/learn/$runId'
+      preLoaderRoute: typeof LearnRunIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/session/$sessionId': {
       id: '/session/$sessionId'
       path: '/session/$sessionId'
@@ -265,6 +285,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   CourseCourseIdRoute: CourseCourseIdRoute,
   KataNameRoute: KataNameRoute,
+  LearnRunIdRoute: LearnRunIdRoute,
   SessionSessionIdRoute: SessionSessionIdRoute,
   StarterCourseIdRoute: StarterCourseIdRoute,
 }

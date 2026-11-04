@@ -19,8 +19,8 @@ background requests create or refresh agent conversations; persist those in the
 local store. `replace` is reserved for deliberate redirects.
 
 Local `/course/<course-id>` shows Details for an uninstalled course and redirects
-to its durable `/session/<run-id>` once installed. The session resumes the saved
-lesson and slide; Courses cards expose that position and measured progress.
+to its durable `/learn/<run-id>` once installed (`/learn/<run-id>?lesson=<lesson-id>` for a kata
+lesson). The run resumes the saved lesson and slide; Courses cards expose that position and measured progress.
 Explore features only uninstalled courses; installed results offer Continue.
 Native conversation IDs remain server state.
 The website's `/courses/<source>/<slug>` is its public course page. The dashboard sidebar contains global navigation. The course sidebar contains
@@ -28,7 +28,7 @@ course sections only, matching UIX `CourseWorkspace` in `pages/learner.tsx`; its
 Dashboard breadcrumb returns to the library. Lesson/material controls change
 state within the current run.
 
-The session route loads its course and initial lesson through TanStack before
+The learn route loads its course and initial lesson through TanStack before
 committing navigation, so the transition captures the populated course sidebar
 and workspace. Native agent startup remains separate and asynchronous.
 

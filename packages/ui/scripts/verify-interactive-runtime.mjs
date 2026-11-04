@@ -118,7 +118,7 @@ try {
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
-  const route = `${origin}/session/${courses.find(course => course.dojo === "first").runId}`;
+  const route = `${origin}/learn/${courses.find(course => course.dojo === "first").runId}`;
   const opencodeProcesses = () => execFileSync("ps", ["-axww", "-o", "pid=,command="], { encoding: "utf8" }).split("\n")
     .filter(line => line.includes(".harness-bootstrap/opencode")).map(line => Number(line.trim().split(/\s+/u)[0]));
   const foreignOpencode = new Set(opencodeProcesses());
@@ -252,7 +252,7 @@ try {
   // 11. The second course opens its own session with its own begin turn; the first reopens its own
   await page.setViewportSize({ width: 1440, height: 1000 });
   count = endpoint.requests.length;
-  await page.goto(`${origin}/session/${courses.find(course => course.dojo === "second").runId}`);
+  await page.goto(`${origin}/learn/${courses.find(course => course.dojo === "second").runId}`);
   await expect(material).toContainText("Material from second");
   await expect.poll(async () => (await records()).filter(record => record.courseId === "second").length, { timeout: 60_000 }).toBe(1);
   const second = (await records()).find(record => record.courseId === "second");

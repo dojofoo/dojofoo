@@ -132,7 +132,7 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
     if (sortBy === "name") return left.title.localeCompare(right.title);
     return sortBy === "oldest" ? left.lastSeenAt - right.lastSeenAt : right.lastSeenAt - left.lastSeenAt;
   });
-  const openCourse = (courseId: string) => { const course = courses.find(item => item.dojo === courseId); if (course?.runId) void navigate({ to: "/session/$sessionId", params: { sessionId: course.runId } }); };
+  const openCourse = (courseId: string) => { const course = courses.find(item => item.dojo === courseId); if (course?.runId) void navigate({ to: "/learn/$runId", params: { runId: course.runId } }); };
 
   async function createCourse() {
     if (creatingCourse) return;
@@ -175,7 +175,7 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
               options={[{ value: "recent", label: "Most recent" }, { value: "oldest", label: "Oldest activity" }, { value: "name", label: "Course name" }]} />
           </>}
           courses={visibleCourses.map(course => ({ id: course.dojo, title: course.title, color: courseColor(courseArt(course.dojo, course.appearance)), mark: course.language,
-            href: `/session/${encodeURIComponent(course.runId!)}`, caption: course.position?.complete ? "Completed" : course.position ? course.position.lessonTitle : humanTitle(course.kata ?? "Not started"),
+            href: `/learn/${encodeURIComponent(course.runId!)}`, caption: course.position?.complete ? "Completed" : course.position ? course.position.lessonTitle : humanTitle(course.kata ?? "Not started"),
             detail: course.position ? `Lesson ${course.position.lessonIndex + 1} of ${course.position.totalLessons}${course.position.slide ? ` · Slide ${course.position.slide} of ${course.position.totalSlides}` : ""}` : course.description,
             progress: course.position ? Math.round(course.position.completedLessons / course.position.totalLessons * 100) : undefined,
             onOpen: () => openCourse(course.dojo), onDelete: () => { void deleteCourse(course.dojo); } }))}
@@ -210,7 +210,9 @@ export function LessonLoading({ account, toast, error }: Pick<ReturnType<typeof 
   );
 }
 
-export function LessonPage({ initialLesson, requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
+export function LessonPage({ runId, initialLesson, requestedCourseId, requestedLessonId, requestedSessionId, requestedWorkspaceId }: {
+  /** The course run the page's address names (`/learn/$runId`) */
+  runId: string;
   initialLesson?: LessonSnapshot;
   requestedCourseId?: string;
   requestedLessonId?: string;
@@ -432,11 +434,12 @@ export function LessonPage({ initialLesson, requestedCourseId, requestedLessonId
   async function viewLesson(name: string, courseId?: string) {
     const targetCourseId = courseId ?? lesson?.dojo ?? dojoId;
     if (!targetCourseId) return setError("Course not found");
+    // The page's own run for its course, which a second installation of the course id doesn't hide (decision 22); another course's from the list
+    const targetRunId = targetCourseId === (lesson?.dojo ?? dojoId) ? runId
+      : courses.find(course => course.dojo === targetCourseId && course.workspaceId === workspaceId)?.runId;
+    if (!targetRunId) return setError("Course not found");
     setActiveWorkspaceTab("code");
-    await navigate({
-      to: "/session/$sessionId", params: { sessionId: courses.find(course => course.dojo === targetCourseId && course.workspaceId === workspaceId)?.runId ?? "" },
-      state: { courseLesson: { courseId: targetCourseId, lessonId: name } },
-    });
+    await navigate({ to: "/learn/$runId", params: { runId: targetRunId }, search: { lesson: name } });
   }
 
   /** D25's fallback: once the checks pass, the learner can open the next lesson without Sensei's question */
@@ -641,7 +644,8 @@ export function LessonPage({ initialLesson, requestedCourseId, requestedLessonId
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     conversation={<div data-testid="chat-pane" className="contents" data-host-event-count={hostEvents.length}>
       <AgentChat key={`${workspaceId}:${lesson.dojo}:${lesson.kata}:${agentEpoch}`} embedded workspaceId={workspaceId} persona="sensei"
-        page={{ course: lesson.dojo, lesson: lesson.kata }} sessionId={session} hostEvents={hostEvents} fragments={lesson.fragments} onHighlight={highlightCode}
+        page={{ course: lesson.dojo, lesson: lesson.kata }} sessionId={session}
+        onSessionDropped={() => { void navigate({ to: "/learn/$runId", params: { runId }, search: { lesson: lesson.kata }, replace: true }); }} hostEvents={hostEvents} fragments={lesson.fragments} onHighlight={highlightCode}
         controls={chat} agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching} />
       {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}
       {workspaceAgent.notice}

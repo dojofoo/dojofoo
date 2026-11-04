@@ -241,7 +241,7 @@ test("learners see chapter headings only after a course has been split", async (
     if (path.startsWith("/api/workspaces/")) return route.fulfill({ json: snapshot() });
     return route.fulfill({ json: {} });
   });
-  await page.goto("/session/chapter-run");
+  await page.goto("/learn/chapter-run");
   await expect(page.getByRole("group", { name: "Lessons", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Default", exact: true })).toHaveCount(0);
   split = true;

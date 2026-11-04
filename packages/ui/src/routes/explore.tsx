@@ -30,7 +30,7 @@ function ExplorePage() {
   }, []);
   const open = (courseId: string) => {
     const course = installed?.find(item => item.dojo === courseId);
-    if (course) void navigate({ to: "/session/$sessionId", params: { sessionId: course.runId } });
+    if (course) void navigate({ to: "/learn/$runId", params: { runId: course.runId } });
     else void navigate({ to: "/course/$courseId", params: { courseId } });
   };
 

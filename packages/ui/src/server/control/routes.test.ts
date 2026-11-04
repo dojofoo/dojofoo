@@ -6,6 +6,7 @@ import {
   listSessions,
   listWorkspaces,
   listDojoRuns,
+  observeCourseRun,
   observeLocalContext,
   observeWorkspacePath,
   recordDojoLifecycle,
@@ -102,6 +103,21 @@ describe("local control-plane API", () => {
     expect(listSessions({ stateHome })).toEqual([]);
     rmSync(resolve(root, ".dojos/starter"), { recursive: true });
     expect((await app.request(`/learning-sessions/${first.runId}`)).status).toBe(404);
+  });
+  it("a learning session resolves its course in its own workspace when the course id is installed twice", async () => {
+    const first = fixture();
+    const second = fixture();
+    const stateHome = first.stateHome;
+    const firstId = observeWorkspacePath(first.root, { stateHome });
+    const secondId = observeWorkspacePath(second.root, { stateHome });
+    const app = buildControlRoutes({ stateHome });
+    expect((await app.request("/courses/starter")).status).toBe(404);
+    for (const [root, workspaceId] of [[first.root, firstId], [second.root, secondId]] as const) {
+      const { runId } = observeCourseRun(root, "starter", { stateHome });
+      const response = await app.request(`/learning-sessions/${runId}`);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ id: "starter", runId, workspaceId });
+    }
   });
   it("lists every installed course in a workspace after another course becomes active", async () => {
     const { root, stateHome } = fixture();

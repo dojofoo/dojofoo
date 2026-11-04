@@ -19,7 +19,7 @@ import { requestOrigin } from "../request-origin";
 import { launchToken } from "../launch-token";
 import { resolveWorkspaceId } from "./workspace";
 import { installStarter, starterCourseIds, uninstallCourse } from "./starters";
-import { courseTitle, findInstalledCourse } from "@dojofoo/config/course-installations";
+import { courseInstallations, courseTitle, findInstalledCourse, type CourseInstallation } from "@dojofoo/config/course-installations";
 
 import { acpClient } from "../lesson/codex-client";
 import { getInteractiveLesson } from "../interactive/service";
@@ -37,8 +37,8 @@ function courseLessonTitles(root: string, id: string): string[] {
   return manifest.katas.map(kata => (kata.name ?? kata.template).replace(/[-_]/g, " "));
 }
 
-function installedCourseDescriptor(courseId: string, options: LocalStateOptions) {
-  const course = findInstalledCourse(courseId, options);
+/** The course as one installation holds it: the only one (`findInstalledCourse`), or a run's own */
+function installedCourseDescriptor(course: CourseInstallation, options: LocalStateOptions) {
   const rc = readDojoRc(course.root);
   const metadata = courseMetadata(course.root, course.id, rc.currentDojo === course.id ? rc.currentKata : null, rc.progress?.[course.id]);
   return { id: course.id, title: course.title, workspaceId: course.workspaceId, runId: observeCourseRun(course.root, course.id, options).runId,
@@ -204,16 +204,17 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
     })
     .get("/courses/:courseId", c => {
       try {
-        return c.json(installedCourseDescriptor(c.req.param("courseId"), stateOptions()));
+        return c.json(installedCourseDescriptor(findInstalledCourse(c.req.param("courseId"), stateOptions()), stateOptions()));
       } catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
     })
     .get("/learning-sessions/:sessionId", c => {
       const run = listDojoRuns(stateOptions()).find(item => item.id === c.req.param("sessionId"));
       if (!run) return c.json({ error: "This learning session does not exist." }, 404);
       try {
-        const course = findInstalledCourse(run.dojo, stateOptions());
-        if (course.workspaceId !== run.workspaceId) throw new Error("This course installation has been removed.");
-        return c.json(installedCourseDescriptor(run.dojo, stateOptions()));
+        // The run's own installation: a trial installs its draft's course under the same id in another workspace (decision 5)
+        const course = courseInstallations(run.dojo, stateOptions()).find(item => item.workspaceId === run.workspaceId);
+        if (!course) throw new Error("This course installation has been removed.");
+        return c.json(installedCourseDescriptor(course, stateOptions()));
       } catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
     })
     .get("/workspaces", (c) => c.json(listWorkspaces(stateOptions())))

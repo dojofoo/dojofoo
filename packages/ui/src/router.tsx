@@ -17,10 +17,6 @@ export function getRouter() {
 }
 
 declare module "@tanstack/react-router" {
-  interface HistoryState {
-    courseLesson?: { courseId: string; lessonId: string };
-    lesson?: { workspaceId: string; courseId: string; lessonId: string; sessionId: string };
-  }
   interface Register {
     router: ReturnType<typeof getRouter>;
   }

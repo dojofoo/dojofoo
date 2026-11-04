@@ -136,7 +136,7 @@ test("the UIX library separates installed sessions from course previews and pres
     await expect(page.getByRole("group", { name: "Lessons", exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => (window as typeof window & { routeSnapshots: Array<{ menu: string; course: boolean }> }).routeSnapshots.some(snapshot => snapshot.course && snapshot.menu.includes("Find your place")))).toBe(true);
     const learning = await page.request.get(`${origin}/api/control/courses/how-to-run-a-dojo`).then(response => response.json());
-    const sessionUrl = `${origin}/session/${learning.runId}`;
+    const sessionUrl = `${origin}/learn/${learning.runId}`;
     await expect(page).toHaveURL(sessionUrl);
     await expect(page.getByRole("group", { name: "Lessons", exact: true })).toBeVisible();
     await expect(page.getByRole("group", { name: "Dashboard", exact: true })).toHaveCount(0);
@@ -243,7 +243,7 @@ test("the UIX library separates installed sessions from course previews and pres
     await page.getByRole("menuitemradio", { name: "Python", exact: true }).click();
     const python = courses.find(course => course.workspaceName === "beta")!;
     await expect(page.locator(".ui-card:not(.ui-card--add)")).toHaveCount(1);
-    await expect(page.locator("a.ui-card")).toHaveAttribute("href", `/session/${python.runId}`);
+    await expect(page.locator("a.ui-card")).toHaveAttribute("href", `/learn/${python.runId}`);
     await page.getByRole("button", { name: /^Language:/ }).click();
     await page.getByRole("menuitemradio", { name: "All languages", exact: true }).click();
     await page.getByRole("button", { name: /^Search$/, exact: true }).click();
@@ -253,7 +253,7 @@ test("the UIX library separates installed sessions from course previews and pres
     await page.evaluate(() => { (window as typeof window & { routeSnapshots: unknown[] }).routeSnapshots = []; });
     await palette.getByRole("option", { name: /library course/i }).click();
     await expect.poll(() => page.evaluate(() => (window as typeof window & { routeSnapshots: Array<{ menu: string; course: boolean }> }).routeSnapshots.some(snapshot => snapshot.course && snapshot.menu.includes("Library Course")))).toBe(true);
-    await expect(page).toHaveURL(`${origin}/session/${courses.find(course => course.dojo === "library-course")!.runId}`);
+    await expect(page).toHaveURL(`${origin}/learn/${courses.find(course => course.dojo === "library-course")!.runId}`);
     await expect(page.getByRole("dialog", { name: /Continue library course/i })).toHaveCount(0);
     await page.goto(origin);
     await expect(page.getByRole("heading", { name: "Your courses", exact: true })).toBeVisible();
@@ -288,10 +288,10 @@ test("the UIX library separates installed sessions from course previews and pres
     await page.getByRole("button", { name: "Install course", exact: true }).click();
     expect((await installation).status()).toBe(201);
     const created = await page.request.get(`${origin}/api/control/courses/create-your-own-dojo`).then(response => response.json());
-    await expect(page).toHaveURL(`${origin}/session/${created.runId}`);
+    await expect(page).toHaveURL(`${origin}/learn/${created.runId}`);
     await expect(page.getByTestId("interactive-material")).toBeVisible();
     await page.goto(`${origin}/course/create-your-own-dojo`);
-    await expect(page).toHaveURL(`${origin}/session/${created.runId}`);
+    await expect(page).toHaveURL(`${origin}/learn/${created.runId}`);
     await page.reload();
     await expect(page.getByTestId("interactive-material")).toBeVisible();
     await expect(page.getByRole("group", { name: "Dashboard", exact: true })).toHaveCount(0);

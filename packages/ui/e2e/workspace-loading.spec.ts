@@ -19,7 +19,7 @@ for (const mode of ["authoring", "learner"] as const) test(`${mode} paints its w
   try {
     await page.setViewportSize({ width: 1440, height: 900 });
     // Learners open a session, whichever kind of course it is in
-    await page.goto(mode === "authoring" ? "/authoring?session=saved" : "/session/saved-run");
+    await page.goto(mode === "authoring" ? "/authoring?session=saved" : "/learn/saved-run");
     await expect(page.getByRole("region", { name: "Course editor", exact: true })).toBeVisible();
     await expect(page.getByRole("status", { name: "Loading files", exact: true })).toBeVisible();
     await expect(page.getByText("Thinking", { exact: true })).toHaveCount(0, { timeout: 2000 });
@@ -93,7 +93,7 @@ test("a direct learner URL opens its lesson before discovery and keeps the same 
     return route.fulfill({ status: 404 });
   });
   try {
-    await page.goto("/session/saved-run");
+    await page.goto("/learn/saved-run");
     await expect(page.getByRole("region", { name: "Course editor", exact: true })).toBeVisible({ timeout: 5000 });
     const input = page.getByRole("textbox", { name: "Code editor", exact: true });
     await input.focus();
@@ -171,7 +171,7 @@ test("learner files remain editable through a failed agent resume and retry", as
     await page.goto("/course/fast-course");
     const code = page.getByRole("textbox", { name: "Code editor", exact: true });
     await expect(code).toBeVisible({ timeout: 5000 });
-    await expect(page).toHaveURL(/\/session\/saved$/, { timeout: 5000 });
+    await expect(page).toHaveURL(/\/learn\/saved$/, { timeout: 5000 });
     await code.focus();
     await page.keyboard.press("ControlOrMeta+End");
     await page.keyboard.insertText("// Keep this while the agent reconnects");
@@ -214,18 +214,19 @@ test("continuing from the dashboard reuses its known session when discovery is u
   await expect(entry).toBeVisible();
   discoveryAvailable = false;
   await entry.click();
-  await expect(page).toHaveURL(/\/session\/saved-run$/);
+  await expect(page).toHaveURL(/\/learn\/saved-run$/);
   await expect(page.getByRole("textbox", { name: "Code editor", exact: true })).toBeVisible({ timeout: 5000 });
   await expect(reply).toBeVisible({ timeout: 10_000 });
   await page.reload();
   await expect(reply).toBeVisible({ timeout: 10_000 });
-  // A lesson's own session address needs discovery to find its course
+  // A history pick's address opens that conversation
   discoveryAvailable = true;
-  await page.goto(`/session/${mounted.sessionId}`);
+  await page.goto(`/learn/saved-run?lesson=first&session=${mounted.sessionId}`);
   await expect(reply).toBeVisible({ timeout: 10_000 });
-  // A session the lesson no longer has opens the lesson's default conversation, with no error page (D29)
-  sessions.splice(0, 1, { lessonId: "first", sessionId: "another-conversation" });
-  await page.goto("/session/another-conversation");
+  await expect(page).toHaveURL(new RegExp(`session=${mounted.sessionId}$`));
+  // A session the lesson doesn't have opens the lesson's default conversation and drops it from the URL, with no error page (D29)
+  await page.goto("/learn/saved-run?lesson=first&session=another-conversation");
   await expect(reply).toBeVisible({ timeout: 10_000 });
+  await expect(page).toHaveURL(/\/learn\/saved-run\?lesson=first$/);
   await expect(page.getByRole("main", { name: "Something went wrong", exact: true })).toHaveCount(0);
 });

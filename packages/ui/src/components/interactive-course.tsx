@@ -34,7 +34,13 @@ async function read<T>(url: string, init?: RequestInit): Promise<T> {
 }
 const json = (value: unknown, method = "POST"): RequestInit => ({ method, headers: { "content-type": "application/json" }, body: JSON.stringify(value) });
 
-export function InteractiveCourse({ workspace: requestedWorkspace, course: requestedCourse, initialLesson }: { workspace: string; course: string; initialLesson?: InteractiveSnapshot }) {
+export function InteractiveCourse({ runId, workspace: requestedWorkspace, course: requestedCourse, initialLesson, requestedSession }: {
+  /** The course run the page's address names (`/learn/$runId`) */
+  runId: string;
+  workspace: string; course: string; initialLesson?: InteractiveSnapshot;
+  /** The conversation `?session=` asks for (a history pick) */
+  requestedSession?: string;
+}) {
   const navigate = useNavigate();
   const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   const [lesson, setLesson] = useState<InteractiveSnapshot | null>(initialLesson ?? null);
@@ -93,7 +99,7 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
   }
 
   const workspaceAgent = useWorkspaceAgent({ workspaceId: workspace, persona: "sensei", onSwitched: () => { setAgentEpoch(epoch => epoch + 1); } });
-  // The course page's socket is its presence (D19); a conversation the server replaced opens in its place
+  // The course page's socket is its presence (D19); a conversation the server replaced opens in place of the requested one
   const [replacement, setReplacement] = useState<string>();
   usePageSocket({ workspace, course: lesson?.dojo }, message => {
     const to = (message.params as { to?: unknown } | undefined)?.to;
@@ -148,6 +154,7 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     </div>}
     header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     conversation={<><AgentChat key={`${workspace}:${lesson.dojo}:${agentEpoch}`} embedded workspaceId={workspace} persona="sensei" page={{ course: lesson.dojo }} controls={chat}
-      sessionId={replacement}
+      sessionId={replacement ?? requestedSession}
+      onSessionDropped={() => { void navigate({ to: "/learn/$runId", params: { runId }, search: {}, replace: true }); }}
       agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching} />{workspaceAgent.notice}{workspaceAgent.dialog}</>} />{toast}</div>;
 }
