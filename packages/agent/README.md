@@ -419,7 +419,10 @@ Evidence: `experiments/model-provider/pi.test.mjs`, `opencode-startup.test.mjs`,
 `cli-host.test.mjs`, and the authoring package's `conformance.test.ts` (tier A;
 results per agent in `packages/protocol/src/conformance.json`) and
 `runtime-turn.test.ts`. Cursor startup is covered separately, but its official
-adapter cannot change provider routing; startup is not evidence for these gates.
+adapter cannot change provider routing, and the public `cursor-agent` build
+rejects or ignores its hidden local-model options, so no loopback model can
+drive it (tested; `docs/designs/agent-runtime.steps/cursor-spike.md`, "Tier A
+through the loopback model?"); startup is not evidence for these gates.
 The opt-in `cursor-acceptance.test.ts` exercises the real subscription path
 (`DOJO_CURSOR_ACCEPTANCE=1`; explicit usage approval required). The latest local
 run with the local binding passed streaming, remembered a codeword after a
