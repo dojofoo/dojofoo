@@ -3,13 +3,18 @@ import { Elysia } from "elysia";
 import { AgentApiError, type AgentRuntime, type Persona, type SessionRecord } from "./runtime";
 import { routes } from "./schema";
 
+export interface AgentApiOptions {
+  /** Checks a state-changing request (selecting an agent); throws {@link AgentApiError} to refuse it */
+  authorize?(request: Request): void;
+}
+
 /**
  * The workspace agent API: coding agents, sessions and runs under `/api/v1`. Mount
  * its `fetch` in any host (Hono's `app.mount`, Elysia's `.mount`, a Worker's
  * `fetch`); the runtime decides where agents actually run. A session's conversation
  * is Eve's own: `useEveAgent` (or `eve/client`) talks to it under the session's URL.
  */
-export function createAgentApi(runtime: AgentRuntime) {
+export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions = {}) {
   const record = async (workspaceId: string, sessionId: string): Promise<SessionRecord> => {
     const session = await runtime.sessions.get(workspaceId, sessionId);
     if (!session) throw new AgentApiError(404, "session_not_found", "Session not found.");
@@ -50,6 +55,10 @@ export function createAgentApi(runtime: AgentRuntime) {
       set.status = 202;
       return runtime.stop(params.workspaceId, params.agentId);
     }, routes.stopAgent)
+    .post("/workspaces/:workspaceId/agents/:agentId/select", async ({ params, request }) => {
+      options.authorize?.(request);
+      return runtime.select(params.workspaceId, params.agentId);
+    }, routes.selectAgent)
 
     // Sessions
     .get("/workspaces/:workspaceId/sessions", async ({ params, query }) => {

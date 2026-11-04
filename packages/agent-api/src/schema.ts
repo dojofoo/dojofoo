@@ -51,6 +51,11 @@ export const routes = {
     params: t.Object({ ...workspace, agentId: t.String() }),
     response: { 202: agent, 404: error },
   },
+  selectAgent: {
+    detail: details("selectAgent", "Select a coding agent", "Makes this the workspace's coding agent, for both personas. First cancels the old agent's turns and stops its host; its sessions are kept. Selecting the current agent changes nothing. Only the UI's own pages can call it: it takes the page's launch token.", "Agents"),
+    params: t.Object({ ...workspace, agentId: t.String() }),
+    response: { 200: agent, 403: error, 404: error, 409: error },
+  },
   listSessions: {
     detail: details("listSessions", "List sessions", "A workspace's conversations, newest first, optionally for one coding agent or persona.", "Sessions"),
     params: t.Object(workspace),

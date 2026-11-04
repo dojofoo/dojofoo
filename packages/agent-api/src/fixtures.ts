@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Agent, AgentEndpoint, AgentRuntime, Persona, SessionRecord } from "./runtime";
 import { AgentApiError } from "./runtime";
+import { agentRow, isAgentId, offeredAgents, type AgentId } from "@dojofoo/protocol";
 
 const fixture = fileURLToPath(new URL("../test/eve/", import.meta.url));
 
@@ -31,26 +32,38 @@ export async function startEve(): Promise<AgentEndpoint & { close(): Promise<voi
   };
 }
 
-/** A runtime with one draft workspace (Kyoshi unless `options.persona` says otherwise) whose selected coding agent is Codex, served by `endpoint`. */
-export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", options: { persona?: Persona } = {}): AgentRuntime & { records: SessionRecord[]; started: string[] } {
+/** The launch token the test runtime's pages are served (browser specs mock `GET /api/control/launch-token` with it). */
+export const testLaunchToken = "test-launch-token";
+
+/** A runtime with one draft workspace (Kyoshi unless `options.persona` says otherwise) whose selected coding agent is
+ * `options.agent` (Codex), served by `endpoint`. `select` switches it and records each selection. */
+export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", options: { persona?: Persona; agent?: AgentId } = {}): AgentRuntime & { records: SessionRecord[]; started: string[]; selections: string[] } {
   const records: SessionRecord[] = [];
   const started: string[] = [];
+  const selections: string[] = [];
+  let selected: AgentId = options.agent ?? "codex";
   const known = (id: string) => { if (id !== workspaceId) throw new AgentApiError(404, "workspace_not_found", "Workspace not found."); };
-  const agents = (): Agent[] => [
-    { id: "codex", name: "Codex", selected: true, status: started.includes("codex") ? "ready" : "stopped" },
-    { id: "opencode", name: "OpenCode", selected: false, status: "stopped" },
-  ];
+  const describe = (id: AgentId): Agent => ({ id, name: agentRow(id).name, selected: id === selected, status: id === selected && started.includes(id) ? "ready" : "stopped" });
+  const agents = (): Agent[] => [selected, ...offeredAgents().map(row => row.id).filter(id => id !== selected)].map(describe);
   return {
-    records, started,
+    records, started, selections,
     agents: async id => { known(id); return agents(); },
     start: async (id, agentId) => {
       known(id);
-      if (agentId !== "codex") throw new AgentApiError(409, "agent_unavailable", "Only the selected coding agent can start.");
+      if (agentId !== selected) throw new AgentApiError(409, "agent_unavailable", "Only the selected coding agent can start.");
       started.push(agentId);
-      return { ...agents()[0]!, status: "starting" };
+      return { ...describe(selected), status: "starting" };
     },
     stop: async (id, agentId) => { known(id); return { ...agents().find(agent => agent.id === agentId)!, status: "stopped" }; },
     connect: async id => { known(id); return endpoint; },
+    select: async (id, agentId) => {
+      known(id);
+      if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
+      if (!offeredAgents().some(row => row.id === agentId)) throw new AgentApiError(409, "agent_not_offered", `${agentRow(agentId).name} isn't available yet. Choose another coding agent.`);
+      selections.push(agentId);
+      selected = agentId;
+      return describe(agentId);
+    },
     greeting: (persona: Persona) => `Hello ${persona}`,
     persona: async id => { known(id); return options.persona ?? "kyoshi"; },
     sessions: {

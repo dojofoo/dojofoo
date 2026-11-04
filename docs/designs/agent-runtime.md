@@ -393,6 +393,7 @@ A **bare error** is an error message shown alone, with no action. From step 4 on
 | 404 `session_not_found` | session API package (`packages/agent-api/src/app.ts:15`) | no such record in this workspace | default open (D29), URL rewritten |
 | 404 `workspace_not_found` | UI server's AgentRuntime (`agent-api.ts:42`) | the workspace or draft no longer exists | "Back to the dashboard" |
 | 400 `invalid_request` | session API package (`app.ts:32`) | a malformed request from the page | "Reload the page" |
+| 403 `launch_token_invalid` | session API package (`packages/agent-api/src/launch.ts`), on the token-checked routes | the page's per-launch token is missing or from an earlier UI-server launch | the browser fetches the token again once and retries; a second refusal shows "Reload the page" |
 | 404 `agent_not_found` | session API package (`packages/agent-api/src/app.ts:42,65`), UI server's AgentRuntime (`agent-api.ts:58`) | the page named an agent the workspace does not have | "Reload the page" |
 | 404 `not_found` | session API package (`app.ts:33,88`) | an unknown route or Eve path | "Reload the page" |
 | 413, 415 | Eve (Eve docs/channels/eve.mdx:116) | an attachment is too large or of an unsupported type | the composer keeps the message and says which file to remove |

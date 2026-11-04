@@ -4,6 +4,8 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { observeLocalContext, observeWorkspacePath } from "@dojofoo/config/local-state";
 import { DatabaseSync } from "node:sqlite";
+import { createServer, type IncomingMessage } from "node:http";
+import { once } from "node:events";
 import { writeAgent } from "@dojofoo/config/runtime";
 import { app } from "./app";
 import { createLocalAgentRuntime } from "./agent-api";
@@ -115,6 +117,120 @@ describe("local agent runtime", () => {
     exit();
     await vi.waitFor(async () => expect((await local.agents(workspaceId))[0].status).toBe("stopped"));
     await local.connect(workspaceId, { agent: "codex", persona: "kyoshi" });
+    expect(owned.start).toHaveBeenCalledTimes(2);
+  });
+});
+
+const savedAgent = (root: string) => JSON.parse(readFileSync(resolve(root, ".dojo", "runtimes.json"), "utf8")).agent;
+const kyoshi = { agent: "codex", persona: "kyoshi" as const };
+
+/** An Eve host whose sessions each have a turn that never settles; it records cancel requests. */
+async function unsettledEve() {
+  const cancels: Array<{ sessionId: string; body: string }> = [];
+  const body = async (request: IncomingMessage) => { let text = ""; for await (const chunk of request) text += chunk; return text; };
+  const server = createServer(async (request, response) => {
+    const match = /^\/eve\/v1\/session\/([^/]+)\/(cancel|stream)/u.exec(new URL(request.url!, "http://eve").pathname);
+    if (match?.[2] === "cancel" && request.method === "POST") {
+      cancels.push({ sessionId: decodeURIComponent(match[1]!), body: await body(request) });
+      response.writeHead(202, { "content-type": "application/json" }).end(JSON.stringify({ ok: true, sessionId: match[1], deliveryId: "delivery_cancel" }));
+      return;
+    }
+    if (match?.[2] === "stream") {
+      const at = new Date().toISOString();
+      const lines = [
+        { at, facts: [{ type: "session.started", data: { runtime: { agentId: "fake", agentName: "fake", eveVersion: "1.0.0-rc.1" } } }] },
+        { at, facts: [{ type: "turn.started", data: { cause: { deliveryId: "d1" }, follows: null, turnId: "turn_0" }, scope: { turnId: "turn_0" } }] },
+      ];
+      response.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "x-eve-stream-version": "27", "x-eve-stream-format": "ndjson",
+        "x-eve-stream-tail-index": String(lines.length - 1) }).end(lines.map(line => JSON.stringify(line)).join("\n") + "\n");
+      return;
+    }
+    response.writeHead(404).end();
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = server.address() as { port: number };
+  return { url: `http://127.0.0.1:${port}`, cancels, close: () => new Promise<void>(accept => server.close(() => accept())) };
+}
+
+describe("select", () => {
+  it("select saves the agent only after the old host has stopped", async () => {
+    const { local, workspaceId, owned, root } = runtime();
+    await local.connect(workspaceId, kyoshi);
+    owned.close.mockImplementation(async () => { expect(savedAgent(root)).toBe("codex"); });
+    expect(await local.select(workspaceId, "opencode")).toEqual({ id: "opencode", name: "OpenCode", selected: true, status: "stopped" });
+    expect(owned.close).toHaveBeenCalledTimes(1);
+    expect(savedAgent(root)).toBe("opencode");
+  });
+
+  it("select cancels the old agent's sessions without a turnId and waits at most the switch bound", async () => {
+    const eve = await unsettledEve();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { root, state, workspaceId } = workspace();
+      const owned = { start: vi.fn(async () => ({ url: eve.url })), close: vi.fn(async () => {}) };
+      const local = createLocalAgentRuntime({ state, runtime: async () => owned, switchSettleMs: 200 });
+      for (const id of ["s1", "s2"]) await local.sessions.save(workspaceId, { id, agent: "codex", persona: "kyoshi", createdAt: "2026-11-01T00:00:00.000Z" });
+      await local.sessions.save(workspaceId, { id: "other-agent", agent: "claude", persona: "kyoshi", createdAt: "2026-11-01T00:00:00.000Z" });
+      await local.connect(workspaceId, kyoshi);
+      const started = performance.now();
+      await local.select(workspaceId, "opencode");
+      const elapsed = performance.now() - started;
+      expect(elapsed).toBeGreaterThanOrEqual(200);
+      expect(elapsed).toBeLessThan(2_000);
+      expect(eve.cancels.map(cancel => cancel.sessionId).sort()).toEqual(["s1", "s2"]);
+      for (const { body } of eve.cancels) expect(body ? JSON.parse(body) : {}).not.toHaveProperty("turnId");
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("s1"));
+      expect(owned.close).toHaveBeenCalledTimes(1);
+      expect(savedAgent(root)).toBe("opencode");
+    } finally { warn.mockRestore(); await eve.close(); }
+  });
+
+  it("selecting the current agent changes nothing", async () => {
+    const { local, workspaceId, owned, root } = runtime();
+    await local.connect(workspaceId, kyoshi);
+    const before = readFileSync(resolve(root, ".dojo", "runtimes.json"), "utf8");
+    expect(await local.select(workspaceId, "codex")).toMatchObject({ id: "codex", selected: true, status: "ready" });
+    expect(owned.close).not.toHaveBeenCalled();
+    expect(readFileSync(resolve(root, ".dojo", "runtimes.json"), "utf8")).toBe(before);
+  });
+
+  it("select refuses unknown and not-offered agents", async () => {
+    const { local, workspaceId, root } = runtime();
+    await expect(local.select(workspaceId, "nope")).rejects.toMatchObject({ status: 404, code: "agent_not_found" });
+    await expect(local.select(workspaceId, "constructor")).rejects.toMatchObject({ status: 404, code: "agent_not_found" });
+    await expect(local.select(workspaceId, "pi")).rejects.toMatchObject({ status: 409, code: "agent_not_offered", message: "Pi isn't available yet. Choose another coding agent." });
+    await expect(local.select("missing", "opencode")).rejects.toMatchObject({ status: 404, code: "workspace_not_found" });
+    expect(savedAgent(root)).toBe("codex");
+  });
+
+  it("two selects for one workspace run one after the other", async () => {
+    const { local, workspaceId, owned, root } = runtime();
+    await local.connect(workspaceId, kyoshi);
+    const stopped = Promise.withResolvers<void>();
+    owned.close.mockImplementation(() => stopped.promise);
+    const first = local.select(workspaceId, "opencode");
+    const second = local.select(workspaceId, "claude");
+    await vi.waitFor(() => expect(owned.close).toHaveBeenCalledTimes(1));
+    expect(savedAgent(root)).toBe("codex");
+    stopped.resolve();
+    expect((await first).id).toBe("opencode");
+    expect((await second).id).toBe("claude");
+    expect(savedAgent(root)).toBe("claude");
+    expect(owned.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("connect waits for a switch in progress and starts the new agent", async () => {
+    const { local, workspaceId, owned } = runtime();
+    await local.connect(workspaceId, kyoshi);
+    const stopped = Promise.withResolvers<void>();
+    owned.close.mockImplementation(() => stopped.promise);
+    const switched = local.select(workspaceId, "opencode");
+    await vi.waitFor(() => expect(owned.close).toHaveBeenCalledTimes(1));
+    const connected = local.connect(workspaceId, { agent: "opencode", persona: "kyoshi" });
+    stopped.resolve();
+    await switched;
+    await expect(connected).resolves.toEqual({ baseUrl: "http://127.0.0.1:9", headers: {} });
     expect(owned.start).toHaveBeenCalledTimes(2);
   });
 });

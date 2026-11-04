@@ -16,6 +16,7 @@ import { basename, dirname, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { closeDraftRuntime, createDraft, isManagedDraft, newestKyoshiSession, workspaceKind } from "./drafts";
 import { requestOrigin } from "../request-origin";
+import { launchToken } from "../launch-token";
 import { resolveWorkspaceId } from "./workspace";
 import { installStarter, starterCourseIds, uninstallCourse } from "./starters";
 import { courseTitle, findInstalledCourse } from "@dojofoo/config/course-installations";
@@ -216,6 +217,16 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       } catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
     })
     .get("/workspaces", (c) => c.json(listWorkspaces(stateOptions())))
+    // The page's token for state-changing agent routes; only the UI's own pages can read it
+    .get("/launch-token", (c) => {
+      const origin = c.req.header("Origin");
+      const site = c.req.header("Sec-Fetch-Site");
+      if ((origin && origin !== requestOrigin(c.req.raw)) || (site && site !== "same-origin" && site !== "none")) {
+        return c.json({ error: "Same-origin requests only." }, 403);
+      }
+      c.header("Cache-Control", "no-store");
+      return c.json({ token: launchToken() });
+    })
     .post("/authoring", async (c) => {
       const origin = c.req.header("Origin");
       if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);

@@ -1,7 +1,8 @@
 import { Client } from "@dojofoo/agent/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createAgentApi } from "./app";
-import { startEve, testRuntime } from "./fixtures";
+import { startEve, testLaunchToken, testRuntime } from "./fixtures";
+import { LAUNCH_TOKEN_HEADER, launchGuard } from "./launch";
 
 const base = "http://local/api/v1/workspaces/ws-1";
 
@@ -11,10 +12,11 @@ afterAll(async () => { await eve?.close(); }, 60_000);
 
 function setup(options: Parameters<typeof testRuntime>[2] = {}) {
   const runtime = testRuntime(eve ?? { baseUrl: "http://eve.invalid" }, "ws-1", options);
-  const app = createAgentApi(runtime);
+  const app = createAgentApi(runtime, { authorize: launchGuard({ token: () => testLaunchToken, origin: () => "http://local" }) });
   const call = (path: string, init?: RequestInit) => app.handle(new Request(`${base}${path}`, init));
-  const json = (path: string, method = "GET", body?: unknown) => call(path, {
-    method, ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
+  const json = (path: string, method = "GET", body?: unknown, headers: Record<string, string> = {}) => call(path, {
+    method, headers: { ...headers, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   // Eve's own client, as the browser uses it: requests to this API go to the app, the rest to the network
   const network = globalThis.fetch;
@@ -47,9 +49,9 @@ describe("agents", () => {
     expect(await response.json()).toEqual({
       data: [
         { id: "codex", name: "Codex", selected: true, status: "stopped" },
-        { id: "opencode", name: "OpenCode", selected: false, status: "stopped" },
+        ...["claude", "cursor", "grok", "opencode", "fx"].map(id => ({ id, name: expect.any(String), selected: false, status: "stopped" })),
       ],
-      pagination: { page: 0, perPage: 100, total: 2, hasMore: false },
+      pagination: { page: 0, perPage: 100, total: 6, hasMore: false },
     });
   });
 
@@ -62,6 +64,40 @@ describe("agents", () => {
     const refused = await json("/agents/opencode", "POST");
     expect(refused.status).toBe(409);
     expect(await refused.json()).toEqual({ error: "agent_unavailable", message: "Only the selected coding agent can start." });
+  });
+
+  it("selects a coding agent through the authorized route", async () => {
+    const { json, runtime } = setup();
+    const selected = await json("/agents/opencode/select", "POST", undefined, { [LAUNCH_TOKEN_HEADER]: testLaunchToken, origin: "http://local" });
+    expect(selected.status).toBe(200);
+    expect(await selected.json()).toEqual({ id: "opencode", name: "OpenCode", selected: true, status: "stopped" });
+    expect(runtime.selections).toEqual(["opencode"]);
+    expect((await (await json("/agents")).json()).data[0]).toMatchObject({ id: "opencode", selected: true });
+    const created = await json("/sessions", "POST", { persona: "kyoshi" });
+    expect(await created.json()).toMatchObject({ agent: "opencode" });
+  }, 60_000);
+
+  it("refuses select without the launch token", async () => {
+    const { json, runtime } = setup();
+    for (const headers of [{}, { [LAUNCH_TOKEN_HEADER]: "an-earlier-launch" }] as Array<Record<string, string>>) {
+      const refused = await json("/agents/opencode/select", "POST", undefined, headers);
+      expect(refused.status).toBe(403);
+      expect(await refused.json()).toEqual({ error: "launch_token_invalid", message: "This page's launch token is out of date." });
+    }
+    const foreign = await json("/agents/opencode/select", "POST", undefined, { [LAUNCH_TOKEN_HEADER]: testLaunchToken, origin: "https://other.example" });
+    expect(await foreign.json()).toMatchObject({ error: "origin_forbidden" });
+    expect(runtime.selections).toEqual([]);
+  });
+
+  it("answers unknown and not-offered agents on select", async () => {
+    const { json } = setup();
+    const headers = { [LAUNCH_TOKEN_HEADER]: testLaunchToken };
+    const unknown = await json("/agents/nope/select", "POST", undefined, headers);
+    expect(unknown.status).toBe(404);
+    expect(await unknown.json()).toMatchObject({ error: "agent_not_found" });
+    const pi = await json("/agents/pi/select", "POST", undefined, headers);
+    expect(pi.status).toBe(409);
+    expect(await pi.json()).toEqual({ error: "agent_not_offered", message: "Pi isn't available yet. Choose another coding agent." });
   });
 
   it("answers unknown workspaces and agents with stable error codes", async () => {

@@ -43,6 +43,9 @@ export interface AgentRuntime {
   /** Starts (or keeps) the coding agent without waiting for it to be ready */
   start(workspaceId: string, agentId: string): Promise<Agent>;
   stop(workspaceId: string, agentId: string): Promise<Agent>;
+  /** Saves the workspace's coding agent after cancelling the old agent's turns and stopping its host.
+   *  404 workspace_not_found | agent_not_found; 409 agent_not_offered. Selecting the current agent changes nothing. */
+  select(workspaceId: string, agentId: string): Promise<Agent>;
   /** The Eve host serving this persona on this coding agent; starts it when needed */
   connect(workspaceId: string, target: { agent: string; persona: Persona }): Promise<AgentEndpoint>;
   /** The persona's first message when a session starts without one */

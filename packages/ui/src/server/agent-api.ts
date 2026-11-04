@@ -1,14 +1,16 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import type { ClientOptions } from "@dojofoo/agent/client";
+import { Client, ClientError, type ClientOptions } from "@dojofoo/agent/client";
+import { setTimeout as delay } from "node:timers/promises";
 import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type SessionRecord } from "@dojofoo/agent-api";
-import { resolveAgent } from "@dojofoo/config/runtime";
+import { resolveAgent, writeAgent } from "@dojofoo/config/runtime";
 import { agentRow, isAgentId, offeredAgents, personaForKind, type AgentId } from "@dojofoo/protocol";
 import { listWorkspaces, type LocalStateOptions } from "@dojofoo/config/local-state";
 import { KYOSHI_START } from "@dojofoo/authoring/eve/bootstrap";
 import { resolveWorkspaceId } from "./control/workspace";
 import { workspaceKind } from "./control/drafts";
+import { authorizeLaunchRequest } from "./launch-token";
 
 type RuntimeState = { agent: string; status: AgentStatus; message?: string; endpoint?: Promise<AgentEndpoint>; owned?: OwnedRuntime };
 
@@ -33,8 +35,12 @@ export function createLocalAgentRuntime(options: {
   host?: string;
   /** Where `dojofoo` keeps its registered workspaces (tests use a temporary one) */
   state?: LocalStateOptions;
+  /** How long a switch waits for the old agent's cancelled turns to settle (10 seconds) */
+  switchSettleMs?: number;
 }): AgentRuntime {
   const states = new Map<string, RuntimeState>();
+  /** One agent switch at a time per workspace; starts and connects wait for it */
+  const switching = new Map<string, Promise<unknown>>();
 
   const root = (workspaceId: string) => {
     try { return resolveWorkspaceId(workspaceId, options.state); }
@@ -108,6 +114,53 @@ export function createLocalAgentRuntime(options: {
     await write;
   };
 
+  /** Whether a session still has a turn that started and has not settled; a paused turn is open */
+  const turnOpen = async (client: Client, sessionId: string) => {
+    try {
+      const { events } = await client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(2_000) });
+      const open = new Set<string>();
+      for (const event of events) {
+        const turnId = (event.data as { turnId?: unknown } | undefined)?.turnId;
+        if (typeof turnId !== "string") continue;
+        if (event.type === "turn.started") open.add(turnId);
+        else if (event.type === "turn.settled") open.delete(turnId);
+      }
+      return open.size > 0;
+    } catch (error) {
+      // An ended or expired session has no turn left to settle
+      return !(error instanceof ClientError && (error.status === 409 || error.status === 410));
+    }
+  };
+  /** Cancels the old agent's turns, waits a bounded time for them to settle, stops its host, then saves the new agent */
+  const switchAgent = async (path: string, agentId: AgentId) => {
+    const current = selected(path);
+    if (agentId === current) return describe(path, agentId);
+    const state = states.get(path);
+    const endpoint = state?.endpoint && state.agent === current ? await state.endpoint.catch(() => undefined) : undefined;
+    if (endpoint) {
+      const client = new Client({ baseUrl: endpoint.baseUrl, headers: endpoint.headers });
+      let pending = (await read(path)).filter(record => record.agent === current).map(record => record.id);
+      // Without a turnId, Eve cancels whatever runs; an idle session takes it as a no-op
+      await Promise.all(pending.map(id => client.sessions.attach(id).cancel({ signal: AbortSignal.timeout(5_000) }).catch(() => {})));
+      const deadline = Date.now() + (options.switchSettleMs ?? 10_000);
+      while (pending.length) {
+        const open = await Promise.all(pending.map(id => turnOpen(client, id)));
+        pending = pending.filter((_, index) => open[index]);
+        const remaining = deadline - Date.now();
+        if (!pending.length) break;
+        if (remaining <= 0) {
+          console.warn(`Switching to ${agentRow(agentId).name} without waiting longer for these sessions to stop: ${pending.join(", ")}`);
+          break;
+        }
+        await delay(Math.min(250, remaining));
+      }
+    }
+    await state?.owned?.close();
+    states.delete(path);
+    writeAgent(path, agentId);
+    return describe(path, agentId);
+  };
+
   return {
     async agents(workspaceId) {
       const path = root(workspaceId);
@@ -116,6 +169,7 @@ export function createLocalAgentRuntime(options: {
     },
     async start(workspaceId, agentId) {
       const path = root(workspaceId);
+      await switching.get(path)?.catch(() => {});
       known(path, agentId);
       void endpoint(path);
       return describe(path, agentId);
@@ -131,12 +185,25 @@ export function createLocalAgentRuntime(options: {
     },
     async connect(workspaceId, { agent, persona }) {
       const path = root(workspaceId);
+      await switching.get(path)?.catch(() => {});
       known(path, agent);
       if (persona !== "kyoshi") throw new AgentApiError(409, "persona_unavailable", "Sensei doesn't run on the agent runtime yet; lessons still use their own connection.");
       return endpoint(path);
     },
-    greeting: persona => persona === "kyoshi" ? KYOSHI_START : "",
-    async persona(workspaceId) {
+    async select(workspaceId, agentId) {
+      const path = root(workspaceId);
+      if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
+      if (!offeredAgents().some(row => row.id === agentId)) {
+        throw new AgentApiError(409, "agent_not_offered", `${agentRow(agentId).name} isn't available yet. Choose another coding agent.`);
+      }
+      if (agentId === selected(path)) return describe(path, agentId);
+      const previous = switching.get(path) ?? Promise.resolve();
+      const next = previous.catch(() => {}).then(() => switchAgent(path, agentId));
+      switching.set(path, next);
+      try { return await next; }
+      finally { if (switching.get(path) === next) switching.delete(path); }
+    },
+    greeting: persona => persona === "kyoshi" ? KYOSHI_START : "",    async persona(workspaceId) {
       const workspace = listWorkspaces(options.state).find(item => item.id === workspaceId);
       if (!workspace) throw new AgentApiError(404, "workspace_not_found", "Workspace not found.");
       return personaForKind(workspaceKind(workspace, options.state ?? {}));
@@ -149,7 +216,7 @@ export function createLocalAgentRuntime(options: {
   };
 }
 
-/** The versioned agent API, backed by this machine's workspaces. */
+/** The versioned agent API, backed by this machine's workspaces. Selecting an agent takes the page's launch token. */
 export const agentApi = createAgentApi(createLocalAgentRuntime({
   host: process.env.EVE_BASE_URL,
   runtime: root => {
@@ -158,4 +225,4 @@ export const agentApi = createAgentApi(createLocalAgentRuntime({
     const { acquireKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
     return acquireKyoshiRuntime(root);
   },
-}));
+}), { authorize: authorizeLaunchRequest });
