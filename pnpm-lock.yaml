@@ -133,16 +133,16 @@ importers:
         version: 6.1.0
       fumadocs-core:
         specifier: 16.17.9
-        version: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+        version: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       fumadocs-mdx:
         specifier: 15.4.10
-        version: 15.4.10(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react@19.3.1)(rolldown@1.2.14)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1))
+        version: 15.4.10(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react@19.3.1)(rolldown@1.2.14)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1))
       fumadocs-openapi:
         specifier: 12.5.7
-        version: 12.5.7(70892a4afeb40978db3b02d41e23d35c)
+        version: 12.5.7(50f3e9586ee5a401649392f2ee4b2c98)
       fumadocs-ui:
         specifier: 16.17.9
-        version: 16.17.9(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.3)(takumi-js@2.19.0(csstype@3.2.3)(react@19.3.1))
+        version: 16.17.9(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.3)(takumi-js@2.19.0(csstype@3.2.3)(react@19.3.1))
       metal-fx:
         specifier: ^2.0.11
         version: 2.0.11(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -211,8 +211,8 @@ importers:
         specifier: ^1.64.1
         version: 1.64.1
       portless:
-        specifier: ^0.15.12
-        version: 0.15.12
+        specifier: ^0.15.13
+        version: 0.15.13
       shadcn:
         specifier: ^4.22.1
         version: 4.22.1(@cfworker/json-schema@4.1.4)
@@ -236,7 +236,7 @@ importers:
     dependencies:
       '@ai-sdk/harness':
         specifier: 1.0.170
-        version: 1.0.170(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/provider':
         specifier: 4.0.35
         version: 4.0.35
@@ -258,10 +258,10 @@ importers:
     devDependencies:
       '@ai-sdk/harness-pi':
         specifier: 1.0.173
-        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/sandbox-just-bash':
         specifier: 1.0.170
-        version: 1.0.170(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
@@ -307,25 +307,25 @@ importers:
     dependencies:
       '@ai-sdk/harness':
         specifier: 1.0.170
-        version: 1.0.170(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/harness-codex':
         specifier: 1.0.172
         version: 1.0.172(zod@4.6.7)
       '@ai-sdk/harness-cursor':
         specifier: 1.0.85
-        version: 1.0.85(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.85(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/harness-fx':
         specifier: 1.0.86
-        version: 1.0.86(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.86(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/harness-grok-build':
         specifier: 1.0.109
-        version: 1.0.109(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.109(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/harness-opencode':
         specifier: 1.0.169
         version: 1.0.169(patch_hash=a47e2ee4e83b87e18a27882b882b989f0ff5d5deb25a7a93ea72b510d356389d)(zod@4.6.7)
       '@ai-sdk/harness-pi':
         specifier: 1.0.173
-        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/provider':
         specifier: 4.0.35
         version: 4.0.35
@@ -340,10 +340,10 @@ importers:
         version: link:../config
       '@earendil-works/pi-ai':
         specifier: 1.4.0
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.1)(zod@4.6.7)
       '@earendil-works/pi-coding-agent':
         specifier: 1.4.0
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.0)(zod@4.6.7)
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@4.6.7)
       '@tanstack/ai':
         specifier: 1.0.1
         version: 1.0.1(@opentelemetry/api@1.9.0)(zod@4.6.7)
@@ -351,8 +351,8 @@ importers:
         specifier: 16.2.4
         version: 16.2.4
       hono:
-        specifier: ^4.13.14
-        version: 4.13.14
+        specifier: ^4.13.16
+        version: 4.13.16
       json-rpc-2.0:
         specifier: 1.8.1
         version: 1.8.1
@@ -363,8 +363,8 @@ importers:
         specifier: 1.9.1
         version: 1.9.1
       ws:
-        specifier: 8.22.0
-        version: 8.22.0
+        specifier: 8.22.1
+        version: 8.22.1
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -436,8 +436,8 @@ importers:
         specifier: 3.6.0
         version: 3.6.0
       portless:
-        specifier: 0.15.12
-        version: 0.15.12
+        specifier: 0.15.13
+        version: 0.15.13
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -491,13 +491,13 @@ importers:
     dependencies:
       '@ai-sdk/harness':
         specifier: 1.0.170
-        version: 1.0.170(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/harness-pi':
         specifier: 1.0.173
-        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/sandbox-just-bash':
         specifier: 1.0.170
-        version: 1.0.170(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@dojofoo/agent':
         specifier: workspace:*
         version: link:../agent
@@ -564,7 +564,7 @@ importers:
         version: 2.2.0(@modelcontextprotocol/server@2.4.0)(zod@4.6.7)
       '@ai-sdk/harness':
         specifier: 1.0.170
-        version: 1.0.170(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -599,14 +599,14 @@ importers:
         specifier: 5.3.0
         version: 5.3.0
       '@json-render/core':
-        specifier: ^0.21.3
-        version: 0.21.3(zod@4.6.7)
+        specifier: ^0.21.4
+        version: 0.21.4(zod@4.6.7)
       '@json-render/react':
-        specifier: ^0.21.3
-        version: 0.21.3(react@19.3.1)(zod@4.6.7)
+        specifier: ^0.21.4
+        version: 0.21.4(react@19.3.1)(zod@4.6.7)
       '@mdit/plugin-katex':
-        specifier: ^1.1.4
-        version: 1.1.4(markdown-it@15.0.3)
+        specifier: ^1.1.5
+        version: 1.1.5(markdown-it@15.0.3)
       '@mynaui/icons-react':
         specifier: ^0.4.11
         version: 0.4.11(react@19.3.1)
@@ -695,8 +695,8 @@ importers:
         specifier: ^2.0.3
         version: 2.0.3
       hono:
-        specifier: ^4.13.14
-        version: 4.13.14
+        specifier: ^4.13.16
+        version: 4.13.16
       html-react-parser:
         specifier: ^6.1.9
         version: 6.1.9(@types/react@19.3.0)(react@19.3.1)
@@ -704,8 +704,8 @@ importers:
         specifier: ^0.19.1
         version: 0.19.1
       lucide-react:
-        specifier: ^1.65.0
-        version: 1.65.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.66.0
+        version: 1.66.0(@types/react@19.3.0)(react@19.3.1)
       markdown-exit:
         specifier: ^1.3.0
         version: 1.3.0
@@ -722,8 +722,8 @@ importers:
         specifier: ^1.0.11
         version: 1.0.11
       pdfjs-dist:
-        specifier: ^6.4.299
-        version: 6.4.299
+        specifier: ^6.5.438
+        version: 6.5.438
       radix-ui:
         specifier: ^1.8.1
         version: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -828,8 +828,8 @@ importers:
         specifier: ^1.1.10
         version: 1.1.10(react@19.3.1)
       '@iconify-json/fluent':
-        specifier: 1.2.60
-        version: 1.2.60
+        specifier: 1.2.61
+        version: 1.2.61
       '@iconify-json/solar':
         specifier: 1.2.13
         version: 1.2.13
@@ -877,19 +877,19 @@ importers:
         version: 1.1.1
       fumadocs-core:
         specifier: 16.17.9
-        version: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+        version: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       fumadocs-openapi:
         specifier: 12.5.7
-        version: 12.5.7(70892a4afeb40978db3b02d41e23d35c)
+        version: 12.5.7(50f3e9586ee5a401649392f2ee4b2c98)
       fumadocs-ui:
         specifier: 16.17.9
-        version: 16.17.9(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.3)(takumi-js@2.19.0(csstype@3.2.3)(react@19.3.1))
+        version: 16.17.9(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.3)(takumi-js@2.19.0(csstype@3.2.3)(react@19.3.1))
       iconoir-react:
         specifier: 7.12.1
         version: 7.12.1(react@19.3.1)
       lucide-react:
-        specifier: ^1.65.0
-        version: 1.65.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.66.0
+        version: 1.66.0(@types/react@19.3.0)(react@19.3.1)
       markdown-exit:
         specifier: ^1.3.0
         version: 1.3.0
@@ -973,8 +973,8 @@ importers:
         specifier: 14.3.3
         version: 14.3.3
       portless:
-        specifier: ^0.15.12
-        version: 0.15.12
+        specifier: ^0.15.13
+        version: 0.15.13
       shadcn:
         specifier: ^4.22.1
         version: 4.22.1(@cfworker/json-schema@4.1.4)
@@ -2019,8 +2019,8 @@ packages:
   '@iconify-json/carbon@1.2.29':
     resolution: {integrity: sha512-whk3BOU2jXFtweigCrrrYXT7NzWXGUT1q268vEnySzhfdnwZhQhVlFjhkgZH86JRRx21/CziTmzpAJMe5V2yKQ==}
 
-  '@iconify-json/fluent@1.2.60':
-    resolution: {integrity: sha512-+Tc4TcygQpzm2QNQ3v1/p5V+3OWczkJzKMqUw01pzGiIYLD85uhWPY4GaERkU0+J9J9ZqGQEWKSOk/qPL2ofsw==}
+  '@iconify-json/fluent@1.2.61':
+    resolution: {integrity: sha512-QyXqdW1lR9/zFyAh1Z+aK99DAW/QnMpOZoBjbyJ8YoRa0QVRfEAbyvyBRnYPJJoedHu9JKo8woxV01lHOFV3dA==}
 
   '@iconify-json/ph@1.2.2':
     resolution: {integrity: sha512-PgkEZNtqa8hBGjHXQa4pMwZa93hmfu8FUSjs/nv4oUU6yLsgv+gh9nu28Kqi8Fz9CCVu4hj1MZs9/60J57IzFw==}
@@ -2121,13 +2121,13 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
-  '@json-render/core@0.21.3':
-    resolution: {integrity: sha512-sgzPtRhRB5wkhrbLtPm9bAhna5Q0x/U0vUpb3S/VEutouWEvvZRebHhpM5XiEjRM5Shv4W70VMZ8pGcGcz7j+A==}
+  '@json-render/core@0.21.4':
+    resolution: {integrity: sha512-UqjpdDOmr7a9ISZisgQvgeKuBpiNQesS7PNgcstwTBlutMbgS/5fbNThvpEk4E35eMe2bpBVzwOPuaNY3xthNw==}
     peerDependencies:
       zod: ^4.0.0
 
-  '@json-render/react@0.21.3':
-    resolution: {integrity: sha512-+/i0vPRQ164KzvNdPpQleLp+WjfRS2zYRIujLbRZUEmqiQb+WtEi1i9tZMYL/dRFOUzeNveu421KDzI11Wounw==}
+  '@json-render/react@0.21.4':
+    resolution: {integrity: sha512-pCOhhgpBQBZV8NDLx0TTMapeWqGzDGPDgaIcYg9xHm35XglqxkcG2QgzzhE/VUSz3uqkWW0s8mCYO/jGP/hZHQ==}
     peerDependencies:
       react: ^19.2.3
 
@@ -2221,8 +2221,8 @@ packages:
     resolution: {integrity: sha512-00aAZ0F0NLik6I6Yba2emGbHLxv+QYrPH00qQ5dFKXlAo1Ll2RHDXwY7nN2WAfrx2pP+WrvSRFTGFCNGdzBDHw==}
     engines: {node: '>=20.0.0'}
 
-  '@mdit/helper@1.1.3':
-    resolution: {integrity: sha512-ZJxIn+WQSHzJqI05hfMNmskhJoxGmixKMIUBMkbnjOL6CiamLDmiEubu6rwgyGVa6W0kE0Q1fmu/mMyNoU4SZw==}
+  '@mdit/helper@1.2.0':
+    resolution: {integrity: sha512-+Lh3nitlVclyxjD0LnOKPCyogVqL1W416FKOYjJSGDVlVKq9/jasQNOsUbjAvRwc+imgnFq1lsnat4q69UibIg==}
     engines: {node: '>=22'}
     peerDependencies:
       markdown-it: ^15.0.3
@@ -2230,8 +2230,8 @@ packages:
       markdown-it:
         optional: true
 
-  '@mdit/plugin-katex@1.1.4':
-    resolution: {integrity: sha512-l3W88fhr+6khSakHCZx64dUzWD7opmMOJDTDKIKrIp/Q4WslC72GDgzKBe0jrX45//z57tl0JaN1I7TnejkQew==}
+  '@mdit/plugin-katex@1.1.5':
+    resolution: {integrity: sha512-hOiLKXL0rhLg1myXIk7YQPa7OeyhUniZSHPcIjx4pi8i/5to04zxaxnfcncp87vCB86zqUlCrHV2eratz5C2+A==}
     engines: {node: '>=22'}
     peerDependencies:
       markdown-it: ^15.0.3
@@ -2239,8 +2239,8 @@ packages:
       markdown-it:
         optional: true
 
-  '@mdit/plugin-tex@1.1.3':
-    resolution: {integrity: sha512-AidFpoF+hs4ghyoBIhQ7LDJeNYQUgLBga9wmxB+SwbA1F3zeI7S+mfHdv591iLwBdDIn3aLIAN6PjuOgEPYzYg==}
+  '@mdit/plugin-tex@1.2.0':
+    resolution: {integrity: sha512-nVoipJc/zKZnQeDYh/tIB81Xw9RVZTQtoqKO69OTso0FyV7wzxvg/qZ/8qq5P7mvz6ArNVWGC0ozpRxmO/ufIg==}
     engines: {node: '>=22'}
     peerDependencies:
       markdown-it: ^15.0.3
@@ -7254,8 +7254,8 @@ packages:
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
 
-  hono@4.13.14:
-    resolution: {integrity: sha512-yhRLQ21U6qa9Hsu2N7Qcbh8tE+WKEcoErjIo56LeSGiGXGp9sA7UpE86Ui9uexb61KakiGwuHMn2QdV7w6i6kQ==}
+  hono@4.13.16:
+    resolution: {integrity: sha512-AOLOEhvrV+iH92xXCnFr/5+3KjPKcI3xP63XJtX5spAnkznPdHijlIsUTpi7/9EhWqrTCekw5c5zh1K+YsVw7A==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -7901,6 +7901,15 @@ packages:
 
   lucide-react@1.65.0:
     resolution: {integrity: sha512-roSdtzudEY39i2hn5LLjA8toYfhF2z4S10WSqZF4ubXpHlOmNTvaxMxZLdJfQDi6pEifQWX+cRmYihKSsvAxfA==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  lucide-react@1.66.0:
+    resolution: {integrity: sha512-8zjbi/Us+ETXqfBwmXF/FHrWGIqOdE6zT1yUdRJLQVoptomSkB0zdFWVIM667t9K8djWDaXdkBkqi2qVTuDNiw==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -8672,8 +8681,8 @@ packages:
   pdf-lib@1.17.1:
     resolution: {integrity: sha512-V/mpyJAoTsN4cnP31vc0wfNA1+p20evqqnap0KLoRUN0Yk/p3wN52DOEsL4oBFcLdb76hlpKPtzJIgo67j/XLw==}
 
-  pdfjs-dist@6.4.299:
-    resolution: {integrity: sha512-AVl138zALtfaAPvADulE0PZThbYzCBS79nL4pOSL/6Sm/4AH5A21BD9VHt97OlCuzJuCpmeZtAtkinisF4Vb1g==}
+  pdfjs-dist@6.5.438:
+    resolution: {integrity: sha512-vg8Pw1x+AFKy4AMDvhuWl5cOYV8d698UoEANoFFhc79hqXDnZQqnOXoxw3HG907WHOg1JYOvLhP756boddFxpA==}
     engines: {node: '>=22.13.0 || >=24'}
 
   perfect-debounce@2.1.0:
@@ -8743,8 +8752,8 @@ packages:
   popmotion@11.0.5:
     resolution: {integrity: sha512-la8gPM1WYeFznb/JqF4GiTkRRPZsfaj2+kCxqQgr2MJylMmIKUwBfWW8Wa5fml/8gmtlD5yI01MP1QCZPWmppA==}
 
-  portless@0.15.12:
-    resolution: {integrity: sha512-Lbz85zLboOMkvq2unXYfJ/YMpsvFZYQgrwGEbinZErp045y9fLm4obm7E77V2BI2Om0Mh6tX/2w2ftFqRs5kfQ==}
+  portless@0.15.13:
+    resolution: {integrity: sha512-eqeJvpeZHfN72snOE1IOBPrgyOloH+L0ce5UEStMuG5Fq55byTELfUn4x7mil2EU029PQkHsayRpySiy0djPpA==}
     engines: {node: '>=24'}
     os: [darwin, linux, win32]
     hasBin: true
@@ -10311,8 +10320,8 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.22.0:
-    resolution: {integrity: sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==}
+  ws@8.22.1:
+    resolution: {integrity: sha512-oyL6OPYme/CmiFvNuGzeoxCJ4nOrZE2O1FwM9MWM1AsGri6nLXB2pg+lNA8aLeXMSav0J6eIVS1j6vUPzUtK9g==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -10507,9 +10516,9 @@ snapshots:
 
   '@ai-sdk/harness-acp@1.0.110(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
+      '@ai-sdk/harness': 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
-      ws: 8.22.0
+      ws: 8.22.1
       zod: 4.6.7
     transitivePeerDependencies:
       - bufferutil
@@ -10517,18 +10526,18 @@ snapshots:
 
   '@ai-sdk/harness-codex@1.0.172(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
+      '@ai-sdk/harness': 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/provider': 4.0.35
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
-      ws: 8.22.0
+      ws: 8.22.1
       zod: 4.6.7
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@ai-sdk/harness-cursor@1.0.85(ws@8.22.0)(zod@4.6.7)':
+  '@ai-sdk/harness-cursor@1.0.85(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
+      '@ai-sdk/harness': 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/harness-acp': 1.0.110(zod@4.6.7)
       '@ai-sdk/provider': 4.0.35
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
@@ -10538,9 +10547,9 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@ai-sdk/harness-fx@1.0.86(ws@8.22.0)(zod@4.6.7)':
+  '@ai-sdk/harness-fx@1.0.86(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
+      '@ai-sdk/harness': 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
       '@ai-sdk/provider': 4.0.35
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
@@ -10549,9 +10558,9 @@ snapshots:
     transitivePeerDependencies:
       - ws
 
-  '@ai-sdk/harness-grok-build@1.0.109(ws@8.22.0)(zod@4.6.7)':
+  '@ai-sdk/harness-grok-build@1.0.109(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
+      '@ai-sdk/harness': 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/harness-acp': 1.0.110(zod@4.6.7)
       '@ai-sdk/provider': 4.0.35
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
@@ -10572,11 +10581,11 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@ai-sdk/harness-pi@1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.0)(zod@4.6.7)':
+  '@ai-sdk/harness-pi@1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
+      '@ai-sdk/harness': 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
-      '@earendil-works/pi-coding-agent': 1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-coding-agent': 1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@4.6.7)
       typebox: 1.4.3
       zod: 4.6.7
     transitivePeerDependencies:
@@ -10599,14 +10608,14 @@ snapshots:
     optionalDependencies:
       ws: 8.21.0
 
-  '@ai-sdk/harness@1.0.170(ws@8.22.0)(zod@4.6.7)':
+  '@ai-sdk/harness@1.0.170(ws@8.22.1)(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 4.0.35
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
       ai: 7.0.159(zod@4.6.7)
       zod: 4.6.7
     optionalDependencies:
-      ws: 8.22.0
+      ws: 8.22.1
 
   '@ai-sdk/mcp@2.0.88(zod@4.6.7)':
     dependencies:
@@ -10642,9 +10651,9 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/sandbox-just-bash@1.0.170(ws@8.22.0)(zod@4.6.7)':
+  '@ai-sdk/sandbox-just-bash@1.0.170(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
+      '@ai-sdk/harness': 1.0.170(ws@8.22.1)(zod@4.6.7)
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
       just-bash: 2.14.5
     transitivePeerDependencies:
@@ -11320,7 +11329,7 @@ snapshots:
 
   '@devframes/json-render@1.2.6(@devframes/hub@1.2.6(crossws@0.4.12(srvx@1.0.8))(devframe@1.2.6(cac@7.1.0)(ocache@0.3.0)(srvx@1.0.8))(ocache@0.3.0))(devframe@1.2.6(cac@7.1.0)(ocache@0.3.0)(srvx@1.0.8))':
     dependencies:
-      '@json-render/core': 0.21.3(zod@4.6.7)
+      '@json-render/core': 0.21.4(zod@4.6.7)
       devframe: 1.2.6(cac@7.1.0)(ocache@0.3.0)(srvx@1.0.8)
       zod: 4.6.7
     optionalDependencies:
@@ -11351,9 +11360,9 @@ snapshots:
 
   '@drauu/core@1.0.0': {}
 
-  '@earendil-works/pi-agent-core@1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-agent-core@1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/pi-ai': 1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-ai': 1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)
       typebox: 1.3.27
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-node'
@@ -11368,9 +11377,9 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-agent-core@1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-agent-core@1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)
       typebox: 1.3.27
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-node'
@@ -11385,7 +11394,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-ai@1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)':
     dependencies:
       '@anthropic-ai/sdk': 0.129.0(zod@4.6.7)
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
@@ -11394,7 +11403,7 @@ snapshots:
       '@smithy/node-http-handler': 4.12.1
       http-proxy-agent: 9.1.0
       https-proxy-agent: 9.1.0
-      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)
+      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)
       partial-json: 0.1.7
       typebox: 1.3.27
     transitivePeerDependencies:
@@ -11410,7 +11419,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)':
     dependencies:
       '@anthropic-ai/sdk': 0.129.0(zod@4.6.7)
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
@@ -11419,7 +11428,7 @@ snapshots:
       '@smithy/node-http-handler': 4.12.1
       http-proxy-agent: 9.1.0
       https-proxy-agent: 9.1.0
-      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)
+      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)
       partial-json: 0.1.7
       typebox: 1.3.27
     transitivePeerDependencies:
@@ -11435,7 +11444,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.1)(zod@4.6.7)':
     dependencies:
       '@anthropic-ai/sdk': 0.129.0(zod@4.6.7)
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
@@ -11444,7 +11453,7 @@ snapshots:
       '@smithy/node-http-handler': 4.12.1
       http-proxy-agent: 9.1.0
       https-proxy-agent: 9.1.0
-      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
+      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.1)(zod@4.6.7)
       partial-json: 0.1.7
       typebox: 1.3.27
     transitivePeerDependencies:
@@ -11468,10 +11477,10 @@ snapshots:
     dependencies:
       quickjs-wasi: 3.6.2
 
-  '@earendil-works/pi-coding-agent@1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-coding-agent@1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/pi-agent-core': 1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)
-      '@earendil-works/pi-ai': 1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-agent-core': 1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)
+      '@earendil-works/pi-ai': 1.3.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)
       '@earendil-works/pi-codemode': 1.3.0
       '@earendil-works/pi-mcp': 1.3.0
       '@earendil-works/pi-tui': 1.3.0
@@ -11504,10 +11513,10 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/pi-agent-core': 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)
-      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-agent-core': 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)
+      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7)
       '@earendil-works/pi-codemode': 1.4.0
       '@earendil-works/pi-mcp': 1.4.0
       '@earendil-works/pi-tui': 1.4.0
@@ -11757,7 +11766,7 @@ snapshots:
       google-auth-library: 10.9.1
       p-retry: 4.6.2
       protobufjs: 7.6.6
-      ws: 8.22.0
+      ws: 8.22.1
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7)
     transitivePeerDependencies:
@@ -11779,9 +11788,9 @@ snapshots:
       yargs: 17.7.3
     optional: true
 
-  '@hono/node-server@2.1.5(hono@4.13.14)':
+  '@hono/node-server@2.1.5(hono@4.13.16)':
     dependencies:
-      hono: 4.13.14
+      hono: 4.13.16
 
   '@hugeicons/core-free-icons@4.4.0': {}
 
@@ -11793,7 +11802,7 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify-json/fluent@1.2.60':
+  '@iconify-json/fluent@1.2.61':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -11935,13 +11944,13 @@ snapshots:
   '@js-sdsl/ordered-map@4.4.2':
     optional: true
 
-  '@json-render/core@0.21.3(zod@4.6.7)':
+  '@json-render/core@0.21.4(zod@4.6.7)':
     dependencies:
       zod: 4.6.7
 
-  '@json-render/react@0.21.3(react@19.3.1)(zod@4.6.7)':
+  '@json-render/react@0.21.4(react@19.3.1)(zod@4.6.7)':
     dependencies:
-      '@json-render/core': 0.21.3(zod@4.6.7)
+      '@json-render/core': 0.21.4(zod@4.6.7)
       react: 19.3.1
     transitivePeerDependencies:
       - zod
@@ -11980,7 +11989,7 @@ snapshots:
   '@libsql/isomorphic-ws@0.1.5':
     dependencies:
       '@types/ws': 8.18.2
-      ws: 8.22.0
+      ws: 8.22.1
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -12042,21 +12051,21 @@ snapshots:
 
   '@mdit-vue/types@3.0.2': {}
 
-  '@mdit/helper@1.1.3(markdown-it@15.0.3)':
+  '@mdit/helper@1.2.0(markdown-it@15.0.3)':
     optionalDependencies:
       markdown-it: 15.0.3
 
-  '@mdit/plugin-katex@1.1.4(markdown-it@15.0.3)':
+  '@mdit/plugin-katex@1.1.5(markdown-it@15.0.3)':
     dependencies:
-      '@mdit/helper': 1.1.3(markdown-it@15.0.3)
-      '@mdit/plugin-tex': 1.1.3(markdown-it@15.0.3)
+      '@mdit/helper': 1.2.0(markdown-it@15.0.3)
+      '@mdit/plugin-tex': 1.2.0(markdown-it@15.0.3)
       katex: 0.19.1
     optionalDependencies:
       markdown-it: 15.0.3
 
-  '@mdit/plugin-tex@1.1.3(markdown-it@15.0.3)':
+  '@mdit/plugin-tex@1.2.0(markdown-it@15.0.3)':
     dependencies:
-      '@mdit/helper': 1.1.3(markdown-it@15.0.3)
+      '@mdit/helper': 1.2.0(markdown-it@15.0.3)
     optionalDependencies:
       markdown-it: 15.0.3
 
@@ -12117,13 +12126,13 @@ snapshots:
 
   '@modelcontextprotocol/node@2.1.2(@modelcontextprotocol/server@2.4.0)':
     dependencies:
-      '@hono/node-server': 2.1.5(hono@4.13.14)
+      '@hono/node-server': 2.1.5(hono@4.13.16)
       '@modelcontextprotocol/server': 2.4.0
-      hono: 4.13.14
+      hono: 4.13.16
 
   '@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.4)(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 2.1.5(hono@4.13.14)
+      '@hono/node-server': 2.1.5(hono@4.13.16)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -12133,7 +12142,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.3.0
       express-rate-limit: 8.7.2(express@5.3.0)
-      hono: 4.13.14
+      hono: 4.13.16
       jose: 6.2.14
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -12147,7 +12156,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 2.1.5(hono@4.13.14)
+      '@hono/node-server': 2.1.5(hono@4.13.16)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -12157,7 +12166,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.3.0
       express-rate-limit: 8.7.2(express@5.3.0)
-      hono: 4.13.14
+      hono: 4.13.16
       jose: 6.2.14
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -16939,7 +16948,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7):
+  fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7):
     dependencies:
       '@fumari/image-size': 0.1.1
       estree-util-value-to-estree: 3.5.0
@@ -16968,21 +16977,21 @@ snapshots:
       '@types/hast': 3.0.5
       '@types/mdast': 4.0.4
       '@types/react': 19.3.0
-      lucide-react: 1.65.0(@types/react@19.3.0)(react@19.3.1)
+      lucide-react: 1.66.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
       zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-mdx@15.4.10(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react@19.3.1)(rolldown@1.2.14)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1)):
+  fumadocs-mdx@15.4.10(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react@19.3.1)(rolldown@1.2.14)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       '@mdx-js/mdx': 3.1.1
       '@standard-schema/spec': 1.1.0
       chokidar: 6.0.0
       esbuild: 0.28.2
       estree-util-value-to-estree: 3.5.0
-      fumadocs-core: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      fumadocs-core: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       github-slugger: 2.0.0
       magic-string: 1.4.5
       mdast-util-mdx: 3.0.0
@@ -17006,7 +17015,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-openapi@12.5.7(70892a4afeb40978db3b02d41e23d35c):
+  fumadocs-openapi@12.5.7(50f3e9586ee5a401649392f2ee4b2c98):
     dependencies:
       '@base-ui/react': 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@fuma-translate/react': 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -17018,8 +17027,8 @@ snapshots:
       chokidar: 6.0.0
       class-variance-authority: 0.7.1
       cn: 0.5.1
-      fumadocs-core: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
-      fumadocs-ui: 16.17.9(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.3)(takumi-js@2.19.0(csstype@3.2.3)(react@19.3.1))
+      fumadocs-core: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      fumadocs-ui: 16.17.9(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.3)(takumi-js@2.19.0(csstype@3.2.3)(react@19.3.1))
       github-slugger: 2.0.0
       lucide-react: 1.65.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
@@ -17037,7 +17046,7 @@ snapshots:
       - date-fns
       - supports-color
 
-  fumadocs-ui@16.17.9(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.3)(takumi-js@2.19.0(csstype@3.2.3)(react@19.3.1)):
+  fumadocs-ui@16.17.9(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(fumadocs-core@16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.3)(takumi-js@2.19.0(csstype@3.2.3)(react@19.3.1)):
     dependencies:
       '@fuma-translate/react': 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@fumadocs/tailwind': 0.1.4(tailwindcss@4.3.3)
@@ -17053,7 +17062,7 @@ snapshots:
       '@radix-ui/react-tabs': 1.2.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       class-variance-authority: 0.7.1
       cn: 0.5.1
-      fumadocs-core: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      fumadocs-core: 16.17.9(@mdx-js/mdx@3.1.1)(@modelcontextprotocol/server@2.4.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       lucide-react: 1.65.0(@types/react@19.3.0)(react@19.3.1)
       motion: 14.9.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       next-themes: 0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -17401,7 +17410,7 @@ snapshots:
 
   highlight.js@10.7.3: {}
 
-  hono@4.13.14: {}
+  hono@4.13.16: {}
 
   hookable@5.5.3: {}
 
@@ -17960,6 +17969,12 @@ snapshots:
       yallist: 3.1.1
 
   lucide-react@1.65.0(@types/react@19.3.0)(react@19.3.1):
+    dependencies:
+      react: 19.3.1
+    optionalDependencies:
+      '@types/react': 19.3.0
+
+  lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       react: 19.3.1
     optionalDependencies:
@@ -18954,20 +18969,20 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  openai@7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.0)(zod@4.6.7):
+  openai@7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.22.1)(zod@4.6.7):
     optionalDependencies:
       '@aws-sdk/credential-provider-node': 3.972.92
       '@smithy/signature-v4': 5.7.5
       undici: 8.10.2
-      ws: 8.22.0
+      ws: 8.22.1
       zod: 4.6.7
 
-  openai@7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7):
+  openai@7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.1)(zod@4.6.7):
     optionalDependencies:
       '@aws-sdk/credential-provider-node': 3.972.92
       '@smithy/signature-v4': 5.7.5
       undici: 8.12.3
-      ws: 8.22.0
+      ws: 8.22.1
       zod: 4.6.7
 
   openapi-types@12.1.3: {}
@@ -19140,7 +19155,7 @@ snapshots:
       pako: 1.0.11
       tslib: 1.14.1
 
-  pdfjs-dist@6.4.299:
+  pdfjs-dist@6.5.438:
     optionalDependencies:
       '@napi-rs/canvas': 1.1.0
 
@@ -19202,7 +19217,7 @@ snapshots:
       style-value-types: 5.1.2
       tslib: 2.4.0
 
-  portless@0.15.12: {}
+  portless@0.15.13: {}
 
   postcss-load-config@6.0.1(jiti@2.7.0)(postcss@8.5.31)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
@@ -20093,7 +20108,7 @@ snapshots:
       recast: 0.23.21
       semver: 7.8.5
       use-sync-external-store: 1.7.0(react@19.3.1)
-      ws: 8.22.0
+      ws: 8.22.1
     optionalDependencies:
       '@types/react': 19.3.0
       prettier: 3.9.10
@@ -21117,7 +21132,7 @@ snapshots:
 
   ws@8.21.0: {}
 
-  ws@8.22.0: {}
+  ws@8.22.1: {}
 
   wsl-utils@0.1.0:
     dependencies:
