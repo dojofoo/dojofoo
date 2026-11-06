@@ -11,6 +11,7 @@ import { ChatTranscript } from "../components/chat-transcript";
 import { StreamedChatMessage } from "../components/streamed-message";
 import { OpenCodeIcon } from "../components/harness-icons";
 import type { AskUserAnswer } from "../components/ask-user-questions";
+import { toolQuestion } from "../components/agent-question";
 import type { CodeHighlight } from "../lib/code-highlight";
 import { BackIcon } from "../lib/icons";
 import * as chat from "./fixtures/sensei-chat";
@@ -22,7 +23,7 @@ import * as chat from "./fixtures/sensei-chat";
  * through tools, waiting, the checks, the questions it asks, line references that highlight the editor, and its
  * Markdown. Answer a question or click a line chip: the chat and the editor respond as they do in the app.
  */
-function SenseiChat({ messages: initial, streaming = false, typing }: { messages: UIMessage[]; streaming?: boolean; typing?: string }) {
+function SenseiChat({ messages: initial, streaming = false, typing, cancelled = false }: { messages: UIMessage[]; streaming?: boolean; typing?: string; cancelled?: boolean }) {
   const [messages, setMessages] = useState(initial);
   useEffect(() => setMessages(initial), [initial]);
   const [highlight, setHighlight] = useState<CodeHighlight & { nonce: number }>();
@@ -57,6 +58,8 @@ function SenseiChat({ messages: initial, streaming = false, typing }: { messages
         <div data-testid="chat-pane" className="ui-as-chat__turns">
           <ChatTranscript messages={shown} streaming={working} renderMessage={(message, live) => (
             <StreamedChatMessage key={message.id} message={message} streaming={live} onToolAnswer={answer}
+              // The agent cancelled its questions, as Eve settles a question when a turn stops
+              question={cancelled ? (part) => { const asked = toolQuestion(part); return asked && { ...asked, disabled: true, cancelled: true }; } : undefined}
               onHighlight={(lines) => setHighlight({ ...lines, nonce: Date.now() })} />
           )} />
         </div>
@@ -102,6 +105,7 @@ export const AskOneAnswer: Story = { args: { messages: chat.askChoice } };
 export const AskSeveralAnswers: Story = { args: { messages: chat.askMany } };
 export const AskOpenQuestion: Story = { args: { messages: chat.askText } };
 export const AskAnswered: Story = { args: { messages: chat.askAnswered } };
+export const AskCancelled: Story = { args: { messages: chat.askMany, cancelled: true } };
 export const LineHighlights: Story = { args: { messages: chat.highlights } };
 export const Markdown: Story = { args: { messages: chat.markdown } };
 export const Streaming: Story = { args: { messages: [chat.user("u1", "Why does the order matter?")], typing: chat.streamingReply } };

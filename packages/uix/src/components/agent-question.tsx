@@ -10,6 +10,8 @@ export type AgentQuestionState = {
   answers?: Record<string, AskUserAnswer>;
   disabled?: boolean;
   failure?: string;
+  /** The agent cancelled the question: the card says so in its footer */
+  cancelled?: boolean;
 };
 
 /**
@@ -38,6 +40,7 @@ export function AgentQuestion({
   answers,
   disabled = false,
   failure,
+  cancelled = false,
   onAnswer,
   questions,
 }: {
@@ -45,6 +48,7 @@ export function AgentQuestion({
   answers?: Record<string, AskUserAnswer>;
   disabled?: boolean;
   failure?: string;
+  cancelled?: boolean;
   onAnswer: (answers: Record<string, AskUserAnswer>) => void | Promise<void>;
   questions: AskUserQuestion[];
 }) {
@@ -57,9 +61,10 @@ export function AgentQuestion({
       className={["max-sm:[&_.ui-button__icon]:hidden", className].filter(Boolean).join(" ")}
       shape="rounded"
       style={{ borderRadius: "var(--box-radius)", background: "var(--surface-3)", border: 0, boxShadow: "var(--shadow-3)", "--focus-ring": "var(--brand)" } as CSSProperties}
-      disabled={disabled || submitted !== null}
+      disabled={disabled || cancelled || submitted !== null}
+      status={cancelled ? <><span aria-hidden="true">×</span>Cancelled</> : undefined}
       onComplete={async (answers) => {
-        if (disabled || submitted) return;
+        if (disabled || cancelled || submitted) return;
         setError(undefined);
         setSubmitted(answers);
         try { await onAnswer(answers); }
