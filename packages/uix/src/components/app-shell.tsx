@@ -65,8 +65,7 @@ export type ShellEntry = {
   count?: number;
   /** Progress, shown at the row's end: done (a check in the brand's color), active (in progress, a ring) or locked
       (a locked folder – the row can't be opened) */
-  /** `available`: unlocked and not started */
-  state?: "done" | "active" | "available" | "locked";
+  state?: "done" | "active" | "locked";
   /** Says why, in the row's tooltip and to screen readers – e.g. what unlocks it */
   note?: string;
   children?: ShellEntry[];
@@ -228,7 +227,7 @@ type ShellRowProps = {
 };
 
 /** One sidebar row: icon, label, count (a dot in the rail), a chevron for groups, and the highlight when it is lit */
-const stateText = { done: "done", active: "in progress", available: "not started", locked: "locked" } as const;
+const stateText = { done: "done", active: "in progress", locked: "locked" } as const;
 
 function ShellRow({ entry, nested, current, lit, layoutId, rail, reduce, expanded, turned, controls, onClick, onLinkActivate }: ShellRowProps) {
   const locked = Boolean(entry.disabled) || (entry.state === "locked" && !entry.preview);
@@ -1546,7 +1545,6 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 .ui-as-side__item .ui-as-side__state svg { color: currentColor; }
 .ui-as-side__item .ui-as-side__state[data-state="done"] { color: var(--brand); }
 .ui-as-side__state[data-state="active"] > i { width: 9px; height: 9px; border: 2px solid var(--brand); border-radius: 50%; corner-shape: round; }
-.ui-as-side__state[data-state="available"] > i { width: 9px; height: 9px; border: 2px solid currentColor; border-radius: 50%; corner-shape: round; }
 .ui-as-side__item[data-state="locked"]:not([data-lit]) { color: var(--faint); }
 .ui-as-side__item[data-state="locked"] .ui-as-side__marker { color: var(--faint); }
 .ui-as-side__item[data-state="locked"]:hover { background: none; color: var(--faint); }
