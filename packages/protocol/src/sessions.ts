@@ -4,7 +4,10 @@ import type { DojoLessonContext } from "./index.js";
 /** One model a coding agent offers (D7). */
 export interface ModelChoice {
   id: string;
+  /** The agent's own name for it, with its version where the agent gives one ("Opus 5.5") */
   name: string;
+  /** The agent's one-line description, where it gives one */
+  description?: string;
   efforts: string[];
   defaultEffort?: string;
 }

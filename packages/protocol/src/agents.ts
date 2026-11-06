@@ -35,7 +35,9 @@ export interface ReadOnlyProfile {
 export type ModelDiscovery =
   | { method: "native" }
   | { method: "acp-probe" }
-  | { method: "cli-aliases"; aliases: readonly string[] };
+  | { method: "cli-aliases"; aliases: readonly string[] }
+  /** Claude Code: the Agent SDK's supportedModels() against the installed CLI (names with versions, descriptions, efforts) */
+  | { method: "claude-sdk" };
 export interface AgentRow {
   id: AgentId;
   name: string;
@@ -92,7 +94,7 @@ export const agentRows: readonly AgentRow[] = [
         note: "The adapter takes no CLI flags or settingSources, so safe mode stands in for --setting-sources \"\"; the login stays in the keychain or ~/.claude/.credentials.json.",
       },
     },
-    modelDiscovery: { method: "cli-aliases", aliases: ["fable", "opus", "sonnet"] },
+    modelDiscovery: { method: "claude-sdk" },
   },
   {
     id: "codex", name: "Codex", short: "Codex", command: "codex", install: "npm install -g @openai/codex", docs: "developers.openai.com/codex", executableEnvironment: "CODEX_PATH",

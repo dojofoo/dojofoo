@@ -32,6 +32,7 @@ export type HarnessModelChoice = ModelChoice;
 export async function harnessModels(agent: AgentId, signal: AbortSignal): Promise<HarnessModelChoice[]> {
   const discovery = agentRow(agent).modelDiscovery;
   if (discovery?.method === "cli-aliases") return discovery.aliases.map(id => ({ id, name: id, efforts: [] }));
+  if (discovery?.method === "claude-sdk") return claudeModels(signal);
   if (discovery?.method === "acp-probe") return agent === "cursor" || agent === "grok" ? acpModels(agent, signal) : [];
   if (discovery?.method !== "native") return [];
   if (agent === "codex") return codexModels(signal);
@@ -43,6 +44,31 @@ export async function harnessModels(agent: AgentId, signal: AbortSignal): Promis
     return parseOpenCodeModels(stdout);
   }
   throw new Error(`${agentRow(agent).name} model discovery is not available here yet. Use its native CLI to select a model.`);
+}
+
+/** Claude Code lists its models only in a session: the Agent SDK starts one against the installed CLI, reads supportedModels()
+ *  after the handshake and closes it. No prompt is sent and no settings are loaded. "default" is Claude Code's own choice; its
+ *  description names the model it resolves to. */
+export async function claudeModels(signal: AbortSignal, executable = resolveAgentExecutable("claude")): Promise<HarnessModelChoice[]> {
+  if (!executable) return [];
+  const { query } = await import("@anthropic-ai/claude-agent-sdk");
+  const abortController = new AbortController();
+  const abort = () => abortController.abort(signal.reason);
+  signal.addEventListener("abort", abort, { once: true });
+  // The session waits on input that never comes, so nothing reaches the model
+  const idle = (async function* (): AsyncGenerator<never> {
+    await new Promise(resolve => abortController.signal.addEventListener("abort", resolve, { once: true }));
+  })();
+  const session = query({ prompt: idle, options: { pathToClaudeCodeExecutable: executable, settingSources: [], persistSession: false, abortController } });
+  try {
+    const models = await session.supportedModels();
+    return models.map(model => ({ id: model.value, name: model.displayName, ...(model.description ? { description: model.description } : {}),
+      efforts: (model as { supportedEffortLevels?: string[] }).supportedEffortLevels ?? [] }));
+  } finally {
+    signal.removeEventListener("abort", abort);
+    abortController.abort();
+    session.close();
+  }
 }
 
 const acpLaunch = { cursor: ["--disable-auto-update", "acp"], grok: ["agent", "stdio"] } as const;
@@ -187,7 +213,7 @@ export async function codexModels(signal: AbortSignal, executable = resolveAgent
       if (!Array.isArray(page?.data)) throw new Error("Codex returned an invalid model catalog");
       for (const model of page.data) {
         if (typeof model.model !== "string" || typeof model.displayName !== "string") throw new Error("Codex returned an invalid model entry");
-        choices.push({ id: model.model, name: model.displayName,
+        choices.push({ id: model.model, name: model.displayName, ...(typeof model.description === "string" && model.description ? { description: model.description } : {}),
           efforts: (model.supportedReasoningEfforts ?? []).map((value: { reasoningEffort: string }) => value.reasoningEffort),
           defaultEffort: model.defaultReasoningEffort });
       }
