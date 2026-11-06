@@ -180,6 +180,16 @@ describe("sessions", () => {
     expect(await (await json("/sessions/missing", "PATCH", { model: "x" })).json()).toEqual({ error: "session_not_found", message: "Session not found." });
   });
 
+  it("PATCH sets the effort alone, keeping the model, and needs a model or an effort", async () => {
+    const { json, runtime } = setup({ persona: "sensei" });
+    runtime.records.push({ ...senseiRecord, endedAt: undefined, replacedBy: undefined });
+    const patched = await json("/sessions/s-course", "PATCH", { effort: "high" });
+    expect(patched.status).toBe(200);
+    expect(await patched.json()).toMatchObject({ id: "s-course", model: "gpt-5.4", effort: "high", revision: 3 });
+    expect((await json("/sessions/s-course", "PATCH", {})).status).toBe(400);
+    expect((await json("/sessions/s-course", "PATCH", { effort: "" })).status).toBe(400);
+  });
+
   it("PATCH refuses a paused session with 409 turn_paused", async () => {
     const { json, runtime } = setup({ persona: "sensei" });
     runtime.records.push({ ...senseiRecord, lifecycle: { status: "paused", turnId: "turn-3", updatedAt: "2026-10-04T00:00:03.000Z" } });

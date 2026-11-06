@@ -50,7 +50,9 @@ export interface SessionRecord {
   courseId?: string;
   lessonId?: string;
   model?: string;
-  /** Raised by every model change; a missing value reads as 0 */
+  /** The model's effort (a level the agent lists for it); the model's own default when absent */
+  effort?: string;
+  /** Raised by every model or effort change; a missing value reads as 0 */
   revision: number;
   endedAt?: string;
   replacedBy?: string;
@@ -73,7 +75,8 @@ export function firstMessageOf(text: string): string | undefined {
   return `${(space > 0 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
 
-export interface SessionPatch { model: string }
+/** At least one of the two */
+export interface SessionPatch { model?: string; effort?: string }
 
 export interface DefaultSessionRequest {
   /** Sensei pages only; a draft's page key is (draft, Kyoshi). A draft request with course or lesson, or a Sensei request without
@@ -137,7 +140,7 @@ export interface AgentRuntime {
     /** POST /sessions/default (D29): a Sensei page's (course, lesson) or a draft's Kyoshi conversation. 400 invalid_request for a
      *  draft request with a course or lesson, or a Sensei request without one. */
     openDefault(workspaceId: string, request: DefaultSessionRequest): Promise<DefaultSessionResponse>;
-    /** PATCH /sessions/{id}: writes `model`, raises `revision`, and saves the model as the workspace's last for that agent (D26) */
+    /** PATCH /sessions/{id}: writes `model` and/or `effort`, raises `revision`, and saves them as the workspace's last for that agent (D26) */
     patch(workspaceId: string, sessionId: string, patch: SessionPatch): Promise<SessionRecord>;
   };
   /** Called by the session API before it forwards a message or answer, and after Eve answers it */

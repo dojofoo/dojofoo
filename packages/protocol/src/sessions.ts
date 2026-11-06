@@ -43,6 +43,8 @@ export interface SenseiSessionInfo {
   lessonId?: string;
   mode: "katas" | "interactive";
   model?: string;
+  /** The effort the conversation's model runs at; the model's own default when absent */
+  effort?: string;
   revision: number;
 }
 

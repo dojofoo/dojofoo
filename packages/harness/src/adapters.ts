@@ -24,16 +24,21 @@ const factories: Record<Exclude<AdapterId, "pi">, (settings: Settings) => Cached
   opencode: settings => createOpenCode({ port: 0, ...settings }),
 };
 
-// Read-only settings other than Pi's come from the registry row alone, so one adapter per agent and mode serves every call.
+/** The setting each adapter takes a model's effort as; OpenCode and Cursor take none */
+const effortSetting: Partial<Record<AdapterId, string>> = { "claude-code": "effort", codex: "reasoningEffort", fx: "effort", "grok-build": "reasoningEffort", pi: "thinkingLevel" };
+
+// Read-only settings other than Pi's come from the registry row alone, so one adapter per agent, mode and effort serves every call.
 const adapters = new Map<string, CachedAdapter>();
 
 /** The official AI SDK adapter for a coding agent. Cursor uses its installed CLI/login; the others keep their native auth.
- *  `read-only` merges the row's isolation settings and wraps the `deny` rows, so their adapters never receive a built-in filter. */
-export async function agentAdapter(agent: AgentId, options: { mode?: HarnessMode; environment?: NodeJS.ProcessEnv } = {}): Promise<AgentAdapter> {
-  const { mode = "full", environment = process.env } = options;
+ *  `read-only` merges the row's isolation settings and wraps the `deny` rows, so their adapters never receive a built-in filter.
+ *  `effort` is a level the agent lists for its model (models API); without it the model runs at its own default. */
+export async function agentAdapter(agent: AgentId, options: { mode?: HarnessMode; environment?: NodeJS.ProcessEnv; effort?: string } = {}): Promise<AgentAdapter> {
+  const { mode = "full", environment = process.env, effort } = options;
   const adapterId = isAgentId(agent) ? agentRow(agent).adapterId : undefined;
   if (!adapterId) throw new Error(`Unsupported coding agent: ${String(agent)}`);
-  const settings = mode === "read-only" ? await readOnlyAdapterSettings(agent, environment) : {};
+  const effortKey = effort ? effortSetting[adapterId] : undefined;
+  const settings = { ...(mode === "read-only" ? await readOnlyAdapterSettings(agent, environment) : {}), ...(effortKey ? { [effortKey]: effort } : {}) };
   const wrap = <A extends AgentAdapter>(adapter: A): A => mode === "read-only" && agentRow(agent).readOnly?.prevention === "deny"
     ? withoutBuiltinFiltering(adapter) : adapter;
   if (adapterId === "pi") {
@@ -42,9 +47,9 @@ export async function agentAdapter(agent: AgentId, options: { mode?: HarnessMode
     if (mode === "read-only") return wrap(createPi({ reattachInProcess: false, ...settings }));
     // Custom providers (including credentials referenced by models.json) belong
     // to Pi's native setup. The adapter's default only discovers auth.json.
-    return createPi({ agentDir: resolve(environment.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent")), reattachInProcess: false });
+    return createPi({ agentDir: resolve(environment.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent")), reattachInProcess: false, ...settings });
   }
-  const key = `${agent}:${mode}`;
+  const key = `${agent}:${mode}:${effortKey ? effort : ""}`;
   let adapter = adapters.get(key);
   if (!adapter) {
     adapter = wrap(factories[adapterId](settings));

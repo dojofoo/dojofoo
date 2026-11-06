@@ -6,7 +6,7 @@ import { activeTurn, emptySessionView, foldEvents } from "@dojofoo/harness/messa
 import { setTimeout as delay } from "node:timers/promises";
 import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type LifecycleStatus, type Persona } from "@dojofoo/harness/api";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
-import { resolveAgent, writeAgent, writeAgentModel } from "@dojofoo/config/runtime";
+import { resolveAgent, writeAgent, writeAgentEffort, writeAgentModel } from "@dojofoo/config/runtime";
 import { agentRow, isAgentId, offeredAgents, personaForKind, type AgentId } from "@dojofoo/protocol";
 import { listWorkspaces, localStateDirectory, type LocalStateOptions } from "@dojofoo/config/local-state";
 import { reapProcessGroups } from "@dojofoo/harness/persona";
@@ -396,14 +396,18 @@ export function createLocalAgentRuntime(options: {
       update: async (workspaceId, sessionId, change) => updateRecord(root(workspaceId), sessionId, change),
       // Assigned below, once the runtime it connects through exists
       openDefault: async () => { throw new Error("openDefault is not ready"); },
-      async patch(workspaceId, sessionId, { model }) {
+      async patch(workspaceId, sessionId, { model, effort }) {
+        if (model === undefined && effort === undefined) throw new AgentApiError(400, "invalid_request", "Name a model or an effort.");
         const path = root(workspaceId);
         const updated = await updateRecord(path, sessionId, record => {
           if (record.lifecycle?.status === "paused") throw new AgentApiError(409, "turn_paused", "Change the model after Sensei's question is answered.");
-          return { ...record, model, revision: record.revision + 1 };
+          return { ...record, ...(model !== undefined ? { model } : {}), ...(effort !== undefined ? { effort } : {}), revision: record.revision + 1 };
         });
-        // The workspace's last model for this agent, for its next new conversation (D26)
-        if (isAgentId(updated.agent)) writeAgentModel(path, updated.agent, model);
+        // The workspace's last model and effort for this agent, for its next new conversation (D26)
+        if (isAgentId(updated.agent)) {
+          if (model !== undefined) writeAgentModel(path, updated.agent, model);
+          if (effort !== undefined) writeAgentEffort(path, updated.agent, effort);
+        }
         return updated;
       },
     },

@@ -78,7 +78,8 @@ export function createSenseiAgent(runtime: () => Promise<SenseiRuntime>, usageCe
         model: experimental_createHarnessModel({
           sandbox,
           sandboxConfig: { workDir: "scratch" },
-          harness: await agentAdapter(settings.harness, { mode: "read-only" }),
+          // The conversation's effort applies like its model: from the next turn a delivery starts (D26)
+          harness: await agentAdapter(settings.harness, { mode: "read-only", ...(session?.effort ? { effort: session.effort } : {}) }),
           model: session?.model ?? settings.model,
         }, {
           mode: "read-only", agent: settings.harness, eveSessionId: ctx.session.id,
