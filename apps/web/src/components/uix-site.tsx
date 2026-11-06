@@ -1,7 +1,7 @@
 import { ThemeToggle } from "./layout/theme-toggle";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { SiteContext, type SiteLinks, type SiteSection } from "@dojofoo/uix/web/site";
 
 const destinations: Record<SiteSection, string> = { home: "/", courses: "/dojos", docs: "/docs", help: "/docs" };
@@ -14,6 +14,14 @@ const footerLinks: NonNullable<SiteLinks["footerLinks"]> = [
 /** Routing and global search stay with TanStack/Fumadocs. */
 export function UIXSiteProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const router = useRouter();
+  // Refresh the initial static snapshot once; client navigations load through the router.
+  useEffect(() => {
+    const pathname = router.state.location.pathname.replace(/\/+$/, "") || "/";
+    if (pathname === "/" || pathname === "/dojos") {
+      void router.invalidate({ filter: match => match.routeId === pathname, sync: false });
+    }
+  }, [router]);
   const { setOpenSearch } = useSearchContext();
   const links = useMemo<SiteLinks>(() => {
     const open = (href: string) => {

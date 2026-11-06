@@ -61,7 +61,7 @@ export function LandingPage({ learning, courses, preview }: {
             const heading = document.getElementById("ui-land-start");
             heading?.closest("section")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
             heading?.focus({ preventScroll: true });
-          })}>Start</ButtonLink>
+          })}>Start learning</ButtonLink>
           <ButtonLink variant="secondary" href={links.sectionHref("courses")} onNavigate={() => links.navigate("courses")}>Browse dojos</ButtonLink>
         </div>
       </section>

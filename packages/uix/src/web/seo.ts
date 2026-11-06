@@ -189,7 +189,7 @@ export const searchPages: SearchPage[] = [
     title: "Log in",
     description: "Pick up your courses where you left off, with your progress and your sensei.",
     status: "blocked",
-    note: "Kept out of search (robots.txt, noindex) while registration is closed",
+    note: "Kept out of search with noindex while registration is closed",
   },
   {
     path: "/dojos",

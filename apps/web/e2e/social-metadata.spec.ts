@@ -62,7 +62,17 @@ test("lists the pages to index and keeps the auth pages out", async ({ request }
   const sitemap = await (await request.get("/sitemap.xml")).text();
   for (const path of ["/", "/dojos", "/docs", "/docs/quickstart"]) expect(sitemap).toContain(`<loc>https://dojo.foo${path}</loc>`);
   const robots = await (await request.get("/robots.txt")).text();
-  expect(robots).toContain("Disallow: /sign-in");
+  expect(robots).not.toContain("Disallow: /sign-in");
+  expect(robots).not.toContain("Disallow: /sign-up");
+  expect(robots).not.toContain("Disallow: /device");
+  const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
+  expect(new Set(urls).size).toBe(urls.length);
+  expect(urls).toContain("https://dojo.foo/courses/dojofoo/effect-ts");
+  for (const path of ["/sign-in", "/sign-up", "/device", "/forgot-password"]) {
+    const response = await request.get(path);
+    expect(response.status()).toBe(200);
+    expect(await response.text()).toContain('name="robots" content="noindex, nofollow"');
+  }
   expect(robots).toContain("Sitemap: https://dojo.foo/sitemap.xml");
 });
 

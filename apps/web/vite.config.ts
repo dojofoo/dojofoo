@@ -11,12 +11,12 @@ import { wgslVitePlugin } from 'vgpu/client';
 import { monacoAssets } from '../../packages/ui/monaco-assets';
 
 const appRoot = dirname(fileURLToPath(import.meta.url));
-const docsRoot = resolve(appRoot, 'content/docs');
+const docsRoot = resolve(appRoot, 'content');
 const docsPaths = globSync('**/*.mdx', { cwd: docsRoot }).map((file) => {
   const slug = relative(docsRoot, resolve(docsRoot, file))
     .replace(/(?:^|\/)index\.mdx$/, '')
     .replace(/\.mdx$/, '');
-  return `/docs${slug ? `/${slug}` : ''}`;
+  return `/${slug}`;
 });
 
 export default defineConfig({
@@ -51,7 +51,7 @@ export default defineConfig({
         crawlLinks: false,
         failOnError: true,
       },
-      pages: docsPaths.map((path) => ({ path })),
+      pages: [...new Set(['/', '/dojos', ...docsPaths.map((path) => path.replace(/\/+$/, '') || '/')])].map((path) => ({ path })),
     }),
     react(),
     nitro({
