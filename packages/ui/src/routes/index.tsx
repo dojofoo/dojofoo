@@ -533,10 +533,6 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
     </div>, items: lesson.lessons.map((item, index) => ({
       id: `lesson:${item.name}`, label: item.title, marker: String(index + 1).padStart(2, "0"),
       state: item.state === "completed" ? "done" : item.isCurrent ? "active" : "locked",
-      note: item.state !== "completed" && !item.isCurrent ? "Upcoming lesson; expand to preview its goal" : undefined,
-      ...(item.name === lesson.kata || item.state !== "completed" && !item.isCurrent
-        ? { preview: <p>{item.summary}</p> }
-        : { onClick: () => { void viewLesson(item.name); } }),
     })) },
   ];
   if ((lesson.course?.chapters?.length ?? 0) > 1) {
