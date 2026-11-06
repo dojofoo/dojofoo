@@ -23,6 +23,7 @@ import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
 import { usePageSocket } from "@/hooks/use-page-socket";
 import { lessonResources } from "@/lib/lesson-resources";
 import type { InteractiveSnapshot } from "@/server/interactive/service";
+import { emitLessonEvent } from "@/lib/lesson-events";
 
 function api(workspace: string, course?: string, path = "") {
   return workspace && course ? `/api/workspaces/${encodeURIComponent(workspace)}/courses/${encodeURIComponent(course)}/interactive${path}` : "/api/unavailable";
@@ -84,7 +85,13 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
       : `/api/workspaces/${encodeURIComponent(workspace)}/courses/${encodeURIComponent(lesson.dojo)}/lessons/${encodeURIComponent(lesson.current.id)}/progressions`;
     try {
       const next = await read<InteractiveSnapshot>(path, { ...json(action === "answer" ? { answer: submittedAnswer } : {}), signal });
-      if (!signal?.aborted) { setLesson(next); setAnswer(""); }
+      if (!signal?.aborted) {
+        setLesson(next); setAnswer("");
+        for (const finished of next.lessons.filter((item, index) => item.state === "done" && lesson.lessons[index]?.state !== "done")) {
+          emitLessonEvent({ type: "lesson.completed", workspace, course: next.dojo, lesson: finished.id, mode: "interactive" });
+        }
+        if (next.complete && !lesson.complete) emitLessonEvent({ type: "course.completed", workspace, course: next.dojo, lesson: next.lessonId, mode: "interactive" });
+      }
     } catch (cause) {
       if (!signal?.aborted) setError(cause instanceof Error ? cause.message : String(cause));
     } finally { if (!signal?.aborted) setStepBusy(false); }

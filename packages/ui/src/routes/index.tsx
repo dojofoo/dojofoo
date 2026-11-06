@@ -50,6 +50,7 @@ import { courseArt } from "@/lib/course-color";
 import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
 import { httpError } from "@/lib/http-error";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
+import { emitLessonEvent } from "@/lib/lesson-events";
 import type { JsonRpcRequest } from "@/server/session/protocol";
 import type { AnchoredChatEvent } from "@/lib/chat-timeline";
 import type { CheckReportState, GuardViolation } from "@dojofoo/protocol";
@@ -370,6 +371,11 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       setLiveTests((current) => [...current, params.test!]);
     } else if (message.method === "lesson.check.completed" && params.observation) {
       const observation = params.observation;
+      const before = lessonRef.current;
+      if (observation.report.complete && before && workspaceId && !before.result?.complete && before.state !== "completed") {
+        emitLessonEvent({ type: "lesson.completed", workspace: workspaceId, course: before.dojo, lesson: before.kata, mode: "kata" });
+        if (before.lessons.every(item => item.name === before.kata || item.state === "completed")) emitLessonEvent({ type: "course.completed", workspace: workspaceId, course: before.dojo, lesson: before.kata, mode: "kata" });
+      }
       setLesson((current) => current ? { ...current, result: observation.report } : current);
       if (ownChecks.current > 0) {
         ownChecks.current--;

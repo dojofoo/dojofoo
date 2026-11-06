@@ -32,7 +32,7 @@ export type InteractiveSnapshot = {
   lessonId: string;
   lessonIndex: number;
   completedLessons: number;
-  lessons: Array<{ id: string; title: string; state?: "active" | "done" | "locked" }>;
+  lessons: Array<{ id: string; title: string; state?: "active" | "available" | "done" | "locked" }>;
   slides: Array<{ id: string; title: string; locked: boolean }>;
   unlockedStep: number;
   references: Array<{ source: string; basePath: string | null }>;
@@ -86,7 +86,7 @@ export function getInteractiveLesson(root: string, requestedDojo?: string): Inte
     dojo, deck: curriculum.deck, title: manifest.title ?? curriculum.title, lessonId: lesson.id, lessonIndex, lessonTitle: lesson.title,
     completedLessons: complete ? curriculum.lessons.length : unlockedLesson,
     lessons: curriculum.lessons.map((entry, index) => ({ id: entry.id, title: entry.title,
-      state: index < unlockedLesson || complete ? "done" : index === lessonIndex ? "active" : index > unlockedLesson ? "locked" : undefined })),
+      state: index < unlockedLesson || complete ? "done" : index === lessonIndex ? "active" : index > unlockedLesson ? "locked" : "available" })),
     slides: lesson.slides.map((entry, index) => ({ id: entry.id, title: entry.title, locked: index > unlockedStep })),
     unlockedStep,
     references: lesson.slides.flatMap(entry => {
