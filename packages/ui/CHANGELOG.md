@@ -1,5 +1,34 @@
 # @dojofoo/ui
 
+## 0.0.5
+
+### Patch Changes
+
+- 6207895: Run the local dashboard through the bundled Portless dependency, guide first-time setup with automatic agent discovery, and retain workspace and course progress through stable course and session routes.
+  
+  Share the authoring sidebar with Storybook, support chapters and lesson renaming, scaffold course README.md and chapter/lesson INTRO files from templates, and add dashboard course deletion menus. Reuse the shared navigation, scrolling, card editor, slide presentation, and error-page components across the local UI and website.
+  
+  Collapsed sidebars hide full-size cards and custom file trees while retaining their expanded state; authoring keeps the shared icon rail.
+- 01317a9: The Sensei's chat renders in uix: `components/streamed-message` (its activity panel, questions, checks and attachments), `components/chat-transcript`, `components/agent-question` and `components/ask-user-questions` moved from packages/ui, which keeps only what the app knows – Eve's tool calls and questions, its own lesson messages, the authored fragments it shows.
+  
+  Its Markdown is Streamdown (`components/chat-markdown`): headings, nested and task lists, quotes, tables, links, rules, emphasis and strikethrough in the chat's own type, fenced code in a CodeBlock, and `[highlight:L3-5]` as a chip that highlights those lines in the editor. Turns in the chat pane keep the column's spacing (`ui-as-chat__turns`), and ask-user tools keep `multiSelect`.
+  
+  Storybook's Components/Organisms/Sensei Chat shows the chat on the right of a lesson, as the app does: thinking, working, waiting, testing, checks that fail and pass, tool calls, questions with one answer, several, an open one and an answered one, line highlights, Markdown and a streaming reply. The Conversation story and Chat/Activity's stories of components the app doesn't use are gone; the Interactive lesson and the demo pages' chats (Pages/Dojo and others) render through the same renderer.
+- af900ba: Prerender the landing, course catalog, and public documentation with cached documentation loader data and preload the primary navigation. Refresh the initial catalog snapshot from the API while retaining router view transitions and browser history. Rename the landing action to Start learning.
+  
+  Normalize sitemap URLs, let crawlers read authentication pages' noindex directives, and distinguish the SEO sandbox's next-build metadata from its deployment audit. Keep unpublished courses private.
+  
+  Regenerate the API reference after the dependency update and restore build compatibility with the updated React and Base UI types. Restore the SDK versions compatible with the existing chat and agent adapters and retain the audited runtime dependency pin.
+- Updated dependencies [6207895]
+- Updated dependencies [01317a9]
+- Updated dependencies [01317a9]
+- Updated dependencies [af900ba]
+  - @dojofoo/config@0.3.0
+  - @dojofoo/authoring@0.1.2
+  - @dojofoo/uix@0.0.4
+  - @dojofoo/agent@0.1.1
+  - @dojofoo/agent-api@0.0.2
+
 ## 0.0.4
 
 ### Patch Changes
