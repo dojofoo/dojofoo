@@ -50,7 +50,7 @@
     "prepack": "node scripts/prepare-package.mjs"
   },
   "dependencies": {
-    "@agentclientprotocol/claude-agent-acp": "0.99.1",
+    "@agentclientprotocol/claude-agent-acp": "0.100.0",
     "@agentclientprotocol/codex-acp": "2.5.0",
     "@dojofoo/authoring": "workspace:*",
     "@dojofoo/config": "workspace:*",
@@ -58,7 +58,7 @@
     "giget": "^3.3.1",
     "jiti": "^2.7.0",
     "just-bash": "3.6.0",
-    "portless": "0.15.12",
+    "portless": "0.15.13",
     "typescript": "6.0.3",
     "yaml": "^2.9.1",
     "zod": "^4.4.3"
