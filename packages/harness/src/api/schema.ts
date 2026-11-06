@@ -47,7 +47,8 @@ const sessionSummary = {
 };
 const modelChoice = t.Object({
   id: t.String({ examples: ["openai/gpt-4o"] }),
-  name: t.String(),
+  name: t.String({ description: "The agent's own name for the model, with its version where the agent gives one.", examples: ["Opus 5.5"] }),
+  description: t.Optional(t.String({ description: "The agent's one-line description of the model." })),
   efforts: t.Array(t.String()),
   defaultEffort: t.Optional(t.String()),
 });
@@ -119,7 +120,8 @@ export const routes = {
   updateSession: {
     detail: details("updateSession", "Change a session's model or effort", "Sets the conversation's model and/or effort from its next turn and remembers them as the workspace's last for that coding agent. Refused while Sensei waits on the learner's answer.", "Sessions"),
     params: t.Object({ ...workspace, sessionId: t.String() }),
-    body: t.Object({ model: t.Optional(t.String({ minLength: 1 })), effort: t.Optional(t.String({ minLength: 1 })) }, { additionalProperties: false, minProperties: 1 }),
+    // `effort: null` clears it, for a model that does not take the effort chosen before
+    body: t.Object({ model: t.Optional(t.String({ minLength: 1 })), effort: t.Optional(t.Union([t.String({ minLength: 1 }), t.Null()])) }, { additionalProperties: false, minProperties: 1 }),
     response: { 200: t.Object(sessionSummary), 400: error, 404: error, 409: error },
   },
   eve: {

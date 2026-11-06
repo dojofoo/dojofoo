@@ -149,7 +149,8 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", optio
         const record = records.find(item => item.id === sessionId);
         if (!record) throw new AgentApiError(404, "session_not_found", "Session not found.");
         if (record.lifecycle?.status === "paused") throw new AgentApiError(409, "turn_paused", "Change the model after Sensei's question is answered.");
-        Object.assign(record, { ...(model !== undefined ? { model } : {}), ...(effort !== undefined ? { effort } : {}), revision: (record.revision ?? 0) + 1 });
+        Object.assign(record, { ...(model !== undefined ? { model } : {}), ...(typeof effort === "string" ? { effort } : {}), revision: (record.revision ?? 0) + 1 });
+        if (effort === null) delete record.effort;
         return record;
       },
     },

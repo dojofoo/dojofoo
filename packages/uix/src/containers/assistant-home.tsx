@@ -10,6 +10,7 @@ export { ChatStyles } from "../components/chat-message";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { ComposerPicker, ComposerSurface } from "../components/composer";
+import { ModelPicker } from "../components/model-picker";
 import type { ThinkingStep } from "../components/thinking-state";
 import type { IconGlyph } from "../lib/icons";
 import {
@@ -264,7 +265,8 @@ export function ChatMessages({
 }
 
 /** Models in the composer's picker – the first one is selected */
-export type ComposerModel = { value?: string; name: string; effort?: string; description: string; icon: IconGlyph };
+/** `effort`: the level it runs at by default; `efforts`: the levels a coding agent lists for it (the model menu then offers them) */
+export type ComposerModel = { value?: string; name: string; effort?: string; efforts?: string[]; description: string; icon: IconGlyph };
 export type ComposerAgent = { value: string; name: string; icon: IconGlyph; description?: string };
 const defaultModels: ComposerModel[] = [
   { name: "Auto", description: "Picks the best model for each task", icon: AiMagicIcon },
@@ -289,7 +291,7 @@ export function Composer({
   models = defaultModels,
   agent, agents, onAgentChange, agentChanging, loading,
   className, value, onValueChange, history, disabled, onStop, id, label, queueing,
-  model: controlledModel, onModelChange, modelChanging, onModelPrepare,
+  model: controlledModel, onModelChange, modelChanging, onModelPrepare, effort, onEffortChange,
   attachments = true, files: controlledFiles, onFilesChange, dictation = true, plugins: pluginsEnabled = true,
 }: {
   value?: string;
@@ -304,6 +306,9 @@ export function Composer({
   onModelChange?: (value: string) => void;
   onModelPrepare?: () => Promise<boolean | void>;
   modelChanging?: boolean;
+  /** The chosen model's effort, from the levels its `efforts` list; the model's default effort when absent */
+  effort?: string;
+  onEffortChange?: (effort: string) => void;
   /** Keep the + control visible but disabled when this connection cannot accept files. */
   attachments?: boolean | "unavailable";
   files?: File[];
@@ -416,12 +421,20 @@ export function Composer({
             }))}>
             {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
           </ComposerPicker>}</>}
-    controls={<><ComposerPicker title="Model" model loading={loading || agentChanging || modelChanging}
+    controls={<>{agent && models.some(m => m.efforts) ? (
+              // A coding agent that lists its models' efforts: the model menu with each model's description and effort levels
+              <ModelPicker side="top" align="end" className="ui-as-composer__models" triggerClassName="ui-as-ghost ui-as-ghost--model" glyphs={false}
+                models={models.map(m => ({ id: m.value ?? m.name, name: m.name, description: m.description, efforts: m.efforts ?? [], ...(m.effort ? { defaultEffort: m.effort } : {}) }))}
+                value={model} effort={effort} disabled={disabled || busy || modelChanging || loading || agentChanging}
+                {...(loading || agentChanging ? { placeholder: "Loading…" } : {})}
+                onChange={next => { if (onModelChange) onModelChange(next); else setSelected(next); }}
+                onEffortChange={next => onEffortChange?.(next)} />
+            ) : <ComposerPicker title="Model" model loading={loading || agentChanging || modelChanging}
               onPrepare={onModelPrepare} disabled={(!models.length && !onModelPrepare) || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
               items={models.map(m => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon,
                 checked: (m.value ?? m.name) === model, onSelect: () => { const next = m.value ?? m.name; if (onModelChange) onModelChange(next); else setSelected(next); } }))}>
               {selectedModel?.name ?? model ?? (loading || agentChanging ? "Loading…" : agent ? "Default" : "Model")}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}
-            </ComposerPicker>
+            </ComposerPicker>}
             {dictation && <button
               type="button"
               className="ui-as-icon-btn ui-as-mic"

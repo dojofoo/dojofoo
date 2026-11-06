@@ -35,9 +35,15 @@ export type PickerModel = {
   latencyMs?: number;
   /** Price per million output tokens, in dollars */
   pricePerM?: number;
+  /** The effort levels this model takes, in order (a coding agent's own, e.g. low … max); the effort control offers these.
+   *  Leave out for the classic Low / Medium / High under the thinking switch */
+  efforts?: string[];
+  /** The level it runs at when none is chosen */
+  defaultEffort?: string;
 };
 
-export type ModelEffort = "low" | "medium" | "high";
+/** A level from the model's `efforts`, or low / medium / high */
+export type ModelEffort = string;
 
 export type ModelPickerProps = {
   models: PickerModel[];
@@ -66,17 +72,23 @@ export type ModelPickerProps = {
   /** Whether the menu opens below or above the trigger – above suits a composer at the bottom of the screen */
   side?: "bottom" | "top";
   className?: string;
+  /** The trigger's own class, e.g. a composer's ghost button */
+  triggerClassName?: string;
+  /** In place of the chosen model's name on the trigger, e.g. while its host is loading */
+  placeholder?: string;
+  /** The trigger takes no clicks, e.g. while a turn runs on the model */
+  disabled?: boolean;
+  /** The letter tile in front of each model without an icon; off for a coding agent's plain list */
+  glyphs?: boolean;
 };
 
 /* ---------- Helpers ---------- */
 
-const EFFORTS: { id: ModelEffort; label: string }[] = [
-  { id: "low", label: "Low" },
-  { id: "medium", label: "Medium" },
-  { id: "high", label: "High" },
-];
-/** How much longer the first token takes while the model thinks first */
-const THINK_FACTOR: Record<ModelEffort, number> = { low: 1.6, medium: 2.5, high: 4 };
+const CLASSIC_EFFORTS = ["low", "medium", "high"];
+/** "xhigh" reads "X-High"; every other level is capitalised */
+const effortLabel = (level: string) => level === "xhigh" ? "X-High" : level.charAt(0).toUpperCase() + level.slice(1);
+/** How much longer the first token takes while the model thinks first: more the higher the level */
+const thinkFactor = (levels: string[], level: string) => 1 + 0.75 * (Math.max(0, levels.indexOf(level)) + 1);
 const STRENGTHS = [
   { key: "speed", label: "Speed" },
   { key: "quality", label: "Quality" },
@@ -206,7 +218,7 @@ export function ModelPicker({
   defaultWebSearch = false,
   onWebSearchChange,
   effort,
-  defaultEffort = "medium",
+  defaultEffort,
   onEffortChange,
   open,
   defaultOpen = false,
@@ -214,6 +226,10 @@ export function ModelPicker({
   align = "start",
   side = "bottom",
   className,
+  triggerClassName,
+  placeholder,
+  disabled = false,
+  glyphs = true,
 }: ModelPickerProps) {
   const uid = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -224,16 +240,24 @@ export function ModelPicker({
   const [innerValue, setInnerValue] = useState(defaultValue ?? models[0]?.id);
   const [innerThinking, setInnerThinking] = useState(defaultThinking);
   const [innerSearch, setInnerSearch] = useState(defaultWebSearch);
-  const [innerEffort, setInnerEffort] = useState<ModelEffort>(defaultEffort);
+  const [innerEffort, setInnerEffort] = useState<ModelEffort | undefined>(defaultEffort);
   const [innerOpen, setInnerOpen] = useState(defaultOpen);
   const chosenId = value ?? innerValue;
   const isThinking = thinking ?? innerThinking;
   const isSearching = webSearch ?? innerSearch;
-  const effortNow = effort ?? innerEffort;
   const isOpen = open ?? innerOpen;
 
   const chosenIndex = Math.max(0, models.findIndex((m) => m.id === chosenId));
   const chosen = models[chosenIndex];
+
+  // Models that list their own efforts (a coding agent's) get a plain effort row with those levels; without any, the classic
+  // menu: Low / Medium / High under the thinking switch, and the web search switch
+  const classic = !models.some((m) => m.efforts);
+  const levels = classic ? CLASSIC_EFFORTS : chosen?.efforts ?? [];
+  const effortNow = effort ?? innerEffort ?? chosen?.defaultEffort ?? (classic ? "medium" : undefined);
+  const showThinking = classic || onThinkingChange !== undefined;
+  const showSearch = classic || onWebSearchChange !== undefined;
+  const anyRated = models.some((m) => m.speed !== undefined || m.quality !== undefined || m.cost !== undefined);
 
   /** The row the arrows (or the pointer) are on, and whether someone is actually pointing at a row */
   const [active, setActive] = useState(chosenIndex);
@@ -340,8 +364,12 @@ export function ModelPicker({
     if (!n) return;
     const move = (to: number) => {
       e.preventDefault();
-      setActive(((to % n) + n) % n);
+      const next = ((to % n) + n) % n;
+      setActive(next);
       setPointing(true);
+      // A long list scrolls: the row the arrows reach stays in view
+      const id = models[next] ? `${uid}-opt-${models[next].id}` : undefined;
+      if (id) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "nearest" }));
     };
     if (e.key === "ArrowDown") move(active + 1);
     else if (e.key === "ArrowUp") move(active - 1);
@@ -353,13 +381,13 @@ export function ModelPicker({
     }
   };
   const onEffortKey = (e: KeyboardEvent) => {
-    const i = EFFORTS.findIndex((x) => x.id === effortNow);
+    const i = levels.indexOf(effortNow ?? "");
     const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
-    if (!step) return;
+    if (!step || !levels.length) return;
     e.preventDefault();
-    const next = EFFORTS[(i + step + EFFORTS.length) % EFFORTS.length];
-    chooseEffort(next.id);
-    rootRef.current?.querySelector<HTMLElement>(`[data-effort="${next.id}"]`)?.focus();
+    const next = levels[(i + step + levels.length) % levels.length]!;
+    chooseEffort(next);
+    rootRef.current?.querySelector<HTMLElement>(`[data-effort="${next}"]`)?.focus();
   };
   const onRootKey = (e: KeyboardEvent) => {
     if (e.key !== "Escape" || !isOpen) return;
@@ -369,7 +397,7 @@ export function ModelPicker({
 
   /* ---------- What the tray says ---------- */
 
-  const factor = isThinking ? THINK_FACTOR[effortNow] : 1;
+  const factor = isThinking && effortNow ? thinkFactor(levels, effortNow) : 1;
   const latency = (lit?.latencyMs ?? 0) * factor;
   const price = lit?.pricePerM ?? 0;
   const rolled = useRolling({ latency, price }, 560);
@@ -424,18 +452,21 @@ export function ModelPicker({
       <button
         ref={triggerRef}
         type="button"
-        className="ui-mdp__trigger"
+        className={["ui-mdp__trigger", triggerClassName].filter(Boolean).join(" ")}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         aria-controls={`${uid}-menu`}
-        aria-label={`Model: ${chosen?.name ?? "none"}${isThinking ? ", extended thinking" : ""}`}
+        disabled={disabled}
+        aria-label={`Model: ${placeholder ?? chosen?.name ?? "none"}${!classic && effortNow ? `, ${effortLabel(effortNow)} effort` : ""}${isThinking ? ", extended thinking" : ""}`}
         onClick={() => setOpen(!isOpen, isOpen ? undefined : "list")}
         onKeyDown={onTriggerKey}
       >
-        {chosen && <Glyph model={chosen} />}
+        {chosen && !placeholder && (glyphs || chosen.icon) && <Glyph model={chosen} />}
         <span className="ui-mdp__name">
-          <Swap id={chosen?.id ?? "none"}>{chosen?.name ?? "Choose a model"}</Swap>
+          <Swap id={placeholder ?? chosen?.id ?? "none"}>{placeholder ?? chosen?.name ?? "Choose a model"}</Swap>
         </span>
+        {/* A coding agent's model shows the effort it runs at, on the same line */}
+        {!classic && !placeholder && effortNow && <span className="ui-mdp__trigger-effort">{effortLabel(effortNow)}</span>}
         {/* A small bulb unfolds next to the name while extended thinking is on */}
         <span className="ui-mdp__flag" data-on={isThinking ? "" : undefined} aria-hidden="true">
           <span>
@@ -457,11 +488,13 @@ export function ModelPicker({
         <div className="ui-mdp__card">
           <div className="ui-mdp__head" aria-hidden="true">
             <span>Model</span>
-            <span className="ui-mdp__cols">
-              {STRENGTHS.map((s) => (
-                <span key={s.key}>{s.label}</span>
-              ))}
-            </span>
+            {anyRated && (
+              <span className="ui-mdp__cols">
+                {STRENGTHS.map((s) => (
+                  <span key={s.key}>{s.label}</span>
+                ))}
+              </span>
+            )}
           </div>
 
           <div
@@ -494,7 +527,7 @@ export function ModelPicker({
                   }}
                   onClick={() => pick(i)}
                 >
-                  <Glyph model={m} />
+                  {(glyphs || m.icon) && <Glyph model={m} />}
                   <span className="ui-mdp__text">
                     <span className="ui-mdp__title">
                       <span className="ui-mdp__title-name">{m.name}</span>
@@ -520,18 +553,18 @@ export function ModelPicker({
                         );
                       })}
                     </span>
-                  ) : (
+                  ) : anyRated ? (
                     <span className="ui-mdp__varies" aria-hidden="true">
                       Varies
                     </span>
-                  )}
+                  ) : null}
                 </div>
               );
             })}
           </div>
 
-          <div className="ui-mdp__settings">
-            <button
+          {(showThinking || showSearch || levels.length > 0) && <div className="ui-mdp__settings">
+            {showThinking && <button
               type="button"
               role="switch"
               aria-checked={isThinking}
@@ -543,10 +576,10 @@ export function ModelPicker({
               </span>
               <span className="ui-mdp__toggle-label">Extended thinking</span>
               <span className="ui-mdp__switch" aria-hidden="true" />
-            </button>
+            </button>}
 
-            {/* Effort unfolds under thinking, in place */}
-            <div className="ui-mdp__fold" data-open={isThinking ? "" : undefined} inert={!isThinking}>
+            {/* Effort unfolds under thinking, in place; a coding agent's model shows its own levels in a plain row */}
+            {levels.length > 0 && <div className="ui-mdp__fold" data-open={!showThinking || isThinking ? "" : undefined} data-plain={showThinking ? undefined : ""} inert={showThinking && !isThinking}>
               <div className="ui-mdp__clip">
                 <div className="ui-mdp__effort">
                   <span className="ui-mdp__effort-label" id={`${uid}-effort`}>
@@ -556,30 +589,31 @@ export function ModelPicker({
                     className="ui-mdp__segmented"
                     role="radiogroup"
                     aria-labelledby={`${uid}-effort`}
-                    style={{ ["--i" as string]: EFFORTS.findIndex((x) => x.id === effortNow) }}
+                    style={{ ["--i" as string]: Math.max(0, levels.indexOf(effortNow ?? "")), ["--n" as string]: levels.length }}
+                    data-unset={effortNow && levels.includes(effortNow) ? undefined : ""}
                     onKeyDown={onEffortKey}
                   >
                     <span className="ui-mdp__thumb" aria-hidden="true" />
-                    {EFFORTS.map((x) => (
+                    {levels.map((level) => (
                       <button
-                        key={x.id}
+                        key={level}
                         type="button"
                         role="radio"
-                        aria-checked={x.id === effortNow}
-                        tabIndex={x.id === effortNow ? 0 : -1}
-                        data-effort={x.id}
+                        aria-checked={level === effortNow}
+                        tabIndex={level === effortNow || (!effortNow && level === levels[0]) ? 0 : -1}
+                        data-effort={level}
                         className="ui-mdp__seg-btn"
-                        onClick={() => chooseEffort(x.id)}
+                        onClick={() => chooseEffort(level)}
                       >
-                        {x.label}
+                        {effortLabel(level)}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-            </div>
+            </div>}
 
-            <button
+            {showSearch && <button
               type="button"
               role="switch"
               aria-checked={isSearching}
@@ -595,8 +629,8 @@ export function ModelPicker({
               </span>
               <span className="ui-mdp__toggle-label">Web search</span>
               <span className="ui-mdp__switch" aria-hidden="true" />
-            </button>
-          </div>
+            </button>}
+          </div>}
         </div>
 
         {/* The tray: what the model you point at costs you */}
@@ -652,6 +686,7 @@ const css = /* css */ `
 .ui-mdp__trigger { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; height: 30px; padding: 0 8px 0 6px; border-radius: calc(10px * var(--squircle-factor, 1)); font-weight: 500; color: var(--ui-mdp-ink); white-space: nowrap; transition: background-color 160ms ease; }
 .ui-mdp__trigger:hover, .ui-mdp[data-open] .ui-mdp__trigger { background: var(--ui-mdp-well); }
 .ui-mdp__trigger .ui-mdp__glyph { width: 18px; height: 18px; }
+.ui-mdp__trigger-effort { flex: none; font-weight: 400; color: var(--ui-mdp-muted); }
 .ui-mdp__name { display: grid; min-width: 0; }
 .ui-mdp__chevron { color: var(--ui-mdp-muted); transition: transform 300ms var(--ui-mdp-ease); }
 .ui-mdp[data-open] .ui-mdp__chevron { transform: rotate(180deg); }
@@ -668,12 +703,13 @@ const css = /* css */ `
   z-index: 30;
   top: calc(100% + 6px);
   left: 0;
-  width: min(320px, calc(100vw - 32px));
+  width: min(340px, calc(100vw - 32px));
   container-type: inline-size;
+  /* The same box as every other menu (the account menu's .ui-as-menu): one card, its radius and its shadow */
   padding: 4px;
-  border-radius: calc(20px * var(--squircle-factor, 1));
-  background: var(--ui-mdp-tray);
-  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.04);
+  border-radius: calc(12px * var(--squircle-factor, 1));
+  background: var(--card, var(--ui-mdp-card));
+  box-shadow: var(--shadow-4);
   transform-origin: top left;
   opacity: 0;
   visibility: hidden;
@@ -685,13 +721,13 @@ const css = /* css */ `
 .ui-mdp[data-side="top"][data-align="end"] .ui-mdp__pop { transform-origin: bottom right; }
 .ui-mdp[data-open] .ui-mdp__pop { opacity: 1; visibility: visible; transform: none; transition: opacity 200ms ease, transform 320ms var(--ui-mdp-ease), visibility 0s; }
 
-.ui-mdp__card { padding: 6px; border-radius: calc(16px * var(--squircle-factor, 1)); background: var(--ui-mdp-card); box-shadow: var(--shadow-3); }
+.ui-mdp__card { padding: 0; }
 .ui-mdp__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 24px; padding: 0 10px; font-size: 11px; line-height: 16px; color: var(--ui-mdp-muted); }
 .ui-mdp__cols { display: grid; grid-template-columns: repeat(3, 34px); gap: 8px; }
 .ui-mdp__cols > span { display: flex; justify-content: center; white-space: nowrap; }
 
 /* ----- Rows ----- */
-.ui-mdp__list { display: grid; gap: 1px; border-radius: calc(10px * var(--squircle-factor, 1)); }
+.ui-mdp__list { display: grid; gap: 1px; max-height: min(360px, 46dvh); overflow-y: auto; overscroll-behavior: contain; border-radius: calc(10px * var(--squircle-factor, 1)); }
 .ui-mdp__option { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 10px; border-radius: calc(10px * var(--squircle-factor, 1)); cursor: pointer; transition: background-color 160ms ease, opacity 220ms ease; }
 .ui-mdp__list[data-pointing] .ui-mdp__option[data-active] { background: var(--ui-mdp-well); }
 .ui-mdp__list:focus-visible { outline: none; }
@@ -728,8 +764,11 @@ const css = /* css */ `
 .ui-mdp__clip { min-height: 0; overflow: hidden; }
 .ui-mdp__effort { display: flex; align-items: center; gap: 10px; padding: 2px 10px 6px 42px; }
 .ui-mdp__effort-label { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ui-mdp-muted); }
-.ui-mdp__segmented { position: relative; display: grid; flex: none; grid-template-columns: repeat(3, 58px); padding: 2px; border-radius: calc(9px * var(--squircle-factor, 1)); background: var(--ui-mdp-well); }
-.ui-mdp__thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: 58px; border-radius: calc(7px * var(--squircle-factor, 1)); background: var(--ui-mdp-card); box-shadow: var(--shadow-3); transform: translateX(calc(var(--i) * 100%)); transition: transform 320ms var(--ui-mdp-ease); }
+.ui-mdp__segmented { position: relative; display: grid; flex: none; grid-template-columns: repeat(var(--n, 3), 1fr); width: calc(var(--n, 3) * 52px + 4px); padding: 2px; border-radius: calc(9px * var(--squircle-factor, 1)); background: var(--ui-mdp-well); }
+.ui-mdp__segmented[data-unset] .ui-mdp__thumb { opacity: 0; }
+/* A coding agent's levels: a plain row under the list, the label above when the levels need the width */
+.ui-mdp__fold[data-plain] .ui-mdp__effort { flex-wrap: wrap; row-gap: 6px; padding: 6px 10px; }
+.ui-mdp__thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / var(--n, 3)); border-radius: calc(7px * var(--squircle-factor, 1)); background: var(--ui-mdp-card); box-shadow: var(--shadow-3); transform: translateX(calc(var(--i) * 100%)); transition: transform 320ms var(--ui-mdp-ease); }
 .ui-mdp__seg-btn { position: relative; height: 24px; border-radius: calc(7px * var(--squircle-factor, 1)); font-size: 12px; font-weight: 500; color: var(--ui-mdp-muted); text-align: center !important; transition: color 200ms ease; }
 .ui-mdp__seg-btn[aria-checked="true"] { color: var(--ui-mdp-ink); }
 .ui-mdp__seg-btn:hover { color: var(--ui-mdp-ink); }

@@ -16,7 +16,7 @@ import type { CodeHighlight } from "@/lib/code-highlight";
 export type ChatFailureView = { message: string; actions: ChatAction[]; refusedAgent?: string; login?: string; agentName?: string; retryAfter?: string };
 
 /** An agent conversation's presentation */
-export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent, agents, onAgentChange, agentChanging, model, models, modelChanging, onModelChange, fragments, onHighlight, notice }: {
+export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent, agents, onAgentChange, agentChanging, model, models, modelChanging, onModelChange, effort, onEffortChange, fragments, onHighlight, notice }: {
   embedded?: boolean;
   /** A status line or notice above the composer */
   notice?: ReactNode;
@@ -29,6 +29,9 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
   models?: ComposerModel[];
   modelChanging?: boolean;
   onModelChange?(value: string): void;
+  /** The chosen model's effort, from its `efforts` */
+  effort?: string;
+  onEffortChange?(value: string): void;
   placeholder?: string;
   messages: UIMessage[];
   status: string;
@@ -60,7 +63,7 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
       </> : error ? <FailureActions failure={error} active={active} agents={agents} onAgentChange={onAgentChange} onRetryLoad={onRetryLoad} /> : null}
     </div>;
   const composer = <>{notice}<div data-testid="authoring-chat-composer">
-      <Composer tray={false} attachments={attachments || "unavailable"} files={files} onFilesChange={onFilesChange} dictation={false} plugins={false} models={models ?? []} model={model} modelChanging={modelChanging} onModelChange={onModelChange} agent={agent ?? { name: "Coding agent", icon: AiBrain01Icon }}
+      <Composer tray={false} attachments={attachments || "unavailable"} files={files} onFilesChange={onFilesChange} dictation={false} plugins={false} models={models ?? []} model={model} modelChanging={modelChanging} onModelChange={onModelChange} effort={effort} onEffortChange={onEffortChange} agent={agent ?? { name: "Coding agent", icon: AiBrain01Icon }}
         agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging}
         // A message sent while the agent works joins its turn, so the composer stays open
         disabled={inputDisabled || readOnly} busy={active} onStop={onStop} queueing

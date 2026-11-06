@@ -3,7 +3,7 @@ import { useState } from "react";
 import { AppShell, Dropdown } from "../components/app-shell";
 import { BrandLogo } from "../components/brand-logo";
 import { ComposerSurface } from "../components/composer";
-import { CodexIcon, OpenCodeIcon } from "../components/harness-icons";
+import { ClaudeIcon, CodexIcon, OpenCodeIcon } from "../components/harness-icons";
 import { Composer } from "../containers/assistant-home";
 
 function ControlledComposer({ disabled = false, longModels = false }: { disabled?: boolean; longModels?: boolean }) {
@@ -61,3 +61,29 @@ function AttachmentComposer({ failOnce = false }: { failOnce?: boolean }) {
 }
 export const Attachments: StoryObj<typeof meta> = { render: () => <AttachmentComposer /> };
 export const AttachmentRetry: StoryObj<typeof meta> = { render: () => <AttachmentComposer failOnce /> };
+
+/** A coding agent's model menu: each model's name with its version, its description and its own effort levels, as Claude Code
+ *  (the Agent SDK's supportedModels) and Codex (its model catalog) list them */
+const claudeModels = [
+  { value: "default", name: "Default (recommended)", description: "Opus 5.5 · Best for everyday, complex tasks", efforts: ["low", "medium", "high", "xhigh", "max"] },
+  { value: "opus", name: "Opus 5.5", description: "For complex work and everyday tasks", efforts: ["low", "medium", "high", "xhigh", "max"] },
+  { value: "fable", name: "Fable 5.1", description: "For your toughest challenges", efforts: ["low", "medium", "high", "xhigh", "max"] },
+  { value: "sonnet", name: "Sonnet 5.5", description: "Most efficient for simpler tasks", efforts: ["low", "medium", "high", "xhigh", "max"] },
+  { value: "haiku", name: "Haiku 4.5", description: "Fastest for quick answers", efforts: [] },
+].map(model => ({ ...model, icon: ClaudeIcon }));
+const codexModels = [
+  { value: "gpt-6.1-sol", name: "GPT-6.1-Sol", description: "Latest workhorse model for coding and everyday work.", efforts: ["low", "medium", "high", "xhigh", "max", "ultra"], effort: "low" },
+  { value: "gpt-6-astra", name: "GPT-6-Astra", description: "Frontier intelligence for the most demanding work.", efforts: ["low", "medium", "high", "xhigh", "max", "ultra"], effort: "medium" },
+  { value: "gpt-6-luna", name: "GPT-6-Luna", description: "Fast and affordable model for easier tasks.", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "medium" },
+].map(model => ({ ...model, icon: CodexIcon }));
+type AgentModel = { value: string; name: string; description: string; efforts: string[]; effort?: string; icon: typeof CodexIcon };
+function AgentModels({ agent, models, initial }: { agent: { name: string; icon: typeof CodexIcon }; models: AgentModel[]; initial?: string }) {
+  const [model, setModel] = useState(initial ?? models[0]!.value);
+  const [effort, setEffort] = useState<string>();
+  return <div className="mx-auto flex min-h-[520px] w-full max-w-xl flex-col justify-end p-6">
+    <Composer tray={false} dictation={false} plugins={false} attachments="unavailable" agent={agent} models={models}
+      model={model} onModelChange={next => { setModel(next); setEffort(undefined); }} effort={effort} onEffortChange={setEffort} />
+  </div>;
+}
+export const ClaudeCodeModels: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "Claude Code", icon: ClaudeIcon }} models={claudeModels} initial="default" /> };
+export const CodexModels: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "Codex", icon: CodexIcon }} models={codexModels} /> };

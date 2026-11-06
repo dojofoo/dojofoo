@@ -75,8 +75,8 @@ export function firstMessageOf(text: string): string | undefined {
   return `${(space > 0 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
 
-/** At least one of the two */
-export interface SessionPatch { model?: string; effort?: string }
+/** At least one of the two; `effort: null` clears the effort, so the model runs at its default */
+export interface SessionPatch { model?: string; effort?: string | null }
 
 export interface DefaultSessionRequest {
   /** Sensei pages only; a draft's page key is (draft, Kyoshi). A draft request with course or lesson, or a Sensei request without

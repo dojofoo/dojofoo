@@ -401,12 +401,14 @@ export function createLocalAgentRuntime(options: {
         const path = root(workspaceId);
         const updated = await updateRecord(path, sessionId, record => {
           if (record.lifecycle?.status === "paused") throw new AgentApiError(409, "turn_paused", "Change the model after Sensei's question is answered.");
-          return { ...record, ...(model !== undefined ? { model } : {}), ...(effort !== undefined ? { effort } : {}), revision: record.revision + 1 };
+          // `effort: null` clears it: the new model does not take the level chosen before
+          const { effort: _previous, ...rest } = record;
+          return { ...(effort === null ? rest : record), ...(model !== undefined ? { model } : {}), ...(typeof effort === "string" ? { effort } : {}), revision: record.revision + 1 };
         });
         // The workspace's last model and effort for this agent, for its next new conversation (D26)
         if (isAgentId(updated.agent)) {
           if (model !== undefined) writeAgentModel(path, updated.agent, model);
-          if (effort !== undefined) writeAgentEffort(path, updated.agent, effort);
+          if (typeof effort === "string") writeAgentEffort(path, updated.agent, effort);
         }
         return updated;
       },
