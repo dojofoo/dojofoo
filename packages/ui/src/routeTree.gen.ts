@@ -19,9 +19,9 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AuthoringDraftIdRouteImport } from './routes/authoring_.$draftId'
 import { Route as CourseCourseIdRouteImport } from './routes/course.$courseId'
 import { Route as KataNameRouteImport } from './routes/kata.$name'
-import { Route as LearnRunIdRouteImport } from './routes/learn.$runId'
 import { Route as SessionSessionIdRouteImport } from './routes/session.$sessionId'
 import { Route as StarterCourseIdRouteImport } from './routes/starter.$courseId'
+import { Route as LearnRunIdChar123LessonIdChar125RouteImport } from './routes/learn.$runId.{-$lessonId}'
 import { Route as CourseWorkspaceIdCourseIdLessonLessonIdRouteImport } from './routes/course_.$workspaceId.$courseId.lesson.$lessonId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -74,11 +74,6 @@ const KataNameRoute = KataNameRouteImport.update({
   path: '/kata/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LearnRunIdRoute = LearnRunIdRouteImport.update({
-  id: '/learn/$runId',
-  path: '/learn/$runId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SessionSessionIdRoute = SessionSessionIdRouteImport.update({
   id: '/session/$sessionId',
   path: '/session/$sessionId',
@@ -89,6 +84,12 @@ const StarterCourseIdRoute = StarterCourseIdRouteImport.update({
   path: '/starter/$courseId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnRunIdChar123LessonIdChar125Route =
+  LearnRunIdChar123LessonIdChar125RouteImport.update({
+    id: '/learn/$runId/{-$lessonId}',
+    path: '/learn/$runId/{-$lessonId}',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CourseWorkspaceIdCourseIdLessonLessonIdRoute =
   CourseWorkspaceIdCourseIdLessonLessonIdRouteImport.update({
     id: '/course_/$workspaceId/$courseId/lesson/$lessonId',
@@ -107,9 +108,9 @@ export interface FileRoutesByFullPath {
   '/authoring/$draftId': typeof AuthoringDraftIdRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
-  '/learn/$runId': typeof LearnRunIdRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
+  '/learn/$runId/{-$lessonId}': typeof LearnRunIdChar123LessonIdChar125Route
   '/course/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
 export interface FileRoutesByTo {
@@ -123,9 +124,9 @@ export interface FileRoutesByTo {
   '/authoring/$draftId': typeof AuthoringDraftIdRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
-  '/learn/$runId': typeof LearnRunIdRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
+  '/learn/$runId/{-$lessonId}': typeof LearnRunIdChar123LessonIdChar125Route
   '/course/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
 export interface FileRoutesById {
@@ -140,9 +141,9 @@ export interface FileRoutesById {
   '/authoring_/$draftId': typeof AuthoringDraftIdRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
-  '/learn/$runId': typeof LearnRunIdRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
+  '/learn/$runId/{-$lessonId}': typeof LearnRunIdChar123LessonIdChar125Route
   '/course_/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
 export interface FileRouteTypes {
@@ -158,9 +159,9 @@ export interface FileRouteTypes {
     | '/authoring/$draftId'
     | '/course/$courseId'
     | '/kata/$name'
-    | '/learn/$runId'
     | '/session/$sessionId'
     | '/starter/$courseId'
+    | '/learn/$runId/{-$lessonId}'
     | '/course/$workspaceId/$courseId/lesson/$lessonId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -174,9 +175,9 @@ export interface FileRouteTypes {
     | '/authoring/$draftId'
     | '/course/$courseId'
     | '/kata/$name'
-    | '/learn/$runId'
     | '/session/$sessionId'
     | '/starter/$courseId'
+    | '/learn/$runId/{-$lessonId}'
     | '/course/$workspaceId/$courseId/lesson/$lessonId'
   id:
     | '__root__'
@@ -190,9 +191,9 @@ export interface FileRouteTypes {
     | '/authoring_/$draftId'
     | '/course/$courseId'
     | '/kata/$name'
-    | '/learn/$runId'
     | '/session/$sessionId'
     | '/starter/$courseId'
+    | '/learn/$runId/{-$lessonId}'
     | '/course_/$workspaceId/$courseId/lesson/$lessonId'
   fileRoutesById: FileRoutesById
 }
@@ -207,9 +208,9 @@ export interface RootRouteChildren {
   AuthoringDraftIdRoute: typeof AuthoringDraftIdRoute
   CourseCourseIdRoute: typeof CourseCourseIdRoute
   KataNameRoute: typeof KataNameRoute
-  LearnRunIdRoute: typeof LearnRunIdRoute
   SessionSessionIdRoute: typeof SessionSessionIdRoute
   StarterCourseIdRoute: typeof StarterCourseIdRoute
+  LearnRunIdChar123LessonIdChar125Route: typeof LearnRunIdChar123LessonIdChar125Route
   CourseWorkspaceIdCourseIdLessonLessonIdRoute: typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
 
@@ -285,13 +286,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KataNameRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/learn/$runId': {
-      id: '/learn/$runId'
-      path: '/learn/$runId'
-      fullPath: '/learn/$runId'
-      preLoaderRoute: typeof LearnRunIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/session/$sessionId': {
       id: '/session/$sessionId'
       path: '/session/$sessionId'
@@ -304,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/starter/$courseId'
       fullPath: '/starter/$courseId'
       preLoaderRoute: typeof StarterCourseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/$runId/{-$lessonId}': {
+      id: '/learn/$runId/{-$lessonId}'
+      path: '/learn/$runId/{-$lessonId}'
+      fullPath: '/learn/$runId/{-$lessonId}'
+      preLoaderRoute: typeof LearnRunIdChar123LessonIdChar125RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/course_/$workspaceId/$courseId/lesson/$lessonId': {
@@ -327,9 +328,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthoringDraftIdRoute: AuthoringDraftIdRoute,
   CourseCourseIdRoute: CourseCourseIdRoute,
   KataNameRoute: KataNameRoute,
-  LearnRunIdRoute: LearnRunIdRoute,
   SessionSessionIdRoute: SessionSessionIdRoute,
   StarterCourseIdRoute: StarterCourseIdRoute,
+  LearnRunIdChar123LessonIdChar125Route: LearnRunIdChar123LessonIdChar125Route,
   CourseWorkspaceIdCourseIdLessonLessonIdRoute:
     CourseWorkspaceIdCourseIdLessonLessonIdRoute,
 }

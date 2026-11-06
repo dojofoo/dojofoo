@@ -7,18 +7,24 @@ import { LessonLoading, LessonPage } from "./index";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { RouteErrorPanel } from "./__root";
 
-/** A course run: the course, the kata lesson to open (the course's current one by default) and the conversation a history pick asked for (D30).
+/** A course run: the course, the kata lesson to open (the course's current one without a lesson segment) and the conversation a history
+ *  pick asked for (D30).
  *  The loader awaits what the page shows first (the outline and the current lesson) from the query cache, and starts reading the
  *  page's conversation without waiting for it (TanStack Router, "Deferred data loading"). A cached course renders at once and
  *  refetches when the page mounts. */
-export const Route = createFileRoute("/learn/$runId")({
+export const Route = createFileRoute("/learn/$runId/{-$lessonId}")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>): { lesson?: string; session?: string } => ({
     ...(typeof search.lesson === "string" ? { lesson: search.lesson } : {}),
     ...(typeof search.session === "string" ? { session: search.session } : {}),
   }),
-  loaderDeps: ({ search }) => ({ lesson: search.lesson }),
-  loader: async ({ params, deps, context: { queryClient } }) => {
+  // The old `?lesson=` address moves to the lesson's path
+  beforeLoad: ({ params, search }) => {
+    if (search.lesson === undefined) return;
+    throw redirect({ to: "/learn/$runId/{-$lessonId}", params: { runId: params.runId, lessonId: params.lessonId ?? search.lesson },
+      search: search.session ? { session: search.session } : {}, replace: true });
+  },
+  loader: async ({ params, context: { queryClient } }) => {
     // An id that is not a run lands on the dashboard, not an error page (D33)
     // Cached data answers at once and is refetched behind it, so a preload made when the card rendered is current by the click
     const course = await queryClient.ensureQueryData({ ...runQuery(params.runId), revalidateIfStale: true }).catch(error => {
@@ -30,7 +36,7 @@ export const Route = createFileRoute("/learn/$runId")({
       void queryClient.prefetchQuery(conversationQuery(course.workspaceId, { course: course.id }));
       return;
     }
-    const lessonId = deps.lesson ?? course.kata ?? undefined;
+    const lessonId = params.lessonId ?? course.kata ?? undefined;
     if (lessonId) {
       await queryClient.ensureQueryData({ ...lessonQuery(course.workspaceId, course.id, lessonId), revalidateIfStale: true });
       void queryClient.prefetchQuery(conversationQuery(course.workspaceId, { course: course.id, lesson: lessonId }));
@@ -44,10 +50,10 @@ export const Route = createFileRoute("/learn/$runId")({
 });
 
 function LearnPage() {
-  const { runId } = Route.useParams();
+  const { runId, lessonId: requestedLesson } = Route.useParams();
   const search = Route.useSearch();
   const { data: course } = useSuspenseQuery(runQuery(runId));
-  const lessonId = search.lesson ?? course.kata ?? undefined;
+  const lessonId = requestedLesson ?? course.kata ?? undefined;
   if (course.mode === "interactive") return <InteractiveLearn key={course.id} runId={runId} workspace={course.workspaceId} course={course.id} session={search.session} />;
   // A requested conversation that no longer belongs to the lesson opens the default (D29)
   return <KataLearn key={`${course.id}:${lessonId}`} runId={runId} workspace={course.workspaceId} course={course.id} lessonId={lessonId} session={search.session} />;

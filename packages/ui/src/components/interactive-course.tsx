@@ -119,7 +119,7 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
   /** A history pick: its address names it, and the chat asks for it at once (with a switch, in the same update: decision 17) */
   const openPick = (id: string) => {
     setSession(id);
-    void navigate({ to: "/learn/$runId", params: { runId }, search: { session: id } });
+    void navigate({ to: "/learn/$runId/{-$lessonId}", params: { runId }, search: { session: id } });
   };
   const workspaceAgent = useWorkspaceAgent({ workspaceId: workspace, persona: "sensei", onSwitched: (_agentId, pick) => {
     setAgentEpoch(epoch => epoch + 1);
@@ -196,7 +196,7 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
       <span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
     conversation={<><AgentChat key={`${workspace}:${lesson.dojo}:${agentEpoch}`} embedded workspaceId={workspace} persona="sensei" page={{ course: lesson.dojo }} controls={chat}
       sessionId={session} onOpened={setOpened}
-      onSessionDropped={() => { void navigate({ to: "/learn/$runId", params: { runId }, search: {}, replace: true }); }}
+      onSessionDropped={() => { void navigate({ to: "/learn/$runId/{-$lessonId}", params: { runId }, search: {}, replace: true }); }}
       onSwitchRequest={agentId => { if (opened) workspaceAgent.request(agentId, { id: opened.id, readOnly: false }); }}
       agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching} />{workspaceAgent.notice}{workspaceAgent.dialog}</>} />{toast}</div>;
 }
