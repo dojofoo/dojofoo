@@ -1,5 +1,8 @@
 import { useEveAgent } from "@dojofoo/harness/react";
 import { activeTurn, eveChatMessages, openInteractions } from "@dojofoo/harness/messages";
+import { conversationOf } from "@dojofoo/harness/client";
+import { useQuery } from "@tanstack/react-query";
+import { conversationQuery, type PreloadedConversation } from "@/lib/learn-queries";
 import type { SendTurnOptions } from "@dojofoo/harness/client";
 import type { Persona } from "@dojofoo/harness/api";
 import { agentRow, isAgentId } from "@dojofoo/protocol";
@@ -15,7 +18,6 @@ import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { launchFetch } from "@/lib/launch-token";
 import { AiBrain01Icon, AiMagicIcon } from "@dojofoo/uix/icons";
 import type { ComposerAgent, ComposerModel } from "@dojofoo/uix/containers/assistant-home";
-import type { UIMessage } from "@tanstack/ai-react";
 import { useViewTransitionSettled } from "@dojofoo/uix/lib/view-transition";
 
 type Session = { id: string; agent: string; model?: string };
@@ -29,15 +31,6 @@ type Page<T> = { data: T[]; pagination: { hasMore: boolean } };
 type ChatPage = { course: string; lesson?: string };
 const agentApi = (workspaceId: string, path = "") => `/api/v1/workspaces/${encodeURIComponent(workspaceId)}${path}`;
 
-/** The conversation each page opened last and what it showed, so a page opened again shows it at once while it is opened and
- *  replayed from Eve. Only the page's default conversation, or the same one requested again, is shown from here. */
-type Remembered = { session: Session; agent: string; messages: UIMessage[] };
-const remembered = new Map<string, Remembered>();
-function remember(key: string, entry: Remembered) {
-  remembered.delete(key);
-  remembered.set(key, entry);
-  if (remembered.size > 20) remembered.delete(remembered.keys().next().value!);
-}
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -117,9 +110,11 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
   /** What the page asked for last; a different request starts with an empty composer */
   const loadKey = `${workspaceId}\0${persona}\0${pageKey}\0${sessionId ?? ""}\0${readOnly}`;
   const requested = useRef({ key: loadKey, session: sessionId });
-  const memoryKey = `${workspaceId}\0${persona}\0${pageKey}`;
-  const memory = readOnly ? undefined : remembered.get(memoryKey);
-  const recalled = memory && (sessionId === undefined || sessionId === memory.session.id) ? memory : undefined;
+  // A Sensei page's newest conversation, as its route preloaded it: shown while the page opens its default conversation, and
+  // the start of that conversation when it is the same one
+  const preloaded = useQuery({ ...conversationQuery(workspaceId, page ?? { course: "" }), enabled: persona === "sensei" && page !== undefined && !readOnly }).data ?? undefined;
+  const recalled = preloaded && (sessionId === undefined || sessionId === preloaded.session.id) ? preloaded : undefined;
+  const recalledMessages = useMemo(() => recalled ? eveChatMessages(conversationOf(recalled.events).messages) : [], [recalled]);
   /** The requested conversation the server honoured, while the page still asks for it */
   const picked = useRef<string | undefined>(undefined);
   /** The conversation that opened when the page's requested one was dropped */
@@ -186,10 +181,10 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
     const timer = setTimeout(() => setLoadAttempt(attempt => attempt + 1), 1_000);
     return () => clearTimeout(timer);
   }, [switchingRetry, error]);
-  const recalledAgent = recalled && codingAgents.find(choice => choice.value === recalled.agent);
+  const recalledAgent = recalled && codingAgents.find(choice => choice.value === recalled.session.agent);
   // Eve's replay renders the whole conversation again; it starts once the page's view transition has finished
   const settled = useViewTransitionSettled();
-  if (!session || !settled) return <AuthoringChat embedded={embedded} placeholder={placeholder} messages={recalled?.messages ?? []} status="ready" busy={error === undefined} inputDisabled
+  if (!session || !settled) return <AuthoringChat embedded={embedded} placeholder={placeholder} messages={recalledMessages} status="ready" busy={error === undefined} inputDisabled
     agent={recalledAgent}
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles} onSend={() => {}} onAnswer={() => {}}
     // A load that can only start over shows "Try again"
@@ -199,8 +194,7 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
     onRetryLoad={error !== undefined ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
   return <AgentConversation key={`${session.id}:${opening}`} embedded={embedded} workspaceId={workspaceId} session={session} placeholder={placeholder}
     hostEvents={hostEvents} fragments={fragments} onHighlight={onHighlight} notice={status}
-    recalled={recalled?.session.id === session.id ? recalled.messages : undefined}
-    onShown={readOnly ? undefined : messages => remember(memoryKey, { session, agent: session.agent, messages })}
+    preloaded={recalled?.session.id === session.id ? recalled : undefined}
     clientContext={context} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} sensei={persona === "sensei"} controls={controls}
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles}
     picked={picked.current === session.id} onSwitchRequest={onSwitchRequest}
@@ -226,12 +220,10 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
 }
 
 /** The session is Eve's: its own client resumes it, streams it, and takes messages and answers. */
-function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext, agents, onAgentChange, agentChanging, sensei, controls, hostEvents, fragments, onHighlight, notice, picked, onSwitchRequest, onContinue, onLeaveReadOnly, recalled, onShown }: {
+function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext, agents, onAgentChange, agentChanging, sensei, controls, hostEvents, fragments, onHighlight, notice, picked, onSwitchRequest, onContinue, onLeaveReadOnly, preloaded }: {
   embedded?: boolean; workspaceId: string; session: Opened;
-  /** What this conversation showed when the page was last open, shown until Eve's replay catches up */
-  recalled?: UIMessage[];
-  /** What the conversation shows once it has caught up, for the next time the page opens */
-  onShown?(messages: UIMessage[]): void;
+  /** The conversation's stream up to a line, as the route preloaded it: Eve starts from these events and follows from there */
+  preloaded?: PreloadedConversation;
   /** The page asked for this conversation and the server honoured it (a history pick) */
   picked: boolean;
   onSwitchRequest?(agentId: string): void;
@@ -260,7 +252,8 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   context.current = clientContext;
   const agent = useEveAgent({
     baseUrl: agentApi(workspaceId, `/sessions/${encodeURIComponent(session.id)}`),
-    initialSession: { sessionId: session.id, streamIndex: 0 },
+    initialSession: { sessionId: session.id, streamIndex: preloaded?.streamIndex ?? 0 },
+    ...(preloaded ? { initialEvents: preloaded.events } : {}),
     resume: true,
     prepareSend: input => ({ ...input, clientContext: context.current }),
   });
@@ -277,9 +270,6 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   const messages = useMemo(() => hostEvents?.length
     ? projectChatTimeline(transcript, hostEvents.map(event => ({ ...event, afterMessageId: anchors.current.get(event.message.id) ?? null })))
     : transcript, [transcript, hostEvents]);
-  const resuming = agent.status === "resuming";
-  useEffect(() => { if (!resuming) onShown?.(messages); }, [resuming, messages]);
-  const visible = resuming && recalled?.length && !messages.length ? recalled : messages;
   // Sensei's composer offers the coding agent's models; a change applies from the next turn
   useEffect(() => {
     if (!sensei) return;
@@ -356,7 +346,7 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   const turnOpen = activeTurn(agent.view) !== undefined;
   // A typed message answers the first open question (Eve docs tools/human-in-the-loop.md), which the hint says (decision 15)
   const hint = sensei && openInteractions(agent.view).length > 0 ? "Answer Sensei's question above, or type your answer" : placeholder;
-  return <AuthoringChat embedded={embedded} agent={selectedAgent} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} placeholder={hint} messages={visible}
+  return <AuthoringChat embedded={embedded} agent={selectedAgent} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} placeholder={hint} messages={messages}
     readOnly={readOnly}
     fragments={fragments} onHighlight={onHighlight}
     status={agent.status === "busy" ? "streaming" : "ready"} busy={agent.status === "resuming"}

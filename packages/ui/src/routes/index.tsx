@@ -18,8 +18,7 @@ import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
 import { DashboardPalette } from "@/components/dashboard-palette";
 import { ArrowDown01Icon, BackIcon, Cancel01Icon, DoneIcon } from "@dojofoo/uix/icons";
 import { LocalDashboard, type LocalSetup } from "@/components/local-onboarding";
-import { ClientOnly, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
-import { prepareEditor } from "@dojofoo/uix/lib/preload-editor";
+import { ClientOnly, createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { UIMessage } from "@tanstack/ai-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -103,27 +102,7 @@ async function assertResponse(response: Response): Promise<Response> {
 
 function CourseIndex({ setup }: { setup: LocalSetup }) {
   const navigate = useNavigate();
-  const router = useRouter();
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
-  // Every installed course is local, so the dashboard loads each one's lesson page ahead (its route code and its loader data)
-  // while idle: opening a course then renders from the router's cache instead of fetching inside its view transition. What a
-  // course showed when it was last left is dropped first, so each preload reads its progress now. A kata course also needs
-  // the editor and Monaco.
-  useEffect(() => {
-    const runs = courses.flatMap(course => course.runId ? [course.runId] : []);
-    if (!runs.length) return;
-    const prepare = () => {
-      router.clearCache({ filter: match => match.routeId === "/learn/$runId" });
-      for (const runId of runs) void router.preloadRoute({ to: "/learn/$runId", params: { runId } }).catch(() => {});
-      if (courses.some(course => course.mode !== "interactive")) {
-        void import("@dojofoo/uix/containers/code-editor").catch(() => {});
-        prepareEditor();
-      }
-    };
-    if (typeof window.requestIdleCallback !== "function") { const timer = window.setTimeout(prepare, 300); return () => window.clearTimeout(timer); }
-    const handle = window.requestIdleCallback(prepare, { timeout: 1000 });
-    return () => window.cancelIdleCallback(handle);
-  }, [router, courses]);
   const { account, toast } = useAccountMenu();
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);

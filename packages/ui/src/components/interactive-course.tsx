@@ -24,6 +24,8 @@ import { usePageSocket } from "@/hooks/use-page-socket";
 import { lessonResources } from "@/lib/lesson-resources";
 import type { InteractiveSnapshot } from "@/server/interactive/service";
 import { emitLessonEvent } from "@/lib/lesson-events";
+import { useQueryClient } from "@tanstack/react-query";
+import { interactiveQuery } from "@/lib/learn-queries";
 
 function api(workspace: string, course?: string, path = "") {
   return workspace && course ? `/api/workspaces/${encodeURIComponent(workspace)}/courses/${encodeURIComponent(course)}/interactive${path}` : "/api/unavailable";
@@ -47,6 +49,9 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
   const navigate = useNavigate();
   const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   const [lesson, setLesson] = useState<InteractiveSnapshot | null>(initialLesson ?? null);
+  // The answers and slide moves made here are the course's latest snapshot, so opening the course again starts from them
+  const queryClient = useQueryClient();
+  const settle = (next: InteractiveSnapshot) => { setLesson(next); queryClient.setQueryData(interactiveQuery(requestedWorkspace, next.dojo).queryKey, next); };
   const [workspace, setWorkspace] = useState(requestedWorkspace);
   const [answer, setAnswer] = useState("");
   const [stepBusy, setStepBusy] = useState(false);
@@ -86,7 +91,7 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
     try {
       const next = await read<InteractiveSnapshot>(path, { ...json(action === "answer" ? { answer: submittedAnswer } : {}), signal });
       if (!signal?.aborted) {
-        setLesson(next); setAnswer("");
+        settle(next); setAnswer("");
         for (const finished of next.lessons.filter((item, index) => item.state === "done" && lesson.lessons[index]?.state !== "done")) {
           emitLessonEvent({ type: "lesson.completed", workspace, course: next.dojo, lesson: finished.id, mode: "interactive" });
         }
@@ -102,7 +107,7 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
     setStepBusy(true); setError(undefined);
     try {
       const next = await read<InteractiveSnapshot>(api(workspace, lesson.dojo, "/material"), json(selection, "PUT"));
-      setLesson(next); setAnswer("");
+      settle(next); setAnswer("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
     finally { setStepBusy(false); }
   }

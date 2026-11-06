@@ -1,20 +1,16 @@
 import { createFileRoute, redirect, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { prepareEditor } from "@dojofoo/uix/lib/preload-editor";
+import { interactiveQuery, lessonQuery, conversationQuery, runQuery, RunNotFound } from "@/lib/learn-queries";
 import { InteractiveCourse } from "@/components/interactive-course";
-import type { InteractiveSnapshot } from "@/server/interactive/service";
-import type { LessonSnapshot } from "@/server/lesson/service";
-import type { InstalledCourse } from "./course.$courseId";
 import { LessonLoading, LessonPage } from "./index";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { RouteErrorPanel } from "./__root";
 
-async function read<T>(url: string, signal: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error ?? "This course session is no longer available.");
-  return body;
-}
-
-/** A course run: the course, the kata lesson to open (the course's current one by default) and the conversation a history pick asked for (D30) */
+/** A course run: the course, the kata lesson to open (the course's current one by default) and the conversation a history pick asked for (D30).
+ *  The loader awaits what the page shows first (the outline and the current lesson) from the query cache, and starts reading the
+ *  page's conversation without waiting for it (TanStack Router, "Deferred data loading"). A cached course renders at once and
+ *  refetches when the page mounts. */
 export const Route = createFileRoute("/learn/$runId")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>): { lesson?: string; session?: string } => ({
@@ -22,27 +18,25 @@ export const Route = createFileRoute("/learn/$runId")({
     ...(typeof search.session === "string" ? { session: search.session } : {}),
   }),
   loaderDeps: ({ search }) => ({ lesson: search.lesson }),
-  // The dashboard preloads every course each time it shows (dropping what was preloaded before), so a preload stays usable until
-  // then. A run that is not preloaded and loads within 400 ms still commits inside the view transition; a slower one shows the
-  // loading workspace for at least 200 ms.
-  pendingMs: 400,
-  pendingMinMs: 200,
-  preloadStaleTime: Infinity,
-  loader: async ({ params, deps, abortController }) => {
-    const signal = abortController.signal;
-    const response = await fetch(`/api/control/learning-sessions/${encodeURIComponent(params.runId)}`, { signal });
+  loader: async ({ params, deps, context: { queryClient } }) => {
     // An id that is not a run lands on the dashboard, not an error page (D33)
-    if (response.status === 404) throw redirect({ to: "/", replace: true });
-    const course = await response.json() as InstalledCourse & { error?: string };
-    if (!response.ok) throw new Error(course.error ?? "This course session is no longer available.");
-    const base = `/api/workspaces/${encodeURIComponent(course.workspaceId)}/courses/${encodeURIComponent(course.id)}`;
+    // Cached data answers at once and is refetched behind it, so a preload made when the card rendered is current by the click
+    const course = await queryClient.ensureQueryData({ ...runQuery(params.runId), revalidateIfStale: true }).catch(error => {
+      if (error instanceof RunNotFound) throw redirect({ to: "/", replace: true });
+      throw error;
+    });
     if (course.mode === "interactive") {
-      const interactive = await read<InteractiveSnapshot>(`${base}/interactive`, signal);
-      return { course, interactive, lesson: undefined };
+      await queryClient.ensureQueryData({ ...interactiveQuery(course.workspaceId, course.id), revalidateIfStale: true });
+      void queryClient.prefetchQuery(conversationQuery(course.workspaceId, { course: course.id }));
+      return;
     }
     const lessonId = deps.lesson ?? course.kata ?? undefined;
-    const lesson = lessonId ? await read<LessonSnapshot>(`${base}/lessons/${encodeURIComponent(lessonId)}?prepare=false`, signal) : undefined;
-    return { course, lesson, interactive: undefined };
+    if (lessonId) {
+      await queryClient.ensureQueryData({ ...lessonQuery(course.workspaceId, course.id, lessonId), revalidateIfStale: true });
+      void queryClient.prefetchQuery(conversationQuery(course.workspaceId, { course: course.id, lesson: lessonId }));
+      // The editor and Monaco load with the lesson's data, not when the page first needs them
+      prepareEditor();
+    }
   },
   component: LearnPage,
   pendingComponent: LearnPending,
@@ -50,15 +44,24 @@ export const Route = createFileRoute("/learn/$runId")({
 });
 
 function LearnPage() {
-  const { course, interactive, lesson } = Route.useLoaderData();
   const { runId } = Route.useParams();
   const search = Route.useSearch();
-  if (interactive) return <InteractiveCourse key={course.id} runId={runId} workspace={course.workspaceId} course={course.id} initialLesson={interactive}
-    requestedSession={search.session} />;
+  const { data: course } = useSuspenseQuery(runQuery(runId));
   const lessonId = search.lesson ?? course.kata ?? undefined;
+  if (course.mode === "interactive") return <InteractiveLearn key={course.id} runId={runId} workspace={course.workspaceId} course={course.id} session={search.session} />;
   // A requested conversation that no longer belongs to the lesson opens the default (D29)
-  return <LessonPage key={`${course.id}:${lessonId}`} runId={runId} requestedWorkspaceId={course.workspaceId} requestedCourseId={course.id}
-    requestedLessonId={lessonId} initialLesson={lesson?.kata === lessonId ? lesson : undefined} requestedSessionId={search.session} />;
+  return <KataLearn key={`${course.id}:${lessonId}`} runId={runId} workspace={course.workspaceId} course={course.id} lessonId={lessonId} session={search.session} />;
+}
+
+function InteractiveLearn({ runId, workspace, course, session }: { runId: string; workspace: string; course: string; session?: string }) {
+  const { data } = useSuspenseQuery(interactiveQuery(workspace, course));
+  return <InteractiveCourse runId={runId} workspace={workspace} course={course} initialLesson={data} requestedSession={session} />;
+}
+
+function KataLearn({ runId, workspace, course, lessonId, session }: { runId: string; workspace: string; course: string; lessonId?: string; session?: string }) {
+  const lesson = useQuery({ ...lessonQuery(workspace, course, lessonId ?? ""), enabled: lessonId !== undefined }).data;
+  return <LessonPage runId={runId} requestedWorkspaceId={workspace} requestedCourseId={course} requestedLessonId={lessonId}
+    initialLesson={lesson?.kata === lessonId ? lesson : undefined} requestedSessionId={session} />;
 }
 
 function LearnPending() {

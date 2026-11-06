@@ -269,7 +269,7 @@ importers:
         version: link:../protocol
       '@earendil-works/pi-ai':
         specifier: 1.4.0
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.21.0)(zod@4.6.7)
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
       '@earendil-works/pi-coding-agent':
         specifier: 1.4.0
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.21.0)(zod@4.6.7)
@@ -477,7 +477,7 @@ importers:
     dependencies:
       '@ai-sdk/harness':
         specifier: 1.0.170
-        version: 1.0.170(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.170(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/harness-claude-code':
         specifier: 1.0.174
         version: 1.0.174(zod@4.6.7)
@@ -486,19 +486,19 @@ importers:
         version: 1.0.172(zod@4.6.7)
       '@ai-sdk/harness-cursor':
         specifier: 1.0.85
-        version: 1.0.85(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.85(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/harness-fx':
         specifier: 1.0.86
-        version: 1.0.86(patch_hash=1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825)(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.86(patch_hash=1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825)(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/harness-grok-build':
         specifier: 1.0.109
-        version: 1.0.109(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.109(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/harness-opencode':
         specifier: 1.0.173
         version: 1.0.173(patch_hash=b97fffa11b8180f659cae1cfe053a80de34944477f174eafe6baf3d49fae6edc)(zod@4.6.7)
       '@ai-sdk/harness-pi':
         specifier: 1.0.173
-        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.173(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.21.0)(zod@4.6.7)
       '@ai-sdk/provider':
         specifier: 4.0.35
         version: 4.0.35
@@ -523,7 +523,7 @@ importers:
     devDependencies:
       '@ai-sdk/sandbox-just-bash':
         specifier: 1.0.170
-        version: 1.0.170(ws@8.22.0)(zod@4.6.7)
+        version: 1.0.170(ws@8.21.0)(zod@4.6.7)
       '@tanstack/ai':
         specifier: 1.0.1
         version: 1.0.1(@opentelemetry/api@1.9.0)(zod@4.6.7)
@@ -662,6 +662,9 @@ importers:
       '@tanstack/ai-react':
         specifier: 1.0.1
         version: 1.0.1(@opentelemetry/api@1.9.0)(@tanstack/ai@1.0.1(@opentelemetry/api@1.9.0)(zod@4.6.7))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      '@tanstack/react-query':
+        specifier: ^5.106.1
+        version: 5.106.1(@types/react@19.3.0)(react@19.3.1)
       '@tanstack/react-router':
         specifier: ^1.170.46
         version: 1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -4249,6 +4252,18 @@ packages:
       octane:
         optional: true
       react:
+        optional: true
+
+  '@tanstack/query-core@5.106.1':
+    resolution: {integrity: sha512-erYv/UACddcdgjOL2ixmFdK6tO/AVBeUcTCOtX2N51yZpDQ2U7KJ+xgB/bCNfsF3uoCDTqGHEEbDiFsIO9YUmQ==}
+
+  '@tanstack/react-query@5.106.1':
+    resolution: {integrity: sha512-ORDvJG/DSfmlFL9lQ8GDkE0VjtQbLeRDY7BL8xjKkQFGLfjFGfNWNuteWgPqA2gPJgLLuWfQ7IX0FlsHCJriyg==}
+    peerDependencies:
+      '@types/react': ^18 || ^19
+      react: ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
         optional: true
 
   '@tanstack/react-router-devtools@1.167.2':
@@ -10162,18 +10177,6 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@ai-sdk/harness-cursor@1.0.85(ws@8.22.0)(zod@4.6.7)':
-    dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
-      '@ai-sdk/harness-acp': 1.0.110(patch_hash=ea89c7d5b73ab0cc93e51f5fe9debc67079811d4d6ec1c1d979e5e6c4c57bd5e)(zod@4.6.7)
-      '@ai-sdk/provider': 4.0.35
-      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
-      zod: 4.6.7
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-      - ws
-
   '@ai-sdk/harness-fx@1.0.86(patch_hash=1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825)(ws@8.21.0)(zod@4.6.7)':
     dependencies:
       '@ai-sdk/harness': 1.0.170(ws@8.21.0)(zod@4.6.7)
@@ -10185,32 +10188,9 @@ snapshots:
     transitivePeerDependencies:
       - ws
 
-  '@ai-sdk/harness-fx@1.0.86(patch_hash=1bd36c821604c7ea704bfc47f79cb1ad9e06f226b19cd22fc3c08dc74d2b8825)(ws@8.22.0)(zod@4.6.7)':
-    dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
-      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
-      '@ai-sdk/provider': 4.0.35
-      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
-      libfx: 0.0.14
-      zod: 4.6.7
-    transitivePeerDependencies:
-      - ws
-
   '@ai-sdk/harness-grok-build@1.0.109(ws@8.21.0)(zod@4.6.7)':
     dependencies:
       '@ai-sdk/harness': 1.0.170(ws@8.21.0)(zod@4.6.7)
-      '@ai-sdk/harness-acp': 1.0.110(patch_hash=ea89c7d5b73ab0cc93e51f5fe9debc67079811d4d6ec1c1d979e5e6c4c57bd5e)(zod@4.6.7)
-      '@ai-sdk/provider': 4.0.35
-      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
-      zod: 4.6.7
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-      - ws
-
-  '@ai-sdk/harness-grok-build@1.0.109(ws@8.22.0)(zod@4.6.7)':
-    dependencies:
-      '@ai-sdk/harness': 1.0.170(ws@8.22.0)(zod@4.6.7)
       '@ai-sdk/harness-acp': 1.0.110(patch_hash=ea89c7d5b73ab0cc93e51f5fe9debc67079811d4d6ec1c1d979e5e6c4c57bd5e)(zod@4.6.7)
       '@ai-sdk/provider': 4.0.35
       '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
@@ -10305,6 +10285,16 @@ snapshots:
   '@ai-sdk/provider@4.0.35':
     dependencies:
       json-schema: 0.4.0
+
+  '@ai-sdk/sandbox-just-bash@1.0.170(ws@8.21.0)(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/harness': 1.0.170(ws@8.21.0)(zod@4.6.7)
+      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
+      just-bash: 2.14.5
+    transitivePeerDependencies:
+      - supports-color
+      - ws
+      - zod
 
   '@ai-sdk/sandbox-just-bash@1.0.170(ws@8.22.0)(zod@4.6.7)':
     dependencies:
@@ -11087,6 +11077,31 @@ snapshots:
       http-proxy-agent: 9.1.0
       https-proxy-agent: 9.1.0
       openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.10.2)(ws@8.21.0)(zod@4.6.7)
+      partial-json: 0.1.7
+      typebox: 1.3.27
+    transitivePeerDependencies:
+      - '@aws-sdk/credential-provider-node'
+      - '@modelcontextprotocol/sdk'
+      - '@smithy/hash-node'
+      - '@smithy/signature-v4'
+      - bufferutil
+      - kerberos
+      - supports-color
+      - undici
+      - utf-8-validate
+      - ws
+      - zod
+
+  '@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)':
+    dependencies:
+      '@anthropic-ai/sdk': 0.129.0(zod@4.6.7)
+      '@aws-sdk/client-bedrock-runtime': 3.1127.0
+      '@earendil-works/pi-telemetry': 1.4.0
+      '@google/genai': 2.21.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.4)(zod@4.6.7))
+      '@smithy/node-http-handler': 4.12.1
+      http-proxy-agent: 9.1.0
+      https-proxy-agent: 9.1.0
+      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
       partial-json: 0.1.7
       typebox: 1.3.27
     transitivePeerDependencies:
@@ -13976,6 +13991,15 @@ snapshots:
   '@tanstack/markdown@0.0.13(react@19.3.1)':
     optionalDependencies:
       react: 19.3.1
+
+  '@tanstack/query-core@5.106.1': {}
+
+  '@tanstack/react-query@5.106.1(@types/react@19.3.0)(react@19.3.1)':
+    dependencies:
+      '@tanstack/query-core': 5.106.1
+      react: 19.3.1
+    optionalDependencies:
+      '@types/react': 19.3.0
 
   '@tanstack/react-router-devtools@1.167.2(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@tanstack/router-core@1.171.39)(csstype@3.2.3)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
@@ -18468,6 +18492,14 @@ snapshots:
       '@smithy/signature-v4': 5.7.5
       undici: 8.10.2
       ws: 8.22.0
+      zod: 4.6.7
+
+  openai@7.19.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7):
+    optionalDependencies:
+      '@aws-sdk/credential-provider-node': 3.972.92
+      '@smithy/signature-v4': 5.7.5
+      undici: 8.12.3
+      ws: 8.21.0
       zod: 4.6.7
 
   openapi-types@12.1.3: {}

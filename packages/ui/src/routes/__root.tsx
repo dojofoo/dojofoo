@@ -1,5 +1,5 @@
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   type ErrorComponentProps,
   HeadContent,
   Outlet,
@@ -12,6 +12,7 @@ import { UIXProvider } from "@dojofoo/uix/provider";
 import { SidebarStateProvider } from "@/hooks/sidebar-state";
 import { documentTransitionScript } from "@dojofoo/uix/lib/view-transition";
 import type { ReactNode } from "react";
+import type { QueryClient } from "@tanstack/react-query";
 import { RouterLink } from "@/components/router-link";
 
 // Apply the native preference before styles/hydration; UIX continues to own the actual theme transition.
@@ -27,7 +28,7 @@ const themeScript = `(() => {
   }).observe(root, { attributes: true, attributeFilter: ["class", "data-theme"] });
 })();`;
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
