@@ -15,6 +15,7 @@ import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { launchFetch } from "@/lib/launch-token";
 import { AiBrain01Icon, AiMagicIcon } from "@dojofoo/uix/icons";
 import type { ComposerAgent, ComposerModel } from "@dojofoo/uix/containers/assistant-home";
+import type { UIMessage } from "@tanstack/ai-react";
 
 type Session = { id: string; agent: string; model?: string };
 /** An open conversation; a read-only one (an ended Kyoshi pick, D32) takes no input */
@@ -26,6 +27,16 @@ type Page<T> = { data: T[]; pagination: { hasMore: boolean } };
 /** A Sensei page's key: the course, and the kata lesson from step 5 */
 type ChatPage = { course: string; lesson?: string };
 const agentApi = (workspaceId: string, path = "") => `/api/v1/workspaces/${encodeURIComponent(workspaceId)}${path}`;
+
+/** The conversation each page opened last and what it showed, so a page opened again shows it at once while it is opened and
+ *  replayed from Eve. Only the page's default conversation, or the same one requested again, is shown from here. */
+type Remembered = { session: Session; agent: string; messages: UIMessage[] };
+const remembered = new Map<string, Remembered>();
+function remember(key: string, entry: Remembered) {
+  remembered.delete(key);
+  remembered.set(key, entry);
+  if (remembered.size > 20) remembered.delete(remembered.keys().next().value!);
+}
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -105,6 +116,9 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
   /** What the page asked for last; a different request starts with an empty composer */
   const loadKey = `${workspaceId}\0${persona}\0${pageKey}\0${sessionId ?? ""}\0${readOnly}`;
   const requested = useRef({ key: loadKey, session: sessionId });
+  const memoryKey = `${workspaceId}\0${persona}\0${pageKey}`;
+  const memory = readOnly ? undefined : remembered.get(memoryKey);
+  const recalled = memory && (sessionId === undefined || sessionId === memory.session.id) ? memory : undefined;
   /** The requested conversation the server honoured, while the page still asks for it */
   const picked = useRef<string | undefined>(undefined);
   /** The conversation that opened when the page's requested one was dropped */
@@ -137,12 +151,12 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
     queueMicrotask(() => {
       if (controller.signal.aborted) return;
       void (async () => {
-        // A session runs on the coding agent it started with
-        const agents = await json<Page<Agent>>(agentApi(workspaceId, "/agents"), { signal: controller.signal });
-        const agent = agents.data.find(item => item.selected)?.id ?? "";
-        if (!controller.signal.aborted) setSelectedAgent(agent);
+        // A session runs on the coding agent it started with; the agent names a failure, so it is read alongside the open
+        const agents = json<Page<Agent>>(agentApi(workspaceId, "/agents"), { signal: controller.signal });
+        agents.then(page => { if (!controller.signal.aborted) setSelectedAgent(page.data.find(item => item.selected)?.id ?? ""); }, () => {});
         // A read-only pick is read as it is: an ended stream stays readable (D32)
         if (readOnly && sessionId) {
+          await agents;
           const saved = await json<Session>(agentApi(workspaceId, `/sessions/${encodeURIComponent(sessionId)}`), { signal: controller.signal });
           if (controller.signal.aborted) return;
           picked.current = undefined;
@@ -171,7 +185,9 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
     const timer = setTimeout(() => setLoadAttempt(attempt => attempt + 1), 1_000);
     return () => clearTimeout(timer);
   }, [switchingRetry, error]);
-  if (!session) return <AuthoringChat embedded={embedded} placeholder={placeholder} messages={[]} status="ready" busy={error === undefined} inputDisabled
+  const recalledAgent = recalled && codingAgents.find(choice => choice.value === recalled.agent);
+  if (!session) return <AuthoringChat embedded={embedded} placeholder={placeholder} messages={recalled?.messages ?? []} status="ready" busy={error === undefined} inputDisabled
+    agent={recalledAgent}
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles} onSend={() => {}} onAnswer={() => {}}
     // A load that can only start over shows "Try again"
     error={loadFailure && (switchingRetry && loadFailure.kind === "switching" ? { message: loadFailure.message, actions: [] } : failureView(loadFailure, selectedAgent)
@@ -180,6 +196,8 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
     onRetryLoad={error !== undefined ? () => setLoadAttempt(attempt => attempt + 1) : undefined} />;
   return <AgentConversation key={`${session.id}:${opening}`} embedded={embedded} workspaceId={workspaceId} session={session} placeholder={placeholder}
     hostEvents={hostEvents} fragments={fragments} onHighlight={onHighlight} notice={status}
+    recalled={recalled?.session.id === session.id ? recalled.messages : undefined}
+    onShown={readOnly ? undefined : messages => remember(memoryKey, { session, agent: session.agent, messages })}
     clientContext={context} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} sensei={persona === "sensei"} controls={controls}
     value={value} onValueChange={setValue} files={files} onFilesChange={setFiles}
     picked={picked.current === session.id} onSwitchRequest={onSwitchRequest}
@@ -205,8 +223,12 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
 }
 
 /** The session is Eve's: its own client resumes it, streams it, and takes messages and answers. */
-function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext, agents, onAgentChange, agentChanging, sensei, controls, hostEvents, fragments, onHighlight, notice, picked, onSwitchRequest, onContinue, onLeaveReadOnly }: {
+function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, value, onValueChange, files, onFilesChange, placeholder, clientContext, agents, onAgentChange, agentChanging, sensei, controls, hostEvents, fragments, onHighlight, notice, picked, onSwitchRequest, onContinue, onLeaveReadOnly, recalled, onShown }: {
   embedded?: boolean; workspaceId: string; session: Opened;
+  /** What this conversation showed when the page was last open, shown until Eve's replay catches up */
+  recalled?: UIMessage[];
+  /** What the conversation shows once it has caught up, for the next time the page opens */
+  onShown?(messages: UIMessage[]): void;
   /** The page asked for this conversation and the server honoured it (a history pick) */
   picked: boolean;
   onSwitchRequest?(agentId: string): void;
@@ -252,6 +274,9 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   const messages = useMemo(() => hostEvents?.length
     ? projectChatTimeline(transcript, hostEvents.map(event => ({ ...event, afterMessageId: anchors.current.get(event.message.id) ?? null })))
     : transcript, [transcript, hostEvents]);
+  const resuming = agent.status === "resuming";
+  useEffect(() => { if (!resuming) onShown?.(messages); }, [resuming, messages]);
+  const visible = resuming && recalled?.length && !messages.length ? recalled : messages;
   // Sensei's composer offers the coding agent's models; a change applies from the next turn
   useEffect(() => {
     if (!sensei) return;
@@ -326,7 +351,7 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   const turnOpen = activeTurn(agent.view) !== undefined;
   // A typed message answers the first open question (Eve docs tools/human-in-the-loop.md), which the hint says (decision 15)
   const hint = sensei && openInteractions(agent.view).length > 0 ? "Answer Sensei's question above, or type your answer" : placeholder;
-  return <AuthoringChat embedded={embedded} agent={selectedAgent} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} placeholder={hint} messages={messages}
+  return <AuthoringChat embedded={embedded} agent={selectedAgent} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} placeholder={hint} messages={visible}
     readOnly={readOnly}
     fragments={fragments} onHighlight={onHighlight}
     status={agent.status === "busy" ? "streaming" : "ready"} busy={agent.status === "resuming"}

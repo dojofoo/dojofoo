@@ -22,10 +22,11 @@ export const Route = createFileRoute("/learn/$runId")({
     ...(typeof search.session === "string" ? { session: search.session } : {}),
   }),
   loaderDeps: ({ search }) => ({ lesson: search.lesson }),
-  // The workspace shows at once and fills in when the run's files arrive
-  pendingMs: 0,
-  pendingMinMs: 0,
-  preloadStaleTime: 0,
+  // A run that loads within 400 ms commits its page inside the view transition; a slower one shows the loading workspace for at least
+  // 200 ms. A hover's preload is used for 10 s, so the click after it does not read the run again.
+  pendingMs: 400,
+  pendingMinMs: 200,
+  preloadStaleTime: 10_000,
   loader: async ({ params, deps, abortController }) => {
     const signal = abortController.signal;
     const response = await fetch(`/api/control/learning-sessions/${encodeURIComponent(params.runId)}`, { signal });
