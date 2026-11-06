@@ -1,6 +1,6 @@
 {
   "name": "@dojofoo/harness",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Eve with an experimental provider for official AI SDK harness adapters.",

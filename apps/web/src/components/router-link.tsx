@@ -3,5 +3,5 @@ import type { NavigationAnchorProps } from "@dojofoo/uix/components/navigation-l
 
 /** Keep the website's route tree in this application, outside shared UIX presentation. */
 export function RouterLink({ href, ...props }: NavigationAnchorProps) {
-  return <Link {...props} to={href ?? "/"} href={href} activeOptions={{ exact: true }} />;
+  return <Link {...props} preload={href === "/" || href === "/dojos" || href === "/docs" ? "render" : "intent"} to={href ?? "/"} href={href} activeOptions={{ exact: true }} />;
 }

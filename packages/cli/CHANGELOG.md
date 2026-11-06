@@ -1,5 +1,22 @@
 # dojofoo
 
+## 0.4.0
+
+### Minor Changes
+
+- 6207895: Run the local dashboard through the bundled Portless dependency, guide first-time setup with automatic agent discovery, and retain workspace and course progress through stable course and session routes.
+  
+  Share the authoring sidebar with Storybook, support chapters and lesson renaming, scaffold course README.md and chapter/lesson INTRO files from templates, and add dashboard course deletion menus. Reuse the shared navigation, scrolling, card editor, slide presentation, and error-page components across the local UI and website.
+  
+  Collapsed sidebars hide full-size cards and custom file trees while retaining their expanded state; authoring keeps the shared icon rail.
+
+### Patch Changes
+
+- Updated dependencies [6207895]
+- Updated dependencies [af900ba]
+  - @dojofoo/config@0.3.0
+  - @dojofoo/authoring@0.1.2
+
 ## 0.3.0
 
 ### Minor Changes
