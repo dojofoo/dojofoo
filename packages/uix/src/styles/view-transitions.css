@@ -28,7 +28,9 @@
 
   :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane), :active-view-transition-type(ui-card))::view-transition-old(root) { animation: none; opacity: 0; }
   :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane), :active-view-transition-type(ui-card))::view-transition-new(root) { animation: none; opacity: 1; }
-  ::view-transition-group(.ui-left), ::view-transition-group(.ui-main), ::view-transition-group(.ui-right) { animation-duration: 220ms; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
+  /* The groups do not morph: a group's size animation runs on the main thread, so a page mounting at the same time made it
+     stutter. Each side's old and new images fade and move instead, which the compositor runs on its own. */
+  ::view-transition-group(.ui-left), ::view-transition-group(.ui-main), ::view-transition-group(.ui-right) { animation: none; }
   ::view-transition-group(.ui-stable) { animation: none; }
   ::view-transition-old(.ui-stable) { animation: none; opacity: 0; }
   ::view-transition-new(.ui-stable) { animation: none; }
@@ -59,18 +61,19 @@
   :root:active-view-transition-type(ui-navigation)::view-transition-new(.ui-main) { animation: ui-main-in 220ms cubic-bezier(.16, 1, .3, 1) both; }
   :root:active-view-transition-type(ui-pane) :is(.ui-as-main, .ui-as-side, .ui-as-aside, .ui-as-end, .ui-as-aside-scrim) { transition: none !important; }
 }
-@keyframes ui-left-in { from { opacity: 0; transform: translateX(-24px) scale(.985); } to { opacity: 1; transform: none; } }
-@keyframes ui-left-out { to { opacity: 0; transform: translateX(-24px) scale(.985); } }
-@keyframes ui-right-in { from { opacity: 0; transform: translateX(24px) scale(.97); } to { opacity: 1; transform: none; } }
-@keyframes ui-right-out { to { opacity: 0; transform: translateX(24px) scale(.97); } }
+@keyframes ui-left-in { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@keyframes ui-left-out { to { opacity: 0; transform: translateX(-24px); } }
+@keyframes ui-right-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes ui-right-out { to { opacity: 0; transform: translateX(24px); } }
 @keyframes ui-menu-to-right { to { transform: translateX(100%); } }
 @keyframes ui-menu-from-left { from { transform: translateX(-100%); } }
 @keyframes ui-menu-to-left { to { transform: translateX(-100%); } }
 @keyframes ui-menu-from-right { from { transform: translateX(100%); } }
 @keyframes ui-settings-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes ui-settings-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
-@keyframes ui-main-in { from { opacity: 0; transform: translateX(12px) scale(.99); } to { opacity: 1; transform: none; } }
-@keyframes ui-main-out { to { opacity: 0; transform: translateX(-12px) scale(.99); } }
+/* Translation only: a scaled snapshot is resampled every frame and looks soft */
+@keyframes ui-main-in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+@keyframes ui-main-out { to { opacity: 0; transform: translateX(-12px); } }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*) { animation-duration: 0s !important; }
   ::view-transition-old(*), ::view-transition-new(*) { animation-duration: 80ms !important; transform: none !important; }

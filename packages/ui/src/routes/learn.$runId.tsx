@@ -22,11 +22,12 @@ export const Route = createFileRoute("/learn/$runId")({
     ...(typeof search.session === "string" ? { session: search.session } : {}),
   }),
   loaderDeps: ({ search }) => ({ lesson: search.lesson }),
-  // A run that loads within 400 ms commits its page inside the view transition; a slower one shows the loading workspace for at least
-  // 200 ms. A hover's preload is used for 10 s, so the click after it does not read the run again.
+  // The dashboard preloads every course each time it shows (dropping what was preloaded before), so a preload stays usable until
+  // then. A run that is not preloaded and loads within 400 ms still commits inside the view transition; a slower one shows the
+  // loading workspace for at least 200 ms.
   pendingMs: 400,
   pendingMinMs: 200,
-  preloadStaleTime: 10_000,
+  preloadStaleTime: Infinity,
   loader: async ({ params, deps, abortController }) => {
     const signal = abortController.signal;
     const response = await fetch(`/api/control/learning-sessions/${encodeURIComponent(params.runId)}`, { signal });

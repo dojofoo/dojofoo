@@ -158,6 +158,8 @@
 .ui-ed .monaco-scrollable-element > .scrollbar.horizontal:is(:hover, :has(> .slider.active)) > .slider { border-top-width: 2px; }
 .ui-ed__monaco { height: 100%; min-height: 0; }
 .ui-ed__state { position: absolute; inset: 0; padding: 16px; color: var(--fluid-muted); font-size: var(--fs-body); }
+/* Monaco's gutter (3 digits, 14px decorations) and 4px top padding, so the text does not move when it takes over */
+.ui-ed__placeholder { position: absolute; inset: 0; margin: 0; padding: 4px 0 0 calc(3ch + 40px); overflow: hidden; white-space: pre; font-family: "Iosevka", ui-monospace, monospace; color: var(--fluid-foreground); pointer-events: none; }
 .ui-ed .monaco-editor {
   --vscode-editor-background: transparent;
   --vscode-editorGutter-background: transparent;
