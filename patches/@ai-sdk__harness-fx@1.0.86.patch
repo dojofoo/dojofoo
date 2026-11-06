@@ -1,0 +1,22 @@
+diff --git a/dist/index.js b/dist/index.js
+index c0093e1d7b72d4d728ea81f6d2075278be95173c..2448103aded51ec351a4e3db492be3bb34113d89 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -89,7 +89,7 @@ async function createFxStateStore(options) {
+ 	if (relative === "" || !relative.startsWith("../") && !path.posix.isAbsolute(relative)) throw new Error("fx private state must be outside sessionWorkDir.");
+ 	const fileName = stateFileNameSchema.parse(options.stateFileName ?? "state.json");
+ 	const filePath = path.posix.join(directory, fileName);
+-	if ((await options.sandbox.run({ command: `mkdir -p -- ${shellQuote(directory)} && chmod 700 -- ${shellQuote(directory)}` })).exitCode !== 0) throw new Error("Unable to create private fx state directory.");
++	if ((await options.sandbox.run({ command: `mkdir -p -- ${shellQuote(directory)} && chmod -- 700 ${shellQuote(directory)}` })).exitCode !== 0) throw new Error("Unable to create private fx state directory.");
+ 	let writes = Promise.resolve();
+ 	return {
+ 		fileName,
+@@ -206,7 +206,7 @@ function createFxRemoteOps(options) {
+ 	}
+ 	async function realpath(input) {
+ 		const result = await run({
+-			command: `bash -o pipefail -c ${shellQuote(`realpath -mz -- ${shellQuote(input.target)} | base64`)}`,
++			command: `bash -o pipefail -c ${shellQuote(`{ realpath -mz -- ${shellQuote(input.target)} 2>/dev/null || { t=${shellQuote(input.target)}; r=; while [ "$t" != / ] && [ ! -e "$t" ] && [ ! -L "$t" ]; do r=/\${t##*/}$r; t=\${t%/*}; t=\${t:-/}; done; b=$(realpath -- "$t") && p=\${b%/}$r && printf "%s\\0" "\${p:-/}"; }; } | base64`)}`,
+ 			signal: input.signal
+ 		});
+ 		if (result.exitCode !== 0 || !result.stdout.trim()) throw new Error(`Unable to resolve sandbox path: ${input.target}`);

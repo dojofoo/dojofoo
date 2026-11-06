@@ -1,1 +1,1 @@
-export { teachingJudgePrompt } from "@dojofoo/authoring/evaluation/teaching-rubric";
+export { teachingJudgePrompt } from "@dojofoo/agents/evaluation/teaching-rubric";

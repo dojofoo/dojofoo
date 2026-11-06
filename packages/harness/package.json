@@ -1,0 +1,632 @@
+{
+  "name": "@dojofoo/harness",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "description": "Eve with an experimental provider for official AI SDK harness adapters.",
+  "license": "FSL-1.1-ALv2",
+  "engines": {
+    "node": ">=24"
+  },
+  "files": [
+    "dist",
+    "patches"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/eve/dist/src/index.d.ts",
+      "import": "./dist/eve/dist/src/index.js",
+      "default": "./dist/eve/dist/src/index.js"
+    },
+    "./client": {
+      "types": "./dist/eve/dist/src/client/index.d.ts",
+      "import": "./dist/eve/dist/src/client/index.js",
+      "default": "./dist/eve/dist/src/client/index.js"
+    },
+    "./sessions": {
+      "types": "./dist/eve/dist/src/public/sessions/index.d.ts",
+      "import": "./dist/eve/dist/src/public/sessions/index.js",
+      "default": "./dist/eve/dist/src/public/sessions/index.js"
+    },
+    "./react": {
+      "types": "./dist/eve/dist/src/react/index.d.ts",
+      "import": "./dist/eve/dist/src/react/index.js",
+      "default": "./dist/eve/dist/src/react/index.js"
+    },
+    "./vue": {
+      "types": "./dist/eve/dist/src/vue/index.d.ts",
+      "import": "./dist/eve/dist/src/vue/index.js",
+      "default": "./dist/eve/dist/src/vue/index.js"
+    },
+    "./svelte": {
+      "types": "./dist/eve/dist/src/svelte/index.d.ts",
+      "import": "./dist/eve/dist/src/svelte/index.js",
+      "default": "./dist/eve/dist/src/svelte/index.js"
+    },
+    "./next": {
+      "types": "./dist/eve/dist/src/public/next/index.d.ts",
+      "import": "./dist/eve/dist/src/public/next/index.js",
+      "default": "./dist/eve/dist/src/public/next/index.js"
+    },
+    "./vercel": {
+      "eve-source": "./dist/eve/dist/src/public/vercel/index.js",
+      "types": "./dist/eve/dist/src/public/vercel/index.d.ts",
+      "import": "./dist/eve/dist/src/public/vercel/index.js",
+      "default": "./dist/eve/dist/src/public/vercel/index.js"
+    },
+    "./nuxt": {
+      "types": "./dist/eve/dist/src/public/nuxt/index.d.ts",
+      "import": "./dist/eve/dist/src/public/nuxt/index.js",
+      "default": "./dist/eve/dist/src/public/nuxt/index.js"
+    },
+    "./sveltekit": {
+      "types": "./dist/eve/dist/src/public/sveltekit/index.d.ts",
+      "import": "./dist/eve/dist/src/public/sveltekit/index.js",
+      "default": "./dist/eve/dist/src/public/sveltekit/index.js"
+    },
+    "./tanstack": {
+      "types": "./dist/eve/dist/src/public/tanstack/index.d.ts",
+      "import": "./dist/eve/dist/src/public/tanstack/index.js",
+      "default": "./dist/eve/dist/src/public/tanstack/index.js"
+    },
+    "./tools/approval": {
+      "types": "./dist/eve/dist/src/public/tools/approval/index.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/approval/index.js",
+      "default": "./dist/eve/dist/src/public/tools/approval/index.js"
+    },
+    "./memory": {
+      "types": "./dist/eve/dist/src/public/memory/index.d.ts",
+      "import": "./dist/eve/dist/src/public/memory/index.js",
+      "default": "./dist/eve/dist/src/public/memory/index.js"
+    },
+    "./memory/scope": {
+      "types": "./dist/eve/dist/src/public/memory/scope.d.ts",
+      "import": "./dist/eve/dist/src/public/memory/scope.js",
+      "default": "./dist/eve/dist/src/public/memory/scope.js"
+    },
+    "./memory/file": {
+      "types": "./dist/eve/dist/src/public/memory/file/index.d.ts",
+      "import": "./dist/eve/dist/src/public/memory/file/index.js",
+      "default": "./dist/eve/dist/src/public/memory/file/index.js"
+    },
+    "./memory/file/vercel": {
+      "types": "./dist/eve/dist/src/public/memory/file/vercel.d.ts",
+      "import": "./dist/eve/dist/src/public/memory/file/vercel.js",
+      "default": "./dist/eve/dist/src/public/memory/file/vercel.js"
+    },
+    "./tools/sleep": {
+      "types": "./dist/eve/dist/src/public/tools/sleep.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/sleep.js",
+      "default": "./dist/eve/dist/src/public/tools/sleep.js"
+    },
+    "./tools/no_reply": {
+      "types": "./dist/eve/dist/src/public/tools/no-reply.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/no-reply.js",
+      "default": "./dist/eve/dist/src/public/tools/no-reply.js"
+    },
+    "./tools": {
+      "types": "./dist/eve/dist/src/public/tools/index.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/index.js",
+      "default": "./dist/eve/dist/src/public/tools/index.js"
+    },
+    "./tools/agent": {
+      "types": "./dist/eve/dist/src/public/tools/agent.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/agent.js",
+      "default": "./dist/eve/dist/src/public/tools/agent.js"
+    },
+    "./tools/bash": {
+      "types": "./dist/eve/dist/src/public/tools/bash.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/bash.js",
+      "default": "./dist/eve/dist/src/public/tools/bash.js"
+    },
+    "./tools/read_file": {
+      "types": "./dist/eve/dist/src/public/tools/read-file.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/read-file.js",
+      "default": "./dist/eve/dist/src/public/tools/read-file.js"
+    },
+    "./tools/write_file": {
+      "types": "./dist/eve/dist/src/public/tools/write-file.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/write-file.js",
+      "default": "./dist/eve/dist/src/public/tools/write-file.js"
+    },
+    "./tools/web_fetch": {
+      "types": "./dist/eve/dist/src/public/tools/web-fetch.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/web-fetch.js",
+      "default": "./dist/eve/dist/src/public/tools/web-fetch.js"
+    },
+    "./tools/web_search": {
+      "types": "./dist/eve/dist/src/public/tools/web-search.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/web-search.js",
+      "default": "./dist/eve/dist/src/public/tools/web-search.js"
+    },
+    "./tools/glob": {
+      "types": "./dist/eve/dist/src/public/tools/glob.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/glob.js",
+      "default": "./dist/eve/dist/src/public/tools/glob.js"
+    },
+    "./tools/grep": {
+      "types": "./dist/eve/dist/src/public/tools/grep.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/grep.js",
+      "default": "./dist/eve/dist/src/public/tools/grep.js"
+    },
+    "./tools/workflow": {
+      "types": "./dist/eve/dist/src/public/tools/workflow.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/workflow.js",
+      "default": "./dist/eve/dist/src/public/tools/workflow.js"
+    },
+    "./workflow": {
+      "eve-source": "./dist/eve/dist/src/public/workflow/index.js",
+      "types": "./dist/eve/dist/src/public/workflow/index.d.ts",
+      "import": "./dist/eve/dist/src/public/workflow/index.js",
+      "default": "./dist/eve/dist/src/public/workflow/index.js"
+    },
+    "./workflow/api": {
+      "eve-source": "./dist/eve/dist/src/public/workflow/api.js",
+      "types": "./dist/eve/dist/src/public/workflow/api.d.ts",
+      "import": "./dist/eve/dist/src/public/workflow/api.js",
+      "default": "./dist/eve/dist/src/public/workflow/api.js"
+    },
+    "./workflow-modules": {
+      "eve-source": "./dist/eve/dist/src/public/workflow-modules.d.ts",
+      "types": "./dist/eve/dist/src/public/workflow-modules.d.ts"
+    },
+    "./ai": {
+      "types": "./dist/eve/dist/src/public/ai/index.d.ts",
+      "import": "./dist/eve/dist/src/public/ai/index.js",
+      "default": "./dist/eve/dist/src/public/ai/index.js"
+    },
+    "./models": {
+      "types": "./dist/eve/dist/src/public/models/index.d.ts",
+      "import": "./dist/eve/dist/src/public/models/index.js",
+      "default": "./dist/eve/dist/src/public/models/index.js"
+    },
+    "./models/anthropic": {
+      "types": "./dist/eve/dist/src/public/models/anthropic/index.d.ts",
+      "import": "./dist/eve/dist/src/public/models/anthropic/index.js",
+      "default": "./dist/eve/dist/src/public/models/anthropic/index.js"
+    },
+    "./models/openai": {
+      "types": "./dist/eve/dist/src/public/models/openai/index.d.ts",
+      "import": "./dist/eve/dist/src/public/models/openai/index.js",
+      "default": "./dist/eve/dist/src/public/models/openai/index.js"
+    },
+    "./connections": {
+      "types": "./dist/eve/dist/src/public/connections/index.d.ts",
+      "import": "./dist/eve/dist/src/public/connections/index.js",
+      "default": "./dist/eve/dist/src/public/connections/index.js"
+    },
+    "./agents/auth": {
+      "types": "./dist/eve/dist/src/public/agents/auth.d.ts",
+      "import": "./dist/eve/dist/src/public/agents/auth.js",
+      "default": "./dist/eve/dist/src/public/agents/auth.js"
+    },
+    "./hooks": {
+      "types": "./dist/eve/dist/src/public/hooks/index.d.ts",
+      "import": "./dist/eve/dist/src/public/hooks/index.js",
+      "default": "./dist/eve/dist/src/public/hooks/index.js"
+    },
+    "./events": {
+      "types": "./dist/eve/dist/src/public/events/index.d.ts",
+      "import": "./dist/eve/dist/src/public/events/index.js",
+      "default": "./dist/eve/dist/src/public/events/index.js"
+    },
+    "./sandbox": {
+      "types": "./dist/eve/dist/src/public/sandbox/index.d.ts",
+      "import": "./dist/eve/dist/src/public/sandbox/index.js",
+      "default": "./dist/eve/dist/src/public/sandbox/index.js"
+    },
+    "./sandbox/provider": {
+      "types": "./dist/eve/dist/src/public/sandbox/provider.d.ts",
+      "import": "./dist/eve/dist/src/public/sandbox/provider.js",
+      "default": "./dist/eve/dist/src/public/sandbox/provider.js"
+    },
+    "./sandbox/docker": {
+      "types": "./dist/eve/dist/src/public/sandbox/docker.d.ts",
+      "import": "./dist/eve/dist/src/public/sandbox/docker.js",
+      "default": "./dist/eve/dist/src/public/sandbox/docker.js"
+    },
+    "./sandbox/just-bash": {
+      "types": "./dist/eve/dist/src/public/sandbox/just-bash.d.ts",
+      "import": "./dist/eve/dist/src/public/sandbox/just-bash.js",
+      "default": "./dist/eve/dist/src/public/sandbox/just-bash.js"
+    },
+    "./sandbox/vercel": {
+      "types": "./dist/eve/dist/src/public/sandbox/vercel.d.ts",
+      "import": "./dist/eve/dist/src/public/sandbox/vercel.js",
+      "default": "./dist/eve/dist/src/public/sandbox/vercel.js"
+    },
+    "./evals": {
+      "types": "./dist/eve/dist/src/evals/index.d.ts",
+      "import": "./dist/eve/dist/src/evals/index.js",
+      "default": "./dist/eve/dist/src/evals/index.js"
+    },
+    "./evals/expect": {
+      "types": "./dist/eve/dist/src/evals/expect/index.d.ts",
+      "import": "./dist/eve/dist/src/evals/expect/index.js",
+      "default": "./dist/eve/dist/src/evals/expect/index.js"
+    },
+    "./evals/loaders": {
+      "types": "./dist/eve/dist/src/evals/loaders/index.d.ts",
+      "import": "./dist/eve/dist/src/evals/loaders/index.js",
+      "default": "./dist/eve/dist/src/evals/loaders/index.js"
+    },
+    "./evals/reporters": {
+      "types": "./dist/eve/dist/src/evals/reporters/index.d.ts",
+      "import": "./dist/eve/dist/src/evals/reporters/index.js",
+      "default": "./dist/eve/dist/src/evals/reporters/index.js"
+    },
+    "./skills": {
+      "types": "./dist/eve/dist/src/public/skills/index.d.ts",
+      "import": "./dist/eve/dist/src/public/skills/index.js",
+      "default": "./dist/eve/dist/src/public/skills/index.js"
+    },
+    "./instructions": {
+      "types": "./dist/eve/dist/src/public/instructions/index.d.ts",
+      "import": "./dist/eve/dist/src/public/instructions/index.js",
+      "default": "./dist/eve/dist/src/public/instructions/index.js"
+    },
+    "./context": {
+      "types": "./dist/eve/dist/src/public/context/index.d.ts",
+      "import": "./dist/eve/dist/src/public/context/index.js",
+      "default": "./dist/eve/dist/src/public/context/index.js"
+    },
+    "./internal/workflow-step-execution": {
+      "types": "./dist/eve/dist/src/execution/tools/workflow/step-execution.d.ts",
+      "import": "./dist/eve/dist/src/execution/tools/workflow/step-execution.js",
+      "default": "./dist/eve/dist/src/execution/tools/workflow/step-execution.js"
+    },
+    "./internal/programmatic-source-loader": {
+      "types": "./dist/eve/dist/src/internal/programmatic-source-loader.d.ts",
+      "import": "./dist/eve/dist/src/internal/programmatic-source-loader.js",
+      "default": "./dist/eve/dist/src/internal/programmatic-source-loader.js"
+    },
+    "./internal/mount-state": {
+      "eve-source": "./dist/eve/dist/src/internal/mount-state.js",
+      "types": "./dist/eve/dist/src/internal/mount-state.d.ts",
+      "import": "./dist/eve/dist/src/internal/mount-state.js",
+      "default": "./dist/eve/dist/src/internal/mount-state.js"
+    },
+    "./local-dev": {
+      "types": "./dist/eve/dist/src/public/local-dev.d.ts",
+      "import": "./dist/eve/dist/src/public/local-dev.js",
+      "default": "./dist/eve/dist/src/public/local-dev.js"
+    },
+    "./extensions/code": {
+      "eve-source": "./dist/eve/dist/src/extensions/code/extension/extension.js",
+      "types": "./dist/eve/dist/src/extensions/code/extension/extension.d.ts",
+      "import": "./dist/eve/dist/src/extensions/code/extension/extension.js",
+      "default": "./dist/eve/dist/src/extensions/code/extension/extension.js"
+    },
+    "./extensions/code/tools": {
+      "eve-source": "./dist/eve/dist/src/extensions/code/tools.js",
+      "types": "./dist/eve/dist/src/extensions/code/tools.d.ts",
+      "import": "./dist/eve/dist/src/extensions/code/tools.js",
+      "default": "./dist/eve/dist/src/extensions/code/tools.js"
+    },
+    "./extensions/code/sandbox": {
+      "eve-source": "./dist/eve/dist/src/extensions/code/sandbox.js",
+      "types": "./dist/eve/dist/src/extensions/code/sandbox.d.ts",
+      "import": "./dist/eve/dist/src/extensions/code/sandbox.js",
+      "default": "./dist/eve/dist/src/extensions/code/sandbox.js"
+    },
+    "./extensions/git": {
+      "eve-source": "./dist/eve/dist/src/extensions/git/extension/extension.js",
+      "types": "./dist/eve/dist/src/extensions/git/extension/extension.d.ts",
+      "import": "./dist/eve/dist/src/extensions/git/extension/extension.js",
+      "default": "./dist/eve/dist/src/extensions/git/extension/extension.js"
+    },
+    "./extensions/git/tools": {
+      "eve-source": "./dist/eve/dist/src/extensions/git/tools.js",
+      "types": "./dist/eve/dist/src/extensions/git/tools.d.ts",
+      "import": "./dist/eve/dist/src/extensions/git/tools.js",
+      "default": "./dist/eve/dist/src/extensions/git/tools.js"
+    },
+    "./extensions/git/sandbox": {
+      "eve-source": "./dist/eve/dist/src/extensions/git/extension/lib/sandbox.js",
+      "types": "./dist/eve/dist/src/extensions/git/extension/lib/sandbox.d.ts",
+      "import": "./dist/eve/dist/src/extensions/git/extension/lib/sandbox.js",
+      "default": "./dist/eve/dist/src/extensions/git/extension/lib/sandbox.js"
+    },
+    "./extension": {
+      "types": "./dist/eve/dist/src/public/extension/index.d.ts",
+      "import": "./dist/eve/dist/src/public/extension/index.js",
+      "default": "./dist/eve/dist/src/public/extension/index.js"
+    },
+    "./instrumentation": {
+      "types": "./dist/eve/dist/src/public/instrumentation/index.d.ts",
+      "import": "./dist/eve/dist/src/public/instrumentation/index.js",
+      "default": "./dist/eve/dist/src/public/instrumentation/index.js"
+    },
+    "./instrumentation/otel": {
+      "types": "./dist/eve/dist/src/public/instrumentation/otel.d.ts",
+      "import": "./dist/eve/dist/src/public/instrumentation/otel.js",
+      "default": "./dist/eve/dist/src/public/instrumentation/otel.js"
+    },
+    "./schedules": {
+      "types": "./dist/eve/dist/src/public/schedules/index.d.ts",
+      "import": "./dist/eve/dist/src/public/schedules/index.js",
+      "default": "./dist/eve/dist/src/public/schedules/index.js"
+    },
+    "./experimental/workspace": {
+      "eve-source": "./dist/eve/dist/src/public/experimental/workspace/index.js",
+      "types": "./dist/eve/dist/src/public/experimental/workspace/index.d.ts",
+      "import": "./dist/eve/dist/src/public/experimental/workspace/index.js",
+      "default": "./dist/eve/dist/src/public/experimental/workspace/index.js"
+    },
+    "./experimental/sandbox/just-bash": {
+      "eve-source": "./dist/eve/dist/src/public/experimental/sandbox/just-bash.js",
+      "types": "./dist/eve/dist/src/public/experimental/sandbox/just-bash.d.ts",
+      "import": "./dist/eve/dist/src/public/experimental/sandbox/just-bash.js",
+      "default": "./dist/eve/dist/src/public/experimental/sandbox/just-bash.js"
+    },
+    "./experimental/channels/discord/gateway": {
+      "eve-source": "./dist/eve/dist/src/public/experimental/channels/discord/gateway.js",
+      "types": "./dist/eve/dist/src/public/experimental/channels/discord/gateway.d.ts",
+      "import": "./dist/eve/dist/src/public/experimental/channels/discord/gateway.js",
+      "default": "./dist/eve/dist/src/public/experimental/channels/discord/gateway.js"
+    },
+    "./experimental/schedules/testing": {
+      "eve-source": "./dist/eve/dist/src/public/experimental/schedules/testing.js",
+      "types": "./dist/eve/dist/src/public/experimental/schedules/testing.d.ts",
+      "import": "./dist/eve/dist/src/public/experimental/schedules/testing.js",
+      "default": "./dist/eve/dist/src/public/experimental/schedules/testing.js"
+    },
+    "./experimental/schedules": {
+      "eve-source": "./dist/eve/dist/src/public/experimental/schedules/index.js",
+      "types": "./dist/eve/dist/src/public/experimental/schedules/index.d.ts",
+      "import": "./dist/eve/dist/src/public/experimental/schedules/index.js",
+      "default": "./dist/eve/dist/src/public/experimental/schedules/index.js"
+    },
+    "./experimental/schedules/vercel": {
+      "eve-source": "./dist/eve/dist/src/public/experimental/schedules/vercel.js",
+      "types": "./dist/eve/dist/src/public/experimental/schedules/vercel.d.ts",
+      "import": "./dist/eve/dist/src/public/experimental/schedules/vercel.js",
+      "default": "./dist/eve/dist/src/public/experimental/schedules/vercel.js"
+    },
+    "./channels": {
+      "types": "./dist/eve/dist/src/public/channels/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/index.js",
+      "default": "./dist/eve/dist/src/public/channels/index.js"
+    },
+    "./channels/eve": {
+      "types": "./dist/eve/dist/src/public/channels/eve.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/eve.js",
+      "default": "./dist/eve/dist/src/public/channels/eve.js"
+    },
+    "./channels/auth": {
+      "types": "./dist/eve/dist/src/public/channels/auth.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/auth.js",
+      "default": "./dist/eve/dist/src/public/channels/auth.js"
+    },
+    "./channels/mcp": {
+      "types": "./dist/eve/dist/src/public/channels/mcp.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/mcp.js",
+      "default": "./dist/eve/dist/src/public/channels/mcp.js"
+    },
+    "./channels/slack": {
+      "types": "./dist/eve/dist/src/public/channels/slack/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/slack/index.js",
+      "default": "./dist/eve/dist/src/public/channels/slack/index.js"
+    },
+    "./channels/chat-sdk": {
+      "types": "./dist/eve/dist/src/public/channels/chat-sdk/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/chat-sdk/index.js",
+      "default": "./dist/eve/dist/src/public/channels/chat-sdk/index.js"
+    },
+    "./channels/photon": {
+      "types": "./dist/eve/dist/src/public/channels/photon/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/photon/index.js",
+      "default": "./dist/eve/dist/src/public/channels/photon/index.js"
+    },
+    "./channels/linq": {
+      "types": "./dist/eve/dist/src/public/channels/linq/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/linq/index.js",
+      "default": "./dist/eve/dist/src/public/channels/linq/index.js"
+    },
+    "./channels/github": {
+      "types": "./dist/eve/dist/src/public/channels/github/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/github/index.js",
+      "default": "./dist/eve/dist/src/public/channels/github/index.js"
+    },
+    "./channels/discord": {
+      "types": "./dist/eve/dist/src/public/channels/discord/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/discord/index.js",
+      "default": "./dist/eve/dist/src/public/channels/discord/index.js"
+    },
+    "./channels/twilio": {
+      "types": "./dist/eve/dist/src/public/channels/twilio/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/twilio/index.js",
+      "default": "./dist/eve/dist/src/public/channels/twilio/index.js"
+    },
+    "./channels/telegram": {
+      "types": "./dist/eve/dist/src/public/channels/telegram/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/telegram/index.js",
+      "default": "./dist/eve/dist/src/public/channels/telegram/index.js"
+    },
+    "./channels/teams": {
+      "types": "./dist/eve/dist/src/public/channels/teams/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/teams/index.js",
+      "default": "./dist/eve/dist/src/public/channels/teams/index.js"
+    },
+    "./channels/linear": {
+      "types": "./dist/eve/dist/src/public/channels/linear/index.d.ts",
+      "import": "./dist/eve/dist/src/public/channels/linear/index.js",
+      "default": "./dist/eve/dist/src/public/channels/linear/index.js"
+    },
+    "./internal/self-modification/sandbox": {
+      "eve-source": "./dist/eve/dist/src/self-modification/sandbox.js",
+      "types": "./dist/eve/dist/src/self-modification/sandbox.d.ts",
+      "import": "./dist/eve/dist/src/self-modification/sandbox.js",
+      "default": "./dist/eve/dist/src/self-modification/sandbox.js"
+    },
+    "./internal/legacy-events": {
+      "eve-source": "./dist/eve/dist/src/internal/legacy-events.js",
+      "types": "./dist/eve/dist/src/internal/legacy-events.d.ts",
+      "import": "./dist/eve/dist/src/internal/legacy-events.js",
+      "default": "./dist/eve/dist/src/internal/legacy-events.js"
+    },
+    "./internal/scaffold": {
+      "eve-source": "./dist/eve/dist/src/internal/scaffold.js",
+      "types": "./dist/eve/dist/src/internal/scaffold.d.ts",
+      "import": "./dist/eve/dist/src/internal/scaffold.js",
+      "default": "./dist/eve/dist/src/internal/scaffold.js"
+    },
+    "./internal/code/prwatch": {
+      "eve-source": "./dist/eve/dist/src/extensions/code/extension/lib/prwatch.js",
+      "types": "./dist/eve/dist/src/extensions/code/extension/lib/prwatch.d.ts",
+      "import": "./dist/eve/dist/src/extensions/code/extension/lib/prwatch.js",
+      "default": "./dist/eve/dist/src/extensions/code/extension/lib/prwatch.js"
+    },
+    "./internal/grep": {
+      "eve-source": "./dist/eve/dist/src/internal/grep.js",
+      "types": "./dist/eve/dist/src/internal/grep.d.ts",
+      "import": "./dist/eve/dist/src/internal/grep.js",
+      "default": "./dist/eve/dist/src/internal/grep.js"
+    },
+    "./internal/workspace": {
+      "eve-source": "./dist/eve/dist/src/internal/workspace.js",
+      "types": "./dist/eve/dist/src/internal/workspace.d.ts",
+      "import": "./dist/eve/dist/src/internal/workspace.js",
+      "default": "./dist/eve/dist/src/internal/workspace.js"
+    },
+    "./internal/git": {
+      "eve-source": "./dist/eve/dist/src/internal/git.js",
+      "types": "./dist/eve/dist/src/internal/git.d.ts",
+      "import": "./dist/eve/dist/src/internal/git.js",
+      "default": "./dist/eve/dist/src/internal/git.js"
+    },
+    "./tools/agent_router": {
+      "types": "./dist/eve/dist/src/public/tools/agent-router.d.ts",
+      "import": "./dist/eve/dist/src/public/tools/agent-router.js",
+      "default": "./dist/eve/dist/src/public/tools/agent-router.js"
+    },
+    "./extensions/self-modification/local": {
+      "eve-source": "./dist/eve/dist/src/self-modification/extension/extension.js",
+      "types": "./dist/eve/dist/src/self-modification/extension/extension.d.ts",
+      "import": "./dist/eve/dist/src/self-modification/extension/extension.js",
+      "default": "./dist/eve/dist/src/self-modification/extension/extension.js"
+    },
+    "./extensions/self-modification/remote": {
+      "eve-source": "./dist/eve/dist/src/self-modification/remote/extension.js",
+      "types": "./dist/eve/dist/src/self-modification/remote/extension.d.ts",
+      "import": "./dist/eve/dist/src/self-modification/remote/extension.js",
+      "default": "./dist/eve/dist/src/self-modification/remote/extension.js"
+    },
+    "./extensions/computer-use": {
+      "eve-source": "./dist/eve/dist/src/computer-use/extension/extension.js",
+      "types": "./dist/eve/dist/src/computer-use/extension/extension.d.ts",
+      "import": "./dist/eve/dist/src/computer-use/extension/extension.js",
+      "default": "./dist/eve/dist/src/computer-use/extension/extension.js"
+    },
+    "./extensions/computer-use/tools": {
+      "eve-source": "./dist/eve/dist/src/computer-use/tools.js",
+      "types": "./dist/eve/dist/src/computer-use/tools.d.ts",
+      "import": "./dist/eve/dist/src/computer-use/tools.js",
+      "default": "./dist/eve/dist/src/computer-use/tools.js"
+    },
+    "./extensions/computer-use/sandbox": {
+      "eve-source": "./dist/eve/dist/src/computer-use/extension/lib/sandbox.js",
+      "types": "./dist/eve/dist/src/computer-use/extension/lib/sandbox.d.ts",
+      "import": "./dist/eve/dist/src/computer-use/extension/lib/sandbox.js",
+      "default": "./dist/eve/dist/src/computer-use/extension/lib/sandbox.js"
+    },
+    "./experimental/connections": {
+      "eve-source": "./dist/eve/dist/src/public/experimental/connections/index.js",
+      "types": "./dist/eve/dist/src/public/experimental/connections/index.d.ts",
+      "import": "./dist/eve/dist/src/public/experimental/connections/index.js",
+      "default": "./dist/eve/dist/src/public/experimental/connections/index.js"
+    },
+    "./local-history": {
+      "types": "./dist/local-history.d.ts",
+      "import": "./dist/local-history.js",
+      "default": "./dist/local-history.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./server/production": {
+      "types": "./dist/server-production.d.ts",
+      "import": "./dist/server-production.js",
+      "default": "./dist/server-production.js"
+    },
+    "./server/build": {
+      "types": "./dist/server-build.d.ts",
+      "import": "./dist/server-build.js",
+      "default": "./dist/server-build.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters.d.ts",
+      "import": "./dist/adapters.js",
+      "default": "./dist/adapters.js"
+    },
+    "./persona": {
+      "types": "./dist/persona.d.ts",
+      "import": "./dist/persona.js",
+      "default": "./dist/persona.js"
+    },
+    "./messages": {
+      "types": "./dist/messages.d.ts",
+      "import": "./dist/messages.js",
+      "default": "./dist/messages.js"
+    },
+    "./api": "./src/api/index.ts",
+    "./api/fixtures": "./src/api/fixtures.ts",
+    "./tools/ask_question": {
+      "types": "./dist/tools-ask-question.d.ts",
+      "import": "./dist/tools-ask-question.js",
+      "default": "./dist/tools-ask-question.js"
+    },
+    "./host-port": {
+      "types": "./dist/host-port/index.d.ts",
+      "import": "./dist/host-port/index.js",
+      "default": "./dist/host-port/index.js"
+    },
+    "./host-port/fixture": {
+      "types": "./dist/host-port/fixture.d.ts",
+      "import": "./dist/host-port/fixture.js",
+      "default": "./dist/host-port/fixture.js"
+    },
+    "./scripted-harness": {
+      "types": "./dist/scripted-harness.d.ts",
+      "import": "./dist/scripted-harness.js",
+      "default": "./dist/scripted-harness.js"
+    },
+    "./eve/package.json": "./dist/eve/package.json"
+  },
+  "scripts": {
+    "build": "tsc && node scripts/build-runtime.mjs",
+    "test:packaging": "pnpm build && node experiments/model-provider/packaging.mjs",
+    "types:check": "tsc --noEmit && tsc -p tsconfig.api.json",
+    "test": "pnpm build && vitest run && node --test --test-timeout=10000 experiments/model-provider/local-sandbox.test.mjs experiments/model-provider/loopback-openai.test.mjs experiments/model-provider/pi-local-continuation.test.mjs experiments/model-provider/runtime-toolchain.test.mjs && node experiments/model-provider/run.mjs"
+  },
+  "dependencies": {
+    "@ai-sdk/harness": "1.0.170",
+    "@ai-sdk/harness-claude-code": "1.0.174",
+    "@ai-sdk/harness-codex": "1.0.172",
+    "@ai-sdk/harness-cursor": "1.0.85",
+    "@ai-sdk/harness-fx": "1.0.86",
+    "@ai-sdk/harness-grok-build": "1.0.109",
+    "@ai-sdk/harness-opencode": "1.0.173",
+    "@ai-sdk/harness-pi": "1.0.173",
+    "@ai-sdk/provider": "4.0.35",
+    "@dojofoo/config": "workspace:*",
+    "@dojofoo/protocol": "workspace:*",
+    "ai": "7.0.159",
+    "just-bash": "3.6.0",
+    "nitro": "3.0.260903-beta",
+    "undici": "8.12.3"
+  },
+  "devDependencies": {
+    "eve": "1.0.0-rc.1",
+    "@ai-sdk/sandbox-just-bash": "1.0.170",
+    "@tanstack/ai": "1.0.1",
+    "@types/node": "^26.6.5",
+    "elysia": "^1.4.30",
+    "exact-mirror": "0.2.7",
+    "typescript": "6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

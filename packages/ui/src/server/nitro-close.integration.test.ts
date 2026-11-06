@@ -21,7 +21,7 @@ it.skipIf(process.platform === "win32").each([false, true])("awaits Nitro close 
       DOJO_PROJECT_ROOT: root, DOJO_NITRO_RUNTIME_ROOT: native ? root : "",
       // Exercise the colored readiness output emitted by the CI runner.
       FORCE_COLOR: "1", NO_COLOR: undefined,
-      DOJOFOO_HOME: join(root, "home"), DOJO_EVE_ROOT: "", EVE_BASE_URL: "" },
+      DOJOFOO_HOME: join(root, "home") },
   });
   let output = "";
   const ready = Promise.withResolvers<string>();
@@ -109,6 +109,44 @@ it.skipIf(process.platform === "win32")("closes production WebSockets before dra
     expect(output).not.toContain("Graceful shutdown timed out");
   } finally {
     socket?.close();
+    if (child && child.exitCode === null && child.signalCode === null) {
+      const exited = once(child, "exit");
+      child.kill("SIGKILL");
+      await exited;
+    }
+    await rm(root, { recursive: true, force: true });
+  }
+}, 90_000);
+
+// A UI started from a closed terminal, or a Kyoshi server whose UI died, has no
+// stdout left; reporting that failed write used to loop at full CPU forever.
+it.skipIf(process.platform === "win32")("stops a production server whose stdout and stderr are gone", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dojo-nitro-closed-stdio-"));
+  const load = createRequire(import.meta.url);
+  const fixture = fileURLToPath(new URL("./__fixtures__/nitro-close/", import.meta.url));
+  const outputDir = join(root, "output");
+  const environment = { ...process.env, DOJO_NITRO_CLOSE_LOG: join(root, "close.log"),
+    DOJO_NITRO_RUNTIME_ROOT: "", DOJO_NITRO_BUILD_OUTPUT: outputDir };
+  let child: ReturnType<typeof spawn> | undefined;
+  try {
+    await promisify(execFile)(process.execPath, [join(dirname(load.resolve("vite/package.json")), "bin/vite.js"), "build"], {
+      cwd: fixture, env: environment, timeout: 60_000, maxBuffer: 4 * 1024 * 1024,
+    });
+    child = spawn(process.execPath, [join(outputDir, "server/index.mjs")], {
+      cwd: fixture, stdio: ["ignore", "pipe", "pipe"],
+      env: { ...environment, NODE_ENV: "production", CI: "", TEST: "", PORT: "0", HOST: "127.0.0.1" },
+    });
+    let output = "";
+    const ready = Promise.withResolvers<void>();
+    child.stdout!.on("data", data => { output += data; if (/Listening on:/.test(stripVTControlCharacters(output))) ready.resolve(); });
+    child.once("exit", () => ready.reject(new Error(output)));
+    await ready.promise;
+    child.stdout!.destroy();
+    child.stderr!.destroy();
+    const exited = once(child, "exit", { signal: AbortSignal.timeout(10_000) });
+    child.kill("SIGTERM");
+    await exited;
+  } finally {
     if (child && child.exitCode === null && child.signalCode === null) {
       const exited = once(child, "exit");
       child.kill("SIGKILL");

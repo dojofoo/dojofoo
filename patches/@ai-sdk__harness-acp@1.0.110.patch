@@ -1,0 +1,88 @@
+diff --git a/dist/bridge/index.mjs b/dist/bridge/index.mjs
+index 5dc6febce307dfe1df0ebdefa17883f672af036f..0eee0b0008db4044f806aa522bbe0586f5c385ed 100644
+--- a/dist/bridge/index.mjs
++++ b/dist/bridge/index.mjs
+@@ -1206,13 +1206,14 @@ function createACPStreamTranslator({ emit, emitToolCallCandidate, builtinTools =
+ 				rawValue: response
+ 			});
+ 			const finishReason = mapACPFinishReason({ stopReason: response.stopReason });
+-			const usageMetadata = response.usage == null ? void 0 : mapACPUsageMetadata({ usage: response.usage });
++			const usage = response.usage ?? grokBuildMetaUsage({ response });
++			const usageMetadata = usage == null ? void 0 : mapACPUsageMetadata({ usage });
+ 			if (stepOpen) emitInferredStep({ finishReason });
+ 			else closeBlock();
+ 			emit({
+ 				type: "finish",
+ 				finishReason,
+-				totalUsage: mapACPUsage({ usage: response.usage }),
++				totalUsage: mapACPUsage({ usage }),
+ 				harnessMetadata: { acp: {
+ 					stopReason: response.stopReason,
+ 					...usageMetadata == null ? {} : { usage: usageMetadata }
+@@ -1549,6 +1550,22 @@ function getStringProperty({ value, property }) {
+ function isRecord$6(value) {
+ 	return value != null && typeof value === "object" && !Array.isArray(value);
+ }
++/** Grok Build (1.0.49) leaves the prompt response's `usage` unset and reports the turn's usage in `_meta.usage`, with ACP's
++* field names for input (cached reads included), output (reasoning included) and cached reads. Dojo patch; see patches/README.md. */
++function grokBuildMetaUsage({ response }) {
++	if (bridgeType !== "grok-build") return void 0;
++	const usage = isRecord$6(response._meta) ? response._meta.usage : void 0;
++	if (!isRecord$6(usage) || typeof usage.inputTokens !== "number" || typeof usage.outputTokens !== "number") return void 0;
++	const count = (value) => typeof value === "number" ? value : void 0;
++	return {
++		inputTokens: usage.inputTokens,
++		outputTokens: usage.outputTokens,
++		totalTokens: count(usage.totalTokens) ?? usage.inputTokens + usage.outputTokens,
++		thoughtTokens: count(usage.reasoningTokens),
++		cachedReadTokens: count(usage.cachedReadTokens),
++		cachedWriteTokens: count(usage.cacheCreationTokens)
++	};
++}
+ function mapACPUsage({ usage }) {
+ 	if (usage == null) return unknownUsage$2();
+ 	const raw = mapACPUsageMetadata({ usage });
+diff --git a/dist/v1/bridge/index.mjs b/dist/v1/bridge/index.mjs
+index 5dc6febce307dfe1df0ebdefa17883f672af036f..0eee0b0008db4044f806aa522bbe0586f5c385ed 100644
+--- a/dist/v1/bridge/index.mjs
++++ b/dist/v1/bridge/index.mjs
+@@ -1206,13 +1206,14 @@ function createACPStreamTranslator({ emit, emitToolCallCandidate, builtinTools =
+ 				rawValue: response
+ 			});
+ 			const finishReason = mapACPFinishReason({ stopReason: response.stopReason });
+-			const usageMetadata = response.usage == null ? void 0 : mapACPUsageMetadata({ usage: response.usage });
++			const usage = response.usage ?? grokBuildMetaUsage({ response });
++			const usageMetadata = usage == null ? void 0 : mapACPUsageMetadata({ usage });
+ 			if (stepOpen) emitInferredStep({ finishReason });
+ 			else closeBlock();
+ 			emit({
+ 				type: "finish",
+ 				finishReason,
+-				totalUsage: mapACPUsage({ usage: response.usage }),
++				totalUsage: mapACPUsage({ usage }),
+ 				harnessMetadata: { acp: {
+ 					stopReason: response.stopReason,
+ 					...usageMetadata == null ? {} : { usage: usageMetadata }
+@@ -1549,6 +1550,22 @@ function getStringProperty({ value, property }) {
+ function isRecord$6(value) {
+ 	return value != null && typeof value === "object" && !Array.isArray(value);
+ }
++/** Grok Build (1.0.49) leaves the prompt response's `usage` unset and reports the turn's usage in `_meta.usage`, with ACP's
++* field names for input (cached reads included), output (reasoning included) and cached reads. Dojo patch; see patches/README.md. */
++function grokBuildMetaUsage({ response }) {
++	if (bridgeType !== "grok-build") return void 0;
++	const usage = isRecord$6(response._meta) ? response._meta.usage : void 0;
++	if (!isRecord$6(usage) || typeof usage.inputTokens !== "number" || typeof usage.outputTokens !== "number") return void 0;
++	const count = (value) => typeof value === "number" ? value : void 0;
++	return {
++		inputTokens: usage.inputTokens,
++		outputTokens: usage.outputTokens,
++		totalTokens: count(usage.totalTokens) ?? usage.inputTokens + usage.outputTokens,
++		thoughtTokens: count(usage.reasoningTokens),
++		cachedReadTokens: count(usage.cachedReadTokens),
++		cachedWriteTokens: count(usage.cacheCreationTokens)
++	};
++}
+ function mapACPUsage({ usage }) {
+ 	if (usage == null) return unknownUsage$2();
+ 	const raw = mapACPUsageMetadata({ usage });

@@ -1,6 +1,5 @@
-import { mountAgentChat } from "./agent-chat.fixture";
+import { expect, test } from "./agent-chat.fixture";
 import { agentDefinitions } from "@dojofoo/config/agents";
-import { expect, test } from "@playwright/test";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -10,12 +9,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { observeLocalContext } from "@dojofoo/config/local-state";
 
-test("the UIX library separates installed sessions from course previews and preserves sidebar navigation", async ({ page }, info) => {
-  test.setTimeout(90_000);
+test("the UIX library separates installed sessions from course previews and preserves sidebar navigation", async ({ page, mountAgentChat }, info) => {
+  test.setTimeout(120_000);
   const scratch = await mkdtemp(join(tmpdir(), "dojo-library-browser-"));
   const home = join(scratch, "state");
   const cli = fileURLToPath(new URL("../../cli/dist/index.js", import.meta.url));
-  const environment = { ...process.env, DOJOFOO_HOME: home, DO_NOT_TRACK: "1" };
+  // The agent-chat fixture's Eve dev server sets its workflow transport in this process; a host the CLI starts must not inherit it
+  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(EVE_|WORKFLOW_)/u.test(key) && key !== "PORT"));
+  const environment = { ...inherited, DOJOFOO_HOME: home, DO_NOT_TRACK: "1" };
   const workspaces = [join(scratch, "alpha"), join(scratch, "beta")];
   let server: ReturnType<typeof spawn> | undefined;
   let output = "";
@@ -137,7 +138,7 @@ test("the UIX library separates installed sessions from course previews and pres
     await expect(page.getByRole("group", { name: "Lessons", exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => (window as typeof window & { routeSnapshots: Array<{ menu: string; course: boolean }> }).routeSnapshots.some(snapshot => snapshot.course && snapshot.menu.includes("Find your place")))).toBe(true);
     const learning = await page.request.get(`${origin}/api/control/courses/how-to-run-a-dojo`).then(response => response.json());
-    const sessionUrl = `${origin}/session/${learning.runId}`;
+    const sessionUrl = `${origin}/learn/${learning.runId}`;
     await expect(page).toHaveURL(sessionUrl);
     await expect(page.getByRole("group", { name: "Lessons", exact: true })).toBeVisible();
     await expect(page.getByRole("group", { name: "Dashboard", exact: true })).toHaveCount(0);
@@ -196,7 +197,8 @@ test("the UIX library separates installed sessions from course previews and pres
     await page.screenshot({ path: info.outputPath("course-lessons-slides.png") });
     await page.locator('.ui-as-chat__crumbs').getByRole("button", { name: "Dashboard", exact: true }).click();
     const savedCourse = page.getByRole("link", { name: /^How to run a dojo, / });
-    await expect(savedCourse).toContainText("Lesson 2 of 6 · Slide 1 of 3");
+    await expect(savedCourse).toContainText("Find the material for this lesson");
+    await expect(savedCourse).not.toContainText("Lesson 2 of 6");
     await savedCourse.click();
     await expect(page).toHaveURL(sessionUrl);
     await expect(material.getByRole("heading", { name: "Find the material for this lesson", exact: true })).toBeVisible();
@@ -244,7 +246,7 @@ test("the UIX library separates installed sessions from course previews and pres
     await page.getByRole("menuitemradio", { name: "Python", exact: true }).click();
     const python = courses.find(course => course.workspaceName === "beta")!;
     await expect(page.locator(".ui-card:not(.ui-card--add)")).toHaveCount(1);
-    await expect(page.locator("a.ui-card")).toHaveAttribute("href", `/session/${python.runId}`);
+    await expect(page.locator("a.ui-card")).toHaveAttribute("href", `/learn/${python.runId}`);
     await page.getByRole("button", { name: /^Language:/ }).click();
     await page.getByRole("menuitemradio", { name: "All languages", exact: true }).click();
     await page.getByRole("button", { name: /^Search$/, exact: true }).click();
@@ -254,7 +256,7 @@ test("the UIX library separates installed sessions from course previews and pres
     await page.evaluate(() => { (window as typeof window & { routeSnapshots: unknown[] }).routeSnapshots = []; });
     await palette.getByRole("option", { name: /library course/i }).click();
     await expect.poll(() => page.evaluate(() => (window as typeof window & { routeSnapshots: Array<{ menu: string; course: boolean }> }).routeSnapshots.some(snapshot => snapshot.course && snapshot.menu.includes("Library Course")))).toBe(true);
-    await expect(page).toHaveURL(`${origin}/session/${courses.find(course => course.dojo === "library-course")!.runId}`);
+    await expect(page).toHaveURL(`${origin}/learn/${courses.find(course => course.dojo === "library-course")!.runId}`);
     await expect(page.getByRole("dialog", { name: /Continue library course/i })).toHaveCount(0);
     await page.goto(origin);
     await expect(page.getByRole("heading", { name: "Your courses", exact: true })).toBeVisible();
@@ -289,10 +291,10 @@ test("the UIX library separates installed sessions from course previews and pres
     await page.getByRole("button", { name: "Install course", exact: true }).click();
     expect((await installation).status()).toBe(201);
     const created = await page.request.get(`${origin}/api/control/courses/create-your-own-dojo`).then(response => response.json());
-    await expect(page).toHaveURL(`${origin}/session/${created.runId}`);
+    await expect(page).toHaveURL(`${origin}/learn/${created.runId}`);
     await expect(page.getByTestId("interactive-material")).toBeVisible();
     await page.goto(`${origin}/course/create-your-own-dojo`);
-    await expect(page).toHaveURL(`${origin}/session/${created.runId}`);
+    await expect(page).toHaveURL(`${origin}/learn/${created.runId}`);
     await page.reload();
     await expect(page.getByTestId("interactive-material")).toBeVisible();
     await expect(page.getByRole("group", { name: "Dashboard", exact: true })).toHaveCount(0);
@@ -306,7 +308,7 @@ test("the UIX library separates installed sessions from course previews and pres
     expect(draftResponse.status()).toBe(201);
     const draft = await draftResponse.json();
     await mountAgentChat(page, { root: draft.path, workspaceId: draft.workspaceId, files: false });
-    await page.goto(`${origin}/authoring?workspace=${draft.workspaceId}&session=saved`);
+    await page.goto(`${origin}/authoring/${draft.workspaceId}?session=saved`);
     const authoringTree = page.getByRole("tree", { name: "Course files and chapters", exact: true });
     await expect(authoringTree).toBeVisible();
     await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
@@ -333,7 +335,8 @@ test("the UIX library separates installed sessions from course previews and pres
     releaseRefresh();
     await page.goto("about:blank").catch(() => {});
     if (server?.pid && server.exitCode === null && server.signalCode === null) {
-      const exited = once(server, "exit", { signal: AbortSignal.timeout(10_000) });
+      // The CLI waits for the UI, which stops its persona hosts; Eve kills a host that has not exited after 20 s
+      const exited = once(server, "exit", { signal: AbortSignal.timeout(30_000) });
       process.kill(process.platform === "win32" ? server.pid : -server.pid, "SIGTERM");
       await exited;
     }

@@ -17,7 +17,7 @@ DOJOFOO_EVAL_HARNESS=codex pnpm --filter @dojofoo/evals eval:authoring
 
 The first scenario assembles:
 
-1. the internal lesson-runtime `DOJOFOO.md` platform contract;
+1. the internal lesson-runtime `DOJOFOO.md` platform contract (`packages/agents/src/sensei/contracts/`);
 2. the starter course's `DOJO.md`;
 3. lesson 002's `SENSEI.md`;
 4. the generic Dojofoo skill;
@@ -106,8 +106,9 @@ a model:
 pnpm --filter @dojofoo/evals eval:course:contract
 ```
 
-An authenticated ACP smoke matrix reuses the same journey. It is doubly gated
-so an ordinary test run cannot spend model credits:
+An authenticated smoke matrix reuses the same journey on each agent's read-only
+harness adapter. It is doubly gated so an ordinary test run cannot spend model
+credits:
 
 ```sh
 DOJOFOO_LIVE_HARNESS_MATRIX=1 \
@@ -115,6 +116,6 @@ DOJOFOO_LIVE_HARNESSES=codex,opencode \
 pnpm --filter @dojofoo/evals eval:course:live
 ```
 
-Select only the harnesses you intend to pay for. Pi runs through the official
-`HarnessAgent`; the other harnesses run through the same ACP client as the local
-Dojofoo UI.
+Select only the harnesses you intend to pay for. Every agent with an AI SDK
+adapter runs through the official `HarnessAgent` in read-only mode, in a temporary
+folder of its own.

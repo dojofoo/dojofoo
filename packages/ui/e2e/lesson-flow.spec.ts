@@ -4,6 +4,7 @@ test("keeps recovered chat history on the first cold session render", async ({ p
   const courses = await page.request.get("/api/control/courses").then((response) => response.json()) as Array<{
     dojo: string;
     kata: string | null;
+    runId: string;
     sessionId: string | null;
     workspaceId: string;
   }>;
@@ -20,7 +21,7 @@ test("keeps recovered chat history on the first cold session render", async ({ p
     .find(({ content, type }) => type === "text" && content?.trim() && !content.startsWith("[dojo"))?.content?.trim();
   test.skip(!expectedText, "The resumable session has no visible transcript");
 
-  await page.goto(`/session/${course.sessionId}`);
+  await page.goto(`/learn/${course.runId}?lesson=${course.kata}&session=${course.sessionId}`);
 
   const chat = page.getByTestId("chat-pane");
   await expect(chat).toContainText(expectedText!.replaceAll("`", "").slice(0, 80));
@@ -31,6 +32,7 @@ test("keeps a completed check turn before and after transcript recovery", async 
   const courses = await page.request.get("/api/control/courses").then((response) => response.json()) as Array<{
     dojo: string;
     kata: string | null;
+    runId: string;
     sessionId: string | null;
     workspaceId: string;
   }>;
@@ -42,7 +44,7 @@ test("keeps a completed check turn before and after transcript recovery", async 
   const recoveredChecks = snapshot.messages.flatMap(({ parts }) => parts)
     .filter(({ name, type }) => type === "tool-call" && name === "dojo_lesson_verify").length;
 
-  await page.goto(`/session/${course!.sessionId}`);
+  await page.goto(`/learn/${course!.runId}?lesson=${course!.kata}&session=${course!.sessionId}`);
   const chat = page.getByTestId("chat-pane");
   const summaries = chat.getByText(/\d+ of \d+ tests passed/);
   await expect(summaries).toHaveCount(recoveredChecks);
@@ -56,11 +58,11 @@ test("keeps a completed check turn before and after transcript recovery", async 
   await expect(chat).toHaveAttribute("data-host-event-count", "1");
   await expect(summaries).toHaveCount(recoveredChecks + 1);
 
-  const recoveredSession = await page.request.get("/api/control/courses")
+  const recovered = await page.request.get("/api/control/courses")
     .then((response) => response.json())
-    .then((items: Array<{ sessionId: string | null }>) => items.find(({ sessionId }) => sessionId)?.sessionId);
-  expect(recoveredSession).toBeTruthy();
-  await page.goto(`/session/${recoveredSession}`);
+    .then((items: Array<{ runId: string; kata: string | null; sessionId: string | null }>) => items.find(({ sessionId }) => sessionId));
+  expect(recovered?.sessionId).toBeTruthy();
+  await page.goto(`/learn/${recovered!.runId}?lesson=${recovered!.kata}&session=${recovered!.sessionId}`);
   await expect(page.getByTestId("chat-pane").getByText(/\d+ of \d+ tests passed/).last()).toBeVisible();
 });
 
@@ -69,7 +71,7 @@ test("senpai completes and resumes a Socratic kata", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "Continue learning" })).toBeVisible();
   await page.getByRole("link").filter({ hasText: /effect/i }).first().click();
-  await expect(page).toHaveURL(/\/session\/.+/);
+  await expect(page).toHaveURL(/\/learn\/.+/);
   await expect(page.getByRole("heading", { name: /hello effect/i })).toBeVisible();
   await expect(page.getByTestId("chat-pane")).toBeVisible();
   await expect(page.locator(".monaco-editor")).toBeVisible();

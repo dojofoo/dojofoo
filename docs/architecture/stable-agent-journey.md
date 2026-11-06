@@ -1,6 +1,6 @@
 # Stable agent journey
 
-Deliver authoring → trial → learning with the existing `@dojofoo/agent`
+Deliver authoring → trial → learning with the existing `@dojofoo/harness`
 Eve-compatible integration. No replacement runtime or session store.
 
 ## Baseline and boundaries

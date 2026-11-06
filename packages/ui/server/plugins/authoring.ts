@@ -1,13 +1,16 @@
 import { definePlugin } from "nitro";
-import { closeAuthoringRuntime } from "../../src/server/authoring";
 import { authoringWatchers } from "../../src/server/authoring-watch";
 import { createRequire } from "node:module";
+import { dirname } from "node:path";
+import { localStateDirectory } from "@dojofoo/config/local-state";
+import { releaseServerLock } from "../../src/server/server-lock";
 
 export default definePlugin(app => {
-  app.hooks.hook("close", () => {
-    const { closeKyoshiRuntimes } = createRequire(import.meta.url)("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
-    return closeKyoshiRuntimes();
+  app.hooks.hook("close", async () => {
+    const { closePersonaRuntimes } = createRequire(import.meta.url)("@dojofoo/agents/eve/runtime") as typeof import("@dojofoo/agents/eve/runtime");
+    await closePersonaRuntimes();
+    // After the persona hosts, so the next server finds no host of this one running
+    releaseServerLock(dirname(localStateDirectory()));
   });
-  app.hooks.hook("close", closeAuthoringRuntime);
   app.hooks.hook("close", () => authoringWatchers.close());
 });

@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { createLessonTrial } from "@dojofoo/authoring/service";
+import { createLessonTrial } from "@dojofoo/agents/service";
 import { readDojoRc, resolveKata } from "@dojofoo/config";
 import { listWorkspaces } from "@dojofoo/config/local-state";
 import { prepareWorkspace } from "@dojofoo/config/project-preparation";

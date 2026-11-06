@@ -7,6 +7,7 @@ import { attachLanguageTools } from "../lib/monaco-language-tools";
 import { attachDocumentation } from "../lib/monaco-documentation";
 import { visualizedLines } from "../lib/editor-lines";
 import { preloadEditor } from "../lib/preload-editor";
+import { afterViewTransition } from "../lib/view-transition";
 export type EditorLanguage = "javascript" | "json" | "markdown" | "python" | "typescript" | "yaml";
 
 export type CodeEditorProps = {
@@ -58,7 +59,8 @@ function FileEditor(props: CodeEditorProps) {
     let dispose: (() => void) | undefined;
     setInstance(undefined);
     setError(undefined);
-    preloadEditor().then((monaco) => {
+    // Monaco's start takes the main thread for ~150 ms; it waits until the page's view transition has finished
+    afterViewTransition().then(preloadEditor).then((monaco) => {
       if (cancelled || !container.current) return;
       // Hovers and suggestions render into a layer on <body>; it is a dark island like the card
       const overlay = document.createElement("div");
@@ -240,6 +242,10 @@ function FileEditor(props: CodeEditorProps) {
   return <div className="ui-ed__code" data-file-path={filePath}>
     <div ref={container} className="ui-ed__monaco" />
     {error ? <div role="alert" className="ui-ed__state">Editor could not load: {error}</div>
-      : !instance && <div role="status" className="ui-ed__state">Loading editor…</div>}
+      : !instance && <>
+        {/* The file as text until Monaco takes over, at the editor's own size */}
+        <pre aria-hidden="true" className="ui-ed__placeholder" style={{ fontSize: editorSize, lineHeight: `${editorLineHeight(editorSize)}px` }}>{code}</pre>
+        <div role="status" className="sr-only">Loading editor…</div>
+      </>}
   </div>;
 }

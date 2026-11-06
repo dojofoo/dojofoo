@@ -28,7 +28,7 @@ test("interactive questions save answers and only Next advances through the exis
     if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [{ type: "html", html: `<p>${route.request().postDataJSON().source}</p>` }] } });
     return route.fulfill({ status: 404 });
   });
-  await page.goto("/session/starter");
+  await page.goto("/learn/starter");
   const material = page.getByTestId("interactive-material");
   const next = material.getByRole("button", { name: "Next", exact: true });
   await expect(next).toBeEnabled({ timeout: 4000 });

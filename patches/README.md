@@ -2,25 +2,13 @@
 
 Upgrade status and baseline results live in
 [`docs/architecture/dependency-upgrade-ledger.md`](../docs/architecture/dependency-upgrade-ledger.md).
-The compatibility patches here and four assembled into `@dojofoo/agent` are independent
+The compatibility patches here and four assembled into `@dojofoo/harness` are independent
 compatibility changes. Passing tests against an old release does not justify
 removing them from a new one.
 
-## Chat queue during questions
-
-`@tanstack/ai-client@0.39.3` rejects normal messages before applying its queue
-policy when an interrupt is pending. Its drain also starts queued messages while
-the question still owns the next turn. The patch applies the configured queue
-policy and holds that same native queue until the interrupt is resolved. It does
-not answer or dismiss the question. Remove it when upstream supports this case.
-
-Browser regression: `packages/ui/e2e/eve-authoring.spec.ts`, “keeps a pending
-question while queuing messages through its continuation”. It verifies both
-waiting for an answer and accepting messages during the resumed stream.
-
 ## OpenCode adapter compatibility
 
-`@ai-sdk/harness-opencode@1.0.169` creates legacy OpenCode sessions but calls the
+`@ai-sdk/harness-opencode@1.0.173` creates legacy OpenCode sessions but calls the
 v2 `switchModel` endpoint before every turn. That endpoint uses a different
 session store and can fail with a foreign-key constraint before inference.
 
@@ -29,33 +17,121 @@ existing legacy prompt API. Initial selection and subsequent model changes use
 the same session and API; native defaults remain untouched when no model is set.
 Compaction already supplies its model to the legacy summarize API.
 
-Regression coverage: `packages/authoring/src/eve/native-harness-contract.test.ts`,
-the OpenCode case, checks initial and changed models through the native agent.
+Regression coverage: `kyoshi.harness.model-switch` in `packages/agents/src/eve/conformance.test.ts`,
+the OpenCode row, checks initial and changed models through the native agent.
 This is a dependency patch, not a replacement harness. Authoring bundles the
 tested adapter and its bridge assets so npm consumers receive the same fix;
 the packed-install smoke verifies model selection against that shipped bridge.
 Remove it when
 the upstream adapter consistently uses a compatible session/model API. The
-published 1.0.169 bridge still mixes these APIs, so the compatibility patch remains.
+published 1.0.173 bridge still mixes these APIs, so the compatibility patch remains.
 
-## Bundled Eve patches (0.81.1)
+## FX state folder on macOS
 
-Consumers do not apply these patches. `packages/agent/scripts/build-runtime.mjs`
+`@ai-sdk/harness-fx@1.0.86` creates its private state folder with
+`chmod 700 -- <folder>`. GNU `chmod` accepts that; macOS `chmod` reads the `--`
+after the mode as a file name and fails, so FX could not start a turn on a Mac
+without GNU coreutils. The patch writes `chmod -- 700 <folder>`, which both
+accept. Regression: `packages/agents/src/eve/runtime-turn.test.ts`, the FX
+case, run on macOS without coreutils. Remove it when upstream reorders the call.
+
+FX's file tools resolve every path with `realpath -mz`, and macOS `realpath`
+has neither option, so on a Mac FX could not read or write a file through its
+tools ("Unable to resolve sandbox path"). The patch keeps GNU `realpath -mz`
+and, where it fails, resolves the deepest existing folder with plain `realpath`
+and appends the missing rest. It stops at a symlink, so a dangling link fails
+the resolution instead of passing the workspace check (1.0.89 still has the
+GNU-only call). Regression: `kyoshi.harness.native-write` in
+`packages/agents/src/eve/conformance.test.ts`, the FX row, run on macOS.
+Remove it when upstream resolves paths portably.
+
+The CLI package bundles the patched FX adapter and the patched ACP bridge
+(`packages/cli/scripts/prepare-package.mjs`), as it does OpenCode's, so an npm
+install bootstraps the same bridge the prepared servers run.
+
+## Grok Build turn usage
+
+`@ai-sdk/harness-acp@1.0.110` reads a turn's token usage only from the
+`session/prompt` response's `usage` field (unstable in ACP). Grok Build 1.0.49,
+the CLI `@ai-sdk/harness-grok-build@1.0.109` pins, never sets that field and sends
+no `usage_update`: it reports the turn's usage in the response's `_meta.usage`
+(`inputTokens` with cached reads included, `outputTokens` with reasoning included,
+`totalTokens`, `cachedReadTokens`, `cacheCreationTokens`, `reasoningTokens`). Every
+Grok turn therefore reached Eve with unknown usage, and an evaluation trial's usage
+ceiling never stopped a Grok Sensei. The patch reads `_meta.usage` when the
+bridge type is `grok-build` and `usage` is unset, and maps it to ACP's usage
+fields. Both bridge copies (`dist/bridge`, `dist/v1/bridge`) carry it; authoring's
+prepared servers bundle the patched package.
+
+Regression: `sensei.evaluation.trial-loopback` in
+`packages/agents/src/eve/conformance.test.ts`, the Grok row (the second
+message opens Eve's budget prompt). Remove it when Grok Build sets the
+response's `usage` or the bridge reads Grok's `_meta.usage` itself.
+
+## Nitro error reporting on closed output
+
+`nitro@3.0.260903-beta` reports uncaught errors with `console.error`. When a
+server's stdout and stderr are gone (the terminal that started the UI closed, or
+the UI died while a Kyoshi server it started was still running), that write fails
+with `EPIPE`, which is reported again, without end: the server runs at full CPU
+and never handles SIGTERM. The patch drops `EPIPE` and destroyed-stream errors in
+that reporter. The UI and every prepared Kyoshi server use this Nitro.
+
+Regression: `packages/ui/src/server/nitro-close.integration.test.ts`, “stops a
+production server whose stdout and stderr are gone”. Remove the hunk when
+upstream stops re-reporting failed writes to closed output.
+
+## Bundled Eve patches (1.0.0-rc.1)
+
+Consumers do not apply these patches. `packages/harness/scripts/build-runtime.mjs`
 checks the upstream tarball integrity, applies them while assembling the package,
 and ships the resulting runtime with Eve's notices.
 
-| Patch in `packages/agent/patches` | Purpose | Offline regression |
+| Patch in `packages/harness/patches` | Purpose | Offline regression |
 | --- | --- | --- |
-| `eve@0.81.1.patch` | Delegate compaction to ready providers instead of summarizing harness-owned history | `experiments/model-provider/provider.test.mjs` and host fixtures |
-| `eve-native-turn@0.81.1.patch` | Honor a native provider's completed turn and context-token accounting; preserve upstream sign-in parking | Provider/host continuation, sign-in parking and compaction fixtures |
-| `eve-distribution@0.81.1.patch` | Resolve packaged modules, project root and workflow identity; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
-| `eve-managed-project@0.81.1.patch` | Compile manifest-free `.dojo/kyoshi` and `.dojo/sensei` using the installed runtime, without project dependencies or symlinks | `experiments/model-provider/manifest-free-project.test.mjs` |
+| `eve@1.0.0-rc.1.patch` | Delegate compaction to ready providers instead of summarizing harness-owned history | `experiments/model-provider/provider.test.mjs` and host fixtures |
+| `eve-native-turn@1.0.0-rc.1.patch` | Honor a native provider's completed turn and context-token accounting; preserve upstream sign-in parking | Provider/host continuation, sign-in parking and compaction fixtures |
+| `eve-distribution@1.0.0-rc.1.patch` | Resolve packaged modules (including an authored workflow step's authorization import), project root and workflow identity; guard incompatible history | `experiments/model-provider/exports.test.mjs`, `local-history.test.mjs`, authored/host fixtures, `packaging.mjs` |
+| `eve-managed-project@1.0.0-rc.1.patch` | Compile manifest-free `.dojo/kyoshi` and `.dojo/sensei` using the installed runtime, without project dependencies or symlinks | `experiments/model-provider/manifest-free-project.test.mjs` |
+| `eve-local-shutdown@1.0.0-rc.1.patch` | On SIGTERM/SIGINT, and in `DevelopmentServer.close()`, wait up to 1 s for in-flight local World deliveries before exiting or closing; a closing development server refuses new ones with 503 | `test/local-shutdown.test.ts`; `kyoshi.host.ask-answer-across-restart`; `experiments/model-provider/host.test.mjs` restarts |
+
+Eve's signal handler exits as soon as its remote sandboxes are stopped. With the
+local World, a workflow step still running then is lost: the step started inline,
+so after a restart the Workflow runtime treats it as leased to the dead invocation
+for `WORKFLOW_INLINE_OWNERSHIP_LEASE_SECONDS` (860 s) and does not rerun it. A
+host closed right after a question appears hits this, because the step that
+publishes the question records its own result a moment later; the session then
+ignores the answer until the lease runs out. The patch counts deliveries in the
+local World's queue handler and waits for them on shutdown, for at most 1 s: a
+delivery that is still running a turn would otherwise go on to start a native
+agent while the server exits, and that agent outlives it
+(`sensei.host-port.rerun-no-duplicate` leaves an OpenCode server with a 5 s
+bound). Such a delivery is cut short as before, and a crash still loses the
+step.
+
+`DevelopmentServer.close()` had the same gap. It disposed the Workflow World and
+closed its HTTP listener while the dev worker was still running a delivery, and
+the worker reaches the parent's World over that listener. A client sees a turn
+settle as soon as the turn step streams it, while the step records its own
+completion a few tens of milliseconds later, so a test that restarts its host
+right after a reply cut the step: the worker logged `Error while running
+workflow … USER_ERROR … ECONNREFUSED`, or left the step `running`, and the next
+host answered the session's next message with `session_not_ready` (Linux CI run
+41852746034, `host.test.mjs` at "restore filesystem"). Eve 0.81.1's development
+server closes in the same order. The patch counts requests that carry
+`x-eve-dev-workflow-delivery` in `DrainedNitroDevServer`, and `close()` first
+refuses new ones with 503, which the next host's `--resume` re-enqueues, and
+waits up to 1 s for those in flight. Client requests, such as open event
+streams, do not hold it.
+
+Remove the patch when Eve drains deliveries itself or the local World
+recovers inline steps of a previous process.
 
 The upgrade audit removed redundant model-reference metadata and capability-type
 patches. Eve's own model profiles handle provider routing; our `HarnessModel`
 already declares compaction capabilities. `createDevelopmentServer` is re-exported
 by our generated server facade instead of editing Eve's public modules. The
-remaining patches touch 11 Eve files rather than 16. These include intentional
+remaining patches touch 12 Eve files rather than 16. These include intentional
 integration extensions, not only upstream bugs; see the dated upgrade ledger.
 
 Web-search routing now uses Eve's upstream model-profile implementation. Its
@@ -77,7 +153,6 @@ checks and byte-preservation fixture.
 
 ## Upstream tracking
 
-No upstream issue or PR has been filed for the OpenCode or TanStack fixes yet.
+No upstream issue or PR has been filed for the OpenCode fixes yet.
 Local reports and regression details are prepared in [`upstream/`](./upstream/README.md).
-Publishing those reports requires explicit authorization; do not
-mislabel Dojofoo PR #162 as an upstream TanStack fix.
+Publishing those reports requires explicit authorization.

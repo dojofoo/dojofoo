@@ -1,6 +1,9 @@
-export const matrixHarnesses = ["codex", "opencode", "cursor", "grok", "fx", "pi"] as const;
+import { agentRows, type AgentId } from "@dojofoo/protocol";
 
-export type MatrixHarness = (typeof matrixHarnesses)[number];
+/** Every coding agent with an AI SDK harness adapter. */
+export const matrixHarnesses: readonly AgentId[] = agentRows.filter(row => row.adapterId).map(row => row.id);
+
+export type MatrixHarness = AgentId;
 
 export type CourseLesson = {
   id: string;

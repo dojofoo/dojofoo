@@ -117,8 +117,9 @@ export const learningWorkspaceCss = /* css */ `
 .ui-as-chat__main[data-surface="page"] { height: 100%; }
 /* Same height and line as the window's toolbar across the gap */
 .ui-as-chat__main[data-surface="page"] > .ui-as-chat__bar { height: 52px; margin-top: var(--frame-gap); padding: 0 16px 0 20px; border-bottom: 0; }
-.ui-as-chat__main[data-surface="page"] > .ui-as-chat__thread { padding: 16px 20px 24px; }
-.ui-as-chat__main[data-surface="page"] > .ui-as-chat__composer { padding: 0 12px var(--frame-gap); }
+/* Any depth: a host may wrap its conversation in a display: contents element (the kata page's chat pane) */
+.ui-as-chat__main[data-surface="page"] .ui-as-chat__thread { padding: 16px 20px 24px; }
+.ui-as-chat__main[data-surface="page"] .ui-as-chat__composer { padding: 0 12px var(--frame-gap); }
 /* The composer's card is the code card's twin: surface 3 with shadow 3. Its corners follow the window's outer
    corners, since it sits beside the window on the page */
 .ui-as-chat__main[data-surface="page"] .ui-as-composer__card {
@@ -320,14 +321,14 @@ export const learningWorkspaceCss = /* css */ `
 /* Phones: the conversation keeps the window's frame – the composer sits the frame gap from the edges on all three
    sides, with the window's corners, and what's inside it, the thread and the bar line up with its text */
 @container ui-as (max-width: 420px) {
-  .ui-as-chat__main[data-surface="page"] > .ui-as-chat__composer { padding: 0 var(--frame-gap) var(--frame-gap); }
+  .ui-as-chat__main[data-surface="page"] .ui-as-chat__composer { padding: 0 var(--frame-gap) var(--frame-gap); }
   .ui-as-chat__main[data-surface="page"] .ui-as-composer__card { padding: 12px 8px 6px 12px; border-radius: calc(10px * var(--squircle-factor, 1)); }
   .ui-as-chat__main[data-surface="page"] .ui-as-composer__bar { margin-top: 14px; }
   .ui-as-chat__main[data-surface="page"] > .ui-as-chat__bar { padding: 0 calc(var(--frame-gap) + 8px) 0 calc(var(--frame-gap) + 12px); }
   .ui-as-chat__main[data-surface="page"] > .ui-as-chat__bar .ui-as-chat__speaker { padding-left: 0; }
   /* The thread runs to the frame gap too, so cards take the chat's full width like the composer; text keeps the
      composer's inner inset, so every line of it starts where the composer's does */
-  .ui-as-chat__main[data-surface="page"] > .ui-as-chat__thread { --ui-as-chat-inset: 12px; padding: 12px var(--frame-gap) 16px; }
+  .ui-as-chat__main[data-surface="page"] .ui-as-chat__thread { --ui-as-chat-inset: 12px; padding: 12px var(--frame-gap) 16px; }
   .ui-as-chat__main[data-surface="page"] .ui-as-chat__column { gap: 16px; }
   .ui-as-chat__main[data-surface="page"] .ui-as-chat__column > :not(.ui-tc, .ui-tc-group) { padding-inline: var(--ui-as-chat-inset); }
   .ui-as-chat__main[data-surface="page"] .ui-tc-group__list { gap: 6px; padding-top: 6px; }

@@ -1,7 +1,6 @@
-import { expect, test } from "@playwright/test";
-import { mountAgentChat } from "./agent-chat.fixture";
+import { expect, test } from "./agent-chat.fixture";
 
-test("authoring previews share the learner typography and keep unsupported diagrams out", async ({ page }) => {
+test("authoring previews share the learner typography and keep unsupported diagrams out", async ({ page, mountAgentChat }) => {
   const source = "# Teaching notes\n\nDescribe one observable outcome.\n";
   const manifest = "name: Preview course\ndescription: A focused outcome\nkatas:\n  - name: first\n    description: Practice one thing\n";
   const writes: string[] = [];
@@ -25,7 +24,7 @@ test("authoring previews share the learner typography and keep unsupported diagr
     return route.fulfill({ status: 404 });
   });
   const agent = await mountAgentChat(page, { root: "/tmp/preview-course", files: false });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await page.getByRole("button", { name: "Switch to preview", exact: true }).click();
   const preview = page.getByTestId("authoring-workspace");
   await expect(preview.locator(".ui-lb__title")).toHaveText("Preview course");

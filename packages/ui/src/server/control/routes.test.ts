@@ -6,14 +6,14 @@ import {
   listSessions,
   listWorkspaces,
   listDojoRuns,
+  observeCourseRun,
   observeLocalContext,
   observeWorkspacePath,
   recordDojoLifecycle,
 } from "@dojofoo/config/local-state";
-import { acpClient } from "../lesson/codex-client";
 import { advanceInteractiveLesson } from "../interactive/service";
 import { buildControlRoutes } from "./routes";
-import * as scaffold from "@dojofoo/authoring/scaffold";
+import * as scaffold from "@dojofoo/agents/scaffold";
 import { resolveRequestWorkspace, WORKSPACE_HEADER } from "./workspace";
 
 const temporaryPaths: string[] = [];
@@ -49,23 +49,31 @@ function fixture() {
 }
 
 describe("local control-plane API", () => {
-  it("stops and removes a study's installation, progress and runs without deleting its workspace", async () => {
+  it("removes a study's installation, progress and runs without deleting its workspace", async () => {
     const { root, stateHome } = fixture();
     const workspaceId = observeWorkspacePath(root, { stateHome });
-    const stop = vi.spyOn(acpClient, "stopCourse").mockImplementation(() => {});
     const uninstall = vi.fn(async () => { rmSync(resolve(root, ".dojos/starter"), { recursive: true }); });
     const app = buildControlRoutes({ stateHome, uninstallCourse: uninstall });
     await app.request("/courses");
     expect((await app.request("/courses/starter", { method: "DELETE", headers: { Origin: "https://foreign.invalid" } })).status).toBe(403);
     expect(uninstall).not.toHaveBeenCalled();
     expect((await app.request("/courses/starter", { method: "DELETE" })).status).toBe(204);
-    expect(stop).toHaveBeenCalledWith(root, "starter");
     expect(uninstall).toHaveBeenCalledWith(root, "starter");
     expect(listWorkspaces({ stateHome }).some(workspace => workspace.id === workspaceId)).toBe(true);
     expect(listDojoRuns({ stateHome })).toEqual([]);
     expect(JSON.parse(readFileSync(resolve(root, ".dojorc"), "utf8")).progress.starter).toBeUndefined();
     expect(await (await app.request("/courses")).json()).toEqual([]);
-    stop.mockRestore();
+  });
+
+  it("an evaluation trial of an installed course does not make the dashboard refuse", async () => {
+    const learner = fixture();
+    const trial = fixture();
+    const learnerId = observeWorkspacePath(learner.root, { stateHome: learner.stateHome });
+    observeLocalContext(trial.root, { stateHome: learner.stateHome, kind: "evaluation-trial" });
+    const app = buildControlRoutes({ stateHome: learner.stateHome });
+    const response = await app.request("/courses");
+    expect(response.status).toBe(200);
+    expect((await response.json()).map((course: { workspaceId: string }) => course.workspaceId)).toEqual([learnerId]);
   });
 
   it("deletes only the selected managed authoring draft and its registration", async () => {
@@ -102,6 +110,21 @@ describe("local control-plane API", () => {
     expect(listSessions({ stateHome })).toEqual([]);
     rmSync(resolve(root, ".dojos/starter"), { recursive: true });
     expect((await app.request(`/learning-sessions/${first.runId}`)).status).toBe(404);
+  });
+  it("a learning session resolves its course in its own workspace when the course id is installed twice", async () => {
+    const first = fixture();
+    const second = fixture();
+    const stateHome = first.stateHome;
+    const firstId = observeWorkspacePath(first.root, { stateHome });
+    const secondId = observeWorkspacePath(second.root, { stateHome });
+    const app = buildControlRoutes({ stateHome });
+    expect((await app.request("/courses/starter")).status).toBe(404);
+    for (const [root, workspaceId] of [[first.root, firstId], [second.root, secondId]] as const) {
+      const { runId } = observeCourseRun(root, "starter", { stateHome });
+      const response = await app.request(`/learning-sessions/${runId}`);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ id: "starter", runId, workspaceId });
+    }
   });
   it("lists every installed course in a workspace after another course becomes active", async () => {
     const { root, stateHome } = fixture();
@@ -180,6 +203,8 @@ describe("local control-plane API", () => {
       expect.objectContaining({ workspaceId: second.workspaceId }),
     ]));
     expect(resolveRequestWorkspace(new Request(`http://localhost/api/authoring/draft?workspace=${first.workspaceId}`), { stateHome })).toBe(first.path);
+    expect(listWorkspaces({ stateHome }).filter(workspace => [first.workspaceId, second.workspaceId].includes(workspace.id)).map(workspace => workspace.kind))
+      .toEqual(["draft", "draft"]);
     expect(await (await restarted.request("/courses")).json()).toEqual([]);
     expect(listSessions({ stateHome })).toEqual([]);
     expect(readFileSync(resolve(root, ".dojorc"), "utf8")).toBe(original);
@@ -198,23 +223,46 @@ describe("local control-plane API", () => {
     expect(readdirSync(stateHome)).toEqual([]);
   });
 
-  it("lists resumable Kyoshi drafts without requiring an installed dojo", async () => {
+  it("lists drafts by kind, with their newest Kyoshi session", async () => {
     const root = mkdtempSync(join(tmpdir(), "dojofoo-authoring-workspace-"));
     const stateHome = mkdtempSync(join(tmpdir(), "dojofoo-authoring-home-"));
     temporaryPaths.push(root, stateHome);
     mkdirSync(resolve(root, ".dojo"), { recursive: true });
-    writeFileSync(resolve(root, ".dojo", "kyoshi.json"), JSON.stringify({ sessionId: "kyoshi-1" }));
+    writeFileSync(resolve(root, ".dojo", "agent-sessions.json"), JSON.stringify({ sessions: [
+      { id: "kyoshi-old", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T10:00:00.000Z" },
+      { id: "kyoshi-new", agent: "codex", persona: "kyoshi", createdAt: "2026-10-02T10:00:00.000Z" },
+      { id: "kyoshi-mid", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T12:00:00.000Z" },
+      { id: "sensei-newest", agent: "codex", persona: "sensei", createdAt: "2026-10-03T10:00:00.000Z" },
+    ] }));
     writeFileSync(resolve(root, "dojo.yaml"), "mode: katas\nname: typescript-patterns\ndescription: Practice TS patterns.\n");
-    const workspaceId = observeWorkspacePath(root, { stateHome, now: 100 });
+    const workspaceId = observeWorkspacePath(root, { stateHome, now: 100, kind: "draft" });
 
     const response = await buildControlRoutes({ stateHome, now: 200 }).request("/authoring");
 
     expect(await response.json()).toEqual([expect.objectContaining({
       workspaceId,
       name: "typescript-patterns",
-      sessionId: "kyoshi-1",
+      sessionId: "kyoshi-new",
     })]);
   });
+
+  it("does not list a learner workspace, even with agent sessions", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dojofoo-authoring-workspace-"));
+    const stateHome = mkdtempSync(join(tmpdir(), "dojofoo-authoring-home-"));
+    temporaryPaths.push(root, stateHome);
+    mkdirSync(resolve(root, ".dojo"), { recursive: true });
+    writeFileSync(resolve(root, ".dojo", "agent-sessions.json"), JSON.stringify({ sessions: [
+      { id: "kyoshi-1", agent: "codex", persona: "kyoshi", createdAt: "2026-10-01T10:00:00.000Z" },
+      { id: "sensei-1", agent: "codex", persona: "sensei", createdAt: "2026-10-01T11:00:00.000Z" },
+    ] }));
+    writeFileSync(resolve(root, "dojo.yaml"), "mode: katas\nname: lessons\ndescription: Learn.\n");
+    const workspaceId = observeWorkspacePath(root, { stateHome, now: 100 });
+
+    const routes = buildControlRoutes({ stateHome, now: 200 });
+    expect(await (await routes.request("/authoring")).json()).toEqual([]);
+    expect((await routes.request(`/authoring/${workspaceId}`, { method: "DELETE" })).status).toBe(422);
+  });
+
   it("lists a freshly installed kata course before its first attempt", async () => {
     const { root, stateHome } = fixture();
     writeFileSync(resolve(root, ".dojorc"), JSON.stringify({
@@ -303,7 +351,7 @@ describe("local control-plane API", () => {
     ]);
   });
 
-  it("keeps completed lesson sessions addressable after the course advances", async () => {
+  it("lists a course's Sensei conversations from session records", async () => {
     const { root, stateHome } = fixture();
     writeFileSync(resolve(root, ".dojos", "starter", "dojo.yaml"), [
       "name: '@test/starter'",
@@ -317,12 +365,12 @@ describe("local control-plane API", () => {
       "    template: katas/002-second/solution.ts",
     ].join("\n"));
     mkdirSync(resolve(root, ".dojo"), { recursive: true });
-    writeFileSync(resolve(root, ".dojo", "web.json"), JSON.stringify({
-      threads: {
-        "starter/001-first": { sessionId: "session-001" },
-        "starter/002-second": { sessionId: "session-002" },
-      },
-    }));
+    writeFileSync(resolve(root, ".dojo", "agent-sessions.json"), JSON.stringify({ sessions: [
+      { id: "session-001", agent: "codex", persona: "sensei", createdAt: "2026-11-01T00:00:00.000Z", courseId: "starter", lessonId: "001-first", revision: 0 },
+      { id: "session-002", agent: "codex", persona: "sensei", createdAt: "2026-11-02T00:00:00.000Z", courseId: "starter", lessonId: "002-second", revision: 0 },
+      { id: "kyoshi-1", agent: "codex", persona: "kyoshi", createdAt: "2026-11-03T00:00:00.000Z", revision: 0 },
+      { id: "other-course", agent: "codex", persona: "sensei", createdAt: "2026-11-03T00:00:00.000Z", courseId: "other", lessonId: "001-first", revision: 0 },
+    ] }));
     writeFileSync(resolve(root, ".dojorc"), JSON.stringify({
       currentDojo: "starter",
       currentKata: "002-second",
@@ -338,8 +386,8 @@ describe("local control-plane API", () => {
         kata: "002-second",
         sessionId: "session-002",
         sessions: [
-          { lessonId: "001-first", sessionId: "session-001" },
           { lessonId: "002-second", sessionId: "session-002" },
+          { lessonId: "001-first", sessionId: "session-001" },
         ],
       }),
     ]);
@@ -451,36 +499,5 @@ describe("local control-plane API", () => {
     expect(await events.json()).toEqual([
       expect.objectContaining({ type: "dojo_run_completed", occurredAt: 200 }),
     ]);
-  });
-
-  it("exposes session adoption through the local control API", async () => {
-    const { root, stateHome } = fixture();
-    const context = observeLocalContext(root, {
-      stateHome,
-      now: 100,
-      session: { harness: "codex", nativeId: "thread-123" },
-    });
-    const session = listSessions({ stateHome })[0];
-    const lifecycleState = {
-      type: "resume-session" as const,
-      harnessId: "codex",
-      specificationVersion: "harness-v1" as const,
-      data: { threadId: "thread-123" },
-    };
-    const adoptSession = vi.fn(async () => ({
-      session: { ...session, ownership: "managed" as const },
-      lifecycleState,
-      transcript: [{ role: "assistant" as const, text: "Prior turn" }],
-    }));
-    const app = buildControlRoutes({ stateHome, now: 200, adoptSession });
-
-    const response = await app.request(`/sessions/${context!.sessionId}/adopt`, { method: "POST" });
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(expect.objectContaining({
-      lifecycleState,
-      transcript: [{ role: "assistant", text: "Prior turn" }],
-    }));
-    expect(adoptSession).toHaveBeenCalledWith(context!.sessionId, { stateHome, now: 200 });
   });
 });

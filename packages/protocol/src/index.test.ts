@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatLessonContext, lessonCapabilities, uiCapabilities, type DojoLessonContext } from ".";
+import { formatKataContext, formatLessonContext, lessonCapabilities, uiCapabilities, type DojoLessonContext, type KataContext } from ".";
 
 describe("lesson capability registry", () => {
   it("contains only production lesson tools", () => {
@@ -39,4 +39,23 @@ it("preserves source-linked historical statements without converting them into m
   expect(JSON.parse(metadata!).learner.evidence).toEqual(context.learner.evidence);
   expect(JSON.parse(metadata!).learner).not.toHaveProperty("mastery");
   expect(context.learner.file.content).toBe("const n = 1;");
+});
+
+it("formatKataContext prints the file's lines, or that it is unchanged, never an empty file", () => {
+  const context: DojoLessonContext = {
+    phase: "start", course: { id: "course", completedLessons: [] },
+    lesson: { id: "first", title: "First", objective: "Practice", state: "ongoing" },
+    learner: { file: { path: "first.ts", language: "typescript", content: "export const answer = 0;" }, latestCheck: null },
+  };
+  const kata: KataContext = {
+    kind: "kata", hash: "hash", course: { id: "course", title: "Course" }, guidance: "",
+    lesson: { id: "first", source: "# First", fragmentIds: [] }, context,
+  };
+  expect(formatKataContext(kata)).toBe(formatLessonContext(context));
+  expect(formatKataContext(kata)).toContain("L1: export const answer = 0;");
+  const unchanged = formatKataContext({ ...kata, fileUnchanged: true,
+    context: { ...context, learner: { ...context.learner, file: { ...context.learner.file, content: "" } } } });
+  expect(unchanged).toContain("The learner's file is unchanged since you last read it.");
+  expect(unchanged).not.toContain("L1:");
+  expect(JSON.parse(unchanged.split("\n")[0]!).learner.file).toEqual({ path: "first.ts", language: "typescript" });
 });

@@ -2,12 +2,12 @@ import { defineConfig } from "tsup";
 import { readFile } from "node:fs/promises";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/lesson-mcp.ts", "src/teaching-eval.ts"],
+  entry: ["src/index.ts"],
   format: ["esm"],
   target: "node24",
   removeNodeProtocol: false,
   external: ["node:sqlite", "yaml"],
-  noExternal: ["@dojofoo/authoring/service"],
+  noExternal: ["@dojofoo/agents/service"],
   clean: true,
   esbuildPlugins: [{
     name: "teaching-instructions",

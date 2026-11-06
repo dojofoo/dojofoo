@@ -153,7 +153,9 @@ function Select({
   // press, trigger toggle, focus-out) closes immediately and cancels any
   // pending acknowledgment; re-picking within the window restarts it.
   const handleOpenChange = useCallback(
-    (nextOpen: boolean, eventDetails: { reason: string }) => {
+    (nextOpen: boolean, eventDetails: SelectPrimitive.Root.OpenChangeEventDetails) => {
+      // Keep the popup mounted until the exit spring releases it through actionsRef.
+      if (!nextOpen) eventDetails.preventUnmountOnClose();
       if (!nextOpen && eventDetails.reason === "item-press") {
         cancelAckClose();
         ackTimeoutRef.current = window.setTimeout(() => {

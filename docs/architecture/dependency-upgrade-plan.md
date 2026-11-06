@@ -30,7 +30,7 @@ Resolved from `packages/*/package.json` and the npm registry on 2026-10-18.
 
 | Package | Pinned | Latest | Used in (files importing) |
 | --- | --- | --- | --- |
-| `eve` | 0.53.0 + 3 patches | 0.80.1 | `packages/agent` only (8) |
+| `eve` | 0.53.0 + 3 patches | 0.80.1 | `packages/harness` only (8) |
 | `ai` | 7.0.98 (agent), ^7.0.77 (ui, evals) | 7.0.143 | agent, ui (2) |
 | `@ai-sdk/provider` | 4.0.14 | 4.0.29 | agent (1) |
 | `@ai-sdk/harness` | **1.0.108** (agent), **1.0.71** (ui), **1.0.85** (evals) | 1.0.154 | agent, ui, evals |
@@ -61,7 +61,7 @@ Every patch was re-checked against the latest published artifact. **None of the 
 | `eve@0.53.0.patch` — compaction hook (`experimental_compact`) | Not upstream; compaction moved to `harness/compaction/` with a summarizer only | Rebase onto 0.80 structure |
 | `eve@0.53.0.patch` — web-search by real provider | Upstream differently (0.71.3, 0.75.1): Eve reads the live model's `.provider` | Drop this part on upgrade; confirm `web_search` stays excluded for `provider: "harness"` |
 | `eve-native-turn@0.53.0.patch` — respect provider `stop` after its own tool results; `contextTokens` for compaction | Not upstream (logic now in `harness/step/after-model.js`) | Rebase |
-| `eve-distribution@0.53.0.patch` — module map, project-root discovery, step identity for `@dojofoo/agent` | Not upstream | Rebase; also resolve the new `./server` export clash (below) |
+| `eve-distribution@0.53.0.patch` — module map, project-root discovery, step identity for `@dojofoo/harness` | Not upstream | Rebase; also resolve the new `./server` export clash (below) |
 | `@ai-sdk__harness-opencode@1.0.110.patch` — legacy prompt model instead of v2 `switchModel` | Not upstream in 1.0.156 or `main`; no upstream issue | Re-diff against the tsdown build; **file upstream** |
 | `@tanstack__ai-client@0.25.1.patch` — queue normal input during interrupts | Not upstream in 0.39.3 (`sendMessage` still throws; `drainQueue` still ignores interrupts) | Rewrite for 0.39 (`hasPendingInterrupts`); **file upstream**. PR #162 was ours. |
 
@@ -94,11 +94,11 @@ Each stage: one change, typecheck plus the existing offline/contract/cassette te
 | **A (recommended now)** | 1.0.153 | 1.0.155 | 1.0.67 | 1.0.67 | 1.0.91 | 1.0.153 | Keeps FX native logins; one release behind latest |
 | B | 1.0.154 | 1.0.156 | 1.0.68 | 1.0.69 | 1.0.92 | 1.0.154 | Latest; FX becomes Gateway-only |
 
-Recommendation: adopt Set A in `packages/agent`, `packages/authoring`, `packages/ui` **and** `packages/evals` (ends the separate eval stack). Revisit B when FX's direction is decided.
+Recommendation: adopt Set A in `packages/harness`, `packages/agents`, `packages/ui` **and** `packages/evals` (ends the separate eval stack). Revisit B when FX's direction is decided.
 
 Changes required with either set:
 
-- **Pi 1.x.** `harness-pi` 1.0.149+ depends on `@earendil-works/pi-coding-agent ^1.0.3`. Bump authoring's direct `pi-ai`/`pi-coding-agent` pins from 0.84.4 to 1.3.0. Replace `@earendil-works/pi-ai/compat` (marked "temporary… deleted") in `packages/authoring/src/eve/models.ts` with `@earendil-works/pi-ai/models`. Configuration paths are unchanged (`~/.pi/agent`, `auth.json`, `models.json`, session format v3 with auto-migration); the Azure provider key was renamed `azure-openai-responses` → `azure` (1.0.3). From harness-pi 1.0.154, MCP tools are named `mcp__<server>__<tool>`, and a non-`mcp` `toolPrefix` fails session start.
+- **Pi 1.x.** `harness-pi` 1.0.149+ depends on `@earendil-works/pi-coding-agent ^1.0.3`. Bump authoring's direct `pi-ai`/`pi-coding-agent` pins from 0.84.4 to 1.3.0. Replace `@earendil-works/pi-ai/compat` (marked "temporary… deleted") in `packages/agents/src/eve/models.ts` with `@earendil-works/pi-ai/models`. Configuration paths are unchanged (`~/.pi/agent`, `auth.json`, `models.json`, session format v3 with auto-migration); the Azure provider key was renamed `azure-openai-responses` → `azure` (1.0.3). From harness-pi 1.0.154, MCP tools are named `mcp__<server>__<tool>`, and a non-`mcp` `toolPrefix` fails session start.
 - **Sandbox API deprecations.** Move `sandbox:` / `createJustBashSandbox` to `createJustBashNetworkSandboxSession` + `createSession({ sandboxSession })` in `learner-fixtures.ts`, `learner-response.ts` and evals. `HarnessV1NetworkSandboxSession` is unchanged, so `local-sandbox.ts` should compile — verify.
 - **Harness state directory** moved to `~/.ai-sdk-harness` under the sandbox's HOME. With our local sandbox this is probably the real user home — confirm and decide before shipping.
 - **OpenCode patch** re-diffed against the new bundle (see patch table).
@@ -109,7 +109,7 @@ Changes required with either set:
 
 - `@tanstack/ai` 0.69.0, `ai-client` 0.39.3, `ai-react` 0.30.4 together.
 - Rewrite the queue patch for 0.39; keep the browser regression (`eve-authoring.spec.ts`, "keeps a pending question while queuing messages…") as the gate; open the upstream issue/PR.
-- Check hand-built AG-UI events in `agui-stream.ts` and `authoring/src/eve/stream.ts`: since 0.26, extras live under `metadata.tanstack` and the wire format is spec-only. `StructuredOutputPart.data` is required once complete (0.38). `withInterruptBinding` and `uiMessagesToWire` remain exported.
+- Check hand-built AG-UI events in `agui-stream.ts` (Kyoshi has no AG-UI stream any more; its browser chat reads Eve sessions directly with `useEveAgent`): since 0.26, extras live under `metadata.tanstack` and the wire format is spec-only. `StructuredOutputPart.data` is required once complete (0.38). `withInterruptBinding` and `uiMessagesToWire` remain exported.
 - Docs: [TanStack AI](https://tanstack.com/ai).
 
 ### Stage 4 — Learning runtime (ACP), as one change
@@ -132,8 +132,8 @@ The largest change; do it after stages 1–4 so it is the only moving part.
 Required changes:
 
 - Rebase all three Eve patches onto the restructured files; drop the web-search part of `eve@0.53.0.patch`.
-- Pass `resume: true` to `createDevelopmentServer` in `packages/authoring/src/eve/runtime.ts:56` and `packages/ui/src/server/authoring.ts:64`. Since 0.68 a restart otherwise leaves earlier sessions dormant.
-- Client/stream API: the default store returns `ConversationState` (0.70), affecting `authoring/src/eve/stream.ts` and `resume.ts`; stream protocol 26 rejects older clients.
+- Pass `resume: true` to `createDevelopmentServer` in `packages/agents/src/eve/runtime.ts:56`. Since 0.68 a restart otherwise leaves earlier sessions dormant.
+- Client/stream API: the default store returns `ConversationState` (0.70); stream protocol 26 rejects older clients. Kyoshi has no stream or resume adapter of its own: the browser's `useEveAgent` reaches the per-course Eve production server through the agent-api session proxy (`/api/v1/workspaces/:ws/sessions/:id/eve/*`).
 - Tool renames: `load_skill` → `eve__skill`, `final_output` → `eve__reply`, `task_*` → `eve__task_*`; the `eve__` prefix is reserved (`host-agent.fixture.ts:41`, a comment in `prepare.ts`).
 - `defineAgent` lost `outputSchema` (0.67); request structured output per turn.
 - Packaging: Eve now exports its own `./server` (clashes with ours); `build-runtime.mjs` requires our manifest to mirror Eve's exports — add ~25 subpaths, drop 5 (`todo`, `load_skill`, `task_cancel`, `task_update`, `connection_search`).

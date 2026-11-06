@@ -20,27 +20,3 @@ export function resolveWorkspaceId(workspaceId: string, options: LocalStateOptio
   }
   return resolve(workspace.path);
 }
-
-export function resolveSessionWorkspace(sessionId: string, options: LocalStateOptions = {}): string {
-  for (const workspace of listWorkspaces(options)) {
-    try {
-      const state = JSON.parse(readFileSync(resolve(workspace.path, ".dojo", "web.json"), "utf8")) as {
-        threads?: Record<string, string | { sessionId?: string; aliases?: string[] }>;
-      };
-      const found = Object.values(state.threads ?? {}).some((thread) => threadOwnsSession(thread, sessionId));
-      if (found) return resolveWorkspaceId(workspace.id, options);
-    } catch {
-      // A workspace without web session state cannot own this session.
-    }
-  }
-  throw new Error("The lesson session is no longer available");
-}
-
-export function threadOwnsSession(
-  thread: string | { sessionId?: string; aliases?: string[] },
-  sessionId: string,
-): boolean {
-  return typeof thread === "string"
-    ? thread === sessionId
-    : thread.sessionId === sessionId;
-}

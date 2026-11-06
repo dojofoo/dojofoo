@@ -1,5 +1,5 @@
 import { courseChapters } from "@dojofoo/config/chapters";
-import type { AuthoringDraft } from "@dojofoo/authoring/service";
+import type { AuthoringDraft } from "@dojofoo/agents/service";
 import type { ShellEntry, ShellSection } from "@dojofoo/uix/components/app-shell";
 import { PlusSignIcon, EvalsIcon } from "@dojofoo/uix/icons";
 import { authoringCourseSidebarResources, authoringLessonSidebarResources } from "@/components/authoring-sidebar";

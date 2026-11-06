@@ -1,5 +1,5 @@
 import type { IconGlyph } from "../lib/icons";
-import type { AgentId } from "@dojofoo/config/agents";
+import type { AgentId } from "@dojofoo/protocol";
 import claude from "../assets/agents/claude.svg?raw";
 import antigravity from "../assets/agents/antigravity.svg?raw";
 import codex from "../assets/agents/codex.svg?raw";

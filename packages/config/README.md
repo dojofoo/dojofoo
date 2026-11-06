@@ -35,15 +35,13 @@ PATH setup. It checks executable files in PATH, configured overrides and support
 installation directories without running agents. The CLI, API and native runtimes
 use this same resolver; the UI renders the API inventory and has no scan controls.
 
-Use `~/.dojofoo/runtimes.json` for global defaults, or `.dojo/runtimes.json` in a workspace to override either role:
+Each workspace has one coding agent, for authoring and lessons alike. `@dojofoo/config/runtime` reads it with `resolveAgent(root)` and saves it with `writeAgent(root, agent)`, which keeps the file's other keys:
 
 ```json
-{ "authoring": "pi", "lesson": "codex" }
+{ "agent": "codex" }
 ```
 
-Precedence: agents selected during setup → global → project → `DOJOFOO_HARNESS` → role-specific `DOJOFOO_AUTHORING_HARNESS` / `DOJOFOO_LESSON_HARNESS`. The same selected harness can be used for authoring and lessons. An explicit runtime selection in the UI takes priority and stays with that conversation. New conversations read the configuration again. Existing conversations retain their own harness.
-
-Pi supports authoring. Lesson trials currently require Codex, OpenCode, Cursor, Grok or FX. These settings select installed harnesses; credentials remain in their native login stores.
+`resolveAgent` returns an offered agent. Precedence, highest first: the workspace's `.dojo/runtimes.json` `agent`; the first offered agent in `~/.dojofoo/settings.json` `agents` (chosen at setup); the first offered agent whose CLI is installed; OpenCode. A saved agent that isn't offered is skipped with a warning, and the old `authoring`/`lesson` keys are ignored with a warning. The composer's agent menu writes the selection; credentials remain in each agent's native login store.
 
 ### Learner introductions
 

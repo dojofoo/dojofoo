@@ -1,7 +1,6 @@
-import { expect, test } from "@playwright/test";
-import { mountAgentChat } from "./agent-chat.fixture";
+import { expect, test } from "./agent-chat.fixture";
 
-test("authoring uses shared editor preferences while retaining file models and the native save", async ({ page }) => {
+test("authoring uses shared editor preferences while retaining file models and the native save", async ({ page, mountAgentChat }) => {
   await page.addInitScript(() => localStorage.setItem("uix:preferences", JSON.stringify({ editorSize: 13 })));
   let workspace = { root: "/tmp/editor-course", style: "katas", name: "Editor course", description: "One outcome", language: "TypeScript",
     manifestSource: "name: Editor course\n", courseGuidance: "# Guidance", rootFiles: [
@@ -27,7 +26,7 @@ test("authoring uses shared editor preferences while retaining file models and t
     return route.fulfill({ status: 404 });
   });
   const agent = await mountAgentChat(page, { root: workspace.root, files: false });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   const lines = page.locator(".monaco-editor .view-lines");
   await expect(lines).toContainText("name: Editor course");
   // The authoring story has course/file sections, without dashboard navigation.

@@ -1,0 +1,36 @@
+name: Commit messages
+
+# A squash merge uses the pull request's title as the commit on main, so the title follows Conventional Commits
+# (commitlint.config.mjs). Every new commit is checked locally by the commit-msg hook (.husky/commit-msg).
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commit-messages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # Only commitlint and its config, not the workspace's dependencies
+      - name: Install commitlint
+        run: |
+          mkdir -p "$RUNNER_TEMP/commitlint"
+          cp commitlint.config.mjs "$RUNNER_TEMP/commitlint/"
+          cd "$RUNNER_TEMP/commitlint"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund @commitlint/cli@21.2.4 @commitlint/config-conventional@21.2.4
+      - name: Check the pull request title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        working-directory: ${{ runner.temp }}/commitlint
+        run: printf '%s\n' "$TITLE" | npx --no-install commitlint --verbose

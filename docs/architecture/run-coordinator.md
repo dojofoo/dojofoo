@@ -1,3 +1,5 @@
+Superseded by `docs/designs/agent-runtime.md` (approved 2026-11-03); kept for history.
+
 # Run coordination
 
 Scope: this describes the existing **ACP learning path**, not the Eve-backed

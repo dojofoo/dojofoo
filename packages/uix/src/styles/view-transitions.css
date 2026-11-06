@@ -28,7 +28,16 @@
 
   :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane), :active-view-transition-type(ui-card))::view-transition-old(root) { animation: none; opacity: 0; }
   :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane), :active-view-transition-type(ui-card))::view-transition-new(root) { animation: none; opacity: 1; }
-  ::view-transition-group(.ui-left), ::view-transition-group(.ui-main), ::view-transition-group(.ui-right) { animation-duration: 220ms; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
+  ::view-transition-group(.ui-left), ::view-transition-group(.ui-main), ::view-transition-group(.ui-right) { animation-duration: 200ms; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
+  /* A page change does not morph its regions: a group's size animation runs on the main thread, where the next page is
+     mounting. Each side's old and new images fade and move instead, which the compositor runs on its own. */
+  :root:active-view-transition-type(ui-navigation)::view-transition-group(.ui-left),
+  :root:active-view-transition-type(ui-navigation)::view-transition-group(.ui-main),
+  :root:active-view-transition-type(ui-navigation)::view-transition-group(.ui-right) { animation: none; }
+  /* Collapsing or opening a pane only resizes the main region: it slides and resizes as one live image, without fading its old
+     layout over the new one */
+  :root:active-view-transition-type(ui-pane)::view-transition-old(.ui-main) { animation: none; opacity: 0; }
+  :root:active-view-transition-type(ui-pane)::view-transition-new(.ui-main) { animation: none; }
   ::view-transition-group(.ui-stable) { animation: none; }
   ::view-transition-old(.ui-stable) { animation: none; opacity: 0; }
   ::view-transition-new(.ui-stable) { animation: none; }
@@ -55,22 +64,24 @@
   :root:active-view-transition-type(ui-forward)::view-transition-new(.ui-menu):only-child { animation: ui-menu-from-right 300ms cubic-bezier(.65, 0, .35, 1) both; }
   :root:active-view-transition-type(ui-back)::view-transition-old(.ui-menu):only-child { animation: ui-menu-to-right 300ms cubic-bezier(.65, 0, .35, 1) both; }
   :root:active-view-transition-type(ui-back)::view-transition-new(.ui-menu):only-child { animation: ui-menu-from-left 300ms cubic-bezier(.65, 0, .35, 1) both; }
-  :root:active-view-transition-type(ui-navigation)::view-transition-old(.ui-main) { animation: ui-main-out 180ms cubic-bezier(.16, 1, .3, 1) both; }
+  /* The old page leaves faster than the new one arrives, so the two overlap only briefly */
+  :root:active-view-transition-type(ui-navigation)::view-transition-old(.ui-main) { animation: ui-main-out 100ms ease-out both; }
   :root:active-view-transition-type(ui-navigation)::view-transition-new(.ui-main) { animation: ui-main-in 220ms cubic-bezier(.16, 1, .3, 1) both; }
   :root:active-view-transition-type(ui-pane) :is(.ui-as-main, .ui-as-side, .ui-as-aside, .ui-as-end, .ui-as-aside-scrim) { transition: none !important; }
 }
-@keyframes ui-left-in { from { opacity: 0; transform: translateX(-24px) scale(.985); } to { opacity: 1; transform: none; } }
-@keyframes ui-left-out { to { opacity: 0; transform: translateX(-24px) scale(.985); } }
-@keyframes ui-right-in { from { opacity: 0; transform: translateX(24px) scale(.97); } to { opacity: 1; transform: none; } }
-@keyframes ui-right-out { to { opacity: 0; transform: translateX(24px) scale(.97); } }
+@keyframes ui-left-in { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@keyframes ui-left-out { to { opacity: 0; transform: translateX(-24px); } }
+@keyframes ui-right-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes ui-right-out { to { opacity: 0; transform: translateX(24px); } }
 @keyframes ui-menu-to-right { to { transform: translateX(100%); } }
 @keyframes ui-menu-from-left { from { transform: translateX(-100%); } }
 @keyframes ui-menu-to-left { to { transform: translateX(-100%); } }
 @keyframes ui-menu-from-right { from { transform: translateX(100%); } }
 @keyframes ui-settings-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes ui-settings-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
-@keyframes ui-main-in { from { opacity: 0; transform: translateX(12px) scale(.99); } to { opacity: 1; transform: none; } }
-@keyframes ui-main-out { to { opacity: 0; transform: translateX(-12px) scale(.99); } }
+/* Translation only: a scaled snapshot is resampled every frame and looks soft */
+@keyframes ui-main-in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+@keyframes ui-main-out { to { opacity: 0; transform: translateX(-12px); } }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*) { animation-duration: 0s !important; }
   ::view-transition-old(*), ::view-transition-new(*) { animation-duration: 80ms !important; transform: none !important; }

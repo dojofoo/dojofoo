@@ -1,3 +1,5 @@
+import type { KataContext } from "./sessions.js";
+
 export const lessonCapabilities = {
   context: {
     method: "dojo.context",
@@ -84,5 +86,22 @@ export function formatLessonContext(context: DojoLessonContext): string {
   return `${JSON.stringify(metadata)}\n\nCurrent learner file (1-based line labels, not part of the file; use these for highlights):\n${source}`;
 }
 
+/** The kata context as the model reads it: formatLessonContext, or, when the file is unchanged, the metadata and
+ *  "The learner's file is unchanged since you last read it." instead of the file's lines */
+export function formatKataContext(context: KataContext): string {
+  if (!context.fileUnchanged) return formatLessonContext(context.context);
+  const { content: _content, ...file } = context.context.learner.file;
+  const metadata = { ...context.context, learner: { ...context.context.learner, file } };
+  return `${JSON.stringify(metadata)}\n\nThe learner's file is unchanged since you last read it.`;
+}
+
 export type LessonCapabilityMethod = (typeof lessonCapabilities)[LessonCapability]["method"];
 export type LessonCapabilityTool = (typeof lessonCapabilities)[LessonCapability]["tool"];
+
+export * from "./agents.js";
+export * from "./personas.js";
+export * from "./conformance.js";
+export * from "./tags.js";
+export * from "./sessions.js";
+export * from "./guard.js";
+export * from "./evaluation.js";

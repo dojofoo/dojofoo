@@ -49,7 +49,7 @@ it("grades a completed turn even when the conversation waits for the next user",
     vi.stubEnv("DOJOFOO_EVAL_LOCAL_JUDGES", "1");
     vi.mocked(judgeMaterial).mockResolvedValue([]);
     const context = {
-      send: vi.fn(async () => ({ status: "waiting", events: [{ type: "turn.completed" }, { type: "session.waiting" }], expectOk() {} })),
+      send: vi.fn(async () => ({ status: "waiting", events: [{ type: "turn.settled", data: { outcome: "completed" } }], expectOk() {} })),
       succeeded: vi.fn(),
       require: vi.fn(async (completed: boolean) => { if (!completed) throw new Error("Author is parked"); }),
     };

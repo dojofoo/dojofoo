@@ -1,15 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { AiMagicIcon } from "@dojofoo/uix/icons";
 import { useNavigate } from "@tanstack/react-router";
-import { fetchServerSentEvents, useChat } from "@tanstack/ai-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AgentChatWorkspace } from "@dojofoo/uix/containers/learning-workspace";
+import { Button as UIXButton } from "@dojofoo/uix/components/button";
 import { Icon } from "@dojofoo/uix/components/app-shell";
 import { WorkspaceSkeleton } from "@dojofoo/uix/components/workspace-skeleton";
 import { BrandLogo } from "@dojofoo/uix/components/brand-logo";
-import { Button } from "@dojofoo/uix/components/button";
 import { Composer } from "@dojofoo/uix/containers/assistant-home";
-import { Spinner } from "@mynaui/icons-react";
 import { InteractiveLesson } from "@dojofoo/uix/components/interactive-lesson";
 import { SlideDeck } from "@dojofoo/uix/components/slide-deck";
 import { LessonBrief } from "@dojofoo/uix/components/lesson-brief";
@@ -17,17 +15,17 @@ import { courseAssetUrl } from "@/lib/course-asset-url";
 import { CourseCard } from "@dojofoo/uix/components/course-card";
 import { courseArt } from "@/lib/course-color";
 import { BackIcon } from "@dojofoo/uix/icons";
-import type { AskUserAnswer } from "@dojofoo/ui/ask-user-questions";
 import { CourseContent } from "./course-content";
-import { ChatTranscript } from "./chat/assistant-response";
-import { StreamedChatMessage } from "./chat/streamed-message";
-import { useChatScroll } from "@/hooks/use-chat-scroll";
+import { AgentChat } from "./agent-chat";
+import { ConversationHistory, type HistoryPick } from "./conversation-history";
 import { useAccountMenu } from "@/hooks/use-account-menu";
-import { chatAcceptsInput } from "@/lib/chat-internal";
-import { codingAgents } from "@/lib/coding-agents";
+import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
+import { usePageSocket } from "@/hooks/use-page-socket";
 import { lessonResources } from "@/lib/lesson-resources";
 import type { InteractiveSnapshot } from "@/server/interactive/service";
-import type { InteractiveConversation } from "@/server/interactive/conversation";
+import { emitLessonEvent } from "@/lib/lesson-events";
+import { useQueryClient } from "@tanstack/react-query";
+import { interactiveQuery } from "@/lib/learn-queries";
 
 function api(workspace: string, course?: string, path = "") {
   return workspace && course ? `/api/workspaces/${encodeURIComponent(workspace)}/courses/${encodeURIComponent(course)}/interactive${path}` : "/api/unavailable";
@@ -41,32 +39,28 @@ async function read<T>(url: string, init?: RequestInit): Promise<T> {
 }
 const json = (value: unknown, method = "POST"): RequestInit => ({ method, headers: { "content-type": "application/json" }, body: JSON.stringify(value) });
 
-export function InteractiveCourse({ workspace: requestedWorkspace, course: requestedCourse, initialLesson }: { workspace: string; course: string; initialLesson?: InteractiveSnapshot }) {
+export function InteractiveCourse({ runId, workspace: requestedWorkspace, course: requestedCourse, initialLesson, requestedSession }: {
+  /** The course run the page's address names (`/learn/$runId`) */
+  runId: string;
+  workspace: string; course: string; initialLesson?: InteractiveSnapshot;
+  /** The conversation `?session=` asks for (a history pick) */
+  requestedSession?: string;
+}) {
   const navigate = useNavigate();
   const { account, toast } = useAccountMenu({ preserveWorkspace: true });
   const [lesson, setLesson] = useState<InteractiveSnapshot | null>(initialLesson ?? null);
+  // The answers and slide moves made here are the course's latest snapshot, so opening the course again starts from them
+  const queryClient = useQueryClient();
+  const settle = (next: InteractiveSnapshot) => { setLesson(next); queryClient.setQueryData(interactiveQuery(requestedWorkspace, next.dojo).queryKey, next); };
   const [workspace, setWorkspace] = useState(requestedWorkspace);
-  const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [stepBusy, setStepBusy] = useState(false);
   const stepRequest = useRef<AbortController | null>(null);
   const [error, setError] = useState<string>();
-  const [conversation, setConversation] = useState<InteractiveConversation>();
-  const [conversationError, setConversationError] = useState<string>();
-  const [conversationReady, setConversationReady] = useState(false);
-  const [modelChanging, setModelChanging] = useState(false);
-  const [agentChanging, setAgentChanging] = useState(false);
-  const apiBase = api(workspace, lesson?.dojo);
-  const connection = useMemo(() => fetchServerSentEvents(api(workspace, lesson?.dojo, "/messages")), [apiBase]);
-  const { messages, setMessages, sendMessage, stop, status, error: chatError } = useChat({ connection, threadId: apiBase, persistence: false });
-  const setter = useRef(setMessages);
-  setter.current = setMessages;
-  const conversationRequest = useRef(0);
-  const { viewportRef, scrollToBottom } = useChatScroll();
-  const working = status === "submitted" || status === "streaming";
-  const acceptsInput = Boolean(lesson) && conversationReady && !agentChanging && !modelChanging && chatAcceptsInput(status);
-  // The agent's (ACP) session is still loading: on opening the lesson, and while switching agents
-  const sessionLoading = Boolean(lesson) && !conversationReady && !conversationError;
+  // Ask Sensei from the material sends through the chat
+  const chat = useRef<{ send(text: string): void } | null>(null);
+  // A switched agent opens its own default conversation
+  const [agentEpoch, setAgentEpoch] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,11 +69,6 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     const selected = requestedWorkspace;
     setWorkspace(selected);
     setLesson(initialLesson ?? null);
-    setConversation(undefined);
-    setAgentChanging(false);
-    setModelChanging(false);
-    setConversationReady(false);
-    setQuestion("");
     setAnswer("");
     setStepBusy(false);
     setError(undefined);
@@ -88,7 +77,9 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
       .then(value => { if (!cancelled) { setLesson(value); if (value.workspaceId) setWorkspace(value.workspaceId); } })
       .catch(cause => { if (!cancelled) setError(cause.message); });
     return () => { cancelled = true; controller.abort(); };
-  }, [requestedCourse, requestedWorkspace, initialLesson]);
+  }, [requestedCourse, requestedWorkspace]);
+  // The router can refresh the course after the page shows (a hovered link's preload); the conversation stays
+  useEffect(() => { if (initialLesson) setLesson(initialLesson); }, [initialLesson]);
 
   async function updateStep(action: "answer" | "next", submittedAnswer = answer) {
     if (!lesson?.current || stepBusy) return;
@@ -99,7 +90,13 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
       : `/api/workspaces/${encodeURIComponent(workspace)}/courses/${encodeURIComponent(lesson.dojo)}/lessons/${encodeURIComponent(lesson.current.id)}/progressions`;
     try {
       const next = await read<InteractiveSnapshot>(path, { ...json(action === "answer" ? { answer: submittedAnswer } : {}), signal });
-      if (!signal?.aborted) { setLesson(next); setAnswer(""); }
+      if (!signal?.aborted) {
+        settle(next); setAnswer("");
+        for (const finished of next.lessons.filter((item, index) => item.state === "done" && lesson.lessons[index]?.state !== "done")) {
+          emitLessonEvent({ type: "lesson.completed", workspace, course: next.dojo, lesson: finished.id, mode: "interactive" });
+        }
+        if (next.complete && !lesson.complete) emitLessonEvent({ type: "course.completed", workspace, course: next.dojo, lesson: next.lessonId, mode: "interactive" });
+      }
     } catch (cause) {
       if (!signal?.aborted) setError(cause instanceof Error ? cause.message : String(cause));
     } finally { if (!signal?.aborted) setStepBusy(false); }
@@ -110,75 +107,40 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     setStepBusy(true); setError(undefined);
     try {
       const next = await read<InteractiveSnapshot>(api(workspace, lesson.dojo, "/material"), json(selection, "PUT"));
-      setLesson(next); setAnswer("");
+      settle(next); setAnswer("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
     finally { setStepBusy(false); }
   }
 
-  const loadConversation = useCallback(async () => {
-    const request = ++conversationRequest.current;
-    setConversationReady(false);
-    setConversationError(undefined);
-    try {
-      const value = await read<InteractiveConversation>(api(workspace, lesson?.dojo, "/conversation"));
-      if (request !== conversationRequest.current) return;
-      setConversation(value);
-      setter.current(value.messages);
-      setConversationReady(true);
-    } catch (cause) {
-      if (request === conversationRequest.current) setConversationError(cause instanceof Error ? cause.message : String(cause));
-    }
-  }, [apiBase]);
+  // The conversation the chat asks for: the URL's (a link or a history pick), or one the server replaced it with
+  const [session, setSession] = useState(requestedSession);
+  useEffect(() => { setSession(requestedSession); }, [requestedSession]);
+  const [opened, setOpened] = useState<HistoryPick>();
+  /** A history pick: its address names it, and the chat asks for it at once (with a switch, in the same update: decision 17) */
+  const openPick = (id: string) => {
+    setSession(id);
+    void navigate({ to: "/learn/$runId", params: { runId }, search: { session: id } });
+  };
+  const workspaceAgent = useWorkspaceAgent({ workspaceId: workspace, persona: "sensei", onSwitched: (_agentId, pick) => {
+    setAgentEpoch(epoch => epoch + 1);
+    if (pick) openPick(pick.id);
+  } });
+  // The course page's socket is its presence (D19); a conversation the server replaced opens in place of the requested one
+  usePageSocket({ workspace, course: lesson?.dojo }, message => {
+    const to = (message.params as { to?: unknown } | undefined)?.to;
+    if (message.method === "session.replaced" && typeof to === "string") setSession(to);
+  });
 
-  useEffect(() => {
-    if (lesson) void loadConversation();
-    return () => { conversationRequest.current += 1; };
-  }, [lesson?.dojo, loadConversation]);
-
-  async function send(value: string) {
-    if (!acceptsInput || !value.trim()) return;
-    const request = conversationRequest.current;
-    setQuestion("");
-    scrollToBottom();
-    setConversationError(undefined);
-    try {
-      await sendMessage(value);
-      const next = await read<InteractiveConversation>(api(workspace, lesson?.dojo, "/conversation"));
-      if (request === conversationRequest.current) setConversation(next);
-    } catch (cause) { if (request === conversationRequest.current) setConversationError(cause instanceof Error ? cause.message : String(cause)); }
+  /** "Make this my current course" (D30): the CLI's current course becomes this one, then the page reads its snapshot again */
+  async function makeCurrentCourse() {
+    if (!lesson) return;
+    const response = await fetch(`/api/workspaces/${encodeURIComponent(workspace)}/courses/${encodeURIComponent(lesson.dojo)}/current`, { method: "POST" });
+    if (!response.ok) throw new Error(`The course could not be made current (${response.status}).`);
+    setLesson(await read<InteractiveSnapshot>(api(workspace, lesson.dojo)));
   }
-  async function answerTool(answers: Record<string, AskUserAnswer>) {
-    try {
-      await read(api(workspace, lesson?.dojo, "/messages"), json({ answers: Object.fromEntries(Object.entries(answers).map(([id, answer]) => [id, [...answer.selectedIds, ...(answer.otherText ? [answer.otherText] : [])]])) }));
-    } catch (cause) { setConversationError(cause instanceof Error ? cause.message : String(cause)); }
-  }
-  async function changeAgent(harness: string) {
-    if (agentChanging || modelChanging || working) return;
-    if (harness === conversation?.harness && conversation?.sessionId) return conversation;
-    const request = ++conversationRequest.current;
-    setAgentChanging(true);
-    setConversationError(undefined);
-    try {
-      const value = await read<InteractiveConversation>(api(workspace, lesson?.dojo, "/configuration/harness"), json({ harness }, "PUT"));
-      if (request !== conversationRequest.current) return;
-      setConversation(value);
-      setter.current(value.messages);
-      return value;
-    } catch (cause) {
-      if (request === conversationRequest.current) setConversationError(cause instanceof Error ? cause.message : String(cause));
-    } finally { if (request === conversationRequest.current) setAgentChanging(false); }
-  }
-  async function changeModel(value: string) {
-    if (!conversation || agentChanging || modelChanging || working) return;
-    const request = ++conversationRequest.current;
-    setModelChanging(true);
-    setConversationError(undefined);
-    try {
-      const model = await read<NonNullable<InteractiveConversation["model"]>>(api(workspace, lesson?.dojo, "/configuration/model"), json({ value }, "PUT"));
-      if (request === conversationRequest.current) setConversation(current => current ? { ...current, model } : current);
-    } catch (cause) { if (request === conversationRequest.current) setConversationError(cause instanceof Error ? cause.message : String(cause)); }
-    finally { if (request === conversationRequest.current) setModelChanging(false); }
-  }
+  // A snapshot without the field (an older server) shows nothing
+  const currentCourseControl = lesson?.courseCurrent === false ? <UIXButton className="mt-4" size="sm" variant="secondary" type="button" disabled={stepBusy}
+    onClick={() => { void makeCurrentCourse().catch(cause => setError(cause instanceof Error ? cause.message : String(cause))); }}>Make this my current course</UIXButton> : null;
 
   const brand = <Link to="/" className="flex items-center" aria-label="Dojo dashboard"><BrandLogo className="aspect-[2567/1211] h-6 w-auto" /></Link>;
   const shell = { ...account, workspace: "Dojo", brand, sidebarWidth: "18rem", showNews: false, showOnboarding: false };
@@ -195,7 +157,6 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
   const material = current?.type === "present" ? current.content : current?.type === "question" ? current.prompt : "";
   const basePath = current?.type === "present" ? current.contentBase : current?.type === "question" ? current.promptBase : null;
   const resources = [...new Map(lesson.references.flatMap(reference => lessonResources(reference.source, reference.basePath, workspace, lesson.dojo)).map(resource => [resource.href, resource])).values()];
-  const model = conversation?.model;
   const deck = lesson.deck && <SlideDeck testId="interactive-material" src={`${courseAssetUrl(lesson.deck, null, workspace, lesson.dojo)}&embedded=true#1`} title={`${lesson.title} slides`}
     course={{ state: { ...lesson, busy: stepBusy, error }, onAction: (action, value) => {
       if (action === "exit") { void navigate({ to: "/" }); return; }
@@ -212,10 +173,11 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
     active={lesson.lessonId} navigationKey={lesson.dojo} navigationTransition={false}
     onNavigate={id => { void selectMaterial({ lessonId: id }); }}
     crumbs={[{ label: "Dashboard", icon: <Icon icon={BackIcon} size={14} />, onClick: () => { void navigate({ to: "/" }); } }, { label: lesson.title }]}
-    contentKind={lesson.deck ? "slides" : "material"} editor={deck || null} scroller={viewportRef} askAssistant={acceptsInput}
-    onCommand={(id, query) => { if (id === "ask" && query) void send(query); }}
+    contentKind={lesson.deck ? "slides" : "material"} editor={deck || null} askAssistant
+    onCommand={(id, query) => { if (id === "ask" && query) chat.current?.send(query); }}
     details={lesson.deck ? <LessonBrief title={lesson.title} lead={lesson.course?.intro ? undefined : lesson.course?.description} resources={resources}>
       {lesson.course?.intro && <CourseContent basePath={null} workspaceId={workspace} courseId={lesson.dojo}>{lesson.course.intro.content.replace(/^# .+\r?\n+/, "")}</CourseContent>}
+      {currentCourseControl}
     </LessonBrief> : <div data-testid="interactive-material">
       <InteractiveLesson title={lesson.title} lead={lesson.course?.description} slideTitle={current?.title ?? lesson.lessonTitle} slideId={current?.id ?? "complete"} resources={resources}
         step={lesson.step} totalSteps={lesson.totalSteps} complete={lesson.complete && !current} question={current?.type === "question"} unlockedStep={lesson.unlockedStep}
@@ -226,24 +188,15 @@ export function InteractiveCourse({ workspace: requestedWorkspace, course: reque
         <CourseContent basePath={basePath} workspaceId={workspace} courseId={lesson.dojo} diagrams={false}>{material}</CourseContent>
       </InteractiveLesson>
       {error && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{error}</p>}
+      {currentCourseControl}
     </div>}
-    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
-    composer={<Composer tray={false} attachments="unavailable" dictation={false} plugins={false} agent={codingAgents.find(agent => agent.value === conversation?.harness) ?? { value: conversation?.harness, name: conversation?.harness ?? "Coding agent", icon: AiMagicIcon }}
-      agents={codingAgents.filter(agent => conversation?.harnesses?.some(value => value === agent.value)).map(agent => ({ ...agent, description: "Open this agent’s conversation" }))}
-      onAgentChange={value => { void changeAgent(value); }} agentChanging={agentChanging || sessionLoading} id="interactive-sensei" label="Message the sensei" placeholder="Ask your Sensei…" value={question} onValueChange={setQuestion}
-      disabled={!acceptsInput} busy={working} onStop={stop} onSend={value => { void send(value); }}
-      history={messages.filter(message => message.role === "user").map(message => message.parts.flatMap(part => part.type === "text" ? [part.content] : []).join(""))}
-      model={model?.currentValue} models={model?.options.map(option => ({ value: option.value, name: option.name, description: option.group ?? "", icon: AiMagicIcon })) ?? []} modelChanging={modelChanging} onModelChange={value => { void changeModel(value); }}
-      onModelPrepare={async () => { if (!conversation?.harness) return false; return Boolean((await changeAgent(conversation.harness))?.model?.options.length); }}
-    />}>
-    <div data-testid="chat-pane" className="ui-as-chat__turns" data-chat-status={status} data-chat-error={chatError?.message} aria-busy={sessionLoading || agentChanging || undefined}>
-      {(sessionLoading || agentChanging) && <p role="status" className="flex items-center gap-2 text-sm text-[var(--muted)]">
-        <Spinner className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden />Loading the {codingAgents.find(agent => agent.value === conversation?.harness)?.name ?? "coding agent"} session…
-      </p>}
-      {!messages.length && conversationReady && <p className="text-sm text-[var(--muted)]">Ask Sensei about this lesson whenever you need a hand.</p>}
-      <ChatTranscript messages={messages} streaming={working} renderMessage={(message, streaming) => <StreamedChatMessage key={message.id} fragments={{}} workspaceId={workspace} message={message} streaming={streaming} onToolAnswer={answerTool} />} />
-      {(conversationError || chatError) && <p role="alert" className="mt-4 text-sm text-[var(--destructive)]">{conversationError ?? chatError?.message}</p>}
-      {conversationError && !working && <Button variant="secondary" onClick={() => void loadConversation()}>Reload conversation</Button>}
-    </div>
-  </AgentChatWorkspace>{toast}</div>;
+    header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b>
+      <ConversationHistory workspaceId={workspace} persona="sensei" page={{ course: lesson.dojo }} current={opened?.id} agents={workspaceAgent.list}
+        onPick={pick => { if (pick.agent !== workspaceAgent.selected) workspaceAgent.request(pick.agent, { id: pick.id, readOnly: false }); else openPick(pick.id); }} />
+      <span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
+    conversation={<><AgentChat key={`${workspace}:${lesson.dojo}:${agentEpoch}`} embedded workspaceId={workspace} persona="sensei" page={{ course: lesson.dojo }} controls={chat}
+      sessionId={session} onOpened={setOpened}
+      onSessionDropped={() => { void navigate({ to: "/learn/$runId", params: { runId }, search: {}, replace: true }); }}
+      onSwitchRequest={agentId => { if (opened) workspaceAgent.request(agentId, { id: opened.id, readOnly: false }); }}
+      agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching} />{workspaceAgent.notice}{workspaceAgent.dialog}</>} />{toast}</div>;
 }

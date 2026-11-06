@@ -15,9 +15,10 @@ export function courseTitle(root: string, id: string, manifest = readCourseManif
 
 export type CourseInstallation = { id: string; root: string; workspaceId: string; title: string; manifest: CourseManifest };
 
+/** Every workspace that installs course `id`; an evaluation trial's throwaway install is not one. */
 export function courseInstallations(id: string, options: LocalStateOptions = {}): CourseInstallation[] {
   return listWorkspaces(options).flatMap(workspace => {
-    if (!listDojos(workspace.path).includes(id)) return [];
+    if (workspace.kind === "evaluation-trial" || !listDojos(workspace.path).includes(id)) return [];
     const manifest = readCourseManifest(workspace.path, id);
     return [{ id, root: workspace.path, workspaceId: workspace.id, title: courseTitle(workspace.path, id, manifest), manifest }];
   });

@@ -11,7 +11,10 @@ import { createProxyServer, RouteStore } from "portless";
 
 import { ui, resolveAuthoringRoot, resolvePortlessEntry, resolveUiEntry, resolveUiOpenPath } from "../src/commands/ui";
 import { bareOpensUi } from "../src/commands/root";
-import { listWorkspaces } from "@dojofoo/config/local-state";
+import { listWorkspaces, observeLocalContext, observeWorkspacePath } from "@dojofoo/config/local-state";
+import { dojoDir } from "@dojofoo/config";
+import { personaForKind } from "@dojofoo/protocol";
+import { add } from "../src/commands/add";
 vi.mock(import("node:child_process"), { spy: true });
 
 const temporaryRoots: string[] = [];
@@ -107,7 +110,38 @@ describe("bundled dojo UI", () => {
     try {
       await ui(root, ["--authoring", "--no-portless", "--no-open", "--port", "60766"], pathToFileURL(join(root, "dist/index.js")).href);
       expect(listWorkspaces({ stateHome }).map(workspace => workspace.path)).toContain(root);
+      expect(listWorkspaces({ stateHome }).find(workspace => workspace.path === root)?.kind).toBe("draft");
     } finally { vi.restoreAllMocks(); vi.unstubAllEnvs(); }
+  });
+
+  it("opens a master copy as its own draft workspace, separate from its learner workspace and its source", async () => {
+    const scratch = realpathSync(mkdtempSync(join(tmpdir(), "dojo-master-copy-")));
+    temporaryRoots.push(scratch);
+    const [source, workspace, stateHome, cli] = ["source", "workspace", "home", "cli"].map(name => join(scratch, name));
+    for (const directory of [join(source, "src/first"), workspace, stateHome, join(cli, "dist/ui/server")]) mkdirSync(directory, { recursive: true });
+    writeFileSync(join(source, "dojo.yaml"), "mode: katas\nname: master-copy\nversion: 0.0.1\ndescription: A course.\ntest: echo ok\nkatas:\n  - name: first\n    template: src/first/kata.ts\n");
+    writeFileSync(join(source, "src/first/kata.ts"), "export const answer = 0;\n");
+    writeFileSync(join(source, "src/first/SENSEI.md"), "# First\n\nTeach it.\n");
+    writeFileSync(join(cli, "dist/ui/server/index.mjs"), "// fixture");
+    vi.stubEnv("DOJOFOO_HOME", stateHome);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    observeWorkspacePath(source, { stateHome, kind: "draft" });
+    await add(workspace, [source, "--master"]);
+    observeLocalContext(workspace, { stateHome });
+    const course = dojoDir(workspace, "master-copy");
+    vi.stubEnv("DOJO_PROJECT_ROOT", resolveAuthoringRoot(course, workspace));
+    vi.spyOn(childProcess, "spawn").mockReturnValue(new EventEmitter() as ReturnType<typeof childProcess.spawn>);
+    await ui(course, ["--authoring", "--no-portless", "--no-open", "--port", "60767"], pathToFileURL(join(cli, "dist/index.js")).href);
+
+    const rows = listWorkspaces({ stateHome });
+    const row = (path: string) => rows.find(item => item.path === path);
+    expect(rows).toHaveLength(3);
+    expect(row(course)).toMatchObject({ kind: "draft" });
+    expect(row(workspace)).toMatchObject({ kind: "learner" });
+    expect(row(source)).toMatchObject({ kind: "draft", path: source });
+    // The copy's own identity: .dojo/instance.json was not copied from the source
+    expect(new Set(rows.map(item => item.id)).size).toBe(3);
+    expect(personaForKind(row(course)!.kind!)).toBe("kyoshi");
   });
 
   it("resolves the production server from an installed CLI package", () => {

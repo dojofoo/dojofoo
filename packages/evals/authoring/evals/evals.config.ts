@@ -1,4 +1,4 @@
-import { defineEvalConfig } from "@dojofoo/agent/evals";
+import { defineEvalConfig } from "@dojofoo/harness/evals";
 
 export default defineEvalConfig({
   maxConcurrency: 1,

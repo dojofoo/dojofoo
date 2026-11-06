@@ -51,7 +51,7 @@ it("judges file snapshots before and after revision, not just the final response
     turns += 1;
     await writeFile(join(root, "src/001-example/SENSEI.md"), turns === 1 ? "Before" : "Revised");
     return {
-      events: [{ type: "message.completed", data: { message: `Actual turn ${turns}` } }],
+      events: [{ type: "content.completed", data: { kind: "text", phase: "reply", value: `Actual turn ${turns}` } }],
       session: { send: followUp },
       expectOk() { return this; },
     };

@@ -1,8 +1,8 @@
-import { expect, test, type WebSocketRoute } from "@playwright/test";
-import type { AuthoringDraft } from "@dojofoo/authoring/service";
-import { mountAgentChat } from "./agent-chat.fixture";
+import type { WebSocketRoute } from "@playwright/test";
+import type { AuthoringDraft } from "@dojofoo/agents/service";
+import { expect, test } from "./agent-chat.fixture";
 
-test("authoring keeps the live card, saves its color, groups chapters, and opens the evals window", async ({ page }) => {
+test("authoring keeps the live card, saves its color, groups chapters, and opens the evals window", async ({ page, mountAgentChat }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   let socket!: WebSocketRoute;
@@ -21,7 +21,7 @@ test("authoring keeps the live card, saves its color, groups chapters, and opens
     return route.fulfill({ status: 404 });
   });
   await mountAgentChat(page, { root: workspace.root, files: false });
-  await page.goto("/authoring?workspace=ws-1&session=saved");
+  await page.goto("/authoring/ws-1?session=saved");
   const card = page.getByLabel("Course card preview", { exact: true });
   await expect(card).toContainText("Card course");
   const color = page.getByRole("button", { name: "Card color", exact: true });
@@ -135,7 +135,7 @@ test("authoring keeps the live card, saves its color, groups chapters, and opens
 });
 
 
-test("official authoring exposes README/INTRO content, muted extra files, chapter menus and inline renaming", async ({ page }) => {
+test("official authoring exposes README/INTRO content, muted extra files, chapter menus and inline renaming", async ({ page, mountAgentChat }) => {
   const intro = (path: string, content: string) => ({ path, content, format: "markdown" as const });
   const source = (path: string, content: string, courseFile = true) => ({ path, label: path.split("/").at(-1)!, content, courseFile });
   const defaultChapter = { id: "default", title: "Default", path: "src", intro: intro("src/INTRO.md", "# Default\n\nChapter welcome."), files: [source("src/INTRO.md", "# Default\n\nChapter welcome.")] };
@@ -168,7 +168,7 @@ test("official authoring exposes README/INTRO content, muted extra files, chapte
     return route.fulfill({ status: 404 });
   });
   await mountAgentChat(page, { root: workspace.root, files: false });
-  await page.goto("/authoring?workspace=ws-1&session=saved");
+  await page.goto("/authoring/ws-1?session=saved");
   const tree = page.getByRole("tree", { name: "Course files and chapters", exact: true });
   await expect(page.getByRole("tab", { name: "README.md", exact: true })).toBeVisible();
   await expect(page.locator(".ui-as-chat__details")).toContainText("Course welcome.");
@@ -203,7 +203,7 @@ test("official authoring exposes README/INTRO content, muted extra files, chapte
   await expect(extra.locator(":scope > div")).toHaveCSS("filter", "grayscale(1)");
   await tree.getByRole("treeitem", { name: "Chapters", exact: true }).getByRole("button", { name: "Chapters actions", exact: true }).click();
   await page.getByRole("menuitem", { name: "New chapter", exact: true }).click();
-  await expect(page).toHaveURL(/authoring\?workspace=ws-1&session=saved$/);
+  await expect(page).toHaveURL(/authoring\/ws-1\?session=saved$/);
   const branch = tree.getByRole("treeitem", { name: "New chapter", exact: true });
   await expect(branch.getByRole("treeitem", { name: "INTRO.md", exact: true })).toBeVisible();
   await expect(page.locator(".ui-as-chat__details")).toContainText("New chapter welcome.");
@@ -241,7 +241,7 @@ test("learners see chapter headings only after a course has been split", async (
     if (path.startsWith("/api/workspaces/")) return route.fulfill({ json: snapshot() });
     return route.fulfill({ json: {} });
   });
-  await page.goto("/session/chapter-run");
+  await page.goto("/learn/chapter-run");
   await expect(page.getByRole("group", { name: "Lessons", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Default", exact: true })).toHaveCount(0);
   split = true;

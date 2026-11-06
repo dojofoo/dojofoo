@@ -1,0 +1,8 @@
+{
+  "name": "@dojofoo/components",
+  "version": "0.0.0",
+  "private": true,
+  "license": "FSL-1.1-ALv2",
+  "type": "module",
+  "description": "Lesson components and the LESSON.mdx format (proposal; no code yet, see README.md)"
+}

@@ -6,7 +6,7 @@ export default async () => {
   // Acquire outside the route's module graph, exactly as the UI does. Launch
   // the packaged server through its owner; no model turn.
   const load = createRequire(import.meta.url);
-  const { acquireKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime");
+  const { acquireKyoshiRuntime } = load("@dojofoo/agents/eve/runtime");
   const runtime = await acquireKyoshiRuntime(root);
   const { url } = await runtime.start();
   return { message: "hello", url };

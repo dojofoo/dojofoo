@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
-import type { EvaluationReport } from "@dojofoo/authoring/evaluation/run";
+import type { EvaluationReport } from "@dojofoo/agents/evaluation/run";
 import { AuthoringEvaluationReport } from "./authoring-evaluation-report";
 
 const report: EvaluationReport = {

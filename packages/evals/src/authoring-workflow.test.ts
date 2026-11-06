@@ -1,14 +1,13 @@
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import { readMaterial } from "@dojofoo/authoring/evaluation/material";
-import { criterionIds } from "@dojofoo/authoring/evaluation/judges";
+import { readMaterial } from "@dojofoo/agents/evaluation/material";
+import { criterionIds } from "@dojofoo/agents/evaluation/judges";
+// The held-out run is the UI server's product evaluation, posted through the eval's long-request helper
 const heldout = vi.hoisted(() => ({ run: vi.fn() }));
-vi.mock("@dojofoo/authoring/evaluation/host", () => ({
-  evaluationConfiguration: () => ({}),
-  executeEvaluationWorker: heldout.run,
-}));
+vi.mock("./ui-evaluation", () => ({ postEvaluation: heldout.run }));
 import workflow from "../authoring/evals/authoring-workflow.eval";
 
 const roots: string[] = [];
@@ -22,11 +21,17 @@ const panel = (disputed = false) => ["judge-one", "judge-two"].map((judge, index
 } }));
 async function runCase({ callsTool = true, passes = true, disputed = false, heldoutDisputed = false, missingPanel = false, continuity = true, editsAfterEvaluation = false, editsEarlierLesson = false, editsSharedGuidance = false, heldoutPasses = true, heldoutChanged = false, acceptedPolicy = "policy", heldoutPolicy = "policy" } = {}) {
   heldout.run.mockReset();
-  heldout.run.mockImplementation(async (_root: string, lessonIds: string[]) => ({ status: heldoutPasses ? "passed" : "teaching-failed", material: panel(), teaching: panel(heldoutDisputed), lessonIds, teachingPolicyHash: heldoutPolicy, materialHash: heldoutChanged ? "different" : "accepted" }));
+  heldout.run.mockImplementation(async (_ui: string, { lessonIds }: { lessonIds: string[] }) => {
+    // Kyoshi's attempts on the throwaway workspace no longer count against the held-out run
+    expect(existsSync(join(root, ".dojo/evaluation-allowances"))).toBe(false);
+    return { status: 200, body: { attempt: 1, remaining: 2, report: { status: heldoutPasses ? "passed" : "teaching-failed", material: panel(), teaching: panel(heldoutDisputed),
+      lessonIds, teachingPolicyHash: heldoutPolicy, materialHash: heldoutChanged ? "different" : "accepted" } } };
+  });
   const root = await mkdtemp(join(tmpdir(), "dojo-workflow-contract-")); roots.push(root);
   await mkdir(join(root, ".dojo")); await mkdir(join(root, "src"));
   await writeFile(join(root, "DOJO.md"), "Shared learner prerequisites and course rules");
-  vi.stubEnv("DOJOFOO_EVAL_WORKFLOW", "1"); vi.stubEnv("DOJOFOO_EVAL_WORKSPACE", root);
+  vi.stubEnv("DOJOFOO_EVAL_WORKFLOW", "1"); vi.stubEnv("DOJOFOO_EVAL_WORKSPACE", root); vi.stubEnv("DOJOFOO_EVAL_UI", "http://127.0.0.1:9");
+  await mkdir(join(root, ".dojo/evaluation-allowances/lessons/1"), { recursive: true });
   let count = 0;
   const send = vi.fn(async (_prompt: string) => {
     count++;
@@ -39,7 +44,7 @@ async function runCase({ callsTool = true, passes = true, disputed = false, held
     await writeFile(join(directory, "material.json"), JSON.stringify(await readMaterial(root)));
     await writeFile(join(directory, "report.json"), JSON.stringify({ directory, material: missingPanel ? undefined : panel(), teaching: panel(disputed), teachingPolicyHash: acceptedPolicy, materialHash: "accepted", startedAt: String(count), status: passes ? "passed" : "teaching-failed", lessonIds: count === 2 && continuity ? ["1", "2"] : [String(count)] }));
     if (editsAfterEvaluation) await writeFile(join(root, "src", String(count), "SENSEI.md"), "Changed without another trial");
-    return { expectOk() {}, events: callsTool ? [{ type: "actions.requested", data: { toolName: "dojo_authoring_evaluate" } }] : [] };
+    return { expectOk() {}, events: callsTool ? [{ type: "call.requested", data: { capability: { kind: "tool", name: "dojo_authoring_evaluate" } } }] : [] };
   });
   const context = { send, succeeded: vi.fn(), require: async (valid: boolean) => { if (!valid) throw new Error("Acceptance gate failed"); } };
   await workflow.test(context as unknown as Parameters<typeof workflow.test>[0]);
@@ -51,7 +56,8 @@ it("uses only the learning-goal turns, with no hidden teaching coaching", async 
   expect(send).toHaveBeenCalledTimes(2);
   expect(send.mock.calls[0][0]).not.toContain("judge");
   expect(heldout.run).toHaveBeenCalledOnce();
-  expect(heldout.run.mock.calls[0][4]).toBe("confident");
+  expect(heldout.run.mock.calls[0][0]).toBe("http://127.0.0.1:9");
+  expect(heldout.run.mock.calls[0][1]).toEqual({ lessonIds: ["1", "2"], callId: expect.stringMatching(/^heldout-/u) });
 });
 it("rejects authored files without an observed evaluator tool call", async () => {
   await expect(runCase({ callsTool: false })).rejects.toThrow("Acceptance gate");

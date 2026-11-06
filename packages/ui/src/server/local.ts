@@ -1,4 +1,4 @@
-import { agentDefinitions } from "@dojofoo/config/agents";
+import { agentRows } from "@dojofoo/protocol";
 import { discoverAgents } from "@dojofoo/config/agent-installations";
 import { Hono } from "hono";
 import { readCourseManifest } from "@dojofoo/config";
@@ -43,7 +43,7 @@ export const localRoutes = new Hono()
   .post("/setup", async c => {
     const body = await c.req.json<{ agents?: string[]; agent?: string; courses?: string[] }>();
     const requested = body.agents ?? (body.agent ? [body.agent] : []);
-    if (!Array.isArray(requested) || !requested.length || requested.some(id => !agentDefinitions.some(agent => agent.id === id))
+    if (!Array.isArray(requested) || !requested.length || requested.some(id => !agentRows.some(agent => agent.id === id))
       || !Array.isArray(body.courses) || body.courses.some(id => typeof id !== "string")) {
       return c.json({ error: "Choose at least one agent and your courses." }, 400);
     }

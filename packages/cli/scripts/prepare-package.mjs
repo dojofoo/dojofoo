@@ -11,11 +11,15 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const destination = resolve(root, ".package");
 const scratch = mkdtempSync(resolve(tmpdir(), "dojo-cli-runtime-"));
-const packages = ["config", "agent", "authoring"].map(name => resolve(root, "..", name));
+const packages = ["protocol", "config", "harness", "agents"].map(name => resolve(root, "..", name));
 // Retain the tested shutdown fix rather than reinstalling unpatched Nitro.
-packages.push(dirname(createRequire(resolve(root, "../agent/package.json")).resolve("nitro/package.json")));
-// Warm installation and the prepared agent must use the same patched bootstrap.
-packages.push(dirname(createRequire(resolve(root, "../authoring/package.json")).resolve("@ai-sdk/harness-opencode/package.json")));
+packages.push(dirname(createRequire(resolve(root, "../harness/package.json")).resolve("nitro/package.json")));
+// Warm installation and the prepared agent must use the same patched bootstrap. The adapters are the harness's dependencies.
+const harness = createRequire(resolve(root, "../harness/package.json"));
+packages.push(dirname(harness.resolve("@ai-sdk/harness-opencode/package.json")));
+// The same for the other patched adapters: FX, and the ACP bridge that Grok Build runs
+packages.push(dirname(harness.resolve("@ai-sdk/harness-fx/package.json")));
+packages.push(dirname(createRequire(harness.resolve("@ai-sdk/harness-grok-build/package.json")).resolve("@ai-sdk/harness-acp/package.json")));
 const dependencies = { ...manifest.dependencies };
 const bundledDependencies = [];
 
@@ -31,7 +35,10 @@ try {
     dependencies[pkg.name] = pkg.version;
     for (const [name, version] of Object.entries(pkg.dependencies ?? {})) {
       if (version.startsWith("workspace:")) continue;
-      assert.ok(!dependencies[name] || dependencies[name] === version, `Conflicting runtime dependency: ${name}`);
+      // An exact pin satisfies a caret range on the same version; keep the pin
+      const current = dependencies[name];
+      if (current === version || current === version.replace(/^\^/u, "")) continue;
+      assert.ok(!current || current === `^${version}`, `Conflicting runtime dependency: ${name}`);
       dependencies[name] = version;
     }
     const packed = JSON.parse(execFileSync("pnpm", ["pack", "--json", "--pack-destination", scratch], {

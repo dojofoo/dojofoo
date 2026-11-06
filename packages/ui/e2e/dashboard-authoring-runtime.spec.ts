@@ -10,7 +10,7 @@ for (const entry of ["installed", "dashboard"] as const) test(entry === "install
   : "the built dashboard creates two independent native authoring drafts and resumes them after restart", async ({ page }) => {
   test.skip(process.env.DOJO_AUTHORING_RUNTIME_E2E !== "1", "Opt-in native runtime; inference is loopback only.");
   test.setTimeout(300_000);
-  const fixture = fork(fileURLToPath(new URL("../../authoring/src/eve/browser.fixture.mjs", import.meta.url)), [], {
+  const fixture = fork(fileURLToPath(new URL("../../agents/src/eve/browser.fixture.mjs", import.meta.url)), [], {
     stdio: ["ignore", "pipe", "pipe", "ipc"], env: { ...process.env, DOJO_AUTHORING_ENTRY_FIXTURE: "1", DOJO_AUTHORING_REQUEST_LOG: test.info().outputPath("inference-requests.json") },
   });
   let logs = "";
@@ -26,42 +26,39 @@ for (const entry of ["installed", "dashboard"] as const) test(entry === "install
     expect(message.ready).toBe(true);
     return message as { url: string; course: string; root: string };
   };
+  let base = "";
+  /** A draft's Kyoshi conversations, newest first (GET /sessions); the page never puts them in its URL (D30) */
+  const kyoshiSessions = async (workspaceId: string) => ((await (await page.request.get(`${base}api/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions?persona=kyoshi`)).json()) as { data: Array<{ id: string }> })
+    .data.map(item => item.id);
+  const draftOf = (address: string) => decodeURIComponent(/^\/authoring\/([^/?#]+)/u.exec(new URL(address).pathname)![1]!);
   try {
     const { url, course, root } = await ready();
+    base = url;
     fixtureRoot = root;
     const original = await readFile(join(course, "dojo.yaml"), "utf8");
     if (entry === "installed") {
-      const starts: string[] = [];
-      page.on("request", request => {
-        if (request.method() === "POST" && /\/api\/v1\/workspaces\/[^/]+\/sessions$/.test(new URL(request.url()).pathname)) starts.push(request.url());
-      });
       const began = performance.now();
       await page.goto(`${url}authoring`);
       await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled({ timeout: 30_000 });
       console.info(`Installed course: composer ready in ${Math.round(performance.now() - began)} ms.`);
       await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 60_000 });
-      await expect(page).toHaveURL(/workspace=.+session=wrun_/);
-      const session = new URL(page.url()).searchParams.get("session");
-      const workspace = new URL(page.url()).searchParams.get("workspace")!;
+      // Bare /authoring opens the launch folder's draft at /authoring/<id>; its conversation is never in the URL (D30)
+      await expect(page).toHaveURL(/\/authoring\/[^/?]+$/u);
+      const workspace = draftOf(page.url());
+      const [session, ...others] = await kyoshiSessions(workspace);
+      expect(others).toEqual([]);
       const sessionUrl = `${url}api/v1/workspaces/${encodeURIComponent(workspace)}/sessions/${encodeURIComponent(session!)}`;
-      await expect.poll(async () => (await (await page.request.get(sessionUrl)).json()).status).toBe("idle");
-      await page.evaluate(() => localStorage.clear());
       const resumed = performance.now();
       await page.goto(`${url}authoring`);
-      await expect(page).toHaveURL(new RegExp(`session=${session}`));
+      await expect(page).toHaveURL(new RegExp(`/authoring/${workspace}$`));
       await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible();
       await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
       console.info(`Installed course: saved conversation ready in ${Math.round(performance.now() - resumed)} ms.`);
-      expect(starts).toHaveLength(1);
-      expect((await (await page.request.get(sessionUrl)).json()).status).toBe("idle");
+      expect(await kyoshiSessions(workspace)).toEqual([session]);
+      expect((await (await page.request.get(sessionUrl)).json()).id).toBe(session);
       expect(await readFile(join(course, "dojo.yaml"), "utf8")).toBe(original);
       return;
     }
-    const starts: string[] = [];
-    page.on("request", request => {
-      const match = new URL(request.url()).pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/sessions$/);
-      if (request.method() === "POST" && match) starts.push(decodeURIComponent(match[1]!));
-    });
     const create = async () => {
       await page.goto(url);
       const response = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/control/authoring");
@@ -69,11 +66,12 @@ for (const entry of ["installed", "dashboard"] as const) test(entry === "install
       const created = await response;
       expect(created.status()).toBe(201);
       const draft = await created.json() as { workspaceId: string; path: string };
-      await expect(page).toHaveURL(/session=wrun_/, { timeout: 120_000 });
+      await expect(page).toHaveURL(new RegExp(`/authoring/${draft.workspaceId}$`), { timeout: 120_000 });
       await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 120_000 });
       await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
-      const session = new URL(page.url()).searchParams.get("session")!;
-      expect(new URL(page.url()).searchParams.get("workspace")).toBe(draft.workspaceId);
+      const [session, ...others] = await kyoshiSessions(draft.workspaceId);
+      expect(session).toMatch(/^wrun_/u);
+      expect(others).toEqual([]);
       expect(await readFile(join(draft.path, "dojo.yaml"), "utf8")).toContain("name: New course");
       expect(await readFile(join(draft.path, ".dojo/config.yaml"), "utf8")).toContain("currentDojo");
       return { ...draft, session };
@@ -83,7 +81,6 @@ for (const entry of ["installed", "dashboard"] as const) test(entry === "install
     expect(first.path).not.toBe(second.path);
     expect(first.workspaceId).not.toBe(second.workspaceId);
     expect(first.session).not.toBe(second.session);
-    expect(starts).toEqual([first.workspaceId, second.workspaceId]);
     const foreign = await page.request.get(`${url}api/v1/workspaces/${encodeURIComponent(second.workspaceId)}/sessions/${encodeURIComponent(first.session)}`);
     expect(foreign.status()).toBe(404);
     await page.screenshot({ path: test.info().outputPath("dashboard-created-authoring.png"), animations: "disabled" });
@@ -91,13 +88,14 @@ for (const entry of ["installed", "dashboard"] as const) test(entry === "install
     fixture.send("restart");
     await restarted;
     await page.goto(url);
-    const link = page.getByRole("region", { name: "Authoring", exact: true }).locator(`a[href*="workspace=${first.workspaceId}"]`);
-    await expect(link).toHaveAttribute("href", new RegExp(`session=${first.session}`));
+    const link = page.getByRole("region", { name: "Authoring", exact: true }).locator(`a[href="/authoring/${first.workspaceId}"]`);
     await link.click();
-    await expect(page).toHaveURL(new RegExp(`session=${first.session}`));
+    await expect(page).toHaveURL(new RegExp(`/authoring/${first.workspaceId}$`));
     await expect(page.getByText("Ready to teach.", { exact: true })).toBeVisible({ timeout: 120_000 });
     await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
-    expect(starts).toEqual([first.workspaceId, second.workspaceId]);
+    // The saved conversation opened again: no draft gained a conversation
+    expect(await kyoshiSessions(first.workspaceId)).toEqual([first.session]);
+    expect(await kyoshiSessions(second.workspaceId)).toEqual([second.session]);
     const snapshot = await page.request.get(`${url}api/v1/workspaces/${encodeURIComponent(first.workspaceId)}/sessions/${encodeURIComponent(first.session)}`);
     expect(snapshot.ok()).toBe(true);
     expect((await snapshot.json()).id).toBe(first.session);

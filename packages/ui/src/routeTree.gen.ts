@@ -16,10 +16,13 @@ import { Route as AvatarRouteImport } from './routes/avatar'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as InteractiveRouteImport } from './routes/interactive'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AuthoringDraftIdRouteImport } from './routes/authoring_.$draftId'
 import { Route as CourseCourseIdRouteImport } from './routes/course.$courseId'
 import { Route as KataNameRouteImport } from './routes/kata.$name'
+import { Route as LearnRunIdRouteImport } from './routes/learn.$runId'
 import { Route as SessionSessionIdRouteImport } from './routes/session.$sessionId'
 import { Route as StarterCourseIdRouteImport } from './routes/starter.$courseId'
+import { Route as CourseWorkspaceIdCourseIdLessonLessonIdRouteImport } from './routes/course_.$workspaceId.$courseId.lesson.$lessonId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -56,6 +59,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthoringDraftIdRoute = AuthoringDraftIdRouteImport.update({
+  id: '/authoring_/$draftId',
+  path: '/authoring/$draftId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CourseCourseIdRoute = CourseCourseIdRouteImport.update({
   id: '/course/$courseId',
   path: '/course/$courseId',
@@ -64,6 +72,11 @@ const CourseCourseIdRoute = CourseCourseIdRouteImport.update({
 const KataNameRoute = KataNameRouteImport.update({
   id: '/kata/$name',
   path: '/kata/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnRunIdRoute = LearnRunIdRouteImport.update({
+  id: '/learn/$runId',
+  path: '/learn/$runId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SessionSessionIdRoute = SessionSessionIdRouteImport.update({
@@ -76,6 +89,12 @@ const StarterCourseIdRoute = StarterCourseIdRouteImport.update({
   path: '/starter/$courseId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CourseWorkspaceIdCourseIdLessonLessonIdRoute =
+  CourseWorkspaceIdCourseIdLessonLessonIdRouteImport.update({
+    id: '/course_/$workspaceId/$courseId/lesson/$lessonId',
+    path: '/course/$workspaceId/$courseId/lesson/$lessonId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -85,10 +104,13 @@ export interface FileRoutesByFullPath {
   '/explore': typeof ExploreRoute
   '/interactive': typeof InteractiveRoute
   '/settings': typeof SettingsRoute
+  '/authoring/$draftId': typeof AuthoringDraftIdRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
+  '/learn/$runId': typeof LearnRunIdRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
+  '/course/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -98,10 +120,13 @@ export interface FileRoutesByTo {
   '/explore': typeof ExploreRoute
   '/interactive': typeof InteractiveRoute
   '/settings': typeof SettingsRoute
+  '/authoring/$draftId': typeof AuthoringDraftIdRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
+  '/learn/$runId': typeof LearnRunIdRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
+  '/course/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -112,10 +137,13 @@ export interface FileRoutesById {
   '/explore': typeof ExploreRoute
   '/interactive': typeof InteractiveRoute
   '/settings': typeof SettingsRoute
+  '/authoring_/$draftId': typeof AuthoringDraftIdRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
+  '/learn/$runId': typeof LearnRunIdRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
+  '/course_/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,10 +155,13 @@ export interface FileRouteTypes {
     | '/explore'
     | '/interactive'
     | '/settings'
+    | '/authoring/$draftId'
     | '/course/$courseId'
     | '/kata/$name'
+    | '/learn/$runId'
     | '/session/$sessionId'
     | '/starter/$courseId'
+    | '/course/$workspaceId/$courseId/lesson/$lessonId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -140,10 +171,13 @@ export interface FileRouteTypes {
     | '/explore'
     | '/interactive'
     | '/settings'
+    | '/authoring/$draftId'
     | '/course/$courseId'
     | '/kata/$name'
+    | '/learn/$runId'
     | '/session/$sessionId'
     | '/starter/$courseId'
+    | '/course/$workspaceId/$courseId/lesson/$lessonId'
   id:
     | '__root__'
     | '/'
@@ -153,10 +187,13 @@ export interface FileRouteTypes {
     | '/explore'
     | '/interactive'
     | '/settings'
+    | '/authoring_/$draftId'
     | '/course/$courseId'
     | '/kata/$name'
+    | '/learn/$runId'
     | '/session/$sessionId'
     | '/starter/$courseId'
+    | '/course_/$workspaceId/$courseId/lesson/$lessonId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -167,10 +204,13 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   InteractiveRoute: typeof InteractiveRoute
   SettingsRoute: typeof SettingsRoute
+  AuthoringDraftIdRoute: typeof AuthoringDraftIdRoute
   CourseCourseIdRoute: typeof CourseCourseIdRoute
   KataNameRoute: typeof KataNameRoute
+  LearnRunIdRoute: typeof LearnRunIdRoute
   SessionSessionIdRoute: typeof SessionSessionIdRoute
   StarterCourseIdRoute: typeof StarterCourseIdRoute
+  CourseWorkspaceIdCourseIdLessonLessonIdRoute: typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -224,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/authoring_/$draftId': {
+      id: '/authoring_/$draftId'
+      path: '/authoring/$draftId'
+      fullPath: '/authoring/$draftId'
+      preLoaderRoute: typeof AuthoringDraftIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/course/$courseId': {
       id: '/course/$courseId'
       path: '/course/$courseId'
@@ -236,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/kata/$name'
       fullPath: '/kata/$name'
       preLoaderRoute: typeof KataNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/$runId': {
+      id: '/learn/$runId'
+      path: '/learn/$runId'
+      fullPath: '/learn/$runId'
+      preLoaderRoute: typeof LearnRunIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/session/$sessionId': {
@@ -252,6 +306,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StarterCourseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/course_/$workspaceId/$courseId/lesson/$lessonId': {
+      id: '/course_/$workspaceId/$courseId/lesson/$lessonId'
+      path: '/course/$workspaceId/$courseId/lesson/$lessonId'
+      fullPath: '/course/$workspaceId/$courseId/lesson/$lessonId'
+      preLoaderRoute: typeof CourseWorkspaceIdCourseIdLessonLessonIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -263,10 +324,14 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   InteractiveRoute: InteractiveRoute,
   SettingsRoute: SettingsRoute,
+  AuthoringDraftIdRoute: AuthoringDraftIdRoute,
   CourseCourseIdRoute: CourseCourseIdRoute,
   KataNameRoute: KataNameRoute,
+  LearnRunIdRoute: LearnRunIdRoute,
   SessionSessionIdRoute: SessionSessionIdRoute,
   StarterCourseIdRoute: StarterCourseIdRoute,
+  CourseWorkspaceIdCourseIdLessonLessonIdRoute:
+    CourseWorkspaceIdCourseIdLessonLessonIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

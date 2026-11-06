@@ -420,7 +420,7 @@ export function Composer({
               onPrepare={onModelPrepare} disabled={(!models.length && !onModelPrepare) || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
               items={models.map(m => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon,
                 checked: (m.value ?? m.name) === model, onSelect: () => { const next = m.value ?? m.name; if (onModelChange) onModelChange(next); else setSelected(next); } }))}>
-              {selectedModel?.name ?? model ?? (loading || agentChanging ? "Loading…" : "Model")}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}
+              {selectedModel?.name ?? model ?? (loading || agentChanging ? "Loading…" : agent ? "Default" : "Model")}{selectedModel?.effort && <span className="ui-as-composer__effort"> {selectedModel.effort}</span>}
             </ComposerPicker>
             {dictation && <button
               type="button"

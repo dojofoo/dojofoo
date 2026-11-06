@@ -20,7 +20,7 @@ isolated-trial/
 ```
 
 - Definitions are ordinary Eve files. JavaScript and TypeScript compile as ESM.
-- Installed `@dojofoo/agent` supplies package imports. No course package manager
+- Installed `@dojofoo/harness` supplies package imports. No course package manager
   or ancestor `node_modules` is needed. Unknown packages fail resolution.
 - Shared authored-module cache: `~/.dojo/cache/authored-modules`, with the existing
   `DOJOFOO_HOME` override supported. Dependencies stay in the CLI/package
@@ -53,9 +53,9 @@ Consumers do not apply patches; the existing release assembly embeds it.
 
 ```sh
 # Node 24; no model credentials or paid inference required
-pnpm --dir packages/agent build
-node --test packages/agent/experiments/model-provider/manifest-free-project.test.mjs
-node packages/agent/experiments/model-provider/packaging.mjs
+pnpm --dir packages/harness build
+node --test packages/harness/experiments/model-provider/manifest-free-project.test.mjs
+node packages/harness/experiments/model-provider/packaging.mjs
 ```
 
 The fixture runs outside the repository. It recursively rejects every local

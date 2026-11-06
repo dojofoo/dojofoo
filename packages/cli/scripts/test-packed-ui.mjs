@@ -34,9 +34,13 @@ try {
   });
 
   const installedRequire = createRequire(resolve(installRoot, "node_modules/dojofoo/package.json"));
-  const label = JSON.parse(readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/authoring/package.json")), "dist/prepared/kyoshi/build.json"), "utf8"));
-  if (label.dojofoo !== `dojofoo@${expectedPackage.version}` || !label.sourceHash) {
-    throw new Error("The installed Kyoshi build is missing its release and source labels.");
+  try { installedRequire.resolve("@dojofoo/protocol"); }
+  catch { throw new Error("Packed CLI is missing @dojofoo/protocol."); }
+  for (const persona of ["kyoshi", "sensei"]) {
+    const label = JSON.parse(readFileSync(resolve(dirname(installedRequire.resolve("@dojofoo/agents/package.json")), `dist/prepared/${persona}/build.json`), "utf8"));
+    if (label.dojofoo !== `dojofoo@${expectedPackage.version}` || label.source !== `dojofoo/${persona}@${expectedPackage.version}` || !label.sourceHash) {
+      throw new Error(`The installed ${persona === "kyoshi" ? "Kyoshi" : "Sensei"} build is missing its release and source labels.`);
+    }
   }
   // Preserve the original adapter's assets beside its module. Model switching
   // is exercised by the production turn test, without extracting private code.
@@ -51,7 +55,7 @@ try {
     throw new Error("The packed OpenCode adapter lost its native server shutdown patch.");
   }
   const { scaffoldAuthoringWorkspace } = await import(
-    pathToFileURL(installedRequire.resolve("@dojofoo/authoring/scaffold")).href
+    pathToFileURL(installedRequire.resolve("@dojofoo/agents/scaffold")).href
   );
   const authorRoot = resolve(scratch, "author");
   scaffoldAuthoringWorkspace({ root: authorRoot, name: "Packed course", style: "katas" });
@@ -63,11 +67,11 @@ try {
   // Boot the shipped master from an npm installation, not workspace links.
   // Readiness uses the release-built agent without compiling or sending a prompt.
   const { createKyoshiRuntime } = await import(
-    pathToFileURL(installedRequire.resolve("@dojofoo/authoring/eve/runtime")).href
+    pathToFileURL(installedRequire.resolve("@dojofoo/agents/eve/runtime")).href
   );
-  const previousHarness = process.env.DOJOFOO_HARNESS;
+  mkdirSync(resolve(authorRoot, ".dojo"), { recursive: true });
+  writeFileSync(resolve(authorRoot, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode" }));
   const previousHome = process.env.DOJOFOO_HOME;
-  process.env.DOJOFOO_HARNESS = "opencode";
   process.env.DOJOFOO_HOME = resolve(scratch, "home");
   let runtime;
   try {
@@ -76,8 +80,6 @@ try {
     console.log("Packed master authoring agent passed readiness without a model call.");
   } finally {
     await runtime?.close();
-    if (previousHarness === undefined) delete process.env.DOJOFOO_HARNESS;
-    else process.env.DOJOFOO_HARNESS = previousHarness;
     if (previousHome === undefined) delete process.env.DOJOFOO_HOME;
     else process.env.DOJOFOO_HOME = previousHome;
   }
@@ -157,8 +159,8 @@ try {
       }
       console.log(`Packed starter ${courseId}: self-contained Slidev deck served with HTTP ${deck.status}.`);
     }
-    const conversation = await (await fetch(`${resource}/conversation`)).json();
-    if (conversation.sessionId !== null) throw new Error("Opening a starter unexpectedly created an agent session.");
+    const sessions = await (await fetch(`${base}/api/v1/workspaces/${workspace.id}/sessions?persona=sensei`)).json();
+    if (sessions.pagination?.total !== 0) throw new Error("Opening a starter unexpectedly created an agent session.");
     console.log(`Packed starter ${courseId}: installed, first material available, no agent session.`);
   }
   const setup = await fetch(`http://127.0.0.1:${port}/api/local/setup`).then(response => response.json());
@@ -191,6 +193,8 @@ function pack(packageRoot, destination) {
   execFileSync("pnpm", ["pack", "--pack-destination", destination], {
     cwd: packageRoot,
     stdio: "pipe",
+    // pnpm lists every packed file; two prepared persona servers outgrow the 1 MiB default
+    maxBuffer: 64 * 1024 * 1024,
   });
 }
 

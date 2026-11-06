@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { afterEach, describe, expect, it } from "vitest";
-import { scaffoldAuthoringWorkspace } from "@dojofoo/authoring/scaffold";
+import { scaffoldAuthoringWorkspace } from "@dojofoo/agents/scaffold";
 
 describe("kyoshi scaffold", () => {
   const roots: string[] = [];
@@ -19,7 +19,7 @@ describe("kyoshi scaffold", () => {
     expect(manifest.description).toBe("");
     expect(packageManifest.name).toBe("empty-course");
     expect(readFileSync(resolve(root, "DOJO.md"), "utf8"))
-      .toBe(readFileSync(new URL("../../authoring/templates/katas/DOJO.md", import.meta.url), "utf8"));
+      .toBe(readFileSync(new URL("../../agents/templates/katas/DOJO.md", import.meta.url), "utf8"));
     expect(existsSync(resolve(root, "src", "001-normalize-label"))).toBe(false);
     expect(existsSync(resolve(root, "scripts", "eval.ts"))).toBe(false);
     expect(existsSync(resolve(root, "mise.toml"))).toBe(true);

@@ -6,6 +6,7 @@
   "type": "module",
   "license": "FSL-1.1-ALv2",
   "scripts": {
+    "prepare": "husky",
     "assets:logo": "node scripts/assets/build-logo.mjs",
     "build": "turbo build",
     "ui": "pnpm --filter dojofoo exec node dist/index.js ui",
@@ -17,22 +18,33 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "lint:deps": "depcruise --config .dependency-cruiser.cjs packages",
+    "lint:names": "git grep -n -P '@dojofoo/(agent(?![s-])|agent-api|authoring)\\b|packages/(agent|agent-api|authoring)\\b' -- . ':!.changeset/' ':!**/CHANGELOG.md' ':!docs/architecture/' ':!docs/designs/' ':!docs/research/' ':!.prd/'; test $? -eq 1"
   },
   "pnpm": {
+    "overrides": {
+      "@ai-sdk/harness-pi>@earendil-works/pi-coding-agent": "1.3.0"
+    },
     "onlyBuiltDependencies": [
       "esbuild"
     ],
     "patchedDependencies": {
-      "@ai-sdk/harness-opencode@1.0.169": "patches/@ai-sdk__harness-opencode@1.0.169.patch",
-      "@tanstack/ai-client@0.39.3": "patches/@tanstack__ai-client@0.39.3.patch",
-      "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch"
+      "@ai-sdk/harness-opencode@1.0.173": "patches/@ai-sdk__harness-opencode@1.0.173.patch",
+      "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch",
+      "@ai-sdk/harness-fx@1.0.86": "patches/@ai-sdk__harness-fx@1.0.86.patch",
+      "@ai-sdk/harness-acp@1.0.110": "patches/@ai-sdk__harness-acp@1.0.110.patch"
     }
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@xmldom/xmldom": "^0.9.12",
+    "dependency-cruiser": "18.7.2",
+    "husky": "^9.1.7",
     "turbo": "^2.11.9",
+    "typescript": "6.0.3",
     "vitest": "^5.0.5",
     "youch": "^4.1.1"
   }

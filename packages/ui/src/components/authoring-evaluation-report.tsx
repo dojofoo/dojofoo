@@ -1,4 +1,4 @@
-import type { EvaluationReport } from "@dojofoo/authoring/evaluation/run";
+import type { EvaluationReport } from "@dojofoo/agents/evaluation/run";
 import { EvalsReportPanel, type EvalsFinding } from "@dojofoo/uix/components/evals";
 import type { ReactNode } from "react";
 

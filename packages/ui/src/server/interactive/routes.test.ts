@@ -6,7 +6,6 @@ import { resolve } from "node:path";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { interactiveRoutes } from "./routes";
 import { lessonRoutes } from "../lesson/routes";
-import { acpClient } from "../lesson/codex-client";
 
 const roots: string[] = [];
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
@@ -16,6 +15,8 @@ function fixture() {
   vi.stubEnv("DOJOFOO_HOME", resolve(root, "state"));
   vi.stubEnv("DOJO_PROJECT_ROOT", root);
   writeFileSync(resolve(root, ".dojorc"), JSON.stringify({ currentDojo: "first", currentKata: null, editor: null }));
+  mkdirSync(resolve(root, ".dojo"), { recursive: true });
+  writeFileSync(resolve(root, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode" }));
   for (const name of ["first", "second"]) {
     const dir = resolve(root, ".dojos", name);
     mkdirSync(dir, { recursive: true });
@@ -58,42 +59,12 @@ describe("interactive course API", () => {
     expect((await app.request(`${base}/advance`, { method: "POST" })).status).toBe(404);
   });
 
-  it("streams through the existing native bridge without making course reads depend on the provider", async () => {
+  it("the removed conversation, configuration and messages routes answer 404", async () => {
     const { app, base } = fixture();
-    vi.spyOn(acpClient, "startThread").mockResolvedValue("native-api");
-    vi.spyOn(acpClient, "resumeThread").mockResolvedValue();
-    vi.spyOn(acpClient, "send").mockImplementation(async (_id, _message, onPart) => {
-      onPart?.({ type: "text-start", id: "reply" });
-      onPart?.({ type: "text-delta", id: "reply", delta: "Read the current material." });
-      onPart?.({ type: "text-end", id: "reply" });
-      return "Read the current material.";
-    });
-    expect(await (await app.request(`${base}/conversation`)).json()).toMatchObject({ sessionId: null, messages: [], model: null });
-    const response = await app.request(`${base}/messages`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-      threadId: "interactive-api", runId: "test-turn", messages: [{ id: "question", role: "user", content: "Where am I?" }], tools: [], context: [],
-    }) });
-    const events = await response.text();
-    expect(response.status, events).toBe(200);
-    expect(events).toContain("Read the current material.");
-    expect(events).toContain("RUN_FINISHED");
-    expect(acpClient.send).toHaveBeenCalledWith("native-api", "Where am I?", expect.any(Function), expect.any(Object));
-    vi.mocked(acpClient.resumeThread).mockRejectedValueOnce(new Error("Provider offline"));
-    expect(await (await app.request(`${base}/conversation`)).json()).toEqual({ error: "Provider offline" });
+    for (const [method, path] of [["GET", "/conversation"], ["PUT", "/configuration/harness"], ["PUT", "/configuration/model"], ["POST", "/messages"]] as const) {
+      const response = await app.request(`${base}${path}`, { method, headers: { "content-type": "application/json" }, ...(method === "GET" ? {} : { body: "{}" }) });
+      expect(response.status, `${method} ${path}`).toBe(404);
+    }
     expect((await app.request(base)).status).toBe(200);
   });
-});
-
-it("validates explicit agent selection before starting a session", async () => {
-  const { app, base } = fixture();
-  const start = vi.spyOn(acpClient, "startThread").mockResolvedValue("selected-api");
-  vi.spyOn(acpClient, "history").mockResolvedValue([]);
-  vi.spyOn(acpClient, "modelConfiguration").mockReturnValue(null);
-  for (const body of [{}, { harness: "" }, { harness: "  " }, { harness: 42 }, { harness: "pi" }, { harness: "unknown" }, { harness: "toString" }]) {
-    const response = await app.request(`${base}/configuration/harness`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    expect(response.status).toBe(422);
-  }
-  expect(start).not.toHaveBeenCalled();
-  const selected = await app.request(`${base}/configuration/harness`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ harness: "codex" }) });
-  expect(selected.status).toBe(200);
-  expect(await selected.json()).toMatchObject({ sessionId: "selected-api", harness: "codex" });
 });

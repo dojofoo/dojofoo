@@ -1,1 +1,1 @@
-export { readMaterial } from "@dojofoo/authoring/evaluation/material";
+export { readMaterial } from "@dojofoo/agents/evaluation/material";

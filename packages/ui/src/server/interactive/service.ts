@@ -1,9 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { dojoDir, readCourseManifest, readDojoRc, type DojoManifest, readIntroduction, type CourseIntroduction } from "@dojofoo/config";
-import type { HarnessKind } from "../harness/adapter";
-
-export type InteractiveConversationBinding = { sessionId: string; harness: HarnessKind; model?: string; pendingRuntime?: string };
 
 export type InteractiveStep =
   | { id: string; type: "complete"; title: string }
@@ -20,11 +17,10 @@ type InteractiveCurriculum = { id: string; title: string; deck?: string; lessons
 type CourseProgress = { step: number; lesson?: number; unlockedLessons?: number; unlockedSlides?: Record<string, number>; completed?: boolean;
   answers: Record<string, { answer: string; correct: boolean }> };
 
+/** Progress only: the ACP conversation bindings (`conversations`, `conversationAgents`, `pendingRuntime`) are dropped on the next write */
 type InteractiveState = {
   version: 1;
   courses: Record<string, CourseProgress>;
-  conversations?: Record<string, InteractiveConversationBinding>;
-  conversationAgents?: Record<string, Partial<Record<HarnessKind, InteractiveConversationBinding>>>;
 };
 
 export type InteractiveSnapshot = {
@@ -46,23 +42,9 @@ export type InteractiveSnapshot = {
   current: InteractiveStep | null;
   response: { answer: string; correct: boolean } | null;
   complete: boolean;
+  /** Whether `.dojorc` names this course as `currentDojo`; only "Make this my current course" changes it (D30) */
+  courseCurrent: boolean;
 };
-
-export function readInteractiveConversation(root: string, dojo: string, harness?: HarnessKind): InteractiveConversationBinding | undefined {
-  const state = readState(root);
-  const active = state.conversations?.[dojo];
-  return !harness || active?.harness === harness ? active : state.conversationAgents?.[dojo]?.[harness];
-}
-
-export function writeInteractiveConversation(root: string, dojo: string, binding: InteractiveConversationBinding): void {
-  const state = readState(root);
-  const previous = state.conversations?.[dojo];
-  state.conversationAgents = { ...state.conversationAgents, [dojo]: {
-    ...state.conversationAgents?.[dojo], ...(previous ? { [previous.harness]: previous } : {}), [binding.harness]: binding,
-  } };
-  state.conversations = { ...state.conversations, [dojo]: binding };
-  writeState(root, state);
-}
 
 function progressFor(state: InteractiveState, dojo: string, curriculum: InteractiveCurriculum): CourseProgress {
   const progress = state.courses[dojo] ?? { step: 0, answers: {} };
@@ -118,6 +100,7 @@ export function getInteractiveLesson(root: string, requestedDojo?: string): Inte
     current: authoredStep ? hydrateStep(root, dojo, authoredStep) : null,
     response: authoredStep ? progress.answers[`${lesson.id}/${authoredStep.id}`] ?? progress.answers[authoredStep.id] ?? null : null,
     complete,
+    courseCurrent: readDojoRc(root).currentDojo === dojo,
   };
 }
 
@@ -252,7 +235,8 @@ function statePath(root: string): string {
 function readState(root: string): InteractiveState {
   try {
     const state = JSON.parse(readFileSync(statePath(root), "utf8")) as InteractiveState;
-    if (state.version === 1 && state.courses) return state;
+    // Only progress is read back, so the next write drops the old ACP bindings
+    if (state.version === 1 && state.courses) return { version: 1, courses: state.courses };
   } catch {}
   return { version: 1, courses: {} };
 }

@@ -1,77 +1,13 @@
-import { expect, test } from "@playwright/test";
-import { mountAgentChat } from "./agent-chat.fixture";
+import { expect, test } from "./agent-chat.fixture";
 
-test("starting a learner session retains workspace choices through failure and retry", async ({ page }) => {
-  test.setTimeout(60_000);
-  const pending = Promise.withResolvers<void>();
-  const accepted = Promise.withResolvers<void>();
-  const starts: string[] = [];
-  const course = { dojo: "session-course", kata: "first", mode: "katas", language: "TypeScript", lastSeenAt: 1, sessionId: "existing", sessions: [{ lessonId: "first", sessionId: "existing" }] };
-  await page.routeWebSocket("**/api/session*", () => {});
-  await page.route("**/api/**", async route => {
-    const request = route.request();
-    const path = new URL(request.url()).pathname;
-    if (path === "/api/control/courses") return route.fulfill({ json: [
-      { ...course, workspaceId: "alpha", workspaceName: "Alpha", selected: true },
-      { ...course, workspaceId: "beta", workspaceName: "Beta" },
-    ] });
-    if (path === "/api/control/authoring") return route.fulfill({ json: [] });
-    if (path === "/api/teaching/preview") return route.fulfill({ json: { blocks: [] } });
-    const snapshot = { dojo: "session-course", kata: "first", title: "First lesson", briefing: "Try an example", code: "export const answer = 0;", starterCode: "export const answer = 0;",
-      fileId: "solution", filePath: "first.ts", language: "typescript", introduced: true, checkpointed: false, sessionId: "accepted-session", harness: "codex", harnesses: ["codex"], model: null,
-      state: "ongoing", isCurrent: true, result: null, fragments: {}, messages: [], lessons: [{ name: "first", title: "First lesson", summary: "Try it", state: "ongoing", isCurrent: true }] };
-    if (path.endsWith("/sessions") && request.method() === "POST") {
-      starts.push(path);
-      if (starts.length === 1) { await pending.promise; return route.fulfill({ status: 503, json: { error: "Coding agent is unavailable" } }); }
-      await accepted.promise;
-      return route.fulfill({ status: 201, json: snapshot });
-    }
-    if (path.endsWith("/lessons/first")) return route.fulfill({ json: snapshot });
-    if (path.endsWith("/diagnostics")) return route.fulfill({ json: [] });
-    if (path.endsWith("/completions")) return route.fulfill({ json: { from: 0, options: [] } });
-    return route.fulfill({ status: 404 });
-  });
-  try {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Session Course", exact: true }).click();
-    const chooser = page.getByRole("dialog", { name: "Continue Session Course", exact: true });
-    await chooser.getByRole("button", { name: /^Course workspace:/ }).click();
-    await page.getByRole("menuitemradio", { name: /^Beta/ }).click();
-    await chooser.getByRole("button", { name: /^Course session:/ }).click();
-    await page.getByRole("menuitemradio", { name: "Start a new session", exact: true }).click();
-    await chooser.getByRole("button", { name: "Continue", exact: true }).click();
-    pending.resolve();
-    await expect(chooser.getByRole("alert")).toContainText("Coding agent is unavailable", { timeout: 5000 });
-    await expect(chooser.getByRole("button", { name: /^Course workspace:/ })).toContainText("Beta");
-    await expect(chooser.getByRole("button", { name: /^Course session:/ })).toContainText("Start a new session");
-    await chooser.getByRole("button", { name: "Continue", exact: true }).click();
-    await expect(chooser.getByRole("button", { name: "Opening…", exact: true })).toBeDisabled();
-    await expect.poll(() => starts.length).toBe(2);
-    const secondRequest = page.waitForEvent("requestfailed", { predicate: request => request.method() === "POST" && new URL(request.url()).pathname.endsWith("/sessions") });
-    await chooser.getByRole("button", { name: "Cancel", exact: true }).click();
-    await secondRequest;
-    await expect(chooser).not.toBeVisible();
-    accepted.resolve();
-    await page.getByRole("button", { name: "Session Course", exact: true }).click();
-    await expect(page).toHaveURL(/\/$/);
-    await chooser.getByRole("button", { name: /^Course workspace:/ }).click();
-    await page.getByRole("menuitemradio", { name: /^Beta/ }).click();
-    await chooser.getByRole("button", { name: /^Course session:/ }).click();
-    await page.getByRole("menuitemradio", { name: "Start a new session", exact: true }).click();
-    await chooser.getByRole("button", { name: "Continue", exact: true }).click();
-    await expect(page).toHaveURL(/\/session\/accepted-session$/);
-    await expect(page.locator(".view-lines")).toContainText("export const answer = 0;");
-    expect(starts).toEqual(Array(3).fill("/api/workspaces/beta/courses/session-course/lessons/first/sessions"));
-  } finally { pending.resolve(); accepted.resolve(); }
-});
-
-test("New course retries failed creation and reopens the accepted native session from the dashboard", async ({ page }) => {
+test("New course retries failed creation and reopens the accepted native session from the dashboard", async ({ page, mountAgentChat }) => {
   const pending = Promise.withResolvers<void>();
   const names: string[] = [];
   let created = false;
   const draft = { workspaceId: "created-draft", name: "New course", description: "", mode: "katas", lastSeenAt: 1, sessionId: null };
   await page.routeWebSocket("**/api/authoring/changes*", () => {});
   await page.route("**/api/**", async route => {
+    if (new URL(route.request().url()).pathname === "/api/local/setup") return route.fallback();
     const url = new URL(route.request().url());
     if (url.pathname === "/api/control/courses") return route.fulfill({ json: [] });
     if (url.pathname === "/api/control/authoring" && route.request().method() === "POST") {
@@ -86,7 +22,7 @@ test("New course retries failed creation and reopens the accepted native session
     if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { root: "/draft", style: "katas", name: "New course", description: "", language: "", manifestSource: "name: New course\n", courseGuidance: "", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: New course\n" }], lessons: [], issues: [], courseChecks: [] } });
     return route.fulfill({ status: 404 });
   });
-  const agent = await mountAgentChat(page, { workspaceId: "created-draft", files: false });
+  const agent = await mountAgentChat(page, { workspaceId: "created-draft", files: false, existingSession: false });
   await page.goto("/");
   const button = page.getByRole("button", { name: /^New course/ });
   await expect(button).toBeVisible();
@@ -96,47 +32,55 @@ test("New course retries failed creation and reopens the accepted native session
   await expect(page.getByRole("alert")).toContainText("Draft disk is full");
   await expect(button).toBeEnabled();
   await button.click();
-  await expect(page).toHaveURL(/\/authoring\?workspace=created-draft&session=session-1/);
+  await expect.poll(() => agent.runtime.records.length).toBe(1);
+  await expect(page).toHaveURL(/\/authoring\/created-draft$/u);
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
-  expect(agent.calls.filter(call => call === "POST /api/v1/workspaces/created-draft/sessions")).toHaveLength(1);
+  await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
+  await expect(page).toHaveURL(/\/authoring\/created-draft$/u);
+  expect(agent.runtime.records).toHaveLength(1);
   await page.getByRole("link", { name: "Dojo dashboard", exact: true }).click();
   const entry = page.getByRole("region", { name: "Authoring", exact: true }).getByRole("link", { name: /New course/i });
-  await expect(entry).toHaveAttribute("href", /session=session-1/);
+  await expect(entry).toHaveAttribute("href", "/authoring/created-draft");
   await entry.click();
   await expect(page.getByTestId("authoring-chat-composer").getByRole("textbox")).toBeEnabled();
-  expect(agent.calls.filter(call => call === "POST /api/v1/workspaces/created-draft/sessions")).toHaveLength(1);
+  // The same conversation opens again: still one record
+  expect(agent.runtime.records).toHaveLength(1);
   expect(names).toEqual(["New course", "New course"]);
 });
 
 for (const [courseId, title] of [["create-your-own-dojo", "Create your own dojo"], ["how-to-run-a-dojo", "How to run a dojo"]] as const) {
-  test(`starter course opens its workspace installation flow: ${courseId}`, async ({ page }) => {
+  test(`starter course opens its installation flow: ${courseId}`, async ({ page }) => {
     const installs: unknown[] = [];
     const writes: string[] = [];
+    let installed = false;
+    const course = { id: courseId, title, workspaceId: "starter-workspace", runId: "starter-run", mode: "interactive", kata: null,
+      description: "", version: "0.0.3", language: "Other", tags: [], lessons: [] };
     await page.route("**/api/**", async route => {
+      if (new URL(route.request().url()).pathname === "/api/local/setup") return route.fallback();
       const request = route.request();
       const path = new URL(request.url()).pathname;
       if (request.method() !== "GET") writes.push(path);
       if (path === "/api/control/courses" || path === "/api/control/authoring" || path === "/api/control/starters") return route.fulfill({ json: [] });
-      if (path === "/api/control/workspaces") return route.fulfill({ json: [{ id: "starter-workspace", path: "/tmp/starter-workspace" }] });
+      if (path === `/api/control/courses/${courseId}`) return installed ? route.fulfill({ json: course }) : route.fulfill({ status: 404, json: { error: "Course not installed" } });
+      // The installed run's page: an id that is not a run would land on the dashboard (D33)
+      if (path === "/api/control/learning-sessions/starter-run") return installed ? route.fulfill({ json: course }) : route.fulfill({ status: 404, json: { error: "This learning session does not exist." } });
       if (path === `/api/control/starters/${courseId}/install`) {
         installs.push(request.postDataJSON());
+        installed = true;
         return route.fulfill({ status: 201, json: { workspaceId: "starter-workspace", courseId } });
       }
       return route.fulfill({ status: 404 });
     });
     await page.goto("/");
-    await page.getByRole("region", { name: "Studying", exact: true }).getByRole("link", { name: title, exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/explore\\?course=${courseId}$`), { timeout: 5000 });
+    await page.getByRole("region", { name: "Studying", exact: true }).getByRole("button", { name: "Explore courses", exact: true }).click();
+    await page.getByRole("button", { name: `Details ${title}`, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/course/${courseId}$`), { timeout: 5000 });
     await page.reload();
-    const dialog = page.getByRole("dialog", { name: title, exact: true });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Install course", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Install course", exact: true })).toBeEnabled();
     expect(writes).toEqual([]);
-    await dialog.getByRole("button", { name: /^Course workspace:/ }).click();
-    await page.getByRole("menuitemradio", { name: "/tmp/starter-workspace", exact: true }).click();
-    await dialog.getByRole("button", { name: "Install course", exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/interactive\\?.*course=${courseId}`));
-    expect(installs).toEqual([{ workspaceId: "starter-workspace" }]);
+    await page.getByRole("button", { name: "Install course", exact: true }).click();
+    await expect(page).toHaveURL(/\/learn\/starter-run$/);
+    expect(installs).toEqual([{}]);
     expect(writes).toEqual([`/api/control/starters/${courseId}/install`]);
   });
 }
@@ -145,8 +89,8 @@ test("the account menu opens local Settings and Profile through the Pages layout
   await page.route("**/api/control/courses", route => route.fulfill({ json: [] }));
   await page.route("**/api/control/authoring", route => route.fulfill({ json: [] }));
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "You", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "You", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Anonymous", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Anonymous", exact: true }).click();
   await expect(page.getByRole("menuitem", { name: "Profile", exact: true })).toBeVisible();
   // No accounts locally: the menu ends at the theme row
   await expect(page.getByRole("menuitem", { name: "Log in", exact: true })).toHaveCount(0);
@@ -160,10 +104,10 @@ test("the account menu opens local Settings and Profile through the Pages layout
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await page.getByRole("switch", { name: "Dark mode", exact: true }).click();
   await expect(page.locator("html")).toHaveClass(/dark/);
-  await page.getByRole("button", { name: "You", exact: true }).click();
+  await page.getByRole("button", { name: "Anonymous", exact: true }).click();
   await page.getByRole("menuitem", { name: "Profile", exact: true }).click();
   await expect(page).toHaveURL(/\/settings\?tab=General/);
-  await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("You", { timeout: 5000 });
+  await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Anonymous", { timeout: 5000 });
   await expect(page.getByRole("textbox", { name: "Name", exact: true })).toBeDisabled();
   await expect(page.getByRole("textbox", { name: "Handle", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Upload photo", exact: true })).toBeDisabled();
@@ -178,19 +122,22 @@ test("the learner sidebar uses the Pages course card and Dashboard breadcrumb", 
   await page.route("**/api/workspaces/pages-course/**", route => {
     if (route.request().method() !== "GET") writes.push(route.request().url());
     const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/interactive/conversation")) return route.fulfill({ json: { sessionId: null, messages: [], model: null } });
     if (path.endsWith("/interactive")) return route.fulfill({ json: {
       dojo: "learner", title: "Learner course", lessonTitle: "First lesson", step: 0, totalSteps: 1, complete: false, response: null,
+      lessonId: "first", lessonIndex: 0, completedLessons: 0, lessons: [{ id: "first", title: "First lesson", state: "active" }], slides: [], unlockedStep: 0, references: [],
       course: { name: "Learner course", version: "1.2.3", description: "A course about learning", author: "Course author", language: "TypeScript", lessons: 1 },
       current: { id: "first", type: "present", title: "First step", content: "Read and think.", contentBase: null },
     } });
     return route.fulfill({ status: 404 });
   });
+  const course = { id: "learner", title: "Learner course", workspaceId: "pages-course", runId: "learner-run", mode: "interactive", kata: null,
+    description: "A course about learning", version: "1.2.3", author: "Course author", language: "TypeScript", tags: [], lessons: ["first"] };
+  await page.route(/\/api\/control\/(?:courses\/learner|learning-sessions\/learner-run)$/, route => route.fulfill({ json: course }));
   await page.goto("/interactive?workspace=pages-course&course=learner");
   const navigation = page.getByRole("navigation", { name: "Main menu", exact: true });
   await expect(page.getByRole("heading", { name: "First step", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "You", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "You", exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("button", { name: "Anonymous", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Anonymous", exact: true })).toBeInViewport({ ratio: 1 });
   await expect(navigation.getByRole("link", { name: "Courses", exact: true })).toHaveCount(0);
   await expect(navigation.getByRole("button", { name: "Courses", exact: true })).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Breadcrumb", exact: true }).getByText("Dashboard", { exact: true })).toBeVisible();
@@ -203,7 +150,7 @@ test("the learner sidebar uses the Pages course card and Dashboard breadcrumb", 
   await expect(card.getByText("Version", { exact: true })).toBeVisible();
   await card.getByRole("button", { name: /show the front$/ }).click();
   await expect(card.getByText("1.2.3", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "You", exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("button", { name: "Anonymous", exact: true })).toBeInViewport({ ratio: 1 });
   expect(writes).toEqual([]);
   await page.screenshot({ path: test.info().outputPath("learner-course-card.png"), animations: "disabled" });
 });
@@ -226,52 +173,49 @@ test("the route error keeps its full trace and uses UIX recovery controls on a p
 });
 
 
-test("Explore installs a starter in the chosen workspace and retains the choice after failure", async ({ page }) => {
+test("Explore installs a starter and retries after a failed installation", async ({ page }) => {
   test.setTimeout(30_000);
   const writes: unknown[] = [];
   let installed = false;
+  const course = { id: "create-your-own-dojo", title: "Create your own dojo", workspaceId: "beta", runId: "beta-run", mode: "interactive", kata: null,
+    description: "", version: "0.0.3", language: "Other", tags: [], lessons: ["first"] };
   await page.route("**/api/workspaces/beta/**", async route => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/conversation")) return route.fulfill({ json: { sessionId: null, messages: [], model: null } });
     if (path.endsWith("/interactive")) return route.fulfill({ json: {
       dojo: "create-your-own-dojo", title: "Create your own dojo", lessonTitle: "First lesson", step: 0, totalSteps: 1, complete: false, response: null,
+      lessonId: "first", lessonIndex: 0, completedLessons: 0, lessons: [{ id: "first", title: "First lesson", state: "active" }], slides: [], unlockedStep: 0, references: [],
       current: { id: "first", type: "present", title: "Choose an audience", content: "Choose who you want to teach.", contentBase: null },
     } });
     return route.fulfill({ status: 404 });
   });
   await page.route("**/api/control/**", async route => {
     const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/workspaces")) return route.fulfill({ json: [{ id: "alpha", path: "/Alpha" }, { id: "beta", path: "/Beta" }] });
-    if (path.endsWith("/starters")) return route.fulfill({ json: installed ? [{ workspaceId: "beta", courseId: "create-your-own-dojo" }] : [] });
+    if (path === "/api/control/courses") return route.fulfill({ json: installed ? [{ dojo: course.id, runId: course.runId }] : [] });
+    if (path === `/api/control/courses/${course.id}` || path === `/api/control/learning-sessions/${course.runId}`) {
+      return installed ? route.fulfill({ json: course }) : route.fulfill({ status: 404, json: { error: "Course not installed" } });
+    }
     if (path.endsWith("/install")) {
       writes.push(route.request().postDataJSON());
       if (writes.length === 1) return route.fulfill({ status: 500, json: { error: "Installation unavailable; your files are unchanged." } });
       installed = true;
-      return route.fulfill({ status: 201, json: { workspaceId: "beta", courseId: "create-your-own-dojo" } });
+      return route.fulfill({ status: 201, json: { workspaceId: "beta", courseId: course.id } });
     }
     return route.fulfill({ json: [] });
   });
   await page.goto("/explore");
+  await page.getByRole("button", { name: "Details Create your own dojo", exact: true }).click();
   expect(writes).toEqual([]);
-  await page.getByRole("button", { name: "Install Create your own dojo", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("button", { name: "Install course", exact: true })).toBeDisabled();
-  await dialog.getByRole("button", { name: /^Course workspace:/ }).click();
-  await page.getByRole("menuitemradio", { name: "/Beta", exact: true }).click();
-  await dialog.getByRole("button", { name: "Install course", exact: true }).click();
-  await expect(dialog.getByRole("alert")).toContainText("Installation unavailable");
-  await expect(dialog.getByRole("button", { name: /^Course workspace:/ })).toContainText("/Beta");
-  expect(writes).toEqual([{ workspaceId: "beta" }]);
-  await dialog.getByRole("button", { name: "Install course", exact: true }).click();
-  await expect.poll(() => writes.length).toBe(2);
-  expect(writes).toEqual([{ workspaceId: "beta" }, { workspaceId: "beta" }]);
-  await expect(page).toHaveURL(/interactive\?workspace=beta&course=create-your-own-dojo/);
+  const install = page.getByRole("button", { name: "Install course", exact: true });
+  await install.click();
+  await expect(page.getByRole("alert")).toContainText("Installation unavailable");
+  expect(writes).toEqual([{}]);
+  await install.click();
+  await expect(page).toHaveURL(/\/learn\/beta-run$/);
   await expect(page.getByRole("heading", { name: "Choose an audience", exact: true })).toBeVisible();
+  expect(writes).toEqual([{}, {}]);
   await page.goto("/explore");
-  await page.getByRole("button", { name: "Open Create your own dojo", exact: true }).click();
-  await page.getByRole("button", { name: /^Course workspace:/ }).click();
-  await page.getByRole("menuitemradio", { name: "/Beta", exact: true }).click();
-  await page.getByRole("button", { name: "Open course", exact: true }).click();
-  await expect(page).toHaveURL(/interactive\?workspace=beta&course=create-your-own-dojo/);
+  await page.getByRole("button", { name: "Continue Create your own dojo", exact: true }).click();
+  await expect(page).toHaveURL(/\/learn\/beta-run$/);
   expect(writes).toHaveLength(2);
 });

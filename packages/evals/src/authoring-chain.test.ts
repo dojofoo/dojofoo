@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import chain, { chainJudgePrompt, chainPrompts } from "../authoring/evals/authoring-chain.eval";
-import { chainRubricVersion } from "@dojofoo/authoring/evaluation/prompts/suites";
-import { criterionIds } from "@dojofoo/authoring/evaluation/judges";
+import { chainRubricVersion } from "@dojofoo/agents/evaluation/prompts/suites";
+import { criterionIds } from "@dojofoo/agents/evaluation/judges";
 import { judgeMaterial } from "../authoring/evals/local-judges";
 import { verifyCourse } from "../authoring/evals/verify-course";
 
@@ -43,11 +43,11 @@ async function runFixture(authorsFiles: boolean, batch = false, failed: boolean 
     if (failed === "send") throw new Error("Turn timed out");
     return {
       expectOk() { if (failed) throw new Error("Provider disconnected"); },
-      events: [{ type: failed ? "turn.failed" : "turn.completed" }, { type: "message.completed", data: { message: `Turn ${turns}` } }],
+      events: [{ type: "turn.settled", data: { outcome: failed ? "failed" : "completed" } }, { type: "content.completed", data: { kind: "text", phase: "reply", value: `Turn ${turns}` } }],
     };
   });
   const context = {
-    send, succeeded: vi.fn(), signal: new AbortController().signal,
+    send, succeeded: vi.fn(), abortSignal: new AbortController().signal,
     require: async (actual: unknown) => {
       if (actual === false || actual === 0) throw new Error("No authored lesson");
     },
@@ -147,7 +147,7 @@ it("retains partial material and failed-turn evidence without grading an infrast
   const fixture = await runFixture(true, false, true);
   await expect(fixture.execute()).rejects.toThrow("Provider disconnected");
   const evidence = JSON.parse(await readFile(join(fixture.root, ".dojo/chain-evidence.json"), "utf8"));
-  expect(evidence["turn-1/events"]).toContain("turn.failed");
+  expect(evidence["turn-1/events"]).toContain(`"outcome":"failed"`);
   expect(JSON.parse(evidence["turn-1/files"])["src/001-max/SENSEI.md"]).toBe("Revision 1");
   expect(fixture.send).toHaveBeenCalledTimes(1);
   expect(judgeMaterial).not.toHaveBeenCalled();

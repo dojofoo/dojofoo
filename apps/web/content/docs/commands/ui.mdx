@@ -86,15 +86,14 @@ The script launches the same CLI and hostname as `npx dojofoo`.
 
 ## The sensei's agent
 
-In the UI the sensei runs on OpenCode by default. To use Codex, Cursor, Grok or FX instead,
-set it for one project in `.dojo/runtimes.json`, or for all of them in
-`~/.dojofoo/runtimes.json`:
+Each workspace has one coding agent, which runs both the sensei and Kyoshi. Choose it in the
+composer's agent menu. The choice is saved in the workspace's `.dojo/runtimes.json`:
 
 ```json
-{ "lesson": "codex" }
+{ "agent": "codex" }
 ```
 
-The `DOJOFOO_LESSON_HARNESS` variable overrides both for one run. Pick the model in the UI.
+Until you choose one, a workspace uses the first agent you picked at setup. Pick the model in the UI.
 
 ## Related
 

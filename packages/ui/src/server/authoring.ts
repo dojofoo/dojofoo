@@ -1,78 +1,21 @@
-import {
-  createAuthoringRoutes,
-  type AuthoringRouteDependencies,
-} from "@dojofoo/authoring/server";
-import { toServerSentEventsResponse } from "@tanstack/ai";
-import type { HarnessKind } from "./harness/adapter";
-import { dojofooHarness } from "./harness/registry";
-import { streamAcpAsAgUi } from "./lesson/agui-stream";
-import { acpClient } from "./lesson/codex-client";
+import { createAuthoringRoutes } from "./authoring/routes";
 import { resolveRequestWorkspace } from "./control/workspace";
-import { mountEveAuthoring } from "./authoring-eve";
-import { mountLocalEveAuthoring } from "./authoring-workspaces";
-import { createRequire } from "node:module";
-import { resolve } from "node:path";
 import { getTypeScriptHover } from "./lesson/typescript-language-service";
-import { senseiEvaluationPolicy } from "./lesson/instructions";
+import { senseiEvaluationPolicy } from "@dojofoo/agents/sensei/instructions";
+import { evaluations } from "./evaluation/evaluations";
 import { requestOrigin } from "./request-origin";
 
-const agent: AuthoringRouteDependencies["agent"] = {
-  currentHarness: dojofooHarness,
-  start: ({ root, runtimeKey, harness, instructions }) => acpClient.startThread({
-    root,
-    runtimeKey,
-    harness: harness as HarnessKind,
-    developerInstructions: instructions,
-    toolProfile: "authoring",
-  }),
-  resume: (sessionId, { root, runtimeKey, harness, instructions }) =>
-    acpClient.resumeThread(sessionId, {
-      root,
-      runtimeKey,
-      harness: harness as HarnessKind,
-      developerInstructions: instructions,
-      toolProfile: "authoring",
-    }),
-  history: (sessionId) => acpClient.history(sessionId),
-  send: (sessionId, message, onPart, options) =>
-    acpClient.send(sessionId, message, onPart, options),
-  answer: (sessionId, answers) => acpClient.answerUserInput(sessionId, answers),
-};
-
 export const authoringRoutes = createAuthoringRoutes({
-  agent,
-  teachingPolicy: senseiEvaluationPolicy,
+  evaluate: evaluations.run,
+  // The policy a report records is Sensei's on Eve (decision 14)
+  teachingPolicy: mode => senseiEvaluationPolicy(mode === "interactive" ? "interactive" : "katas"),
   resolveWorkspace: resolveRequestWorkspace,
-  stream: ({ execute, runId, threadId }) => toServerSentEventsResponse(
-    streamAcpAsAgUi({ execute, runId, threadId })
-  ),
 });
 
-const eveRoot = process.env.DOJO_EVE_ROOT;
 authoringRoutes.post("/language/hover", async (c) => {
   const origin = c.req.header("Origin");
   if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
   const body = await c.req.json().catch(() => null);
   if (typeof body?.code !== "string" || typeof body?.filePath !== "string" || !Number.isInteger(body?.position)) return c.json({ error: "Invalid hover request." }, 400);
   return c.json(getTypeScriptHover({ ...body, projectRoot: resolveRequestWorkspace(c.req.raw) }));
-});
-export const closeAuthoringRuntime = eveRoot || process.env.EVE_BASE_URL ? mountEveAuthoring(authoringRoutes, {
-  host: process.env.EVE_BASE_URL,
-  historyRoot: eveRoot,
-  runtime: eveRoot ? async () => {
-    // Native Node loading keeps the application's runtime and workers outside
-    // Vite's UI module graph, preserving their own package scope.
-    const load = createRequire(resolve(eveRoot, "package.json"));
-    const { createDevelopmentServer } = load("@dojofoo/agent/server") as typeof import("@dojofoo/agent/server");
-    return createDevelopmentServer(eveRoot, { host: "127.0.0.1", port: 0, resume: true });
-  } : undefined,
-  root: () => resolveRequestWorkspace(new Request("http://localhost/")),
-  resolveWorkspace: resolveRequestWorkspace,
-}) : mountLocalEveAuthoring(authoringRoutes, {
-  resolveWorkspace: resolveRequestWorkspace,
-  runtime: root => {
-    const load = createRequire(import.meta.url);
-    const { acquireKyoshiRuntime } = load("@dojofoo/authoring/eve/runtime") as typeof import("@dojofoo/authoring/eve/runtime");
-    return acquireKyoshiRuntime(root);
-  },
 });

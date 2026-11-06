@@ -1,27 +1,23 @@
-import { expect, test } from "@playwright/test";
-import type { MessageStreamEvent } from "@dojofoo/agent/client";
-import { mountAgentChat } from "./agent-chat.fixture";
-import { turn } from "../../agent-api/src/fixtures";
+import { expect, savedMessage, startConversation, test } from "./agent-chat.fixture";
+import type { MountedAgentChat } from "./agent-chat.fixture";
 
 const draft = { root: "/tmp/eve-course", style: "katas", name: "Eve course", description: "Author a course together", language: "TypeScript", manifestSource: "name: Eve course\n", courseGuidance: "# Course", rootFiles: [{ path: "dojo.yaml", label: "dojo.yaml", content: "name: Eve course\n" }], lessons: [], issues: [], courseChecks: [] };
-const data = { sequence: 1, turnId: "turn-1", stepIndex: 0 };
-const meta = { id: "fixture", at: "2026-09-13T00:00:00Z" };
-const wait: MessageStreamEvent = { type: "session.waiting", data: { continuationToken: "saved", wait: "next-user-message" }, meta };
-let agent: Awaited<ReturnType<typeof mountAgentChat>>;
+let agent: MountedAgentChat;
 let historyUnavailable = false;
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, mountAgentChat }) => {
   historyUnavailable = false;
   agent = await mountAgentChat(page, { root: draft.root, files: false, failRead: () => historyUnavailable });
 });
 
-test("restored authoring conversations show their original attachments", async ({ page }) => {
-  agent.eve.histories.set("saved", [{ type: "message.received", data: { ...data, message: "Use this outline and recording.", parts: [
+test("restored authoring conversations show their original attachments", async ({ page, eve, baseURL }) => {
+  // Eve keeps a browser-resolvable URL for each saved attachment
+  const saved = await startConversation(eve, agent.runtime, [
     { type: "text", text: "Use this outline and recording." },
-    { type: "file", mediaType: "image/svg+xml", filename: "outline.svg", url: "/saved-outline.svg" },
-    { type: "file", mediaType: "application/pdf", filename: "brief.pdf", url: "/saved-brief.pdf" },
-    { type: "file", mediaType: "audio/wav", filename: "notes.wav", url: "/saved-notes.wav" },
-    { type: "file", mediaType: "video/webm", filename: "demo.webm", url: "/saved-demo.webm" },
-  ] }, meta }, wait]);
+    { type: "file", mediaType: "image/svg+xml", filename: "outline.svg", data: `${baseURL}/saved-outline.svg` },
+    { type: "file", mediaType: "application/pdf", filename: "brief.pdf", data: `${baseURL}/saved-brief.pdf` },
+    { type: "file", mediaType: "audio/wav", filename: "notes.wav", data: `${baseURL}/saved-notes.wav` },
+    { type: "file", mediaType: "video/webm", filename: "demo.webm", data: `${baseURL}/saved-demo.webm` },
+  ]);
   await page.route("**/saved-outline.svg", route => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"><rect width="160" height="90" fill="teal"/></svg>' }));
   await page.route("**/saved-notes.wav", route => route.fulfill({ contentType: "audio/wav", body: Buffer.from("UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==", "base64") }));
   await page.route("**/saved-demo.webm", route => route.fulfill({ contentType: "video/webm", path: new URL("../../uix/public/fixtures/lesson-video.webm", import.meta.url).pathname }));
@@ -32,11 +28,11 @@ test("restored authoring conversations show their original attachments", async (
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
     return route.fulfill({ status: 404 });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${saved.id}`);
   await expect(page.getByText("Use this outline and recording.", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "outline.svg", exact: true })).toBeVisible({ timeout: 5000 });
   await expect.poll(() => page.getByRole("img", { name: "outline.svg", exact: true }).evaluate((node: HTMLImageElement) => node.naturalWidth)).toBe(160);
-  await expect(page.getByRole("link", { name: "brief.pdf", exact: true })).toHaveAttribute("href", "/saved-brief.pdf");
+  await expect(page.getByRole("link", { name: "brief.pdf", exact: true })).toHaveAttribute("href", `${baseURL}/saved-brief.pdf`);
   await expect(page.locator('audio[aria-label="notes.wav"]')).toHaveAttribute("controls", "");
   await expect(page.locator('video[aria-label="demo.webm"]')).toHaveAttribute("controls", "");
   for (const media of ["audio", "video"]) {
@@ -51,9 +47,10 @@ test("restored authoring conversations show their original attachments", async (
 });
 
 test("Pages navigation filters nested authoring files and preserves selection across renames", async ({ page }) => {
+  // The server marks files a course doesn't teach with `courseFile: false`
   let current = { ...draft, rootFiles: [...draft.rootFiles,
-    { path: "package.json", label: "package.json", content: "{}" },
-    { path: ".agents/skills/course/SKILL.md", label: "SKILL.md", content: "# Real guidance" },
+    { path: "package.json", label: "package.json", content: "{}", courseFile: false },
+    { path: ".agents/skills/course/SKILL.md", label: "SKILL.md", content: "# Real guidance", courseFile: false },
   ], lessons: [{ id: "first", title: "First lesson", senseiPath: "src/first/SENSEI.md", description: "", checks: [],
     files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# Teach" }] }] };
   const renames: unknown[] = [];
@@ -71,86 +68,45 @@ test("Pages navigation filters nested authoring files and preserves selection ac
     }
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await expect(page.getByRole("tab", { name: "dojo.yaml", exact: true })).toBeVisible();
-  const navigation = page.getByRole("navigation", { name: "Main menu" });
-  await expect(navigation.getByRole("tree")).toHaveCount(0);
-  await expect(navigation.locator("button button")).toHaveCount(0);
-  await expect(navigation.getByRole("button", { name: "package.json", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Course actions", exact: true }).click();
-  const boxStyle = (node: Element) => {
-    const style = getComputedStyle(node);
-    return { background: style.backgroundColor, radius: style.borderRadius, shadow: style.boxShadow };
-  };
-  const menuStyle = await page.getByRole("dialog").evaluate(boxStyle);
-  await page.getByRole("menuitemradio", { name: "Show all files", exact: true }).click();
-  for (const name of [".agents", "skills", "course"]) await navigation.getByRole("button", { name, exact: true }).click();
-  await navigation.getByRole("button", { name: "SKILL.md", exact: true }).click();
+  const tree = page.getByRole("navigation", { name: "Main menu" }).getByRole("tree", { name: "Course files and chapters", exact: true });
+  await expect(page.getByRole("navigation", { name: "Main menu" }).locator("button button")).toHaveCount(0);
+  await expect(tree.getByRole("treeitem", { name: "package.json", exact: true })).toHaveCount(0);
+  const courseActions = page.getByRole("button", { name: "Course actions", exact: true });
+  await courseActions.click();
+  await page.getByRole("dialog").getByRole("button", { name: "Show all files", exact: true }).click();
+  await expect(tree.getByRole("treeitem", { name: "package.json", exact: true })).toBeVisible();
+  for (const name of [".agents", "skills", "course"]) await tree.getByRole("treeitem", { name, exact: true }).getByText(name, { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "SKILL.md", exact: true }).click();
   const tab = page.getByRole("tab", { name: "SKILL.md", exact: true });
   await expect(tab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Real guidance");
-  const rename = async (from: string, to: string) => {
-    await navigation.getByRole("button", { name: from, exact: true }).hover();
-    await navigation.getByRole("button", { name: `Rename ${from}`, exact: true }).click();
-    const popup = page.getByRole("dialog");
-    expect(await popup.evaluate(boxStyle)).toEqual(menuStyle);
-    await popup.getByRole("textbox", { name: "Title", exact: true }).fill(to);
-    await page.screenshot({ path: test.info().outputPath(`rename-${from.replace(/\W+/gu, "-")}.png`), animations: "disabled" });
-    await popup.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(navigation.getByRole("button", { name: to, exact: true })).toBeVisible();
-  };
-  await rename("Eve course", "Renamed draft");
-  await rename("First lesson", "Revised lesson");
+  await courseActions.click();
+  const popup = page.getByRole("dialog");
+  await popup.getByRole("textbox", { name: "Title", exact: true }).fill("Renamed draft");
+  await page.screenshot({ path: test.info().outputPath("rename-course.png"), animations: "disabled" });
+  await popup.getByRole("button", { name: "Rename", exact: true }).click();
+  await expect(page.getByRole("navigation", { name: "Breadcrumb", exact: true })).toContainText("Renamed draft");
+  const lesson = tree.getByRole("treeitem", { name: "First lesson", exact: true });
+  await lesson.getByText("First lesson", { exact: true }).hover();
+  await lesson.getByRole("button", { name: "First lesson actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+  const title = tree.getByRole("textbox", { name: "Rename First lesson", exact: true });
+  await title.fill("Revised lesson");
+  await page.screenshot({ path: test.info().outputPath("rename-lesson.png"), animations: "disabled" });
+  await title.press("Enter");
+  await expect(tree.getByRole("treeitem", { name: "Revised lesson", exact: true })).toBeVisible();
   await expect(tab).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("button", { name: "Course actions", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: "Show only course files", exact: true }).click();
-  await expect(navigation.getByRole("button", { name: "SKILL.md", exact: true })).toHaveCount(0);
+  await courseActions.click();
+  await page.getByRole("dialog").getByRole("button", { name: "Show only course files", exact: true }).click();
+  await expect(tree.getByRole("treeitem", { name: "SKILL.md", exact: true })).toHaveCount(0);
   await expect(tab).toHaveAttribute("aria-selected", "true");
   expect(renames).toEqual([
     { path: "/api/authoring/course", title: "Renamed draft" },
     { path: "/api/authoring/lessons/first", title: "Revised lesson" },
   ]);
   await page.screenshot({ path: test.info().outputPath("authoring-pages-navigation.png"), animations: "disabled" });
-});
-
-test("the Pages brief shows scoped readiness findings without an empty box", async ({ page }) => {
-  const workspace = { ...draft, courseChecks: [
-    { id: "intent", label: "Course intent and teaching rules", ready: true },
-  ], lessons: [{ id: "first", title: "First lesson", senseiPath: "src/first/SENSEI.md", description: "A focused learner outcome", checks: [
-    { id: "sensei", label: "Lesson briefing and Sensei guidance", ready: true },
-    { id: "scaffold", label: "Learner scaffold and checks", ready: false, findings: ["Add a revealing edge case."] },
-  ], files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# Teach" }] },
-  { id: "empty", title: "Unchecked lesson", senseiPath: "src/empty/SENSEI.md", description: "No preflight result yet", checks: [],
-    files: [{ path: "src/empty/SENSEI.md", label: "SENSEI.md", content: "# Draft" }] }] };
-  await page.routeWebSocket("**/api/authoring/changes*", () => {});
-  await page.route("**/api/authoring/**", route => {
-    const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
-    if (path.endsWith("/draft")) return route.fulfill({ json: workspace });
-    if (path.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report: null } });
-    return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
-  });
-  await page.goto("/authoring?session=saved");
-  const readiness = page.getByRole("region", { name: "Readiness", exact: true });
-  await expect(readiness).toContainText("Course intent and teaching rules");
-  const nav = page.getByRole("navigation", { name: "Main menu" });
-  const firstLesson = nav.getByRole("button", { name: "First lesson", exact: true });
-  await expect(firstLesson).toHaveAttribute("aria-expanded", "true");
-  await nav.locator('[id$="authoring:lesson:first-list"]').getByRole("button", { name: "SENSEI.md", exact: true }).click();
-  await expect(readiness).toContainText("Add a revealing edge case.");
-  await expect(readiness).not.toContainText("Course intent and teaching rules");
-  await expect(readiness.getByRole("img", { name: "Ready", exact: true })).toHaveCount(1);
-  await expect(readiness.getByRole("img", { name: "Needs attention", exact: true })).toHaveCount(1);
-  expect(await readiness.evaluate(node => {
-    const style = getComputedStyle(node);
-    return { border: style.borderTopWidth, background: style.backgroundColor, overflows: node.scrollWidth > node.clientWidth };
-  })).toEqual({ border: "0px", background: "rgba(0, 0, 0, 0)", overflows: false });
-  await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Teach");
-  await page.screenshot({ path: test.info().outputPath("authoring-readiness.png"), animations: "disabled" });
-  await nav.getByRole("button", { name: "Unchecked lesson", exact: true }).click();
-  await nav.locator('[id$="authoring:lesson:empty-list"]').getByRole("button", { name: "SENSEI.md", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Unchecked lesson", exact: true })).toBeVisible();
-  await expect(readiness).toHaveCount(0);
 });
 
 test("the Pages evaluation view keeps real findings and the unsaved editor model", async ({ page }) => {
@@ -172,8 +128,8 @@ test("the Pages evaluation view keeps real findings and the unsaved editor model
     if (path.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report } });
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto("/authoring?session=saved");
-  await page.getByRole("navigation", { name: "Main menu" }).getByRole("button", { name: "SENSEI.md", exact: true }).click();
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
+  await page.getByRole("navigation", { name: "Main menu" }).getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Code editor" });
   await expect(page.locator(".monaco-editor .view-lines")).toContainText("# Teach");
   await editor.focus();
@@ -228,7 +184,7 @@ test("reloading conversation history preserves editor text and undo", async ({ p
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await expect(page.getByRole("button", { name: "Reload conversation" })).toBeVisible();
   const editor = page.getByRole("textbox", { name: "Code editor" });
   await editor.focus();
@@ -246,7 +202,6 @@ test("reloading conversation history preserves editor text and undo", async ({ p
 
 test("course files can be retried without replacing the conversation", async ({ page }) => {
   let repaired = false;
-  agent.eve.histories.set("saved", turn("prior", "Keep my existing course conversation", ["Your saved guidance."]));
   let changed: () => void = () => {};
   await page.routeWebSocket("**/api/authoring/changes*", socket => {
     changed = () => socket.send(JSON.stringify({ method: "workspace.changed" }));
@@ -258,22 +213,23 @@ test("course files can be retried without replacing the conversation", async ({ 
       : route.fulfill({ status: 503, json: { error: "Course files unavailable" } });
     return route.fulfill({ status: 404, json: { error: "Unexpected route" } });
   });
-  await page.goto("/authoring?workspace=ws-1&session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await expect(page.getByRole("alert").filter({ hasText: "Course files unavailable" })).toBeVisible();
   // Saved guidance and draft input remain available while startup is repaired.
   const refreshed = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/draft"));
   changed();
   await refreshed;
-  await expect(page.getByText("Keep my existing course conversation", { exact: true })).toBeVisible();
+  await expect(page.getByText(savedMessage, { exact: true })).toBeVisible();
   const question = page.getByTestId("authoring-chat-composer").getByRole("textbox");
   await question.fill("Keep this unsent note");
   repaired = true;
   await expect(page.getByRole("button", { name: "Reload workspace", exact: true })).toBeVisible({ timeout: 2000 });
   await page.getByRole("button", { name: "Reload workspace", exact: true }).click();
   await expect(question).toHaveValue("Keep this unsent note");
-  await expect(page.getByText("Keep my existing course conversation", { exact: true })).toBeVisible();
-  await expect(page).toHaveURL(/session=saved/);
-  expect([...agent.eve.histories.keys()]).toEqual(["saved"]);
+  await expect(page.getByText(savedMessage, { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`session=${agent.sessionId}`));
+  expect(agent.calls.filter(call => call.startsWith("POST ") && call.endsWith("/sessions"))).toEqual([]);
+  expect(agent.runtime.records.map(record => record.id)).toEqual([agent.sessionId]);
 });
 
 test("a failed save stays with its file and preserves the unsaved content", async ({ page }) => {
@@ -286,7 +242,7 @@ test("a failed save stays with its file and preserves the unsaved content", asyn
     if (path.includes("/files/")) return route.fulfill({ status: 422, json: { error: "Fixture save rejected" } });
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await page.getByRole("textbox", { name: "Code editor" }).focus();
   await page.keyboard.press("Meta+End");
   await page.keyboard.type("# unsaved");
@@ -316,7 +272,6 @@ test("report loading errors stay with their lesson and clear after watcher recov
     const url = new URL(route.request().url());
     if (url.pathname.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { ...draft, lessons } });
-    if (url.pathname.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
     if (url.pathname.endsWith("/evaluation-settings")) return route.fulfill({ json: { enabled: true } });
     if (url.pathname.endsWith("/evals")) return route.fulfill({ status: 503, json: { error: "Judge unavailable" } });
     if (url.pathname.endsWith("/report")) {
@@ -329,12 +284,11 @@ test("report loading errors stay with their lesson and clear after watcher recov
     }
     return route.fulfill({ status: 404, json: { error: "Unexpected request" } });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   const selectLesson = async (name: string) => {
-    const button = page.getByRole("button", { name, exact: true });
-    if (await button.getAttribute("aria-expanded") !== "true") await button.click();
-    const item = page.locator(".ui-as-side__branch").filter({ has: button });
-    await item.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+    const item = page.getByRole("treeitem", { name, exact: true });
+    if (await item.getAttribute("aria-expanded") !== "true") await item.getByText(name, { exact: true }).click();
+    await item.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   };
   await selectLesson("first");
   const alert = page.getByRole("alert").filter({ hasText: "Could not load this lesson" });
@@ -372,7 +326,6 @@ test("a late evaluation cannot replace another lesson's report", async ({ page }
     const url = new URL(route.request().url());
     if (url.pathname.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (url.pathname.endsWith("/draft")) return route.fulfill({ json: { ...draft, lessons } });
-    if (url.pathname.endsWith("/sessions/saved")) return route.fulfill({ json: { session: { sessionId: "saved" }, messages: [] } });
     if (url.pathname.endsWith("/evaluation-settings")) return route.fulfill({ json: { enabled: true } });
     if (url.pathname.endsWith("/report")) return route.fulfill({ json: { root: draft.root, report: report(url.searchParams.get("lessonId")!) } });
     if (url.pathname.endsWith("/evals")) {
@@ -382,12 +335,11 @@ test("a late evaluation cannot replace another lesson's report", async ({ page }
     }
     return route.fulfill({ status: 404 });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   const selectLesson = async (name: string) => {
-    const button = page.getByRole("button", { name, exact: true });
-    if (await button.getAttribute("aria-expanded") !== "true") await button.click();
-    const item = page.locator(".ui-as-side__branch").filter({ has: button });
-    await item.getByRole("button", { name: "SENSEI.md", exact: true }).click();
+    const item = page.getByRole("treeitem", { name, exact: true });
+    if (await item.getAttribute("aria-expanded") !== "true") await item.getByText(name, { exact: true }).click();
+    await item.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   };
   await selectLesson("first");
   await page.getByRole("button", { name: "Evaluate lesson", exact: true }).click();
@@ -424,28 +376,22 @@ test("a course without lessons has no empty report button", async ({ page }) => 
     } } });
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await expect(page.getByRole("region", { name: "Course conversation", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Report|Evaluation results/ })).toHaveCount(0);
   expect(posts).toEqual([]);
 });
 
-test("evaluation settings save model choices, not secrets or worker paths, without starting an evaluation", async ({ page }) => {
+test("evaluation settings save only consent, without starting an evaluation", async ({ page, mountAgentChat }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const writes: unknown[] = [];
   const evaluations: string[] = [];
-  const catalogs: Array<{ workspace: string | null; harness: string | null }> = [];
+  const catalogs: string[] = [];
   await page.route("**/api/authoring/**", async route => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
-    if (path.endsWith("/models")) {
-      const params = new URL(route.request().url()).searchParams;
-      catalogs.push({ workspace: params.get("workspace"), harness: params.get("harness") });
-      return route.fulfill({ json: params.get("harness") === "pi"
-        ? [{ id: "deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro", efforts: [] }]
-        : [{ id: "zai/glm-5.3", name: "GLM 5.3", efforts: [] }] });
-    }
+    if (path.endsWith("/models")) catalogs.push(path);
     if (path.endsWith("/evaluation-settings")) {
       if (route.request().method() === "PUT") {
         const value = route.request().postDataJSON();
@@ -457,12 +403,12 @@ test("evaluation settings save model choices, not secrets or worker paths, witho
     if (path.endsWith("/evals")) evaluations.push(path);
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await mountAgentChat(page, { root: draft.root, workspaceId: "isolated-course", files: false });
-  await page.goto("/authoring?session=saved&workspace=isolated-course");
+  const isolated = await mountAgentChat(page, { root: draft.root, workspaceId: "isolated-course", files: false });
+  await page.goto(`/authoring/isolated-course?session=${isolated.sessionId}`);
   const composer = page.getByTestId("authoring-chat-composer");
   await expect(composer.getByRole("button", { name: "Add file", exact: true })).toBeEnabled();
   await expect(composer.getByRole("button", { name: "Agent", exact: true })).toContainText("Codex");
-  await page.getByRole("button", { name: "You", exact: true }).click();
+  await page.getByRole("button", { name: "Anonymous", exact: true }).click();
   const boxStyle = (node: Element) => {
     const style = getComputedStyle(node);
     return { background: style.backgroundColor, radius: style.borderRadius, shadow: style.boxShadow };
@@ -472,44 +418,24 @@ test("evaluation settings save model choices, not secrets or worker paths, witho
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Teaching evaluations", exact: true });
   expect(await dialog.evaluate(boxStyle)).toEqual(accountMenuStyle);
-  const teacherAgent = dialog.getByRole("button", { name: "teacher agent: OpenCode", exact: true });
-  await expect(teacherAgent).toBeVisible({ timeout: 5000 });
-  await teacherAgent.click();
-  expect(await page.locator(".ui-as-popover").evaluate(boxStyle)).toEqual(accountMenuStyle);
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeVisible();
-  await expect(teacherAgent).toBeFocused();
-  await teacherAgent.click();
-  await page.getByRole("menuitemradio", { name: "Codex", exact: true }).click();
-  await dialog.getByRole("button", { name: "teacher agent: Codex", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: "OpenCode", exact: true }).click();
-  await dialog.getByRole("button", { name: "Choose teacher model", exact: true }).click();
-  expect(await page.locator(".ui-as-popover").evaluate(boxStyle)).toEqual(accountMenuStyle);
-  await page.screenshot({ path: test.info().outputPath("authoring-settings-model-menu.png"), animations: "disabled" });
-  await page.getByRole("menuitemradio", { name: /^GLM 5\.3/ }).click();
-  await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toHaveValue("zai/glm-5.3");
-  await dialog.getByRole("button", { name: "Choose learner model", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: /^DeepSeek V4 Pro/ }).click();
-  await dialog.getByRole("textbox", { name: "learner model", exact: true }).fill("custom/provider-model");
-  await expect(dialog.getByRole("textbox", { name: "learner model", exact: true })).toHaveValue("custom/provider-model");
-  await dialog.getByRole("textbox", { name: "learner model", exact: true }).fill("deepseek/deepseek-v4-pro");
-  await dialog.getByRole("switch", { name: "Allow teaching evaluations", exact: true }).click();
-  const teacher = await dialog.getByRole("textbox", { name: "teacher model", exact: true }).boundingBox();
-  const learner = await dialog.getByRole("textbox", { name: "learner model", exact: true }).boundingBox();
-  expect(Math.abs(teacher!.x - learner!.x)).toBeLessThan(1);
+  // Every role runs on the draft's coding agent: the dialog names it and offers no agent or model fields
+  await expect(dialog).toContainText("Allow Kyoshi to run teaching evaluations on Codex.");
+  await expect(dialog.getByRole("textbox")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: /agent|model/u })).toHaveCount(0);
+  const consent = dialog.getByRole("switch", { name: "Allow teaching evaluations", exact: true });
+  await expect(consent).toBeEnabled();
+  await consent.click();
+  await expect(consent).toBeFocused();
+  await expect(consent).toBeChecked();
   await page.screenshot({ path: test.info().outputPath("authoring-settings.png"), animations: "disabled" });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await expect(dialog.getByRole("textbox", { name: "learner model", exact: true })).toHaveValue("deepseek/deepseek-v4-pro");
   await page.screenshot({ path: test.info().outputPath("authoring-settings-phone.png"), animations: "disabled" });
   await dialog.getByRole("button", { name: "Save evaluation settings" }).click();
   await expect(dialog).toHaveCount(0);
-  expect(writes).toEqual([{ enabled: true, teacher: { harness: "opencode", model: "zai/glm-5.3" }, learner: { harness: "pi", model: "deepseek/deepseek-v4-pro" } }]);
+  expect(writes).toEqual([{ enabled: true }]);
   expect(evaluations).toEqual([]);
-  expect(catalogs).toEqual(expect.arrayContaining([
-    { workspace: "isolated-course", harness: "opencode" },
-    { workspace: "isolated-course", harness: "pi" },
-  ]));
+  expect(catalogs).toEqual([]);
 });
 
 test("evaluation settings cannot overwrite saved choices after a failed reload", async ({ page }) => {
@@ -520,25 +446,25 @@ test("evaluation settings cannot overwrite saved choices after a failed reload",
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/backend")) return route.fulfill({ json: { backend: "eve" } });
     if (path.endsWith("/draft")) return route.fulfill({ json: draft });
-    if (path.endsWith("/models")) return route.fulfill({ status: 502, contentType: "text/plain", body: "Model catalog unavailable" });
     if (path.endsWith("/evaluation-settings")) {
       if (route.request().method() === "PUT") writes.push(route.request().postDataJSON());
       return broken ? route.fulfill({ status: 503, contentType: "text/plain", body: "Settings storage unavailable" })
-        : route.fulfill({ json: { enabled: true, teacher: { harness: "codex", model: "teacher" }, learner: { harness: "pi", model: "learner" } } });
+        : route.fulfill({ json: { enabled: true } });
     }
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto("/authoring?session=saved");
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toHaveValue("teacher");
-  await expect(dialog.getByText("Model catalog unavailable", { exact: true })).toHaveCount(2);
+  const consent = dialog.getByRole("switch", { name: "Allow teaching evaluations", exact: true });
+  await expect(consent).toBeChecked();
+  await expect(consent).toBeEnabled();
   await page.keyboard.press("Escape");
   broken = true;
   await page.getByRole("button", { name: "Evaluation settings", exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText("Settings storage unavailable");
   await expect(dialog.getByRole("button", { name: "Save evaluation settings" })).toBeDisabled();
-  await expect(dialog.getByRole("textbox", { name: "teacher model", exact: true })).toBeDisabled();
+  await expect(consent).toBeDisabled();
   expect(writes).toEqual([]);
 });
 
@@ -551,7 +477,7 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
     sessionStarts.push(route.request().postDataJSON());
     return route.fulfill({ json: {} });
   });
-  await context.route(/\/course\/trial-workspace\/trial-course\/lesson\/first(?:\?|$)/, route => route.fulfill({ contentType: "text/html", body: "<h1>Prepared lesson</h1>" }));
+  await context.route(/\/learn\/trial-run\?lesson=first$/, route => route.fulfill({ contentType: "text/html", body: "<h1>Prepared lesson</h1>" }));
   const lesson = { id: "first", title: "first", senseiPath: "src/first/SENSEI.md", description: "", checks: [], files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# First" }] };
   await page.routeWebSocket("**/api/authoring/changes*", () => {});
   await page.route("**/api/authoring/**", async route => {
@@ -563,21 +489,14 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
       await release.promise;
       return outcome === "failure"
         ? route.fulfill({ status: 503, json: { error: "Trial harness unavailable" } })
-        : route.fulfill({ json: { workspaceId: "trial-workspace", courseId: "trial-course", lessonId: "first" } });
+        : route.fulfill({ json: { workspaceId: "trial-workspace", courseId: "trial-course", lessonId: "first", runId: "trial-run" } });
     }
     return route.fulfill({ contentType: "text/event-stream", body: "" });
   });
-  await page.goto("/authoring?session=saved");
-  const lessonButton = page.getByRole("button", { name: "first", exact: true });
-  if (await lessonButton.getAttribute("aria-expanded") !== "true") await lessonButton.click();
-  const lessonItem = page.locator(".ui-as-side__branch").filter({ has: lessonButton });
-  await lessonItem.getByRole("button", { name: "SENSEI.md", exact: true }).click();
-  if (outcome === "success") {
-    const picker = page.getByRole("button", { name: "Trial agent: Configured trial agent", exact: true });
-    await expect(picker).toBeVisible({ timeout: 5000 });
-    await picker.click();
-    await page.getByRole("menuitemradio", { name: "Codex", exact: true }).click();
-  }
+  await page.goto(`/authoring/ws-1?session=${agent.sessionId}`);
+  const lessonItem = page.getByRole("treeitem", { name: "first", exact: true });
+  if (await lessonItem.getAttribute("aria-expanded") !== "true") await lessonItem.getByText("first", { exact: true }).click();
+  await lessonItem.getByRole("treeitem", { name: "SENSEI.md", exact: true }).click();
   const popup = page.waitForEvent("popup", { timeout: 5000 });
   await page.getByRole("button", { name: "Trial", exact: true }).click();
   const tab = await popup;
@@ -585,9 +504,9 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
   release.resolve();
   if (outcome === "success") {
     await expect(tab.getByRole("heading", { name: "Prepared lesson" })).toBeVisible();
-    await expect(tab).toHaveURL(/\/first\?harness=codex$/);
+    await expect(tab).toHaveURL(/\/learn\/trial-run\?lesson=first$/);
     expect(sessionStarts).toEqual([]);
-    await expect(page).toHaveURL(/authoring\?session=saved/);
+    await expect(page).toHaveURL(new RegExp(`authoring/ws-1\\?session=${agent.sessionId}`));
     await tab.close();
     return;
   }

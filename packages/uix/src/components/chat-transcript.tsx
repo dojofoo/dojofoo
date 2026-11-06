@@ -3,7 +3,7 @@ import type { UIMessage } from "@tanstack/ai-client";
 
 /** Keep a response slot alive from waiting through completion in every chat surface. */
 export function ChatTranscript({ messages, streaming, renderMessage }: {
-  messages: UIMessage[];
+  messages: readonly UIMessage[];
   streaming: boolean;
   renderMessage(message: UIMessage, streaming: boolean): ReactNode;
 }) {

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 
 export type UiTransition = "ui-navigation" | "ui-theme" | "ui-pane" | "ui-card";
@@ -54,6 +55,25 @@ export function runViewTransition(update: () => void, type: UiTransition = "ui-n
   void transition.ready.catch(() => {});
   void transition.finished.then(() => { if (active === transition) active = undefined; }, () => { if (active === transition) active = undefined; });
   return transition;
+}
+
+/** Resolves once the view transition running now has finished, at once when none is. A heavy mount (the code editor, a
+ *  conversation's replay) waits for it, so the animation is not starved of frames. */
+export function afterViewTransition(): Promise<void> {
+  const transition = typeof document === "undefined" ? undefined : document.activeViewTransition;
+  return transition ? transition.finished.then(() => {}, () => {}) : Promise.resolve();
+}
+
+/** False while the view transition that showed this component is still animating. */
+export function useViewTransitionSettled(): boolean {
+  const [settled, setSettled] = useState(() => typeof document === "undefined" || !document.activeViewTransition);
+  useEffect(() => {
+    if (settled) return;
+    let live = true;
+    void afterViewTransition().then(() => { if (live) setSettled(true); });
+    return () => { live = false; };
+  }, [settled]);
+  return settled;
 }
 
 export const cardViewTransition = (update: () => void) => runViewTransition(update, "ui-card");

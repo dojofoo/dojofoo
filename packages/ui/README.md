@@ -19,8 +19,8 @@ background requests create or refresh agent conversations; persist those in the
 local store. `replace` is reserved for deliberate redirects.
 
 Local `/course/<course-id>` shows Details for an uninstalled course and redirects
-to its durable `/session/<run-id>` once installed. The session resumes the saved
-lesson and slide; Courses cards expose that position and measured progress.
+to its durable `/learn/<run-id>` once installed (`/learn/<run-id>?lesson=<lesson-id>` for a kata
+lesson). The run resumes the saved lesson and slide; Courses cards expose that position and measured progress.
 Explore features only uninstalled courses; installed results offer Continue.
 Native conversation IDs remain server state.
 The website's `/courses/<source>/<slug>` is its public course page. The dashboard sidebar contains global navigation. The course sidebar contains
@@ -28,7 +28,7 @@ course sections only, matching UIX `CourseWorkspace` in `pages/learner.tsx`; its
 Dashboard breadcrumb returns to the library. Lesson/material controls change
 state within the current run.
 
-The session route loads its course and initial lesson through TanStack before
+The learn route loads its course and initial lesson through TanStack before
 committing navigation, so the transition captures the populated course sidebar
 and workspace. Native agent startup remains separate and asynchronous.
 
@@ -56,36 +56,13 @@ API, and watcher refreshes keep the card current while preserving unsaved edits.
 
 ## Agent boundary
 
-Dojofoo is an ACP client. It launches
-[`@agentclientprotocol/codex-acp`](https://github.com/agentclientprotocol/codex-acp)
-and communicates through [`@agentclientprotocol/sdk`](https://github.com/agentclientprotocol/typescript-sdk).
-`codex-acp` owns the translation to Codex App Server; Dojofoo does not implement
-that private protocol.
-
-The stable ACP session is the conversation source of truth. The browser-facing
-AI SDK `UIMessage` stream is only a rendering projection:
-
-```text
-React / AI Elements
-        │ AI SDK UI message stream
-        ▼
-Dojofoo local server (ACP client)
-        │ ACP v1, capability-negotiated
-        ▼
-codex-acp
-        │ Codex App Server protocol
-        ▼
-Codex
-```
-
-The client currently supports standard ACP message and thought chunks, tool
-calls and results, permissions, session loading, and structured elicitation.
-Lesson check evidence is attached to a normal `session/prompt` as an ACP
-embedded JSON resource. The optional `dojo://` URI identifies the resource;
-no custom JSON-RPC method or private message envelope is required.
-
-ACP v2 support will be negotiated when `codex-acp` supports it. Do not infer a
-protocol version from the npm package version.
+Sensei and Kyoshi run on Eve: each workspace's persona host is a prepared Eve
+application whose model is the AI SDK harness model over the workspace's coding
+agent, through that agent's official AI SDK harness adapter. The UI server owns
+the session API under `/api/v1` (session records, the default conversation of a
+page, and a session's Eve routes) and the host port the persona hosts call back
+into. Eve owns each conversation and its history; the browser reads them through
+Eve's client on the session's routes.
 
 ## Running
 
@@ -106,7 +83,7 @@ pnpm --filter @dojofoo/ui exec vitest run
 
 ## License
 
-FSL-1.1-ALv2. The ACP SDK and `codex-acp` are Apache-2.0 dependencies.
+FSL-1.1-ALv2.
 
 Authoring keeps one course with a renameable Default chapter. The Chapters tree owns each chapter’s lesson list and New lesson action; New chapter appends to this course. Flat manifests become chapter manifests when split, retaining existing lesson IDs and paths. Learner sidebars show chapter headings only for courses with multiple chapters. File tabs switch without view transitions; the course row’s ellipsis menu contains the file filter.
 

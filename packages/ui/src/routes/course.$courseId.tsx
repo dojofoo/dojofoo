@@ -30,14 +30,14 @@ function CoursePage() {
       const body = await response.json();
       if (response.status === 404 && starter) return;
       if (!response.ok) throw new Error(body.error ?? "Could not load the course.");
-      if (!controller.signal.aborted) await navigate({ to: "/session/$sessionId", params: { sessionId: body.runId }, replace: true });
+      if (!controller.signal.aborted) await navigate({ to: "/learn/$runId", params: { runId: body.runId }, replace: true });
     }).catch(cause => { if (!controller.signal.aborted) setError(cause.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [courseId, navigate]);
   const title = course?.title ?? starter?.title ?? courseId;
   const lessons = course?.lessons ?? starter?.lessonTitles ?? [];
-  const open = (runId: string) => navigate({ to: "/session/$sessionId", params: { sessionId: runId } });
+  const open = (runId: string) => navigate({ to: "/learn/$runId", params: { runId } });
   async function install() {
     setBusy(true); setError(undefined);
     try {

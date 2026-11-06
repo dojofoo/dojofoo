@@ -15,6 +15,8 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+    // Eve's React binding (in @dojofoo/harness) uses the app's React
+    dedupe: ["react", "react-dom"],
   },
   optimizeDeps: {
     // Router's store imports a CommonJS shim. Include the nested entry even

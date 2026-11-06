@@ -40,7 +40,7 @@ test("workspace notifications refresh files without changing the session or over
     }
     return route.fulfill({ status: 404, json: { error: "Fixture conversation unavailable" } });
   });
-  await page.goto("/authoring?session=watch-session");
+  await page.goto("/authoring/ws-1?session=watch-session");
   await expect(page.getByRole("tab", { name: /dojo.yaml/ })).toBeVisible();
   await expect.poll(() => Boolean(socket)).toBe(true);
   const before = reads;

@@ -14,18 +14,13 @@ import { Hono } from "hono";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
-import {
-  adoptLocalSession,
-  SessionAdoptionError,
-  type SessionAdoptionResult,
-} from "./session-adoption";
-import { closeDraftRuntime, createDraft, isManagedDraft } from "./drafts";
+import { closeDraftRuntime, createDraft, isManagedDraft, newestKyoshiSession, workspaceKind } from "./drafts";
 import { requestOrigin } from "../request-origin";
+import { launchToken } from "../launch-token";
 import { resolveWorkspaceId } from "./workspace";
 import { installStarter, starterCourseIds, uninstallCourse } from "./starters";
-import { courseTitle, findInstalledCourse } from "@dojofoo/config/course-installations";
+import { courseInstallations, courseTitle, findInstalledCourse, type CourseInstallation } from "@dojofoo/config/course-installations";
 
-import { acpClient } from "../lesson/codex-client";
 import { getInteractiveLesson } from "../interactive/service";
 
 export type CoursePosition = { lessonId: string; lessonTitle: string; lessonIndex: number; totalLessons: number; completedLessons: number; complete: boolean; slide?: number; totalSlides?: number };
@@ -41,8 +36,8 @@ function courseLessonTitles(root: string, id: string): string[] {
   return manifest.katas.map(kata => (kata.name ?? kata.template).replace(/[-_]/g, " "));
 }
 
-function installedCourseDescriptor(courseId: string, options: LocalStateOptions) {
-  const course = findInstalledCourse(courseId, options);
+/** The course as one installation holds it: the only one (`findInstalledCourse`), or a run's own */
+function installedCourseDescriptor(course: CourseInstallation, options: LocalStateOptions) {
   const rc = readDojoRc(course.root);
   const metadata = courseMetadata(course.root, course.id, rc.currentDojo === course.id ? rc.currentKata : null, rc.progress?.[course.id]);
   return { id: course.id, title: course.title, workspaceId: course.workspaceId, runId: observeCourseRun(course.root, course.id, options).runId,
@@ -53,7 +48,6 @@ function installedCourseDescriptor(courseId: string, options: LocalStateOptions)
 
 type ControlRouteOptions = LocalStateOptions & {
   activeWindowMs?: number;
-  adoptSession?: (sessionId: string, options: LocalStateOptions) => Promise<SessionAdoptionResult>;
   installStarter?: typeof installStarter;
   uninstallCourse?: typeof uninstallCourse;
 };
@@ -65,7 +59,6 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
     stateHome: options.stateHome,
     now: now(),
   });
-  const adopt = options.adoptSession ?? adoptLocalSession;
 
   return new Hono()
     .get("/starters", c => c.json(listWorkspaces(stateOptions()).flatMap(workspace =>
@@ -126,6 +119,8 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       const { workspaces, runs } = readLocalSnapshot(stateOptions());
       const courses = workspaces
         .flatMap((workspace) => {
+          // An evaluation trial's throwaway install is not the learner's course
+          if (workspace.kind === "evaluation-trial") return [];
           try {
             const rc = readDojoRc(workspace.path);
             return listDojos(workspace.path).flatMap(dojo => {
@@ -179,7 +174,6 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       let course;
       try { course = findInstalledCourse(c.req.param("courseId"), stateOptions()); }
       catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
-      acpClient.stopCourse(course.root, course.id);
       await (options.uninstallCourse ?? uninstallCourse)(course.root, course.id);
       const rc = readDojoRc(course.root);
       if (rc.progress) delete rc.progress[course.id];
@@ -201,8 +195,8 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
       if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
       const workspace = listWorkspaces(stateOptions()).find(item => item.id === c.req.param("workspaceId"));
       if (!workspace) return c.json({ error: "This authoring course does not exist." }, 404);
+      if (workspaceKind(workspace, stateOptions()) !== "draft") return c.json({ error: "This workspace is not an authoring course." }, 422);
       const managed = isManagedDraft(workspace.path, stateOptions());
-      if (!managed && !existsSync(resolve(workspace.path, ".dojo", "kyoshi.json"))) return c.json({ error: "This workspace is not an authoring course." }, 422);
       await closeDraftRuntime(workspace.path);
       if (managed) rmSync(workspace.path, { recursive: true });
       forgetLocalCourse(workspace.id, null, stateOptions());
@@ -210,19 +204,30 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
     })
     .get("/courses/:courseId", c => {
       try {
-        return c.json(installedCourseDescriptor(c.req.param("courseId"), stateOptions()));
+        return c.json(installedCourseDescriptor(findInstalledCourse(c.req.param("courseId"), stateOptions()), stateOptions()));
       } catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
     })
     .get("/learning-sessions/:sessionId", c => {
       const run = listDojoRuns(stateOptions()).find(item => item.id === c.req.param("sessionId"));
       if (!run) return c.json({ error: "This learning session does not exist." }, 404);
       try {
-        const course = findInstalledCourse(run.dojo, stateOptions());
-        if (course.workspaceId !== run.workspaceId) throw new Error("This course installation has been removed.");
-        return c.json(installedCourseDescriptor(run.dojo, stateOptions()));
+        // The run's own installation: a trial installs its draft's course under the same id in another workspace (decision 5)
+        const course = courseInstallations(run.dojo, stateOptions()).find(item => item.workspaceId === run.workspaceId);
+        if (!course) throw new Error("This course installation has been removed.");
+        return c.json(installedCourseDescriptor(course, stateOptions()));
       } catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 404); }
     })
     .get("/workspaces", (c) => c.json(listWorkspaces(stateOptions())))
+    // The page's token for state-changing agent routes; only the UI's own pages can read it
+    .get("/launch-token", (c) => {
+      const origin = c.req.header("Origin");
+      const site = c.req.header("Sec-Fetch-Site");
+      if ((origin && origin !== requestOrigin(c.req.raw)) || (site && site !== "same-origin" && site !== "none")) {
+        return c.json({ error: "Same-origin requests only." }, 403);
+      }
+      c.header("Cache-Control", "no-store");
+      return c.json({ token: launchToken() });
+    })
     .post("/authoring", async (c) => {
       const origin = c.req.header("Origin");
       if (origin && origin !== requestOrigin(c.req.raw)) return c.json({ error: "Same-origin requests only." }, 403);
@@ -240,9 +245,9 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
     })
     .get("/authoring", (c) => c.json(listWorkspaces(stateOptions()).flatMap((workspace) => {
       try {
-        const threadPath = resolve(workspace.path, ".dojo", "kyoshi.json");
-        if (!existsSync(threadPath) && !isManagedDraft(workspace.path, stateOptions())) return [];
-        const thread = existsSync(threadPath) ? JSON.parse(readFileSync(threadPath, "utf8")) as { sessionId?: string } : null;
+        if (workspaceKind(workspace, stateOptions()) !== "draft") return [];
+        // A legacy ACP draft has no Eve session to resume
+        const session = newestKyoshiSession(workspace.path);
         const manifest = readCourseManifestSource(workspace.path);
         return [{
           workspaceId: workspace.id,
@@ -251,7 +256,7 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
           appearance: manifest.appearance,
           description: String(manifest.description ?? "Course draft"),
           mode: String(manifest.mode ?? "katas"),
-          sessionId: thread?.sessionId ?? null,
+          sessionId: session?.id ?? null,
           lastSeenAt: workspace.lastSeenAt,
         }];
       } catch {
@@ -277,17 +282,6 @@ export function buildControlRoutes(options: ControlRouteOptions = {}) {
         .map((session) => ({ ...session, active: session.lastSeenAt >= cutoff }))
         .filter((session) => !activeOnly || session.active);
       return c.json(sessions);
-    })
-    .post("/sessions/:sessionId/adopt", async (c) => {
-      try {
-        return c.json(await adopt(c.req.param("sessionId"), stateOptions()));
-      } catch (cause) {
-        if (!(cause instanceof SessionAdoptionError)) throw cause;
-        const status = cause.code === "not-found" ? 404
-          : cause.code === "unsupported-harness" ? 422
-          : 409;
-        return c.json({ error: cause.message, code: cause.code }, status);
-      }
     })
     .get("/events", (c) => {
       const requestedLimit = Number.parseInt(c.req.query("limit") ?? "100", 10);
@@ -359,20 +353,16 @@ function continuationLesson(
   )?.id ?? named.at(-1)?.id ?? null;
 }
 
+/** A course's Sensei conversations per lesson, newest first, from the workspace's session records (read synchronously, so the
+ *  `/courses` handler stays synchronous; step-5 plan, decision 32) */
 function lessonSessions(root: string, dojo: string): Array<{ lessonId: string; sessionId: string }> {
   try {
-    const state = JSON.parse(readFileSync(resolve(root, ".dojo", "web.json"), "utf8")) as {
-      threads?: Record<string, string | { sessionId: string; aliases?: string[] }>;
+    const { sessions } = JSON.parse(readFileSync(resolve(root, ".dojo", "agent-sessions.json"), "utf8")) as {
+      sessions?: Array<{ id?: unknown; persona?: unknown; courseId?: unknown; lessonId?: unknown; createdAt?: unknown }>;
     };
-    return Object.entries(state.threads ?? {}).flatMap(([key, thread]) => {
-      const prefix = `${dojo}/`;
-      if (!key.startsWith(prefix)) return [];
-      const sessionId = typeof thread === "string" ? thread : thread.sessionId;
-      if (!sessionId) return [];
-      const lessonId = key.slice(prefix.length);
-      return [sessionId, ...(typeof thread === "string" ? [] : thread.aliases ?? [])]
-        .map((candidate) => ({ lessonId, sessionId: candidate }));
-    });
+    return (sessions ?? []).filter(record => record.persona === "sensei" && record.courseId === dojo && typeof record.lessonId === "string" && typeof record.id === "string")
+      .sort((left, right) => String(right.createdAt ?? "").localeCompare(String(left.createdAt ?? "")))
+      .map(record => ({ lessonId: record.lessonId as string, sessionId: record.id as string }));
   } catch {
     return [];
   }

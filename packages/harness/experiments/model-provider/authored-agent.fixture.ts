@@ -1,0 +1,13 @@
+import { defineAgent } from "@dojofoo/harness";
+import { experimental_createHarnessModel } from "@dojofoo/harness/adapters";
+import { createPi } from "@ai-sdk/harness-pi";
+import { createJustBashSandbox } from "@ai-sdk/sandbox-just-bash";
+
+const { model } = experimental_createHarnessModel({
+  harness: createPi({ auth: { OPENAI_API_KEY: "fixture-only" } }),
+  model: "openai/gpt-4o",
+  sandbox: createJustBashSandbox(),
+}, { mode: "full" });
+
+// Fixture limit, not a recommended/default limit for the selected model.
+export default defineAgent({ model, modelContextWindowTokens: 32_000 });

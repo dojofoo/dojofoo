@@ -1,8 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { judgeMaterial } from "@dojofoo/authoring/evaluation/judges";
-import { readTeachingEvidence } from "@dojofoo/authoring/evaluation/run";
-import { teachingJudgePrompt } from "@dojofoo/authoring/evaluation/teaching-rubric";
+import { judgeMaterial } from "@dojofoo/agents/evaluation/judges";
+import { readTeachingEvidence } from "@dojofoo/agents/evaluation/run";
+import { teachingJudgePrompt } from "@dojofoo/agents/evaluation/teaching-rubric";
 
 const root = process.argv[2];
 if (!root || !process.argv.includes("--live")) throw new Error("Usage: judge-handoff.ts <handoff-run-directory> --live (two paid local judge calls)");

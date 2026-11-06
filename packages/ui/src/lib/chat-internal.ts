@@ -12,7 +12,7 @@ export function chatAcceptsInput(status: ChatClientState): boolean {
   return status === "ready" || status === "error";
 }
 
-export function lessonNeedsIntroduction(messages: UIMessage[]): boolean {
+export function lessonNeedsIntroduction(messages: readonly UIMessage[]): boolean {
   return !messages.some((message) => message.parts.some((part) => (
     part.type === "text"
     && part.content.trim().length > 0
@@ -21,6 +21,6 @@ export function lessonNeedsIntroduction(messages: UIMessage[]): boolean {
   )));
 }
 
-export function lessonIntroductionCanStart(status: ChatClientState, messages: UIMessage[]): boolean {
+export function lessonIntroductionCanStart(status: ChatClientState, messages: readonly UIMessage[]): boolean {
   return status === "ready" && lessonNeedsIntroduction(messages);
 }

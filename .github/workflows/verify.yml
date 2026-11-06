@@ -11,7 +11,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 50
     permissions:
       contents: read
     steps:
@@ -30,27 +30,49 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @dojofoo/config build
+      - run: pnpm --filter "@dojofoo/config..." build
       - run: pnpm exec changeset status --since=origin/main
       - run: pnpm --filter @dojofoo/api openapi:check
       - run: pnpm --filter @dojofoo/api test
       - run: pnpm --filter @dojofoo/uix types:check
       - run: pnpm --filter @dojofoo/uix test
+      - run: pnpm --filter @dojofoo/protocol test
       - run: pnpm --filter @dojofoo/web types:check
       - run: pnpm build
+      - run: pnpm lint:deps
+      - run: pnpm lint:names
       - run: pnpm --filter @dojofoo/ui types:check
       - run: pnpm --filter @dojofoo/ui test --exclude '**/*.live.test.ts'
+      - run: pnpm --filter @dojofoo/agents test --exclude '**/*.live.test.ts'
+      # Both prepared personas: cold open and resume, a relocated copy, no compiler, Sensei's tools and hook
+      - run: pnpm --filter @dojofoo/agents test:prepared
+      # The session API's tests, and a clean consumer installed from registry.npmjs.org; no coding-agent CLI or login is needed
+      - run: pnpm --filter @dojofoo/harness test
       - run: pnpm --filter dojofoo test
       - run: pnpm --filter dojofoo test:package
       - run: pnpm --filter @dojofoo/web exec playwright install --with-deps chromium
       - run: pnpm --filter @dojofoo/web test:e2e
       - run: pnpm --filter @dojofoo/ui test:library
-      - name: Install native lesson harness
-        run: npm install --global @opencode/cli@2.0.28
-      - name: Verify the installed lesson workflow with local inference
+      # The specs answer the API themselves; the built UI only serves the pages. Specs join and leave by
+      # the steps of docs/designs/agent-runtime.md.
+      - name: Verify the UI in the browser
+        env:
+          DOJOFOO_HOME: ${{ runner.temp }}/dojofoo-home
+          DO_NOT_TRACK: "1"
+          DOJO_SKIP_PREPARE: "1"
+          DOJO_UI_BASE_URL: http://127.0.0.1:4567
+        run: |
+          mkdir -p "$RUNNER_TEMP/dojofoo-ui"
+          (cd "$RUNNER_TEMP/dojofoo-ui" && HOST=127.0.0.1 node "$GITHUB_WORKSPACE/packages/cli/dist/index.js" ui --no-open --no-portless --port 4567 > "$RUNNER_TEMP/dojofoo-ui.log" 2>&1 &)
+          for _ in $(seq 60); do curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" && break; sleep 1; done
+          curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" || { cat "$RUNNER_TEMP/dojofoo-ui.log"; exit 1; }
+          pnpm --filter @dojofoo/ui exec playwright test agent-chat.spec.ts eve-authoring.spec.ts learner-pages.spec.ts workspace-loading.spec.ts agent-selector.spec.ts learner-agent-picker.spec.ts page-addressing.spec.ts history-menu.spec.ts
+      - name: Verify kata lessons on Eve with local inference
         run: pnpm --filter @dojofoo/ui test:lesson
-      - name: Verify interactive courses with native local inference
+      - name: Verify interactive courses on Eve with local inference
         run: pnpm --filter @dojofoo/ui test:interactive
+      - name: Verify course evaluation in the UI server with local inference
+        run: pnpm --filter @dojofoo/ui test:evaluation
       - name: Preserve failed browser traces
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -61,5 +83,49 @@ jobs:
             packages/ui/test-results
             /tmp/dojo-lesson-runtime-evidence-*
             /tmp/dojo-interactive-runtime-evidence-*
+            /tmp/dojo-evaluation-runtime-evidence-*
           if-no-files-found: ignore
           retention-days: 3
+
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+    env:
+      DO_NOT_TRACK: "1"
+      DOJO_HARNESS_LIFECYCLE: "1"
+      # The PR head, not the pull_request merge commit that HEAD names, so a record made from this run names a real commit
+      DOJO_CONFORMANCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      # A job's env cannot read the runner context, so the runner-temp paths are exported here
+      - run: |
+          echo "DOJO_CONFORMANCE_HOME=$RUNNER_TEMP/conformance-home" >> "$GITHUB_ENV"
+          echo "DOJO_CONFORMANCE_OUT=$RUNNER_TEMP/conformance" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        with:
+          install: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@dojofoo/agents..." build
+      # Tier A against the loopback model (docs/designs/agent-runtime.md, "Conformance tiers"). Each adapter installs
+      # its own pinned CLI into DOJO_CONFORMANCE_HOME; FX and Pi run in-process. No login and no secret.
+      - run: pnpm --filter @dojofoo/agents conformance:install
+      - run: pnpm --filter @dojofoo/agents conformance:run
+      # Fails only for agents whose committed record passes, and when the record is not append-only.
+      - run: pnpm --filter @dojofoo/agents conformance:compare
+      - name: Keep the conformance report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: conformance
+          path: ${{ runner.temp }}/conformance
+          if-no-files-found: ignore
+          retention-days: 7
