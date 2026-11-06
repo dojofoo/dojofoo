@@ -421,7 +421,7 @@ export function Composer({
             }))}>
             {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
           </ComposerPicker>}</>}
-    controls={<>{agent && models.some(m => m.efforts) ? (
+    controls={<>{agent && models.some(m => m.efforts?.length) ? (
               // A coding agent that lists its models' efforts: the model menu with each model's description and effort levels
               <ModelPicker side="top" align="end" className="ui-as-composer__models" triggerClassName="ui-as-ghost ui-as-ghost--model" glyphs={false}
                 models={models.map(m => ({ id: m.value ?? m.name, name: m.name, description: m.description, efforts: m.efforts ?? [], ...(m.effort ? { defaultEffort: m.effort } : {}) }))}
