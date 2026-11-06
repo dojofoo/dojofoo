@@ -30,30 +30,13 @@ type ChatPage = { course: string; lesson?: string };
 const agentApi = (workspaceId: string, path = "") => `/api/v1/workspaces/${encodeURIComponent(workspaceId)}${path}`;
 
 /** The conversation each page opened last and what it showed, so a page opened again shows it at once while it is opened and
- *  replayed from Eve. Only the page's default conversation, or the same one requested again, is shown from here. It is also kept
- *  in this browser's storage (up to 200 kB a page), so a new tab shows it too; storage that is full or blocked keeps memory only. */
+ *  replayed from Eve. Only the page's default conversation, or the same one requested again, is shown from here. */
 type Remembered = { session: Session; agent: string; messages: UIMessage[] };
 const remembered = new Map<string, Remembered>();
-const stored = (key: string) => `dojo:conversation:${key}`;
-function recall(key: string): Remembered | undefined {
-  const known = remembered.get(key);
-  if (known) return known;
-  try {
-    const saved = localStorage.getItem(stored(key));
-    const entry = saved ? JSON.parse(saved) as Remembered : undefined;
-    if (entry?.session?.id && Array.isArray(entry.messages)) { remembered.set(key, entry); return entry; }
-  } catch {}
-  return undefined;
-}
 function remember(key: string, entry: Remembered) {
   remembered.delete(key);
   remembered.set(key, entry);
   if (remembered.size > 20) remembered.delete(remembered.keys().next().value!);
-  try {
-    const value = JSON.stringify(entry);
-    if (value.length <= 200_000) localStorage.setItem(stored(key), value);
-    else localStorage.removeItem(stored(key));
-  } catch {}
 }
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -135,7 +118,7 @@ export function AgentChat({ workspaceId, persona, sessionId, readOnly = false, o
   const loadKey = `${workspaceId}\0${persona}\0${pageKey}\0${sessionId ?? ""}\0${readOnly}`;
   const requested = useRef({ key: loadKey, session: sessionId });
   const memoryKey = `${workspaceId}\0${persona}\0${pageKey}`;
-  const memory = readOnly ? undefined : recall(memoryKey);
+  const memory = readOnly ? undefined : remembered.get(memoryKey);
   const recalled = memory && (sessionId === undefined || sessionId === memory.session.id) ? memory : undefined;
   /** The requested conversation the server honoured, while the page still asks for it */
   const picked = useRef<string | undefined>(undefined);
