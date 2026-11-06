@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound, useLocation } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
+import { staticFunctionMiddleware } from '@tanstack/start-static-server-functions'
 import { DocsSite } from '@dojofoo/uix/docs/layout'
 import { createDocsContent } from '@dojofoo/uix/docs/content'
 import browserCollections from 'collections/browser'
@@ -22,6 +23,8 @@ export const Route = createFileRoute('/$')({
     },
   },
   component: Page,
+  staleTime: Infinity,
+  preloadStaleTime: Infinity,
   loader: async ({ params }) => {
     const slugs = params._splat?.split('/') ?? []
     const data = await loader({ data: slugs })
@@ -48,6 +51,7 @@ export const Route = createFileRoute('/$')({
 })
 
 const loader = createServerFn({ method: 'GET' })
+  .middleware([staticFunctionMiddleware])
   .validator((slugs: string[]) => slugs)
   .handler(async ({ data: slugs }) => {
     // Lazy import severs the static client→server dep edge so that

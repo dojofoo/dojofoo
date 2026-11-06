@@ -369,7 +369,7 @@ export type OceanGraph = ReturnType<typeof buildGraph>;
 
 function configuredEffect(
   gpu: Gpu,
-  shader: string | ShaderSource,
+  shader: ShaderSource,
   label: string,
   bindings?: Record<string, unknown>
 ): Effect {
