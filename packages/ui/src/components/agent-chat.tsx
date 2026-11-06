@@ -281,8 +281,10 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   useEffect(() => {
     if (!sensei) return;
     const controller = new AbortController();
-    void json<Page<{ id: string; name: string }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
-      .then(page => setModels(page.data.map(choice => ({ value: choice.id, name: choice.name, description: "", icon: AiMagicIcon }))), () => {});
+    // A model the agent reports efforts for shows the one it runs at by default, and lists the others
+    void json<Page<{ id: string; name: string; efforts: string[]; defaultEffort?: string }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
+      .then(page => setModels(page.data.map(choice => ({ value: choice.id, name: choice.name, ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}),
+        description: choice.efforts.length ? `Effort: ${choice.efforts.join(", ")}` : "", icon: AiMagicIcon }))), () => {});
     return () => controller.abort();
   }, [sensei, workspaceId, session.agent]);
   async function changeModel(next: string) {
