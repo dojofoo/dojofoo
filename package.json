@@ -6,6 +6,7 @@
   "type": "module",
   "license": "FSL-1.1-ALv2",
   "scripts": {
+    "prepare": "husky",
     "assets:logo": "node scripts/assets/build-logo.mjs",
     "build": "turbo build",
     "ui": "pnpm --filter dojofoo exec node dist/index.js ui",
@@ -37,8 +38,11 @@
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@xmldom/xmldom": "^0.9.12",
     "dependency-cruiser": "18.7.2",
+    "husky": "^9.1.7",
     "turbo": "^2.11.9",
     "typescript": "6.0.3",
     "vitest": "^5.0.5",
