@@ -177,7 +177,8 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
           </>}
           courses={visibleCourses.map(course => ({ id: course.dojo, title: course.title, color: courseColor(courseArt(course.dojo, course.appearance)), mark: course.language,
             href: `/learn/${encodeURIComponent(course.runId!)}`, caption: course.position?.complete ? "Completed" : course.position ? course.position.lessonTitle : humanTitle(course.kata ?? "Not started"),
-            detail: course.position ? `Lesson ${course.position.lessonIndex + 1} of ${course.position.totalLessons}${course.position.slide ? ` · Slide ${course.position.slide} of ${course.position.totalSlides}` : ""}` : course.description,
+            // The card is small: a started course shows its lesson name and progress, not its lesson and slide numbers
+            detail: course.position ? undefined : course.description,
             progress: course.position ? Math.round(course.position.completedLessons / course.position.totalLessons * 100) : undefined,
             onOpen: () => openCourse(course.dojo), onDelete: () => { void deleteCourse(course.dojo); } }))}
           drafts={drafts.map(draft => ({ id: draft.workspaceId, title: draft.name, color: courseColor(courseArt(draft.workspaceId, draft.appearance)), mark: draft.mode,

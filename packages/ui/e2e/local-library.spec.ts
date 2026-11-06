@@ -197,7 +197,8 @@ test("the UIX library separates installed sessions from course previews and pres
     await page.screenshot({ path: info.outputPath("course-lessons-slides.png") });
     await page.locator('.ui-as-chat__crumbs').getByRole("button", { name: "Dashboard", exact: true }).click();
     const savedCourse = page.getByRole("link", { name: /^How to run a dojo, / });
-    await expect(savedCourse).toContainText("Lesson 2 of 6 · Slide 1 of 3");
+    await expect(savedCourse).toContainText("Find the material for this lesson");
+    await expect(savedCourse).not.toContainText("Lesson 2 of 6");
     await savedCourse.click();
     await expect(page).toHaveURL(sessionUrl);
     await expect(material.getByRole("heading", { name: "Find the material for this lesson", exact: true })).toBeVisible();
