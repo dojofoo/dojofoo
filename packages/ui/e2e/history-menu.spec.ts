@@ -189,7 +189,8 @@ test("no bare error: a failed list read offers Try again, and a picked conversat
   ]);
   const stranded = records[1]!;
   let failures = 1;
-  await page.route("**/api/v1/workspaces/*/sessions?*", route => failures-- > 0
+  // The history menu's read (per_page=100), not the route's preload of the page's newest conversation (per_page=1)
+  await page.route("**/api/v1/workspaces/*/sessions?*", route => new URL(route.request().url()).searchParams.get("per_page") === "100" && failures-- > 0
     ? route.fulfill({ status: 503, json: { error: "temporarily_unavailable", message: "Conversations temporarily unavailable" } }) : route.fallback());
   await page.route(`**/sessions/${stranded.id}/eve/v1/session/${stranded.id}/stream*`, route => route.fulfill({
     status: 409, json: { error: "This session was built by an earlier eve.", code: "session_stranded" },
