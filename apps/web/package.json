@@ -6,6 +6,7 @@
   "license": "FSL-1.1-ALv2",
   "sideEffects": false,
   "scripts": {
+    "assets:favicons": "node scripts/favicons.mjs",
     "predev": "rm -rf .tanstack",
     "dev": "portless dojofoo vite dev",
     "docs:generate": "bun scripts/generate-api-docs.ts",

@@ -1,6 +1,8 @@
 import { SITE, socialMetadata as metadata } from "@dojofoo/uix/web/seo";
 import { SITE_URL } from "./site";
 
+export { faviconLinks } from "@dojofoo/uix/web/seo";
+
 /* The site's name, line and tags – from UIX (web/seo), which the Search story previews */
 
 export const SOCIAL_IMAGE_URL = `${SITE_URL}/og.webp`;

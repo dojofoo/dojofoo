@@ -1,5 +1,5 @@
-// Draws the site's icons from public/favicon.svg, for what doesn't take an SVG: favicon.ico (16, 32 and 48px – what
-// browsers and fetchers ask for by default), a 96px PNG (Google Search wants a multiple of 48px), the 180px Apple touch
+// Draws the site's icons from public/favicon.svg, for what doesn't take an SVG: favicon.ico (16, 32, 48 and 256px),
+// 16, 32 and 96px PNGs for browsers and search, the 180px Apple touch
 // icon (on the page's ground: iOS fills a transparent one with black) and the web manifest's 192 and 512px.
 //   node scripts/favicons.mjs
 import { chromium } from "playwright";
@@ -41,11 +41,14 @@ function ico(images) {
 
 // One page draws them, so one at a time
 const small = [];
-for (const size of [16, 32, 48]) small.push({ size, png: await draw(size) });
+for (const size of [16, 32, 48, 256]) small.push({ size, png: await draw(size) });
 writeFileSync(file("favicon.ico"), ico(small));
+for (const { size, png } of small.filter(({ size }) => size === 16 || size === 32)) {
+  writeFileSync(file(`favicon-${size}x${size}.png`), png);
+}
 writeFileSync(file("favicon-96x96.png"), await draw(96));
 writeFileSync(file("apple-touch-icon.png"), await draw(180, { ground: GROUND, inset: 18 }));
 writeFileSync(file("web-app-manifest-192x192.png"), await draw(192));
 writeFileSync(file("web-app-manifest-512x512.png"), await draw(512));
 await browser.close();
-console.log("wrote favicon.ico, favicon-96x96.png, apple-touch-icon.png and the manifest's icons");
+console.log("wrote favicon.ico, 16/32/96px PNG favicons, apple-touch-icon.png and 192/512px manifest icons from favicon.svg");

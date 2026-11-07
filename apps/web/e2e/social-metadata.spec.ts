@@ -18,8 +18,12 @@ test("uses the Dojo.foo social card on the main website", async ({ page }) => {
   await expectSocialImage(page);
   await expect(page).toHaveTitle("AI mentors, teachers and personas you can install");
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Dojo.foo");
-  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", "https://dojo.foo");
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", "https://dojo.foo/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://dojo.foo/");
+  await expect(page.locator('link[rel="icon"][type="image/x-icon"]')).toHaveAttribute("href", "/favicon.ico");
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute("sizes", "any");
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/apple-touch-icon.png");
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/site.webmanifest");
   // The site's name for search results comes from WebSite on the home page, not from every title
   const graph = JSON.parse(await page.locator('script[type="application/ld+json"]').first().textContent() ?? "{}")["@graph"];
   expect(graph.map((node: { "@type": string }) => node["@type"])).toEqual(["WebSite", "Organization", "SoftwareApplication"]);

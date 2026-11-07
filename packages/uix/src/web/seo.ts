@@ -18,6 +18,17 @@ export const SITE = {
   github: "https://github.com/dojofoo",
 } as const;
 
+/** Shared by the website head and the search sandbox. Raster icons come from favicon.svg. */
+export const faviconLinks = [
+  { rel: "icon", type: "image/x-icon", sizes: "16x16 32x32 48x48 256x256", href: "/favicon.ico" },
+  { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16x16.png" },
+  { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32x32.png" },
+  { rel: "icon", type: "image/png", sizes: "96x96", href: "/favicon-96x96.png" },
+  { rel: "icon", type: "image/svg+xml", sizes: "any", href: "/favicon.svg" },
+  { rel: "apple-touch-icon", type: "image/png", sizes: "180x180", href: "/apple-touch-icon.png" },
+  { rel: "manifest", href: "/site.webmanifest" },
+];
+
 type Node = Record<string, unknown>;
 
 /** A page's tags: its description, Open Graph and X card */
