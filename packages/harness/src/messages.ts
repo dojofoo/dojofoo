@@ -91,4 +91,4 @@ function projectInteraction(part: EveInteractionPart): MessagePart {
   }
   return { type: "text", content: part.request.signIn?.instructions ?? part.request.prompt, metadata: { eve: part } };
 }
-export { activeTurn, emptySessionView, foldEvents, openInteractions } from "eve/events";
+export { activeTurn, delivery, emptySessionView, foldEvents, openInteractions, turn } from "eve/events";

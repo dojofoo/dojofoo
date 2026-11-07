@@ -1,7 +1,8 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { dojoTags, type AgentId, type Persona } from "@dojofoo/protocol";
 import { defineHook, type HookDefinition } from "eve/hooks";
 import { evictHarnessSession } from "./harness-sessions.js";
-import { createHostPortClient } from "./host-port/client.js";
+import { createHostPortClient, HostPortError } from "./host-port/client.js";
 import { removeReadOnlyHome } from "./read-only.js";
 
 export const lifecycleHookSlug = "dojofoo-lifecycle";
@@ -25,12 +26,25 @@ const failure = (value: unknown) => {
     ...(typeof error.id === "string" ? { id: error.id } : {}) };
 };
 
-/** The hook's handlers, apart from Eve's definition, so tests can call them with a fake context. */
-export function lifecycleHandlers(binding: () => Promise<HostPortBinding | undefined>) {
+/** The hook's handlers, apart from Eve's definition, so tests can call them with a fake context. A report the host port did not
+ *  take (a timeout, an unreachable server, a 5xx) is retried after each of `retryDelaysMs`: Eve never runs the hook again, and the
+ *  host port keeps a report's result per key, so a retry is never applied twice. */
+export function lifecycleHandlers(binding: () => Promise<HostPortBinding | undefined>, options: { retryDelaysMs?: readonly number[] } = {}) {
+  const retryDelaysMs = options.retryDelaysMs ?? [250, 1_000, 2_000];
   const report = async (method: string, sessionId: string, input: unknown, key: string) => {
     const bound = await binding();
     if (!bound) return;
-    await createHostPortClient(bound).call(method, sessionId, input, key);
+    const client = createHostPortClient(bound);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await client.call(method, sessionId, input, key);
+        return;
+      } catch (error) {
+        // A refusal (4xx) would answer the same again
+        if (!(error instanceof HostPortError && error.status >= 500) || attempt >= retryDelaysMs.length) throw error;
+        await delay(retryDelaysMs[attempt]);
+      }
+    }
   };
   // Optional reporting never fails the turn
   const guarded = (name: string, run: () => Promise<void>) => run().catch(error => {

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import { Client, ClientError, type ClientOptions } from "@dojofoo/harness/client";
+import { Client, ClientError, type ClientOptions, type SessionStreamEvent } from "@dojofoo/harness/client";
 import { activeTurn, emptySessionView, foldEvents } from "@dojofoo/harness/messages";
 import { setTimeout as delay } from "node:timers/promises";
 import { AgentApiError, createAgentApi, type Agent, type AgentEndpoint, type AgentRuntime, type AgentStatus, type LifecycleStatus, type Persona } from "@dojofoo/harness/api";
@@ -74,6 +74,9 @@ export function createLocalAgentRuntime(options: {
   idleStopMs?: number;
   /** How often idle hosts are looked for (60 seconds; tests use less) */
   idleCheckMs?: number;
+  /** How long a working or paused record goes unchanged before the idle check asks Eve whether its turn is still open (2 minutes);
+   *  a delivery whose turn has not started yet is left alone */
+  reconcileAfterMs?: number;
 }): AgentRuntime {
   const states = new Map<string, RuntimeState>();
   const pages = () => pageHub();
@@ -144,16 +147,20 @@ export function createLocalAgentRuntime(options: {
     await beforeHostStop(path, state.workspaceId, state.agent).catch(error => console.warn(`Could not verify the windows of ${path}: ${error instanceof Error ? error.message : String(error)}`));
     await state.owned?.close();
   };
-  /** Records left working or paused with no open turn in Eve (a crash, a missed hook) settle when the host is ready: their windows
-   *  are verified, then their held reports go out or are dropped under D16. An interrupted record stays as it is. */
-  const reconcile = async (path: string, workspaceId: string, agent: string, ready: AgentEndpoint) => {
+  /** Records left working or paused with no open turn in Eve (a crash, a missed hook) settle when the host is ready, and while it
+   *  runs once unchanged since `staleBefore`: their windows are verified, then their held reports go out or are dropped under D16.
+   *  An interrupted record stays as it is. */
+  const reconcile = async (path: string, workspaceId: string, agent: string, ready: AgentEndpoint, staleBefore?: string) => {
     const client = new Client({ baseUrl: ready.baseUrl, headers: ready.headers });
     const open = (await read(path)).filter(record => record.agent === agent
-      && (record.lifecycle?.status === "working" || record.lifecycle?.status === "paused"));
+      && (record.lifecycle?.status === "working" || record.lifecycle?.status === "paused")
+      && (!staleBefore || Date.parse(record.lifecycle.updatedAt) < Date.parse(staleBefore)));
     await Promise.all(open.map(async record => {
       if ((await activeTurnOf(client, record.id)).open) return;
+      // The transition comes first: a delivery since the read keeps the record working, and the window its turn needs
+      const settled = await applyLifecycle(path, record.id, { type: "reconcile", ...(staleBefore ? { staleBefore } : {}) });
+      if (settled?.lifecycle?.status !== "idle") return;
       await verifyWindow(path, workspaceId, record.id);
-      await applyLifecycle(path, record.id, { type: "reconcile" });
       await sendHeld(path, workspaceId, ready, record.id);
     }));
   };
@@ -218,13 +225,20 @@ export function createLocalAgentRuntime(options: {
 
   /** Whether a session still has a turn that started and has not settled (a paused turn is open), and that turn's id */
   const activeTurnOf = async (client: Client, sessionId: string): Promise<{ open: boolean; turnId?: string }> => {
+    const signal = AbortSignal.timeout(2_000);
     try {
-      const { events } = await client.sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(2_000) });
+      // Eve's client retries a stream that answers 404, so a snapshot of a session Eve doesn't know only times out (read as open);
+      // this read retries Eve's other statuses
+      const events: SessionStreamEvent[] = [];
+      for await (const event of client.sessions.attach(sessionId).stream({ follow: false, startIndex: 0, signal,
+        reconnect: { retryableStatuses: [409, 425, 500, 502, 503, 504] } })) events.push(event);
+      // An aborted read ends without an error, with only part of the stream
+      signal.throwIfAborted();
       const turn = activeTurn(foldEvents(emptySessionView(), events));
       return turn ? { open: true, turnId: turn.turnId } : { open: false };
     } catch (error) {
-      // An ended or expired session has no turn left to settle
-      return { open: !(error instanceof ClientError && (error.status === 409 || error.status === 410)) };
+      // An unknown, ended or expired session has no turn left to settle (as `unreadable` in default.ts)
+      return { open: !(error instanceof ClientError && (error.status === 404 || error.status === 409 || error.status === 410)) };
     }
   };
   const processRecord = (workspaceId: string, persona: Persona) => join(localStateDirectory(options.state), "processes", `${workspaceId}.${persona}.jsonl`);
@@ -277,9 +291,15 @@ export function createLocalAgentRuntime(options: {
   /** A ready host is idle with no open proxied stream, no authoring watcher and no turn in progress; it stops after the idle bound,
    *  counted from the moment it became idle */
   const idleStopMs = options.idleStopMs ?? 15 * 60_000;
+  const reconcileAfterMs = options.reconcileAfterMs ?? 2 * 60_000;
   const stopIdle = async () => {
     for (const [path, state] of [...states]) {
       if (state.status !== "ready") continue;
+      // A report the hook lost leaves its record working or paused, keeping the host busy; otherwise only a start would reconcile it
+      if (state.endpoint) {
+        await reconcile(path, state.workspaceId, state.agent, await state.endpoint, new Date(Date.now() - reconcileAfterMs).toISOString())
+          .catch(error => console.warn(`Could not reconcile the sessions of ${path}: ${error instanceof Error ? error.message : String(error)}`));
+      }
       const busy = (presence.get(path)?.streams ?? 0) > 0 || authoringWatchers.watching(path) || pages().sockets(state.workspaceId) > 0
         || (await read(path)).some(record => record.agent === state.agent && (record.lifecycle?.status === "working" || record.lifecycle?.status === "paused"));
       if (busy) { idleSince.delete(path); continue; }

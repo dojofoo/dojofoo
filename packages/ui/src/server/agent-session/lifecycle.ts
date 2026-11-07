@@ -10,8 +10,9 @@ export type LifecycleEvent =
   | { type: "turn.settled"; outcome?: TurnOutcome }
   | { type: "session.ended" }
   | { type: "resume.failed" }
-  /** The host became ready and Eve has no open turn for a working or paused record; a pending begin stays for the next open */
-  | { type: "reconcile" }
+  /** Eve has no open turn for a working or paused record, seen when the host became ready, or while it runs for a record unchanged
+   *  since `staleBefore`; a pending begin stays for the next open */
+  | { type: "reconcile"; staleBefore?: string }
   /** D19: the page was left while its turn was paused, or its begin still working; the caller sends Eve's cancel after this */
   | { type: "leave" }
   /** An agent switch did not see this turn settle in time (CUJ 3) */
@@ -35,9 +36,9 @@ export function transition(record: SessionRecord, event: LifecycleEvent, now = n
   const next = (lifecycle: SessionLifecycle): SessionRecord => ({ ...record, lifecycle: { ...lifecycle, updatedAt: now } });
   switch (event.type) {
     case "pre-delivery":
-      // A delivery continues an interrupted conversation; its interrupted turn stays refused (turn.check)
-      return status === "idle" || status === "paused" || status === "interrupted"
-        ? next({ ...without(current, "interruptedAt"), status: "working" }) : record;
+      // A delivery continues an interrupted conversation; its interrupted turn stays refused (turn.check). One to a working record
+      // still marks it changed, so a reconcile that read it before the delivery leaves it alone
+      return next({ ...without(current, "interruptedAt"), status: "working" });
     case "delivery-rejected":
       return status === "working" ? next({ ...current, status: event.before }) : record;
     case "turn.paused":
@@ -55,7 +56,9 @@ export function transition(record: SessionRecord, event: LifecycleEvent, now = n
       return next({ ...current, resumeFailedAt: current.resumeFailedAt ?? now });
     case "reconcile":
       if (status !== "working" && status !== "paused") return record;
-      // A begin left pending may never have reached Eve; the next open resends it with the same key, which Eve answers once
+      // Changed since: a delivery whose turn Eve may not have started yet
+      if (event.staleBefore && !(Date.parse(current.updatedAt) < Date.parse(event.staleBefore))) return record;
+      // A begin left pending may never have reached Eve; the next open looks for it there, then settles or resends it
       return next({ ...without(current, "turnId"), status: "idle" });
     case "leave": {
       if (!(status === "paused" || (status === "working" && current.beginPending))) return record;

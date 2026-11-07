@@ -22,7 +22,7 @@ describe("entry points", () => {
   it("./messages carries Eve's event helpers", async () => {
     // The built entries: the message projection re-exports the patched Eve's own functions
     const [messages, events] = await Promise.all([import("@dojofoo/harness/messages"), import("@dojofoo/harness/events")]);
-    for (const name of ["activeTurn", "emptySessionView", "foldEvents", "openInteractions"] as const) {
+    for (const name of ["activeTurn", "delivery", "emptySessionView", "foldEvents", "openInteractions", "turn"] as const) {
       expect(typeof events[name], name).toBe("function");
       expect(messages[name], name).toBe(events[name]);
     }
