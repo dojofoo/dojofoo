@@ -7,7 +7,8 @@ import { CourseCard, type CourseInfo } from "../components/course-card";
 import { Editor, EditorStatus, EditorTabs } from "../containers/editor";
 import { LessonBrief } from "../components/lesson-brief";
 import { BackIcon, ClaudeIcon } from "../lib/icons";
-import samAltmanPhoto from "../assets/sam-altman.jpg?url";
+// A 3× thumbnail for the 34px avatar, included in the server-rendered illustration.
+import samAltmanPhoto from "../assets/sam-altman-preview.jpg?inline";
 
 type Progress = "done" | "active" | "locked";
 type Lesson = { id: string; title: string; state: Progress; lead: string; goal: string };

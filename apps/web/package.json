@@ -14,6 +14,7 @@
     "build": "pnpm --filter @dojofoo/api openapi:generate && vite build && node scripts/verify-static-build.mjs",
     "preview": "vite preview",
     "test:e2e": "playwright test",
+    "test:production": "DOJO_WEB_TEST_PREVIEW=1 playwright test e2e/landing-performance.spec.ts",
     "types:check": "fumadocs-mdx && node scripts/generate-routes.mjs && tsc --noEmit",
     "postinstall": "fumadocs-mdx"
   },

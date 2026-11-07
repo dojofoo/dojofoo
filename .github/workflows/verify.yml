@@ -52,6 +52,7 @@ jobs:
       - run: pnpm --filter dojofoo test:package
       - run: pnpm --filter @dojofoo/web exec playwright install --with-deps chromium
       - run: pnpm --filter @dojofoo/web test:e2e
+      - run: pnpm --filter @dojofoo/web test:production
       - run: pnpm --filter @dojofoo/ui test:library
       # The specs answer the API themselves; the built UI only serves the pages. Specs join and leave by
       # the steps of docs/designs/agent-runtime.md.

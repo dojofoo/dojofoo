@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 const webPort = process.env.DOJO_WEB_TEST_PORT ?? "4310";
 const apiPort = process.env.DOJO_API_TEST_PORT ?? "4311";
+const production = process.env.DOJO_WEB_TEST_PREVIEW === "1";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -22,7 +23,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: `DOJO_API_ORIGIN=http://127.0.0.1:${apiPort} pnpm exec vite dev --host 127.0.0.1 --port ${webPort}`,
+      command: `DOJO_API_ORIGIN=http://127.0.0.1:${apiPort} pnpm exec vite ${production ? "preview" : "dev"} --host 127.0.0.1 --port ${webPort}`,
       url: `http://127.0.0.1:${webPort}`,
       reuseExistingServer: false,
     },
