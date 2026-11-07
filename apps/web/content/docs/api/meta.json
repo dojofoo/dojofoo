@@ -5,6 +5,7 @@
     "---Courses---",
     "list-courses",
     "get-course-audit",
+    "check-course-version",
     "list-curated-courses",
     "search-courses",
     "get-course",

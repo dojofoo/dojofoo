@@ -90,6 +90,8 @@ const courseEventNames = new Set<CourseEventName>([
   "finished",
 ]);
 
+const githubRepository = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
+
 const catalogCacheControl = "public, max-age=30, s-maxage=60, stale-while-revalidate=300, stale-if-error=86400";
 const snapshotCacheControl = "public, max-age=300, s-maxage=300, stale-while-revalidate=3600, stale-if-error=86400";
 
@@ -228,6 +230,62 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
   });
   const catalogWithRecordedInstalls = async () =>
     Promise.all((await listedCourses()).map(withRecordedInstalls));
+  // GitHub's current version of a course, registered and given Dojo's checks: an install's report, or `add` asking
+  // about a version the API hasn't checked
+  const registerGithubCourse = async (source: CourseRegistrationSource) => {
+    const registration = await options.registrar?.register(source) ?? undefined;
+    const previous = registration && (await allCourses()).find((candidate) => candidate.id === registration.id);
+    // A course the API hasn't seen starts in trial; one it knows keeps its status
+    const registered = registration && {
+      ...registration,
+      status: registration.status ?? (previous ? previous.status ?? "enabled" : "trial"),
+    };
+    if (!registered) return undefined;
+    const existingIndex = registeredCourses.findIndex(
+      (candidate) => candidate.id === registered.id,
+    );
+    if (existingIndex === -1) registeredCourses.push(registered);
+    else registeredCourses[existingIndex] = registered;
+    coursesCache = undefined;
+    // Dojo's checks, once per snapshot
+    if (options.auditStore) {
+      const audits = await options.auditStore.list(registered.id);
+      if (!audits.some((audit) => audit.provider === "dojo" && audit.hash === registered.hash)) {
+        const findings = auditCourseFiles(registered.files);
+        await options.auditStore.save({
+          courseId: registered.id,
+          provider: "dojo",
+          hash: registered.hash,
+          ...verdict(findings),
+          findings,
+          auditedAt: new Date().toISOString(),
+        });
+      }
+    }
+    return registered;
+  };
+  const courseAudits = async (course: Course | undefined) => {
+    const audits = course && options.auditStore ? await options.auditStore.list(course.id) : [];
+    if (!course || audits.length === 0) return undefined;
+    return {
+      id: course.id,
+      source: course.source,
+      slug: course.slug,
+      status: course.status ?? "enabled",
+      hash: course.hash,
+      audits: audits.map((audit) => ({
+        provider: auditProviders[audit.provider],
+        slug: audit.provider,
+        status: audit.status,
+        riskLevel: audit.riskLevel,
+        summary: audit.summary,
+        auditedAt: audit.auditedAt,
+        hash: audit.hash,
+        findings: audit.findings,
+      })),
+    };
+  };
+  const missingAudits = { error: "course_audit_not_found", message: "No audits exist for this course." };
   const marketplaceCourses = async () => {
     const [courses, allEvents] = await Promise.all([
       listedCourses(),
@@ -436,33 +494,26 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       return courseMetrics(course, await eventsForCourse(course));
     }, apiRoutes.metrics)
     .get("/api/v1/courses/audit/:source/:slug", async ({ params, set, status }) => {
-      const course = await findCourse(params.source, params.slug);
-      const audits = course && options.auditStore ? await options.auditStore.list(course.id) : [];
-      if (!course || audits.length === 0) {
-        return status(404, {
-          error: "course_audit_not_found",
-          message: "No audits exist for this course.",
-        });
-      }
+      const audits = await courseAudits(await findCourse(params.source, params.slug));
+      if (!audits) return status(404, missingAudits);
       set.headers["cache-control"] = catalogCacheControl;
-      return {
-        id: course.id,
-        source: course.source,
-        slug: course.slug,
-        status: course.status ?? "enabled",
-        hash: course.hash,
-        audits: audits.map((audit) => ({
-          provider: auditProviders[audit.provider],
-          slug: audit.provider,
-          status: audit.status,
-          riskLevel: audit.riskLevel,
-          summary: audit.summary,
-          auditedAt: audit.auditedAt,
-          hash: audit.hash,
-          findings: audit.findings,
-        })),
-      };
+      return audits;
     }, apiRoutes.audit)
+    .post("/api/v1/courses/audit/:source/:slug", async ({ params, request, status }) => {
+      const body = await request.json().catch(() => null) as { hash?: unknown } | null;
+      if (typeof body?.hash !== "string") {
+        return status(400, { error: "invalid_hash", message: "hash is required." });
+      }
+      const repository = `${params.source}/${params.slug}`;
+      let course = await findCourse(params.source, params.slug);
+      const checked = course && options.auditStore
+        && (await options.auditStore.list(course.id)).some((audit) => audit.hash === body.hash);
+      // A version the API hasn't checked: GitHub's current one is registered and checked first, and no install recorded
+      if (!checked && options.registrar && githubRepository.test(repository)) {
+        course = await registerGithubCourse({ type: "github", repository }) ?? course;
+      }
+      return await courseAudits(course) ?? status(404, missingAudits);
+    }, apiRoutes.auditVersion)
     .get("/api/v1/courses/:source/:slug", async ({ params, set, status }) => {
       const course = await findCourse(params.source, params.slug);
       if (!course) {
@@ -519,45 +570,15 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         && body.source?.type === "github"
         && typeof sourceRepository === "string"
         && sourceRepository === body.courseId
-        && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(sourceRepository)
+        && githubRepository.test(sourceRepository)
       ) {
-        const registration = await options.registrar.register({
+        course = await registerGithubCourse({
           type: "github",
           repository: sourceRepository,
           ...(typeof body.source.integrity === "string"
             ? { integrity: body.source.integrity }
             : {}),
-        }) ?? undefined;
-        const previous = registration && (await allCourses()).find((candidate) => candidate.id === registration.id);
-        // A course the API hasn't seen starts in trial; one it knows keeps its status
-        const registered = registration && {
-          ...registration,
-          status: registration.status ?? (previous ? previous.status ?? "enabled" : "trial"),
-        };
-        if (registered) {
-          course = registered;
-          const existingIndex = registeredCourses.findIndex(
-            (candidate) => candidate.id === registered.id,
-          );
-          if (existingIndex === -1) registeredCourses.push(registered);
-          else registeredCourses[existingIndex] = registered;
-          coursesCache = undefined;
-          // Dojo's checks, once per snapshot
-          if (options.auditStore) {
-            const audits = await options.auditStore.list(registered.id);
-            if (!audits.some((audit) => audit.provider === "dojo" && audit.hash === registered.hash)) {
-              const findings = auditCourseFiles(registered.files);
-              await options.auditStore.save({
-                courseId: registered.id,
-                provider: "dojo",
-                hash: registered.hash,
-                ...verdict(findings),
-                findings,
-                auditedAt: new Date().toISOString(),
-              });
-            }
-          }
-        }
+        }) ?? course;
       }
       if (!course) {
         return status(400, { error: "invalid_event", message: "courseId is invalid." });

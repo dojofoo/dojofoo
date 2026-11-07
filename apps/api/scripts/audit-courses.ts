@@ -46,10 +46,10 @@ for (const course of pending.slice(0, limit)) {
   const directory = join(root, course.slug);
   try {
     await run("git", ["clone", "--depth", "1", "--quiet", `https://github.com/${course.repository}.git`, directory]);
-    // The registered hash is the default branch's commit (GitHub's tree lookup by branch answers with it); a newer
-    // push waits for the install that registers it
-    const { stdout: commit } = await run("git", ["rev-parse", "HEAD"], { cwd: directory });
-    if (commit.trim() !== course.hash) {
+    // The registered hash is the default branch's tree when it registered; a newer push waits for the install that
+    // registers it
+    const { stdout: tree } = await run("git", ["rev-parse", "HEAD^{tree}"], { cwd: directory });
+    if (tree.trim() !== course.hash) {
       console.log(`${course.id}: changed since it registered, skipped until its next install`);
       continue;
     }

@@ -25,18 +25,22 @@ It's listed once it's reviewed and its security checks pass.
 
 Each new version of a course is checked for what installing and running it could do:
 
-- Dojo's own checks, as soon as the course is reported: scripts that run on install, scripts
-  piped from the internet, encoded code, hidden characters, credentials it reads or contains, and
-  instructions that tell your agent to ignore its rules or keep things from you.
+- Dojo's own checks, as soon as the course is reported or `add` asks about a version that hasn't
+  been checked: scripts that run on install, scripts piped from the internet, encoded code, hidden
+  characters, credentials it reads or contains, and instructions that tell your agent to ignore its
+  rules or keep things from you.
 - [Cisco's skill-scanner](https://github.com/cisco-ai-defense/skill-scanner), shortly after, over the
   whole repository: prompt injection and dangerous code in the course's instructions and code,
   and its pinned npm and PyPI dependencies against the [OSV](https://osv.dev) vulnerability
   database.
 
-`add` reads the results before it installs a course. A failed check stops the install; a warning
-lists what was found and asks first (`--yes` answers for you). A course that hasn't been checked
-yet installs as before. The results are in the API, at
-[`GET /courses/audit/{source}/{slug}`](/docs/api/get-course-audit).
+`add` reads the results for the version it downloaded, named by its Git tree hash, before it
+installs a course. A failed check stops the install; a warning lists what was found and asks first
+(`--yes` answers for you), and so does a version no check is for, such as one pushed while you
+installed. A course the marketplace can't check, such as one with `private: true`, installs as
+before, and so does any course while the API can't be reached; `add` says so. The results are in
+the API, at [`GET /courses/audit/{source}/{slug}`](/docs/api/get-course-audit) and, for one
+version, [`POST /courses/audit/{source}/{slug}`](/docs/api/check-course-version).
 
 The numbers come from anonymous lifecycle events. See [Privacy](/docs/privacy) for what's sent
 and how to turn it off.
