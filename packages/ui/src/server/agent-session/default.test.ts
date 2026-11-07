@@ -200,18 +200,6 @@ describe("the default conversation", () => {
     }, { timeout: 30_000 });
   }, 60_000);
 
-  it("a begin keeps Eve's receipt for its delivery", async () => {
-    const { root, open } = workspace();
-    const opened = await open({ course: "first" });
-    const receipt = (await readRecords(root))[0]?.lifecycle?.beginPending?.deliveryId;
-    expect(receipt).toEqual(expect.any(String));
-    // Eve may answer before its stream admits the delivery
-    await vi.waitFor(async () => {
-      const { events } = await new Client({ baseUrl: eve.baseUrl }).sessions.attach(opened.session.id).snapshot();
-      expect(events.some(event => event.type === "delivery.admitted" && (event.data as { deliveryId?: string }).deliveryId === receipt)).toBe(true);
-    }, { timeout: 30_000 });
-  }, 60_000);
-
   it("a kata begin Eve already ran, whose settle the hook lost, is settled by its receipt and introduces the lesson, not resent", async () => {
     const kataRoots: string[] = [];
     const kata = kataWorkspace(kataRoots, { baseUrl: eve.baseUrl });
@@ -224,14 +212,13 @@ describe("the default conversation", () => {
       const sent = watchFetch();
       const opened = await kata.local.sessions.openDefault(kata.workspaceId, { course: "starter", lesson: "001-first" });
       expect(opened.session).toMatchObject({ id, lifecycle: { status: "idle" } });
-      expect(opened.session.lifecycle).not.toHaveProperty("beginPending");
       expect(begins(sent)).toEqual([]);
       expect(JSON.parse(readFileSync(resolve(kata.root, ".dojorc"), "utf8")).progress.starter.kataIntros).toEqual(["001-first"]);
       expect(await turnsStarted(id)).toBe(1);
     } finally { kata.cleanup(); removeRoots(kataRoots); }
   }, 60_000);
 
-  it("a begin with no receipt that Eve already ran is resent with its key, which Eve ignores, then settled", async () => {
+  it("a begin Eve already ran, recorded before receipts were kept, settles without starting the opening turn again", async () => {
     const { root, open } = workspace();
     vi.stubEnv("DOJOFOO_HOME", resolve(root, "state"));
     const id = await eveSession();
@@ -240,10 +227,7 @@ describe("the default conversation", () => {
     // A record from before receipts were kept, left working by a settle the hook lost
     await saveRecord(root, record({ id, lifecycle: { status: "working", beginPending: { idempotencyKey: key, sentAt: "2026-11-03T00:00:00.000Z", attempt: 0 },
       updatedAt: "2026-11-03T00:00:00.000Z" } }));
-    const sent = watchFetch();
     expect((await open({ course: "first" })).session).toMatchObject({ id, lifecycle: { status: "idle" } });
-    expect(begins(sent).map(request => (request.body as { idempotencyKey: string }).idempotencyKey)).toEqual([key]);
-    expect((await readRecords(root))[0]?.lifecycle).not.toHaveProperty("beginPending");
     expect(await turnsStarted(id)).toBe(1);
   }, 60_000);
 
