@@ -766,7 +766,7 @@ function checkCardLabel(state: CheckReportState): string {
 
 /** Whether a navigation keeps the lesson page: its run's address for the same lesson, whichever conversation it names.
  *  `runLesson` is the lesson the run's address without a lesson opens. */
-export function staysOnLesson(next: { routeId: string; params: object }, page: { runId: string; lessonId: string; runLesson?: string | null }): boolean {
+function staysOnLesson(next: { routeId: string; params: object }, page: { runId: string; lessonId: string; runLesson?: string | null }): boolean {
   if (next.routeId !== "/learn/$runId/{-$lessonId}") return false;
   const params = next.params as { runId?: string; lessonId?: string };
   return params.runId === page.runId && (params.lessonId ?? page.runLesson) === page.lessonId;
@@ -774,7 +774,7 @@ export function staysOnLesson(next: { routeId: string; params: object }, page: {
 
 /** A read of the page's lesson. `shown` is the lesson the page has read and the editor's text, none before the first read; reading the
  *  same lesson again (its cached snapshot refetched) is a refetch, which keeps text the learner hasn't saved. */
-export function lessonRead(shown: { lesson: LessonSnapshot | null; code: string } | null, next: LessonSnapshot): { refetch: boolean; code: string } {
+function lessonRead(shown: { lesson: LessonSnapshot | null; code: string } | null, next: LessonSnapshot): { refetch: boolean; code: string } {
   const lesson = shown?.lesson;
   if (!shown || !lesson || lesson.dojo !== next.dojo || lesson.kata !== next.kata) return { refetch: false, code: next.code };
   return { refetch: true, code: shown.code !== lesson.code ? shown.code : next.code };

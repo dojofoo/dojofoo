@@ -288,6 +288,24 @@ test("leaving a lesson with unsaved code asks first, whether the learner or Sens
   await expect(leave).toHaveCount(0);
 });
 
+test("another conversation of the same lesson keeps the learner's unsaved code without asking", async ({ page, mountAgentChat, eve }) => {
+  const { runtime } = await lessonPage(page, eve, mountAgentChat);
+  const earlier = await startConversation(eve, runtime, "An earlier talk about first");
+  Object.assign(earlier, { persona: "sensei", courseId: "agent-course", lessonId: "first", model: "deepseek/model", firstMessage: "An earlier talk about first" });
+  await page.goto("/learn/learn-run");
+  const lines = page.locator(".view-lines");
+  await expect(lines).toContainText("export const answer = 0;");
+  await expect(page.getByText("Echo: Hello from first", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("textbox", { name: "Code editor", exact: true }).press("ControlOrMeta+End");
+  await page.keyboard.insertText("// Not saved yet");
+  await page.getByRole("button", { name: "Conversations", exact: true }).click();
+  await page.getByRole("list", { name: "Conversations", exact: true }).getByRole("listitem").filter({ hasText: "An earlier talk about first" }).getByRole("button").click();
+  await expect(page).toHaveURL(new RegExp(`session=${earlier.id}$`, "u"));
+  await expect(page.getByText("Echo: An earlier talk about first", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("dialog", { name: "Leave this lesson?", exact: true })).toHaveCount(0);
+  await expect(lines).toContainText("// Not saved yet");
+});
+
 test("closing the tab with unsaved lesson code gets the browser's prompt", async ({ page, mountAgentChat, eve }) => {
   await lessonPage(page, eve, mountAgentChat);
   await page.goto("/learn/learn-run");
