@@ -216,6 +216,40 @@ describe("setupAgents", () => {
     expect(settings.permissions.allow).not.toContain("Agent(sensei)");
     expect(settings.permissions.allow).toContain("Bash(npx dojofoo *)");
   });
+
+  it("adds its settings to the learner's settings.json, which keeps its keys, values and list order", () => {
+    mkdirSync(resolve(root, ".claude"), { recursive: true });
+    writeFileSync(resolve(root, ".claude/settings.json"), JSON.stringify({
+      model: "opus",
+      permissions: { allow: ["Bash(git status)", "Bash(npx dojofoo)"], deny: ["Read(secrets/**)", "Grep(.dojos/**)"], defaultMode: "plan" },
+      hooks: { Stop: [{ hooks: [{ type: "command", command: "say done" }] }] },
+    }));
+
+    setupAgents(root, ["claude"]);
+
+    expect(JSON.parse(readFileSync(resolve(root, ".claude/settings.json"), "utf8"))).toEqual({
+      model: "opus",
+      permissions: {
+        allow: ["Bash(git status)", "Bash(npx dojofoo)", "Bash(npx dojofoo *)"],
+        deny: ["Read(secrets/**)", "Grep(.dojos/**)", "Read(.dojos/**)", "Glob(.dojos/**)"],
+        defaultMode: "plan",
+      },
+      hooks: { Stop: [{ hooks: [{ type: "command", command: "say done" }] }] },
+    });
+  });
+
+  it("leaves a settings.json that isn't valid JSON as it is, with one warning", () => {
+    mkdirSync(resolve(root, ".claude"), { recursive: true });
+    const broken = "{\n  // the learner's own\n  \"model\": \"opus\",\n}\n";
+    writeFileSync(resolve(root, ".claude/settings.json"), broken);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      setupAgents(root, ["claude"]);
+      expect(readFileSync(resolve(root, ".claude/settings.json"), "utf8")).toBe(broken);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]![0])).toContain(".claude/settings.json");
+    } finally { warn.mockRestore(); }
+  });
 });
 
 describe("setupSkills", () => {
