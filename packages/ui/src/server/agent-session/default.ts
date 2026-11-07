@@ -1,12 +1,15 @@
 import { createRequire } from "node:module";
 import { Client, ClientError } from "@dojofoo/harness/client";
+import { activeTurn, delivery, emptySessionView, foldEvents, turn } from "@dojofoo/harness/messages";
 import { AgentApiError, type AgentEndpoint, type DefaultSessionRequest, type DefaultSessionResponse, type Persona, type SessionRecord } from "@dojofoo/harness/api";
 import { readAgentEffort, readAgentModel } from "@dojofoo/config/runtime";
 import { dojoTags, tagged, type AgentId, type LearnerEvidenceExcerpt } from "@dojofoo/protocol";
 import { senseiTurn } from "../lesson/instructions";
-import { sendServerTurn } from "./check-reports";
+import { markLessonIntroduced } from "../lesson/service";
+import { sendHeld, sendServerTurn } from "./check-reports";
 import { learnerEvidence } from "./evidence";
-import { verifyWindow } from "./guard";
+import { guardedLesson, verifyWindow } from "./guard";
+import { applyLifecycle, type TurnOutcome } from "./lifecycle";
 import { readRecords, saveRecord, updateRecord } from "./records";
 
 export interface DefaultSessionDeps {
@@ -77,8 +80,8 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
     await new Client(endpoint).sessions.attach(record.id).end({ signal: AbortSignal.timeout(5_000) }).catch(() => {});
   }
 
-  /** The begin turn (`begin:<id>:<attempt>`), sent through the server-turn path (window, pre-delivery, POST); `beginPending` names it.
-   *  A resend with the same key to a paused begin opens nothing: Eve answers it with the original receipt. */
+  /** The begin turn (`begin:<id>:<attempt>`), sent through the server-turn path (window, pre-delivery, POST); `beginPending` names it,
+   *  and then Eve's receipt. A resend with the same key to a paused begin opens nothing: Eve answers it with the original receipt. */
   async function sendBegin(path: string, workspaceId: string, endpoint: AgentEndpoint, record: SessionRecord, begin: { attempt: number; message: string }) {
     const idempotencyKey = `begin:${record.id}:${begin.attempt}`;
     const resend = record.lifecycle?.beginPending?.idempotencyKey === idempotencyKey && record.lifecycle.status === "paused";
@@ -86,7 +89,39 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
       ...current.lifecycle ?? { status: "idle" as const, updatedAt: new Date().toISOString() },
       beginPending: { idempotencyKey, sentAt: new Date().toISOString(), attempt: begin.attempt }, updatedAt: new Date().toISOString(),
     } }));
-    await sendServerTurn(path, workspaceId, endpoint, updated, { text: begin.message, idempotencyKey, resend });
+    const deliveryId = await sendServerTurn(path, workspaceId, endpoint, updated, { text: begin.message, idempotencyKey, resend });
+    // A settle that came first has cleared the begin
+    if (deliveryId) await updateRecord(path, record.id, current => current.lifecycle?.beginPending?.idempotencyKey === idempotencyKey
+      ? { ...current, lifecycle: { ...current.lifecycle, beginPending: { ...current.lifecycle.beginPending, deliveryId } } } : current).catch(() => {});
+    return deliveryId;
+  }
+
+  /** What became of a begin's delivery (by Eve's receipt) while no turn is open: the outcome of the turn it ran, or `newKey` when Eve
+   *  settled it without a turn, which its key can never start. Neither when the same key is to be sent: Eve has not admitted it, a
+   *  turn is still open (its settle reports as any other), or Eve can't be read. */
+  async function beginInEve(endpoint: AgentEndpoint, sessionId: string, deliveryId: string): Promise<{ outcome?: TurnOutcome; newKey?: true }> {
+    const events = await new Client(endpoint).sessions.attach(sessionId).snapshot({ signal: AbortSignal.timeout(2_000) })
+      .then(snapshot => snapshot.events, () => undefined);
+    if (!events) return {};
+    const view = foldEvents(emptySessionView(), events);
+    if (activeTurn(view)) return {};
+    const begin = delivery(view, deliveryId);
+    if (begin?.status === "settled" && !begin.turnId) return { newKey: true };
+    const ran = begin?.turnId ? turn(view, begin.turnId) : undefined;
+    return ran?.status === "settled" ? { outcome: ran.outcome ?? "completed" } : {};
+  }
+
+  /** What host-port.ts does at a turn.settled, for a begin Eve already ran whose report the hook lost: the window verified, the record
+   *  settled, a completed kata begin's lesson marked introduced, and a held report sent */
+  async function settleBegin(path: string, workspaceId: string, endpoint: AgentEndpoint, sessionId: string, outcome: TurnOutcome) {
+    await verifyWindow(path, workspaceId, sessionId);
+    const before = (await readRecords(path)).find(item => item.id === sessionId);
+    await applyLifecycle(path, sessionId, { type: "turn.settled", outcome });
+    const lesson = before && guardedLesson(path, before);
+    if (lesson && before?.lifecycle?.beginPending && outcome === "completed" && before.lifecycle.status !== "interrupted") {
+      markLessonIntroduced(path, lesson.courseId, lesson.lessonId);
+    }
+    await sendHeld(path, workspaceId, endpoint, sessionId);
   }
 
   /** Kyoshi's: a bodyless Eve create, the record, then the hidden start turn (decision 1). Kyoshi has no begin contract to retry, so a
@@ -149,14 +184,28 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
     return created;
   }
 
-  /** A record whose begin is still pending (a crash before it settled) gets it resent with the same key, which Eve answers with the
-   *  original receipt; a begin a leave cancelled is resent as a new turn with the next attempt's key (D29) */
+  /** A record whose begin is still pending (a crash, a settle the hook lost) gets it resent with the same key, unless Eve already ran
+   *  it: Eve answers a key it has seen with the original receipt and starts nothing, so that begin is settled here instead. A begin a
+   *  leave cancelled, or one Eve settled without a turn, is resent as a new turn with the next attempt's key (D29). */
   async function resumeBegin(path: string, workspaceId: string, endpoint: AgentEndpoint, record: SessionRecord) {
     const pending = record.lifecycle?.beginPending;
     if (!pending) return record;
     const attempt = (pending.attempt ?? 0) + (pending.cancelledAt ? 1 : 0);
-    await sendBegin(path, workspaceId, endpoint, record, { attempt, message: beginMessage(await learnerEvidence(path, record.courseId!, record.lessonId)) }).catch(error =>
-      console.warn(`Could not resend the begin turn of ${record.id}: ${error instanceof Error ? error.message : String(error)}`));
+    // A paused begin's resend opens nothing (sendBegin); any other repeat of a key Eve has seen would leave the record working for a
+    // turn Eve never starts
+    const repeat = !pending.cancelledAt && record.lifecycle?.status !== "paused";
+    try {
+      let found = repeat && pending.deliveryId ? await beginInEve(endpoint, record.id, pending.deliveryId) : {};
+      if (!found.outcome) {
+        const message = beginMessage(await learnerEvidence(path, record.courseId!, record.lessonId));
+        const deliveryId = await sendBegin(path, workspaceId, endpoint, record, { attempt: attempt + (found.newKey ? 1 : 0), message });
+        // A begin with no receipt yet (a crash before Eve answered, a record from before receipts were kept) is found by the resend's
+        if (repeat && !pending.deliveryId && deliveryId) found = await beginInEve(endpoint, record.id, deliveryId);
+      }
+      if (found.outcome) await settleBegin(path, workspaceId, endpoint, record.id, found.outcome);
+    } catch (error) {
+      console.warn(`Could not resume the begin turn of ${record.id}: ${error instanceof Error ? error.message : String(error)}`);
+    }
     return (await readRecords(path)).find(item => item.id === record.id) ?? record;
   }
 

@@ -174,6 +174,37 @@ describe("local agent runtime", () => {
     } finally { await eve.close(); }
   });
 
+  it("reconciles a working record whose session Eve doesn't know (404) when the host is ready", async () => {
+    const eve = await unknownSessionsEve();
+    try {
+      const { state, workspaceId } = workspace();
+      vi.stubEnv("DOJOFOO_HOME", state.stateHome);
+      const local = createLocalAgentRuntime({ state, runtime: async () => ({ start: async () => ({ url: eve.url }), close: async () => {} }) });
+      await local.sessions.save(workspaceId, { id: "s-unknown", agent: "codex", persona: "kyoshi", createdAt: "2026-11-04T00:00:00.000Z", revision: 0,
+        lifecycle: { status: "working", updatedAt: "2026-11-04T00:00:00.000Z" } });
+      await local.connect(workspaceId, kyoshi);
+      expect((await local.sessions.get(workspaceId, "s-unknown"))?.lifecycle).toMatchObject({ status: "idle" });
+    } finally { await eve.close(); }
+  });
+
+  it("a ready host reconciles a record a lost report left working, once it went unchanged for the grace period", async () => {
+    const eve = await streamEve([{ type: "turn.started", turnId: "turn_0" }, { type: "turn.settled", turnId: "turn_0" }]);
+    try {
+      const { state, workspaceId } = workspace();
+      vi.stubEnv("DOJOFOO_HOME", state.stateHome);
+      const local = createLocalAgentRuntime({ state, runtime: async () => ({ start: async () => ({ url: eve.url }), close: async () => {} }),
+        idleCheckMs: 20, reconcileAfterMs: 1_000 });
+      await local.connect(workspaceId, kyoshi);
+      // Its turn settled in Eve after the host became ready, and the hook's turn.settled never arrived
+      await local.sessions.save(workspaceId, { id: "s-lost", agent: "codex", persona: "kyoshi", createdAt: "2026-11-04T00:00:00.000Z", revision: 0,
+        lifecycle: { status: "working", updatedAt: new Date().toISOString() } });
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Within the grace period it could be a delivery whose turn hasn't started yet
+      expect((await local.sessions.get(workspaceId, "s-lost"))?.lifecycle).toMatchObject({ status: "working" });
+      await vi.waitFor(async () => expect((await local.sessions.get(workspaceId, "s-lost"))?.lifecycle).toMatchObject({ status: "idle" }), { timeout: 3_000 });
+    } finally { await eve.close(); }
+  });
+
   it("a saved Cursor starts neither Sensei nor Kyoshi while it has no passing record, even with its CLI installed", async () => {
     installed.cursor = true;
     try {
@@ -284,6 +315,17 @@ async function streamEve(facts: Array<{ type: string; turnId: string }>) {
     ];
     response.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "x-eve-stream-version": "27", "x-eve-stream-format": "ndjson",
       "x-eve-stream-tail-index": String(lines.length - 1) }).end(lines.map(line => JSON.stringify(line)).join("\n") + "\n");
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = server.address() as { port: number };
+  return { url: `http://127.0.0.1:${port}`, close: () => new Promise<void>(accept => server.close(() => accept())) };
+}
+
+/** An Eve host that has no sessions: every stream answers 404, as Eve does for a session it doesn't know. */
+async function unknownSessionsEve() {
+  const server = createServer((_request, response) => {
+    response.writeHead(404, { "content-type": "application/json" }).end(JSON.stringify({ error: "Session not found.", ok: false }));
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
