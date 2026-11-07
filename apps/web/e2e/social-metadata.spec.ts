@@ -22,8 +22,10 @@ test("uses the Dojo.foo social card on the main website", async ({ page }) => {
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://dojo.foo/");
   // The site's name for search results comes from WebSite on the home page, not from every title
   const graph = JSON.parse(await page.locator('script[type="application/ld+json"]').first().textContent() ?? "{}")["@graph"];
-  expect(graph.map((node: { "@type": string }) => node["@type"])).toEqual(["WebSite", "Organization", "SoftwareApplication"]);
+  expect(graph.map((node: { "@type": string }) => node["@type"])).toEqual(["WebSite", "Organization", "SoftwareApplication", "FAQPage"]);
   expect(graph[0]).toMatchObject({ name: "Dojo.foo", url: "https://dojo.foo/" });
+  // The questions the home page shows, the meaning of "dojo" among them
+  expect(graph[3].mainEntity.map((item: { name: string }) => item.name)).toContain("What does dojo mean?");
 });
 
 test("uses the Dojo.foo social card with page metadata in the docs", async ({ page }) => {
