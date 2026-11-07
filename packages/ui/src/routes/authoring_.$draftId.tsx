@@ -333,7 +333,7 @@ function AuthoringPage() {
         authoringApi(`/api/authoring/lessons/${encodeURIComponent(lessonId)}/trials`),
         { method: "POST" }
       );
-      if (!tab.closed) tab.location.replace(`/learn/${encodeURIComponent(trial.runId)}?lesson=${encodeURIComponent(trial.lessonId)}`);
+      if (!tab.closed) tab.location.replace(`/learn/${encodeURIComponent(trial.runId)}/${encodeURIComponent(trial.lessonId)}`);
     } catch (cause) {
       tab.close();
       setTrialError({ lessonId, message: errorMessage(cause) });

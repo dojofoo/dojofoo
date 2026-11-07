@@ -134,7 +134,7 @@ function CourseIndex({ setup }: { setup: LocalSetup }) {
     if (sortBy === "name") return left.title.localeCompare(right.title);
     return sortBy === "oldest" ? left.lastSeenAt - right.lastSeenAt : right.lastSeenAt - left.lastSeenAt;
   });
-  const openCourse = (courseId: string) => { const course = courses.find(item => item.dojo === courseId); if (course?.runId) void navigate({ to: "/learn/$runId", params: { runId: course.runId } }); };
+  const openCourse = (courseId: string) => { const course = courses.find(item => item.dojo === courseId); if (course?.runId) void navigate({ to: "/learn/$runId/{-$lessonId}", params: { runId: course.runId } }); };
 
   async function createCourse() {
     if (creatingCourse) return;
@@ -253,7 +253,7 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
   /** A history pick: its address names it, and the chat asks for it at once (with a switch, in the same update: decision 17) */
   const openPick = (id: string) => {
     setSession(id);
-    void navigate({ to: "/learn/$runId", params: { runId }, search: { ...(selectedLessonId ? { lesson: selectedLessonId } : {}), session: id } });
+    void navigate({ to: "/learn/$runId/{-$lessonId}", params: { runId, lessonId: selectedLessonId || undefined }, search: { session: id } });
   };
   const workspaceAgent = useWorkspaceAgent({ workspaceId, persona: "sensei", onSwitched: (agentId, pick) => {
     setCheckCards([]);
@@ -454,7 +454,7 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       : courses.find(course => course.dojo === targetCourseId && course.workspaceId === workspaceId)?.runId;
     if (!targetRunId) return setError("Course not found");
     setActiveWorkspaceTab("code");
-    await navigate({ to: "/learn/$runId", params: { runId: targetRunId }, search: { lesson: name } });
+    await navigate({ to: "/learn/$runId/{-$lessonId}", params: { runId: targetRunId, lessonId: name } });
   }
 
   /** "Make this my current course" (D30): the CLI's current course becomes this one, then the page reads its snapshot again */
@@ -533,10 +533,6 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
     </div>, items: lesson.lessons.map((item, index) => ({
       id: `lesson:${item.name}`, label: item.title, marker: String(index + 1).padStart(2, "0"),
       state: item.state === "completed" ? "done" : item.isCurrent ? "active" : "locked",
-      note: item.state !== "completed" && !item.isCurrent ? "Upcoming lesson; expand to preview its goal" : undefined,
-      ...(item.name === lesson.kata || item.state !== "completed" && !item.isCurrent
-        ? { preview: <p>{item.summary}</p> }
-        : { onClick: () => { void viewLesson(item.name); } }),
     })) },
   ];
   if ((lesson.course?.chapters?.length ?? 0) > 1) {
@@ -676,7 +672,7 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
     conversation={<div data-testid="chat-pane" className="contents" data-host-event-count={hostEvents.length}>
       <AgentChat key={`${workspaceId}:${lesson.dojo}:${lesson.kata}:${agentEpoch}`} embedded workspaceId={workspaceId} persona="sensei"
         page={{ course: lesson.dojo, lesson: lesson.kata }} sessionId={session}
-        onSessionDropped={() => { void navigate({ to: "/learn/$runId", params: { runId }, search: { lesson: lesson.kata }, replace: true }); }} onOpened={setOpened}
+        onSessionDropped={() => { void navigate({ to: "/learn/$runId/{-$lessonId}", params: { runId, lessonId: lesson.kata }, search: {}, replace: true }); }} onOpened={setOpened}
         onSwitchRequest={agentId => { if (opened) workspaceAgent.request(agentId, { id: opened.id, readOnly: false }); }} hostEvents={hostEvents} fragments={lesson.fragments} onHighlight={highlightCode}
         controls={chat} agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching} />
       {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}

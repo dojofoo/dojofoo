@@ -85,7 +85,7 @@ test("every course link reaches /learn/$runId", async ({ page, mountAgentChat })
   // "Open next lesson" keeps the page's run and names the lesson
   await page.goto("/learn/learn-run");
   await page.getByRole("button", { name: "Open next lesson", exact: true }).click();
-  await expect(page).toHaveURL(/\/learn\/learn-run\?lesson=second$/u);
+  await expect(page).toHaveURL(/\/learn\/learn-run\/second$/u);
   await expect(page.getByRole("tab", { name: /second\.ts/u })).toBeVisible();
 });
 
@@ -93,6 +93,8 @@ test("old learning addresses redirect: a run to /learn, anything else to the das
   await learnerPages(page, mountAgentChat);
   await page.goto("/session/learn-run");
   await expect(page).toHaveURL(/\/learn\/learn-run$/u);
+  await page.goto("/learn/learn-run?lesson=second");
+  await expect(page).toHaveURL(/\/learn\/learn-run\/second$/u);
   for (const address of ["/session/not-a-run", "/learn/not-a-run", "/course/trial-workspace/trial-course/lesson/first"]) {
     await page.goto(address);
     await expect(page, address).toHaveURL(/\/$/u);

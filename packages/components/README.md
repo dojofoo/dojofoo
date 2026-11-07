@@ -48,7 +48,9 @@ Other lesson bodies use the same frontmatter:
 
 | Field | Meaning |
 | --- | --- |
-| `title` | Lesson name in the sidebar and on the dashboard card. |
+| `title` | Lesson name in the sidebar and on the dashboard card, without a number: the sidebar numbers lessons itself. Defaults to the folder name without its number prefix (`02-hooks` is "Hooks"). |
+| `description` | One line on what the lesson teaches, for the course page and the catalog. The sidebar shows only titles; opening a lesson says what it is about. |
+| `order` | Position in the course or chapter. Defaults to the folder's number prefix (`01-intro`, `02-hooks`), then the folder name. |
 | `sensei` | Path to the lesson's Sensei guidance. A new lesson with its own `sensei` starts its own conversation, and Sensei introduces the lesson. Lessons that point to the same file can share a conversation. |
 | `requires` | A lesson path (or a list) that must be finished first. The sidebar shows the lesson as locked until then. |
 | `unlockByBot` | `true` lets Sensei unlock `unlockTarget` when `unlockCondition` is met, instead of a check or a question. |

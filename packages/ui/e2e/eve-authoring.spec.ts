@@ -477,7 +477,7 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
     sessionStarts.push(route.request().postDataJSON());
     return route.fulfill({ json: {} });
   });
-  await context.route(/\/learn\/trial-run\?lesson=first$/, route => route.fulfill({ contentType: "text/html", body: "<h1>Prepared lesson</h1>" }));
+  await context.route(/\/learn\/trial-run\/first$/, route => route.fulfill({ contentType: "text/html", body: "<h1>Prepared lesson</h1>" }));
   const lesson = { id: "first", title: "first", senseiPath: "src/first/SENSEI.md", description: "", checks: [], files: [{ path: "src/first/SENSEI.md", label: "SENSEI.md", content: "# First" }] };
   await page.routeWebSocket("**/api/authoring/changes*", () => {});
   await page.route("**/api/authoring/**", async route => {
@@ -504,7 +504,7 @@ for (const outcome of ["success", "failure"] as const) test(`a trial reserves it
   release.resolve();
   if (outcome === "success") {
     await expect(tab.getByRole("heading", { name: "Prepared lesson" })).toBeVisible();
-    await expect(tab).toHaveURL(/\/learn\/trial-run\?lesson=first$/);
+    await expect(tab).toHaveURL(/\/learn\/trial-run\/first$/);
     expect(sessionStarts).toEqual([]);
     await expect(page).toHaveURL(new RegExp(`authoring/ws-1\\?session=${agent.sessionId}`));
     await tab.close();

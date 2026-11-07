@@ -139,7 +139,7 @@ test("Sensei's ended and replaced conversations can't be opened; a live one on a
     { message: "A replaced lesson", ended: true, replacedBy: "another", createdAt: "2026-10-27T00:00:00Z" },
     { message: "Live elsewhere", agent: away.id, createdAt: "2026-10-26T00:00:00Z" },
   ]);
-  await page.goto("/learn/learn-run?lesson=first");
+  await page.goto("/learn/learn-run/first");
   await expect(page.getByText("Echo: The live lesson", { exact: true })).toBeVisible({ timeout: 15_000 });
   const rows = await openMenu(page);
   await expect(rows).toHaveCount(4);
@@ -159,7 +159,7 @@ test("a conversation on an agent that isn't offered is listed without an action"
     { message: "The live lesson", createdAt: "2026-10-29T00:00:00Z" },
     { message: "On an agent no longer offered", agent: notOffered.id, createdAt: "2026-10-28T00:00:00Z" },
   ]);
-  await page.goto("/learn/learn-run?lesson=first");
+  await page.goto("/learn/learn-run/first");
   await expect(page.getByText("Echo: The live lesson", { exact: true })).toBeVisible({ timeout: 15_000 });
   const row = (await openMenu(page)).filter({ hasText: "On an agent no longer offered" });
   await expect(row).toContainText(`${notOffered.name} isn't available`);
@@ -171,11 +171,11 @@ test("a picked Sensei conversation on the selected agent opens with its own mode
     { message: "The live lesson", createdAt: "2026-10-29T00:00:00Z", model: "deepseek/model" },
     { message: "An earlier lesson", createdAt: "2026-10-28T00:00:00Z", model: "openai/model" },
   ]);
-  await page.goto("/learn/learn-run?lesson=first");
+  await page.goto("/learn/learn-run/first");
   await expect(page.getByText("Echo: The live lesson", { exact: true })).toBeVisible({ timeout: 15_000 });
   await (await openMenu(page)).filter({ hasText: "An earlier lesson" }).getByRole("button").click();
   await expect(page.getByText("Echo: An earlier lesson", { exact: true })).toBeVisible({ timeout: 15_000 });
-  await expect(page).toHaveURL(new RegExp(`/learn/learn-run\\?lesson=first&session=${records[1]!.id}$`, "u"));
+  await expect(page).toHaveURL(new RegExp(`/learn/learn-run/first\\?session=${records[1]!.id}$`, "u"));
   const composer = page.getByTestId("authoring-chat-composer");
   await composer.getByRole("button", { name: "Model", exact: true }).click();
   await expect(page.getByRole("menuitemradio", { name: /^GPT/ })).toBeChecked({ timeout: 5000 });
@@ -195,7 +195,7 @@ test("no bare error: a failed list read offers Try again, and a picked conversat
   await page.route(`**/sessions/${stranded.id}/eve/v1/session/${stranded.id}/stream*`, route => route.fulfill({
     status: 409, json: { error: "This session was built by an earlier eve.", code: "session_stranded" },
   }));
-  await page.goto("/learn/learn-run?lesson=first");
+  await page.goto("/learn/learn-run/first");
   await expect(page.getByText("Echo: The live lesson", { exact: true })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "Conversations", exact: true }).click();
   const failure = page.getByRole("alert").filter({ hasText: "Couldn't load the conversations." });
@@ -207,6 +207,6 @@ test("no bare error: a failed list read offers Try again, and a picked conversat
   await rows.filter({ hasText: "A stranded lesson" }).getByRole("button").click();
   await expect(page.getByRole("status").filter({ hasText: "That conversation can't be continued, so the newest one on Codex opened instead." })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Echo: The live lesson", { exact: true })).toBeVisible();
-  await expect(page).toHaveURL(/\/learn\/learn-run\?lesson=first$/u);
+  await expect(page).toHaveURL(/\/learn\/learn-run\/first$/u);
   await alertsHaveActions(page);
 });

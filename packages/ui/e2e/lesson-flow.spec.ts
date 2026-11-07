@@ -21,7 +21,7 @@ test("keeps recovered chat history on the first cold session render", async ({ p
     .find(({ content, type }) => type === "text" && content?.trim() && !content.startsWith("[dojo"))?.content?.trim();
   test.skip(!expectedText, "The resumable session has no visible transcript");
 
-  await page.goto(`/learn/${course.runId}?lesson=${course.kata}&session=${course.sessionId}`);
+  await page.goto(`/learn/${course.runId}/${course.kata}?session=${course.sessionId}`);
 
   const chat = page.getByTestId("chat-pane");
   await expect(chat).toContainText(expectedText!.replaceAll("`", "").slice(0, 80));
@@ -44,7 +44,7 @@ test("keeps a completed check turn before and after transcript recovery", async 
   const recoveredChecks = snapshot.messages.flatMap(({ parts }) => parts)
     .filter(({ name, type }) => type === "tool-call" && name === "dojo_lesson_verify").length;
 
-  await page.goto(`/learn/${course!.runId}?lesson=${course!.kata}&session=${course!.sessionId}`);
+  await page.goto(`/learn/${course!.runId}/${course!.kata}?session=${course!.sessionId}`);
   const chat = page.getByTestId("chat-pane");
   const summaries = chat.getByText(/\d+ of \d+ tests passed/);
   await expect(summaries).toHaveCount(recoveredChecks);
@@ -62,7 +62,7 @@ test("keeps a completed check turn before and after transcript recovery", async 
     .then((response) => response.json())
     .then((items: Array<{ runId: string; kata: string | null; sessionId: string | null }>) => items.find(({ sessionId }) => sessionId));
   expect(recovered?.sessionId).toBeTruthy();
-  await page.goto(`/learn/${recovered!.runId}?lesson=${recovered!.kata}&session=${recovered!.sessionId}`);
+  await page.goto(`/learn/${recovered!.runId}/${recovered!.kata}?session=${recovered!.sessionId}`);
   await expect(page.getByTestId("chat-pane").getByText(/\d+ of \d+ tests passed/).last()).toBeVisible();
 });
 

@@ -112,7 +112,7 @@ export function createLessonTrial(root: string, lessonId: string, options: { age
   workspaceId: string;
   courseId: string;
   lessonId: string;
-  /** The trial's course run, which the Trial tab opens as `/learn/<runId>?lesson=<lessonId>` */
+  /** The trial's course run, which the Trial tab opens as `/learn/<runId>/<lessonId>` */
   runId: string;
 } {
   const manifest = readDraftManifest(root);

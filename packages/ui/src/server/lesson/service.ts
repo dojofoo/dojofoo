@@ -461,7 +461,7 @@ function lessonSummary(markdown: string): string {
 }
 
 function humanTitle(name: string): string {
-  return name.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return name.replace(/^\d+-/u, "").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function testSummary(output: string): string {

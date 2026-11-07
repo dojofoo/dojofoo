@@ -221,12 +221,12 @@ test("continuing from the dashboard reuses its known session when discovery is u
   await expect(reply).toBeVisible({ timeout: 10_000 });
   // A history pick's address opens that conversation
   discoveryAvailable = true;
-  await page.goto(`/learn/saved-run?lesson=first&session=${mounted.sessionId}`);
+  await page.goto(`/learn/saved-run/first?session=${mounted.sessionId}`);
   await expect(reply).toBeVisible({ timeout: 10_000 });
   await expect(page).toHaveURL(new RegExp(`session=${mounted.sessionId}$`));
   // A session the lesson doesn't have opens the lesson's default conversation and drops it from the URL, with no error page (D29)
-  await page.goto("/learn/saved-run?lesson=first&session=another-conversation");
+  await page.goto("/learn/saved-run/first?session=another-conversation");
   await expect(reply).toBeVisible({ timeout: 10_000 });
-  await expect(page).toHaveURL(/\/learn\/saved-run\?lesson=first$/);
+  await expect(page).toHaveURL(/\/learn\/saved-run\/first$/);
   await expect(page.getByRole("main", { name: "Something went wrong", exact: true })).toHaveCount(0);
 });
