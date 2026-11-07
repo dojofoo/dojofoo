@@ -18,6 +18,14 @@ describe("API error responses", () => {
 
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
+it("reports the version, build and folder it was started with", async () => {
+  vi.stubEnv("DOJO_UI_VERSION", "1.2.3");
+  vi.stubEnv("DOJO_UI_BUILD", "build-1");
+  vi.stubEnv("DOJO_PROJECT_ROOT", "/courses/draft");
+  const response = await app.request("/api/health");
+  expect(await response.json()).toMatchObject({ ok: true, version: "1.2.3", build: "build-1", root: "/courses/draft" });
+});
+
 it("offers both bundled onboarding courses without contacting the marketplace", async () => {
   const network = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Offline"));
   const response = await app.request("/api/local/courses");

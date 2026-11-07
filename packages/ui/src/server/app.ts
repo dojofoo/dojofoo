@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { resolve } from "node:path";
 import { localRoutes } from "./local";
 import {
   DefaultRequestHandler,
@@ -77,8 +78,9 @@ function buildApp() {
 
   app.route("/api/local", localRoutes);
 
-  // Liveness.
-  app.get("/api/health", (c) => c.json({ ok: true, version: agentCard.version, instance: process.env.DOJO_UI_INSTANCE }));
+  // Liveness. Version and build are those `dojofoo ui` started this server with: it reuses a server of its own build.
+  app.get("/api/health", (c) => c.json({ ok: true, version: process.env.DOJO_UI_VERSION ?? agentCard.version, build: process.env.DOJO_UI_BUILD,
+    root: resolve(process.env.DOJO_PROJECT_ROOT ?? process.cwd()), instance: process.env.DOJO_UI_INSTANCE }));
 
   // Local senpai project API.
   app.route("/api/project", projectRoutes);
