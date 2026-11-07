@@ -10,6 +10,7 @@ import { writeAgent } from "@dojofoo/config/runtime";
 import { app } from "./app";
 import { createLocalAgentRuntime } from "./agent-api";
 import { guardFor } from "./agent-session/guard-store";
+import { saveRecord } from "./agent-session/records";
 import { kataWorkspace, removeRoots } from "./agent-session/test-kata.fixture";
 
 // Cursor's CLI is looked up on this machine; the tests decide whether it is installed
@@ -495,5 +496,20 @@ describe("switching and host stops (step 5)", () => {
       expect((await local.sessions.get(workspaceId, session.id))?.lifecycle?.heldReport).toBeUndefined();
       expect(messages.map(entry => entry.message.method)).toEqual(expect.arrayContaining(["guard.violation", "lesson.check.report"]));
     } finally { await eve.close(); }
+  });
+});
+
+describe("model and effort", () => {
+  it("forgets the workspace's effort when a model change clears the conversation's", async () => {
+    const { local, root, workspaceId } = runtime();
+    const saved = () => JSON.parse(readFileSync(resolve(root, ".dojo", "runtimes.json"), "utf8"));
+    await saveRecord(root, { id: "conversation", agent: "codex", persona: "sensei", createdAt: new Date().toISOString(), courseId: "starter", revision: 0 });
+    await local.sessions.patch(workspaceId, "conversation", { effort: "high" });
+    expect(saved().efforts).toEqual({ codex: "high" });
+    // The next model doesn't take "high", so the menu clears the effort along with the model change
+    const updated = await local.sessions.patch(workspaceId, "conversation", { model: "gpt-6-luna", effort: null });
+    expect(updated.effort).toBeUndefined();
+    expect(saved()).toMatchObject({ agent: "codex", models: { codex: "gpt-6-luna" } });
+    expect(saved().efforts).toEqual({});
   });
 });

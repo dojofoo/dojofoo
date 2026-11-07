@@ -255,7 +255,10 @@ export function ModelPicker({
   // menu: Low / Medium / High under the thinking switch, and the web search switch
   const classic = !models.some((m) => m.efforts);
   const levels = classic ? CLASSIC_EFFORTS : chosen?.efforts ?? [];
-  const effortNow = effort ?? innerEffort ?? chosen?.defaultEffort ?? (classic ? "medium" : undefined);
+  // The conversation's effort, else the one chosen here, else the model's default, whichever this model takes: a level chosen
+  // for another model never shows on one without it
+  const effortNow = [effort, innerEffort, chosen?.defaultEffort].find((level) => level !== undefined && levels.includes(level))
+    ?? (classic ? "medium" : undefined);
   const showThinking = classic || onThinkingChange !== undefined;
   const showSearch = classic || onWebSearchChange !== undefined;
   const anyRated = models.some((m) => m.speed !== undefined || m.quality !== undefined || m.cost !== undefined);
