@@ -24,6 +24,10 @@ interface GitHubRepository {
   pushed_at?: string;
 }
 
+interface GitHubBranch {
+  commit?: { sha?: string; commit?: { tree?: { sha?: string } } };
+}
+
 interface GitHubTree {
   sha?: string;
   tree?: Array<{ path?: string; type?: string; size?: number }>;
@@ -142,8 +146,20 @@ export class GitHubCourseRegistrar implements CourseRegistrar {
       const [canonicalOwner, canonicalRepositoryName] = canonicalRepository.split("/") as [string, string];
 
       const branch = repository.default_branch;
+      // One version throughout: the branch's commit, its tree and that commit's files (by the branch's name, raw
+      // files can be cached copies of an earlier commit). The tree's hash names the version; `add` computes it from
+      // its download.
+      const branchResponse = await this.#fetch(
+        `https://api.github.com/repos/${source.repository}/branches/${encodeURIComponent(branch)}`,
+        { headers: { accept: "application/vnd.github+json", "user-agent": "dojofoo-registry" } },
+      );
+      if (!branchResponse.ok) return null;
+      const { commit } = await branchResponse.json() as GitHubBranch;
+      const commitSha = commit?.sha;
+      const treeSha = commit?.commit?.tree?.sha;
+      if (!commitSha || !treeSha) return null;
       const treeResponse = await this.#fetch(
-        `https://api.github.com/repos/${source.repository}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+        `https://api.github.com/repos/${source.repository}/git/trees/${treeSha}?recursive=1`,
         { headers: { accept: "application/vnd.github+json", "user-agent": "dojofoo-registry" } },
       );
       if (!treeResponse.ok) return null;
@@ -168,7 +184,7 @@ export class GitHubCourseRegistrar implements CourseRegistrar {
 
       const files = await Promise.all(paths.map(async ({ path }) => {
         const response = await this.#fetch(
-          `https://raw.githubusercontent.com/${source.repository}/${encodeURIComponent(branch)}/${path}`,
+          `https://raw.githubusercontent.com/${source.repository}/${commitSha}/${path}`,
         );
         if (!response.ok) throw new Error(`Unable to fetch ${path}`);
         return { path, contents: await response.text() };
@@ -205,7 +221,7 @@ export class GitHubCourseRegistrar implements CourseRegistrar {
         tags: [...new Set(manifest.tags ?? [])],
         kataCount: katas.length,
         katas,
-        hash: tree.sha ?? source.integrity ?? null,
+        hash: treeSha,
         files,
         mode: manifest.mode ?? "katas",
       };

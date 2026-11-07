@@ -1621,6 +1621,273 @@
                   }
                 }
               }
+            },
+            "post": {
+              "operationId": "checkCourseVersion",
+              "summary": "Check a course version",
+              "description": "Read the security checks on one version of a public GitHub course, named by its Git tree hash. When none is for that hash, the API first registers the course's current version from GitHub and runs Dojo's checks on it, without recording an install. Each audit's hash names the version it checked; when GitHub has moved on since the download, none matches. Courses without audits, including ones the API can't register, return 404.",
+              "tags": [
+                "Courses"
+              ],
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "required": [
+                        "hash"
+                      ],
+                      "properties": {
+                        "hash": {
+                          "description": "The version's Git tree hash: its repository's root tree, as the CLI hashes the files it downloaded.",
+                          "examples": [
+                            "51a5d290dac609a1d4c3c2233958c971955f48e3"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "parameters": [
+                {
+                  "name": "source",
+                  "in": "path",
+                  "required": true,
+                  "schema": {
+                    "examples": [
+                      "dojofoo"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "name": "slug",
+                  "in": "path",
+                  "required": true,
+                  "schema": {
+                    "examples": [
+                      "effect-ts"
+                    ],
+                    "type": "string"
+                  }
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Response for status 200",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "source",
+                          "slug",
+                          "status",
+                          "hash",
+                          "audits"
+                        ],
+                        "properties": {
+                          "id": {
+                            "examples": [
+                              "acme/typescript-basics"
+                            ],
+                            "type": "string"
+                          },
+                          "source": {
+                            "examples": [
+                              "acme"
+                            ],
+                            "type": "string"
+                          },
+                          "slug": {
+                            "examples": [
+                              "typescript-basics"
+                            ],
+                            "type": "string"
+                          },
+                          "status": {
+                            "enum": [
+                              "trial",
+                              "enabled"
+                            ],
+                            "description": "A trial course installs by its repository but isn't in the catalog yet.",
+                            "type": "string"
+                          },
+                          "hash": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "audits": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "provider",
+                                "slug",
+                                "status",
+                                "riskLevel",
+                                "summary",
+                                "auditedAt",
+                                "hash",
+                                "findings"
+                              ],
+                              "properties": {
+                                "provider": {
+                                  "examples": [
+                                    "Dojo"
+                                  ],
+                                  "type": "string"
+                                },
+                                "slug": {
+                                  "enum": [
+                                    "dojo",
+                                    "cisco"
+                                  ],
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "enum": [
+                                    "pass",
+                                    "warn",
+                                    "fail"
+                                  ],
+                                  "type": "string"
+                                },
+                                "riskLevel": {
+                                  "enum": [
+                                    "NONE",
+                                    "LOW",
+                                    "MEDIUM",
+                                    "HIGH",
+                                    "CRITICAL"
+                                  ],
+                                  "type": "string"
+                                },
+                                "summary": {
+                                  "examples": [
+                                    "No risks detected"
+                                  ],
+                                  "type": "string"
+                                },
+                                "auditedAt": {
+                                  "type": "string"
+                                },
+                                "hash": {
+                                  "description": "The snapshot the provider audited.",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "findings": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "rule",
+                                      "riskLevel",
+                                      "message"
+                                    ],
+                                    "properties": {
+                                      "rule": {
+                                        "examples": [
+                                          "install_script"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "riskLevel": {
+                                        "enum": [
+                                          "NONE",
+                                          "LOW",
+                                          "MEDIUM",
+                                          "HIGH",
+                                          "CRITICAL"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "path": {
+                                        "type": "string"
+                                      },
+                                      "line": {
+                                        "anyOf": [
+                                          {
+                                            "format": "integer",
+                                            "default": 0,
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "integer"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "400": {
+                  "description": "Response for status 400",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "error",
+                          "message"
+                        ],
+                        "properties": {
+                          "error": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "404": {
+                  "description": "Response for status 404",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "error",
+                          "message"
+                        ],
+                        "properties": {
+                          "error": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           },
           "/api/v1/courses/{source}/{slug}": {
@@ -1986,6 +2253,19 @@
       "operations": [
         {
           "method": "get",
+          "path": "/api/v1/courses/audit/{source}/{slug}",
+          "tags": [
+            "Courses"
+          ]
+        }
+      ],
+      "showDescription": true
+    },
+    "check-course-version": {
+      "document": "course",
+      "operations": [
+        {
+          "method": "post",
           "path": "/api/v1/courses/audit/{source}/{slug}",
           "tags": [
             "Courses"

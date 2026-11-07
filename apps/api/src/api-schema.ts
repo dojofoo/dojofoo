@@ -37,6 +37,9 @@ const audit = t.Object({
     findings: t.Array(t.Object({ rule: t.String({ examples: ["install_script"] }), riskLevel: risk(), message: t.String(), path: t.Optional(t.String()), line: t.Optional(t.Integer()) })),
   })),
 }, { additionalProperties: false });
+const versionCheck = t.Object({
+  hash: t.String({ description: "The version's Git tree hash: its repository's root tree, as the CLI hashes the files it downloaded.", examples: ["51a5d290dac609a1d4c3c2233958c971955f48e3"] }),
+});
 const event = t.Object({
   instanceId: t.String({ description: "Random identifier for the local project; do not send names, email addresses or file contents.", examples: ["a-random-project-id"] }),
   courseId: t.String({ examples: ["dojofoo/effect-ts"] }),
@@ -86,6 +89,10 @@ export const apiRoutes = {
   audit: {
     detail: details("getCourseAudit", "Get course audits", "Read the security checks on a course: Dojo's own on every new snapshot, then Cisco's skill-scanner. A fail stops the CLI from installing the course; a warn asks first. Courses without audits return 404."),
     params, response: { 200: audit, 404: error },
+  },
+  auditVersion: {
+    detail: { ...details("checkCourseVersion", "Check a course version", "Read the security checks on one version of a public GitHub course, named by its Git tree hash. When none is for that hash, the API first registers the course's current version from GitHub and runs Dojo's checks on it, without recording an install. Each audit's hash names the version it checked; when GitHub has moved on since the download, none matches. Courses without audits, including ones the API can't register, return 404."), requestBody: { required: true, content: { "application/json": { schema: versionCheck } } } },
+    params, response: { 200: audit, 400: error, 404: error },
   },
   course: { detail: details("getCourse", "Download a course", "Read the course's content hash and files. Unknown courses return 404."), params, response: { 200: course, 404: error } },
   events: {

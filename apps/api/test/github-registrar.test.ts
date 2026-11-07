@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { GitHubCourseRegistrar } from "../src/github-registrar";
 
+// GitHub's answer for the default branch: its commit and the commit's tree
+const branchAt = (tree: string) => Response.json({ commit: { sha: "commit-sha", commit: { tree: { sha: tree } } } });
+
 describe("GitHubCourseRegistrar", () => {
   it("validates a public repository manifest and persists a marketplace snapshot", async () => {
     const manifest = {
@@ -28,9 +31,10 @@ describe("GitHubCourseRegistrar", () => {
           pushed_at: "2026-08-11T10:00:00.000Z",
         });
       }
-      if (url.includes("/git/trees/main?recursive=1")) {
+      if (url.endsWith("/repos/acme/typescript-basics/branches/main")) return branchAt("tree-sha");
+      if (url.includes("/git/trees/tree-sha?recursive=1")) {
         return Response.json({
-          sha: "commit-sha",
+          sha: "tree-sha",
           tree: [
             { path: "dojo.json", type: "blob", size: 500 },
             { path: "DOJO.md", type: "blob", size: 100 },
@@ -41,6 +45,8 @@ describe("GitHubCourseRegistrar", () => {
           ],
         });
       }
+      // A branch's raw files can be cached copies of an earlier commit; the commit's own are current
+      if (url.startsWith("https://raw.githubusercontent.com/acme/typescript-basics/main/")) return new Response("an earlier commit's copy");
       if (url.endsWith("/prepare.sh")) return new Response("#!/bin/sh\n");
       if (url.endsWith("/mise-tasks/setup")) return new Response("#!/bin/sh\n");
       if (url.endsWith("/dojo.json")) {
@@ -74,8 +80,9 @@ describe("GitHubCourseRegistrar", () => {
       framework: "Effect",
       tags: ["Values"],
       katas: ["001-values"],
-      hash: "commit-sha",
+      hash: "tree-sha",
     });
+    // The snapshot holds the commit's files, which the hash names
     expect(registered?.files).toEqual([
       { path: "DOJO.md", contents: "# TypeScript Basics" },
       { path: "dojo.json", contents: JSON.stringify(manifest) },
@@ -117,7 +124,8 @@ describe("GitHubCourseRegistrar", () => {
       if (url.endsWith("/repos/acme/learn-python")) {
         return Response.json({ private: false, full_name: "acme/learn-python", default_branch: "main" });
       }
-      if (url.includes("/git/trees/main?recursive=1")) {
+      if (url.endsWith("/repos/acme/learn-python/branches/main")) return branchAt("interactive-sha");
+      if (url.includes("/git/trees/interactive-sha?recursive=1")) {
         return Response.json({
           sha: "interactive-sha",
           tree: [...files].map(([path, contents]) => ({ path, type: "blob", size: contents.length })),
@@ -144,7 +152,8 @@ describe("GitHubCourseRegistrar", () => {
       if (url.endsWith("/repos/acme/invalid")) {
         return Response.json({ private: false, full_name: "acme/invalid", default_branch: "main" });
       }
-      if (url.includes("/git/trees/main?recursive=1")) {
+      if (url.endsWith("/repos/acme/invalid/branches/main")) return branchAt("invalid-sha");
+      if (url.includes("/git/trees/invalid-sha?recursive=1")) {
         return Response.json({ sha: "invalid-sha", tree: [
           { path: "dojo.json", type: "blob", size: 2 },
         ] });
@@ -189,7 +198,8 @@ describe("GitHubCourseRegistrar", () => {
           default_branch: "main",
         });
       }
-      if (url.includes("/git/trees/main?recursive=1")) {
+      if (url.endsWith("/repos/acme/starter/branches/main")) return branchAt("canonical-sha");
+      if (url.includes("/git/trees/canonical-sha?recursive=1")) {
         return Response.json({
           sha: "canonical-sha",
           tree: [{ path: "dojo.json", type: "blob", size: files.get("dojo.json")!.length }],
@@ -234,7 +244,8 @@ describe("GitHubCourseRegistrar", () => {
           default_branch: "main",
         });
       }
-      if (url.includes("/git/trees/main?recursive=1")) {
+      if (url.endsWith("/repos/acme/private-starter/branches/main")) return branchAt("private-sha");
+      if (url.includes("/git/trees/private-sha?recursive=1")) {
         return Response.json({ tree: [{ path: "dojo.json", type: "blob", size: manifest.length }] });
       }
       return url.endsWith("/dojo.json")
@@ -271,7 +282,8 @@ describe("GitHubCourseRegistrar", () => {
           default_branch: "main",
         });
       }
-      if (url.includes("/git/trees/main?recursive=1")) {
+      if (url.endsWith("/repos/acme/private-starter/branches/main")) return branchAt("private-sha");
+      if (url.includes("/git/trees/private-sha?recursive=1")) {
         return Response.json({ tree: [{ path: "dojo.json", type: "blob", size: manifest.length }] });
       }
       return url.endsWith("/dojo.json")
