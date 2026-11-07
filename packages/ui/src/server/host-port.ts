@@ -185,7 +185,7 @@ export const hostPortHandlers: HostPortHandlers = {
       return {
         courseId, ...(record.lessonId ? { lessonId: record.lessonId } : {}),
         mode: readCourseManifest(path, courseId).mode === "interactive" ? "interactive" : "katas",
-        ...(record.model ? { model: record.model } : {}), revision: record.revision,
+        ...(record.model ? { model: record.model } : {}), ...(record.effort ? { effort: record.effort } : {}), revision: record.revision,
       };
     }),
     /** Before every model call, outside any memo (decision 6): a turn an agent switch interrupted, or another agent's session, never runs */

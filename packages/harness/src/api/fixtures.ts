@@ -144,12 +144,13 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", optio
           .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
         return { session: newest ?? await create(), rewrite: true, ...notice };
       },
-      patch: async (id, sessionId, { model }) => {
+      patch: async (id, sessionId, { model, effort }) => {
         known(id);
         const record = records.find(item => item.id === sessionId);
         if (!record) throw new AgentApiError(404, "session_not_found", "Session not found.");
         if (record.lifecycle?.status === "paused") throw new AgentApiError(409, "turn_paused", "Change the model after Sensei's question is answered.");
-        Object.assign(record, { model, revision: (record.revision ?? 0) + 1 });
+        Object.assign(record, { ...(model !== undefined ? { model } : {}), ...(typeof effort === "string" ? { effort } : {}), revision: (record.revision ?? 0) + 1 });
+        if (effort === null) delete record.effort;
         return record;
       },
     },

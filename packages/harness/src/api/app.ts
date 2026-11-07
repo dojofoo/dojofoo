@@ -79,7 +79,7 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
     .get("/workspaces/:workspaceId/sessions/:sessionId", async ({ params }) =>
       record(params.workspaceId, params.sessionId), routes.getSession)
     .patch("/workspaces/:workspaceId/sessions/:sessionId", async ({ params, body }) =>
-      runtime.sessions.patch(params.workspaceId, params.sessionId, { model: body.model }), routes.updateSession)
+      runtime.sessions.patch(params.workspaceId, params.sessionId, { ...(body.model ? { model: body.model } : {}), ...(body.effort !== undefined ? { effort: body.effort } : {}) }), routes.updateSession)
 
     // The session's own Eve routes, for this session only
     .all("/workspaces/:workspaceId/sessions/:sessionId/eve/*", async ({ params, request }) => {

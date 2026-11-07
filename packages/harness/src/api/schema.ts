@@ -37,7 +37,8 @@ const sessionSummary = {
   courseId: t.Optional(t.String({ description: "The course a Sensei conversation teaches." })),
   lessonId: t.Optional(t.String({ description: "The kata lesson a Sensei conversation teaches." })),
   model: t.Optional(t.String({ description: "The coding agent's model for this conversation; the agent's own default when absent." })),
-  revision: t.Optional(t.Integer({ minimum: 0, description: "Raised by every model change." })),
+  effort: t.Optional(t.String({ description: "The model's effort for this conversation (a level the agent lists for the model); the model's default when absent." })),
+  revision: t.Optional(t.Integer({ minimum: 0, description: "Raised by every model or effort change." })),
   endedAt: t.Optional(t.String()),
   replacedBy: t.Optional(t.String({ description: "The conversation that replaced this one." })),
   firstMessage: t.Optional(t.String({ description: "The opening of the conversation's first learner or author message, at most 80 characters." })),
@@ -46,7 +47,8 @@ const sessionSummary = {
 };
 const modelChoice = t.Object({
   id: t.String({ examples: ["openai/gpt-4o"] }),
-  name: t.String(),
+  name: t.String({ description: "The agent's own name for the model, with its version where the agent gives one.", examples: ["Opus 5.5"] }),
+  description: t.Optional(t.String({ description: "The agent's one-line description of the model." })),
   efforts: t.Array(t.String()),
   defaultEffort: t.Optional(t.String()),
 });
@@ -116,9 +118,10 @@ export const routes = {
     response: { 200: t.Object(sessionSummary), 404: error },
   },
   updateSession: {
-    detail: details("updateSession", "Change a session's model", "Sets the conversation's model from its next turn and remembers it as the workspace's last model for that coding agent. Refused while Sensei waits on the learner's answer.", "Sessions"),
+    detail: details("updateSession", "Change a session's model or effort", "Sets the conversation's model and/or effort from its next turn and remembers them as the workspace's last for that coding agent. Refused while Sensei waits on the learner's answer.", "Sessions"),
     params: t.Object({ ...workspace, sessionId: t.String() }),
-    body: t.Object({ model: t.String({ minLength: 1 }) }, { additionalProperties: false }),
+    // `effort: null` clears it, for a model that does not take the effort chosen before
+    body: t.Object({ model: t.Optional(t.String({ minLength: 1 })), effort: t.Optional(t.Union([t.String({ minLength: 1 }), t.Null()])) }, { additionalProperties: false, minProperties: 1 }),
     response: { 200: t.Object(sessionSummary), 400: error, 404: error, 409: error },
   },
   eve: {

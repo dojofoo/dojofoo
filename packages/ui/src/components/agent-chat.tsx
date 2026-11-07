@@ -20,7 +20,7 @@ import { AiBrain01Icon, AiMagicIcon } from "@dojofoo/uix/icons";
 import type { ComposerAgent, ComposerModel } from "@dojofoo/uix/containers/assistant-home";
 import { useViewTransitionSettled } from "@dojofoo/uix/lib/view-transition";
 
-type Session = { id: string; agent: string; model?: string };
+type Session = { id: string; agent: string; model?: string; effort?: string };
 /** An open conversation; a read-only one (an ended Kyoshi pick, D32) takes no input */
 type Opened = Session & { readOnly?: boolean };
 type Agent = { id: string; selected: boolean };
@@ -259,6 +259,7 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   });
   const [failure, setFailure] = useState<{ error: unknown; operation: "send" | "cancel" | "answer"; file?: string }>();
   const [model, setModel] = useState(session.model);
+  const [effort, setEffort] = useState(session.effort);
   const [models, setModels] = useState<ComposerModel[]>([]);
   const [modelChanging, setModelChanging] = useState(false);
   const transcript = useMemo(() => eveChatMessages(agent.messages), [agent.messages]);
@@ -274,23 +275,30 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   useEffect(() => {
     if (!sensei) return;
     const controller = new AbortController();
-    // A model the agent reports efforts for shows the one it runs at by default, and lists the others
-    void json<Page<{ id: string; name: string; efforts: string[]; defaultEffort?: string }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
-      .then(page => setModels(page.data.map(choice => ({ value: choice.id, name: choice.name, ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}),
-        description: choice.efforts.length ? `Effort: ${choice.efforts.join(", ")}` : "", icon: AiMagicIcon }))), () => {});
+    // Each model with its own description, its effort levels and the one it runs at by default, as the agent lists them
+    void json<Page<{ id: string; name: string; description?: string; efforts: string[]; defaultEffort?: string }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
+      .then(page => setModels(page.data.map(choice => ({ value: choice.id, name: choice.name, description: choice.description ?? "", efforts: choice.efforts,
+        ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}), icon: AiMagicIcon }))), () => {});
     return () => controller.abort();
   }, [sensei, workspaceId, session.agent]);
-  async function changeModel(next: string) {
-    if (next === model) return;
+  /** A model or effort change, saved on the session; it applies from the next turn (D26) */
+  async function changeSession(change: { model?: string; effort?: string | null }) {
     setModelChanging(true);
     setFailure(undefined);
     try {
       const saved = await json<Session>(agentApi(workspaceId, `/sessions/${encodeURIComponent(session.id)}`), {
-        method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: next }),
+        method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(change),
       });
       setModel(saved.model);
+      setEffort(saved.effort);
     } catch (cause) { setFailure({ error: cause, operation: "send" }); }
     finally { setModelChanging(false); }
+  }
+  function changeModel(next: string) {
+    if (next === model) return;
+    // An effort the next model does not take is cleared, so it runs at its own default
+    const levels = models.find(choice => choice.value === next)?.efforts ?? [];
+    void changeSession({ model: next, ...(effort && !levels.includes(effort) ? { effort: null } : {}) });
   }
   async function send(message: string, selected: File[]) {
     if (!message.trim() && !selected.length) return;
@@ -352,7 +360,8 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
     status={agent.status === "busy" ? "streaming" : "ready"} busy={agent.status === "resuming"}
     // Eve takes no input until the session has caught up
     inputDisabled={agent.status === "resuming"}
-    {...(sensei ? { model, models, modelChanging: modelChanging || turnOpen, onModelChange: (next: string) => { void changeModel(next); } } : {})}
+    {...(sensei ? { model, models, effort, modelChanging: modelChanging || turnOpen, onModelChange: changeModel,
+      onEffortChange: (next: string) => { if (next !== effort) void changeSession({ effort: next }); } } : {})}
     value={value} onValueChange={onValueChange} attachments files={files} onFilesChange={onFilesChange}
     onSend={send} onStop={() => { setFailure(undefined); void agent.cancel().catch(cause => setFailure({ error: cause, operation: "cancel" })); }} onAnswer={answer}
     error={failureView(shown, session.agent)} notice={readOnlyNotice ? <>{notice}{readOnlyNotice}</> : notice}

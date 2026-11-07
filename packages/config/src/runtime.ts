@@ -76,22 +76,31 @@ export function writeAgent(root: string, agent: AgentId, _options: AgentSelectio
   renameSync(temporary, path);
 }
 
-/** The workspace's last model for a coding agent: <root>/.dojo/runtimes.json `models[agent]` (D26). */
-export function readAgentModel(root: string, agent: AgentId): string | undefined {
-  const { models } = readRuntimes(resolve(root, ".dojo", "runtimes.json"));
-  if (!models || typeof models !== "object" || Array.isArray(models)) return undefined;
-  const model = (models as Record<string, unknown>)[agent];
-  return typeof model === "string" && model.trim() ? model : undefined;
+/** A per-agent map in <root>/.dojo/runtimes.json: `models` (D26) or `efforts` */
+type AgentSetting = "models" | "efforts";
+function readAgentSetting(root: string, key: AgentSetting, agent: AgentId): string | undefined {
+  const map = readRuntimes(resolve(root, ".dojo", "runtimes.json"))[key];
+  if (!map || typeof map !== "object" || Array.isArray(map)) return undefined;
+  const value = (map as Record<string, unknown>)[agent];
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
-
-/** Saves `models[agent]` in <root>/.dojo/runtimes.json through a temp file and rename, keeping `agent` and every other key. */
-export function writeAgentModel(root: string, agent: AgentId, model: string): void {
+/** Saves `<key>[agent]` through a temp file and rename, keeping `agent` and every other key. */
+function writeAgentSetting(root: string, key: AgentSetting, agent: AgentId, value: string): void {
   if (!isAgentId(agent)) throw new Error(`Unsupported coding agent: ${String(agent)}`);
   const path = resolve(root, ".dojo", "runtimes.json");
   const current = readRuntimes(path);
-  const models = current.models && typeof current.models === "object" && !Array.isArray(current.models) ? current.models as Record<string, unknown> : {};
+  const map = current[key] && typeof current[key] === "object" && !Array.isArray(current[key]) ? current[key] as Record<string, unknown> : {};
   mkdirSync(dirname(path), { recursive: true });
   const temporary = `${path}.${randomUUID()}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify({ ...current, models: { ...models, [agent]: model } }, null, 2)}\n`);
+  writeFileSync(temporary, `${JSON.stringify({ ...current, [key]: { ...map, [agent]: value } }, null, 2)}\n`);
   renameSync(temporary, path);
 }
+
+/** The workspace's last model for a coding agent: <root>/.dojo/runtimes.json `models[agent]` (D26). */
+export const readAgentModel = (root: string, agent: AgentId) => readAgentSetting(root, "models", agent);
+/** Saves `models[agent]` in <root>/.dojo/runtimes.json. */
+export const writeAgentModel = (root: string, agent: AgentId, model: string) => writeAgentSetting(root, "models", agent, model);
+/** The workspace's last effort for a coding agent: `efforts[agent]`, for its next new conversation. */
+export const readAgentEffort = (root: string, agent: AgentId) => readAgentSetting(root, "efforts", agent);
+/** Saves `efforts[agent]` in <root>/.dojo/runtimes.json. */
+export const writeAgentEffort = (root: string, agent: AgentId, effort: string) => writeAgentSetting(root, "efforts", agent, effort);

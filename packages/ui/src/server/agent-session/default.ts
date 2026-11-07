@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { Client, ClientError } from "@dojofoo/harness/client";
 import { AgentApiError, type AgentEndpoint, type DefaultSessionRequest, type DefaultSessionResponse, type Persona, type SessionRecord } from "@dojofoo/harness/api";
-import { readAgentModel } from "@dojofoo/config/runtime";
+import { readAgentEffort, readAgentModel } from "@dojofoo/config/runtime";
 import { dojoTags, tagged, type AgentId, type LearnerEvidenceExcerpt } from "@dojofoo/protocol";
 import { senseiTurn } from "../lesson/instructions";
 import { sendServerTurn } from "./check-reports";
@@ -107,10 +107,11 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
     const model = readAgentModel(path, agent) ?? await (createRequire(import.meta.url)("@dojofoo/agents/eve/models") as typeof import("@dojofoo/agents/eve/models"))
       .configuredHarnessModel(agent).catch(() => undefined);
+    const effort = readAgentEffort(path, agent);
     const now = new Date().toISOString();
     const record: SessionRecord = {
       id: session.id, agent, persona: "sensei", createdAt: now, courseId: request.course, ...(request.lesson ? { lessonId: request.lesson } : {}),
-      ...(model ? { model } : {}), revision: 0, lifecycle: { status: "idle", updatedAt: now },
+      ...(model ? { model } : {}), ...(effort ? { effort } : {}), revision: 0, lifecycle: { status: "idle", updatedAt: now },
     };
     await saveRecord(path, record);
     try { await sendBegin(path, workspaceId, endpoint, record, { attempt: 0, message: beginMessage(await learnerEvidence(path, request.course, request.lesson)) }); }
