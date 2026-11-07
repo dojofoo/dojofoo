@@ -118,6 +118,8 @@ export interface AskUserQuestionsProps
   onComplete?: (answers: Record<string, AskUserAnswer>) => void;
   onSkip?: (questionId: string, currentIndex: number) => void;
   skipLabel?: string;
+  /** What happened to the question, at the right of its footer in place of its buttons (e.g. "× Cancelled") */
+  status?: React.ReactNode;
   /** Pins the flow to one step of the size ladder (default 36px, compact
    *  28px — see /docs/sizes). Omitted, it follows the surrounding
    *  SizeProvider. */
@@ -160,6 +162,7 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
       onComplete,
       onSkip,
       skipLabel = "Skip",
+      status,
       size,
       className,
       shape: shapeVariant,
@@ -837,10 +840,10 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
     const blocks = useMergeSplitBlocks(selectedGroups, itemRects, shape.bgRadius);
 
     const showBack = total > 1 && safeIndex > 0;
-    const showSkip = total > 1 && isSkippable;
+    const showSkip = total > 1 && isSkippable && !status;
     // freeText commits through the same bottom submit button as multi-select.
-    const showSubmit = isMulti || isFreeText;
-    const showFooter = showBack || showSkip || showSubmit;
+    const showSubmit = (isMulti || isFreeText) && !status;
+    const showFooter = showBack || showSkip || showSubmit || Boolean(status);
 
     // ── Roving tabindex ──────────────────────────────────────────
     // One tab stop for the whole group, single- AND multi-select alike: the
@@ -1551,6 +1554,7 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
                   )}
                 </div>
                 <div className="relative flex items-center gap-2">
+                  {status && <span className="inline-flex h-7 items-center gap-1 px-2 sm:px-3 text-[12px] text-muted-foreground">{status}</span>}
                   <AnimatePresence mode="popLayout" initial={false}>
                     {showSkip && (
                       <motion.div

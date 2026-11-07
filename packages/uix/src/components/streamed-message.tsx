@@ -75,7 +75,7 @@ export function StreamedChatMessage({
             if (asked) {
               return onToolAnswer ? (
                 <AgentQuestion className="w-full max-w-none" key={`${part.type}-${part.id}`} onAnswer={onToolAnswer}
-                  questions={asked.questions} answers={asked.answers} disabled={asked.disabled} failure={asked.failure} />
+                  questions={asked.questions} answers={asked.answers} disabled={asked.disabled} failure={asked.failure} cancelled={asked.cancelled} />
               ) : null;
             }
             return null;

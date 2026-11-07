@@ -9,7 +9,7 @@ export { AgentQuestion, parseAgentQuestions } from "@dojofoo/uix/components/agen
 export function agentQuestion(part: ToolCallPart): AgentQuestionState | undefined {
   const question = eveQuestion(part);
   if (!question) return toolQuestion(part);
-  const { interactionId, request, answer, settled, error: failure } = question;
+  const { interactionId, request, answer, settled, cancelled, error: failure } = question;
   return {
     id: part.id,
     questions: [{
@@ -24,8 +24,9 @@ export function agentQuestion(part: ToolCallPart): AgentQuestionState | undefine
       selectedIds: answer.optionId ? [answer.optionId] : [],
       otherText: answer.text,
     } } : undefined,
-    disabled: settled,
-    failure,
+    disabled: settled || cancelled,
+    // A cancelled question says so in its own footer, not as an error under it
+    ...(cancelled ? { cancelled } : { failure }),
   };
 }
 

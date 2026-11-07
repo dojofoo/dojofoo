@@ -33,6 +33,9 @@ export function eveQuestion(part: ToolCallPart) {
     request: interaction.request,
     answer: interaction.answer,
     settled,
+    // A stopped turn cancels the call, and Eve withdraws, interrupts or abandons its question
+    cancelled: source?.type === "tool" && source.state === "cancelled"
+      || settled && (interaction.outcome === "interrupted" || interaction.outcome === "withdrawn" || interaction.outcome === "abandoned"),
     error: settled && interaction.outcome !== "accepted" && interaction.outcome !== "declined"
       ? interaction.reason ?? `This question was ${interaction.outcome}.` : undefined,
   };
