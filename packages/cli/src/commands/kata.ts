@@ -274,7 +274,7 @@ export function startKata(root: string): void {
   }
 
   scaffold(root, rc, dojoPath, target);
-  queueCourseEvent(root, catalog.name, "started", target.name);
+  queueCourseEvent(root, catalog.name, "started", target.name, undefined, rc.currentDojo);
   refreshCassette(root);
 }
 
@@ -341,9 +341,9 @@ function check(root: string, args: string[]): void {
       // The real rc, never the course view, so currentDojo stays as it was
       recordCompletion(stored, rc.currentDojo, target.name);
       writeDojoRc(root, stored);
-      queueCourseEvent(root, catalog.name, "kata_completed", target.name);
+      queueCourseEvent(root, catalog.name, "kata_completed", target.name, undefined, rc.currentDojo);
       if (completedCount(katas, stored.progress?.[rc.currentDojo]) === katas.length) {
-        queueCourseEvent(root, catalog.name, "finished", target.name);
+        queueCourseEvent(root, catalog.name, "finished", target.name, undefined, rc.currentDojo);
       }
     }
 
@@ -426,7 +426,7 @@ function change(root: string, name: string): void {
   }
 
   scaffold(root, rc, dojoPath, target);
-  queueCourseEvent(root, catalog.name, "started", target.name);
+  queueCourseEvent(root, catalog.name, "started", target.name, undefined, rc.currentDojo);
   refreshCassette(root);
 }
 

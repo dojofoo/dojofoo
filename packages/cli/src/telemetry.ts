@@ -108,8 +108,10 @@ export function queueCourseEvent(
   event: CourseEventName,
   kata?: string,
   source?: { type: "github"; locator: string; integrity?: string },
+  // The installed course's folder, which keeps its local runs; `add` names it after the course, as the source lookup assumes
+  dojo = courseName.split("/").at(-1)!,
 ) {
-  recordDojoLifecycle(root, event, kata);
+  recordDojoLifecycle(root, dojo, event, kata);
   if (telemetryDisabled()) return;
   const recorded = readInstalledSource(dojoDir(root, courseName.split("/").at(-1)!));
   const githubSource = source ?? (recorded?.type === "github" ? recorded : undefined);

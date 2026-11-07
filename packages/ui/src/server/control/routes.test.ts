@@ -486,8 +486,8 @@ describe("local control-plane API", () => {
 
   it("filters completed runs and returns newest events first", async () => {
     const { root, stateHome } = fixture();
-    recordDojoLifecycle(root, "started", "001-first", { stateHome, now: 100, session: null });
-    recordDojoLifecycle(root, "finished", "001-first", { stateHome, now: 200, session: null });
+    recordDojoLifecycle(root, "starter", "started", "001-first", { stateHome, now: 100, session: null });
+    recordDojoLifecycle(root, "starter", "finished", "001-first", { stateHome, now: 200, session: null });
     const app = buildControlRoutes({ stateHome, now: 300 });
 
     const runs = await app.request("/runs?status=completed");
