@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "../components/app-shell";
 import { ArrowDown01Icon, ArrowRight01Icon } from "../lib/icons";
 import { SiteStyles } from "./site";
-import { questions, SITE, searchPages, socialMetadata, structuredData, type SearchPage } from "./seo";
+import { faviconLinks, questions, SITE, searchPages, socialMetadata, structuredData, type SearchPage } from "./seo";
 
 /*
  * Dojo.foo as search engines, AI answers and link previews see it – from web/seo, which the website's head is built
@@ -11,7 +11,7 @@ import { questions, SITE, searchPages, socialMetadata, structuredData, type Sear
  * index. Preview metadata comes from the same UIX exports as the website; indexing status is checked in Search Console.
  */
 
-const CHECKED = "2026-11-03";
+const CHECKED = "2026-11-07";
 
 /** A Google result for the site, in Google's dark or light colours: the site, its sitelinks, the questions asked */
 export function GoogleResult({ theme = "dark", whatIf = true }: { theme?: "dark" | "light"; /** The planned pages too, as they'd show */ whatIf?: boolean }) {
@@ -20,7 +20,7 @@ export function GoogleResult({ theme = "dark", whatIf = true }: { theme?: "dark"
   return (
     <div className="ui-seo-serp" data-theme={theme}>
       <div className="ui-seo-serp__site">
-        <span className="ui-seo-serp__favicon"><img src={`${SITE.url}/favicon.svg`} alt="" /></span>
+        <span className="ui-seo-serp__favicon"><img src={`${SITE.url}/favicon-96x96.png`} onError={({ currentTarget }) => { if (!currentTarget.src.endsWith("/favicon.ico")) currentTarget.src = `${SITE.url}/favicon.ico`; }} alt="" /></span>
         <span><b>{SITE.name}</b><small>{SITE.url}</small></span>
       </div>
       <a className="ui-seo-serp__title" href={SITE.url}>{SITE.title}</a>
@@ -55,7 +55,7 @@ export function GoogleResult({ theme = "dark", whatIf = true }: { theme?: "dark"
 
 const length = (text: string, limit: number) => <span className="ui-seo-count" data-over={text.length > limit || undefined}>{text.length}/{limit}</span>;
 
-/** A page's tags, with Google's display limits: about 60 characters of title, 155 of description */
+/** Character counts are editorial guides; Google truncates to the available display width. */
 function PageRow({ page }: { page: SearchPage }) {
   return (
     <tr data-status={page.status}>
@@ -69,7 +69,7 @@ function PageRow({ page }: { page: SearchPage }) {
 
 /** How a link to the site unfurls: X's large card and a chat app's preview */
 function SocialCards() {
-  const tags = Object.fromEntries(socialMetadata({ title: SITE.title, description: SITE.description, url: SITE.url }).map((tag) => ["property" in tag ? tag.property : tag.name, tag.content]));
+  const tags = Object.fromEntries(socialMetadata({ title: SITE.title, description: SITE.description, url: `${SITE.url}/` }).map((tag) => ["property" in tag ? tag.property : tag.name, tag.content]));
   return (
     <div className="ui-seo-cards">
       <figure className="ui-seo-x">
@@ -96,8 +96,8 @@ function StructuredData() {
   const data = structuredData();
   const graphs: Array<[string, string, Record<string, unknown>[]]> = [
     ["Home", "WebSite names the site in results; Organization its logo", [data.website, data.organization, data.cli]],
-    ["Courses", "CollectionPage with an ItemList: Google's course list carousel wants three or more courses, each page with Course", [data.collection({ name: "Find your dojo", description: searchPages[1].description, path: "/dojos", items: [{ name: "Effect-TS", path: "/courses/dojofoo/effect-ts" }, { name: "Pydantic Agents", path: "/courses/dojofoo/pydantic-agents" }, { name: "Everyday TypeScript", path: "/courses/dojofoo/everyday-typescript" }] })]],
-    ["Course", "Course: name and description (60 characters show) and provider count for Google; the rest for other readers", [data.course({ name: "Effect-TS", description: "Master Effect-TS through hands-on katas, from Effect.succeed to managed runtimes.", path: "/courses/dojofoo/effect-ts", author: "Dojo.foo", language: "TypeScript", tags: ["effect", "functional"], publishedAt: "2026-09-18", version: "1.3.0", repositoryUrl: "https://github.com/dojofoo/effect-ts" }), data.breadcrumbs([["Dojos", "/dojos"], ["Effect-TS", "/courses/dojofoo/effect-ts"]])]],
+    ["Courses", "CollectionPage with an ItemList of published courses. The production catalog is currently empty; no unfinished courses are published.", [data.collection({ name: "Find your dojo", description: searchPages[1].description, path: "/dojos", items: [] })]],
+    ["Course", "Example for a future published course, not a live catalog entry. Course markup describes the content; Google no longer offers Course rich results.", [data.course({ name: "Effect-TS", description: "Master Effect-TS through hands-on katas, from Effect.succeed to managed runtimes.", path: "/courses/dojofoo/effect-ts", author: "Dojo.foo", language: "TypeScript", tags: ["effect", "functional"], publishedAt: "2026-09-18", version: "1.3.0", repositoryUrl: "https://github.com/dojofoo/effect-ts" }), data.breadcrumbs([["Dojos", "/dojos"], ["Effect-TS", "/courses/dojofoo/effect-ts"]])]],
     ["Docs", "TechArticle and its trail (Google shows breadcrumbs on desktop only since January 2025)", [data.techArticle({ headline: "Quickstart", description: "From nothing to your first lesson.", path: "/docs/quickstart" }), data.breadcrumbs([["Docs", "/docs"], ["Quickstart", "/docs/quickstart"]])]],
     ["FAQ", "FAQPage: no rich result since May 2026 – only on a page that shows the questions, for other readers", [data.faqPage(questions.filter((item) => item.status === "confirmed"))]],
   ];
@@ -137,8 +137,11 @@ const checks: Array<[state: "ok" | "fixed" | "todo" | "note", what: string, deta
   ["note", "Catalog publishing", "Only enabled courses appear publicly. Private starters and courses in trial remain excluded until approved for publication."],
   ["ok", "One address per page", "Canonical links; http:// redirects (308) to https://; www.dojo.foo has no DNS record, so nothing competes"],
   ["ok", "Site name", "WebSite JSON-LD on the home page (name, alternateName, url) and og:site_name"],
-  ["fixed", "Favicon in results", "Google takes ICO, PNG and others but not SVG – the site had only favicon.svg. Now also favicon.ico, a 96px PNG and the Apple touch icon"],
-  ["todo", "Search Console", "Verify ownership, submit the sitemap and inspect indexing in Search Console. This preview has no access to Google's indexing reports."],
+  ["fixed", "Favicon in results", "SVG, ICO at 16/32/48/256px, PNG at 16/32/96px, an opaque 180px Apple touch icon and 192/512px manifest icons all come from favicon.svg. Google gets raster formats; the preview falls back to ICO."],
+  ["ok", "Search Console", "Domain ownership verified. Google processed sitemap.xml successfully and discovered 35 pages. The homepage is indexed, and its live test permits crawling and indexing. A fresh crawl was requested on 7 November 2026."],
+  ["note", "Performance baseline", "Search Console is still processing performance data as of this audit. Query impressions, CTR and positions are needed before choosing a title experiment. This preview does not fetch private account reports."],
+  ["note", "Indexing conditions", "A successful live test confirms access, not guaranteed inclusion or ranking. Google also checks content quality, duplicate-page canonical selection, manual actions, security issues and removals."],
+  ["ok", "Account reports", "Search Console reports no manual actions or security issues. No temporary removal requests were submitted in the last six months. These reports do not establish Google's content-quality assessment."],
   ["note", "Social image format", "og.webp, kept: X documents WebP; Facebook, LinkedIn, Slack, Discord and iMessage don't say either way"],
   ["note", "Sitelinks", "Google picks them – no markup. Clear titles, a header that links the main pages, and pages worth listing (Membership, Interviews, Sell aren't pages yet)"],
   ["note", "People also ask", "Not set by markup. Answering the questions in the page's own text (an FAQ on the landing) is what can feed it, and AI answers"],
@@ -171,13 +174,13 @@ export function SearchPreview() {
           <GoogleResult theme={theme} whatIf={whatIf} />
         </Section>
 
-        <Section title="Getting indexed" lead={<>The public-build checklist. Confirm indexed pages and Google's selected canonical in Search Console.</>}>
+        <Section title="Getting indexed" lead={<>Production audit as of {CHECKED}. Confirm indexed pages and Google's selected canonical in Search Console; a live test does not check all <a href="https://support.google.com/webmasters/answer/9012289#will_i_be_indexed">indexing conditions</a>.</>}>
           <ul className="ui-seo-checks">
             {checks.map(([state, what, detail]) => <li key={what} data-state={state}><em>{state === "ok" ? "In place" : state === "fixed" ? "Fixed" : state === "todo" ? "To do" : "Note"}</em><b>{what}</b><span>{detail}</span></li>)}
           </ul>
         </Section>
 
-        <Section title="Pages" lead="Each page's title and description, as Google would show them, and its own card at its address + /og.webp.">
+        <Section title="Pages" lead="Metadata for the main pages and planned additions, with social cards. Counts of 60 and 155 are writing guides, not Google limits; Google may rewrite titles and snippets.">
           <table className="ui-seo-pages">
             <thead><tr><th>Page</th><th>Title</th><th>Description</th><th>Card</th></tr></thead>
             <tbody>{[{ path: "/", label: SITE.name, title: SITE.title, description: SITE.description, status: "live" as const }, ...searchPages].map((page) => <PageRow key={page.path} page={page} />)}</tbody>
@@ -186,6 +189,13 @@ export function SearchPreview() {
 
         <Section title="Link previews" lead="The home page's Open Graph and X tags, as a post and a chat unfurl them.">
           <SocialCards />
+        </Section>
+
+        <Section title="Icons" lead="The icon declarations used by the website. All raster variants are generated from favicon.svg; the manifest supplies 192px and 512px PNGs.">
+          <table className="ui-seo-pages">
+            <thead><tr><th>File</th><th>Sizes</th><th>Use</th><th>Preview</th></tr></thead>
+            <tbody>{faviconLinks.map((icon) => <tr key={icon.href}><td><a href={`${SITE.url}${icon.href}`}><code>{icon.href}</code></a></td><td>{icon.sizes ?? "–"}</td><td>{icon.rel}</td><td>{icon.rel !== "manifest" && <img className="!size-12 !aspect-square !object-contain" src={`${SITE.url}${icon.href}`} alt={icon.href} loading="lazy" />}</td></tr>)}</tbody>
+          </table>
         </Section>
 
         <Section title="Structured data" lead="The JSON-LD in each kind of page's head. Google shows no Course or FAQ rich results any more; the markup still tells other readers – AI answers among them – what a page is.">
