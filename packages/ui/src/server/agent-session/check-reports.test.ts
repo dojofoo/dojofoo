@@ -134,11 +134,14 @@ describe("check reports", () => {
     const old = await session({ status: "working", resumeFailedAt: new Date().toISOString(),
       heldReport: { observationId: "obs-moved", text: "[dojo:check] Ran lesson checks.\n\n{}", heldAt: new Date().toISOString() } });
     await call("turn.settled", old.id, { turnId: "t1", outcome: "failed" });
-    await vi.waitFor(async () => expect((await readRecords(target.path)).find(record => record.id === old.id)?.replacedBy).toEqual(expect.any(String)), { timeout: 30_000 });
+    // The old record names its replacement before the held report moves there, so wait for the move itself
+    await vi.waitFor(async () => {
+      const current = await readRecords(target.path);
+      const next = current.find(record => record.id === current.find(item => item.id === old.id)?.replacedBy);
+      expect(next).toMatchObject({ courseId: "starter", lessonId: "001-first", lifecycle: { heldReport: { observationId: "obs-moved" } } });
+    }, { timeout: 30_000 });
     const records = await readRecords(target.path);
     const replacedBy = records.find(record => record.id === old.id)!.replacedBy!;
-    const replacement = records.find(record => record.id === replacedBy)!;
-    expect(replacement).toMatchObject({ courseId: "starter", lessonId: "001-first", lifecycle: { heldReport: { observationId: "obs-moved" } } });
     expect(records.find(record => record.id === old.id)?.lifecycle?.heldReport).toBeUndefined();
     await vi.waitFor(() => expect(messages.filter(entry => entry.message.method === "session.replaced").map(entry => entry.message.params))
       .toEqual([{ from: old.id, to: replacedBy }]));
