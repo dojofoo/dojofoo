@@ -43,13 +43,24 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
   const shouldOpen = !args.includes("--no-open") && process.env.DOJO_UI_NO_OPEN !== "1";
   const openPath = resolveUiOpenPath(args);
   if (args.includes("--authoring")) observeWorkspacePath(process.env.DOJO_PROJECT_ROOT ?? cwd, { kind: "draft" });
+  // A reused server reads bare /authoring as the folder it was started in, so it gets this folder's draft by its address
+  const reusePath = () => args.includes("--authoring") ? `/authoring/${observeWorkspacePath(cwd, { kind: "draft" })}` : openPath;
+  const version = packageVersion(moduleUrl);
   const port = valueAfter(args, "--port") ?? process.env.DOJO_UI_PORT ?? process.env.PORT ?? "4567";
   if (!/^\d+$/u.test(port) || Number(port) < 1 || Number(port) > 65_535) {
     throw new Error(`Invalid dojo UI port: ${port}`);
   }
-  const environment: NodeJS.ProcessEnv = { ...agentEnvironment(), DOJO_CLI: process.argv[1], DOJO_PROJECT_ROOT: cwd, NODE_NO_WARNINGS: "1" };
+  const environment: NodeJS.ProcessEnv = { ...agentEnvironment(), DOJO_CLI: process.argv[1], DOJO_PROJECT_ROOT: cwd, NODE_NO_WARNINGS: "1",
+    DOJO_UI_VERSION: version };
   if (args.includes("--no-portless") || process.env.DOJO_UI_DISABLE_PORTLESS === "1") {
-    startDirectUi({ cwd, uiEntry, port, background, shouldOpen, openPath });
+    const origin = `http://localhost:${port}`;
+    if (await servesVersion(origin, version)) {
+      const url = `${origin}${reusePath()}`;
+      console.log(`Go to ${url}`);
+      if (shouldOpen) openBrowser(url);
+      return;
+    }
+    startDirectUi({ cwd, uiEntry, port, background, shouldOpen, openPath, version });
     return;
   }
   const interactive = Boolean(process.stderr.isTTY);
@@ -78,9 +89,18 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
       proxy = proxyConfiguration(stateDir);
       if (!await proxyRunning(proxy)) throw new Error("Portless did not start its local proxy.");
     }
-    const appPort = await availablePort();
     const defaultPort = proxy.tls ? 443 : 80;
     const baseUrl = `${proxy.tls ? "https" : "http"}://dojo.localhost${proxy.port === defaultPort ? "" : `:${proxy.port}`}`;
+    // A healthy server of this version keeps running and keeps its route: replacing it would stop its agent turns and evaluations
+    if (await servesVersion(baseUrl, version, proxy.ca)) {
+      clearProgress();
+      progressVisible = false;
+      const url = `${baseUrl}${reusePath()}`;
+      console.log(`Go to ${url}`);
+      if (shouldOpen) openBrowser(url);
+      return;
+    }
+    const appPort = await availablePort();
     const stateHome = process.env.DOJOFOO_HOME ?? join(homedir(), ".dojofoo");
     mkdirSync(stateHome, { recursive: true });
     const logFile = join(stateHome, "ui.log");
@@ -160,29 +180,44 @@ async function availablePort(): Promise<number> {
   return port;
 }
 
+type Health = { ok?: boolean; version?: string; instance?: string };
+
+/** The UI's `/api/health` answer at `url`, asked of 127.0.0.1 under the URL's host; any status but 200 answers `{}`. */
+function readHealth(url: string, ca: Buffer | undefined, timeout: number): Promise<Health> {
+  const endpoint = new URL(url);
+  return new Promise<Health>((accept, reject) => {
+    const request = (endpoint.protocol === "https:" ? httpsRequest : httpRequest)({
+      hostname: "127.0.0.1", port: endpoint.port || (endpoint.protocol === "https:" ? 443 : 80),
+      path: endpoint.pathname, headers: { Host: endpoint.host }, timeout,
+      ...(endpoint.protocol === "https:" ? { servername: endpoint.hostname, ca } : {}),
+    }, response => {
+      let body = "";
+      response.on("data", chunk => { body += chunk; });
+      response.on("end", () => {
+        try { accept(response.statusCode === 200 ? JSON.parse(body) : {}); } catch { accept({}); }
+      });
+    });
+    request.on("error", reject);
+    request.on("timeout", () => request.destroy(new Error("UI health request timed out.")));
+    request.end();
+  });
+}
+
+/** Whether a healthy dojofoo UI of this version already serves `origin`. Without a known version of its own the CLI replaces any. */
+async function servesVersion(origin: string, version: string | undefined, ca?: Buffer): Promise<boolean> {
+  if (!version) return false;
+  // A server running a lesson check answers only when the check ends, so a busy one gets time before it counts as unhealthy
+  const health = await readHealth(`${origin}/api/health`, ca, 30_000).catch((): Health => ({}));
+  return health.ok === true && health.version === version;
+}
+
 async function waitForUi(url: string, instance: string, ca: Buffer | undefined, check: () => void): Promise<void> {
   const endpoint = new URL(url);
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     check();
     try {
-      const health = await new Promise<{ instance?: string }>((accept, reject) => {
-        const request = (endpoint.protocol === "https:" ? httpsRequest : httpRequest)({
-          hostname: "127.0.0.1", port: endpoint.port || (endpoint.protocol === "https:" ? 443 : 80),
-          path: endpoint.pathname, headers: { Host: endpoint.host }, timeout: 1000,
-          ...(endpoint.protocol === "https:" ? { servername: endpoint.hostname, ca } : {}),
-        }, response => {
-          let body = "";
-          response.on("data", chunk => { body += chunk; });
-          response.on("end", () => {
-            try { accept(response.statusCode === 200 ? JSON.parse(body) : {}); } catch { accept({}); }
-          });
-        });
-        request.on("error", reject);
-        request.on("timeout", () => request.destroy(new Error("UI readiness request timed out.")));
-        request.end();
-      });
-      if (health.instance === instance) return;
+      if ((await readHealth(url, ca, 1000)).instance === instance) return;
     } catch { /* The new route is still starting. */ }
     await new Promise(accept => setTimeout(accept, 100));
   }
@@ -196,15 +231,17 @@ function startDirectUi(input: {
   background: boolean;
   shouldOpen: boolean;
   openPath: string;
+  version: string | undefined;
 }): void {
-  const { cwd, uiEntry, port, background, shouldOpen, openPath } = input;
+  const { cwd, uiEntry, port, background, shouldOpen, openPath, version } = input;
   const url = `http://localhost:${port}${openPath}`;
   const pidFile = directUiPidFile(port);
   replaceDirectDaemon(pidFile, uiEntry);
   console.log(`Go to ${url}`);
   const child = spawn(process.execPath, [uiEntry], {
     cwd,
-    env: { ...agentEnvironment(), DOJO_CLI: process.argv[1], DOJO_PROJECT_ROOT: cwd, NODE_NO_WARNINGS: "1", PORT: port },
+    env: { ...agentEnvironment(), DOJO_CLI: process.argv[1], DOJO_PROJECT_ROOT: cwd, NODE_NO_WARNINGS: "1", PORT: port,
+      DOJO_UI_VERSION: version },
     stdio: "ignore",
     detached: background,
   });
@@ -292,6 +329,13 @@ export function resolveUiOpenPath(args: string[]): string {
 
 export function resolvePortlessEntry(): string {
   return join(dirname(fileURLToPath(import.meta.resolve("portless"))), "cli.js");
+}
+
+/** The version in the package.json beside the CLI's dist, whose UI it starts; unknown when run from source. */
+function packageVersion(moduleUrl: string): string | undefined {
+  try {
+    return (JSON.parse(readFileSync(join(dirname(fileURLToPath(moduleUrl)), "..", "package.json"), "utf8")) as { version?: string }).version;
+  } catch { return undefined; }
 }
 
 export function resolveUiEntry(moduleUrl = import.meta.url): string | null {

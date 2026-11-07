@@ -77,8 +77,8 @@ function buildApp() {
 
   app.route("/api/local", localRoutes);
 
-  // Liveness.
-  app.get("/api/health", (c) => c.json({ ok: true, version: agentCard.version, instance: process.env.DOJO_UI_INSTANCE }));
+  // Liveness. The version is that of the dojofoo that started this server: `dojofoo ui` reuses a server of its own version.
+  app.get("/api/health", (c) => c.json({ ok: true, version: process.env.DOJO_UI_VERSION ?? agentCard.version, instance: process.env.DOJO_UI_INSTANCE }));
 
   // Local senpai project API.
   app.route("/api/project", projectRoutes);
