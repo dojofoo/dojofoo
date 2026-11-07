@@ -1,7 +1,8 @@
 import { defineAgent, defineDynamic } from "@dojofoo/harness";
 import { experimental_createHarnessModel, createLocalHarnessSandbox, prepareHarnessEnvironment, agentAdapter } from "@dojofoo/harness/adapters";
+import { createHostPortClient } from "@dojofoo/harness/host-port";
 import type { HostPortBinding } from "@dojofoo/harness/persona";
-import type { AgentId } from "@dojofoo/protocol";
+import type { AgentId, SessionModelInfo } from "@dojofoo/protocol";
 import { delimiter } from "node:path";
 
 export interface KyoshiRuntime {
@@ -28,6 +29,9 @@ export function createKyoshiAgent(runtime: () => Promise<KyoshiRuntime>) {
     // Before every model call, as the harness may have restarted
     model: defineDynamic(async ctx => {
       const settings = await runtime();
+      // The conversation's model and effort, read once per turn: a change applies from the next turn (D26)
+      const port = settings.hostPort ? createHostPortClient(settings.hostPort) : undefined;
+      const session = port && await ctx.memo(["kyoshi-model", ctx.turn?.id ?? "none"], () => port.call<SessionModelInfo>("session", ctx.session.id, {}));
       const environment = await prepareHarnessEnvironment();
       if (settings.commandPath) environment.PATH = [settings.commandPath, environment.PATH].filter(Boolean).join(delimiter);
       // Production Eve is a separate process. The native SDK owns execution
@@ -37,8 +41,8 @@ export function createKyoshiAgent(runtime: () => Promise<KyoshiRuntime>) {
         model: experimental_createHarnessModel({
           sandbox,
           sandboxConfig: { workDir: "course" },
-          harness: await agentAdapter(settings.harness, { mode: "full" }),
-          model: settings.model,
+          harness: await agentAdapter(settings.harness, { mode: "full", ...(session?.effort ? { effort: session.effort } : {}) }),
+          model: session?.model ?? settings.model,
         // Kyoshi writes the course; eveSessionId lets the lifecycle hook evict its detached turns
         }, { mode: "full", agent: settings.harness, eveSessionId: ctx.session.id }).model,
         // A conservative Eve compaction budget, not a claimed model capacity.

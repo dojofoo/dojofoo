@@ -11,10 +11,11 @@ import type { ReactNode } from "react";
 import { AppPreview, CourseTile } from "./course-tile";
 import { CommandCopy, SitePage, useSite } from "./site";
 import { TopographyBackdrop } from "./topography-backdrop";
+import { SiteQuestions } from "./questions";
 
 /*
  * The landing page: what dojo is, a lesson inside the app (the learner pages, live, in a window), the agents it works
- * with, its three modes, the one command that starts it and the courses learners install most. On the page itself –
+ * with, its three modes, the one command that starts it, the courses learners install most and the questions people ask. On the page itself –
  * no window around the sections.
  */
 
@@ -109,6 +110,8 @@ export function LandingPage({ learning, courses, preview }: {
             {top.map((course) => <CourseTile key={course.id} course={course} href={links.courseHref(course)} onOpen={links.openCourse} shader />)}
           </div> : <p className="ui-land-lead ui-land-empty">No courses are available yet.</p>}
         </section>
+
+        <SiteQuestions className="ui-land-section" intro="What people ask about Dojo.foo, answered from its docs." />
       </div>
     </SitePage>
   );

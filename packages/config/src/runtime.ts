@@ -84,15 +84,16 @@ function readAgentSetting(root: string, key: AgentSetting, agent: AgentId): stri
   const value = (map as Record<string, unknown>)[agent];
   return typeof value === "string" && value.trim() ? value : undefined;
 }
-/** Saves `<key>[agent]` through a temp file and rename, keeping `agent` and every other key. */
-function writeAgentSetting(root: string, key: AgentSetting, agent: AgentId, value: string): void {
+/** Saves `<key>[agent]` through a temp file and rename, keeping `agent` and every other key; `undefined` removes it. */
+function writeAgentSetting(root: string, key: AgentSetting, agent: AgentId, value: string | undefined): void {
   if (!isAgentId(agent)) throw new Error(`Unsupported coding agent: ${String(agent)}`);
   const path = resolve(root, ".dojo", "runtimes.json");
   const current = readRuntimes(path);
   const map = current[key] && typeof current[key] === "object" && !Array.isArray(current[key]) ? current[key] as Record<string, unknown> : {};
   mkdirSync(dirname(path), { recursive: true });
   const temporary = `${path}.${randomUUID()}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify({ ...current, [key]: { ...map, [agent]: value } }, null, 2)}\n`);
+  const { [agent]: _previous, ...others } = map;
+  writeFileSync(temporary, `${JSON.stringify({ ...current, [key]: value === undefined ? others : { ...others, [agent]: value } }, null, 2)}\n`);
   renameSync(temporary, path);
 }
 
@@ -102,5 +103,5 @@ export const readAgentModel = (root: string, agent: AgentId) => readAgentSetting
 export const writeAgentModel = (root: string, agent: AgentId, model: string) => writeAgentSetting(root, "models", agent, model);
 /** The workspace's last effort for a coding agent: `efforts[agent]`, for its next new conversation. */
 export const readAgentEffort = (root: string, agent: AgentId) => readAgentSetting(root, "efforts", agent);
-/** Saves `efforts[agent]` in <root>/.dojo/runtimes.json. */
-export const writeAgentEffort = (root: string, agent: AgentId, effort: string) => writeAgentSetting(root, "efforts", agent, effort);
+/** Saves `efforts[agent]` in <root>/.dojo/runtimes.json; `undefined` forgets it, so the next conversation runs at its model's default. */
+export const writeAgentEffort = (root: string, agent: AgentId, effort: string | undefined) => writeAgentSetting(root, "efforts", agent, effort);

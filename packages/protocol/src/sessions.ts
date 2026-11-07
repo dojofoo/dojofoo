@@ -38,14 +38,18 @@ export type HostPortErrorCode =
   | "lesson_incomplete";
 
 /** Sensei's host-port `session` result, read from the session record. */
-export interface SenseiSessionInfo {
-  courseId: string;
-  lessonId?: string;
-  mode: "katas" | "interactive";
+/** A conversation's model and effort, which its persona's model call reads before every turn (D26) */
+export interface SessionModelInfo {
   model?: string;
   /** The effort the conversation's model runs at; the model's own default when absent */
   effort?: string;
   revision: number;
+}
+
+export interface SenseiSessionInfo extends SessionModelInfo {
+  courseId: string;
+  lessonId?: string;
+  mode: "katas" | "interactive";
 }
 
 /** Sensei's host-port `context` result for an interactive course: the lesson snapshot (without references) and DOJO.md. */

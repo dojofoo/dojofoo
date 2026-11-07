@@ -428,8 +428,7 @@ pass; structural checks alone do not establish good teaching.
 
 Kyoshi exposes the native Eve tool `dojo_authoring_evaluate`. Its parameters
 are lesson IDs only: every role runs on the draft's own coding agent and model, and
-the host owns the judge implementation. In the authoring UI, **Evaluation settings**
-is the consent to paid trials, kept as `{ "enabled": true }` in
+the host owns the judge implementation. The consent to paid trials is kept as `{ "enabled": true }` in
 `.dojo/evaluation-settings.json`; there are no model pickers, credentials or worker
 paths. Each lesson set gets three persisted
 attempts (initial evaluation plus two possible revisions). Replaying an Eve call

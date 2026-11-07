@@ -129,7 +129,10 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
   async function createKyoshi(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId): Promise<SessionRecord> {
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
     const now = new Date().toISOString();
-    const record: SessionRecord = { id: session.id, agent, persona: "kyoshi", createdAt: now, revision: 0, lifecycle: { status: "idle", updatedAt: now } };
+    const model = readAgentModel(path, agent);
+    const effort = readAgentEffort(path, agent);
+    const record: SessionRecord = { id: session.id, agent, persona: "kyoshi", createdAt: now, ...(model ? { model } : {}), ...(effort ? { effort } : {}),
+      revision: 0, lifecycle: { status: "idle", updatedAt: now } };
     await saveRecord(path, record);
     await sendServerTurn(path, workspaceId, endpoint, record, { text: dojoTags.beginAuthoring, idempotencyKey: `begin-authoring:${record.id}` }).catch(error =>
       console.warn(`Could not send Kyoshi's start turn to ${record.id}: ${error instanceof Error ? error.message : String(error)}`));

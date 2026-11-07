@@ -3,10 +3,14 @@ import { expect, test } from "@playwright/test";
 test("appearance keeps the chosen mode across reloads and native pages", async ({ page }) => {
   const writes: string[] = [];
   await page.route("**/api/**", route => {
+    // A finished setup opens the dashboard; the launch token comes from the server under test; the rest answers empty
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/local/setup") return route.fulfill({ json: { completed: true, user: { name: "Anonymous" }, agents: ["codex"] } });
+    if (path === "/api/control/launch-token") return route.fallback();
     if (route.request().method() !== "GET") writes.push(route.request().url());
     return route.fulfill({ json: [] });
   });
-  await page.goto("/settings?tab=Appearance");
+  await page.goto("/settings/theme");
   const mode = page.getByRole("switch", { name: "Dark mode", exact: true });
   await expect(mode).toBeChecked();
   await mode.click();
@@ -22,7 +26,7 @@ test("appearance keeps the chosen mode across reloads and native pages", async (
   await page.goto("/avatar");
   await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("dojofoo.theme"))).toBe("dark");
-  await page.goto("/settings?tab=Appearance");
+  await page.goto("/settings/theme");
   await expect(mode).toBeChecked();
   await expect(page.locator("html")).toHaveClass(/dark/);
   expect(writes).toEqual([]);
@@ -37,7 +41,7 @@ test("a saved light preference applies before client hydration", async ({ page }
     scriptsBlocked += 1;
     return route.abort();
   });
-  await page.goto("/settings?tab=Appearance", { waitUntil: "domcontentloaded" });
+  await page.goto("/settings/theme", { waitUntil: "domcontentloaded" });
   expect(scriptsBlocked).toBeGreaterThan(0);
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
@@ -51,7 +55,7 @@ test("blocked storage keeps appearance usable for the current visit", async ({ p
       configurable: true, value() { throw new DOMException("Storage is unavailable", "SecurityError"); },
     });
   });
-  await page.goto("/settings?tab=Appearance");
+  await page.goto("/settings/theme");
   const mode = page.getByRole("switch", { name: "Dark mode", exact: true });
   await expect(mode).toBeChecked();
   await mode.click();
@@ -63,7 +67,7 @@ test("blocked storage keeps appearance usable for the current visit", async ({ p
 
 test("an unknown saved mode retains the native dark default", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("dojofoo.theme", "unknown"));
-  await page.goto("/settings?tab=Appearance");
+  await page.goto("/settings/theme");
   await expect(page.getByRole("switch", { name: "Dark mode", exact: true })).toBeChecked();
   await expect(page.locator("html")).toHaveClass(/dark/);
 });

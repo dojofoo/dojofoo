@@ -342,13 +342,13 @@ export function AppShell({
   const [initialLayout, setInitialLayout] = useState<number[] | undefined>(() => initialPaneSizes ? [0, ...initialPaneSizes] : undefined);
   const [drawer, setDrawer] = useState(false);
   const [AccountPage, setAccountPage] = useState<typeof import("./settings-billing").SettingsContent>();
-  const [accountTab, setAccountTab] = useState<import("./settings-billing").SettingsTab>("Appearance");
+  const [accountTab, setAccountTab] = useState<import("./settings-billing").SettingsTab>("Theme");
   const accountOpen = Boolean(AccountPage);
   const settingsRequest = useRef(0);
   const rightSettings = asideCovered && !accountOpen;
   const endOpen = Boolean(endDrawer) && endDrawerOpen && !accountOpen;
   const closeAccount = () => fadeViewTransition(() => setAccountPage(undefined));
-  const openAccount = async (tab: import("./settings-billing").SettingsTab = "Appearance") => {
+  const openAccount = async (tab: import("./settings-billing").SettingsTab = "Theme") => {
     const request = ++settingsRequest.current;
     const AccountContent = loadAccountPage ? await loadAccountPage() : (await import("./settings-billing")).SettingsContent;
     if (request !== settingsRequest.current) return;
@@ -664,7 +664,7 @@ export function AppShell({
               <span className="ui-as-menu__who"><b>{user.name}</b><small>{user.email ?? workspace}</small></span>
             </div>}
             items={[
-              { label: "Profile", icon: UserIcon, onSelect: onProfile ?? (() => { void openAccount("General"); }) },
+              { label: "Profile", icon: UserIcon, onSelect: onProfile ?? (() => { void openAccount("Profile"); }) },
               { label: "Settings", icon: SettingsFillIcon, onSelect: onSettings ?? (() => { void openAccount(); }) },
               // What changed lately – reported to onNavigate as "changelog"
               { label: "Changelog", icon: Megaphone01Icon, onSelect: () => go("changelog") },

@@ -96,7 +96,7 @@ test("the account menu opens local Settings and Profile through the Pages layout
   await expect(page.getByRole("menuitem", { name: "Log in", exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Log out", exact: true })).toHaveCount(0);
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
-  await expect(page).toHaveURL(/\/settings/);
+  await expect(page).toHaveURL(/\/settings\/theme$/);
   await page.reload();
   await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
   await expect(page.getByRole("switch", { name: "Dark mode", exact: true })).toBeVisible();
@@ -105,14 +105,18 @@ test("the account menu opens local Settings and Profile through the Pages layout
   await page.getByRole("switch", { name: "Dark mode", exact: true }).click();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.getByRole("button", { name: "Anonymous", exact: true }).click();
+  // Profile opens the learner's own page; its Edit profile opens the profile settings
   await page.getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\?tab=General/);
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole("heading", { name: "Anonymous", level: 1, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Edit profile", exact: true }).click();
+  await expect(page).toHaveURL(/\/settings\/profile$/);
   await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Anonymous", { timeout: 5000 });
   await expect(page.getByRole("textbox", { name: "Name", exact: true })).toBeDisabled();
   await expect(page.getByRole("textbox", { name: "Handle", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Upload photo", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Save changes", exact: true })).toBeDisabled();
-  await expect(page.getByRole("complementary", { name: "About General", exact: true })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "About Profile", exact: true })).toBeVisible();
   await expect(page.getByRole("tab", { name: "API keys", exact: true })).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath("local-profile-settings.png"), animations: "disabled" });
 });

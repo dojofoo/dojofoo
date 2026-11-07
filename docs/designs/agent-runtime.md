@@ -252,7 +252,7 @@ sequenceDiagram
   U-->>E: hook response
   U->>U: guard window opens (rule 1)
   U->>E: send [dojo:check] turn, turnPolicy queue
-  U-->>B: check card "Sensei saw this" on delivery.consumed
+  U-->>B: check card drops its waiting label on delivery.consumed
 ```
 
 Pause and leave:
@@ -496,7 +496,7 @@ When a host stops for any reason (agent switch, switch timeout, crash, idle stop
     *   The **check report** is the `checks-ran` entry ("Ran lesson checks.") with the check result.
     *   Both are sent by the UI server through the session API under the learner's identity, start with a tag (`[dojo:begin]`, `[dojo:check]`), and are hidden in the chat by that tag at message start only.
 *   A check report goes out with `turnPolicy: "queue"` only when the session status is `idle`. Otherwise the UI server keeps only the latest report and sends it after `turn.settled`, after any replacement has run. A report is dropped on a later save, on navigation or a D19 cancel (drop first, then cancel), on an agent switch, or once Sensei has read that check through `context`.
-*   The check card shows: "Sensei will see this after it finishes" (held), "Sensei saw this" (consumed; source: `delivery.consumed` of the report's delivery or a `context` read), or "Sensei hasn't seen this; press Check again or ask" (dropped).
+*   The check card shows: "Sensei will see this after it finishes" (held), no label once seen (consumed; source: `delivery.consumed` of the report's delivery or a `context` read), as Sensei's `dojo_lesson_verify` call in the chat shows it, or "Sensei hasn't seen this; press Check again or ask" (dropped).
 *   Sensei sessions refuse `/compact` and `/clear` through the session API.
 
 ### Sessions and leaving (D19, D25, D26, D28)

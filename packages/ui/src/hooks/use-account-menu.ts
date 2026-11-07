@@ -3,11 +3,9 @@ import { useEffect, useState } from "react";
 import { useToast } from "@dojofoo/uix/components/app-shell";
 import { useSidebarState } from "./sidebar-state";
 
-const loadAccountPage = () => import("@/components/account-settings").then(({ WorkspaceAccountSettings }) => WorkspaceAccountSettings);
-
-/** Editing workspaces keep their content mounted; the dashboard retains the standalone routes. The sidebar's fold is
+/** The account menu opens pages of their own: Settings at /settings/theme, Profile at /me. The sidebar's fold is
     every page's (SidebarStateProvider). */
-export function useAccountMenu({ preserveWorkspace = false }: { preserveWorkspace?: boolean } = {}) {
+export function useAccountMenu() {
   const navigate = useNavigate();
   const [toast] = useToast();
   const sidebar = useSidebarState();
@@ -22,10 +20,8 @@ export function useAccountMenu({ preserveWorkspace = false }: { preserveWorkspac
     account: {
       ...sidebar,
       user, showUser: true,
-      ...(preserveWorkspace ? { loadAccountPage } : {
-        onSettings: () => { void navigate({ to: "/settings", search: { tab: "Appearance" } }); },
-        onProfile: () => { void navigate({ to: "/settings", search: { tab: "General" } }); },
-      }),
+      onSettings: () => { void navigate({ to: "/settings/$section", params: { section: "theme" }, state: { settingsDepth: 1 } }); },
+      onProfile: () => { void navigate({ to: "/me" }); },
     },
     toast,
   };

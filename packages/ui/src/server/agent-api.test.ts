@@ -6,10 +6,11 @@ import { observeLocalContext, observeWorkspacePath, setWorkspaceKind } from "@do
 import { DatabaseSync } from "node:sqlite";
 import { createServer, type IncomingMessage } from "node:http";
 import { once } from "node:events";
-import { writeAgent } from "@dojofoo/config/runtime";
+import { readAgentEffort, readAgentModel, writeAgent } from "@dojofoo/config/runtime";
 import { app } from "./app";
 import { createLocalAgentRuntime } from "./agent-api";
 import { guardFor } from "./agent-session/guard-store";
+import { saveRecord } from "./agent-session/records";
 import { kataWorkspace, removeRoots } from "./agent-session/test-kata.fixture";
 
 // Cursor's CLI is looked up on this machine; the tests decide whether it is installed
@@ -537,5 +538,20 @@ describe("switching and host stops (step 5)", () => {
       expect((await local.sessions.get(workspaceId, session.id))?.lifecycle?.heldReport).toBeUndefined();
       expect(messages.map(entry => entry.message.method)).toEqual(expect.arrayContaining(["guard.violation", "lesson.check.report"]));
     } finally { await eve.close(); }
+  });
+});
+
+describe("model and effort", () => {
+  it("a new conversation starts at its model's default effort after a model change cleared the last one", async () => {
+    const { local, root, workspaceId } = runtime();
+    await saveRecord(root, { id: "conversation", agent: "codex", persona: "sensei", createdAt: new Date().toISOString(), courseId: "starter", revision: 0 });
+    await local.sessions.patch(workspaceId, "conversation", { effort: "high" });
+    expect(readAgentEffort(root, "codex")).toBe("high");
+    // The next model doesn't take "high", so the menu clears the effort along with the model change
+    const updated = await local.sessions.patch(workspaceId, "conversation", { model: "gpt-6-luna", effort: null });
+    expect(updated.effort).toBeUndefined();
+    // What the workspace's next conversation starts on (agent-session/default.ts)
+    expect(readAgentModel(root, "codex")).toBe("gpt-6-luna");
+    expect(readAgentEffort(root, "codex")).toBeUndefined();
   });
 });
