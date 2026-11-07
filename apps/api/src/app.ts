@@ -119,7 +119,8 @@ function mondayFor(occurredAt: string) {
 }
 
 function courseMetrics(course: Course, events: CourseEvent[]) {
-  const courseEvents = events.filter((event) => event.courseId === course.id);
+  // An event stored with a time that isn't a date (the events route accepted any before) would break every catalog read
+  const courseEvents = events.filter((event) => event.courseId === course.id && !Number.isNaN(Date.parse(event.occurredAt)));
   const instances = new Map<string, { started: boolean; finished: boolean }>();
   const katas = new Map<string, { started: Set<string>; finished: Set<string> }>();
   const weeks = new Map<
@@ -501,6 +502,12 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
       if (!body.instanceId) {
           return status(400, { error: "invalid_event", message: "instanceId is required." });
       }
+      // Catalog reads bucket every event by week, so its time must be a date; it is stored in ISO form
+      const sentAt = body.occurredAt ?? new Date().toISOString();
+      const occurredAt = typeof sentAt === "string" ? new Date(sentAt) : undefined;
+      if (!occurredAt || Number.isNaN(occurredAt.getTime())) {
+        return status(400, { error: "invalid_event", message: "occurredAt must be an ISO 8601 timestamp." });
+      }
       let course = body.courseId
         ? (await allCourses()).find((candidate) =>
             candidate.id === body.courseId || legacyCourseId(candidate) === body.courseId)
@@ -563,7 +570,7 @@ export function createCoursesApp(options: CoursesAppOptions = {}) {
         instanceId: body.instanceId,
         courseId: course.id,
         event: body.event,
-        occurredAt: body.occurredAt ?? new Date().toISOString(),
+        occurredAt: occurredAt.toISOString(),
         ...(body.kata ? { kata: body.kata } : {}),
       };
       const duplicate = !(await eventStore.append(event));
