@@ -251,9 +251,39 @@ export function setupAgents(root: string, agents: AgentName[]): void {
 
     if (cfg.hasSettings) {
       const settingsPath = resolve(root, cfg.dir, "settings.json");
-      writeFileSync(settingsPath, JSON.stringify(CLAUDE_SETTINGS, null, 2) + "\n");
+      addAgentSettings(root, settingsPath);
     }
   }
+}
+
+/** Adds dojofoo's settings to the agent's own: every key and value already there stays, and a list keeps its order and gains only
+ *  the entries it lacks. A file that isn't a JSON object stays as it is, for its owner to fix. */
+function addAgentSettings(root: string, settingsPath: string): void {
+  if (!existsSync(settingsPath)) {
+    writeFileSync(settingsPath, JSON.stringify(CLAUDE_SETTINGS, null, 2) + "\n");
+    return;
+  }
+  let existing: unknown;
+  try { existing = JSON.parse(readFileSync(settingsPath, "utf8")); } catch { /* Warned below */ }
+  if (!isObject(existing)) {
+    console.warn(`Left ${relative(root, settingsPath)} as it is: it isn't a valid JSON object, so dojofoo's permissions aren't in it.`);
+    return;
+  }
+  const merged = mergeSettings(existing, CLAUDE_SETTINGS);
+  // Rewritten only to add something, so the file keeps its formatting on every later setup
+  if (JSON.stringify(merged) !== JSON.stringify(existing)) writeFileSync(settingsPath, JSON.stringify(merged, null, 2) + "\n");
+}
+
+function mergeSettings(existing: unknown, added: unknown): unknown {
+  if (Array.isArray(existing) && Array.isArray(added)) return [...existing, ...added.filter(item => !existing.includes(item))];
+  if (!isObject(existing) || !isObject(added)) return existing;
+  const merged = { ...existing };
+  for (const [key, value] of Object.entries(added)) merged[key] = Object.hasOwn(existing, key) ? mergeSettings(existing[key], value) : value;
+  return merged;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function configuredAgents(root: string): AgentName[] {

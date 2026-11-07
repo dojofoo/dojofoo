@@ -39,15 +39,15 @@ npx dojofoo install --agent opencode,pi  # several at once
 - Writes the [deprecated](/docs/commands/kata) `/kata` and `/dojo` commands to
   `.agents/commands/` and links them into each agent's folder, e.g. `.claude/commands/`.
 - Writes the dojofoo skill to `.agents/skills/dojofoo/SKILL.md`.
-- For Claude Code, writes `.claude/settings.json` so the agent may run `npx dojofoo` without
-  asking.
+- For Claude Code, adds permissions to `.claude/settings.json` so the agent may run `npx dojofoo`
+  without asking. Your own settings and permission rules stay as they are.
 
 It's safe to run again, e.g. to add another agent. Commands you've edited in `.agents/commands/`
 are kept; the skill is refreshed.
 
 <Callout type="warn">
-  With `--claude`, `install` replaces `.claude/settings.json`. Back it up first if you've
-  customized it.
+  If `.claude/settings.json` isn't valid JSON, `install` leaves it as it is and warns, without
+  adding the permissions.
 </Callout>
 
 ## Related
