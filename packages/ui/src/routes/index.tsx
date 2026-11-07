@@ -18,7 +18,8 @@ import { LearningLibrary } from "@dojofoo/uix/containers/learning-library";
 import { DashboardPalette } from "@/components/dashboard-palette";
 import { ArrowDown01Icon, BackIcon, Cancel01Icon, DoneIcon } from "@dojofoo/uix/icons";
 import { LocalDashboard, type LocalSetup } from "@/components/local-onboarding";
-import { ClientOnly, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ClientOnly, createFileRoute, useBlocker, useNavigate, type ShouldBlockFn } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "@tanstack/ai-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -49,6 +50,7 @@ import { codingAgents } from "@/lib/coding-agents";
 import { courseArt } from "@/lib/course-color";
 import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
 import { httpError } from "@/lib/http-error";
+import { runQuery } from "@/lib/learn-queries";
 import type { LessonSnapshot, TestReport } from "@/server/lesson/service";
 import { emitLessonEvent } from "@/lib/lesson-events";
 import type { JsonRpcRequest } from "@/server/session/protocol";
@@ -231,6 +233,8 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
   const [selectedWorkspaceId, setWorkspaceId] = useState("");
   const workspaceId = requestedWorkspaceId ?? selectedWorkspaceId;
   const [code, setCode] = useState(initialLesson?.code ?? "");
+  // The editor text a Save or Check is writing to the file, or a Reset is replacing: leaving while it is on its way loses nothing
+  const [writing, setWriting] = useState<string | null>(null);
   const [editorHighlight, setEditorHighlight] = useState<(CodeHighlight & { nonce: number }) | undefined>();
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"code" | "tests">("code");
   const [checking, setChecking] = useState(false);
@@ -241,7 +245,10 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
   const [error, setError] = useState<string | null>(null);
   // Check cards in the conversation: one per Check this page ran, labelled with what Sensei saw (D16)
   const [checkCards, setCheckCards] = useState<Array<{ observationId: string; report: TestReport; state?: CheckReportState }>>([]);
-  const ownChecks = useRef(0);
+  // The page's own Check while it runs: its request id, which that check's notifications carry. Sensei's checks and other tabs'
+  // carry none or another, so they never become this page's card
+  const ownCheck = useRef<string | null>(null);
+  const [ownCheckRunning, setOwnCheckRunning] = useState(false);
   const [guardNotice, setGuardNotice] = useState<GuardViolation | null>(null);
   // The conversation the page asks AgentChat for: the URL's, or a replacement the server made
   const [session, setSession] = useState(requestedSessionId);
@@ -275,14 +282,35 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
     : "";
   lessonUrl.current = apiBase;
   const dirty = lesson ? code !== lesson.code : false;
+  const codeRef = useRef(code);
+  codeRef.current = code;
+  const lessonRef = useRef(lesson);
+  lessonRef.current = lesson;
+  // What leaving the lesson would lose: editor text that is neither in the file nor on its way there
+  const unsaved = useRef(false);
+  unsaved.current = dirty && code !== writing;
+  const queryClient = useQueryClient();
+  // Leaving the lesson with unsaved code asks first, whether the learner or Sensei's Move on navigates, and closing the tab gets the
+  // browser's prompt. Another conversation of the same lesson keeps the editor, so it passes
+  const blocksLeaving = useCallback<ShouldBlockFn>(({ next }) => unsaved.current && !staysOnLesson(next, {
+    runId, lessonId: lessonRef.current?.kata ?? "", runLesson: queryClient.getQueryData(runQuery(runId).queryKey)?.kata,
+  }), [queryClient, runId]);
+  const warnsOnUnload = useCallback(() => unsaved.current, []);
+  const leaving = useBlocker({ shouldBlockFn: blocksLeaving, enableBeforeUnload: warnsOnUnload, withResolver: true });
   const highlightCode = useCallback((highlight: CodeHighlight) => {
     setActiveWorkspaceTab("code");
     setEditorHighlight((current) => ({ ...highlight, nonce: (current?.nonce ?? 0) + 1 }));
   }, []);
 
+  // Whether the page has read its lesson yet: a later read of the same lesson is a refetch of its cached snapshot
+  const hydrated = useRef(false);
   const hydrate = useCallback((next: LessonSnapshot) => {
+    const read = lessonRead(hydrated.current ? { lesson: lessonRef.current, code: codeRef.current } : null, next);
+    hydrated.current = true;
     setLesson(next);
-    setCode(next.code);
+    setCode(read.code);
+    // A refetch keeps the page's check cards and notices too
+    if (read.refetch) return;
     setCheckCards([]);
     setGuardNotice(null);
     setBusy("");
@@ -346,10 +374,6 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
     return () => controller.abort();
   }, [apiBase, dojoId, hydrate, initialLesson, requestedCourseId, selectedLessonId]);
 
-  const codeRef = useRef(code);
-  codeRef.current = code;
-  const lessonRef = useRef(lesson);
-  lessonRef.current = lesson;
   /** The file as the server has it now: after a guard restore, the editor shows it unless the learner has unsaved changes */
   const restoredFile = useCallback(async () => {
     const current = lessonRef.current;
@@ -360,15 +384,26 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
     setCode(file.attributes.content);
   }, [apiBase]);
 
+  /** The page's own Check is over: its card came, it failed, or the socket closed under it */
+  const endOwnCheck = () => {
+    ownCheck.current = null;
+    setOwnCheckRunning(false);
+    setChecking(false);
+  };
+
   // The lesson page's socket (D19): its presence, the Check, the check cards, guard notices, replacements and navigation
   const socket = usePageSocket({ workspace: workspaceId, course: dojoId, lesson: selectedLessonId }, message => {
     const params = (message.params ?? {}) as Partial<LessonCheckEvent> & { test?: TestReport["tests"][number]; observationId?: string; state?: CheckReportState;
-      to?: string; lessonId?: string; courseId?: string };
+      to?: string; lessonId?: string; courseId?: string; checkId?: string | number };
+    // While the page's own Check runs, the tests panel follows it, not a check Sensei or another tab started meanwhile
+    const own = ownCheck.current !== null && params.checkId === ownCheck.current;
+    const another = ownCheck.current !== null && !own;
     if (message.method === "lesson.check.started") {
+      if (another) return;
       setLiveTests([]);
       setChecking(true);
     } else if (message.method === "lesson.check.test" && params.test) {
-      setLiveTests((current) => [...current, params.test!]);
+      if (!another) setLiveTests((current) => [...current, params.test!]);
     } else if (message.method === "lesson.check.completed" && params.observation) {
       const observation = params.observation;
       const before = lessonRef.current;
@@ -377,11 +412,14 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
         if (before.lessons.every(item => item.name === before.kata || item.state === "completed")) emitLessonEvent({ type: "course.completed", workspace: workspaceId, course: before.dojo, lesson: before.kata, mode: "kata" });
       }
       setLesson((current) => current ? { ...current, result: observation.report } : current);
-      if (ownChecks.current > 0) {
-        ownChecks.current--;
+      if (own) {
         setCheckCards(current => [...current.filter(card => card.observationId !== observation.id), { observationId: observation.id, report: observation.report }]);
-      }
-      setChecking(false);
+        endOwnCheck();
+      } else if (!another) setChecking(false);
+    } else if (message.method === "lesson.check.failed") {
+      // The own check's error answer follows and says why
+      if (own) endOwnCheck();
+      else if (!another) setChecking(false);
     } else if (message.method === "lesson.check.report" && params.observationId && params.state) {
       setCheckCards(current => current.map(card => card.observationId === params.observationId
         // A seen report stays seen; a later "sent" for it changes nothing
@@ -394,17 +432,30 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       setSession(params.to);
     } else if (message.method === "lesson.navigated" && params.lessonId) {
       void viewLesson(params.lessonId, params.courseId);
+    } else if (ownCheck.current !== null && message.id === ownCheck.current) {
+      // The own check's answer: its completed notification ended it first, unless that notification never came
+      endOwnCheck();
+      if (message.error?.message) setError(message.error.message);
     } else if (message.error?.message) {
-      setChecking(false);
       setError(message.error.message);
     }
+  }, () => {
+    // A check the socket closed under can't answer; the learner can press Check again
+    if (ownCheck.current === null) return;
+    endOwnCheck();
+    setError("The lesson connection closed before the check finished. Press Check again.");
   });
 
   async function check() {
+    if (ownCheck.current !== null) return;
+    const id = crypto.randomUUID();
+    ownCheck.current = id;
+    setOwnCheckRunning(true);
     setActiveWorkspaceTab("tests");
     setChecking(true);
     try {
       if (!apiBase || !lesson) throw new Error("No lesson is available");
+      setWriting(code);
       await fetch(`${apiBase}/files/${encodeURIComponent(lesson.fileId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -413,23 +464,26 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       setLesson(current => current ? { ...current, code } : current);
       const current = socket.current;
       if (!current || current.readyState !== WebSocket.OPEN) throw new Error("The lesson connection is not ready yet");
-      ownChecks.current++;
       current.send(JSON.stringify({
         jsonrpc: "2.0",
-        id: crypto.randomUUID(),
+        id,
         method: "lesson.check",
         params: { courseId: dojoId, lessonId: selectedLessonId },
       } satisfies JsonRpcRequest));
     } catch (cause) {
+      if (ownCheck.current === id) endOwnCheck();
       setError(cause instanceof Error ? cause.message : String(cause));
       setBusy("");
-      setChecking(false);
+    } finally {
+      setWriting(current => current === code ? null : current);
     }
   }
 
   async function reset() {
     try {
       if (!apiBase || !lesson) throw new Error("No lesson is available");
+      // The learner chose to discard the editor's text
+      setWriting(code);
       await fetch(`${apiBase}/files/${encodeURIComponent(lesson.fileId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -443,6 +497,8 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
       setBusy("");
+    } finally {
+      setWriting(current => current === code ? null : current);
     }
   }
 
@@ -485,6 +541,7 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
 
   const save = useCallback(async (nextCode = code) => {
     if (!lesson?.isCurrent || nextCode === lesson.code) return;
+    setWriting(nextCode);
     try {
       if (!apiBase) throw new Error("No lesson is available");
       await fetch(`${apiBase}/files/${encodeURIComponent(lesson.fileId)}`, {
@@ -496,6 +553,8 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setWriting(current => current === nextCode ? null : current);
     }
   }, [apiBase, code, lesson]);
 
@@ -596,7 +655,7 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
                       Save
                     </UIXButton>
                     <UIXButton size="sm"
-                      disabled={Boolean(busy)}
+                      disabled={Boolean(busy) || ownCheckRunning}
                       onClick={() => void check()}
                       type="button"
                     >
@@ -620,6 +679,22 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
                     <DialogClose render={<UIXButton variant="ghost">Cancel</UIXButton>} />
                     <UIXButton disabled={Boolean(busy)} onClick={() => void reset()}>
                       Reset lesson
+                    </UIXButton>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={leaving.status === "blocked"} onOpenChange={open => { if (!open) leaving.reset?.(); }}>
+                <DialogContent className="ui-as" style={{ borderRadius: "var(--box-radius)", background: "var(--surface-5)", boxShadow: "var(--shadow-5)" }}>
+                  <DialogHeader>
+                    <DialogTitle>Leave this lesson?</DialogTitle>
+                    <DialogDescription>
+                      Your unsaved changes to {fileName(lesson.filePath)} will be discarded.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose render={<UIXButton variant="ghost">Cancel</UIXButton>} />
+                    <UIXButton onClick={() => leaving.proceed?.()}>
+                      Leave lesson
                     </UIXButton>
                   </DialogFooter>
                 </DialogContent>
@@ -687,6 +762,22 @@ function checkCardLabel(state: CheckReportState): string {
   if (state === "seen") return "Sensei saw this";
   if (state === "dropped") return "Sensei hasn't seen this; press Check again or ask";
   return "Sensei will see this after it finishes";
+}
+
+/** Whether a navigation keeps the lesson page: its run's address for the same lesson, whichever conversation it names.
+ *  `runLesson` is the lesson the run's address without a lesson opens. */
+function staysOnLesson(next: { routeId: string; params: object }, page: { runId: string; lessonId: string; runLesson?: string | null }): boolean {
+  if (next.routeId !== "/learn/$runId/{-$lessonId}") return false;
+  const params = next.params as { runId?: string; lessonId?: string };
+  return params.runId === page.runId && (params.lessonId ?? page.runLesson) === page.lessonId;
+}
+
+/** A read of the page's lesson. `shown` is the lesson the page has read and the editor's text, none before the first read; reading the
+ *  same lesson again (its cached snapshot refetched) is a refetch, which keeps text the learner hasn't saved. */
+function lessonRead(shown: { lesson: LessonSnapshot | null; code: string } | null, next: LessonSnapshot): { refetch: boolean; code: string } {
+  const lesson = shown?.lesson;
+  if (!shown || !lesson || lesson.dojo !== next.dojo || lesson.kata !== next.kata) return { refetch: false, code: next.code };
+  return { refetch: true, code: shown.code !== lesson.code ? shown.code : next.code };
 }
 
 function middleEllipsis(value: string, visibleCharacters = 22): string {

@@ -303,6 +303,9 @@ describe("kata host-port methods", () => {
     expect(JSON.parse(readFileSync(resolve(root, ".dojorc"), "utf8")).currentDojo).toBe("tour");
     expect(messages.filter(entry => entry.key.workspaceId === workspaceId).map(entry => entry.message.method))
       .toEqual(["lesson.check.started", "lesson.check.test", "lesson.check.completed"]);
+    // Sensei's check names no request, so no page takes it for its own Check
+    expect(messages.filter(entry => entry.key.workspaceId === workspaceId).map(entry => (entry.message.params as { checkId?: unknown }).checkId))
+      .toEqual([undefined, undefined, undefined]);
   });
 
   it("navigate refuses an incomplete lesson and advances a passed one", async () => {

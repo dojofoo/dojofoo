@@ -4,6 +4,7 @@ import { resolveAgent } from "@dojofoo/config/runtime";
 import { dojoTags, tagged, type CheckReportState } from "@dojofoo/protocol";
 import { senseiTurn } from "../lesson/instructions";
 import { checkLesson, checkObservationInstruction, type CheckObservation } from "../lesson/service";
+import type { JsonRpcId } from "../session/protocol";
 import { discardWindow, openWindow } from "./guard";
 import { afterDelivery, applyLifecycle, beforeDelivery } from "./lifecycle";
 import { readRecords } from "./records";
@@ -20,15 +21,22 @@ export function reportText(observation: CheckObservation): string {
   })}`;
 }
 
-/** A learner's or Sensei's Check of a lesson of any course (D30), with the lesson socket's notifications for its page. */
-export async function runLessonCheck(target: { path: string; workspaceId: string }, courseId: string, lessonId: string) {
+/** A learner's or Sensei's Check of a lesson of any course (D30), with the lesson socket's notifications for its page. A learner's
+ *  Check passes its socket request's id, which each notification carries as `checkId`, so the page that asked can tell its own
+ *  check from Sensei's or another tab's. */
+export async function runLessonCheck(target: { path: string; workspaceId: string }, courseId: string, lessonId: string, checkId?: JsonRpcId) {
   const key = { workspaceId: target.workspaceId, courseId, lessonId };
-  notifyPage(key, "lesson.check.started", { courseId, lessonId });
+  const own = checkId === undefined ? {} : { checkId };
+  notifyPage(key, "lesson.check.started", { courseId, lessonId, ...own });
   // Let the started notification reach the browser before the local test process occupies this worker
   await new Promise<void>(resolve => setTimeout(resolve, 0));
-  const checked = await checkLesson(target.path, courseId, lessonId);
-  for (const test of checked.observation.report.tests) notifyPage(key, "lesson.check.test", { test });
-  notifyPage(key, "lesson.check.completed", checked);
+  const checked = await checkLesson(target.path, courseId, lessonId).catch((error: unknown) => {
+    // No page keeps showing a failed check as running; the caller reports the error
+    notifyPage(key, "lesson.check.failed", { courseId, lessonId, ...own });
+    throw error;
+  });
+  for (const test of checked.observation.report.tests) notifyPage(key, "lesson.check.test", { test, ...own });
+  notifyPage(key, "lesson.check.completed", { ...checked, ...own });
   return checked;
 }
 
