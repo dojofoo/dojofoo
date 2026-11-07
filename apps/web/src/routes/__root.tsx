@@ -4,6 +4,7 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router"
+import { useEffect } from "react"
 import { RootProvider } from "fumadocs-ui/provider/tanstack"
 import SearchDialog from "@/components/search"
 import { DEFAULT_SOCIAL_DESCRIPTION, DEFAULT_TITLE, faviconLinks, socialMetadata } from "@/lib/social-metadata"
@@ -40,6 +41,8 @@ export const Route = createRootRoute({
 })
 
 function RootLayout() {
+  // The root's effect runs after every child's, so this marks the hydrated, interactive page.
+  useEffect(() => { document.documentElement.dataset.hydrated = "true" }, [])
   return (
     <html lang="en" className="dark" data-ui-font="common" suppressHydrationWarning>
       <head>
