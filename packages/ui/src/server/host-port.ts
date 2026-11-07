@@ -3,7 +3,7 @@ import { Client } from "@dojofoo/harness/client";
 import { createHostPortServer, hostPortAnswer, HostPortFailure, type HostPortHandlers, type HostPortMethod } from "@dojofoo/harness/host-port";
 import type { AgentEndpoint, DefaultSessionRequest, DefaultSessionResponse, SessionRecord } from "@dojofoo/harness/api";
 import { readCourseManifest, readDojoMd } from "@dojofoo/config";
-import type { AgentId, EvaluationTrialStatus, InteractiveContext, KataContext, LessonCheck, LessonNavigation, Persona, SenseiContext, SenseiSessionInfo } from "@dojofoo/protocol";
+import type { AgentId, EvaluationTrialStatus, InteractiveContext, KataContext, LessonCheck, LessonNavigation, Persona, SenseiContext, SenseiSessionInfo, SessionModelInfo } from "@dojofoo/protocol";
 import { applyLifecycle, type TurnOutcome } from "./agent-session/lifecycle";
 import { captureLearnerEvidence } from "./agent-session/evidence";
 import { dropHeld, markSeen, runLessonCheck, sendHeld } from "./agent-session/check-reports";
@@ -239,6 +239,11 @@ export const hostPortHandlers: HostPortHandlers = {
     ...lifecycleMethods("sensei"),
   },
   kyoshi: {
+    /** The conversation's model and effort, as Sensei's `session` gives them (D26) */
+    session: read<unknown, SessionModelInfo>(async ({ workspaceId, sessionId }) => {
+      const { record } = await sessionRecord(workspaceId, sessionId);
+      return { ...(record.model ? { model: record.model } : {}), ...(record.effort ? { effort: record.effort } : {}), revision: record.revision };
+    }),
     /** Kyoshi's evaluate tool (D22): the UI server's evaluation of this draft, keyed by the tool call (`<session>:<callId>`) */
     "evaluation.start": mutate<{ lessonIds?: unknown }, { trialId: string }>(async ({ workspaceId, idempotencyKey, input }) => {
       const lessonIds = input?.lessonIds;
