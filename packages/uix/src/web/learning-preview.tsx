@@ -1,12 +1,14 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { AgentChatWorkspace } from "../containers/agent-chat";
 import { ChatStyles, Composer } from "../containers/assistant-home";
 import { Icon, type ShellSection } from "../components/app-shell";
+import { cardSeed } from "../components/color-card";
 import { CourseCard, type CourseInfo } from "../components/course-card";
-import { CodeEditor, Editor, EditorStatus, EditorTabs } from "../containers/editor";
+import { Editor, EditorStatus, EditorTabs } from "../containers/editor";
 import { LessonBrief } from "../components/lesson-brief";
 import { BackIcon, ClaudeIcon } from "../lib/icons";
-import samAltmanPhoto from "../assets/sam-altman.jpg?url";
+// A 3× thumbnail for the 34px avatar, included in the server-rendered illustration.
+import samAltmanPhoto from "../assets/sam-altman-preview.jpg?inline";
 
 type Progress = "done" | "active" | "locked";
 type Lesson = { id: string; title: string; state: Progress; lead: string; goal: string };
@@ -53,7 +55,7 @@ def encode(text, vocab):
 `;
 
 /** The approved landing illustration, composed from the real UIX presentation. */
-export function LearningPreview() {
+export function LearningPreview({ codeContent = code }: { codeContent?: ReactNode }) {
   const scroller = useRef<HTMLDivElement>(null);
   const navigation: ShellSection[] = [
     { id: "chapters", heading: "Chapters", layout: "chapters",
@@ -64,16 +66,21 @@ export function LearningPreview() {
       items: chapter.lessons.map((item, index) => ({ id: `lesson:${item.id}`, label: item.title, marker: String(index + 1).padStart(2, "0"), state: item.state })),
     },
   ];
-  // Inert in the wide preview (AppPreview); on a phone its drawers open
+  // A marketing illustration, built from the learner UI presentation.
   return <div className="h-full" data-learning-illustration="">
     <ChatStyles />
-    <AgentChatWorkspace workspace="Dojo" user={{ name: "Sam Altman", avatar: samAltmanPhoto }} sidebarWidth="18rem" showNews={false} setup={[]} showUser
+    <style href="ui-learning-code" precedence="default">{`
+      .ui-learning-code { height: 100%; box-sizing: border-box; margin: 0; padding: 4px 0; overflow: hidden; font: 16.5px/26px var(--font-mono); counter-reset: line; }
+      .ui-learning-code .line { display: block; min-height: 26px; padding-left: calc(3ch + 40px); position: relative; }
+      .ui-learning-code .line::before { counter-increment: line; content: counter(line); position: absolute; left: 12px; width: 3ch; text-align: right; color: var(--fluid-muted); }
+    `}</style>
+    <AgentChatWorkspace workspace="Dojo" user={{ name: "Sam Altman", avatar: samAltmanPhoto }} sidebarWidth="18rem" initialPaneSizes={[1.618, 1]} showNews={false} setup={[]} showUser
       contentKind="code" navigation={navigation} navigationKey="llm" active={[`chapter:${chapter.id}`, `lesson:${selected.id}`]}
       crumbs={[{ label: "Dashboard", icon: <Icon icon={BackIcon} size={14} />, iconOnly: true }, { label: chapter.title }, { label: selected.title }]}
       editor={<Editor flush
         tabs={<EditorTabs mode="learning" label="Lesson files" active="kata.ts" tabs={[{ path: "kata.ts", label: "kata.py" }, { path: "results", label: "Test results" }]} onSelect={() => {}} />}
         status={<EditorStatus passed={1} total={3} />}>
-        <div className="h-full"><CodeEditor code={code} filePath="src/tokens/encode/kata.py" language="python" lessonApiBase="" readOnly coverage={false} onChange={() => {}} /></div>
+        <pre className="ui-learning-code"><code>{typeof codeContent === "string" ? codeContent.trimEnd().split("\n").map((line, index) => <span className="line" key={index}>{line || "\n"}</span>) : codeContent}</code></pre>
       </Editor>}
       details={<LessonBrief title={selected.title} lead={selected.lead}><h3>Goal</h3><p>{selected.goal}</p></LessonBrief>}
       header={<span className="ui-as-chat__route ui-as-chat__speaker"><span className="ui-as-chat__dot" aria-hidden="true" /><b>Sensei</b><span className="ui-as-chat__speaker-note">Teaches this lesson</span></span>}
@@ -85,4 +92,18 @@ export function LearningPreview() {
       <div className="ui-as-msg" aria-label="Sensei"><p className="ui-as-msg__p">Reuse its ID. Try “the cat the” → [0, 1, 0], then check your encode function.</p></div>
     </AgentChatWorkspace>
   </div>;
+}
+
+/** Build-time HTML uses the same UIX composition and Shiki palette without shipping either renderer to the browser. */
+export async function renderLearningIllustration() {
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { highlightCode } = await import("../lib/markdown");
+  const { editorSchemes } = await import("../lib/code-editor-theme");
+  const { tokens } = await highlightCode(code, "python", editorSchemes[0].theme.name);
+  return {
+    html: renderToStaticMarkup(<LearningPreview codeContent={tokens.map((line, index) =>
+      <span className="line" key={index}>{line.length ? line.map((token, at) => <span key={at} style={{ color: token.color }}>{token.content}</span>) : "\n"}</span>
+    )} />, { identifierPrefix: "learning-illustration-" }),
+    seed: cardSeed(metadata.repo),
+  };
 }

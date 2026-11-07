@@ -28,9 +28,6 @@ const modes = [
   { title: "Authoring Mode", short: "Authoring", beta: "Open beta", headline: "Create your own tutor-guided learning or interview", text: "Build a course with Kyoshi, your authoring agent. Shape lessons, exercises, and learning material, then try it as a learner before you share it." },
 ] as const;
 
-/** What the phone's preview keeps live: opening and closing the sidebar and the Sensei, nothing else */
-const PREVIEW_CONTROLS = ".ui-as-side-open, .ui-as-chat__narrow, .ui-as-chat__close, .ui-as-scrim, .ui-as-aside-scrim";
-
 export function LandingPage({ learning, courses, preview }: {
   /** Optional live count supplied by a host with real presence data. */
   learning?: number;
@@ -69,7 +66,7 @@ export function LandingPage({ learning, courses, preview }: {
       {/* A course from inside, as learners see it: a lesson in the learner app itself, in a window as wide as the page, cut
           short – its sidebar runs on past the bottom (there's more to it), the composer sits in view – and without its
           Getting started card */}
-      <div className="ui-land-app"><AppPreview ratio={16 / 9} controls={PREVIEW_CONTROLS} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview></div>
+      <div className="ui-land-app"><AppPreview ratio={16 / 9} label="Inside a course: a lesson, its kata in the editor and the Sensei beside it">{preview}</AppPreview></div>
 
       <section className="ui-land-agents" aria-labelledby="ui-land-agents">
         <h2 id="ui-land-agents" className="ui-land-eyebrow">Works with</h2>
