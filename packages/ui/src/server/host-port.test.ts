@@ -11,14 +11,14 @@ import { app } from "./app";
 import { forgetHost, hostPortUrl, registerHost } from "./host-port";
 import { evaluationRunner } from "./evaluation/evaluations";
 import { readRecords, saveRecord } from "./agent-session/records";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import * as preparation from "@dojofoo/config/project-preparation";
 import { kataWorkspace, removeRoots } from "./agent-session/test-kata.fixture";
 
 // The real CLI unless a test scripts its answer
 vi.mock("node:child_process", async importOriginal => {
   const actual = await importOriginal<typeof import("node:child_process")>();
-  return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
+  return { ...actual, execFile: vi.fn(actual.execFile) };
 });
 
 
@@ -295,11 +295,11 @@ describe("kata host-port methods", () => {
     const session = record();
     await saveRecord(root, session);
     vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
-    vi.mocked(execFileSync).mockImplementationOnce((() => JSON.stringify({ total: 1, passed: 0, failed: 1, tests: [{ name: "answers", status: "failed" }], error: null })) as never);
+    vi.mocked(execFile).mockImplementationOnce(((_command: string, _args: string[], _options: unknown, done: (error: null, stdout: string) => void) => { done(null, JSON.stringify({ total: 1, passed: 0, failed: 1, tests: [{ name: "answers", status: "failed" }], error: null })); return {}; }) as never);
     const { status, body } = await as(secret, "check", session.id);
     expect(status).toBe(200);
     expect(body.result).toMatchObject({ observationId: expect.any(String), report: { failed: 1, total: 1 } });
-    expect(vi.mocked(execFileSync).mock.calls.at(-1)?.[1]).toEqual(expect.arrayContaining(["kata", "001-first", "--check", "--course", "starter"]));
+    expect(vi.mocked(execFile).mock.calls.at(-1)?.[1]).toEqual(expect.arrayContaining(["kata", "001-first", "--check", "--course", "starter"]));
     expect(JSON.parse(readFileSync(resolve(root, ".dojorc"), "utf8")).currentDojo).toBe("tour");
     expect(messages.filter(entry => entry.key.workspaceId === workspaceId).map(entry => entry.message.method))
       .toEqual(["lesson.check.started", "lesson.check.test", "lesson.check.completed"]);

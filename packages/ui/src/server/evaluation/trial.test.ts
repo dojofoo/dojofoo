@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { parse, stringify } from "yaml";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { dojoDir, readDojoRc } from "@dojofoo/config";
@@ -21,7 +21,7 @@ import { runTrial } from "./trial";
 // The lesson checks run through the CLI; each test scripts its answer from the lesson file's content
 vi.mock("node:child_process", async importOriginal => {
   const actual = await importOriginal<typeof import("node:child_process")>();
-  return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
+  return { ...actual, execFile: vi.fn(actual.execFile) };
 });
 
 const directories: string[] = [];
@@ -57,16 +57,17 @@ function draft(count = 1) {
 /** The CLI's check answers by the lesson file: a SOLVED file passes both tests, anything else fails one */
 function scriptedChecks(override?: (content: string) => string | undefined) {
   vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
-  vi.mocked(execFileSync).mockImplementation(((_command: string, args: string[], options: { cwd: string }) => {
+  vi.mocked(execFile).mockImplementation(((_command: string, args: string[], options: { cwd: string }, done: (error: null, stdout: string) => void) => {
     const at = args.indexOf("kata");
     const lessonId = args[at + 1]!;
     const courseId = args[args.indexOf("--course") + 1]!;
     const path = solutionPath(options.cwd, courseId, lessonId);
     const content = existsSync(path) ? readFileSync(path, "utf8") : "";
     const solved = override?.(content) ?? (content.includes("SOLVED") ? "solved" : "wrong");
-    return JSON.stringify(solved === "solved"
+    done(null, JSON.stringify(solved === "solved"
       ? { total: 2, passed: 2, failed: 0, tests: [{ name: "a", status: "passed" }, { name: "b", status: "passed" }], error: null }
-      : { total: 2, passed: 1, failed: 1, tests: [{ name: "a", status: "passed" }, { name: "b", status: "failed" }], error: null });
+      : { total: 2, passed: 1, failed: 1, tests: [{ name: "a", status: "passed" }, { name: "b", status: "failed" }], error: null }));
+    return {};
   }) as never);
 }
 
@@ -178,7 +179,7 @@ describe("evaluation trial", () => {
     t = await trial(1, { channel });
     await t.run;
     expect(atOpen).toEqual({ file: t.before().file, rc: t.before().rc, webState: false });
-    for (const call of vi.mocked(execFileSync).mock.calls) expect(call[1]).toEqual(expect.arrayContaining(["--check", "--no-record"]));
+    for (const call of vi.mocked(execFile).mock.calls) expect(call[1]).toEqual(expect.arrayContaining(["--check", "--no-record"]));
     expect(t.evidence()).toEqual(expect.arrayContaining([expect.objectContaining({ fixturePreflight: "passed" })]));
   });
 

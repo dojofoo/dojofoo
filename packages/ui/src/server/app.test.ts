@@ -57,6 +57,40 @@ it("reports first run and persists anonymous setup outside the workspace", async
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
 
+it("answers other requests while a lesson check runs", async () => {
+  const { mkdirSync, mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join, resolve } = await import("node:path");
+  const { observeWorkspacePath } = await import("@dojofoo/config/local-state");
+  const root = mkdtempSync(join(tmpdir(), "dojo-slow-check-"));
+  vi.stubEnv("DOJOFOO_HOME", join(root, "state"));
+  // The built CLI checks a course whose test command takes 2 s
+  vi.stubEnv("DOJO_CLI", resolve(import.meta.dirname, "../../../cli/dist/index.js"));
+  writeFileSync(join(root, ".dojorc"), JSON.stringify({ currentDojo: "starter", currentKata: null, editor: null, progress: {} }));
+  const lesson = join(root, ".dojos/starter/katas/001-first");
+  mkdirSync(lesson, { recursive: true });
+  mkdirSync(join(root, "katas/001-first"), { recursive: true });
+  writeFileSync(join(root, ".dojos/starter/dojo.yaml"), "name: '@test/starter'\nversion: 1.0.0\ndescription: Katas\ntest: sleep 2\nrunner:\n  adapter: exit-code\nkatas:\n  - name: 001-first\n    template: katas/001-first/solution.ts\n");
+  writeFileSync(join(lesson, "SENSEI.md"), "# First\n\nPractice.\n");
+  for (const file of [join(lesson, "solution.ts"), join(root, "katas/001-first/solution.ts")]) writeFileSync(file, "export const answer = 0;\n");
+  const workspaceId = observeWorkspacePath(root, { kind: "learner" });
+  try {
+    const started = Date.now();
+    let checked: number | undefined;
+    const check = Promise.resolve(app.request(`/api/workspaces/${workspaceId}/courses/starter/lessons/001-first/checks`, { method: "POST" }))
+      .then(response => { checked = Date.now(); return response; });
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const health = await app.request("/api/health");
+    expect(health.status).toBe(200);
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(checked).toBeUndefined();
+    const response = await check;
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ data: { attributes: { passed: 1, total: 1, complete: true } } });
+    expect(checked! - started).toBeGreaterThanOrEqual(2_000);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+}, 30_000);
+
 it("serves the core inventory without executing installed agents", async () => {
   const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");

@@ -4,14 +4,14 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readDojoRc } from "@dojofoo/config";
 import * as preparation from "@dojofoo/config/project-preparation";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { checkLesson, dojoLessonContext, dojoLessonFragment, readLesson, readLessonFile, writeLessonFile, writeSolution } from "./service";
 import { writeAgent } from "@dojofoo/config/runtime";
 
 // The real CLI unless a test scripts its answer
 vi.mock("node:child_process", async importOriginal => {
   const actual = await importOriginal<typeof import("node:child_process")>();
-  return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
+  return { ...actual, execFile: vi.fn(actual.execFile) };
 });
 
 const roots: string[] = [];
@@ -175,9 +175,9 @@ describe("fresh lesson state", () => {
       await writeLessonFile(root, "starter", "001-first", "solution", "export const answer = 42;\n");
       expect(readFileSync(resolve(root, "katas/001-first/solution.ts"), "utf8")).toBe("export const answer = 42;\n");
       vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
-      vi.mocked(execFileSync).mockImplementationOnce((() => JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "answers", status: "passed" }], error: null })) as never);
+      vi.mocked(execFile).mockImplementationOnce(((_command: string, _args: string[], _options: unknown, done: (error: null, stdout: string) => void) => { done(null, JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "answers", status: "passed" }], error: null })); return {}; }) as never);
       const { lesson, observation } = await checkLesson(root, "starter", "001-first");
-      expect(vi.mocked(execFileSync).mock.calls.at(-1)?.[1]).toEqual(expect.arrayContaining(["kata", "001-first", "--check", "--course", "starter", "--reporter=json"]));
+      expect(vi.mocked(execFile).mock.calls.at(-1)?.[1]).toEqual(expect.arrayContaining(["kata", "001-first", "--check", "--course", "starter", "--reporter=json"]));
       expect(observation.report.complete).toBe(true);
       expect(lesson.result?.complete).toBe(true);
       expect(readDojoRc(root)).toMatchObject({ currentDojo: "another-course", currentKata: "another-lesson" });
