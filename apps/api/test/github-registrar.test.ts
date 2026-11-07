@@ -45,6 +45,8 @@ describe("GitHubCourseRegistrar", () => {
           ],
         });
       }
+      // A branch's raw files can be cached copies of an earlier commit; the commit's own are current
+      if (url.startsWith("https://raw.githubusercontent.com/acme/typescript-basics/main/")) return new Response("an earlier commit's copy");
       if (url.endsWith("/prepare.sh")) return new Response("#!/bin/sh\n");
       if (url.endsWith("/mise-tasks/setup")) return new Response("#!/bin/sh\n");
       if (url.endsWith("/dojo.json")) {
@@ -80,8 +82,7 @@ describe("GitHubCourseRegistrar", () => {
       katas: ["001-values"],
       hash: "tree-sha",
     });
-    // The commit's own files, not the branch's: those can be cached copies of an earlier commit
-    expect(fetch).toHaveBeenCalledWith("https://raw.githubusercontent.com/acme/typescript-basics/commit-sha/dojo.json");
+    // The snapshot holds the commit's files, which the hash names
     expect(registered?.files).toEqual([
       { path: "DOJO.md", contents: "# TypeScript Basics" },
       { path: "dojo.json", contents: JSON.stringify(manifest) },
