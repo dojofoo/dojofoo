@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import logoSvg from "../assets/brand/dojofoo.svg?raw";
 import monoSvg from "../assets/brand/dojofoo-mono.svg?raw";
+import { decorativeSvg } from "../lib/decorative-svg";
 import { cn } from "../lib/utils";
 
 type BrandLogoProps = Omit<ComponentProps<"span">, "children"> & {
@@ -17,7 +18,7 @@ function BrandLogo({ alt = "dojofoo", mono = false, className, ...props }: Brand
         "dojo-brand-logo relative inline-block aspect-[3.19/1] h-6 w-18 shrink-0 text-neutral-700 [&_circle]:!fill-current [&_path]:!fill-current [&_svg]:absolute [&_svg]:top-1/2 [&_svg]:-translate-y-1/2 [&_svg]:block [&_svg]:h-auto [&_svg]:w-full dark:text-white",
         className,
       )}
-      dangerouslySetInnerHTML={{ __html: mono ? monoSvg : logoSvg }}
+      dangerouslySetInnerHTML={{ __html: decorativeSvg(mono ? monoSvg : logoSvg) }}
       role="img"
       {...props}
     />

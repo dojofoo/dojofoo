@@ -15,7 +15,7 @@ export function CourseTile({ course, href, onOpen, shader = false }: { course: W
   );
 }
 
-/** The learner app, live and `height` tall (800px by default): drawn at the frame's width (1280px at least, scaled down
+/** The learner illustration, `height` tall (800px by default): drawn at the frame's width (1280px at least, scaled down
     to fit a narrower one), so on a wide screen it shows at its real size. The app fills it, whatever its own height */
 const PHONE = 600;
 
@@ -31,13 +31,13 @@ export function AppPreview({ children, label, height = 800, ratio, controls }: {
     return () => observer.disconnect();
   }, []);
   // On a phone a 1200-wide screen would be too small to read: the app at the phone's own width instead, unscaled, in its
-  // narrow layout (the sidebar and the Sensei as drawers), its `controls` live, so their buttons open them
+  // narrow layout (the sidebar and the Sensei as drawers), optional `controls` can keep its drawers live
   const phone = Boolean(ratio) && width < PHONE;
   // At a ratio it's a 1200-wide screen at any width (scaled, so the sidebar runs past its bottom edge), so what it shows doesn't change with the page
   const base = phone ? width : ratio ? 1200 : Math.max(1280, width);
   const scale = width / base;
   const tall = phone ? Math.round(Math.min(width * 1.6, 680)) : ratio ? Math.round(base / ratio) : height;
-  // Live only through its controls: every other control in it inert (out of reach of taps and the keyboard), also those
+  // When controls are supplied, every other control remains inert (out of reach of taps and the keyboard), also those
   // the app draws later (the editor loads after it)
   useEffect(() => {
     const el = frame.current;
@@ -51,8 +51,8 @@ export function AppPreview({ children, label, height = 800, ratio, controls }: {
     return () => observer.disconnect();
   }, [phone, controls]);
   return (
-    <figure className="ui-web-app" aria-label={label} data-phone={phone || undefined}>
-      <div ref={frame} className="ui-web-app__frame" style={{ height: tall * scale }} inert={!phone} data-controls={phone && controls ? "" : undefined}>
+    <figure className="ui-web-app" role={!controls ? "img" : undefined} aria-label={label} data-phone={phone || undefined}>
+      <div ref={frame} className="ui-web-app__frame" style={{ height: tall * scale }} inert={!phone || !controls} aria-hidden={!controls || undefined} data-controls={phone && controls ? "" : undefined}>
         <div className="ui-web-app__scale" style={{ width: base, height: tall, transform: `scale(${scale})` }}>{children}</div>
       </div>
     </figure>

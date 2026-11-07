@@ -177,6 +177,8 @@ export type AppShellProps = {
   aside?: ReactNode;
   /** Initial track sizes of the main panel and the aside, e.g. "1.618fr 1fr" */
   asideColumns?: string;
+  /** Known editor/conversation shares for server-rendered illustrations, before browser measurement. */
+  initialPaneSizes?: [number, number];
   /** Show the drawer in the desktop aside, joining it visually to the main window. */
   asideCovered?: boolean;
   /** Hide the desktop aside while retaining its resized width and mounted conversation. */
@@ -312,6 +314,7 @@ export function AppShell({
   showNews = true,
   aside,
   asideColumns = "minmax(0, 1fr) minmax(20rem, 26rem)",
+  initialPaneSizes,
   asideCovered = false,
   asideHidden = false,
   asideOpen = false,
@@ -336,7 +339,7 @@ export function AppShell({
   // Narrow (tablet, phone): the sidebar waits off screen and slides in as a drawer over the main area
   const root = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
-  const [initialLayout, setInitialLayout] = useState<number[]>();
+  const [initialLayout, setInitialLayout] = useState<number[] | undefined>(() => initialPaneSizes ? [0, ...initialPaneSizes] : undefined);
   const [drawer, setDrawer] = useState(false);
   const [AccountPage, setAccountPage] = useState<typeof import("./settings-billing").SettingsContent>();
   const [accountTab, setAccountTab] = useState<import("./settings-billing").SettingsTab>("Appearance");

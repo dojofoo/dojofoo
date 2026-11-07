@@ -31,6 +31,7 @@
     "./web/site": "./src/web/site.tsx",
     "./web/landing": "./src/web/landing.tsx",
     "./web/learning-preview": "./src/web/learning-preview.tsx",
+    "./web/learning-illustration": "./src/web/learning-illustration.tsx",
     "./web/courses": "./src/web/courses.tsx",
     "./web/pricing": "./src/web/pricing.tsx",
     "./web/course": "./src/web/course.tsx",
