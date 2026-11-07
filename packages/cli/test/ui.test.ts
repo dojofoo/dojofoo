@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, realpathSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -159,11 +159,11 @@ describe("bundled dojo UI", () => {
 });
 
 describe("a dojofoo UI that is already running", () => {
-  // Stands in for the running UI: it answers only its health, with the version it was started by
-  async function runningUi(version: string) {
+  // Stands in for the running UI: it answers only its health, with what it was started with
+  async function runningUi(started: { version?: string; build?: string; root?: string }) {
     const server = createServer((request, response) => {
       response.setHeader("content-type", "application/json");
-      response.end(JSON.stringify(request.url === "/api/health" ? { ok: true, version, instance: "running" } : {}));
+      response.end(JSON.stringify(request.url === "/api/health" ? { ok: true, ...started, instance: "running" } : {}));
     });
     await new Promise<void>(accept => server.listen(0, "127.0.0.1", accept));
     return { port: (server.address() as AddressInfo).port, close: () => new Promise<void>(accept => server.close(() => accept())) };
@@ -183,6 +183,18 @@ describe("a dojofoo UI that is already running", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     return { root, moduleUrl: pathToFileURL(join(root, "dist/index.js")).href, spawn, log };
   }
+  // What a server this CLI starts in its folder is started with, and so reports: one launch beside a server of another version
+  async function startedWith({ root, moduleUrl, spawn, log }: ReturnType<typeof cli>) {
+    const other = await runningUi({ version: "1.2.2" });
+    try {
+      await ui(root, ["--no-portless", "--background", "--no-open", "--port", String(other.port)], moduleUrl);
+    } finally { await other.close(); }
+    const env = (spawn.mock.calls.at(-1)![2] as childProcess.SpawnOptions).env!;
+    expect(env).toMatchObject({ DOJO_UI_VERSION: "1.2.3", DOJO_UI_BUILD: expect.any(String), DOJO_PROJECT_ROOT: root });
+    spawn.mockClear();
+    log.mockClear();
+    return { version: env.DOJO_UI_VERSION, build: env.DOJO_UI_BUILD, root: env.DOJO_PROJECT_ROOT };
+  }
   // dojo.localhost routed to the running UI through a Portless proxy of the test's own; PID 0 marks a route no replacement may signal
   async function proxyTo(root: string, port: number) {
     const state = join(root, "portless");
@@ -197,9 +209,10 @@ describe("a dojofoo UI that is already running", () => {
     return { store, url: `http://dojo.localhost:${proxyPort}`, close: () => new Promise<void>(accept => proxy.close(() => accept())) };
   }
 
-  it("of this version is reused: its URL opens, no server starts and its route stays", async () => {
-    const { root, moduleUrl, spawn, log } = cli();
-    const running = await runningUi("1.2.3");
+  it("of this build is reused: its URL opens, no server starts and its route stays", async () => {
+    const launch = cli();
+    const { root, moduleUrl, spawn, log } = launch;
+    const running = await runningUi(await startedWith(launch));
     const proxy = await proxyTo(root, running.port);
     try {
       await ui(root, ["--background"], moduleUrl);
@@ -211,9 +224,26 @@ describe("a dojofoo UI that is already running", () => {
     } finally { await proxy.close(); await running.close(); }
   });
 
+  it("of this version but an earlier build is replaced by the rebuilt UI", async () => {
+    const launch = cli();
+    const { root, moduleUrl, spawn } = launch;
+    const started = await startedWith(launch);
+    const running = await runningUi(started);
+    // A rebuild of the same version rewrites the UI the CLI starts
+    const entry = join(root, "dist/ui/server/index.mjs");
+    writeFileSync(entry, "// rebuilt");
+    utimesSync(entry, new Date(), new Date(Date.now() + 60_000));
+    const proxy = await proxyTo(root, running.port);
+    try {
+      await expect(ui(root, ["--background", "--no-open"], moduleUrl)).rejects.toThrow("Could not start the local UI process.");
+      expect(spawn).toHaveBeenCalledWith(process.execPath, [entry], expect.objectContaining({ env: expect.objectContaining({ DOJO_UI_VERSION: "1.2.3" }) }));
+      expect((spawn.mock.calls[0]![2] as childProcess.SpawnOptions).env!.DOJO_UI_BUILD).not.toBe(started.build);
+    } finally { await proxy.close(); await running.close(); }
+  });
+
   it("of another version is replaced by a server that reports this version", async () => {
     const { root, moduleUrl, spawn } = cli();
-    const running = await runningUi("1.2.2");
+    const running = await runningUi({ version: "1.2.2" });
     const proxy = await proxyTo(root, running.port);
     try {
       // The mocked server has no PID, so the replacement stops right after it is spawned
@@ -223,16 +253,18 @@ describe("a dojofoo UI that is already running", () => {
     } finally { await proxy.close(); await running.close(); }
   });
 
-  it("of this version is reused on its direct port, opening this folder's draft by its address", async () => {
-    const { root, moduleUrl, spawn, log } = cli();
-    const running = await runningUi("1.2.3");
+  it("of this build is reused on its direct port, opening this folder's draft by its address and naming its own folder", async () => {
+    const launch = cli();
+    const { root, moduleUrl, spawn, log } = launch;
+    const running = await runningUi(await startedWith(launch));
     // As `dojofoo kyoshi` in a course inside a workspace opens it: the project root is the workspace, the UI's folder the course
     const course = join(root, "courses/draft");
     mkdirSync(course, { recursive: true });
     try {
       await ui(course, ["--authoring", "--no-portless", "--no-open", "--port", String(running.port)], moduleUrl);
       const draft = listWorkspaces({ stateHome: join(root, "home") }).find(workspace => workspace.path === course);
-      expect(log.mock.calls).toEqual([[`Go to http://localhost:${running.port}/authoring/${draft!.id}`]]);
+      expect(log.mock.calls).toEqual([[`Go to http://localhost:${running.port}/authoring/${draft!.id}`],
+        [`That UI serves ${root}, the folder it was started in.`]]);
       expect(spawn).not.toHaveBeenCalled();
     } finally { await running.close(); }
   });

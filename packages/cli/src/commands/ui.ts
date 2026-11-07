@@ -1,4 +1,4 @@
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
@@ -46,21 +46,24 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
   // A reused server reads bare /authoring as the folder it was started in, so it gets this folder's draft by its address
   const reusePath = () => args.includes("--authoring") ? `/authoring/${observeWorkspacePath(cwd, { kind: "draft" })}` : openPath;
   const version = packageVersion(moduleUrl);
+  const build = uiBuild(uiEntry);
   const port = valueAfter(args, "--port") ?? process.env.DOJO_UI_PORT ?? process.env.PORT ?? "4567";
   if (!/^\d+$/u.test(port) || Number(port) < 1 || Number(port) > 65_535) {
     throw new Error(`Invalid dojo UI port: ${port}`);
   }
   const environment: NodeJS.ProcessEnv = { ...agentEnvironment(), DOJO_CLI: process.argv[1], DOJO_PROJECT_ROOT: cwd, NODE_NO_WARNINGS: "1",
-    DOJO_UI_VERSION: version };
+    DOJO_UI_VERSION: version, DOJO_UI_BUILD: build };
   if (args.includes("--no-portless") || process.env.DOJO_UI_DISABLE_PORTLESS === "1") {
     const origin = `http://localhost:${port}`;
-    if (await servesVersion(origin, version)) {
+    const running = await runningUi(origin, version, build);
+    if (running) {
       const url = `${origin}${reusePath()}`;
       console.log(`Go to ${url}`);
+      reportServedFolder(running, cwd);
       if (shouldOpen) openBrowser(url);
       return;
     }
-    startDirectUi({ cwd, uiEntry, port, background, shouldOpen, openPath, version });
+    startDirectUi({ cwd, uiEntry, port, background, shouldOpen, openPath, version, build });
     return;
   }
   const interactive = Boolean(process.stderr.isTTY);
@@ -91,12 +94,14 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
     }
     const defaultPort = proxy.tls ? 443 : 80;
     const baseUrl = `${proxy.tls ? "https" : "http"}://dojo.localhost${proxy.port === defaultPort ? "" : `:${proxy.port}`}`;
-    // A healthy server of this version keeps running and keeps its route: replacing it would stop its agent turns and evaluations
-    if (await servesVersion(baseUrl, version, proxy.ca)) {
+    // A healthy server of this build keeps running and keeps its route: replacing it would stop its agent turns and evaluations
+    const running = await runningUi(baseUrl, version, build, proxy.ca);
+    if (running) {
       clearProgress();
       progressVisible = false;
       const url = `${baseUrl}${reusePath()}`;
       console.log(`Go to ${url}`);
+      reportServedFolder(running, cwd);
       if (shouldOpen) openBrowser(url);
       return;
     }
@@ -180,7 +185,7 @@ async function availablePort(): Promise<number> {
   return port;
 }
 
-type Health = { ok?: boolean; version?: string; instance?: string };
+type Health = { ok?: boolean; version?: string; build?: string; root?: string; instance?: string };
 
 /** The UI's `/api/health` answer at `url`, asked of 127.0.0.1 under the URL's host; any status but 200 answers `{}`. */
 function readHealth(url: string, ca: Buffer | undefined, timeout: number): Promise<Health> {
@@ -203,12 +208,17 @@ function readHealth(url: string, ca: Buffer | undefined, timeout: number): Promi
   });
 }
 
-/** Whether a healthy dojofoo UI of this version already serves `origin`. Without a known version of its own the CLI replaces any. */
-async function servesVersion(origin: string, version: string | undefined, ca?: Buffer): Promise<boolean> {
-  if (!version) return false;
-  // A server running a lesson check answers only when the check ends, so a busy one gets time before it counts as unhealthy
-  const health = await readHealth(`${origin}/api/health`, ca, 30_000).catch((): Health => ({}));
-  return health.ok === true && health.version === version;
+/** The health of a dojofoo UI of this version and build that already serves `origin`, if any. Without both known the CLI replaces any. */
+async function runningUi(origin: string, version: string | undefined, build: string | undefined, ca?: Buffer): Promise<Health | undefined> {
+  if (!version || !build) return undefined;
+  // A healthy server answers at once, busy or not: one silent for 5 s is hung and gets replaced
+  const health = await readHealth(`${origin}/api/health`, ca, 5000).catch((): Health => ({}));
+  return health.ok === true && health.version === version && health.build === build ? health : undefined;
+}
+
+/** A reused server keeps the folder it was started in: courses installed from it go there, not to `cwd`. */
+function reportServedFolder(health: Health, cwd: string): void {
+  if (health.root && resolve(health.root) !== resolve(cwd)) console.log(`That UI serves ${health.root}, the folder it was started in.`);
 }
 
 async function waitForUi(url: string, instance: string, ca: Buffer | undefined, check: () => void): Promise<void> {
@@ -232,8 +242,9 @@ function startDirectUi(input: {
   shouldOpen: boolean;
   openPath: string;
   version: string | undefined;
+  build: string | undefined;
 }): void {
-  const { cwd, uiEntry, port, background, shouldOpen, openPath, version } = input;
+  const { cwd, uiEntry, port, background, shouldOpen, openPath, version, build } = input;
   const url = `http://localhost:${port}${openPath}`;
   const pidFile = directUiPidFile(port);
   replaceDirectDaemon(pidFile, uiEntry);
@@ -241,7 +252,7 @@ function startDirectUi(input: {
   const child = spawn(process.execPath, [uiEntry], {
     cwd,
     env: { ...agentEnvironment(), DOJO_CLI: process.argv[1], DOJO_PROJECT_ROOT: cwd, NODE_NO_WARNINGS: "1", PORT: port,
-      DOJO_UI_VERSION: version },
+      DOJO_UI_VERSION: version, DOJO_UI_BUILD: build },
     stdio: "ignore",
     detached: background,
   });
@@ -336,6 +347,11 @@ function packageVersion(moduleUrl: string): string | undefined {
   try {
     return (JSON.parse(readFileSync(join(dirname(fileURLToPath(moduleUrl)), "..", "package.json"), "utf8")) as { version?: string }).version;
   } catch { return undefined; }
+}
+
+/** Identifies the UI build at `uiEntry`: every build or install rewrites the entry, so its modification time changes with each one. */
+function uiBuild(uiEntry: string): string | undefined {
+  try { return String(statSync(uiEntry).mtimeMs); } catch { return undefined; }
 }
 
 export function resolveUiEntry(moduleUrl = import.meta.url): string | null {
