@@ -271,16 +271,15 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   const messages = useMemo(() => hostEvents?.length
     ? projectChatTimeline(transcript, hostEvents.map(event => ({ ...event, afterMessageId: anchors.current.get(event.message.id) ?? null })))
     : transcript, [transcript, hostEvents]);
-  // Sensei's composer offers the coding agent's models; a change applies from the next turn
+  // The composer offers the coding agent's models; a change applies from the next turn
   useEffect(() => {
-    if (!sensei) return;
     const controller = new AbortController();
     // Each model with its own description, its effort levels and the one it runs at by default, as the agent lists them
     void json<Page<{ id: string; name: string; description?: string; efforts: string[]; defaultEffort?: string }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
       .then(page => setModels(page.data.map(choice => ({ value: choice.id, name: choice.name, description: choice.description ?? "", efforts: choice.efforts,
         ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}), icon: AiMagicIcon }))), () => {});
     return () => controller.abort();
-  }, [sensei, workspaceId, session.agent]);
+  }, [workspaceId, session.agent]);
   /** A model or effort change, saved on the session; it applies from the next turn (D26) */
   async function changeSession(change: { model?: string; effort?: string | null }) {
     setModelChanging(true);
@@ -360,8 +359,8 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
     status={agent.status === "busy" ? "streaming" : "ready"} busy={agent.status === "resuming"}
     // Eve takes no input until the session has caught up
     inputDisabled={agent.status === "resuming"}
-    {...(sensei ? { model, models, effort, modelChanging: modelChanging || turnOpen, onModelChange: changeModel,
-      onEffortChange: (next: string) => { if (next !== effort) void changeSession({ effort: next }); } } : {})}
+    model={model} models={models} effort={effort} modelChanging={modelChanging || turnOpen} onModelChange={changeModel}
+    onEffortChange={next => { if (next !== effort) void changeSession({ effort: next }); }}
     value={value} onValueChange={onValueChange} attachments files={files} onFilesChange={onFilesChange}
     onSend={send} onStop={() => { setFailure(undefined); void agent.cancel().catch(cause => setFailure({ error: cause, operation: "cancel" })); }} onAnswer={answer}
     error={failureView(shown, session.agent)} notice={readOnlyNotice ? <>{notice}{readOnlyNotice}</> : notice}

@@ -62,8 +62,22 @@ export async function claudeModels(signal: AbortSignal, executable = resolveAgen
   const session = query({ prompt: idle, options: { pathToClaudeCodeExecutable: executable, settingSources: [], persistSession: false, abortController } });
   try {
     const models = await session.supportedModels();
-    return models.map(model => ({ id: model.value, name: model.displayName, ...(model.description ? { description: model.description } : {}),
-      efforts: (model as { supportedEffortLevels?: string[] }).supportedEffortLevels ?? [] }));
+    // Each model's own default effort: the CLI applies it when the model is set and reports it as applied.effort (~25 ms a model)
+    const settings = session as unknown as { getSettings(): Promise<{ applied?: { effort?: string | null } }> };
+    const choices: HarnessModelChoice[] = [];
+    for (const model of models) {
+      const efforts = (model as { supportedEffortLevels?: string[] }).supportedEffortLevels ?? [];
+      let defaultEffort: string | undefined;
+      if (efforts.length) {
+        await session.applyFlagSettings({ model: model.value });
+        defaultEffort = (await settings.getSettings()).applied?.effort ?? undefined;
+      }
+      // Claude Code names its own choice "Default (recommended)"; the menu doesn't recommend a model
+      choices.push({ id: model.value, name: model.displayName.replace(/\s*\(recommended\)$/iu, ""),
+        ...(model.description ? { description: model.description } : {}), efforts,
+        ...(defaultEffort && efforts.includes(defaultEffort) ? { defaultEffort } : {}) });
+    }
+    return choices;
   } finally {
     signal.removeEventListener("abort", abort);
     abortController.abort();

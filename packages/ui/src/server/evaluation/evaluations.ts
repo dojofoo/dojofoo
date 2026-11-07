@@ -55,7 +55,7 @@ async function evaluate(input: { root: string; lessonIds: string[]; callId: stri
   try {
     input.signal.throwIfAborted();
     if (!(await settings().readEvaluationSettings(root))?.enabled) {
-      throw new failure.EvaluationRefused("not_enabled", "Teaching evaluations are not allowed for this draft. The author can allow them in Evaluation settings.");
+      throw new failure.EvaluationRefused("not_enabled", "Teaching evaluations are not allowed for this draft.");
     }
     // The saved agent as written: resolveAgent would fall back from one that is not offered (Cursor) to another agent
     const saved = await readFile(resolve(root, ".dojo/runtimes.json"), "utf8").then(text => (JSON.parse(text) as { agent?: unknown }).agent, () => undefined);

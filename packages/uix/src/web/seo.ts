@@ -260,6 +260,12 @@ export const questions: Question[] = [
     source: "/docs",
   },
   {
+    question: "What does dojo mean?",
+    answer: "Dōjō (道場) is Japanese for \"place of the way\": the hall where a martial art is practised under a teacher. On Dojo.foo, a dojo is a course you install – the lessons, the code you practise in and the checks – and your coding agent becomes its sensei, who teaches it to you.",
+    status: "confirmed",
+    source: "/docs",
+  },
+  {
     question: "Is Dojo.foo free?",
     answer: "Yes. Besides premium courses for paying customers, most courses are free to install and take, and the full source code is available on GitHub. You bring your own coding agent or connect to your AI provider (ChatGPT).",
     status: "confirmed",

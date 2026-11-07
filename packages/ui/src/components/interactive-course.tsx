@@ -47,7 +47,7 @@ export function InteractiveCourse({ runId, workspace: requestedWorkspace, course
   requestedSession?: string;
 }) {
   const navigate = useNavigate();
-  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
+  const { account, toast } = useAccountMenu();
   const [lesson, setLesson] = useState<InteractiveSnapshot | null>(initialLesson ?? null);
   // The answers and slide moves made here are the course's latest snapshot, so opening the course again starts from them
   const queryClient = useQueryClient();

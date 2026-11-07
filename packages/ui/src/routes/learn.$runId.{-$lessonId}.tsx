@@ -71,7 +71,7 @@ function KataLearn({ runId, workspace, course, lessonId, session }: { runId: str
 }
 
 function LearnPending() {
-  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
+  const { account, toast } = useAccountMenu();
   return <LessonLoading account={account} toast={toast} />;
 }
 

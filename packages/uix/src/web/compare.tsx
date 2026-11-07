@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowUpRight, Backpack, ChevronDown, Clapperboard, GraduationCap, Handshake, Quote as QuoteIcon } from "lucide-react";
-import { Accordion, Tooltip } from "radix-ui";
+import { ArrowUpRight, Backpack, Clapperboard, GraduationCap, Handshake, Quote as QuoteIcon } from "lucide-react";
+import { Tooltip } from "radix-ui";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
@@ -10,7 +10,7 @@ import { Streamlines, type Cylinder } from "../components/streamlines";
 import { MasterClassLogo, MasterClassWordmark } from "../components/svgs/masterclass";
 import { useMedia } from "../hooks/use-media";
 import { SitePage } from "./site";
-import { questions } from "./seo";
+import { SiteQuestions } from "./questions";
 
 /*
  * Dojo.foo next to another way to learn (MasterClass now; Udemy, Coursera and others later), as a story: what the other
@@ -70,27 +70,7 @@ export function ComparePage({ children, ...page }: Page & { children: ReactNode 
             <p>{rival.lead}</p>
           </header>
           <PageContext.Provider value={page}>{children}</PageContext.Provider>
-          <section aria-labelledby="questions" className="ui-cmp-faq">
-            <div className="ui-cmp-faq__intro">
-              <h2 id="questions">Questions</h2>
-              <p>About Dojo.foo, answered from its docs.</p>
-            </div>
-            <Accordion.Root type="single" collapsible className="ui-cmp-acc">
-              {questions.filter((item) => item.status === "confirmed").map((item) => (
-                <Accordion.Item key={item.question} value={item.question} className="ui-cmp-acc__item">
-                  <Accordion.Header className="ui-cmp-acc__header">
-                    <Accordion.Trigger className="ui-cmp-acc__trigger">
-                      {item.question}
-                      <ChevronDown aria-hidden="true" />
-                    </Accordion.Trigger>
-                  </Accordion.Header>
-                  <Accordion.Content className="ui-cmp-acc__content">
-                    <p>{item.answer}</p>
-                  </Accordion.Content>
-                </Accordion.Item>
-              ))}
-            </Accordion.Root>
-          </section>
+          <SiteQuestions className="ui-cmp-faq" intro="About Dojo.foo, answered from its docs." />
         </article>
       </div>
     </SitePage>
@@ -328,24 +308,7 @@ const css = /* css */ `
 .ui-cmp-cell[data-none] .ui-cmp-cell__name { opacity: 0.6; }
 .ui-cmp-tip { z-index: 50; max-width: 16rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: calc(8px * var(--squircle-factor, 1)); background: var(--card); color: var(--ink); box-shadow: var(--shadow-4, 0 4px 16px rgb(0 0 0 / 0.1)); font-size: 13px; line-height: 1.5; }
 
-/* Questions (FAQs 1): the intro beside an accordion, the open one on a card */
-.ui-cmp-faq { display: grid; gap: 32px; margin-top: 96px; }
-@container ui-cmp (min-width: 768px) { .ui-cmp-faq { grid-template-columns: 2fr 3fr; gap: 48px; } }
-.ui-cmp-faq__intro p { margin: 12px 0 0; color: var(--muted); font-size: 16px; line-height: 1.6; text-wrap: balance; }
-.ui-cmp-acc { display: grid; gap: 4px; }
-.ui-cmp-acc__item { border-radius: calc(14px * var(--squircle-factor, 1)); transition: background-color 200ms ease, box-shadow 200ms ease; }
-.ui-cmp-acc__item[data-state="open"] { background: var(--card); box-shadow: var(--shadow-3); }
-.ui-cmp-acc__header { display: flex; margin: 0; }
-.ui-cmp-acc__trigger { display: flex; flex: 1; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 24px; border: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; font-weight: 500; text-align: left; cursor: pointer; }
-.ui-cmp-acc__trigger svg { width: 16px; height: 16px; flex: none; margin-top: 4px; color: var(--muted); transition: transform 200ms ease; }
-.ui-cmp-acc__trigger:hover svg { transform: translateY(2px); }
-.ui-cmp-acc__trigger[data-state="open"] svg { transform: rotate(180deg); }
-.ui-cmp-acc__content { overflow: hidden; }
-.ui-cmp-acc__content[data-state="open"] { animation: ui-cmp-acc-down 220ms cubic-bezier(.16, 1, .3, 1); }
-.ui-cmp-acc__content[data-state="closed"] { animation: ui-cmp-acc-up 180ms ease; }
-.ui-cmp-acc__content p { margin: 0; padding: 0 24px 18px; color: var(--muted); font-size: 16px; line-height: 1.6; }
-@keyframes ui-cmp-acc-down { from { height: 0; } to { height: var(--radix-accordion-content-height); } }
-@keyframes ui-cmp-acc-up { from { height: var(--radix-accordion-content-height); } to { height: 0; } }
-@media (prefers-reduced-motion: reduce) { .ui-cmp-acc__content { animation: none !important; } }
+/* Questions: the page puts them under its story */
+.ui-cmp-faq { margin-top: 96px; }
 @media (max-width: 720px) { .ui-cmp { padding: 32px 20px 64px; } }
 `;

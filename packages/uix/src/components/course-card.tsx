@@ -93,7 +93,8 @@ export function CourseCard({ course, mark, enrolled, badge, className, showVersi
   </>);
 }
 
-export type CertificateInfo = { id: string; title: string; learner: string; issued: string; lessons: number; score: number; art: CourseArtwork; digest?: string };
+/** `issued` and `score` are left out where nothing records them, e.g. a local course finished without a graded run */
+export type CertificateInfo = { id: string; title: string; learner: string; issued?: string; lessons: number; score?: number; art: CourseArtwork; digest?: string };
 
 /** A certificate: the badge – its rings drawn from the certificate's hash – what it certifies, who and when; turned
     over, its details and the hash itself (shortened to its ends; whole on hover and read aloud). The hash reproduces
@@ -105,11 +106,11 @@ export function CertificateCard({ certificate, className }: { certificate: Certi
       aria-label={`Certificate: ${certificate.title}`}
       header={<CertificateSeal digest={certificate.digest} className="ui-certificate__seal" />}
       main={<CardTitle>{certificate.title}</CardTitle>}
-      footer={<CardText value={certificate.learner} label={`Issued ${certificate.issued}`} labelBelow />}>
+      footer={<CardText value={certificate.learner} label={certificate.issued ? `Issued ${certificate.issued}` : "Completed"} labelBelow />}>
       <CardDetails items={[
         ["Learner", certificate.learner],
         ["Lessons", certificate.lessons],
-        ["Score", `${certificate.score}%`],
+        ...(certificate.score === undefined ? [] : [["Score", `${certificate.score}%`] as [string, string]]),
         ["ID", certificate.digest
           ? <span className="ui-certificate__hash" title={certificate.digest} aria-label={certificate.digest}>{certificate.digest.slice(0, 8)}…{certificate.digest.slice(-8)}</span>
           : `DOJO-${certificate.id.toUpperCase()}`],

@@ -4,15 +4,16 @@ import { lazy, Suspense } from "react";
 import { loadMarketplaceCourses } from "@/lib/courses.functions";
 import { toUIXCourse } from "@/lib/uix-course";
 import { canonicalLink } from "@/lib/social-metadata";
-import { cli, jsonLd, organization, website } from "@/lib/structured-data";
+import { cli, faqPage, jsonLd, organization, website } from "@/lib/structured-data";
+import { questions } from "@dojofoo/uix/web/seo";
 
 const LearningPreview = lazy(() => import("@dojofoo/uix/web/learning-preview").then(module => ({ default: module.LearningPreview })));
 
 export const Route = createFileRoute("/")({
   loader: () => loadMarketplaceCourses(),
   staleTime: 60_000,
-  // The home page names the site (WebSite) and the one keeping the brand in its title (the root's)
-  head: () => ({ links: [canonicalLink("/")], scripts: [jsonLd(website, organization, cli)] }),
+  // The home page names the site (WebSite) and the one keeping the brand in its title (the root's), and the questions it shows
+  head: () => ({ links: [canonicalLink("/")], scripts: [jsonLd(website, organization, cli, faqPage(questions.filter(item => item.status === "confirmed")))] }),
   component: HomePage,
 });
 

@@ -408,7 +408,8 @@ export function createLocalAgentRuntime(options: {
         // The workspace's last model and effort for this agent, for its next new conversation (D26)
         if (isAgentId(updated.agent)) {
           if (model !== undefined) writeAgentModel(path, updated.agent, model);
-          if (typeof effort === "string") writeAgentEffort(path, updated.agent, effort);
+          // A cleared effort is forgotten too, or the next conversation would start at a level its model may not take
+          if (effort !== undefined) writeAgentEffort(path, updated.agent, effort ?? undefined);
         }
         return updated;
       },

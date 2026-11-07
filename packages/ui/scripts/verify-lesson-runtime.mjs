@@ -257,7 +257,7 @@ try {
   await expect(results()).toContainText("Count the tokens before checking again.");
   await expect.poll(() => carrying("Ran lesson checks.", count).length, { timeout: 60_000 }).toBeGreaterThan(0);
   assert.ok(JSON.stringify(carrying("Ran lesson checks.", count)[0]).includes('\\"attempt\\":1'), "the report's request lacks the observation");
-  await expect(label("Sensei saw this")).toHaveCount(1, { timeout: 60_000 });
+  await expect(label("Sensei will see this after it finishes")).toHaveCount(0, { timeout: 60_000 });
   await expect.poll(() => status("first", first.id), { timeout: 60_000 }).toBe("idle");
 
   // 4. A Check while Sensei's question is open is held, and goes once the answer settles the turn
@@ -269,7 +269,8 @@ try {
   assert.equal(carrying("Ran lesson checks.", count).length, 0, "a held report must wait for the turn");
   await send("the first one");
   await expect.poll(() => carrying("Ran lesson checks.", count).length, { timeout: 90_000 }).toBeGreaterThan(0);
-  await expect(label("Sensei saw this")).toHaveCount(2, { timeout: 60_000 });
+  // A seen report has no label: Sensei's dojo_lesson_verify call shows it
+  await expect(label("Sensei will see this after it finishes")).toHaveCount(0, { timeout: 60_000 });
   await expect.poll(() => status("first", first.id), { timeout: 60_000 }).toBe("idle");
 
   // 5. A save drops a held report: Sensei never gets it

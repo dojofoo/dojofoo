@@ -68,7 +68,13 @@ export function SegmentedControl({
     const list = listRef.current;
     const overlay = overlayRef.current;
     const tab = tabRefs.current.get(value);
-    if (!list || !overlay || !tab) return;
+    if (!list || !overlay) return;
+    // A value that is none of the options (nothing chosen yet) shows no pill; the next option chosen is placed, not slid to
+    if (!tab) {
+      overlay.style.visibility = "hidden";
+      mode.current = "place";
+      return;
+    }
 
     const measure = (resize: boolean) => {
       const nextLeft = tab.offsetLeft;
@@ -145,7 +151,8 @@ export function SegmentedControl({
           type="button"
           role={tabs ? "tab" : "radio"}
           {...(tabs ? { "aria-selected": option === value } : { "aria-checked": option === value })}
-          tabIndex={option === value ? 0 : -1}
+          // With nothing chosen, the first option takes the focus
+          tabIndex={option === value || (!options.includes(value) && option === options[0]) ? 0 : -1}
           onClick={() => select(option, false)}
           title={option}
           className="ui-seg__item"

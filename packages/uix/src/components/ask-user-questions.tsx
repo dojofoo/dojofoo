@@ -118,7 +118,7 @@ export interface AskUserQuestionsProps
   onComplete?: (answers: Record<string, AskUserAnswer>) => void;
   onSkip?: (questionId: string, currentIndex: number) => void;
   skipLabel?: string;
-  /** What happened to the question, at the right of its footer in place of its buttons (e.g. "× Cancelled") */
+  /** What happened to the question, in the brand color at the right of its footer in place of its buttons (e.g. "× Cancelled"); its options are muted */
   status?: React.ReactNode;
   /** Pins the flow to one step of the size ladder (default 36px, compact
    *  28px — see /docs/sizes). Omitted, it follows the surrounding
@@ -905,7 +905,8 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
           setActiveIndex(null);
         }}
         onKeyDown={handleNavKey}
-        className="relative flex flex-col gap-0.5 -mx-3"
+        // A question with a status (cancelled) no longer applies: its options step back
+        className={cn("relative flex flex-col gap-0.5 -mx-3", status && "opacity-50")}
       >
         {/* Other-row input hint — shown only when the Other input is
             focused and still empty, to signal "type here". As soon as
@@ -1554,7 +1555,7 @@ const AskUserQuestions = forwardRef<HTMLDivElement, AskUserQuestionsProps>(
                   )}
                 </div>
                 <div className="relative flex items-center gap-2">
-                  {status && <span className="inline-flex h-7 items-center gap-1 px-2 sm:px-3 text-[12px] text-muted-foreground">{status}</span>}
+                  {status && <span className="inline-flex h-7 items-center gap-1 px-2 sm:px-3 text-[12px] text-[var(--brand)]">{status}</span>}
                   <AnimatePresence mode="popLayout" initial={false}>
                     {showSkip && (
                       <motion.div

@@ -15,11 +15,13 @@ import { Route as AuthoringRouteImport } from './routes/authoring'
 import { Route as AvatarRouteImport } from './routes/avatar'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as InteractiveRouteImport } from './routes/interactive'
-import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as MeRouteImport } from './routes/me'
 import { Route as AuthoringDraftIdRouteImport } from './routes/authoring_.$draftId'
 import { Route as CourseCourseIdRouteImport } from './routes/course.$courseId'
 import { Route as KataNameRouteImport } from './routes/kata.$name'
 import { Route as SessionSessionIdRouteImport } from './routes/session.$sessionId'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SettingsSectionRouteImport } from './routes/settings.$section'
 import { Route as StarterCourseIdRouteImport } from './routes/starter.$courseId'
 import { Route as LearnRunIdChar123LessonIdChar125RouteImport } from './routes/learn.$runId.{-$lessonId}'
 import { Route as CourseWorkspaceIdCourseIdLessonLessonIdRouteImport } from './routes/course_.$workspaceId.$courseId.lesson.$lessonId'
@@ -54,9 +56,9 @@ const InteractiveRoute = InteractiveRouteImport.update({
   path: '/interactive',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const MeRoute = MeRouteImport.update({
+  id: '/me',
+  path: '/me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthoringDraftIdRoute = AuthoringDraftIdRouteImport.update({
@@ -77,6 +79,16 @@ const KataNameRoute = KataNameRouteImport.update({
 const SessionSessionIdRoute = SessionSessionIdRouteImport.update({
   id: '/session/$sessionId',
   path: '/session/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsSectionRoute = SettingsSectionRouteImport.update({
+  id: '/settings/$section',
+  path: '/settings/$section',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StarterCourseIdRoute = StarterCourseIdRouteImport.update({
@@ -104,12 +116,14 @@ export interface FileRoutesByFullPath {
   '/avatar': typeof AvatarRoute
   '/explore': typeof ExploreRoute
   '/interactive': typeof InteractiveRoute
-  '/settings': typeof SettingsRoute
+  '/me': typeof MeRoute
   '/authoring/$draftId': typeof AuthoringDraftIdRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
+  '/settings/$section': typeof SettingsSectionRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
+  '/settings/': typeof SettingsIndexRoute
   '/learn/$runId/{-$lessonId}': typeof LearnRunIdChar123LessonIdChar125Route
   '/course/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
@@ -120,12 +134,14 @@ export interface FileRoutesByTo {
   '/avatar': typeof AvatarRoute
   '/explore': typeof ExploreRoute
   '/interactive': typeof InteractiveRoute
-  '/settings': typeof SettingsRoute
+  '/me': typeof MeRoute
   '/authoring/$draftId': typeof AuthoringDraftIdRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
+  '/settings/$section': typeof SettingsSectionRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
+  '/settings': typeof SettingsIndexRoute
   '/learn/$runId/{-$lessonId}': typeof LearnRunIdChar123LessonIdChar125Route
   '/course/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
@@ -137,12 +153,14 @@ export interface FileRoutesById {
   '/avatar': typeof AvatarRoute
   '/explore': typeof ExploreRoute
   '/interactive': typeof InteractiveRoute
-  '/settings': typeof SettingsRoute
+  '/me': typeof MeRoute
   '/authoring_/$draftId': typeof AuthoringDraftIdRoute
   '/course/$courseId': typeof CourseCourseIdRoute
   '/kata/$name': typeof KataNameRoute
   '/session/$sessionId': typeof SessionSessionIdRoute
+  '/settings/$section': typeof SettingsSectionRoute
   '/starter/$courseId': typeof StarterCourseIdRoute
+  '/settings/': typeof SettingsIndexRoute
   '/learn/$runId/{-$lessonId}': typeof LearnRunIdChar123LessonIdChar125Route
   '/course_/$workspaceId/$courseId/lesson/$lessonId': typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
@@ -155,12 +173,14 @@ export interface FileRouteTypes {
     | '/avatar'
     | '/explore'
     | '/interactive'
-    | '/settings'
+    | '/me'
     | '/authoring/$draftId'
     | '/course/$courseId'
     | '/kata/$name'
     | '/session/$sessionId'
+    | '/settings/$section'
     | '/starter/$courseId'
+    | '/settings/'
     | '/learn/$runId/{-$lessonId}'
     | '/course/$workspaceId/$courseId/lesson/$lessonId'
   fileRoutesByTo: FileRoutesByTo
@@ -171,12 +191,14 @@ export interface FileRouteTypes {
     | '/avatar'
     | '/explore'
     | '/interactive'
-    | '/settings'
+    | '/me'
     | '/authoring/$draftId'
     | '/course/$courseId'
     | '/kata/$name'
     | '/session/$sessionId'
+    | '/settings/$section'
     | '/starter/$courseId'
+    | '/settings'
     | '/learn/$runId/{-$lessonId}'
     | '/course/$workspaceId/$courseId/lesson/$lessonId'
   id:
@@ -187,12 +209,14 @@ export interface FileRouteTypes {
     | '/avatar'
     | '/explore'
     | '/interactive'
-    | '/settings'
+    | '/me'
     | '/authoring_/$draftId'
     | '/course/$courseId'
     | '/kata/$name'
     | '/session/$sessionId'
+    | '/settings/$section'
     | '/starter/$courseId'
+    | '/settings/'
     | '/learn/$runId/{-$lessonId}'
     | '/course_/$workspaceId/$courseId/lesson/$lessonId'
   fileRoutesById: FileRoutesById
@@ -204,12 +228,14 @@ export interface RootRouteChildren {
   AvatarRoute: typeof AvatarRoute
   ExploreRoute: typeof ExploreRoute
   InteractiveRoute: typeof InteractiveRoute
-  SettingsRoute: typeof SettingsRoute
+  MeRoute: typeof MeRoute
   AuthoringDraftIdRoute: typeof AuthoringDraftIdRoute
   CourseCourseIdRoute: typeof CourseCourseIdRoute
   KataNameRoute: typeof KataNameRoute
   SessionSessionIdRoute: typeof SessionSessionIdRoute
+  SettingsSectionRoute: typeof SettingsSectionRoute
   StarterCourseIdRoute: typeof StarterCourseIdRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
   LearnRunIdChar123LessonIdChar125Route: typeof LearnRunIdChar123LessonIdChar125Route
   CourseWorkspaceIdCourseIdLessonLessonIdRoute: typeof CourseWorkspaceIdCourseIdLessonLessonIdRoute
 }
@@ -258,11 +284,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InteractiveRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/me': {
+      id: '/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof MeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/authoring_/$draftId': {
@@ -291,6 +317,20 @@ declare module '@tanstack/react-router' {
       path: '/session/$sessionId'
       fullPath: '/session/$sessionId'
       preLoaderRoute: typeof SessionSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/$section': {
+      id: '/settings/$section'
+      path: '/settings/$section'
+      fullPath: '/settings/$section'
+      preLoaderRoute: typeof SettingsSectionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/starter/$courseId': {
@@ -324,12 +364,14 @@ const rootRouteChildren: RootRouteChildren = {
   AvatarRoute: AvatarRoute,
   ExploreRoute: ExploreRoute,
   InteractiveRoute: InteractiveRoute,
-  SettingsRoute: SettingsRoute,
+  MeRoute: MeRoute,
   AuthoringDraftIdRoute: AuthoringDraftIdRoute,
   CourseCourseIdRoute: CourseCourseIdRoute,
   KataNameRoute: KataNameRoute,
   SessionSessionIdRoute: SessionSessionIdRoute,
+  SettingsSectionRoute: SettingsSectionRoute,
   StarterCourseIdRoute: StarterCourseIdRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
   LearnRunIdChar123LessonIdChar125Route: LearnRunIdChar123LessonIdChar125Route,
   CourseWorkspaceIdCourseIdLessonLessonIdRoute:
     CourseWorkspaceIdCourseIdLessonLessonIdRoute,

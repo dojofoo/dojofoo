@@ -11,8 +11,11 @@ export function dashboardNavigation(): ShellSection[] {
   ] }];
 }
 
-const dashboardPaths = new Set(["/", "/explore", "/settings", "/avatar"]);
+const dashboardPaths = new Set(["/", "/explore", "/me", "/avatar"]);
 
 /** How deep a page sits: the dashboard's pages 0, a course's (its lessons, a session, a starter) 1 – the sidebar's menu
     swipes into a course and back out of it */
-export const dashboardDepth = (pathname: string) => dashboardPaths.has(pathname.replace(/\/+$/, "") || "/") ? 0 : 1;
+export const dashboardDepth = (pathname: string) => {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  return dashboardPaths.has(path) || path === "/settings" || path.startsWith("/settings/") ? 0 : 1;
+};
