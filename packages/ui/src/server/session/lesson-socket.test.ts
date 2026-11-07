@@ -56,6 +56,39 @@ describe("the lesson socket", () => {
     expect((await readRecords(root))[0]?.lifecycle?.heldReport).toMatchObject({ text: expect.stringContaining("[dojo:check] Ran lesson checks.") });
   });
 
+  it("a check's notifications carry its request's id, so the page that asked tells them from Sensei's", async () => {
+    const { socket, peer, page } = setup();
+    vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
+    vi.mocked(execFileSync).mockImplementationOnce((() => JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "a", status: "passed" }], error: null })) as never);
+    const tab = peer(page);
+    const other = peer(page);
+    await socket.open(tab);
+    await socket.open(other);
+    await socket.message(tab, JSON.stringify({ jsonrpc: "2.0", id: "check-1", method: "lesson.check", params: { courseId: "starter", lessonId: "001-first" } }));
+    // Every tab of the lesson sees the check, and each notification names the request it belongs to
+    for (const sent of [tab.sent, other.sent]) {
+      const checks = sent.filter(message => /^lesson\.check\.(started|test|completed)$/u.test((message as { method?: string }).method ?? ""));
+      expect(checks.map(message => [(message as { method: string }).method, (message as { params: { checkId?: unknown } }).params.checkId])).toEqual([
+        ["lesson.check.started", "check-1"], ["lesson.check.test", "check-1"], ["lesson.check.completed", "check-1"]]);
+    }
+    socket.close(tab);
+    socket.close(other);
+  });
+
+  it("a check that fails tells the page it stopped, then answers the request with the error", async () => {
+    const { socket, peer, page } = setup();
+    vi.spyOn(preparation, "prepareWorkspace").mockRejectedValue(new Error("Course setup failed"));
+    const tab = peer(page);
+    await socket.open(tab);
+    await socket.message(tab, JSON.stringify({ jsonrpc: "2.0", id: 2, method: "lesson.check", params: { courseId: "starter", lessonId: "001-first" } }));
+    expect(tab.sent.slice(1)).toEqual([
+      { jsonrpc: "2.0", method: "lesson.check.started", params: { courseId: "starter", lessonId: "001-first", checkId: 2 } },
+      { jsonrpc: "2.0", method: "lesson.check.failed", params: { courseId: "starter", lessonId: "001-first", checkId: 2 } },
+      { jsonrpc: "2.0", id: 2, error: { code: -32_000, message: "Course setup failed" } },
+    ]);
+    socket.close(tab);
+  });
+
   it("a pending notice is sent once when the page key's socket opens", async () => {
     const { root, workspaceId, socket, peer, page } = setup();
     await addNotice(root, { workspaceId, violation: { sessionId: "s1", courseId: "starter", lessonId: "001-first", paths: ["katas/001-first/solution.ts"],

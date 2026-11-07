@@ -45,7 +45,7 @@ export function createLessonSocket(deps: { runtime: Pick<AgentRuntime, "connect"
       const key = pageKeyOf(peer.request);
       if (key) presence().part(key, peer);
     },
-    /** `lesson.check`: the lesson's checks, then the report to Sensei (constraint 3) */
+    /** `lesson.check`: the lesson's checks, whose notifications carry the request's id, then the report to Sensei (constraint 3) */
     async message(peer: LessonSocketPeer, text: string): Promise<void> {
       let requestId: JsonRpcId | null = null;
       const channel = new SessionChannel(peer);
@@ -60,7 +60,7 @@ export function createLessonSocket(deps: { runtime: Pick<AgentRuntime, "connect"
         if (!params.courseId || !params.lessonId) throw new Error("A course and lesson are required");
         const key = pageKeyOf(peer.request)!;
         const target = { path: root(key.workspaceId), workspaceId: key.workspaceId };
-        const checked = await runLessonCheck(target, params.courseId, params.lessonId);
+        const checked = await runLessonCheck(target, params.courseId, params.lessonId, request.id);
         if (request.id !== undefined) channel.send(result(request.id, checked.observation.report));
         await offerCheckReport(deps.runtime, target, params.courseId, params.lessonId, checked.observation);
       } catch (cause) {

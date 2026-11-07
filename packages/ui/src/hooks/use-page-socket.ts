@@ -3,11 +3,15 @@ import { useEffect, useRef } from "react";
 export type PageSocketMessage = { method?: string; params?: unknown; id?: string | number; result?: unknown; error?: { message?: string } };
 
 /** A lesson or course page's socket (`/api/session?workspace&course[&lesson]`): its opening is the page's presence (D19), and it carries
- *  the page's notifications. It reconnects with backoff, so a short drop (a server restart) never reads as leaving. */
-export function usePageSocket(page: { workspace?: string; course?: string; lesson?: string }, onMessage: (message: PageSocketMessage) => void) {
+ *  the page's notifications. It reconnects with backoff, so a short drop (a server restart) never reads as leaving; `onClose` hears
+ *  each drop, for a request whose answer can no longer come. */
+export function usePageSocket(page: { workspace?: string; course?: string; lesson?: string }, onMessage: (message: PageSocketMessage) => void,
+  onClose?: () => void) {
   const socket = useRef<WebSocket | null>(null);
   const handler = useRef(onMessage);
   handler.current = onMessage;
+  const closed = useRef(onClose);
+  closed.current = onClose;
   useEffect(() => {
     if (!page.workspace || !page.course) return;
     let cancelled = false;
@@ -28,6 +32,7 @@ export function usePageSocket(page: { workspace?: string; course?: string; lesso
       current.addEventListener("close", () => {
         if (socket.current === current) socket.current = null;
         if (cancelled) return;
+        closed.current?.();
         timer = setTimeout(connect, delay);
         delay = Math.min(delay * 2, 5_000);
       });
