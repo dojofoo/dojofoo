@@ -45,7 +45,6 @@ import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useAccountMenu } from "@/hooks/use-account-menu";
 import { useWorkspaceAgent } from "@/hooks/use-workspace-agent";
 import { ConversationHistory, type HistoryPick } from "@/components/conversation-history";
-import { codingAgents } from "@/lib/coding-agents";
 import { courseArt } from "@/lib/course-color";
 import { dashboardNavigation, dashboardNavigationKey } from "@/lib/dashboard-navigation";
 import { httpError } from "@/lib/http-error";
@@ -236,7 +235,6 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
   const [checking, setChecking] = useState(false);
   const [liveTests, setLiveTests] = useState<TestReport["tests"]>([]);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [modelNotice, setModelNotice] = useState("");
   const [busy, setBusy] = useState("Loading your dojo…");
   const [error, setError] = useState<string | null>(null);
   // Check cards in the conversation: one per Check this page ran, labelled with what Sensei saw (D16)
@@ -257,7 +255,6 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
   };
   const workspaceAgent = useWorkspaceAgent({ workspaceId, persona: "sensei", onSwitched: (agentId, pick) => {
     setCheckCards([]);
-    setModelNotice(`Sensei now uses ${codingAgents.find(agent => agent.value === agentId)?.name ?? agentId} in this workspace.`);
     setAgentEpoch(epoch => epoch + 1);
     if (pick) openPick(pick.id);
     // The lesson's agent is read again; its files and unsaved edits stay as they are
@@ -326,7 +323,6 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       return;
     }
     setLesson(null);
-    setModelNotice("");
     const controller = new AbortController();
     fetch(`${apiBase}?prepare=false`, { signal: controller.signal })
       .then(async (response) => ({ response, body: (await response.json()) as LessonSnapshot | { error: string } | null }))
@@ -675,7 +671,6 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
         onSessionDropped={() => { void navigate({ to: "/learn/$runId/{-$lessonId}", params: { runId, lessonId: lesson.kata }, search: {}, replace: true }); }} onOpened={setOpened}
         onSwitchRequest={agentId => { if (opened) workspaceAgent.request(agentId, { id: opened.id, readOnly: false }); }} hostEvents={hostEvents} fragments={lesson.fragments} onHighlight={highlightCode}
         controls={chat} agents={workspaceAgent.agents} onAgentChange={workspaceAgent.request} agentChanging={workspaceAgent.switching} />
-      {modelNotice && <p role="status" className="px-2 pt-1 text-xs text-muted-foreground">{modelNotice}</p>}
       {workspaceAgent.notice}
       {workspaceAgent.dialog}
     </div>} />{toast}</div>;

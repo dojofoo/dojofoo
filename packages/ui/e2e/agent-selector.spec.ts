@@ -111,7 +111,6 @@ test("a lesson opened after a switch runs on the new agent", async ({ page, moun
   await expect.poll(() => selects.map(select => select.agentId)).toEqual(["opencode"]);
   await expect.poll(() => lessonReads).toContain("first:opencode");
   await expect(agent).toContainText("OpenCode");
-  await expect(page.getByRole("status").filter({ hasText: "Sensei now uses OpenCode in this workspace." })).toBeVisible();
 
   await page.getByRole("button", { name: /^Second lesson \(done\)/u }).click();
   await expect.poll(() => lessonReads).toContain("second:opencode");
