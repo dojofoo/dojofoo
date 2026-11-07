@@ -1,5 +1,14 @@
 # @dojofoo/web
 
+## 0.0.4
+
+### Patch Changes
+
+- abe8e5f: Prerender the landing illustration without Monaco or application hydration, keep its card shader live, and expose named logos and a concise illustration in the accessibility tree. Deduplicate website CSS presets and minify locally served editor assets with fingerprinted cache URLs.
+- Updated dependencies [abe8e5f]
+  - @dojofoo/uix@0.1.1
+  - @dojofoo/ui@0.1.1
+
 ## 0.0.3
 
 ### Patch Changes

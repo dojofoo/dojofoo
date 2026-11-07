@@ -1,5 +1,12 @@
 # @dojofoo/ui
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [abe8e5f]
+  - @dojofoo/uix@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
