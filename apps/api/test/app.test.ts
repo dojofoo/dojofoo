@@ -490,6 +490,48 @@ describe("courses API", () => {
     });
   });
 
+  it("rejects an event whose time is not a date, so the catalog stays readable", async () => {
+    const app = createCoursesApp({ courses: [course] });
+    const response = await app.handle(
+      new Request("http://localhost/api/v1/events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ instanceId: "a", courseId: course.id, event: "started", occurredAt: "not a date" }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "invalid_event",
+      message: "occurredAt must be an ISO 8601 timestamp.",
+    });
+    const catalog = await app.handle(new Request("http://localhost/api/v1/courses?view=all-time&page=0&per_page=10"));
+    expect(catalog.status).toBe(200);
+    // Not recorded: the course has no start
+    const metrics = await app.handle(new Request("http://localhost/api/v1/courses/dojofoo/effect-ts/metrics"));
+    expect(await metrics.json()).toMatchObject({ started: 0 });
+  });
+
+  it("leaves out a stored event whose time is not a date", async () => {
+    const app = createCoursesApp({
+      courses: [course],
+      events: [
+        { instanceId: "a", courseId: course.id, event: "started", occurredAt: "2026-08-03T10:00:00Z" },
+        { instanceId: "b", courseId: course.id, event: "started", occurredAt: "not a date" },
+      ],
+    });
+
+    const catalog = await app.handle(new Request("http://localhost/api/v1/courses?view=all-time&page=0&per_page=10"));
+    expect(catalog.status).toBe(200);
+    const marketplace = await app.handle(new Request("http://localhost/api/v1/marketplace"));
+    expect(marketplace.status).toBe(200);
+    const metrics = await app.handle(new Request("http://localhost/api/v1/courses/dojofoo/effect-ts/metrics"));
+    expect(await metrics.json()).toMatchObject({
+      started: 1,
+      weeklyActivity: [{ week: "2026-08-03", installs: 0, started: 1, finished: 0 }],
+    });
+  });
+
   it("records lifecycle events idempotently", async () => {
     const app = createCoursesApp({ courses: [course] });
     const event = {
