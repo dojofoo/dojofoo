@@ -249,8 +249,8 @@ async function addRemote(root: string, source: string, type: RemoteDojoSource, f
     const downloaded = await acquireRemoteDojo(locator, type, staged);
     const extracted = findDownloadedDojo(downloaded);
     if (!extracted) throw new Error(`${source} is not a dojo — missing dojo.yaml, dojo.yml, or dojo.json`);
-    // Downloaded without credentials, so public: what the course API's checks found
-    if (type === "github") await checkCourseAudits(locator, { yes });
+    // What the course API's checks found in this version: the repository as downloaded
+    if (type === "github") await checkCourseAudits(locator, downloaded, { yes });
     const published = resolve(tmpDir, "published");
     const include = courseFileFilter(extracted, authoring);
     cpSync(extracted, published, {

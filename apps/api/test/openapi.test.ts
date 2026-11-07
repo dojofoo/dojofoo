@@ -16,6 +16,7 @@ describe("Course API OpenAPI", () => {
       expect(response.status).toBe(path.includes("/missing/") ? 404 : 200);
     }
     expect((await warm.handle(new Request("http://localhost/api/v1/events", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }))).status).toBe(400);
+    expect((await warm.handle(new Request("http://localhost/api/v1/courses/audit/missing/course", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ hash: "missing" }) }))).status).toBe(404);
     const after = await (await warm.handle(new Request("http://localhost/api/v1/openapi/json"))).json();
     expect(after).toEqual(before);
   });

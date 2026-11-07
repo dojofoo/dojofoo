@@ -19,8 +19,9 @@ Each event carries:
 | `occurredAt` | A timestamp |
 
 The first install of a public GitHub course also sends its repository and content hash, so the
-marketplace can list it. Before installing one, `add` asks for its security checks, which sends
-the repository's name. The server stores a hash of `instanceId`, never the ID itself.
+marketplace can list it. Before installing one, `add` asks for the security checks of the version
+it downloaded, which sends the repository's name and that version's Git tree hash. The server
+stores a hash of `instanceId`, never the ID itself.
 
 Never sent: file paths, your code, agent session IDs or conversations.
 
@@ -33,6 +34,7 @@ export DO_NOT_TRACK=1
 export DOJO_TELEMETRY_DISABLED=1
 ```
 
-With either set, `add` also skips the security-check lookup and installs without it.
+With either set, `add` still asks for a course's security checks: that lookup isn't usage data,
+and it sends no `instanceId`.
 
 Reporting is best-effort: a failed or disabled request never changes the result of a command.

@@ -57,19 +57,27 @@ it("requires removing a course before installing it in a different workspace", a
   expect(readInstalledSource(resolve(second, "courses/remote-dojo"))?.locator).toBe("example/remote-dojo");
 });
 
-// The course API's checks: none by default, so installs go ahead as they did before them
-const audits = vi.hoisted(() => ({ response: null as unknown, requests: [] as string[] }));
+// The course API's checks: none by default, so installs go ahead as they did before them. A response is the API's
+// answer about the version `add` asks for, by its hash
+const audits = vi.hoisted(() => ({
+  response: null as ((hash?: string) => unknown) | null,
+  requests: [] as string[],
+  bodies: [] as unknown[],
+}));
 beforeEach(() => {
   vi.stubEnv("DOJO_API_URL", "https://courses.example.test");
-  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     audits.requests.push(url);
-    return audits.response ? Response.json(audits.response) : new Response(null, { status: 404 });
+    const body = init?.body ? JSON.parse(String(init.body)) as { hash?: string } : undefined;
+    if (body) audits.bodies.push(body);
+    return audits.response ? Response.json(audits.response(body?.hash)) : new Response(null, { status: 404 });
   }));
 });
 
 afterEach(() => {
   audits.response = null;
   audits.requests.length = 0;
+  audits.bodies.length = 0;
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   acquisition.version = "0.0.1";
@@ -156,10 +164,11 @@ describe("Giget-backed dojo lifecycle", () => {
 
   it("won't install a course that failed its security checks", async () => {
     const root = workspace();
-    audits.response = {
+    audits.response = (hash) => ({
       status: "trial",
-      audits: [{ provider: "Dojo", status: "fail", riskLevel: "HIGH", summary: "1 finding: runs a postinstall script on install", findings: [{ message: "runs a postinstall script on install", path: "package.json" }] }],
-    };
+      hash,
+      audits: [{ provider: "Dojo", status: "fail", riskLevel: "HIGH", summary: "1 finding: runs a postinstall script on install", hash, findings: [{ message: "runs a postinstall script on install", path: "package.json" }] }],
+    });
 
     await expect(add(root, ["example/remote-dojo", "--yes"])).rejects.toThrow(/example\/remote-dojo failed its security checks[\s\S]*package\.json: runs a postinstall script on install/u);
     expect(audits.requests).toEqual(["https://courses.example.test/api/v1/courses/audit/example/remote-dojo"]);
@@ -168,21 +177,56 @@ describe("Giget-backed dojo lifecycle", () => {
 
   it("asks before installing a course with warnings, unless told --yes", async () => {
     const root = workspace();
-    audits.response = {
+    audits.response = (hash) => ({
       status: "enabled",
-      audits: [{ provider: "Cisco Skill Scanner", status: "warn", riskLevel: "MEDIUM", summary: "1 finding: Installs an unpinned tool.", findings: [{ message: "Installs an unpinned tool." }] }],
-    };
+      hash,
+      audits: [{ provider: "Cisco Skill Scanner", status: "warn", riskLevel: "MEDIUM", summary: "1 finding: Installs an unpinned tool.", hash, findings: [{ message: "Installs an unpinned tool." }] }],
+    });
 
     await expect(add(root, ["example/remote-dojo"])).rejects.toThrow("Run again with --yes to install example/remote-dojo anyway.");
     await add(root, ["example/remote-dojo", "--yes"]);
     expect(readFileSync(resolve(root, "courses", "remote-dojo", "DOJO.md"), "utf8")).toContain("Remote dojo");
   });
 
-  it("keeps the repository to itself when telemetry is off", async () => {
-    vi.stubEnv("DO_NOT_TRACK", "1");
-    audits.response = { status: "trial", audits: [{ provider: "Dojo", status: "fail", riskLevel: "HIGH", summary: "", findings: [] }] };
+  it("doesn't take another version's checks for the one it downloaded", async () => {
+    const root = workspace();
+    const log = vi.spyOn(console, "log");
+    // GitHub moved on between the download and the API's fetch: the API checked a newer version
+    audits.response = () => ({
+      status: "enabled",
+      hash: "a-newer-version",
+      audits: [{ provider: "Dojo", status: "pass", riskLevel: "NONE", summary: "No risks detected", hash: "a-newer-version", findings: [] }],
+    });
 
-    await add(workspace(), ["example/remote-dojo"]);
-    expect(audits.requests).toEqual([]);
+    await expect(add(root, ["example/remote-dojo"])).rejects.toThrow("Run again with --yes to install example/remote-dojo anyway.");
+    expect(() => readFileSync(resolve(root, "courses", "remote-dojo", "DOJO.md"))).toThrow();
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/^example\/remote-dojo hasn't been checked at the version just downloaded:[\s\S]*Dojo {2}pass {2}No risks detected \(another version\)/u));
+    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("Security checks: Dojo pass"));
+
+    await add(root, ["example/remote-dojo", "--yes"]);
+    expect(readFileSync(resolve(root, "courses", "remote-dojo", "DOJO.md"), "utf8")).toContain("Remote dojo");
+    log.mockRestore();
+  });
+
+  it("checks with telemetry off too, sending only the repository and the version's hash", async () => {
+    vi.stubEnv("DO_NOT_TRACK", "1");
+    audits.response = (hash) => ({ status: "trial", hash, audits: [{ provider: "Dojo", status: "fail", riskLevel: "HIGH", summary: "", hash, findings: [] }] });
+
+    await expect(add(workspace(), ["example/remote-dojo"])).rejects.toThrow("example/remote-dojo failed its security checks");
+    expect(audits.requests).toEqual(["https://courses.example.test/api/v1/courses/audit/example/remote-dojo"]);
+    expect(audits.bodies).toEqual([{ hash: expect.stringMatching(/^[0-9a-f]{40}$/u) }]);
+  });
+
+  it("says the checks were unavailable when the course API doesn't answer, and installs", async () => {
+    const root = workspace();
+    const log = vi.spyOn(console, "log");
+    audits.response = () => {
+      throw new TypeError("fetch failed");
+    };
+
+    await add(root, ["example/remote-dojo"]);
+    expect(log).toHaveBeenCalledWith("Security checks unavailable for example/remote-dojo: the course API didn't answer.");
+    expect(readFileSync(resolve(root, "courses", "remote-dojo", "DOJO.md"), "utf8")).toContain("Remote dojo");
+    log.mockRestore();
   });
 });

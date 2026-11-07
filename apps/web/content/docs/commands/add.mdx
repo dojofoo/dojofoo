@@ -39,9 +39,10 @@ npx dojofoo add <source> [--force] [--master] [--yes] [--agent <a,b>]
 `add` sets up the project as `install` does if you haven't, but only connects agents it can
 detect or that you name with `--agent`.
 
-Before installing a GitHub course, `add` reads its
-[security checks](/docs/marketplace#security-checks): a failed check stops the install, and a
-warning asks first. The first install of a public GitHub course reports it to the
+Before installing a GitHub course, `add` reads the
+[security checks](/docs/marketplace#security-checks) of the version it downloaded: a failed check
+stops the install, and a warning, or no check of that version, asks first. The first install of a
+public GitHub course reports it to the
 [marketplace](/docs/marketplace), unless its manifest sets `private: true`.
 
 ## Related

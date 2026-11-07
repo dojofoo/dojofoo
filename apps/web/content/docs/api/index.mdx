@@ -37,4 +37,7 @@ The first `installed` event for a public GitHub course sends its source along. T
 fetches the course's manifest from GitHub, validates it and runs Dojo's security checks, unless
 the manifest sets `private: true`. The course starts in trial: its own routes answer, but it's
 left out of the listings until it's enabled. Its checks are at
-[`GET /courses/audit/{source}/{slug}`](/docs/api/get-course-audit).
+[`GET /courses/audit/{source}/{slug}`](/docs/api/get-course-audit). Before installing, `add` asks
+for the checks of the version it downloaded at
+[`POST /courses/audit/{source}/{slug}`](/docs/api/check-course-version), which registers and
+checks the course the same way when no check is for that version, without recording an install.

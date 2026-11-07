@@ -3,8 +3,8 @@ import type { CourseFile } from "./app";
 /*
  * Security checks on a course, kept per provider and per snapshot hash, in the shape skills.sh publishes its audits:
  * a status (pass, warn, fail), a risk level and a summary. Dojo's own checks run on registration, against the files
- * the registrar snapshots; Cisco's skill-scanner runs later, in scripts/audit-courses.ts. The CLI reads them before it
- * installs: a fail stops the install, a warn asks first.
+ * the registrar snapshots; Cisco's skill-scanner runs later, in scripts/audit-courses.ts. The CLI reads the ones for
+ * the version it downloaded before it installs: a fail stops the install, a warn asks first.
  */
 
 export type CourseAuditStatus = "pass" | "warn" | "fail";
