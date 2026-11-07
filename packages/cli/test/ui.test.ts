@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync, realpathSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync, realpathSync } from "node:fs";
+import { createSecureContext } from "node:tls";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -75,6 +76,47 @@ describe("bundled dojo UI", () => {
       await new Promise<void>(accept => proxy.close(() => accept()));
     }
   });
+  it("comes up at dojo.<tld> on a TLS proxy whose TLDs don't include localhost", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dojo-proxy-tls-"));
+    temporaryRoots.push(root);
+    const state = join(root, "portless");
+    mkdirSync(state, { recursive: true });
+    // Like Portless, the proxy holds certificates for its own TLD only and refuses any other name
+    execFileSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", "/CN=dojo.td",
+      "-addext", "subjectAltName=DNS:dojo.td", "-keyout", join(state, "key.pem"), "-out", join(state, "ca.pem")], { stdio: "ignore" });
+    const cert = readFileSync(join(state, "ca.pem"));
+    const key = readFileSync(join(state, "key.pem"));
+    const store = new RouteStore(state);
+    const proxy = createProxyServer({ proxyPort: 0, tld: "td", getRoutes: () => store.loadRoutes(), tls: { cert, key,
+      SNICallback: (name, done) => name.endsWith(".td") ? done(null, createSecureContext({ cert, key })) : done(new Error(`Refusing certificate for ${name}`)) } });
+    await new Promise<void>(accept => proxy.listen(0, "127.0.0.1", accept));
+    const proxyPort = (proxy.address() as { port: number }).port;
+    writeFileSync(join(state, "proxy.port"), String(proxyPort));
+    writeFileSync(join(state, "proxy.tls"), "");
+    writeFileSync(join(state, "proxy.tld"), "td");
+    mkdirSync(join(root, "dist/ui/server"), { recursive: true });
+    writeFileSync(join(root, "dist/ui/server/index.mjs"), `
+      import { createServer } from 'node:http';
+      createServer((request, response) => {
+        response.setHeader('content-type', 'application/json');
+        response.end(JSON.stringify({ ok: true, instance: process.env.DOJO_UI_INSTANCE }));
+      }).listen(Number(process.env.PORT), process.env.HOST);
+    `);
+    vi.stubEnv("PORTLESS_STATE_DIR", state);
+    vi.stubEnv("DOJOFOO_HOME", join(root, "home"));
+    vi.stubEnv("DOJO_UI_DISABLE_PORTLESS", "");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await ui(root, ["--background", "--no-open"], pathToFileURL(join(root, "dist/index.js")).href);
+      expect(log.mock.calls).toEqual([[`Go to https://dojo.td:${proxyPort}`]]);
+      expect(store.loadRoutes()).toEqual([expect.objectContaining({ hostname: "dojo.td" })]);
+    } finally {
+      const route = store.loadRoutes().find(route => route.hostname === "dojo.td");
+      if (route?.pid) { try { process.kill(-route.pid, "SIGTERM"); } catch {} }
+      await new Promise<void>(accept => proxy.close(() => accept()));
+    }
+  }, 60_000);
+
   it("runs its ESM-only Portless dependency without a global executable", () => {
     const version = execFileSync(process.execPath, [resolvePortlessEntry(), "--version"], { encoding: "utf8" });
     expect(version.trim()).toBe("0.15.12");
