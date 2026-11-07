@@ -17,16 +17,18 @@ test("the landing illustration serves code without JavaScript and loads no edito
   page.on("request", request => {
     if (/monaco|editor-worker|editor-core/i.test(request.url())) editorRequests.push(request.url());
   });
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(page.locator("[data-learning-illustration] pre")).toContainText("return []");
   await expect(page.locator("[data-learning-illustration] .monaco-editor")).toHaveCount(0);
-  expect(editorRequests).toEqual([]);
-  expect(pageErrors).toEqual([]);
   const illustration = page.getByRole("img", { name: /^Inside a course:/ });
   expect(await illustration.ariaSnapshot()).not.toContain("button");
   const shader = page.locator("[data-learning-illustration] .lj-course canvas");
   await expect(shader).toHaveCount(1);
   await expect(shader).toHaveAttribute("width", /^[1-9]\d*$/);
+  // Checked last, once the hydrated page's effects have had their chance to request an editor
+  expect(editorRequests).toEqual([]);
+  expect(pageErrors).toEqual([]);
 });
 
 test("agent logos expose one named image and hide their decorative SVG", async ({ page }) => {

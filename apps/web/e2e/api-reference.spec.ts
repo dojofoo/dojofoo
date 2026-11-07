@@ -6,7 +6,8 @@ test("API docs hydrate from the generated Elysia spec, list endpoints by collect
   const response = await page.request.get("/api/v1/openapi/json");
   expect(response.status()).toBe(200);
   expect((await response.json()).paths["/api/v1/courses"].get.operationId).toBe("listCourses");
-  await page.goto("/docs/api/list-courses", { waitUntil: "networkidle" });
+  await page.goto("/docs/api/list-courses");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(page.getByRole("heading", { name: "List courses", exact: true })).toBeVisible();
   // The sidebar: each endpoint as its method and path
   await expect(page.getByRole("link", { name: "GET /health, Check health", exact: true })).toBeVisible();
@@ -21,6 +22,7 @@ test("API docs hydrate from the generated Elysia spec, list endpoints by collect
   await expect(examples.getByRole("tab", { name: "200", exact: true })).toBeVisible();
   await expect(examples).toContainText("curl -X GET");
   await page.goto("/docs/api/list-course-profiles");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(page.getByRole("heading", { name: "List course profiles", exact: true })).toBeVisible();
   const request = page.locator("[data-api-request]");
   await expect(request).toContainText("/api/v1/course-profiles");
@@ -36,12 +38,9 @@ test("API docs hydrate from the generated Elysia spec, list endpoints by collect
     wide: document.querySelector(".ui-docs")!.getBoundingClientRect().width >= 340,
     treeInPage: getComputedStyle(document.querySelector(".ui-docs-layout > .ui-docs-tree")!).display !== "none",
   }))).toEqual({ wide: true, treeInPage: false });
-  // Tapped again until it opens: the page may still be hydrating
   const menu = page.getByRole("complementary", { name: "Menu", exact: true });
-  await expect(async () => {
-    if (!(await menu.isVisible())) await page.getByRole("button", { name: "Menu", exact: true }).click();
-    await expect(menu.getByRole("link", { name: "GET /health, Check health", exact: true })).toBeVisible({ timeout: 1000 });
-  }).toPass();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await expect(menu.getByRole("link", { name: "GET /health, Check health", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });

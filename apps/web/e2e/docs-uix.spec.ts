@@ -9,7 +9,8 @@ test("native documentation uses UIX while the host keeps URLs, content and brows
   });
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/docs", { waitUntil: "networkidle" });
+  await page.goto("/docs");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(page.locator(".ui-docs-layout")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Usage", exact: true })).toBeVisible();
   const tree = page.getByRole("complementary", { name: "Pages", exact: true });
@@ -59,14 +60,12 @@ test("native documentation uses UIX while the host keeps URLs, content and brows
   await tab.close();
   await page.screenshot({ path: testInfo.outputPath("uix-docs-desktop.png"), animations: "disabled" });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/docs", { waitUntil: "networkidle" });
+  await page.goto("/docs");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("uix-docs-mobile.png"), animations: "disabled" });
-  // A click before hydration has no handler yet; retry until the menu opens.
-  await expect(async () => {
-    await page.getByRole("button", { name: "Menu", exact: true }).click();
-    await expect(page.getByRole("complementary", { name: "Menu", exact: true }).getByRole("link", { name: "Quickstart", exact: true })).toBeVisible({ timeout: 1_000 });
-  }).toPass();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Menu", exact: true }).getByRole("link", { name: "Quickstart", exact: true })).toBeVisible();
   await page.getByRole("complementary", { name: "Menu", exact: true }).getByRole("link", { name: "Quickstart", exact: true }).click();
   await expect(page).toHaveURL(/\/docs\/quickstart$/);
   await expect(page.getByRole("heading", { name: "Quickstart", exact: true })).toBeInViewport();
@@ -85,7 +84,7 @@ test("Markdown endpoints preserve real content and return 404 for missing pages"
 
 test("documentation sections and legacy dojo-document links keep their real compiled pages", async ({ page }) => {
   for (const [path, title] of [["/authoring", "Authoring"], ["/developers", "Developers"], ["/docs/api", "API"], ["/dojos/effect-ts", "Effect-TS"]]) {
-    const response = await page.goto(path, { waitUntil: "networkidle" });
+    const response = await page.goto(path);
     expect(response?.status()).toBe(200);
     await expect(page.locator(".ui-docs-layout")).toBeVisible();
     await expect(page.getByRole("heading", { name: title, exact: true, level: 1 })).toBeVisible();
@@ -103,13 +102,11 @@ test("Installation uses shared command controls and preserves the agent setup pr
       writeText: async (text: string) => { document.documentElement.dataset.copiedCommand = text; },
     } });
   });
-  await page.goto("/docs/installation", { waitUntil: "networkidle" });
+  await page.goto("/docs/installation");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(page.getByRole("heading", { name: "Installation", exact: true })).toBeVisible();
-  // A click before hydration has no handler yet; retry until the copy lands.
-  await expect(async () => {
-    await page.getByRole("button", { name: "Copy npx dojofoo install", exact: true }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-copied-command", "npx dojofoo install", { timeout: 1_000 });
-  }).toPass();
+  await page.getByRole("button", { name: "Copy npx dojofoo install", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-copied-command", "npx dojofoo install");
   await page.getByRole("button", { name: "Copy Prompt", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-copied-command", AGENT_PROMPT);
 });
@@ -125,7 +122,8 @@ test("public theme preference keeps light, dark and system modes with native fad
       return transition;
     }) as typeof document.startViewTransition;
   });
-  await page.goto("/docs", { waitUntil: "networkidle" });
+  await page.goto("/docs");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   const toggle = page.locator("footer").getByRole("button", { name: /^Theme:/ });
   await expect(toggle).toHaveAccessibleName(/^Theme: dark/);
   await toggle.click();
@@ -138,13 +136,15 @@ test("public theme preference keeps light, dark and system modes with native fad
   await expect(toggle).toHaveAccessibleName(/^Theme: dark/);
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect.poll(() => page.evaluate(() => (window as any).__themeTransitions)).toEqual([{ types: ["ui-theme"], mode: "light" }, { types: ["ui-theme"], mode: "dark" }]);
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(toggle).toHaveAccessibleName(/^Theme: dark/);
 });
 
 test("mobile documentation keeps its page navigation and outline within reach", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/docs", { waitUntil: "networkidle" });
+  await page.goto("/docs");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   // The sections and pages fold into the header's menu, as in Fumadocs
   const menu = page.getByRole("button", { name: "Menu", exact: true });
   await expect(menu).toBeInViewport();

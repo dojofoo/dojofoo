@@ -16,17 +16,15 @@ test("browses, filters, sorts, and opens courses from the catalog", async ({ pag
     expect(response.status()).toBe(202);
   }
 
-  await page.goto("/dojos", { waitUntil: "networkidle" });
+  await page.goto("/dojos");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(page.getByRole("heading", { name: "Find your dojo", level: 1 })).toBeVisible();
   const cards = page.locator(".ui-crs-grid > a");
   await expect(cards).toHaveCount(3);
   await expect(cards.first()).toHaveAttribute("href", "/courses/dojofoo/effect-ts");
   const sort = page.getByRole("button", { name: /^Sort courses:/ });
-  // A click before hydration has no handler yet; retry until the menu opens.
-  await expect(async () => {
-    await sort.click();
-    await expect(page.getByRole("menuitemradio", { name: "Newest" })).toBeVisible({ timeout: 1_000 });
-  }).toPass();
+  await sort.click();
+  await expect(page.getByRole("menuitemradio", { name: "Newest" })).toBeVisible();
   await page.getByRole("menuitemradio", { name: "Newest" }).click();
   await expect(cards.first()).toHaveAttribute("href", "/courses/dojofoo/build-llm");
   await expect(page.getByRole("menuitemradio", { name: "Newest" })).toBeHidden();
@@ -100,7 +98,8 @@ test("server-renders course data without route loading screens", async ({ reques
 test("uses the same site navigation on marketplace and docs", async ({ page }) => {
   const measurements: Array<{ width: number; height: number }> = [];
   for (const path of ["/", "/dojos", "/docs"]) {
-    await page.goto(path, { waitUntil: "networkidle" });
+    await page.goto(path);
+    await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
     const navigation = page.locator("[data-site-navigation]");
     await expect(navigation).toBeVisible();
     await expect(navigation.getByRole("button", { name: /^Search (courses|docs)$/ })).toBeVisible();
