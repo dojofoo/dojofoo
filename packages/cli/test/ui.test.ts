@@ -6,7 +6,8 @@ import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import * as childProcess from "node:child_process";
 import { EventEmitter } from "node:events";
-import { get } from "node:http";
+import { createServer, get } from "node:http";
+import type { AddressInfo } from "node:net";
 import { createProxyServer, RouteStore } from "portless";
 
 import { ui, resolveAuthoringRoot, resolvePortlessEntry, resolveUiEntry, resolveUiOpenPath } from "../src/commands/ui";
@@ -154,6 +155,83 @@ describe("bundled dojo UI", () => {
     const cliModuleUrl = pathToFileURL(resolve(root, "dist/index.js")).href;
 
     expect(resolveUiEntry(cliModuleUrl)).toBe(resolve(root, "dist/ui/server/index.mjs"));
+  });
+});
+
+describe("a dojofoo UI that is already running", () => {
+  // Stands in for the running UI: it answers only its health, with the version it was started by
+  async function runningUi(version: string) {
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify(request.url === "/api/health" ? { ok: true, version, instance: "running" } : {}));
+    });
+    await new Promise<void>(accept => server.listen(0, "127.0.0.1", accept));
+    return { port: (server.address() as AddressInfo).port, close: () => new Promise<void>(accept => server.close(() => accept())) };
+  }
+  // A CLI of version 1.2.3 whose UI server is never started: spawning is mocked
+  function cli() {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "dojo-running-ui-")));
+    temporaryRoots.push(root);
+    mkdirSync(join(root, "dist/ui/server"), { recursive: true });
+    writeFileSync(join(root, "dist/ui/server/index.mjs"), "// fixture");
+    writeFileSync(join(root, "package.json"), JSON.stringify({ name: "dojofoo", version: "1.2.3" }));
+    vi.stubEnv("DOJOFOO_HOME", join(root, "home"));
+    vi.stubEnv("DOJO_PROJECT_ROOT", root);
+    vi.stubEnv("DOJO_UI_NO_OPEN", "");
+    const child = () => Object.assign(new EventEmitter(), { kill: vi.fn(), unref: vi.fn() }) as unknown as ReturnType<typeof childProcess.spawn>;
+    const spawn = vi.spyOn(childProcess, "spawn").mockImplementation(child);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    return { root, moduleUrl: pathToFileURL(join(root, "dist/index.js")).href, spawn, log };
+  }
+  // dojo.localhost routed to the running UI through a Portless proxy of the test's own; PID 0 marks a route no replacement may signal
+  async function proxyTo(root: string, port: number) {
+    const state = join(root, "portless");
+    const store = new RouteStore(state);
+    store.addRoute("dojo.localhost", port, 0);
+    const proxy = createProxyServer({ proxyPort: 0, getRoutes: () => store.loadRoutes() });
+    await new Promise<void>(accept => proxy.listen(0, "127.0.0.1", accept));
+    const proxyPort = (proxy.address() as AddressInfo).port;
+    writeFileSync(join(state, "proxy.port"), String(proxyPort));
+    vi.stubEnv("PORTLESS_STATE_DIR", state);
+    vi.stubEnv("DOJO_UI_DISABLE_PORTLESS", "");
+    return { store, url: `http://dojo.localhost:${proxyPort}`, close: () => new Promise<void>(accept => proxy.close(() => accept())) };
+  }
+
+  it("of this version is reused: its URL opens, no server starts and its route stays", async () => {
+    const { root, moduleUrl, spawn, log } = cli();
+    const running = await runningUi("1.2.3");
+    const proxy = await proxyTo(root, running.port);
+    try {
+      await ui(root, ["--background"], moduleUrl);
+      expect(log.mock.calls).toEqual([[`Go to ${proxy.url}`]]);
+      // The browser is the one process started
+      expect(spawn).toHaveBeenCalledTimes(1);
+      expect(spawn.mock.calls[0]![1]).toContain(proxy.url);
+      expect(proxy.store.loadRoutes()).toEqual([expect.objectContaining({ hostname: "dojo.localhost", port: running.port, pid: 0 })]);
+    } finally { await proxy.close(); await running.close(); }
+  });
+
+  it("of another version is replaced by a server that reports this version", async () => {
+    const { root, moduleUrl, spawn } = cli();
+    const running = await runningUi("1.2.2");
+    const proxy = await proxyTo(root, running.port);
+    try {
+      // The mocked server has no PID, so the replacement stops right after it is spawned
+      await expect(ui(root, ["--background", "--no-open"], moduleUrl)).rejects.toThrow("Could not start the local UI process.");
+      expect(spawn).toHaveBeenCalledWith(process.execPath, [join(root, "dist/ui/server/index.mjs")],
+        expect.objectContaining({ env: expect.objectContaining({ DOJO_UI_VERSION: "1.2.3" }) }));
+    } finally { await proxy.close(); await running.close(); }
+  });
+
+  it("of this version is reused on its direct port, opening the draft by its address", async () => {
+    const { root, moduleUrl, spawn, log } = cli();
+    const running = await runningUi("1.2.3");
+    try {
+      await ui(root, ["--authoring", "--no-portless", "--no-open", "--port", String(running.port)], moduleUrl);
+      const [draft] = listWorkspaces({ stateHome: join(root, "home") });
+      expect(log.mock.calls).toEqual([[`Go to http://localhost:${running.port}/authoring/${draft!.id}`]]);
+      expect(spawn).not.toHaveBeenCalled();
+    } finally { await running.close(); }
   });
 });
 
