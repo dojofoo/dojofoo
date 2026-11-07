@@ -661,7 +661,7 @@ export function AppShell({
               <span className="ui-as-menu__who"><b>{user.name}</b><small>{user.email ?? workspace}</small></span>
             </div>}
             items={[
-              { label: "Profile", icon: UserIcon, onSelect: onProfile ?? (() => { void openAccount("General"); }) },
+              { label: "Profile", icon: UserIcon, onSelect: onProfile ?? (() => { void openAccount("Profile"); }) },
               { label: "Settings", icon: SettingsFillIcon, onSelect: onSettings ?? (() => { void openAccount(); }) },
               // What changed lately – reported to onNavigate as "changelog"
               { label: "Changelog", icon: Megaphone01Icon, onSelect: () => go("changelog") },

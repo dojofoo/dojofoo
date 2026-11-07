@@ -223,7 +223,7 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
   requestedWorkspaceId?: string;
 }) {
   const navigate = useNavigate();
-  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
+  const { account, toast } = useAccountMenu();
   const [lesson, setLesson] = useState<LessonSnapshot | null>(initialLesson ?? null);
   const [courses, setCourses] = useState<ActiveCourse[]>([]);
   const [coursesReady, setCoursesReady] = useState(false);
@@ -512,7 +512,7 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       role: "assistant",
       parts: [
         { type: "tool-call", id: `check:${card.observationId}`, name: "dojo_lesson_verify", arguments: "{}", input: {}, state: "complete", output: card.report },
-        ...(card.state ? [{ type: "text" as const, content: checkCardLabel(card.state) }] : []),
+        ...(card.state && card.state !== "seen" ? [{ type: "text" as const, content: checkCardLabel(card.state) }] : []),
       ],
     } as UIMessage,
   })), [checkCards]);
@@ -677,9 +677,9 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
 
 }
 
-/** The check card's label (D16): held and sent wait for Sensei; consumed, or read through context, is seen */
-function checkCardLabel(state: CheckReportState): string {
-  if (state === "seen") return "Sensei saw this";
+/** The check card's label (D16): held and sent wait for Sensei. A seen report has none, as Sensei's dojo_lesson_verify call
+    in the chat shows it */
+function checkCardLabel(state: Exclude<CheckReportState, "seen">): string {
   if (state === "dropped") return "Sensei hasn't seen this; press Check again or ask";
   return "Sensei will see this after it finishes";
 }

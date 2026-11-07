@@ -57,7 +57,7 @@ function AuthoringRoute() {
 function AuthoringPage() {
   const navigate = useNavigate();
   const dashboardCrumb = { label: "Dashboard", icon: <Icon icon={BackIcon} size={14} />, iconOnly: true, onClick: () => { void navigate({ to: "/" }); } };
-  const { account, toast } = useAccountMenu({ preserveWorkspace: true });
+  const { account, toast } = useAccountMenu();
   const search = Route.useSearch();
   const { draftId } = Route.useParams();
   const [workspace, setWorkspace] = useState<AuthoringDraft | null>(null);

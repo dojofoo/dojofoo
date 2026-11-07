@@ -170,7 +170,7 @@ const lifecycleMethods = (persona: Persona): Record<string, HostPortMethod> => (
     await applyLifecycle(workspacePath(workspaceId), sessionId, { type: "resume.failed" });
     return { ok: true };
   }),
-  /** The lifecycle hook reports only a check report's consumption (D16: "Sensei saw this") */
+  /** The lifecycle hook reports only a check report's consumption (D16: the check card drops its waiting label) */
   "delivery.consumed": mutate<{ deliveryId?: unknown }, { ok: true }>(async ({ workspaceId, sessionId, input }) => {
     if (typeof input?.deliveryId === "string" && input.deliveryId) await markSeen(workspacePath(workspaceId), workspaceId, sessionId, { deliveryId: input.deliveryId });
     return { ok: true };
