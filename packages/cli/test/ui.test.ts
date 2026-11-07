@@ -223,12 +223,15 @@ describe("a dojofoo UI that is already running", () => {
     } finally { await proxy.close(); await running.close(); }
   });
 
-  it("of this version is reused on its direct port, opening the draft by its address", async () => {
+  it("of this version is reused on its direct port, opening this folder's draft by its address", async () => {
     const { root, moduleUrl, spawn, log } = cli();
     const running = await runningUi("1.2.3");
+    // As `dojofoo kyoshi` in a course inside a workspace opens it: the project root is the workspace, the UI's folder the course
+    const course = join(root, "courses/draft");
+    mkdirSync(course, { recursive: true });
     try {
-      await ui(root, ["--authoring", "--no-portless", "--no-open", "--port", String(running.port)], moduleUrl);
-      const [draft] = listWorkspaces({ stateHome: join(root, "home") });
+      await ui(course, ["--authoring", "--no-portless", "--no-open", "--port", String(running.port)], moduleUrl);
+      const draft = listWorkspaces({ stateHome: join(root, "home") }).find(workspace => workspace.path === course);
       expect(log.mock.calls).toEqual([[`Go to http://localhost:${running.port}/authoring/${draft!.id}`]]);
       expect(spawn).not.toHaveBeenCalled();
     } finally { await running.close(); }

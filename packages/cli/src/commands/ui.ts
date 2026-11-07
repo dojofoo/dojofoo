@@ -42,9 +42,9 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
   const background = args.includes("--background");
   const shouldOpen = !args.includes("--no-open") && process.env.DOJO_UI_NO_OPEN !== "1";
   const openPath = resolveUiOpenPath(args);
-  const draftId = args.includes("--authoring") ? observeWorkspacePath(process.env.DOJO_PROJECT_ROOT ?? cwd, { kind: "draft" }) : undefined;
-  // A reused server reads bare /authoring as the folder it was started in, so it opens the draft by its address
-  const reusePath = draftId ? `/authoring/${draftId}` : openPath;
+  if (args.includes("--authoring")) observeWorkspacePath(process.env.DOJO_PROJECT_ROOT ?? cwd, { kind: "draft" });
+  // A reused server reads bare /authoring as the folder it was started in, so it gets this folder's draft by its address
+  const reusePath = () => args.includes("--authoring") ? `/authoring/${observeWorkspacePath(cwd, { kind: "draft" })}` : openPath;
   const version = packageVersion(moduleUrl);
   const port = valueAfter(args, "--port") ?? process.env.DOJO_UI_PORT ?? process.env.PORT ?? "4567";
   if (!/^\d+$/u.test(port) || Number(port) < 1 || Number(port) > 65_535) {
@@ -55,8 +55,9 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
   if (args.includes("--no-portless") || process.env.DOJO_UI_DISABLE_PORTLESS === "1") {
     const origin = `http://localhost:${port}`;
     if (await servesVersion(origin, version)) {
-      console.log(`Go to ${origin}${reusePath}`);
-      if (shouldOpen) openBrowser(`${origin}${reusePath}`);
+      const url = `${origin}${reusePath()}`;
+      console.log(`Go to ${url}`);
+      if (shouldOpen) openBrowser(url);
       return;
     }
     startDirectUi({ cwd, uiEntry, port, background, shouldOpen, openPath, version });
@@ -94,8 +95,9 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
     if (await servesVersion(baseUrl, version, proxy.ca)) {
       clearProgress();
       progressVisible = false;
-      console.log(`Go to ${baseUrl}${reusePath}`);
-      if (shouldOpen) openBrowser(`${baseUrl}${reusePath}`);
+      const url = `${baseUrl}${reusePath()}`;
+      console.log(`Go to ${url}`);
+      if (shouldOpen) openBrowser(url);
       return;
     }
     const appPort = await availablePort();
