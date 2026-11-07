@@ -6,7 +6,7 @@ import { observeLocalContext, observeWorkspacePath, setWorkspaceKind } from "@do
 import { DatabaseSync } from "node:sqlite";
 import { createServer, type IncomingMessage } from "node:http";
 import { once } from "node:events";
-import { writeAgent } from "@dojofoo/config/runtime";
+import { readAgentEffort, readAgentModel, writeAgent } from "@dojofoo/config/runtime";
 import { app } from "./app";
 import { createLocalAgentRuntime } from "./agent-api";
 import { guardFor } from "./agent-session/guard-store";
@@ -500,16 +500,16 @@ describe("switching and host stops (step 5)", () => {
 });
 
 describe("model and effort", () => {
-  it("forgets the workspace's effort when a model change clears the conversation's", async () => {
+  it("a new conversation starts at its model's default effort after a model change cleared the last one", async () => {
     const { local, root, workspaceId } = runtime();
-    const saved = () => JSON.parse(readFileSync(resolve(root, ".dojo", "runtimes.json"), "utf8"));
     await saveRecord(root, { id: "conversation", agent: "codex", persona: "sensei", createdAt: new Date().toISOString(), courseId: "starter", revision: 0 });
     await local.sessions.patch(workspaceId, "conversation", { effort: "high" });
-    expect(saved().efforts).toEqual({ codex: "high" });
+    expect(readAgentEffort(root, "codex")).toBe("high");
     // The next model doesn't take "high", so the menu clears the effort along with the model change
     const updated = await local.sessions.patch(workspaceId, "conversation", { model: "gpt-6-luna", effort: null });
     expect(updated.effort).toBeUndefined();
-    expect(saved()).toMatchObject({ agent: "codex", models: { codex: "gpt-6-luna" } });
-    expect(saved().efforts).toEqual({});
+    // What the workspace's next conversation starts on (agent-session/default.ts)
+    expect(readAgentModel(root, "codex")).toBe("gpt-6-luna");
+    expect(readAgentEffort(root, "codex")).toBeUndefined();
   });
 });
