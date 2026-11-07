@@ -1,3 +1,4 @@
+import { SegmentedControl } from "./segmented-control";
 import {
   useEffect,
   useId,
@@ -380,15 +381,6 @@ export function ModelPicker({
       pick(active);
     }
   };
-  const onEffortKey = (e: KeyboardEvent) => {
-    const i = levels.indexOf(effortNow ?? "");
-    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
-    if (!step || !levels.length) return;
-    e.preventDefault();
-    const next = levels[(i + step + levels.length) % levels.length]!;
-    chooseEffort(next);
-    rootRef.current?.querySelector<HTMLElement>(`[data-effort="${next}"]`)?.focus();
-  };
   const onRootKey = (e: KeyboardEvent) => {
     if (e.key !== "Escape" || !isOpen) return;
     e.stopPropagation();
@@ -582,33 +574,16 @@ export function ModelPicker({
             {levels.length > 0 && <div className="ui-mdp__fold" data-open={!showThinking || isThinking ? "" : undefined} data-plain={showThinking ? undefined : ""} inert={showThinking && !isThinking}>
               <div className="ui-mdp__clip">
                 <div className="ui-mdp__effort">
-                  <span className="ui-mdp__effort-label" id={`${uid}-effort`}>
+                  <span className="ui-mdp__effort-label" aria-hidden="true">
                     Effort
                   </span>
-                  <div
-                    className="ui-mdp__segmented"
-                    role="radiogroup"
-                    aria-labelledby={`${uid}-effort`}
-                    style={{ ["--i" as string]: Math.max(0, levels.indexOf(effortNow ?? "")), ["--n" as string]: levels.length }}
-                    data-unset={effortNow && levels.includes(effortNow) ? undefined : ""}
-                    onKeyDown={onEffortKey}
-                  >
-                    <span className="ui-mdp__thumb" aria-hidden="true" />
-                    {levels.map((level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        role="radio"
-                        aria-checked={level === effortNow}
-                        tabIndex={level === effortNow || (!effortNow && level === levels[0]) ? 0 : -1}
-                        data-effort={level}
-                        className="ui-mdp__seg-btn"
-                        onClick={() => chooseEffort(level)}
-                      >
-                        {effortLabel(level)}
-                      </button>
-                    ))}
-                  </div>
+                  <SegmentedControl
+                    size="compact"
+                    label="Effort"
+                    options={levels.map(effortLabel)}
+                    value={effortNow ? effortLabel(effortNow) : ""}
+                    onChange={(label) => chooseEffort(levels.find((level) => effortLabel(level) === label)!)}
+                  />
                 </div>
               </div>
             </div>}
@@ -637,10 +612,6 @@ export function ModelPicker({
         <div className="ui-mdp__foot">
           <span className="ui-mdp__caption" aria-hidden="true">
             <Swap id={captionKey}>{caption}</Swap>
-          </span>
-          <span className="ui-mdp__keys" aria-hidden="true">
-            <kbd>↑↓</kbd>
-            <kbd>↵</kbd>
           </span>
           <span className="ui-mdp__sr" aria-live="polite">
             {isOpen ? spoken : ""}
@@ -764,14 +735,8 @@ const css = /* css */ `
 .ui-mdp__clip { min-height: 0; overflow: hidden; }
 .ui-mdp__effort { display: flex; align-items: center; gap: 10px; padding: 2px 10px 6px 42px; }
 .ui-mdp__effort-label { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ui-mdp-muted); }
-.ui-mdp__segmented { position: relative; display: grid; flex: none; grid-template-columns: repeat(var(--n, 3), 1fr); width: calc(var(--n, 3) * 52px + 4px); padding: 2px; border-radius: calc(9px * var(--squircle-factor, 1)); background: var(--ui-mdp-well); }
-.ui-mdp__segmented[data-unset] .ui-mdp__thumb { opacity: 0; }
 /* A coding agent's levels: a plain row under the list, the label above when the levels need the width */
 .ui-mdp__fold[data-plain] .ui-mdp__effort { flex-wrap: wrap; row-gap: 6px; padding: 6px 10px; }
-.ui-mdp__thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / var(--n, 3)); border-radius: calc(7px * var(--squircle-factor, 1)); background: var(--ui-mdp-card); box-shadow: var(--shadow-3); transform: translateX(calc(var(--i) * 100%)); transition: transform 320ms var(--ui-mdp-ease); }
-.ui-mdp__seg-btn { position: relative; height: 24px; border-radius: calc(7px * var(--squircle-factor, 1)); font-size: 12px; font-weight: 500; color: var(--ui-mdp-muted); text-align: center !important; transition: color 200ms ease; }
-.ui-mdp__seg-btn[aria-checked="true"] { color: var(--ui-mdp-ink); }
-.ui-mdp__seg-btn:hover { color: var(--ui-mdp-ink); }
 
 /* ----- Tray ----- */
 .ui-mdp__foot { display: flex; align-items: center; gap: 8px; height: 38px; padding: 4px 8px 0 12px; }
@@ -780,8 +745,6 @@ const css = /* css */ `
 .ui-mdp__swap { display: grid; min-width: 0; }
 .ui-mdp__swap-item { grid-area: 1 / 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; animation: ui-mdp-swap-in 320ms ease both; }
 .ui-mdp__swap-item[data-out] { animation: ui-mdp-swap-out 220ms ease both; }
-.ui-mdp__keys { display: flex; flex: none; gap: 3px; }
-.ui-mdp__keys kbd { display: grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: calc(5px * var(--squircle-factor, 1)); background: var(--ui-mdp-card); box-shadow: var(--shadow-2); font-family: inherit; font-size: 10.5px; line-height: 1; color: var(--ui-mdp-muted); }
 
 @keyframes ui-mdp-swap-in { from { opacity: 0; filter: blur(2px); } }
 @keyframes ui-mdp-swap-out { from { opacity: 1; } to { opacity: 0; filter: blur(2px); } }
@@ -793,19 +756,14 @@ const css = /* css */ `
   .ui-mdp__option .ui-mdp__glyph { display: none; }
   .ui-mdp__cols, .ui-mdp__bars { grid-template-columns: repeat(3, 30px); gap: 6px; }
   .ui-mdp__varies { width: 102px; }
-  .ui-mdp__keys { display: none; }
-  .ui-mdp__effort { padding-left: 10px; }
-  .ui-mdp__segmented { grid-template-columns: repeat(3, 52px); }
-  .ui-mdp__thumb { width: 52px; }
-}
+    .ui-mdp__effort { padding-left: 10px; }
+    }
 
 @media (pointer: coarse) {
   .ui-mdp__trigger { height: 36px; }
   .ui-mdp__option { min-height: 54px; }
   .ui-mdp__toggle { height: 42px; }
-  .ui-mdp__seg-btn { height: 30px; }
-  .ui-mdp__keys { display: none; }
-}
+    }
 
 @media (prefers-reduced-motion: reduce) {
   .ui-mdp *, .ui-mdp *::before, .ui-mdp *::after { animation: none !important; transition: none !important; }

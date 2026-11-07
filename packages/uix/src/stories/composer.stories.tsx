@@ -62,13 +62,13 @@ function AttachmentComposer({ failOnce = false }: { failOnce?: boolean }) {
 export const Attachments: StoryObj<typeof meta> = { render: () => <AttachmentComposer /> };
 export const AttachmentRetry: StoryObj<typeof meta> = { render: () => <AttachmentComposer failOnce /> };
 
-/** A coding agent's model menu: each model's name with its version, its description and its own effort levels, as Claude Code
+/** A coding agent's model menu: each model's name with its version, its description and its own effort levels and default, as Claude Code
  *  (the Agent SDK's supportedModels) and Codex (its model catalog) list them */
 const claudeModels = [
-  { value: "default", name: "Default (recommended)", description: "Opus 5.5 · Best for everyday, complex tasks", efforts: ["low", "medium", "high", "xhigh", "max"] },
-  { value: "opus", name: "Opus 5.5", description: "For complex work and everyday tasks", efforts: ["low", "medium", "high", "xhigh", "max"] },
-  { value: "fable", name: "Fable 5.1", description: "For your toughest challenges", efforts: ["low", "medium", "high", "xhigh", "max"] },
-  { value: "sonnet", name: "Sonnet 5.5", description: "Most efficient for simpler tasks", efforts: ["low", "medium", "high", "xhigh", "max"] },
+  { value: "default", name: "Default", description: "Opus 5.5 · Best for everyday, complex tasks", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "medium" },
+  { value: "opus", name: "Opus 5.5", description: "For complex work and everyday tasks", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "medium" },
+  { value: "fable", name: "Fable 5.1", description: "For your toughest challenges", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "high" },
+  { value: "sonnet", name: "Sonnet 5.5", description: "Most efficient for simpler tasks", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "medium" },
   { value: "haiku", name: "Haiku 4.5", description: "Fastest for quick answers", efforts: [] },
 ].map(model => ({ ...model, icon: ClaudeIcon }));
 const codexModels = [
