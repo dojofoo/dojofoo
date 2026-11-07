@@ -1,6 +1,6 @@
 {
   "name": "@dojofoo/web",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "private": true,
   "license": "FSL-1.1-ALv2",
