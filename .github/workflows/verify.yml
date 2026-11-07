@@ -31,10 +31,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter "@dojofoo/config..." build
-      # Version PRs consume their changesets; validate the plan without requiring another release note.
+      # Version PRs consume their changesets; compare with HEAD so no new release note is required.
       - run: pnpm exec changeset status --since=origin/main
         if: github.head_ref != 'changeset-release/main'
-      - run: pnpm exec changeset status
+      - run: pnpm exec changeset status --since=HEAD
         if: github.head_ref == 'changeset-release/main'
       - run: pnpm --filter @dojofoo/api openapi:check
       - run: pnpm --filter @dojofoo/api test
