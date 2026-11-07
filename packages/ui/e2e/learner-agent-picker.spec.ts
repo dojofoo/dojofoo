@@ -246,3 +246,85 @@ test("only the learner's own Check becomes a card, whatever check overlaps it, f
   await expect(check).toBeEnabled();
   await expect(chat).toHaveAttribute("data-host-event-count", "1");
 });
+
+test("leaving a lesson with unsaved code asks first, whether the learner or Sensei moves on", async ({ page, mountAgentChat, eve }) => {
+  await lessonPage(page, eve, mountAgentChat, savedFile);
+  let socket: WebSocketRoute | undefined;
+  await page.routeWebSocket("**/api/session*", ws => { socket = ws; });
+  await page.goto("/learn/learn-run");
+  const lines = page.locator(".view-lines");
+  await expect(lines).toContainText("export const answer = 0;");
+  const editor = page.getByRole("textbox", { name: "Code editor", exact: true });
+  const leave = page.getByRole("dialog", { name: "Leave this lesson?", exact: true });
+  await editor.press("ControlOrMeta+End");
+  await page.keyboard.insertText("// Not saved yet");
+  // The sidebar's lesson and the Dashboard crumb ask first; Cancel keeps the lesson and its code
+  await page.getByRole("button", { name: /^Second lesson \(done\)/u }).click();
+  await expect(leave).toContainText("Your unsaved changes to first.ts will be discarded.");
+  await leave.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(leave).toBeHidden();
+  await page.getByRole("navigation", { name: "Breadcrumb", exact: true }).getByRole("button", { name: "Dashboard", exact: true }).click();
+  await expect(leave).toBeVisible();
+  await leave.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(leave).toBeHidden();
+  await expect(page).toHaveURL(/\/learn\/learn-run$/u);
+  await expect(lines).toContainText("// Not saved yet");
+  // Sensei's Move on asks the same question; leaving opens the next lesson
+  await expect.poll(() => socket).toBeDefined();
+  socket!.send(JSON.stringify({ jsonrpc: "2.0", method: "lesson.navigated", params: { courseId: "agent-course", lessonId: "second" } }));
+  await expect(leave).toBeVisible();
+  await leave.getByRole("button", { name: "Leave lesson", exact: true }).click();
+  await expect(page).toHaveURL(/\/learn\/learn-run\/second$/u);
+  await expect(lines).toContainText("export const second = 2;");
+  // Saved code leaves without a question
+  await editor.press("ControlOrMeta+End");
+  await page.keyboard.insertText("// Saved before leaving");
+  const save = page.getByRole("button", { name: "Save", exact: true });
+  await save.click();
+  await expect(save).toBeDisabled();
+  await page.getByRole("button", { name: /^First lesson \(in progress\)/u }).click();
+  await expect(page).toHaveURL(/\/learn\/learn-run\/first$/u);
+  await expect(lines).toContainText("export const answer = 0;");
+  await expect(leave).toHaveCount(0);
+});
+
+test("closing the tab with unsaved lesson code gets the browser's prompt", async ({ page, mountAgentChat, eve }) => {
+  await lessonPage(page, eve, mountAgentChat);
+  await page.goto("/learn/learn-run");
+  await expect(page.locator(".view-lines")).toContainText("export const answer = 0;");
+  await page.getByRole("textbox", { name: "Code editor", exact: true }).press("ControlOrMeta+End");
+  await page.keyboard.insertText("// Not saved yet");
+  const prompt = page.waitForEvent("dialog");
+  await page.close({ runBeforeUnload: true });
+  const dialog = await prompt;
+  expect(dialog.type()).toBe("beforeunload");
+  await dialog.accept();
+});
+
+test("a refetch of the open lesson takes its newer snapshot and keeps the learner's unsaved code", async ({ page, mountAgentChat, eve }) => {
+  const refetch = Promise.withResolvers<void>();
+  let held = false;
+  // A check ran since the page cached the first lesson
+  const newer = { ...snapshots.first, result: { passed: 0, failed: 1, skipped: 0, total: 1, complete: false, tests: [] } };
+  await lessonPage(page, eve, mountAgentChat, route => {
+    const request = route.request();
+    if (!held || request.method() !== "GET" || !new URL(request.url()).pathname.endsWith("/lessons/first")) return undefined;
+    return refetch.promise.then(() => route.fulfill({ json: newer }));
+  });
+  try {
+    const lines = page.locator(".view-lines");
+    await page.goto("/learn/learn-run");
+    await expect(lines).toContainText("export const answer = 0;");
+    await page.getByRole("button", { name: /^Second lesson \(done\)/u }).click();
+    await expect(lines).toContainText("export const second = 2;");
+    // Back on the first lesson, its cached snapshot opens at once and the refetch behind it waits
+    held = true;
+    await page.getByRole("button", { name: /^First lesson \(in progress\)/u }).click();
+    await expect(lines).toContainText("export const answer = 0;");
+    await page.getByRole("textbox", { name: "Code editor", exact: true }).press("ControlOrMeta+End");
+    await page.keyboard.insertText("// Typed before the refetch");
+    refetch.resolve();
+    await expect(page.getByRole("img", { name: "0 of 1 tests passed", exact: true })).toBeVisible();
+    await expect(lines).toContainText("// Typed before the refetch");
+  } finally { refetch.resolve(); }
+});
