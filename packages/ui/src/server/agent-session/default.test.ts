@@ -241,8 +241,14 @@ describe("the default conversation", () => {
   it("a stranded conversation is marked unavailable, an ended one only ended", async () => {
     const { root, open } = workspace();
     const stranded = record({ id: await eveSession(), createdAt: "2026-11-02T00:00:00.000Z" });
-    const ended = record({ id: await eveSession(), createdAt: "2026-11-01T00:00:00.000Z", courseId: "second" });
-    await new Client({ baseUrl: eve.baseUrl }).sessions.attach(ended.id).end();
+    // A bodyless session has not started; run a fixture turn before retiring it.
+    const { session: ending, delivery } = await new Client({ baseUrl: eve.baseUrl }).sessions.create({ message: "Fixture conversation." });
+    await delivery.result();
+    const ended = record({ id: ending.id, createdAt: "2026-11-01T00:00:00.000Z", courseId: "second" });
+    await ending.end();
+    await vi.waitFor(async () => {
+      expect((await ending.snapshot()).events.some(event => event.type === "session.ended")).toBe(true);
+    }, { timeout: 30_000 });
     await saveRecord(root, stranded);
     await saveRecord(root, ended);
     watchFetch(request => request.url.includes(`/session/${stranded.id}/stream`)

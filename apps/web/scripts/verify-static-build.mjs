@@ -14,6 +14,11 @@ for (const path of paths) {
   assert.equal([...html.matchAll(/<link\b[^>]*rel="canonical"/g)].length, 1, `${path}: one canonical URL`);
   assert.match(html, /<meta\b[^>]*name="description"[^>]*content="[^"]+"/, `${path}: server-rendered description`);
   assert.doesNotMatch(html, /<meta\b[^>]*name="robots"[^>]*content="[^"]*noindex/, `${path}: indexable`);
+  for (const [, src] of html.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)) {
+    if (src.startsWith('/assets/')) {
+      assert(existsSync(resolve(output, `.${new URL(src, 'https://dojo.foo').pathname}`)), `${path}: missing image ${src}`);
+    }
+  }
 }
 const cache = resolve(output, '__tsr/staticServerFnCache');
 const responses = globSync('*.json', { cwd: cache });

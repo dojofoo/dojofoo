@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { minify, version as viteVersion } from "vite";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +11,10 @@ export function monacoAssets(): Plugin {
   const directory = dirname(fileURLToPath(import.meta.resolve("modern-monaco/editor-core")));
   const files = ["editor-core.mjs", "editor-worker-main.mjs", "editor-worker.mjs"];
   const version = JSON.parse(readFileSync(join(directory, "../package.json"), "utf8")).version;
-  const prefix = `assets/monaco-${version}/`;
+  // These assets bypass Vite's chunk minifier. Fingerprint the source and toolchain before caching immutable URLs.
+  const fingerprint = createHash("sha256").update(viteVersion).update("module:inline-legal-comments:v1");
+  for (const file of files) fingerprint.update(readFileSync(join(directory, file)));
+  const prefix = `assets/monaco-${version}-${fingerprint.digest("hex").slice(0, 10)}/`;
   const grammarDirectory = dirname(fileURLToPath(import.meta.resolve("tm-grammars")));
   const grammarVersion = JSON.parse(readFileSync(join(grammarDirectory, "package.json"), "utf8")).version;
   const assets = new Map(files.map((name) => [prefix + name, join(directory, name)]));
@@ -37,8 +42,17 @@ export function monacoAssets(): Plugin {
         response.end(readFileSync(file));
       });
     },
-    generateBundle() {
-      for (const [fileName, source] of assets) this.emitFile({ type: "asset", fileName, source: readFileSync(source) });
+    async generateBundle() {
+      for (const [fileName, source] of assets) {
+        const contents = readFileSync(source, "utf8");
+        if (source.endsWith(".mjs")) {
+          const result = await minify(source, contents, { module: true, codegen: { legalComments: "inline" } });
+          if (result.errors.length) this.error(`Cannot minify ${fileName}: ${JSON.stringify(result.errors)}`);
+          this.emitFile({ type: "asset", fileName, source: result.code });
+        } else {
+          this.emitFile({ type: "asset", fileName, source: contents });
+        }
+      }
     },
   };
 }

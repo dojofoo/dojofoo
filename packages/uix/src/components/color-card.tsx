@@ -66,7 +66,7 @@ export type ColorCardProps = {
 } & Pick<HTMLAttributes<HTMLElement>, "onPointerEnter" | "onFocus">;
 
 export function ColorCard({ color, shader = false, seed, size = "small", header, main, footer, progress, centered = false, flip = false, children, href, onNavigate, onClick, onPointerEnter, onFocus, "aria-label": ariaLabel, className }: ColorCardProps) {
-  const seedNumber = typeof seed === "string" ? seedOf(seed) : seed ?? seedOf(color);
+  const seedNumber = typeof seed === "string" ? cardSeed(seed) : seed ?? cardSeed(color);
   const classes = cn("ui-card", size === "big" && "ui-card--big", centered && "ui-card--centered", progress !== undefined && "ui-card--progress", flip && "ui-card--flip", className);
   const style = { "--card-color": color } as CSSProperties;
   const face = (
@@ -178,7 +178,7 @@ export function AddCard({ icon, title, label, onClick, size = "small", disabled 
 /** A " · " stays with the word before it, so no line of a title starts with the dot */
 export const keepSeparators = (title: string) => title.replaceAll(" · ", "\u00a0· ");
 
-const seedOf = (text: string) => [...text].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 9973, 7);
+export const cardSeed = (text: string) => [...text].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 9973, 7);
 
 const css = /* css */ `
 /* Two sizes, one look. Every measure is a variable: small cards at fixed sizes, big ones in proportion to their width

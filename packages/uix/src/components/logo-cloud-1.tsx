@@ -1,6 +1,7 @@
 'use client'
 import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from 'motion/react'
 import { useEffect, useState } from 'react'
+import { decorativeSvg } from '../lib/decorative-svg'
 import antigravity from '../assets/agents/antigravity.svg?raw'
 import claude from '../assets/agents/claude-wordmark-light.svg?raw'
 import cline from '../assets/agents/cline.svg?raw'
@@ -55,8 +56,7 @@ const groups: Agent[][] = [
 const narrowGroups: Agent[][] = groups[0].map((_, i) => groups.map((group) => group[i]))
 const NARROW = '(max-width: 640px)'
 
-/** The brand files' own <title>s out: the label names the mark, and a page's crawlers shouldn't read them as its title */
-const untitled = (svg: string) => svg.replace(/<title>[\s\S]*?<\/title>/g, '')
+
 
 export default function LogoCloud() {
     const [current, setCurrent] = useState(0)
@@ -100,7 +100,7 @@ export default function LogoCloud() {
                                     aria-label={agent.name}
                                     className="ui-logos__mark"
                                     style={{ height: agent.height }}
-                                    dangerouslySetInnerHTML={{ __html: untitled(agent.svg) }}
+                                    dangerouslySetInnerHTML={{ __html: decorativeSvg(agent.svg) }}
                                 />
                                 {agent.label && <span className="ui-logos__name" aria-hidden="true">{agent.name}</span>}
                             </m.li>

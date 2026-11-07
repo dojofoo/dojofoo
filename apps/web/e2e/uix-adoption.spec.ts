@@ -80,16 +80,22 @@ test("public course routes use the shared UIX presentation and one search owner"
   await page.goForward();
   await expect(page).toHaveURL(/\/courses\/dojofoo\/effect-ts$/);
   await expect(page.getByRole("heading", { name: "Effect TS", exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("the static landing illustration keeps its narrow layout without mock controls", async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  // On a phone the preview is the app's own narrow layout, live: its sidebar opens as a drawer
+  // The static illustration keeps the app's narrow layout without exposing mock controls.
   const preview = page.locator(".ui-web-app[data-phone]");
   await expect(preview).toBeVisible();
   const mobileFrame = await preview.locator(".ui-web-app__frame").boundingBox();
   expect(mobileFrame!.height).toBeGreaterThan(mobileFrame!.width);
-  await preview.getByRole("button", { name: "Open sidebar" }).click();
-  await expect(preview.locator(".ui-as-app[data-drawer]")).toHaveCount(1);
+  await expect(preview).toHaveAttribute("role", "img");
+  await expect(preview.getByRole("button")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("uix-home-mobile.png"), animations: "disabled" });
   expect(errors).toEqual([]);
 });
