@@ -1,5 +1,19 @@
 # @dojofoo/web
 
+## 0.0.3
+
+### Patch Changes
+
+- 7f58b64: Generate ICO and PNG favicon fallbacks from the SVG, share icon declarations between the website and search sandbox, and align the homepage Open Graph URL with its canonical URL. Update the sandbox with verified Search Console setup, the unpublished catalog and Google's indexing conditions.
+- Updated dependencies [ea5f1db]
+- Updated dependencies [e9f028f]
+- Updated dependencies [ea5f1db]
+- Updated dependencies [f52a74f]
+- Updated dependencies [ef7bae5]
+- Updated dependencies [7f58b64]
+  - @dojofoo/ui@0.1.0
+  - @dojofoo/uix@0.1.0
+
 ## 0.0.2
 
 ### Patch Changes

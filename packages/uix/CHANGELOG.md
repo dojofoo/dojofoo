@@ -1,5 +1,28 @@
 # @dojofoo/uix
 
+## 0.1.0
+
+### Minor Changes
+
+- ef7bae5: Sensei's model menu lists each model with its version and description, as the coding agent does (Claude Code through its Agent SDK), and lets the learner choose the model's effort.
+
+### Patch Changes
+
+- ea5f1db: Sensei runs on Eve like Kyoshi, and every coding agent dojofoo offers runs both, after passing conformance. Each workspace has one coding agent, chosen in the composer.
+  
+  Sensei cannot write the solution file, and a change made while Sensei works is restored and named.
+  
+  Pages are addressed by draft and by course run, open their conversation by themselves, and list earlier ones in a history menu.
+  
+  Course evaluation runs in the UI on the draft's coding agent, with one consent switch, and `dojofoo kyoshi evaluate` is gone.
+  
+  The internal packages are `@dojofoo/harness` (formerly `@dojofoo/agent` and `@dojofoo/agent-api`) and `@dojofoo/agents` (formerly `@dojofoo/authoring`).
+- e9f028f: A question the agent cancelled says "× Cancelled" in its own footer instead of an error line under it.
+- 7f58b64: Generate ICO and PNG favicon fallbacks from the SVG, share icon declarations between the website and search sandbox, and align the homepage Open Graph URL with its canonical URL. Update the sandbox with verified Search Console setup, the unpublished catalog and Google's indexing conditions.
+- Updated dependencies [ea5f1db]
+- Updated dependencies [ef7bae5]
+  - @dojofoo/protocol@0.1.0
+
 ## 0.0.4
 
 ### Patch Changes
