@@ -8,6 +8,7 @@ import {
   listEvents,
   listSessions,
   listWorkspaces,
+  observeCourseRun,
   observeLocalContext,
   observeWorkspacePath,
   recordDojoLifecycle,
@@ -134,9 +135,9 @@ describe("local dojo state", () => {
     const { root, stateHome } = fixture();
     const context = observeLocalContext(root, { stateHome, now: 100 });
 
-    recordDojoLifecycle(root, "started", "001-hello-effect", { stateHome, now: 200, session: null });
-    recordDojoLifecycle(root, "kata_completed", "001-hello-effect", { stateHome, now: 300, session: null });
-    recordDojoLifecycle(root, "finished", "001-hello-effect", { stateHome, now: 400, session: null });
+    recordDojoLifecycle(root, "effect-ts", "started", "001-hello-effect", { stateHome, now: 200, session: null });
+    recordDojoLifecycle(root, "effect-ts", "kata_completed", "001-hello-effect", { stateHome, now: 300, session: null });
+    recordDojoLifecycle(root, "effect-ts", "finished", "001-hello-effect", { stateHome, now: 400, session: null });
 
     expect(listDojoRuns({ stateHome })).toEqual([
       expect.objectContaining({ id: context.dojoRunId, completedAt: 400, lastSeenAt: 400 }),
@@ -148,10 +149,77 @@ describe("local dojo state", () => {
     ]);
   });
 
+  it("records an event on the run of the course it is about, not on the current course's", () => {
+    const { root, stateHome } = fixture();
+    const current = observeLocalContext(root, { stateHome, now: 100 });
+
+    recordDojoLifecycle(root, "zod", "kata_completed", "001-schemas", { stateHome, now: 200, session: null });
+    recordDojoLifecycle(root, "zod", "finished", "001-schemas", { stateHome, now: 200, session: null });
+
+    const runs = listDojoRuns({ stateHome });
+    const zod = runs.find(run => run.dojo === "zod");
+    expect(runs).toEqual([
+      expect.objectContaining({ id: current!.dojoRunId, dojo: "effect-ts", lastSeenAt: 100, completedAt: null }),
+      expect.objectContaining({ dojo: "zod", completedAt: 200 }),
+    ]);
+    expect(listEvents({ stateHome }).map(({ type, dojoRunId }) => ({ type, dojoRunId }))).toEqual([
+      { type: "kata_completed", dojoRunId: zod!.id },
+      { type: "dojo_run_completed", dojoRunId: zod!.id },
+    ]);
+  });
+
+  // The CLI records a completion in the progress before the event
+  const finishedCourse = (root: string, completed: string[]) => writeFileSync(resolve(root, ".dojorc"), JSON.stringify({
+    currentDojo: "effect-ts", currentKata: "001-hello-effect", editor: null,
+    progress: { "effect-ts": { completed, lastActive: "001-hello-effect" } },
+  }));
+
+  it("finishes a run once: repeated checks and finishes, and looking at the course, leave it as it was", () => {
+    const { root, stateHome } = fixture();
+    mkdirSync(resolve(root, ".dojos", "effect-ts"), { recursive: true });
+    writeFileSync(resolve(root, ".dojos", "effect-ts", "dojo.yaml"), "name: effect-ts\nversion: 1.0.0\ndescription: A course.\ntest: echo ok\nkatas:\n  - name: 001-hello-effect\n    template: 001/kata.ts\n");
+    finishedCourse(root, ["001-hello-effect"]);
+    const context = observeLocalContext(root, { stateHome, now: 100 });
+    recordDojoLifecycle(root, "effect-ts", "kata_completed", "001-hello-effect", { stateHome, now: 200, session: null });
+    recordDojoLifecycle(root, "effect-ts", "finished", "001-hello-effect", { stateHome, now: 200, session: null });
+
+    recordDojoLifecycle(root, "effect-ts", "kata_completed", "001-hello-effect", { stateHome, now: 300, session: null });
+    recordDojoLifecycle(root, "effect-ts", "finished", "001-hello-effect", { stateHome, now: 300, session: null });
+    const looked = observeLocalContext(root, { stateHome, now: 400, session: { harness: "codex", nativeId: "thread-123" } });
+
+    expect(looked?.dojoRunId).toBe(context!.dojoRunId);
+    expect(observeCourseRun(root, "effect-ts", { stateHome, now: 500 }).runId).toBe(context!.dojoRunId);
+    expect(listDojoRuns({ stateHome })).toEqual([
+      expect.objectContaining({ id: context!.dojoRunId, lastSeenAt: 200, completedAt: 200 }),
+    ]);
+    expect(listEvents({ stateHome }).map(({ type }) => type)).toEqual(["kata_completed", "dojo_run_completed"]);
+  });
+
+  it("starts a new run when a finished course starts over after its progress is reset", () => {
+    const { root, stateHome } = fixture();
+    finishedCourse(root, ["001-hello-effect"]);
+    const finished = observeLocalContext(root, { stateHome, now: 100 })!.dojoRunId;
+    recordDojoLifecycle(root, "effect-ts", "kata_completed", "001-hello-effect", { stateHome, now: 200, session: null });
+    recordDojoLifecycle(root, "effect-ts", "finished", "001-hello-effect", { stateHome, now: 200, session: null });
+
+    // As after a reinstall: nothing completed
+    finishedCourse(root, []);
+    observeLocalContext(root, { stateHome, now: 300 });
+    expect(listDojoRuns({ stateHome })).toHaveLength(1);
+    recordDojoLifecycle(root, "effect-ts", "started", "001-hello-effect", { stateHome, now: 400, session: null });
+
+    const runs = listDojoRuns({ stateHome });
+    expect(runs).toEqual([
+      expect.objectContaining({ id: finished, completedAt: 200 }),
+      expect.objectContaining({ dojo: "effect-ts", startedAt: 400, completedAt: null }),
+    ]);
+    expect(listEvents({ stateHome }).at(-1)).toMatchObject({ type: "kata_started", dojoRunId: runs[1]!.id });
+  });
+
   it("does not start a dojo run when a dojo is only installed", () => {
     const { root, stateHome } = fixture();
 
-    recordDojoLifecycle(root, "installed", undefined, { stateHome, now: 100 });
+    recordDojoLifecycle(root, "effect-ts", "installed", undefined, { stateHome, now: 100 });
 
     expect(listWorkspaces({ stateHome })).toHaveLength(1);
     expect(listDojoRuns({ stateHome })).toEqual([]);

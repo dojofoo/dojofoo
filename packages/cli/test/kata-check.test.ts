@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { expect, it, onTestFinished, vi } from "vitest";
+import { listDojoRuns } from "@dojofoo/config/local-state";
 import { add } from "../src/commands/add";
 import { kata } from "../src/commands/kata";
 import { readCatalog, readDojoRc, resolveAllKatas, writeDojoRc } from "../src/config";
@@ -38,6 +39,10 @@ it("--course checks and records completion for that course and leaves currentDoj
   expect(after.currentKata).toBe("start");
   expect(after.progress?.second?.completed).toEqual(["start"]);
   expect(after.progress?.first?.completed ?? []).toEqual([]);
+  // The check's events are the second course's: they finish its run, and the current course's run stays open
+  const runs = listDojoRuns({ stateHome: resolve(directory, "private") });
+  expect(runs.find(run => run.dojo === "second")?.completedAt).toEqual(expect.any(Number));
+  expect(runs.find(run => run.dojo === "first")?.completedAt).toBeNull();
 });
 
 it("--no-record runs the checks and records no completion", async () => {

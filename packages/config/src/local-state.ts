@@ -131,20 +131,23 @@ export function observeLocalContext(root: string, options: LocalStateOptions & {
       }
     }
 
-    const dojoRunId = currentDojoRun(db, workspaceId, rc.currentDojo, now);
+    const run = currentDojoRun(db, workspaceId, rc.currentDojo, now);
     let sessionId: string | null = null;
     if (options.session) {
       sessionId = observeSession(db, root, options.session, now);
-      attachSession(db, { workspaceId, dojoRunId, sessionId, kata: rc.currentKata, now });
+      // A finished run takes no more events
+      if (!run.completed) attachSession(db, { workspaceId, dojoRunId: run.id, sessionId, kata: rc.currentKata, now });
     }
-    return { workspaceId, dojoRunId, sessionId };
+    return { workspaceId, dojoRunId: run.id, sessionId };
   } finally {
     db.close();
   }
 }
 
+/** Records a lifecycle event of course `dojo`, which need not be the current course (a lesson checked with `--course`). */
 export function recordDojoLifecycle(
   root: string,
+  dojo: string,
   event: CourseEventName,
   kata?: string,
   options: LocalStateOptions = {},
@@ -155,9 +158,17 @@ export function recordDojoLifecycle(
   try {
     const workspaceId = observeWorkspace(db, root, now);
     if (event === "installed") return;
-    const dojo = readDojoRc(root).currentDojo;
-    if (!dojo) return;
-    const dojoRunId = currentDojoRun(db, workspaceId, dojo, now);
+    const run = currentDojoRun(db, workspaceId, dojo, now);
+    if (run.completed) {
+      // A finished run takes no more events, so a repeated check or finish changes nothing. A new attempt gets a new run: the
+      // course's progress has lost a lesson that run completed, as when reinstalling the course starts it over.
+      const completed = new Set(readDojoRc(root).progress?.[dojo]?.completed);
+      const lessons = db.prepare(`
+        SELECT DISTINCT kata FROM events WHERE dojo_run_id = ? AND type = 'kata_completed' AND kata IS NOT NULL
+      `).all(run.id) as Array<{ kata: string }>;
+      if (lessons.every(lesson => completed.has(lesson.kata))) return;
+    }
+    const dojoRunId = run.completed ? startDojoRun(db, workspaceId, dojo, now) : run.id;
     const type = localEventType(event);
     if (type) insertEvent(db, { type, now, workspaceId, dojoRunId, kata: kata ?? null });
     if (event === "finished") {
@@ -214,7 +225,7 @@ export function observeCourseRun(root: string, dojo: string, options: LocalState
   try {
     const now = options.now ?? Date.now();
     const workspaceId = observeWorkspace(db, root, now);
-    return { workspaceId, runId: currentDojoRun(db, workspaceId, dojo, now) };
+    return { workspaceId, runId: currentDojoRun(db, workspaceId, dojo, now).id };
   } finally { db.close(); }
 }
 
@@ -455,20 +466,23 @@ function observeWorkspace(db: DatabaseSync, root: string, now: number, kind?: Wo
   return workspaceId;
 }
 
-function currentDojoRun(db: DatabaseSync, workspaceId: string, dojo: string, now: number): string {
+/** The course's newest run, or a first one. A finished run comes back as it is: looking at a course never reopens it or starts another. */
+function currentDojoRun(db: DatabaseSync, workspaceId: string, dojo: string, now: number): { id: string; completed: boolean } {
   const current = db.prepare(`
-    SELECT id FROM dojo_runs WHERE workspace_id = ? AND dojo = ?
+    SELECT id, completed_at FROM dojo_runs WHERE workspace_id = ? AND dojo = ?
     ORDER BY started_at DESC LIMIT 1
-  `).get(workspaceId, dojo) as { id: string } | undefined;
-  const id = current?.id ?? randomUUID();
-  if (current) {
-    db.prepare("UPDATE dojo_runs SET last_seen_at = ? WHERE id = ?").run(now, id);
-  } else {
-    db.prepare(`
-      INSERT INTO dojo_runs (id, workspace_id, dojo, started_at, last_seen_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, workspaceId, dojo, now, now);
-  }
+  `).get(workspaceId, dojo) as { id: string; completed_at: number | null } | undefined;
+  if (!current) return { id: startDojoRun(db, workspaceId, dojo, now), completed: false };
+  if (current.completed_at === null) db.prepare("UPDATE dojo_runs SET last_seen_at = ? WHERE id = ?").run(now, current.id);
+  return { id: current.id, completed: current.completed_at !== null };
+}
+
+function startDojoRun(db: DatabaseSync, workspaceId: string, dojo: string, now: number): string {
+  const id = randomUUID();
+  db.prepare(`
+    INSERT INTO dojo_runs (id, workspace_id, dojo, started_at, last_seen_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, workspaceId, dojo, now, now);
   return id;
 }
 
