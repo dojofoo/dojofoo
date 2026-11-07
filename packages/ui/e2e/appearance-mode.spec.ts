@@ -3,6 +3,10 @@ import { expect, test } from "@playwright/test";
 test("appearance keeps the chosen mode across reloads and native pages", async ({ page }) => {
   const writes: string[] = [];
   await page.route("**/api/**", route => {
+    // A finished setup opens the dashboard; the launch token comes from the server under test; the rest answers empty
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/local/setup") return route.fulfill({ json: { completed: true, user: { name: "Anonymous" }, agents: ["codex"] } });
+    if (path === "/api/control/launch-token") return route.fallback();
     if (route.request().method() !== "GET") writes.push(route.request().url());
     return route.fulfill({ json: [] });
   });

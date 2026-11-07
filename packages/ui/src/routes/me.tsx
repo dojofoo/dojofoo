@@ -56,7 +56,7 @@ function ProfilePage() {
           <h1 className="ui-ob-title">{name}</h1>
           {account.user.email && <p className="ui-ob-sub">{account.user.email}</p>}
         </div>
-        <Button variant="ghost" size="sm" onClick={() => { void navigate({ to: "/settings/$section", params: { section: "profile" } }); }}>Edit profile</Button>
+        <Button variant="ghost" size="sm" onClick={() => { void navigate({ to: "/settings/$section", params: { section: "profile" }, state: { settingsDepth: 1 } }); }}>Edit profile</Button>
       </header>
 
       <dl className="mb-10 grid grid-cols-3 gap-3" aria-label="Summary">

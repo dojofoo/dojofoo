@@ -20,7 +20,7 @@ export function useAccountMenu() {
     account: {
       ...sidebar,
       user, showUser: true,
-      onSettings: () => { void navigate({ to: "/settings/$section", params: { section: "theme" } }); },
+      onSettings: () => { void navigate({ to: "/settings/$section", params: { section: "theme" }, state: { settingsDepth: 1 } }); },
       onProfile: () => { void navigate({ to: "/me" }); },
     },
     toast,
