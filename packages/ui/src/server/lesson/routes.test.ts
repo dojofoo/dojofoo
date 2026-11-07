@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -14,7 +14,7 @@ vi.mock("../control/workspace", () => ({ resolveWorkspaceId: () => workspace.roo
 // The real CLI unless a test scripts its answer
 vi.mock("node:child_process", async importOriginal => {
   const actual = await importOriginal<typeof import("node:child_process")>();
-  return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
+  return { ...actual, execFile: vi.fn(actual.execFile) };
 });
 const roots: string[] = [];
 afterEach(() => {
@@ -92,7 +92,7 @@ it("opening and checking a lesson of another course leaves currentDojo unchanged
   expect(lesson.status).toBe(200);
   expect(await lesson.json()).toMatchObject({ dojo: "other", kata: "001-first", courseCurrent: false });
   vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
-  vi.mocked(execFileSync).mockImplementationOnce((() => JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "answers", status: "passed" }], error: null })) as never);
+  vi.mocked(execFile).mockImplementationOnce(((_command: string, _args: string[], _options: unknown, done: (error: null, stdout: string) => void) => { done(null, JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "answers", status: "passed" }], error: null })); return {}; }) as never);
   const checked = await lessonRoutes.request("/workspace/courses/other/lessons/001-first/checks", { method: "POST" });
   expect(checked.status).toBe(201);
   expect(readDojoRc(root)).toMatchObject({ currentDojo: "starter", currentKata: "001-first" });
