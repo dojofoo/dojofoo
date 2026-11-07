@@ -74,7 +74,11 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
     const stateDir = process.env.PORTLESS_STATE_DIR ?? join(resolveUserHome(), ".portless");
     let proxy = proxyConfiguration(stateDir);
     if (!await proxyRunning(proxy)) {
-      const proxyEnvironment: NodeJS.ProcessEnv = { ...process.env, PORTLESS_STATE_DIR: stateDir };
+      // The shared proxy keeps the TLDs other projects use (PORTLESS_TLD, else the saved ones) and also serves .localhost, which
+      // dojo.localhost needs a certificate for; PORTLESS_TLD decides the proxy's TLDs over its flags and saved state
+      const tlds = [...new Set([...(process.env.PORTLESS_TLD ?? "").split(",").map(tld => tld.trim().toLowerCase()).filter(Boolean),
+        ...proxy.tlds, "localhost"])].join(",");
+      const proxyEnvironment: NodeJS.ProcessEnv = { ...process.env, PORTLESS_STATE_DIR: stateDir, PORTLESS_TLD: tlds };
       delete proxyEnvironment.npm_command;
       delete proxyEnvironment.PNPM_SCRIPT_SRC_DIR;
       await new Promise<void>((accept, reject) => {
@@ -93,7 +97,9 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
       if (!await proxyRunning(proxy)) throw new Error("Portless did not start its local proxy.");
     }
     const defaultPort = proxy.tls ? 443 : 80;
-    const baseUrl = `${proxy.tls ? "https" : "http"}://dojo.localhost${proxy.port === defaultPort ? "" : `:${proxy.port}`}`;
+    // dojo.localhost, unless a TLS proxy started elsewhere serves only other TLDs: it refuses a certificate for any other name
+    const hostname = !proxy.tls || proxy.tlds.includes("localhost") ? "dojo.localhost" : `dojo.${proxy.tlds[0]}`;
+    const baseUrl = `${proxy.tls ? "https" : "http"}://${hostname}${proxy.port === defaultPort ? "" : `:${proxy.port}`}`;
     // A healthy server of this build keeps running and keeps its route: replacing it would stop its agent turns and evaluations
     const running = await runningUi(baseUrl, version, build, proxy.ca);
     if (running) {
@@ -120,13 +126,13 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
     let launchError: Error | undefined;
     child.once("error", error => { launchError = error; });
     const store = new RouteStore(stateDir);
-    const cleanup = () => { if (child.pid) store.removeRoute("dojo.localhost", child.pid); };
+    const cleanup = () => { if (child.pid) store.removeRoute(hostname, child.pid); };
     child.once("exit", cleanup);
     try {
       if (!child.pid) throw new Error("Could not start the local UI process.");
-      // Exact hostname: no worktree/package-name inference or custom TLD rewrite.
-      store.addRoute("dojo.localhost", appPort, child.pid, true);
-      store.updateRoute("dojo.localhost", { childPgid: child.pid });
+      // Exact hostname: no worktree/package-name inference
+      store.addRoute(hostname, appPort, child.pid, true);
+      store.updateRoute(hostname, { childPgid: child.pid });
       await waitForUi(`${baseUrl}/api/health`, instance, proxy.ca, () => {
         if (launchError) throw launchError;
         if (child.exitCode !== null || child.signalCode !== null) {
@@ -162,7 +168,18 @@ function proxyConfiguration(stateDir: string) {
   const port = existsSync(portFile) ? Number(readFileSync(portFile, "utf8").trim()) : 443;
   const tls = existsSync(portFile) ? existsSync(join(stateDir, "proxy.tls")) : true;
   const caFile = join(stateDir, "ca.pem");
-  return { port, tls, ca: existsSync(caFile) ? readFileSync(caFile) : undefined };
+  return { port, tls, tlds: proxyTlds(stateDir), ca: existsSync(caFile) ? readFileSync(caFile) : undefined };
+}
+
+/** The TLDs the proxy serves, as Portless saves them: proxy.tlds (one per line or comma-separated), else proxy.tld, else localhost */
+function proxyTlds(stateDir: string): string[] {
+  for (const file of ["proxy.tlds", "proxy.tld"]) {
+    const path = join(stateDir, file);
+    if (!existsSync(path)) continue;
+    const tlds = readFileSync(path, "utf8").split(/[\s,]+/u).map(tld => tld.trim().toLowerCase()).filter(Boolean);
+    if (tlds.length) return tlds;
+  }
+  return ["localhost"];
 }
 
 function proxyRunning(proxy: ReturnType<typeof proxyConfiguration>): Promise<boolean> {
