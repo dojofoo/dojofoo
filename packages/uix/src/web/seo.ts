@@ -274,7 +274,7 @@ export const questions: Question[] = [
   },
   {
     question: "Is it safe to install a course?",
-    answer: "Every version of a listed course passes security checks. Code that runs on install earns a warning and you're asked first; a script piped from the internet fails the checks, and the course can't be installed until it's fixed.",
+    answer: "Before installing a course from GitHub, dojofoo asks Dojo.foo for the security checks of the exact version it downloaded. A version that failed them isn't installed, for example one that pipes a script from the internet. A version that hasn't been checked, or that runs code on install, needs your confirmation first. If the checks can't be reached, dojofoo says so and installs.",
     status: "confirmed",
     source: "/authoring/publish",
   },
