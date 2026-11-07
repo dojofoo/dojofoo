@@ -194,7 +194,7 @@ export function SearchPreview() {
         <Section title="Icons" lead="The icon declarations used by the website. All raster variants are generated from favicon.svg; the manifest supplies 192px and 512px PNGs.">
           <table className="ui-seo-pages">
             <thead><tr><th>File</th><th>Sizes</th><th>Use</th><th>Preview</th></tr></thead>
-            <tbody>{faviconLinks.map((icon) => <tr key={icon.href}><td><a href={`${SITE.url}${icon.href}`}><code>{icon.href}</code></a></td><td>{icon.sizes ?? "–"}</td><td>{icon.rel}</td><td>{icon.rel !== "manifest" && <img src={`${SITE.url}${icon.href}`} alt={icon.href} loading="lazy" />}</td></tr>)}</tbody>
+            <tbody>{faviconLinks.map((icon) => <tr key={icon.href}><td><a href={`${SITE.url}${icon.href}`}><code>{icon.href}</code></a></td><td>{icon.sizes ?? "–"}</td><td>{icon.rel}</td><td>{icon.rel !== "manifest" && <img className="!size-12 !aspect-square !object-contain" src={`${SITE.url}${icon.href}`} alt={icon.href} loading="lazy" />}</td></tr>)}</tbody>
           </table>
         </Section>
 
