@@ -241,7 +241,10 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
   const [error, setError] = useState<string | null>(null);
   // Check cards in the conversation: one per Check this page ran, labelled with what Sensei saw (D16)
   const [checkCards, setCheckCards] = useState<Array<{ observationId: string; report: TestReport; state?: CheckReportState }>>([]);
-  const ownChecks = useRef(0);
+  // The page's own Check while it runs: its request id, which that check's notifications carry. Sensei's checks and other tabs'
+  // carry none or another, so they never become this page's card
+  const ownCheck = useRef<string | null>(null);
+  const [ownCheckRunning, setOwnCheckRunning] = useState(false);
   const [guardNotice, setGuardNotice] = useState<GuardViolation | null>(null);
   // The conversation the page asks AgentChat for: the URL's, or a replacement the server made
   const [session, setSession] = useState(requestedSessionId);
@@ -360,15 +363,26 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
     setCode(file.attributes.content);
   }, [apiBase]);
 
+  /** The page's own Check is over: its card came, it failed, or the socket closed under it */
+  const endOwnCheck = () => {
+    ownCheck.current = null;
+    setOwnCheckRunning(false);
+    setChecking(false);
+  };
+
   // The lesson page's socket (D19): its presence, the Check, the check cards, guard notices, replacements and navigation
   const socket = usePageSocket({ workspace: workspaceId, course: dojoId, lesson: selectedLessonId }, message => {
     const params = (message.params ?? {}) as Partial<LessonCheckEvent> & { test?: TestReport["tests"][number]; observationId?: string; state?: CheckReportState;
-      to?: string; lessonId?: string; courseId?: string };
+      to?: string; lessonId?: string; courseId?: string; checkId?: string | number };
+    // While the page's own Check runs, the tests panel follows it, not a check Sensei or another tab started meanwhile
+    const own = ownCheck.current !== null && params.checkId === ownCheck.current;
+    const another = ownCheck.current !== null && !own;
     if (message.method === "lesson.check.started") {
+      if (another) return;
       setLiveTests([]);
       setChecking(true);
     } else if (message.method === "lesson.check.test" && params.test) {
-      setLiveTests((current) => [...current, params.test!]);
+      if (!another) setLiveTests((current) => [...current, params.test!]);
     } else if (message.method === "lesson.check.completed" && params.observation) {
       const observation = params.observation;
       const before = lessonRef.current;
@@ -377,11 +391,14 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
         if (before.lessons.every(item => item.name === before.kata || item.state === "completed")) emitLessonEvent({ type: "course.completed", workspace: workspaceId, course: before.dojo, lesson: before.kata, mode: "kata" });
       }
       setLesson((current) => current ? { ...current, result: observation.report } : current);
-      if (ownChecks.current > 0) {
-        ownChecks.current--;
+      if (own) {
         setCheckCards(current => [...current.filter(card => card.observationId !== observation.id), { observationId: observation.id, report: observation.report }]);
-      }
-      setChecking(false);
+        endOwnCheck();
+      } else if (!another) setChecking(false);
+    } else if (message.method === "lesson.check.failed") {
+      // The own check's error answer follows and says why
+      if (own) endOwnCheck();
+      else if (!another) setChecking(false);
     } else if (message.method === "lesson.check.report" && params.observationId && params.state) {
       setCheckCards(current => current.map(card => card.observationId === params.observationId
         // A seen report stays seen; a later "sent" for it changes nothing
@@ -394,13 +411,25 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       setSession(params.to);
     } else if (message.method === "lesson.navigated" && params.lessonId) {
       void viewLesson(params.lessonId, params.courseId);
+    } else if (ownCheck.current !== null && message.id === ownCheck.current) {
+      // The own check's answer: its completed notification ended it first, unless that notification never came
+      endOwnCheck();
+      if (message.error?.message) setError(message.error.message);
     } else if (message.error?.message) {
-      setChecking(false);
       setError(message.error.message);
     }
+  }, () => {
+    // A check the socket closed under can't answer; the learner can press Check again
+    if (ownCheck.current === null) return;
+    endOwnCheck();
+    setError("The lesson connection closed before the check finished. Press Check again.");
   });
 
   async function check() {
+    if (ownCheck.current !== null) return;
+    const id = crypto.randomUUID();
+    ownCheck.current = id;
+    setOwnCheckRunning(true);
     setActiveWorkspaceTab("tests");
     setChecking(true);
     try {
@@ -413,17 +442,16 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
       setLesson(current => current ? { ...current, code } : current);
       const current = socket.current;
       if (!current || current.readyState !== WebSocket.OPEN) throw new Error("The lesson connection is not ready yet");
-      ownChecks.current++;
       current.send(JSON.stringify({
         jsonrpc: "2.0",
-        id: crypto.randomUUID(),
+        id,
         method: "lesson.check",
         params: { courseId: dojoId, lessonId: selectedLessonId },
       } satisfies JsonRpcRequest));
     } catch (cause) {
+      if (ownCheck.current === id) endOwnCheck();
       setError(cause instanceof Error ? cause.message : String(cause));
       setBusy("");
-      setChecking(false);
     }
   }
 
@@ -596,7 +624,7 @@ export function LessonPage({ runId, initialLesson, requestedCourseId, requestedL
                       Save
                     </UIXButton>
                     <UIXButton size="sm"
-                      disabled={Boolean(busy)}
+                      disabled={Boolean(busy) || ownCheckRunning}
                       onClick={() => void check()}
                       type="button"
                     >

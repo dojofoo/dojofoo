@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Page, Route, WebSocketRoute } from "@playwright/test";
 import type { startEve } from "@dojofoo/harness/api/fixtures";
 import { expect, startConversation, test, type MountedAgentChat } from "./agent-chat.fixture";
 
@@ -173,4 +173,76 @@ for (const operation of ["save", "reset"] as const) test(`a delayed file-${opera
     if (operation === "save") await expect(page.locator(".view-lines")).toContainText("Save while choosing a model");
     else await expect(page.locator(".view-lines")).not.toContainText("Save while choosing a model");
   } finally { save.resolve(); modelReply.resolve(); }
+});
+
+/** The lesson file's writes succeed, as the server answers them */
+const savedFile = (route: Route) => {
+  const request = route.request();
+  if (request.method() !== "PUT" || !new URL(request.url()).pathname.endsWith("/files/solution")) return undefined;
+  return route.fulfill({ json: { type: "lesson-files", id: "solution", attributes: { content: request.postDataJSON().content } } });
+};
+
+test("only the learner's own Check becomes a card, whatever check overlaps it, fails or loses its socket", async ({ page, mountAgentChat, eve }) => {
+  await lessonPage(page, eve, mountAgentChat, savedFile);
+  // The lesson socket, answered here: the ids of the page's checks, and the notifications the server would send
+  const checks: string[] = [];
+  let socket: WebSocketRoute | undefined;
+  await page.routeWebSocket("**/api/session*", ws => {
+    socket = ws;
+    ws.onMessage(message => {
+      const request = JSON.parse(String(message)) as { id: string; method: string };
+      if (request.method === "lesson.check") checks.push(request.id);
+    });
+  });
+  const notify = (method: string, params: object) => socket!.send(JSON.stringify({ jsonrpc: "2.0", method, params }));
+  const started = (checkId?: string) => notify("lesson.check.started", { courseId: "agent-course", lessonId: "first", ...(checkId ? { checkId } : {}) });
+  const completed = (id: string, passed: number, total: number, checkId?: string) => notify("lesson.check.completed", { lesson: snapshots.first,
+    observation: { id, attempt: 1, codeChanged: true, diff: "", report: { passed, failed: total - passed, skipped: 0, total, complete: false, tests: [] } },
+    ...(checkId ? { checkId } : {}) });
+  await page.goto("/learn/learn-run");
+  await expect(page.getByText("Echo: Hello from first", { exact: true })).toBeVisible({ timeout: 15_000 });
+  const chat = page.getByTestId("chat-pane");
+  const check = page.getByRole("button", { name: "Check", exact: true });
+  const running = page.getByText("Running lesson checks…", { exact: true });
+  // The Tests tab's state names the lesson's latest result, whoever ran the check
+  const latest = (passed: number, total: number) => page.getByRole("img", { name: `${passed} of ${total} tests passed`, exact: true });
+
+  // Sensei's check overlaps the learner's: only the learner's becomes a card, and Check waits for it
+  await check.click();
+  await expect.poll(() => checks.length).toBe(1);
+  await expect(check).toBeDisabled();
+  started();
+  started(checks[0]);
+  completed("sensei-1", 2, 3);
+  await expect(latest(2, 3)).toBeVisible();
+  await expect(running).toBeVisible();
+  await expect(check).toBeDisabled();
+  await expect(chat).toHaveAttribute("data-host-event-count", "0");
+  completed("learner-1", 1, 3, checks[0]);
+  await expect(latest(1, 3)).toBeVisible();
+  await expect(chat).toHaveAttribute("data-host-event-count", "1");
+  await expect(running).toHaveCount(0);
+  await expect(check).toBeEnabled();
+
+  // A failed Check ends with its error and leaves nothing behind: Sensei's next check is still no card
+  await check.click();
+  await expect.poll(() => checks.length).toBe(2);
+  socket!.send(JSON.stringify({ jsonrpc: "2.0", id: checks[1], error: { code: -32_000, message: "The lesson checks could not run" } }));
+  await expect(page.getByRole("alert").filter({ hasText: "The lesson checks could not run" })).toBeVisible();
+  await expect(running).toHaveCount(0);
+  await expect(check).toBeEnabled();
+  started();
+  completed("sensei-2", 0, 2);
+  await expect(latest(0, 2)).toBeVisible();
+  await expect(chat).toHaveAttribute("data-host-event-count", "1");
+
+  // A Check whose socket drops stops running, says so, and can be pressed again
+  await check.click();
+  await expect.poll(() => checks.length).toBe(3);
+  await expect(running).toBeVisible();
+  await socket!.close();
+  await expect(page.getByRole("alert").filter({ hasText: "The lesson connection closed before the check finished." })).toBeVisible();
+  await expect(running).toHaveCount(0);
+  await expect(check).toBeEnabled();
+  await expect(chat).toHaveAttribute("data-host-event-count", "1");
 });
