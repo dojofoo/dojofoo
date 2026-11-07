@@ -33,12 +33,12 @@ for (const mode of ["authoring", "learner", "interactive"] as const) test(`${mod
   const input = page.getByRole("textbox", { name: mode === "interactive" ? "Message the sensei" : "Code editor", exact: true });
   await expect(input).toBeEnabled();
   const workspaceUrl = page.url();
-  // Settings is its own page, on Appearance
+  // Settings is its own page, on Theme
   await page.getByRole("button", { name: "You", exact: true }).click();
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/appearance$/u);
+  await expect(page).toHaveURL(/\/settings\/theme$/u);
   const settings = page.getByRole("region", { name: "Account settings", exact: true });
-  await expect(settings.getByRole("tab", { name: "Appearance", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(settings.getByRole("tab", { name: "Theme", exact: true })).toHaveAttribute("aria-selected", "true");
   await settings.getByRole("radio", { name: "Japan Blues", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-ui-theme", "japan-blues");
   // Profile is a section of its own

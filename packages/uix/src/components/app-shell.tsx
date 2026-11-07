@@ -339,13 +339,13 @@ export function AppShell({
   const [initialLayout, setInitialLayout] = useState<number[]>();
   const [drawer, setDrawer] = useState(false);
   const [AccountPage, setAccountPage] = useState<typeof import("./settings-billing").SettingsContent>();
-  const [accountTab, setAccountTab] = useState<import("./settings-billing").SettingsTab>("Appearance");
+  const [accountTab, setAccountTab] = useState<import("./settings-billing").SettingsTab>("Theme");
   const accountOpen = Boolean(AccountPage);
   const settingsRequest = useRef(0);
   const rightSettings = asideCovered && !accountOpen;
   const endOpen = Boolean(endDrawer) && endDrawerOpen && !accountOpen;
   const closeAccount = () => fadeViewTransition(() => setAccountPage(undefined));
-  const openAccount = async (tab: import("./settings-billing").SettingsTab = "Appearance") => {
+  const openAccount = async (tab: import("./settings-billing").SettingsTab = "Theme") => {
     const request = ++settingsRequest.current;
     const AccountContent = loadAccountPage ? await loadAccountPage() : (await import("./settings-billing")).SettingsContent;
     if (request !== settingsRequest.current) return;

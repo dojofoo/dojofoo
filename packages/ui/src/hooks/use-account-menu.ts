@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@dojofoo/uix/components/app-shell";
 import { useSidebarState } from "./sidebar-state";
 
-/** The account menu opens pages of their own: Settings at /settings/appearance, Profile at /me. The sidebar's fold is
+/** The account menu opens pages of their own: Settings at /settings/theme, Profile at /me. The sidebar's fold is
     every page's (SidebarStateProvider). */
 export function useAccountMenu() {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ export function useAccountMenu() {
     account: {
       ...sidebar,
       user, showUser: true,
-      onSettings: () => { void navigate({ to: "/settings/$section", params: { section: "appearance" } }); },
+      onSettings: () => { void navigate({ to: "/settings/$section", params: { section: "theme" } }); },
       onProfile: () => { void navigate({ to: "/me" }); },
     },
     toast,

@@ -3,7 +3,7 @@ import { AvatarUpload } from "@dojofoo/uix/components/arc/avatar-upload/avatar-u
 import { Button } from "@dojofoo/uix/components/button";
 import { AppearanceSettings } from "@dojofoo/uix/containers/appearance-settings";
 
-export type AccountTab = "Profile" | "Appearance";
+export type AccountTab = "Profile" | "Theme";
 
 /** The account sections, one page each under /settings */
 export function AccountSettingsContent({ tab, onTabChange, onClose, name }: {
@@ -12,10 +12,10 @@ export function AccountSettingsContent({ tab, onTabChange, onClose, name }: {
   onClose?: () => void;
   name: string;
 }) {
-  return <SettingsLayout tab={tab} availableTabs={["Profile", "Appearance"]} onTabChange={next => onTabChange(next === "Profile" ? "Profile" : "Appearance")}
-    onClose={onClose} description="Your profile and appearance preferences."
+  return <SettingsLayout tab={tab} availableTabs={["Profile", "Theme"]} onTabChange={next => onTabChange(next === "Profile" ? "Profile" : "Theme")}
+    onClose={onClose} description="Your profile and theme preferences."
     helpText={tab === "Profile" ? { about: "Your account will keep your profile with you across Dojo.", tip: "Sign-in, profile editing and sign-out are coming soon." } : undefined}>
-    {tab === "Appearance" ? <div className="ui-account-appearance"><AppearanceSettings /></div>
+    {tab === "Theme" ? <div className="ui-account-appearance"><AppearanceSettings /></div>
       : <section className="ui-sb-tray ui-sb-form" aria-label="Profile">
         <ProfileSettingsFields name={name} handle="" handleState="invalid" disabled
           onNameChange={() => {}} onHandleChange={() => {}}

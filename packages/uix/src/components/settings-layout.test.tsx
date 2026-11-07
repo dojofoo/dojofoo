@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 import { SettingsLayout } from "./settings-billing";
 
 it("renders host-owned settings in the Pages layout without prototype account sections", () => {
-  const html = renderToStaticMarkup(<SettingsLayout tab="Profile" onTabChange={() => {}} availableTabs={["Profile", "Appearance"]}
+  const html = renderToStaticMarkup(<SettingsLayout tab="Profile" onTabChange={() => {}} availableTabs={["Profile", "Theme"]}
     description="Settings on this device" helpText={{ about: "Local profile", tip: "Accounts are coming soon." }}>
     <p>Host-owned profile placeholder</p>
   </SettingsLayout>);

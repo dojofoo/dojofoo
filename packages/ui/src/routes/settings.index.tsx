@@ -4,6 +4,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 export const Route = createFileRoute("/settings/")({
   validateSearch: (search: Record<string, unknown>): { tab?: string } => typeof search.tab === "string" ? { tab: search.tab } : {},
   beforeLoad: ({ search }) => {
-    throw redirect({ to: "/settings/$section", params: { section: search.tab === "General" ? "profile" : "appearance" }, replace: true });
+    throw redirect({ to: "/settings/$section", params: { section: search.tab === "General" ? "profile" : "theme" }, replace: true });
   },
 });

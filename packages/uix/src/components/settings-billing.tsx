@@ -62,8 +62,8 @@ const nav: ShellNavItem[] = [
   { label: "Settings", icon: Settings01Icon },
 ];
 
-export type SettingsTab = "Profile" | "Members" | "Appearance" | "API keys";
-const tabs: SettingsTab[] = ["Profile", "Members", "Appearance", "API keys"];
+export type SettingsTab = "Profile" | "Members" | "Theme" | "API keys";
+const tabs: SettingsTab[] = ["Profile", "Members", "Theme", "API keys"];
 
 type Cycle = "monthly" | "yearly";
 type Plan = { id: string; name: string; monthly: number; yearly: number; blurb: string; features: string[] };
@@ -138,19 +138,19 @@ export type SettingsContentProps = {
   onClose?: () => void;
 };
 
-export function SettingsBillingScreen({ defaultTab = "Appearance", ...props }: SettingsBillingScreenProps) {
+export function SettingsBillingScreen({ defaultTab = "Theme", ...props }: SettingsBillingScreenProps) {
   return <AppShell active="Settings" nav={nav} {...props}><SettingsContent workspace={props.workspace} userName={props.user?.name} defaultTab={defaultTab} /></AppShell>;
 }
 
 /** The installed AffectUI settings layout, embedded in the current workspace's main window. */
-export function SettingsContent({ defaultTab = "Appearance", workspace = "Dojo", userName = "Sam Rivera", onClose }: SettingsContentProps) {
+export function SettingsContent({ defaultTab = "Theme", workspace = "Dojo", userName = "Sam Rivera", onClose }: SettingsContentProps) {
   const [tab, setTab] = useState<SettingsTab>(defaultTab);
   const [profile, setProfile] = useState<AccountProfile>({ name: userName, handle: userName.toLowerCase().replace(/[^a-z0-9]/g, "") });
   const [toast, showToast] = useToast();
   return <SettingsLayout tab={tab} onTabChange={setTab} onClose={onClose} footer={toast}>
     {tab === "Profile" && <GeneralTab profile={profile} onSave={setProfile} toast={showToast} />}
     {tab === "Members" && <MembersTab toast={showToast} />}
-    {tab === "Appearance" && <div className="ui-account-appearance"><AppearanceSettings /></div>}
+    {tab === "Theme" && <div className="ui-account-appearance"><AppearanceSettings /></div>}
     {tab === "API keys" && <KeysTab toast={showToast} />}
   </SettingsLayout>;
 }
@@ -199,7 +199,7 @@ const help: Record<SettingsTab, { about: string; tip: string }> = {
     about: "Manage the people in your workspace and the role each person has. Invite someone when you want to learn or work together.",
     tip: "Review a person’s role before inviting them. Remove access when they no longer need the workspace.",
   },
-  Appearance: {
+  Theme: {
     about: "Make Dojo comfortable to work in. Choose a light or dark interface, then the theme and syntax colours that suit you.",
     tip: "Auto pairs the editor with your interface. Pick a separate colour scheme to keep your preferred syntax colours.",
   },
