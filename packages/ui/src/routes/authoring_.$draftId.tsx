@@ -16,7 +16,6 @@ import {
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AuthoringFilePreview } from "@/components/authoring-file-preview";
 import { AuthoringEvaluationReport } from "@/components/authoring-evaluation-report";
-import { AuthoringEvaluationSettings } from "@/components/authoring-evaluation-settings";
 import type { EvaluationSettings } from "@dojofoo/agents/evaluation/settings";
 import { TreeTitleMenu, authoringEvaluationStatus } from "@/components/authoring-sidebar";
 import { AgentChat } from "@/components/agent-chat";
@@ -92,7 +91,6 @@ function AuthoringPage() {
   const [evaluationReport, setEvaluationReport] = useState<AuthoringEvalReport | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [evalsView, setEvalsView] = useState<"overview" | "report">("overview");
-  const [evaluationSettingsOpen, setEvaluationSettingsOpen] = useState(false);
   const [evaluationError, setEvaluationError] = useState<{ lessonId: string; source: "load" | "run"; message: string; previousReport?: string } | null>(null);
   const reportLesson = useRef<string | null>(null);
   reportLesson.current = scope === "lesson" ? selectedLessonId : null;
@@ -347,7 +345,7 @@ function AuthoringPage() {
     setEvaluationError(null);
     try {
       const settings = await request<EvaluationSettings | null>(authoringApi("/api/authoring/evaluation-settings"));
-      if (!settings?.enabled) { setEvaluationSettingsOpen(true); return; }
+      if (!settings?.enabled) { setEvaluationError({ lessonId, source: "run", message: "Teaching evaluations are off for this draft.", previousReport: evaluationReport?.directory }); return; }
       const result = await request<ReportResponse>(authoringApi("/api/authoring/evals"), {
         body: JSON.stringify({ lessonIds: [lessonId], callId: crypto.randomUUID() }),
         headers: { "content-type": "application/json" },
@@ -413,7 +411,7 @@ function AuthoringPage() {
       }); }} />} />;
   const selectedChapter = workspace.chapters?.find(chapter => chapter.files?.some(file => file.path === activeFilePath));
   const activeResource = reportOpen ? "authoring:evals" : `file:${activeFilePath}`;
-  const evaluationAction = scope === "lesson" && selectedLessonId ? <UIXButton size="sm" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</UIXButton> : null;
+  const evaluationAction = scope === "lesson" && selectedLessonId ? <UIXButton size="sm" variant="ghost" disabled={Boolean(busy) || !evalReady} onClick={() => void runEvals()} title={evalReady ? "Evaluate selected lesson with configured models and two judges (uses model quota)" : "Complete the authoring checklist first"} type="button">Evaluate lesson</UIXButton> : null;
   return <div className="h-dvh overflow-hidden">
     <AgentChatWorkspace {...shell} navigationTransition={false} contentKind="code" active={activeResource}
       evals={evalsView === "report" && visibleReport ? <AuthoringEvaluationReport report={visibleReport} actions={evaluationAction} /> : <EvalsPanel />}
@@ -487,14 +485,12 @@ function AuthoringPage() {
               <button type="button" className="shrink-0 underline" onClick={() => setTrialError(null)}>Dismiss</button>
             </div> : null}
             <div className="flex min-h-11 shrink-0 flex-wrap justify-end border-t border-[var(--line-soft)]">
-              <AuthoringEvaluationSettings open={evaluationSettingsOpen} onOpenChange={setEvaluationSettingsOpen} api={authoringApi} onSaved={() => setEvaluationError(null)}
-                agentName={workspaceAgent.list.find(agent => agent.selected)?.name ?? "this draft's coding agent"} />
               <div className="flex flex-wrap items-center justify-end gap-1 p-1">
-                <WorkspaceAction disabled={Boolean(busy)} onClick={() => setEvaluationSettingsOpen(true)}>Evaluation settings</WorkspaceAction>
                 <WorkspaceAction icon={<RefreshCw className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void refreshWorkspace()}>Refresh</WorkspaceAction>
                 {visibleReport ? <WorkspaceAction disabled={false} onClick={() => { setEvalsView("report"); setReportOpen(!reportOpen); }}>{reportOpen ? "Hide evaluation" : "Evaluation results"}</WorkspaceAction> : null}
-                {scope === "lesson" && selectedLesson ? <WorkspaceAction icon={<ExternalLink className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)}>Trial</WorkspaceAction> : null}
                 {evaluationAction}
+                {/* Trial is the main action: the lesson as a learner takes it, in a new tab */}
+                {scope === "lesson" && selectedLesson ? <UIXButton size="sm" icon={<ExternalLink className="size-3.5" />} disabled={Boolean(busy)} onClick={() => void trialLesson(selectedLesson.id)} type="button">Trial</UIXButton> : null}
               </div>
             </div>
       </div></Editor>}

@@ -8,7 +8,7 @@ import type { KyoshiRuntime } from "./agent.ts";
 
 /** What Kyoshi is told for each refusal: its status and the next step (the teaching-evals skill's stop rules name them). */
 const refusals: Record<EvaluationFailureCode, { status: string; next: string }> = {
-  not_enabled: { status: "not-configured", next: "Tell the author once that they can allow evaluations in Evaluation settings, and stop." },
+  not_enabled: { status: "not-configured", next: "Tell the author once that teaching evaluations are off for this draft, and stop." },
   invalid_request: { status: "invalid-request", next: "Use lesson IDs from dojo.yaml: the lesson, optionally preceded by its predecessor." },
   preflight_failed: { status: "preflight-failed", next: "Fix these findings and call again; no attempt was used." },
   allowance_exhausted: { status: "allowance-exhausted", next: "Report the remaining issue to the author; do not retry." },
