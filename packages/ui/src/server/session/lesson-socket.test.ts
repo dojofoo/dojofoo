@@ -59,7 +59,7 @@ describe("the lesson socket", () => {
   it("a check's notifications carry its request's id, so the page that asked tells them from Sensei's", async () => {
     const { socket, peer, page } = setup();
     vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
-    vi.mocked(execFileSync).mockImplementationOnce((() => JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "a", status: "passed" }], error: null })) as never);
+    vi.mocked(execFile).mockImplementationOnce(((_command: string, _args: string[], _options: unknown, done: (error: null, stdout: string) => void) => { done(null, JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "a", status: "passed" }], error: null })); return {}; }) as never);
     const tab = peer(page);
     const other = peer(page);
     await socket.open(tab);
