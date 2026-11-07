@@ -54,6 +54,16 @@ describe("session lifecycle", () => {
     expect(transition(record({ status: "idle" }), { type: "reconcile" }, at).lifecycle).toMatchObject({ status: "idle", updatedAt: "2026-11-04T00:00:00.000Z" });
   });
 
+  it("while the host runs, reconcile: only a record unchanged since staleBefore becomes idle", () => {
+    const working = record({ status: "working" });
+    expect(transition(working, { type: "reconcile", staleBefore: "2026-11-04T00:00:00.500Z" }, at).lifecycle).toEqual({ status: "idle", updatedAt: at });
+    expect(transition(working, { type: "reconcile", staleBefore: "2026-11-04T00:00:00.000Z" }, at)).toBe(working);
+  });
+
+  it("pre-delivery: a working record stays working and is marked changed", () => {
+    expect(transition(record({ status: "working" }), { type: "pre-delivery" }, at).lifecycle).toEqual({ status: "working", updatedAt: at });
+  });
+
   it("pre-delivery: an interrupted conversation continues, clearing interruptedAt but keeping its interrupted turn", () => {
     expect(transition(record({ status: "interrupted", interruptedAt: at, interruptedTurnId: "t1" }), { type: "pre-delivery" }, at).lifecycle)
       .toEqual({ status: "working", interruptedTurnId: "t1", updatedAt: at });

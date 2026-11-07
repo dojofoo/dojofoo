@@ -58,10 +58,26 @@ describe("lifecycle hook", () => {
 
   it("a host-port failure is logged, never thrown", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const handlers = lifecycleHandlers(async () => ({ url: "http://127.0.0.1:9/api/host-port", workspaceId: "w1", persona: "sensei", secret: "s" }));
+    const handlers = lifecycleHandlers(async () => ({ url: "http://127.0.0.1:9/api/host-port", workspaceId: "w1", persona: "sensei", secret: "s" }), { retryDelaysMs: [0, 0, 0] });
     await expect(handlers["turn.settled"]({ data: { turnId: "t1", outcome: "completed" } }, ctx("eve-1"))).resolves.toBeUndefined();
     await expect(lifecycleHandlers(async () => { throw new Error("runtime.json is unreadable"); })["session.ended"]({ data: {} }, ctx("eve-2"))).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalled();
+  });
+
+  it("a report the host port did not take is retried with its key; a refusal is not", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let busy = 2;
+    const port = await startHostPortFixture({ handlers: {
+      "turn.settled": () => { if (busy-- > 0) throw { status: 503, code: "host_port_failed", message: "Busy." }; return { ok: true }; },
+      "turn.paused": () => { throw { status: 401, code: "host_port_unauthorized", message: "The host port needs the running host's secret." }; },
+    } });
+    closers.push(port.close);
+    const handlers = lifecycleHandlers(async () => ({ url: port.url, workspaceId: "w1", persona: "sensei", secret: "s" }), { retryDelaysMs: [0, 0, 0] });
+    await handlers["turn.settled"]({ data: { turnId: "t1", outcome: "completed" } }, ctx("eve-1"));
+    await handlers["turn.paused"]({ data: { turnId: "t2", awaiting: [] } }, ctx("eve-1"));
+    expect(port.calls.map(call => `${call.method} ${call.idempotencyKey}`)).toEqual([
+      "turn.settled eve-1:t1:settled", "turn.settled eve-1:t1:settled", "turn.settled eve-1:t1:settled", "turn.paused eve-1:t2:paused:",
+    ]);
   });
 
   it("an ended Grok session's private home is removed", async () => {

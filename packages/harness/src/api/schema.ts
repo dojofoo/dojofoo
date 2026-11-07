@@ -21,7 +21,7 @@ const agent = t.Object({
 const lifecycle = t.Object({
   status: t.Union([t.Literal("idle"), t.Literal("working"), t.Literal("paused"), t.Literal("interrupted")]),
   turnId: t.Optional(t.String()),
-  beginPending: t.Optional(t.Object({ idempotencyKey: t.String(), sentAt: t.String(), attempt: t.Optional(t.Integer({ minimum: 0 })), cancelledAt: t.Optional(t.String()) })),
+  beginPending: t.Optional(t.Object({ idempotencyKey: t.String(), sentAt: t.String(), attempt: t.Optional(t.Integer({ minimum: 0 })), cancelledAt: t.Optional(t.String()), deliveryId: t.Optional(t.String()) })),
   resumeFailedAt: t.Optional(t.String()),
   heldReport: t.Optional(t.Object({ observationId: t.String(), text: t.String(), heldAt: t.String() }, { description: "A check report waiting for the session to become idle." })),
   sentReport: t.Optional(t.Object({ observationId: t.String(), deliveryId: t.Optional(t.String()), sentAt: t.String(), seenAt: t.Optional(t.String()) })),

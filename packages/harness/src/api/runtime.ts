@@ -25,8 +25,9 @@ export interface SessionLifecycle {
   /** The turn the last turn.paused named; cleared at turn.settled */
   turnId?: string;
   /** Set while the begin turn has not settled; resent on the next open (D29). `attempt` names the key `begin:<id>:<attempt>`;
-   *  `cancelledAt` is set when a leave cancelled the begin, so the next open resends with attempt + 1. A step-4 record reads as attempt 0. */
-  beginPending?: { idempotencyKey: string; sentAt: string; attempt?: number; cancelledAt?: string };
+   *  `cancelledAt` is set when a leave cancelled the begin, so the next open resends with attempt + 1. A step-4 record reads as attempt 0.
+   *  `deliveryId` is Eve's receipt for the key (a repeat gets the same one), by which the next open finds how the begin ended. */
+  beginPending?: { idempotencyKey: string; sentAt: string; attempt?: number; cancelledAt?: string; deliveryId?: string };
   /** The harness reported a failed resume (resume.failed); the record is unusable once that turn settles */
   resumeFailedAt?: string;
   /** D16: the latest check report waiting for this session to become idle */

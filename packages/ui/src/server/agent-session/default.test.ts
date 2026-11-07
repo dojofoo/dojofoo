@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -8,6 +8,7 @@ import type { SessionRecord } from "@dojofoo/harness/api";
 import { observeWorkspacePath } from "@dojofoo/config/local-state";
 import { createLocalAgentRuntime } from "../agent-api";
 import { readRecords, saveRecord } from "./records";
+import { kataWorkspace, removeRoots } from "./test-kata.fixture";
 
 let eve: Awaited<ReturnType<typeof startEve>>;
 beforeAll(async () => { eve = await startEve(); }, 120_000);
@@ -56,6 +57,23 @@ const record = (overrides: Partial<SessionRecord>): SessionRecord => ({
 });
 /** A real, bodyless session on the fixture host */
 const eveSession = async () => (await new Client({ baseUrl: eve.baseUrl }).sessions.create()).session.id;
+/** A begin the fixture host has already run to its settle: posted with its key once the new session takes messages; its receipt */
+async function ranBegin(sessionId: string, idempotencyKey: string): Promise<string> {
+  for (;;) {
+    const response = await network(`${eve.baseUrl.replace(/\/$/u, "")}/eve/v1/session/${sessionId}`, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: "[dojo:begin] Begin the lesson.", idempotencyKey }) });
+    const answer = await response.json() as { deliveryId?: string; code?: string };
+    if (response.status === 409 && answer.code === "session_not_ready") { await new Promise(accept => setTimeout(accept, 100)); continue; }
+    expect(response.status).toBe(202);
+    await vi.waitFor(async () => {
+      const { events } = await new Client({ baseUrl: eve.baseUrl }).sessions.attach(sessionId).snapshot();
+      expect(events.some(event => event.type === "turn.settled")).toBe(true);
+    }, { timeout: 30_000 });
+    return answer.deliveryId!;
+  }
+}
+const turnsStarted = async (sessionId: string) =>
+  (await new Client({ baseUrl: eve.baseUrl }).sessions.attach(sessionId).snapshot()).events.filter(event => event.type === "turn.started").length;
 
 describe("the default conversation", () => {
   it("opens the newest usable conversation for the course on the selected agent", async () => {
@@ -180,6 +198,53 @@ describe("the default conversation", () => {
       const { events } = await new Client({ baseUrl: eve.baseUrl }).sessions.attach(id).snapshot();
       expect(events.filter(event => event.type === "turn.started")).toHaveLength(1);
     }, { timeout: 30_000 });
+  }, 60_000);
+
+  it("a begin keeps Eve's receipt for its delivery", async () => {
+    const { root, open } = workspace();
+    const opened = await open({ course: "first" });
+    const receipt = (await readRecords(root))[0]?.lifecycle?.beginPending?.deliveryId;
+    expect(receipt).toEqual(expect.any(String));
+    // Eve may answer before its stream admits the delivery
+    await vi.waitFor(async () => {
+      const { events } = await new Client({ baseUrl: eve.baseUrl }).sessions.attach(opened.session.id).snapshot();
+      expect(events.some(event => event.type === "delivery.admitted" && (event.data as { deliveryId?: string }).deliveryId === receipt)).toBe(true);
+    }, { timeout: 30_000 });
+  }, 60_000);
+
+  it("a kata begin Eve already ran, whose settle the hook lost, is settled by its receipt and introduces the lesson, not resent", async () => {
+    const kataRoots: string[] = [];
+    const kata = kataWorkspace(kataRoots, { baseUrl: eve.baseUrl });
+    try {
+      const id = await eveSession();
+      const key = `begin:${id}:0`;
+      const deliveryId = await ranBegin(id, key);
+      await saveRecord(kata.root, kata.record({ id, lifecycle: { status: "working", updatedAt: new Date().toISOString(),
+        beginPending: { idempotencyKey: key, sentAt: new Date().toISOString(), attempt: 0, deliveryId } } }));
+      const sent = watchFetch();
+      const opened = await kata.local.sessions.openDefault(kata.workspaceId, { course: "starter", lesson: "001-first" });
+      expect(opened.session).toMatchObject({ id, lifecycle: { status: "idle" } });
+      expect(opened.session.lifecycle).not.toHaveProperty("beginPending");
+      expect(begins(sent)).toEqual([]);
+      expect(JSON.parse(readFileSync(resolve(kata.root, ".dojorc"), "utf8")).progress.starter.kataIntros).toEqual(["001-first"]);
+      expect(await turnsStarted(id)).toBe(1);
+    } finally { kata.cleanup(); removeRoots(kataRoots); }
+  }, 60_000);
+
+  it("a begin with no receipt that Eve already ran is resent with its key, which Eve ignores, then settled", async () => {
+    const { root, open } = workspace();
+    vi.stubEnv("DOJOFOO_HOME", resolve(root, "state"));
+    const id = await eveSession();
+    const key = `begin:${id}:0`;
+    await ranBegin(id, key);
+    // A record from before receipts were kept, left working by a settle the hook lost
+    await saveRecord(root, record({ id, lifecycle: { status: "working", beginPending: { idempotencyKey: key, sentAt: "2026-11-03T00:00:00.000Z", attempt: 0 },
+      updatedAt: "2026-11-03T00:00:00.000Z" } }));
+    const sent = watchFetch();
+    expect((await open({ course: "first" })).session).toMatchObject({ id, lifecycle: { status: "idle" } });
+    expect(begins(sent).map(request => (request.body as { idempotencyKey: string }).idempotencyKey)).toEqual([key]);
+    expect((await readRecords(root))[0]?.lifecycle).not.toHaveProperty("beginPending");
+    expect(await turnsStarted(id)).toBe(1);
   }, 60_000);
 
   it("a cancelled begin after a leave keeps beginPending and the next open resends with a new key", async () => {
