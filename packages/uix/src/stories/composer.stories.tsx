@@ -66,7 +66,7 @@ export const AttachmentRetry: StoryObj<typeof meta> = { render: () => <Attachmen
 /** A coding agent's model menu: each model's name with its version, its description and its own effort levels and default, as Claude Code
  *  (the Agent SDK's supportedModels) and Codex (its model catalog) list them */
 const claudeModels = [
-  { value: "default", name: "Default", description: "Opus 5.5 · Best for everyday, complex tasks", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "medium" },
+  { value: "default", name: "Default", description: "Opus 5.5 · Best for everyday, complex tasks", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "medium", isDefault: true },
   { value: "opus", name: "Opus 5.5", description: "For complex work and everyday tasks", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "medium" },
   { value: "fable", name: "Fable 5.1", description: "For your toughest challenges", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "high" },
   { value: "sonnet", name: "Sonnet 5.5", description: "Most efficient for simpler tasks", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "medium" },
@@ -95,7 +95,7 @@ export const PiModels: StoryObj<typeof meta> = { render: () => <AgentModels agen
 /** OpenCode's models by name, with their reasoning variants as efforts; a new conversation starts on the model OpenCode picks itself */
 export const OpenCodeModels: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "OpenCode", icon: OpenCodeIcon }}
   models={openCodeModels.map(model => ({ ...model, icon: OpenCodeIcon }))} initial="deepseek/deepseek-v4-pro" /> };
-/** A conversation without a model (the agent couldn't say which it picks): no row is checked and the agent's own default runs */
+/** A conversation without a model: the agent's own default runs, and the menu names it ("Default (DeepSeek V4 Pro)") and checks it */
 export const AgentDefaultModel: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "OpenCode", icon: OpenCodeIcon }}
   models={openCodeModels.map(model => ({ ...model, icon: OpenCodeIcon }))} initial={null} /> };
 export const FxModels: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "FX", icon: FxIcon }} models={fxModels.map(model => ({ ...model, icon: FxIcon }))} /> };

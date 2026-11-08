@@ -24,26 +24,59 @@ export async function configuredHarnessModel(harness: string, codexHome = proces
   if (harness === "pi") {
     const agentDir = options.piAgentDir ?? process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
     const usable = (await (options.listPi ?? (() => piModels(AbortSignal.timeout(15_000), agentDir)))().catch(() => [])).filter(model => !model.unavailable);
-    const settings = await readFile(join(agentDir, "settings.json"), "utf8").then(source => JSON.parse(source) as Record<string, unknown>, (): Record<string, unknown> => ({}));
+    const settings = await piSettings(agentDir);
     const preferred = typeof settings.defaultProvider === "string" && typeof settings.defaultModel === "string"
       ? `${settings.defaultProvider}/${settings.defaultModel}` : undefined;
     return (usable.find(model => model.id === preferred) ?? usable[0])?.id;
   }
   if (harness !== "codex") return undefined;
-  let source: string;
-  try { source = await readFile(join(codexHome, "config.toml"), "utf8"); }
+  const model = (await codexConfig(codexHome))?.model;
+  return typeof model === "string" && model.trim() ? model : undefined;
+}
+
+/** The effort a new conversation starts at, from the agent's own configuration: Codex's model_reasoning_effort, Pi's
+ *  defaultThinkingLevel while the model takes it. Sensei runs both without the user's configuration, so the session names it,
+ *  and the composer shows what runs. */
+export async function configuredHarnessEffort(harness: string, model: string | undefined,
+  codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex"),
+  options: { piAgentDir?: string; listPi?: () => Promise<HarnessModelChoice[]> } = {}): Promise<string | undefined> {
+  if (harness === "codex") {
+    const effort = (await codexConfig(codexHome))?.model_reasoning_effort;
+    return typeof effort === "string" && effort.trim() ? effort : undefined;
+  }
+  if (harness !== "pi" || !model) return undefined;
+  const agentDir = options.piAgentDir ?? process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
+  const level = (await piSettings(agentDir)).defaultThinkingLevel;
+  if (typeof level !== "string") return undefined;
+  const listed = (await (options.listPi ?? (() => piModels(AbortSignal.timeout(15_000), agentDir)))().catch(() => [])).find(choice => choice.id === model);
+  return listed?.efforts.includes(level) ? level : undefined;
+}
+
+const piSettings = (agentDir: string) => readFile(join(agentDir, "settings.json"), "utf8")
+  .then(source => JSON.parse(source) as Record<string, unknown>, (): Record<string, unknown> => ({}));
+
+async function codexConfig(codexHome: string): Promise<Record<string, unknown> | undefined> {
+  try { return parse(await readFile(join(codexHome, "config.toml"), "utf8")); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw error;
   }
-  const model = parse(source).model;
-  return typeof model === "string" && model.trim() ? model : undefined;
 }
 
 /** Removed in step 7 with SessionModelConfiguration. */
 export type HarnessModelChoice = ModelChoice;
 
+/** The agent's models, its default among them: Claude Code's own "default", else the model a new conversation starts on
+ *  (configuredHarnessModel), else the one the agent's catalog marks (Codex) */
 export async function harnessModels(agent: AgentId, signal: AbortSignal): Promise<HarnessModelChoice[]> {
+  const choices = await listedModels(agent, signal);
+  const configured = agent === "claude" ? "default"
+    : await configuredHarnessModel(agent, undefined, async () => choices, { listPi: async () => choices }).catch(() => undefined);
+  if (!configured || !choices.some(choice => choice.id === configured)) return choices;
+  return choices.map(({ default: _default, ...choice }) => choice.id === configured ? { ...choice, default: true } : choice);
+}
+
+async function listedModels(agent: AgentId, signal: AbortSignal): Promise<HarnessModelChoice[]> {
   const discovery = agentRow(agent).modelDiscovery;
   if (discovery?.method === "cli-aliases") return discovery.aliases.map(id => ({ id, name: id, efforts: [] }));
   if (discovery?.method === "claude-sdk") return claudeModels(signal);
@@ -345,7 +378,7 @@ export async function codexModels(signal: AbortSignal, executable = resolveAgent
         if (typeof model.model !== "string" || typeof model.displayName !== "string") throw new Error("Codex returned an invalid model entry");
         choices.push({ id: model.model, name: model.displayName, ...(typeof model.description === "string" && model.description ? { description: model.description } : {}),
           efforts: (model.supportedReasoningEfforts ?? []).map((value: { reasoningEffort: string }) => value.reasoningEffort),
-          defaultEffort: model.defaultReasoningEffort });
+          defaultEffort: model.defaultReasoningEffort, ...(model.isDefault === true ? { default: true } : {}) });
       }
       cursor = page.nextCursor ?? undefined;
       if (cursor && (typeof cursor !== "string" || cursors.has(cursor))) throw new Error("Codex repeated its model catalog cursor");
@@ -380,7 +413,7 @@ export async function piModels(signal: AbortSignal, agentDir = process.env.PI_CO
     // Use the same capability resolver as Pi's own AgentSession. Custom
     // providers can advertise different levels; a reasoning boolean is not enough.
     efforts: getSupportedThinkingLevels(model),
-    ...(unavailable ? { unavailable } : lapsed.has(model.provider) ? { unavailable: `Sign in to ${providerName(model.provider)} again` } : {}),
+    ...(unavailable ? { unavailable } : lapsed.has(model.provider) ? { unavailable: `Sign in to ${providerName(model.provider)} again`, signIn: model.provider } : {}),
   });
   return [...available.map(model => choice(model)), ...providers.flatMap(provider => runtime.getModels(provider)
     .filter(model => !listed.has(`${model.provider}/${model.id}`)).map(model => choice(model, `Not in your ${providerName(provider)} plan`)))];

@@ -52,6 +52,8 @@ const modelChoice = t.Object({
   efforts: t.Array(t.String()),
   defaultEffort: t.Optional(t.String()),
   unavailable: t.Optional(t.String({ description: "Why the agent can't run the model now; absent when it can.", examples: ["Sign in to GitHub Copilot again"] })),
+  signIn: t.Optional(t.String({ description: "The provider to sign in to again, when the model can't run because its login lapsed.", examples: ["github-copilot"] })),
+  default: t.Optional(t.Boolean({ description: "The model the agent runs when a conversation names none." })),
 });
 const authType = t.Union([t.Literal("api_key"), t.Literal("oauth")], { description: "Pi's AuthType: an API key, or a browser or device-code sign-in." });
 const accessProvider = t.Object({

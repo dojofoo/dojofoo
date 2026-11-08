@@ -128,13 +128,21 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
     await sendHeld(path, workspaceId, endpoint, sessionId);
   }
 
+  /** A new conversation's model and effort: the workspace's last for this agent (D26), else what the agent is configured with, so the
+   *  composer shows what runs and Sensei, without the user's configuration, runs the same */
+  async function startingModel(path: string, agent: AgentId): Promise<{ model?: string; effort?: string }> {
+    const adapters = harnessAdapters();
+    const model = readAgentModel(path, agent) ?? await adapters.configuredHarnessModel(agent).catch(() => undefined);
+    const effort = readAgentEffort(path, agent) ?? await adapters.configuredHarnessEffort(agent, model).catch(() => undefined);
+    return { ...(model ? { model } : {}), ...(effort ? { effort } : {}) };
+  }
+
   /** Kyoshi's: a bodyless Eve create, the record, then the hidden start turn (decision 1). Kyoshi has no begin contract to retry, so a
    *  failed start turn is logged and the conversation returned as it is: the author's first message starts it. */
   async function createKyoshi(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId): Promise<SessionRecord> {
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
     const now = new Date().toISOString();
-    const model = readAgentModel(path, agent) ?? await harnessAdapters().configuredHarnessModel(agent).catch(() => undefined);
-    const effort = readAgentEffort(path, agent);
+    const { model, effort } = await startingModel(path, agent);
     const record: SessionRecord = { id: session.id, agent, persona: "kyoshi", createdAt: now, ...(model ? { model } : {}), ...(effort ? { effort } : {}),
       revision: 0, lifecycle: { status: "idle", updatedAt: now } };
     await saveRecord(path, record);
@@ -147,8 +155,7 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
   async function create(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest): Promise<SessionRecord> {
     if (request.course === undefined) return createKyoshi(path, workspaceId, endpoint, agent);
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
-    const model = readAgentModel(path, agent) ?? await harnessAdapters().configuredHarnessModel(agent).catch(() => undefined);
-    const effort = readAgentEffort(path, agent);
+    const { model, effort } = await startingModel(path, agent);
     const now = new Date().toISOString();
     const record: SessionRecord = {
       id: session.id, agent, persona: "sensei", createdAt: now, courseId: request.course, ...(request.lesson ? { lessonId: request.lesson } : {}),

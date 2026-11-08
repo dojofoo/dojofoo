@@ -32,8 +32,8 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
   /** The chosen model's effort, from its `efforts` */
   effort?: string;
   onEffortChange?(value: string | undefined): void;
-  /** Opens the coding agent's sign-in, where dojo can sign it in */
-  onSignIn?(): void;
+  /** Opens the coding agent's sign-in, where dojo can sign it in: for a provider whose login lapsed, or for the agent */
+  onSignIn?(provider?: string): void;
   /** Signed in to none of its providers */
   signInNeeded?: boolean;
   placeholder?: string;
@@ -88,7 +88,7 @@ function FailureActions({ failure, active, agents, onAgentChange, onRetryLoad, o
     <p role="alert" className="text-sm text-destructive">{failure.message}{failure.retryAfter ? ` Try again in ${failure.retryAfter}.` : ""}</p>
     {failure.actions.includes("login") && failure.login && !onSignIn ? <p className="text-sm">Log in to {failure.agentName ?? "your coding agent"}: run <code>{failure.login}</code> in a terminal.</p> : null}
     <div className="flex flex-wrap gap-2">
-      {failure.actions.includes("login") && onSignIn ? <Button onClick={onSignIn}>Sign in to {failure.agentName ?? "your coding agent"}</Button> : null}
+      {failure.actions.includes("login") && onSignIn ? <Button onClick={() => onSignIn()}>Sign in to {failure.agentName ?? "your coding agent"}</Button> : null}
       {failure.actions.includes("choose-agent") && onAgentChange ? others.map(choice => choice.value
         ? <Button key={choice.value} variant="secondary" onClick={() => onAgentChange(choice.value!)}>Choose {choice.name}</Button> : null) : null}
       {failure.actions.includes("try-again") && !active && onRetryLoad ? <Button onClick={onRetryLoad}>Reload conversation</Button> : null}

@@ -43,6 +43,10 @@ export type PickerModel = {
   defaultEffort?: string;
   /** Why it can't run now, e.g. "Not in your GitHub Copilot plan": the row says so, stays muted and can't be picked */
   unavailable?: string;
+  /** It can't run because its login lapsed: the row opens the sign-in (onSignIn) instead */
+  signIn?: boolean;
+  /** The model the agent runs when none is chosen: the trigger names it as "Default (…)" */
+  isDefault?: boolean;
 };
 
 /** A level from the model's `efforts`, or low / medium / high */
@@ -84,8 +88,8 @@ export type ModelPickerProps = {
   disabled?: boolean;
   /** The letter tile in front of each model without an icon; off for a coding agent's plain list */
   glyphs?: boolean;
-  /** A "Sign in…" row under the models, e.g. to sign a coding agent in to another provider; the menu closes first */
-  onSignIn?: () => void;
+  /** A model whose login lapsed (`signIn`) was picked: sign in again. The menu closes first */
+  onSignIn?: (id: string) => void;
 };
 
 /* ---------- Helpers ---------- */
@@ -97,6 +101,9 @@ const SEARCH_FROM = 9;
 const matches = (model: PickerModel, query: string) =>
   query.trim().toLowerCase().split(/\s+/u).every((word) => `${model.name} ${model.id} ${model.description ?? ""}`.toLowerCase().includes(word));
 /** "xhigh" reads "X-High"; every other level is capitalised */
+/** Claude Code's "Default" choice names the model it runs first in its description ("Opus 5.5 · Best for …") */
+const isDefaultChoice = (model: PickerModel) => model.name === "Default";
+const modelName = (model: PickerModel) => isDefaultChoice(model) ? model.description?.split(" · ")[0] || model.name : model.name;
 const effortLabel = (level: string) => level === "xhigh" ? "X-High" : level.charAt(0).toUpperCase() + level.slice(1);
 /** How much longer the first token takes while the model thinks first: more the higher the level */
 const thinkFactor = (levels: string[], level: string) => 1 + 0.75 * (Math.max(0, levels.indexOf(level)) + 1);
@@ -208,12 +215,6 @@ const SearchIcon = () => (
     <path d="m9.4 9.4 3 3" {...line} />
   </svg>
 );
-const KeyIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <circle cx="5.5" cy="10.5" r="3" {...line} />
-    <path d="M7.6 8.4 13 3m-2 2 1.5 1.5M9.5 6.5 11 8" {...line} />
-  </svg>
-);
 const GlobeIcon = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
     <circle cx="7" cy="7" r="5.3" {...line} />
@@ -273,8 +274,8 @@ export function ModelPicker(props: ModelPickerProps) {
   const isSearching = webSearch ?? innerSearch;
   const isOpen = open ?? innerOpen;
 
-  // A value the list doesn't hold (the agent's own default) checks no row
-  const chosen = models.find((m) => m.id === chosenId);
+  // No model chosen: the agent runs its own default, which the list marks where the agent names it
+  const chosen = chosenId === undefined ? models.find((m) => m.isDefault) : models.find((m) => m.id === chosenId);
 
   // Models that list their own efforts (a coding agent's) get a plain effort row with those levels; without any, the classic
   // menu: Low / Medium / High under the thinking switch, and the web search switch
@@ -296,6 +297,9 @@ export function ModelPicker(props: ModelPickerProps) {
   const ordered = [...models.filter((m) => !m.unavailable), ...models.filter((m) => m.unavailable)];
   const visible = searchable && query ? ordered.filter((m) => matches(m, query)) : ordered;
   const chosenIndex = visible.findIndex((m) => m.id === chosen?.id);
+  // "Default (Opus 5.5)" while the agent's default runs, or when its "Default" choice is picked; the model's name otherwise
+  const triggerName = chosen && (chosenId === undefined || isDefaultChoice(chosen)) ? `Default (${modelName(chosen)})`
+    : chosen?.name ?? chosenId ?? "Default";
   const firstUnavailable = visible.findIndex((m) => m.unavailable);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -377,6 +381,11 @@ export function ModelPicker(props: ModelPickerProps) {
 
   const pick = (index: number) => {
     const m = visible[index];
+    if (m?.unavailable && m.signIn && onSignIn) {
+      setOpen(false, focusInside() ? "trigger" : undefined);
+      onSignIn(m.id);
+      return;
+    }
     if (!m || m.unavailable) return;
     setInnerValue(m.id);
     if (m.id !== chosenId) onChange?.(m.id);
@@ -496,13 +505,13 @@ export function ModelPicker(props: ModelPickerProps) {
         aria-expanded={isOpen}
         aria-controls={`${uid}-menu`}
         disabled={disabled}
-        aria-label={`Model: ${placeholder ?? chosen?.name ?? (chosenId ?? "Agent default")}${!classic && effortNow ? `, ${effortLabel(effortNow)} effort` : ""}${isThinking ? ", extended thinking" : ""}`}
+        aria-label={`Model: ${placeholder ?? triggerName}${!classic && effortNow ? `, ${effortLabel(effortNow)} effort` : ""}${isThinking ? ", extended thinking" : ""}`}
         onClick={() => setOpen(!isOpen, isOpen ? undefined : "list")}
         onKeyDown={onTriggerKey}
       >
         {chosen && !placeholder && (glyphs || chosen.icon) && <Glyph model={chosen} />}
         <span className="ui-mdp__name">
-          <Swap id={placeholder ?? chosenId ?? "none"}>{placeholder ?? chosen?.name ?? chosenId ?? "Agent default"}</Swap>
+          <Swap id={placeholder ?? triggerName}>{placeholder ?? triggerName}</Swap>
         </span>
         {/* A coding agent's model shows the effort it runs at, on the same line */}
         {!classic && !placeholder && effortNow && <span className="ui-mdp__trigger-effort">{effortLabel(effortNow)}</span>}
@@ -575,7 +584,8 @@ export function ModelPicker(props: ModelPickerProps) {
             {visible.length === 0 && <div className="ui-mdp__empty">No model matches “{query.trim()}”</div>}
             {visible.map((m, i) => {
               const rated = m.speed !== undefined || m.quality !== undefined || m.cost !== undefined;
-              const detail = m.unavailable ?? m.description;
+              // The agent's default says so, unless its name already does (Claude Code's "Default")
+              const detail = m.unavailable ?? (m.isDefault && !isDefaultChoice(m) ? ["Default", m.description].filter(Boolean).join(" · ") : m.description);
               return (
                 <div key={m.id} role="presentation" className="ui-mdp__row">
                 {i === firstUnavailable && <div className="ui-mdp__group" role="presentation">Unavailable</div>}
@@ -583,12 +593,13 @@ export function ModelPicker(props: ModelPickerProps) {
                   id={`${uid}-opt-${m.id}`}
                   role="option"
                   aria-selected={i === chosenIndex}
-                  aria-disabled={m.unavailable ? true : undefined}
+                  aria-disabled={m.unavailable && !(m.signIn && onSignIn) ? true : undefined}
                   aria-label={`${m.name}${detail ? `, ${detail}` : ""}${rated ? `. Speed ${m.speed ?? 0}, quality ${m.quality ?? 0}, cost ${m.cost ?? 0} of 5` : ""}`}
                   className="ui-mdp__option"
                   data-active={i === active ? "" : undefined}
                   data-lit={m.id === lit?.id ? "" : undefined}
                   data-unavailable={m.unavailable ? "" : undefined}
+                  data-sign-in={m.unavailable && m.signIn && onSignIn ? "" : undefined}
                   onPointerEnter={(e) => {
                     if (e.pointerType !== "mouse") return;
                     setActive(i);
@@ -685,14 +696,6 @@ export function ModelPicker(props: ModelPickerProps) {
             </button>}
           </div>}
 
-          {onSignIn && <div className="ui-mdp__settings">
-            <button type="button" className="ui-mdp__toggle" onClick={() => { setOpen(false, "trigger"); onSignIn(); }}>
-              <span className="ui-mdp__toggle-icon">
-                <KeyIcon />
-              </span>
-              <span className="ui-mdp__toggle-label">Sign in…</span>
-            </button>
-          </div>}
         </div>
 
         {/* The tray: what the model you point at costs you */}
@@ -786,22 +789,24 @@ const css = /* css */ `
 .ui-mdp__card { display: flex; flex-direction: column; min-height: 0; padding: 0; }
 .ui-mdp__card > *, .ui-mdp__foot { flex: none; }
 .ui-mdp__card > .ui-mdp__list { flex: 0 1 auto; min-height: 96px; }
-.ui-mdp__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 24px; padding: 0 10px; font-size: 11px; line-height: 16px; color: var(--ui-mdp-muted); }
+/* Rows, labels and hover as the account menu draws them (app-shell's .ui-as-menu__item and __title): 32px rows, 44px with a second
+   line, the body size in the text color, the hover color behind the row under the pointer and nothing done to the others */
+.ui-mdp__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px 4px; font-size: var(--fs-caption); font-weight: 550; line-height: 16px; color: var(--faint, var(--ui-mdp-muted)); font-variation-settings: 'opsz' 18; }
 .ui-mdp__cols { display: grid; grid-template-columns: repeat(3, 34px); gap: 8px; }
 .ui-mdp__cols > span { display: flex; justify-content: center; white-space: nowrap; }
 
 /* ----- Rows ----- */
 .ui-mdp__list { display: grid; gap: 1px; max-height: min(360px, 46dvh); overflow-y: auto; overscroll-behavior: contain; border-radius: calc(10px * var(--squircle-factor, 1)); }
-.ui-mdp__option { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 10px; border-radius: calc(10px * var(--squircle-factor, 1)); cursor: pointer; transition: background-color 160ms ease, opacity 220ms ease; }
-.ui-mdp__list[data-pointing] .ui-mdp__option[data-active] { background: var(--ui-mdp-well); }
+.ui-mdp__option { display: flex; align-items: center; gap: 9px; min-height: 32px; padding: 0 10px; border-radius: calc(8px * var(--squircle-factor, 1)); font-size: var(--fs-body); color: var(--text, var(--ui-mdp-text)); cursor: pointer; transition: background-color var(--motion-fast, 120ms) var(--ease-fast, ease), color var(--motion-fast, 120ms) var(--ease-fast, ease); }
+.ui-mdp__option:has(.ui-mdp__desc) { min-height: 44px; padding-block: 6px; }
+.ui-mdp__list[data-pointing] .ui-mdp__option[data-active], .ui-mdp__list:focus-visible .ui-mdp__option[data-active] { background: var(--hover, var(--ui-mdp-well)); color: var(--ink, var(--ui-mdp-ink)); }
 .ui-mdp__list:focus-visible { outline: none; }
-.ui-mdp__list:focus-visible .ui-mdp__option[data-active] { background: var(--ui-mdp-well); box-shadow: inset 0 0 0 1.5px var(--ui-mdp-focus); }
-.ui-mdp__list[data-pointing] .ui-mdp__option:not([data-active]) { opacity: 0.5; }
-.ui-mdp__text { display: grid; flex: 1; min-width: 0; }
-.ui-mdp__title { display: flex; align-items: center; gap: 4px; min-width: 0; font-weight: 500; color: var(--ui-mdp-ink); }
+.ui-mdp__text { display: grid; flex: 1; gap: 1px; min-width: 0; }
+.ui-mdp__title { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ui-mdp__option[aria-selected="true"] .ui-mdp__title { font-weight: 550; color: var(--ink, var(--ui-mdp-ink)); font-variation-settings: 'opsz' 18; }
 .ui-mdp__title-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ui-mdp__check { color: var(--ui-mdp-ink); animation: ui-mdp-pop 320ms var(--ui-mdp-ease) both; }
-.ui-mdp__desc { overflow: hidden; font-size: 12px; line-height: 17px; color: var(--ui-mdp-muted); white-space: nowrap; text-overflow: ellipsis; }
+.ui-mdp__desc { overflow: hidden; font-size: var(--fs-caption); font-weight: 400; line-height: 16px; color: var(--faint, var(--ui-mdp-muted)); white-space: nowrap; text-overflow: ellipsis; }
 
 /* Search, groups and models that can't run now */
 .ui-mdp__search { display: flex; align-items: center; gap: 8px; height: 34px; margin-bottom: 4px; padding: 0 10px; border-radius: calc(10px * var(--squircle-factor, 1)); background: var(--ui-mdp-well); color: var(--ui-mdp-muted); }
@@ -810,9 +815,10 @@ const css = /* css */ `
 .ui-mdp__search input::-webkit-search-cancel-button { display: none; }
 .ui-mdp__search:focus-within { box-shadow: inset 0 0 0 1.5px var(--ui-mdp-focus); }
 .ui-mdp__row { display: contents; }
-.ui-mdp__group { padding: 8px 10px 2px; font-size: 11px; line-height: 16px; color: var(--ui-mdp-muted); }
+.ui-mdp__group { padding: 6px 10px 4px; font-size: var(--fs-caption); font-weight: 550; line-height: 16px; color: var(--faint, var(--ui-mdp-muted)); font-variation-settings: 'opsz' 18; }
 .ui-mdp__empty { padding: 14px 10px; font-size: 12.5px; color: var(--ui-mdp-muted); }
 .ui-mdp__option[data-unavailable] { cursor: default; }
+.ui-mdp__option[data-sign-in] { cursor: pointer; }
 .ui-mdp__option[data-unavailable] .ui-mdp__title { color: var(--ui-mdp-muted); }
 
 /* Strength bars: five small segments each. The lit row fills them one after another */
@@ -824,9 +830,9 @@ const css = /* css */ `
 .ui-mdp__varies { flex: none; width: 118px; font-size: 11.5px; color: var(--ui-mdp-muted); text-align: center; }
 
 /* ----- Switches and effort ----- */
-.ui-mdp__settings { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--ui-mdp-line); }
-.ui-mdp__toggle { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px; border-radius: calc(10px * var(--squircle-factor, 1)); color: var(--ui-mdp-text); transition: background-color 160ms ease; }
-.ui-mdp__toggle:hover { background: var(--ui-mdp-well); }
+.ui-mdp__settings { margin: 4px 6px 0; padding-top: 4px; border-top: 1px solid var(--line, var(--ui-mdp-line)); }
+.ui-mdp__toggle { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 32px; padding: 0 10px; border-radius: calc(8px * var(--squircle-factor, 1)); font-size: var(--fs-body); color: var(--text, var(--ui-mdp-text)); transition: background-color var(--motion-fast, 120ms) var(--ease-fast, ease), color var(--motion-fast, 120ms) var(--ease-fast, ease); }
+.ui-mdp__toggle:hover, .ui-mdp__toggle:focus-visible { background: var(--hover, var(--ui-mdp-well)); color: var(--ink, var(--ui-mdp-ink)); }
 .ui-mdp__toggle-icon { display: grid; flex: none; place-items: center; width: 22px; color: var(--ui-mdp-muted); transition: color 200ms ease; }
 .ui-mdp__toggle[aria-checked="true"] .ui-mdp__toggle-icon { color: var(--ui-mdp-ink); }
 .ui-mdp__toggle-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -842,6 +848,9 @@ const css = /* css */ `
 .ui-mdp__effort-label { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ui-mdp-muted); }
 /* A coding agent's levels: a plain row under the list, the label above when the levels need the width */
 .ui-mdp__fold[data-plain] .ui-mdp__effort { flex-wrap: wrap; row-gap: 6px; padding: 6px 10px; }
+/* A coding agent's levels (Codex has six) fit the menu's width on a line of their own, unshortened */
+.ui-mdp__fold[data-plain] .ui-mdp__effort-label { flex-basis: 100%; font-size: var(--fs-caption); font-weight: 550; color: var(--faint, var(--ui-mdp-muted)); }
+.ui-mdp__fold[data-plain] .ui-seg { --seg-px: 7px; max-width: 100%; }
 
 /* ----- Tray ----- */
 .ui-mdp__foot { display: flex; align-items: center; gap: 8px; height: 38px; padding: 4px 8px 0 12px; }
@@ -866,8 +875,7 @@ const css = /* css */ `
 
 @media (pointer: coarse) {
   .ui-mdp__trigger { height: 36px; }
-  .ui-mdp__option { min-height: 54px; }
-  .ui-mdp__toggle { height: 42px; }
+  .ui-mdp__option, .ui-mdp__toggle { min-height: 44px; }
     }
 
 @media (prefers-reduced-motion: reduce) {
