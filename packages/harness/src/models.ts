@@ -202,9 +202,10 @@ export function openCodeModels(signal: AbortSignal, options: { executable?: stri
   }, options);
 }
 
-/** The model OpenCode picks when none is set: its server's default for its first provider (`GET /config/providers`). It has no
- *  command that prints it, and its pick is neither the newest nor the first it lists. */
-export function openCodeDefaultModel(signal: AbortSignal, options: { executable?: string; environment?: NodeJS.ProcessEnv } = {}): Promise<string | undefined> {
+/** Sensei's OpenCode serving on a free loopback port while `use` runs with its base URL; undefined when OpenCode exits before it
+ *  serves. It reads the user's logins (XDG_DATA_HOME), so a login it saves is the one Sensei's OpenCode uses. */
+export function openCodeServer<T>(signal: AbortSignal, use: (base: string) => Promise<T>,
+  options: { executable?: string; environment?: NodeJS.ProcessEnv } = {}): Promise<T | undefined> {
   return withSenseiOpenCode(async (executable, env, cwd) => {
     const port = await new Promise<number>((resolvePort, reject) => {
       const server = createServer().once("error", reject).listen(0, "127.0.0.1", () => {
@@ -217,20 +218,26 @@ export function openCodeDefaultModel(signal: AbortSignal, options: { executable?
     let exited = false;
     child.once("exit", () => { exited = true; });
     child.once("error", () => { exited = true; });
+    const base = `http://127.0.0.1:${port}`;
     try {
       while (!exited) {
         signal.throwIfAborted();
-        const answer = await fetch(`http://127.0.0.1:${port}/config/providers`, { signal }).catch(() => undefined);
-        if (answer?.ok) {
-          const config = await answer.json() as { providers?: { id?: unknown }[]; default?: Record<string, unknown> };
-          const provider = config.providers?.[0]?.id;
-          const model = typeof provider === "string" ? config.default?.[provider] : undefined;
-          return typeof model === "string" ? `${provider}/${model}` : undefined;
-        }
+        if ((await fetch(`${base}/config/providers`, { signal }).catch(() => undefined))?.ok) return await use(base);
         await new Promise(resolveWait => setTimeout(resolveWait, 200));
       }
       return undefined;
     } finally { child.kill(); }
+  }, options);
+}
+
+/** The model OpenCode picks when none is set: its server's default for its first provider (`GET /config/providers`). It has no
+ *  command that prints it, and its pick is neither the newest nor the first it lists. */
+export function openCodeDefaultModel(signal: AbortSignal, options: { executable?: string; environment?: NodeJS.ProcessEnv } = {}): Promise<string | undefined> {
+  return openCodeServer(signal, async base => {
+    const config = await (await fetch(`${base}/config/providers`, { signal })).json() as { providers?: { id?: unknown }[]; default?: Record<string, unknown> };
+    const provider = config.providers?.[0]?.id;
+    const model = typeof provider === "string" ? config.default?.[provider] : undefined;
+    return typeof model === "string" ? `${provider}/${model}` : undefined;
   }, options);
 }
 
@@ -269,22 +276,30 @@ export function parseFxModels(output: string): HarnessModelChoice[] {
   return [...new Set(ids as string[])].map(id => ({ id, name: id, efforts: [] }));
 }
 
-/** Native discovery only. This does not create a conversation or run inference. */
-export async function codexModels(signal: AbortSignal, executable = resolveAgentExecutable("codex") ?? "codex", args = ["app-server", "--listen", "stdio://"]): Promise<HarnessModelChoice[]> {
+/** Codex's app-server over stdio, initialised: its requests, its notifications, and `close`. `what` names the job in its errors. */
+export async function codexAppServer(signal: AbortSignal, what: string, executable = resolveAgentExecutable("codex") ?? "codex",
+  args = ["app-server", "--listen", "stdio://"]) {
   const child = spawn(executable, args, { stdio: ["pipe", "pipe", "ignore"] });
   const rpc = new JSONRPCClient(request => new Promise<void>((resolve, reject) => {
     child.stdin.write(`${JSON.stringify(request)}\n`, error => error ? reject(error) : resolve());
   }));
   const lines = createInterface({ input: child.stdout });
+  const listeners = new Set<(method: string, params: unknown) => void>();
   let failure: Error | undefined;
-  const fail = (error: Error) => { failure = error; rpc.rejectAllPendingRequests(error.message); };
-  const abort = () => { fail(new Error("Model discovery cancelled")); child.kill(); };
+  let end: (error: Error) => void = () => {};
+  const ended = new Promise<Error>(resolve => { end = resolve; });
+  const fail = (error: Error) => { failure ??= error; rpc.rejectAllPendingRequests(error.message); end(failure); };
+  const abort = () => { fail(new Error(`${what} cancelled`)); child.kill(); };
   child.on("error", fail);
   child.stdin.on("error", fail);
-  child.on("exit", () => fail(new Error("Codex exited before model discovery completed")));
+  child.on("exit", () => fail(new Error(`Codex exited before ${what.charAt(0).toLowerCase()}${what.slice(1)} completed`)));
   lines.on("line", line => {
-    try { rpc.receive(JSON.parse(line)); }
-    catch { fail(new Error("Codex returned an invalid app-server message")); }
+    let message: { method?: unknown; id?: unknown; params?: unknown };
+    try { message = JSON.parse(line); }
+    catch { fail(new Error("Codex returned an invalid app-server message")); return; }
+    // A notification has a method and no id; everything else answers one of our requests
+    if (typeof message.method === "string" && message.id === undefined) for (const listener of listeners) listener(message.method, message.params);
+    else rpc.receive(message as never);
   });
   signal.addEventListener("abort", abort, { once: true });
   const request = async (method: string, params: unknown) => {
@@ -292,14 +307,39 @@ export async function codexModels(signal: AbortSignal, executable = resolveAgent
     if (failure) throw failure;
     return rpc.timeout(10_000).request(method, params);
   };
+  const close = () => {
+    signal.removeEventListener("abort", abort);
+    lines.close();
+    rpc.rejectAllPendingRequests(`${what} finished`);
+    child.stdin.end();
+    child.kill();
+  };
   try {
     await request("initialize", { clientInfo: { name: "dojofoo", version: "1.0.0" } });
     rpc.notify("initialized", undefined);
+  } catch (error) {
+    close();
+    throw error;
+  }
+  return {
+    request,
+    /** Calls `listener` with each notification until `close`; returns its removal */
+    onNotification(listener: (method: string, params: unknown) => void) { listeners.add(listener); return () => listeners.delete(listener); },
+    /** Resolves with the error that ends the app-server: its exit, a broken message or the signal */
+    ended,
+    close,
+  };
+}
+
+/** Native discovery only. This does not create a conversation or run inference. */
+export async function codexModels(signal: AbortSignal, executable = resolveAgentExecutable("codex") ?? "codex", args = ["app-server", "--listen", "stdio://"]): Promise<HarnessModelChoice[]> {
+  const server = await codexAppServer(signal, "Model discovery", executable, args);
+  try {
     const choices: HarnessModelChoice[] = [];
     const cursors = new Set<string>();
     let cursor: string | undefined;
     do {
-      const page = await request("model/list", { ...(cursor ? { cursor } : {}), limit: 100 });
+      const page = await server.request("model/list", { ...(cursor ? { cursor } : {}), limit: 100 });
       if (!Array.isArray(page?.data)) throw new Error("Codex returned an invalid model catalog");
       for (const model of page.data) {
         if (typeof model.model !== "string" || typeof model.displayName !== "string") throw new Error("Codex returned an invalid model entry");
@@ -313,11 +353,7 @@ export async function codexModels(signal: AbortSignal, executable = resolveAgent
     } while (cursor);
     return choices;
   } finally {
-    signal.removeEventListener("abort", abort);
-    lines.close();
-    rpc.rejectAllPendingRequests("Model discovery finished");
-    child.stdin.end();
-    child.kill();
+    server.close();
   }
 }
 
@@ -344,7 +380,7 @@ export async function piModels(signal: AbortSignal, agentDir = process.env.PI_CO
     // Use the same capability resolver as Pi's own AgentSession. Custom
     // providers can advertise different levels; a reasoning boolean is not enough.
     efforts: getSupportedThinkingLevels(model),
-    ...(unavailable ? { unavailable } : lapsed.has(model.provider) ? { unavailable: `Sign in to ${providerName(model.provider)} again: run pi, then /login` } : {}),
+    ...(unavailable ? { unavailable } : lapsed.has(model.provider) ? { unavailable: `Sign in to ${providerName(model.provider)} again` } : {}),
   });
   return [...available.map(model => choice(model)), ...providers.flatMap(provider => runtime.getModels(provider)
     .filter(model => !listed.has(`${model.provider}/${model.id}`)).map(model => choice(model, `Not in your ${providerName(provider)} plan`)))];

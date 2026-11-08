@@ -19,6 +19,8 @@ import { launchFetch } from "@/lib/launch-token";
 import { AiBrain01Icon, AiMagicIcon } from "@dojofoo/uix/icons";
 import type { ComposerAgent, ComposerModel } from "@dojofoo/uix/containers/assistant-home";
 import { useViewTransitionSettled } from "@dojofoo/uix/lib/view-transition";
+import { AgentSignIn } from "@dojofoo/uix/components/agent-sign-in";
+import { useAgentSignIn } from "./use-agent-sign-in";
 
 type Session = { id: string; agent: string; model?: string; effort?: string };
 /** An open conversation; a read-only one (an ended Kyoshi pick, D32) takes no input */
@@ -262,6 +264,9 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   const [effort, setEffort] = useState(session.effort);
   const [models, setModels] = useState<ComposerModel[]>([]);
   const [modelChanging, setModelChanging] = useState(false);
+  // A sign-in from the composer reads the models again
+  const [modelsRead, setModelsRead] = useState(0);
+  const signIn = useAgentSignIn(workspaceId, session.agent, () => setModelsRead(value => value + 1));
   const transcript = useMemo(() => eveChatMessages(agent.messages), [agent.messages]);
   // A host card stays where it first appeared, after the message that was last then
   const anchors = useRef(new Map<string, string | null>());
@@ -277,9 +282,11 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
     // Each model with its own description, its effort levels and the one it runs at by default, as the agent lists them
     void json<Page<{ id: string; name: string; description?: string; efforts: string[]; defaultEffort?: string; unavailable?: string }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
       .then(page => setModels(page.data.map(choice => ({ value: choice.id, name: choice.name, description: choice.description ?? "", efforts: choice.efforts,
-        ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}), ...(choice.unavailable ? { unavailable: choice.unavailable } : {}), icon: AiMagicIcon }))), () => {});
+        ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}), ...(choice.unavailable ? { unavailable: choice.unavailable } : {}), icon: AiMagicIcon }))),
+        // An agent that can't list its models (signed out, say) offers none; the composer then offers its sign-in where it has one
+        () => { if (!controller.signal.aborted) setModels([]); });
     return () => controller.abort();
-  }, [workspaceId, session.agent]);
+  }, [workspaceId, session.agent, modelsRead]);
   /** A model or effort change, saved on the session; it applies from the next turn (D26) */
   async function changeSession(change: { model?: string; effort?: string | null }) {
     setModelChanging(true);
@@ -353,7 +360,7 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   const turnOpen = activeTurn(agent.view) !== undefined;
   // A typed message answers the first open question (Eve docs tools/human-in-the-loop.md), which the hint says (decision 15)
   const hint = sensei && openInteractions(agent.view).length > 0 ? "Answer Sensei's question above, or type your answer" : placeholder;
-  return <AuthoringChat embedded={embedded} agent={selectedAgent} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} placeholder={hint} messages={messages}
+  return <><AuthoringChat embedded={embedded} agent={selectedAgent} agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging} placeholder={hint} messages={messages}
     readOnly={readOnly}
     fragments={fragments} onHighlight={onHighlight}
     status={agent.status === "busy" ? "streaming" : "ready"} busy={agent.status === "resuming"}
@@ -364,5 +371,8 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
     value={value} onValueChange={onValueChange} attachments files={files} onFilesChange={onFilesChange}
     onSend={send} onStop={() => { setFailure(undefined); void agent.cancel().catch(cause => setFailure({ error: cause, operation: "cancel" })); }} onAnswer={answer}
     error={failureView(shown, session.agent)} notice={readOnlyNotice ? <>{notice}{readOnlyNotice}</> : notice}
-    onRetryLoad={shown?.kind === "alert" ? () => { setFailure(undefined); onReload(); } : undefined} />;
+    onRetryLoad={shown?.kind === "alert" ? () => { setFailure(undefined); onReload(); } : undefined}
+    {...(signIn.available ? { onSignIn: signIn.show, signInNeeded: signIn.needed } : {})} />
+    <AgentSignIn agent={{ name: selectedAgent.name }} {...signIn.dialog} />
+  </>;
 }

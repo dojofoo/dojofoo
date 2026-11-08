@@ -59,9 +59,10 @@ export async function agentAdapter(agent: AgentId, options: { mode?: HarnessMode
   return adapter;
 }
 
-// The rest of what makes a model call: HarnessAgent, the harness model, the local sandbox, one-shot calls and model discovery
+// The rest of what makes a model call: HarnessAgent, the harness model, the local sandbox, one-shot calls, model discovery and sign-in
 export * from "./harness.js";
 export * from "./harness-model.js";
 export * from "./local-runtime.js";
 export * from "./one-shot.js";
 export * from "./models.js";
+export * from "./access.js";

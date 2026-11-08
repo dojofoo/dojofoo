@@ -402,6 +402,14 @@ export function createLocalAgentRuntime(options: {
       finally { if (switching.get(path) === entry) switching.delete(path); }
     },
     persona: workspacePersona,
+    async access(workspaceId, agentId) {
+      root(workspaceId);
+      if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
+      // Resolved from @dojofoo/agents, as the persona runtimes reach the adapters: the built CLI depends on agents, not on the harness
+      const { agentAccess } = createRequire(createRequire(import.meta.url).resolve("@dojofoo/agents/package.json"))("@dojofoo/harness/adapters") as
+        typeof import("@dojofoo/harness/adapters");
+      return agentAccess(agentId);
+    },
     async models(workspaceId, agentId) {
       root(workspaceId);
       if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");

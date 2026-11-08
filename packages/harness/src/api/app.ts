@@ -1,7 +1,8 @@
 import { ClientError } from "@dojofoo/harness/client";
 import { Elysia } from "elysia";
 import { classifyEveRequest } from "./delivery";
-import { AgentApiError, type AgentRuntime, type SessionRecord } from "./runtime";
+import { startLogin, type LoginSession } from "./login";
+import { AgentApiError, type AgentRuntime, type LoginState, type SessionRecord } from "./runtime";
 import { routes } from "./schema";
 
 export interface AgentApiOptions {
@@ -20,6 +21,20 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
     const session = await runtime.sessions.get(workspaceId, sessionId);
     if (!session) throw new AgentApiError(404, "session_not_found", "Session not found.");
     return session;
+  };
+
+  // Sign-ins by id, with their workspace; a finished one stays readable for ten minutes
+  const logins = new Map<string, { workspaceId: string; session: LoginSession; endedAt?: number }>();
+  const login = (workspaceId: string, loginId: string) => {
+    const entry = logins.get(loginId);
+    if (!entry || entry.workspaceId !== workspaceId) throw new AgentApiError(404, "login_not_found", "Sign-in not found.");
+    return entry.session;
+  };
+  const providers = async (workspaceId: string, agentId: string) => {
+    const access = await runtime.access?.(workspaceId, agentId);
+    if (!access) return { access, providers: [] };
+    try { return { access, providers: await access.providers(AbortSignal.timeout(20_000)) }; }
+    catch (error) { throw new AgentApiError(502, "providers_unavailable", error instanceof Error ? error.message : String(error)); }
   };
 
   return new Elysia({ name: "@dojofoo/harness/api", prefix: "/api/v1" })
@@ -62,6 +77,45 @@ export function createAgentApi(runtime: AgentRuntime, options: AgentApiOptions =
     }, routes.selectAgent)
     .get("/workspaces/:workspaceId/agents/:agentId/models", async ({ params, query }) =>
       paginate(await runtime.models(params.workspaceId, params.agentId), query), routes.listModels)
+
+    // Signing a coding agent in, through Pi's login interaction (the harness's agentAccess)
+    .get("/workspaces/:workspaceId/agents/:agentId/providers", async ({ params, query }) =>
+      paginate((await providers(params.workspaceId, params.agentId)).providers, query), routes.listProviders)
+    .post("/workspaces/:workspaceId/agents/:agentId/logins", async ({ params, body, request, set }) => {
+      options.authorize?.(request);
+      const found = await providers(params.workspaceId, params.agentId);
+      if (!found.access) throw new AgentApiError(409, "login_unavailable", "Dojo can't sign in to this coding agent yet: use its own CLI.");
+      const provider = found.providers.find(item => item.id === body.provider);
+      if (!provider) throw new AgentApiError(404, "provider_not_found", "This coding agent has no such provider.");
+      if (body.type === "oauth" ? !provider.auth.oauth : !provider.auth.apiKey?.login) {
+        throw new AgentApiError(400, "login_unavailable", `${provider.name} has no ${body.type === "oauth" ? "browser sign-in" : "API key sign-in"} here.`);
+      }
+      for (const [id, entry] of logins) if (entry.endedAt !== undefined && Date.now() - entry.endedAt > 10 * 60_000) logins.delete(id);
+      const session = startLogin(found.access, { agent: params.agentId as LoginState["agent"], provider: provider.id, type: body.type });
+      const entry: { workspaceId: string; session: LoginSession; endedAt?: number } = { workspaceId: params.workspaceId, session };
+      logins.set(session.state().id, entry);
+      void session.done.then(() => { entry.endedAt = Date.now(); });
+      set.status = 201;
+      return session.state();
+    }, routes.startLogin)
+    .get("/workspaces/:workspaceId/logins/:loginId", ({ params, request }) => {
+      options.authorize?.(request);
+      return login(params.workspaceId, params.loginId).state();
+    }, routes.getLogin)
+    .post("/workspaces/:workspaceId/logins/:loginId/answer", ({ params, body, request }) => {
+      options.authorize?.(request);
+      const session = login(params.workspaceId, params.loginId);
+      if (!session.answer(body.prompt, body.value)) throw new AgentApiError(409, "prompt_not_waiting", "The sign-in isn't waiting on that question.");
+      return session.state();
+    }, routes.answerLogin)
+    .delete("/workspaces/:workspaceId/logins/:loginId", async ({ params, request }) => {
+      options.authorize?.(request);
+      const session = login(params.workspaceId, params.loginId);
+      session.cancel();
+      // A login that ignores its signal still answers: as cancelled once it ends
+      await Promise.race([session.done, new Promise(resolve => setTimeout(resolve, 5_000).unref?.())]);
+      return session.state();
+    }, routes.cancelLogin)
 
     // Sessions
     .get("/workspaces/:workspaceId/sessions", async ({ params, query }) => {

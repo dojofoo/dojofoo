@@ -16,7 +16,7 @@ import type { CodeHighlight } from "@/lib/code-highlight";
 export type ChatFailureView = { message: string; actions: ChatAction[]; refusedAgent?: string; login?: string; agentName?: string; retryAfter?: string };
 
 /** An agent conversation's presentation */
-export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent, agents, onAgentChange, agentChanging, model, models, modelChanging, onModelChange, effort, onEffortChange, fragments, onHighlight, notice }: {
+export function AuthoringChat({ messages, status, busy, inputDisabled = false, readOnly = false, value, onValueChange, onSend, onStop, onAnswer, error, onRetryLoad, embedded = false, attachments = false, files, onFilesChange, placeholder = "Shape this lesson with Kyoshi…", agent, agents, onAgentChange, agentChanging, model, models, modelChanging, onModelChange, effort, onEffortChange, onSignIn, signInNeeded, fragments, onHighlight, notice }: {
   embedded?: boolean;
   /** A status line or notice above the composer */
   notice?: ReactNode;
@@ -32,6 +32,10 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
   /** The chosen model's effort, from its `efforts` */
   effort?: string;
   onEffortChange?(value: string | undefined): void;
+  /** Opens the coding agent's sign-in, where dojo can sign it in */
+  onSignIn?(): void;
+  /** Signed in to none of its providers */
+  signInNeeded?: boolean;
   placeholder?: string;
   messages: UIMessage[];
   status: string;
@@ -60,10 +64,10 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
       {typeof error === "string" ? <>
         <p role="alert" className="text-sm text-destructive">{error}</p>
         {!active && onRetryLoad ? <Button onClick={onRetryLoad}>Reload conversation</Button> : null}
-      </> : error ? <FailureActions failure={error} active={active} agents={agents} onAgentChange={onAgentChange} onRetryLoad={onRetryLoad} /> : null}
+      </> : error ? <FailureActions failure={error} active={active} agents={agents} onAgentChange={onAgentChange} onRetryLoad={onRetryLoad} onSignIn={onSignIn} /> : null}
     </div>;
   const composer = <>{notice}<div data-testid="authoring-chat-composer">
-      <Composer tray={false} attachments={attachments || "unavailable"} files={files} onFilesChange={onFilesChange} dictation={false} plugins={false} models={models ?? []} model={model} modelChanging={modelChanging} onModelChange={onModelChange} effort={effort} onEffortChange={onEffortChange} agent={agent ?? { name: "Coding agent", icon: AiBrain01Icon }}
+      <Composer tray={false} attachments={attachments || "unavailable"} files={files} onFilesChange={onFilesChange} dictation={false} plugins={false} models={models ?? []} model={model} modelChanging={modelChanging} onModelChange={onModelChange} effort={effort} onEffortChange={onEffortChange} onSignIn={onSignIn} signInNeeded={signInNeeded} agent={agent ?? { name: "Coding agent", icon: AiBrain01Icon }}
         agents={agents} onAgentChange={onAgentChange} agentChanging={agentChanging}
         // A message sent while the agent works joins its turn, so the composer stays open
         disabled={inputDisabled || readOnly} busy={active} onStop={onStop} queueing
@@ -76,14 +80,15 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
 }
 
 /** The failure's message, then its actions: try again, another agent, the agent's login, a page reload or the dashboard */
-function FailureActions({ failure, active, agents, onAgentChange, onRetryLoad }: {
-  failure: ChatFailureView; active: boolean; agents?: ComposerAgent[]; onAgentChange?(id: string): void; onRetryLoad?: () => void;
+function FailureActions({ failure, active, agents, onAgentChange, onRetryLoad, onSignIn }: {
+  failure: ChatFailureView; active: boolean; agents?: ComposerAgent[]; onAgentChange?(id: string): void; onRetryLoad?: () => void; onSignIn?(): void;
 }) {
   const others = (agents ?? []).filter(choice => choice.value !== failure.refusedAgent);
   return <>
     <p role="alert" className="text-sm text-destructive">{failure.message}{failure.retryAfter ? ` Try again in ${failure.retryAfter}.` : ""}</p>
-    {failure.actions.includes("login") && failure.login ? <p className="text-sm">Log in to {failure.agentName ?? "your coding agent"}: run <code>{failure.login}</code> in a terminal.</p> : null}
+    {failure.actions.includes("login") && failure.login && !onSignIn ? <p className="text-sm">Log in to {failure.agentName ?? "your coding agent"}: run <code>{failure.login}</code> in a terminal.</p> : null}
     <div className="flex flex-wrap gap-2">
+      {failure.actions.includes("login") && onSignIn ? <Button onClick={onSignIn}>Sign in to {failure.agentName ?? "your coding agent"}</Button> : null}
       {failure.actions.includes("choose-agent") && onAgentChange ? others.map(choice => choice.value
         ? <Button key={choice.value} variant="secondary" onClick={() => onAgentChange(choice.value!)}>Choose {choice.name}</Button> : null) : null}
       {failure.actions.includes("try-again") && !active && onRetryLoad ? <Button onClick={onRetryLoad}>Reload conversation</Button> : null}

@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Agent, AgentEndpoint, AgentRuntime, EveDelivery, Persona, SessionRecord } from "./runtime";
+import type { Agent, AgentAccess, AgentEndpoint, AgentRuntime, EveDelivery, Persona, SessionRecord } from "./runtime";
 import { AgentApiError, firstMessageOf } from "./runtime";
 import { agentRow, dojoTags, isAgentId, offeredAgents, type AgentId } from "@dojofoo/protocol";
 
@@ -42,7 +42,7 @@ export const testLaunchToken = "test-launch-token";
 
 /** A runtime with one draft workspace (Kyoshi unless `options.persona` says otherwise) whose selected coding agent is
  * `options.agent` (Codex), served by `endpoint`. `select` switches it and records each selection. */
-export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", options: { persona?: Persona; agent?: AgentId } = {}): AgentRuntime & {
+export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", options: { persona?: Persona; agent?: AgentId; access?: (agentId: AgentId) => AgentAccess | undefined } = {}): AgentRuntime & {
   records: SessionRecord[]; started: string[]; selections: string[];
   /** Each delivery the proxy reported, before and after Eve answered it */
   delivered: Array<{ phase: "before" | "after"; sessionId: string; delivery: EveDelivery; status?: number; deliveryId?: string; handle?: unknown }>;
@@ -93,6 +93,11 @@ export function testRuntime(endpoint: AgentEndpoint, workspaceId = "ws-1", optio
       return describe(agentId);
     },
     persona: async id => { known(id); return options.persona ?? "kyoshi"; },
+    access: async (id, agentId) => {
+      known(id);
+      if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
+      return options.access?.(agentId);
+    },
     models: async (id, agentId) => {
       known(id);
       if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");

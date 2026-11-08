@@ -1,3 +1,4 @@
+import type { AgentAccess } from "@dojofoo/harness/adapters";
 import { isTaggedTurn, type ModelChoice, type Persona } from "@dojofoo/protocol";
 
 /** Who the conversation is with: the same chat, with that persona's prompts and tools. */
@@ -18,6 +19,9 @@ export interface Agent {
 }
 
 export type { ModelChoice } from "@dojofoo/protocol";
+/** A coding agent's sign-in, in Pi's terms; see `@dojofoo/harness/adapters` */
+export type { AgentAccess };
+export type { AccessProvider, AuthEvent, AuthPrompt, AuthStatus, AuthType, LoginState } from "@dojofoo/protocol";
 
 export type LifecycleStatus = "idle" | "working" | "paused" | "interrupted";
 export interface SessionLifecycle {
@@ -132,6 +136,8 @@ export interface AgentRuntime {
   persona(workspaceId: string): Promise<Persona>;
   /** The coding agent's models (D7). 404 agent_not_found; 502 models_unavailable. */
   models(workspaceId: string, agentId: string): Promise<ModelChoice[]>;
+  /** The coding agent's sign-in (Pi's providers and login), or undefined while dojo can't sign in to it. 404 agent_not_found. */
+  access?(workspaceId: string, agentId: string): Promise<AgentAccess | undefined>;
   sessions: {
     list(workspaceId: string): Promise<SessionRecord[]>;
     get(workspaceId: string, sessionId: string): Promise<SessionRecord | undefined>;
