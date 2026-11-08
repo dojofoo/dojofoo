@@ -183,9 +183,9 @@ try {
   await expect.poll(async () => (await records())[0]?.lifecycle?.status, { timeout: 60_000 }).toBe("idle");
 
   // 6. Model switch: from the next turn, kept as the workspace's last model for OpenCode
-  await page.getByTestId("authoring-chat-composer").getByRole("button", { name: "Model", exact: true }).click();
+  await page.getByTestId("authoring-chat-composer").getByRole("button", { name: /^Model:/ }).click();
   const patched = page.waitForResponse(response => response.request().method() === "PATCH" && new URL(response.url()).pathname.endsWith(`/sessions/${initial.id}`));
-  await page.getByRole("menuitemradio", { name: "openai/gpt-4o-mini", exact: true }).click();
+  await page.getByRole("option", { name: "openai/gpt-4o-mini", exact: true }).click();
   assert.equal((await patched).status(), 200);
   await expect.poll(async () => (await records())[0]?.revision).toBe(1);
   assert.equal((await records())[0].model, "openai/gpt-4o-mini");

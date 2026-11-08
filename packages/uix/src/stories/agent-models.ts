@@ -1,0 +1,85 @@
+// Model catalogs as each coding agent listed them on a real machine (Pi, OpenCode, FX), for the composer's model menu stories
+import type { ComposerModel } from "../containers/assistant-home";
+
+type Catalog = (Omit<ComposerModel, "icon" | "value"> & { value: string })[];
+
+/** Pi: the models of every provider it's signed in to. Two logins have expired, which Pi can't renew while Sensei runs it read-only,
+ *  and GitHub Copilot's plan leaves some of its models out */
+export const piModels: Catalog = [
+  {"value": "deepseek/deepseek-flash", "name": "DeepSeek V4.1 Flash", "description": "DeepSeek", "efforts": ["off", "low", "high", "max"]},
+  {"value": "deepseek/deepseek-v4-pro", "name": "DeepSeek V4 Pro", "description": "DeepSeek", "efforts": ["off", "high", "max"]},
+  {"value": "github-copilot/claude-haiku-4.5", "name": "Claude Haiku 4.5 (latest)", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high"], "unavailable": "Sign in to GitHub Copilot again: run pi, then /login"},
+  {"value": "github-copilot/claude-sonnet-5", "name": "Claude Sonnet 5", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to GitHub Copilot again: run pi, then /login"},
+  {"value": "github-copilot/gemini-3.8-flash", "name": "Gemini 3.8 Flash", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high"], "unavailable": "Sign in to GitHub Copilot again: run pi, then /login"},
+  {"value": "github-copilot/gpt-5.3-codex", "name": "GPT-5.3 Codex", "description": "GitHub Copilot", "efforts": ["minimal", "low", "medium", "high", "xhigh"], "unavailable": "Sign in to GitHub Copilot again: run pi, then /login"},
+  {"value": "github-copilot/gpt-5.6-luna", "name": "GPT-5.6 Luna", "description": "GitHub Copilot", "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to GitHub Copilot again: run pi, then /login"},
+  {"value": "github-copilot/gpt-5.6-terra", "name": "GPT-5.6 Terra", "description": "GitHub Copilot", "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to GitHub Copilot again: run pi, then /login"},
+  {"value": "github-copilot/grok-4.6", "name": "Grok 4.6", "description": "GitHub Copilot", "efforts": ["low", "medium", "high", "xhigh"], "unavailable": "Sign in to GitHub Copilot again: run pi, then /login"},
+  {"value": "github-copilot/mai-code-1.1-flash", "name": "MAI-Code-1.1-Flash", "description": "GitHub Copilot", "efforts": ["low", "medium", "high"], "unavailable": "Sign in to GitHub Copilot again: run pi, then /login"},
+  {"value": "openai-codex/gpt-5.6-luna", "name": "GPT-5.6 Luna", "description": "OpenAI Codex (legacy)", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to OpenAI Codex (legacy) again: run pi, then /login"},
+  {"value": "openai-codex/gpt-5.6-sol", "name": "GPT-5.6 Sol", "description": "OpenAI Codex (legacy)", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to OpenAI Codex (legacy) again: run pi, then /login"},
+  {"value": "openai-codex/gpt-5.6-terra", "name": "GPT-5.6 Terra", "description": "OpenAI Codex (legacy)", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to OpenAI Codex (legacy) again: run pi, then /login"},
+  {"value": "openai-codex/gpt-6-astra", "name": "GPT-6 Astra", "description": "OpenAI Codex (legacy)", "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to OpenAI Codex (legacy) again: run pi, then /login"},
+  {"value": "openai-codex/gpt-6-luna", "name": "GPT-6 Luna", "description": "OpenAI Codex (legacy)", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to OpenAI Codex (legacy) again: run pi, then /login"},
+  {"value": "openai-codex/gpt-6-sol", "name": "GPT-6 Sol", "description": "OpenAI Codex (legacy)", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to OpenAI Codex (legacy) again: run pi, then /login"},
+  {"value": "openai-codex/gpt-6.1-sol", "name": "GPT-6.1 Sol", "description": "OpenAI Codex (legacy)", "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Sign in to OpenAI Codex (legacy) again: run pi, then /login"},
+  {"value": "zai/glm-4.7", "name": "GLM-4.7", "description": "Z.AI", "efforts": ["off", "minimal", "low", "medium", "high"]},
+  {"value": "zai/glm-5-turbo", "name": "GLM-5-Turbo", "description": "Z.AI", "efforts": ["off", "minimal", "low", "medium", "high"]},
+  {"value": "zai/glm-5.2", "name": "GLM-5.2", "description": "Z.AI", "efforts": ["off", "high", "max"]},
+  {"value": "zai/glm-5.2-highspeed", "name": "GLM-5.2 Highspeed", "description": "Z.AI", "efforts": ["off", "high", "max"]},
+  {"value": "zai/glm-5.3", "name": "GLM-5.3", "description": "Z.AI", "efforts": ["low", "high", "max"]},
+  {"value": "zai/glm-5.3-flash", "name": "GLM-5.3-Flash", "description": "Z.AI", "efforts": ["low", "high", "max"]},
+  {"value": "zai/glm-5.3-highspeed", "name": "GLM-5.3 Highspeed", "description": "Z.AI", "efforts": ["low", "high", "max"]},
+  {"value": "ollama/qwen3:32b", "name": "Qwen3 32B", "description": "ollama", "efforts": ["off", "minimal", "low", "medium", "high"]},
+  {"value": "ollama/qwen3.5:27b", "name": "Qwen3.5 27B", "description": "ollama", "efforts": ["off", "minimal", "low", "medium", "high"]},
+  {"value": "ollama/nemotron-cascade-2", "name": "Nemotron Cascade 2", "description": "ollama", "efforts": ["off", "minimal", "low", "medium", "high"]},
+  {"value": "ollama/gemma4", "name": "Gemma 4 27B", "description": "ollama", "efforts": ["off"]},
+  {"value": "ollama/qwen3.5:0.8b", "name": "Qwen3.5 0.8B", "description": "ollama", "efforts": ["off", "minimal", "low", "medium", "high"]},
+  {"value": "ollama/granite4:1b-h", "name": "Granite 4.0 1B Hybrid", "description": "ollama", "efforts": ["off"]},
+  {"value": "github-copilot/claude-fable-5", "name": "Claude Fable 5", "description": "GitHub Copilot", "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/claude-fable-5.1", "name": "Claude Fable 5.1", "description": "GitHub Copilot", "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/claude-haiku-5.5", "name": "Claude Haiku 5.5", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/claude-opus-4.8", "name": "Claude Opus 4.8", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/claude-opus-5", "name": "Claude Opus 5", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/claude-opus-5.5", "name": "Claude Opus 5.5", "description": "GitHub Copilot", "efforts": ["low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/claude-sonnet-4.6", "name": "Claude Sonnet 4.6", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/claude-sonnet-5.5", "name": "Claude Sonnet 5.5", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/gemini-4-argon", "name": "Gemini 4 Argon", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/kimi-k3", "name": "Kimi K3", "description": "GitHub Copilot", "efforts": ["off", "minimal", "low", "medium", "high"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/gpt-5.4-nano", "name": "GPT-5.4 nano", "description": "GitHub Copilot", "efforts": ["minimal", "low", "medium", "high", "xhigh"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/gpt-5.6-sol", "name": "GPT-5.6 Sol", "description": "GitHub Copilot", "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/gpt-6-astra", "name": "GPT-6 Astra", "description": "GitHub Copilot", "efforts": ["low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/gpt-6-luna", "name": "GPT-6 Luna", "description": "GitHub Copilot", "efforts": ["off", "low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/gpt-6-sol", "name": "GPT-6 Sol", "description": "GitHub Copilot", "efforts": ["off", "low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/gpt-6.1-sol", "name": "GPT-6.1 Sol", "description": "GitHub Copilot", "efforts": ["low", "medium", "high", "xhigh", "max"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/grok-4.5", "name": "Grok 4.5", "description": "GitHub Copilot", "efforts": ["low", "medium", "high"], "unavailable": "Not in your GitHub Copilot plan"},
+  {"value": "github-copilot/grok-4.7", "name": "Grok 4.7", "description": "GitHub Copilot", "efforts": ["low", "medium", "high", "xhigh"], "unavailable": "Not in your GitHub Copilot plan"},
+];
+
+/** OpenCode: `opencode models --verbose`, with each model's name and reasoning variants */
+export const openCodeModels: Catalog = [
+  {"value": "opencode/big-pickle", "name": "Big Pickle", "description": "opencode", "efforts": []},
+  {"value": "opencode/ling-3.0-flash-fin-free", "name": "Ling 3.0 Flash Fin Free", "description": "opencode", "efforts": ["low", "medium", "high"]},
+  {"value": "opencode/longcat-2.5-preview-free", "name": "LongCat 2.5 Preview Free", "description": "opencode", "efforts": ["low", "medium", "high"]},
+  {"value": "opencode/mimo-v2.6-flash-free", "name": "MiMo-V2.6-Flash Free", "description": "opencode", "efforts": []},
+  {"value": "opencode/muse-spark-1.3-contributor-free", "name": "Muse Spark 1.3 Free", "description": "opencode", "efforts": ["minimal", "low", "medium", "high", "xhigh"]},
+  {"value": "opencode/nemotron-3-ultra-free", "name": "Nemotron 3 Ultra Free", "description": "opencode", "efforts": []},
+  {"value": "opencode/nemotron-3.5-lightning-free", "name": "Nemotron 3.5 Lightning Free", "description": "opencode", "efforts": []},
+  {"value": "opencode/space-bunny-free", "name": "Space Bunny Free", "description": "opencode", "efforts": ["low", "medium", "high", "xhigh", "max"]},
+  {"value": "cerebras/gpt-oss-120b", "name": "GPT OSS 120B", "description": "cerebras", "efforts": ["low", "medium", "high"]},
+  {"value": "cerebras/qwen-3.8-27b", "name": "Qwen3.8 27B", "description": "cerebras", "efforts": ["none", "low", "medium", "high"]},
+  {"value": "deepseek/deepseek-flash", "name": "DeepSeek V4.1 Flash", "description": "deepseek", "efforts": ["low", "high", "max"]},
+  {"value": "deepseek/deepseek-v4-pro", "name": "DeepSeek V4 Pro", "description": "deepseek", "efforts": ["low", "high", "max"]},
+];
+
+/** FX: its active provider's `fx models --json` ids */
+export const fxModels: Catalog = [
+  {"value": "gpt-6.1-sol", "name": "gpt-6.1-sol", "description": "", "efforts": []},
+  {"value": "gpt-6-astra", "name": "gpt-6-astra", "description": "", "efforts": []},
+  {"value": "gpt-6.1-terra", "name": "gpt-6.1-terra", "description": "", "efforts": []},
+  {"value": "gpt-6-sol", "name": "gpt-6-sol", "description": "", "efforts": []},
+  {"value": "gpt-6-luna", "name": "gpt-6-luna", "description": "", "efforts": []},
+  {"value": "gpt-5.6-sol", "name": "gpt-5.6-sol", "description": "", "efforts": []},
+  {"value": "gpt-5.6-terra", "name": "gpt-5.6-terra", "description": "", "efforts": []},
+  {"value": "gpt-5.6-luna", "name": "gpt-5.6-luna", "description": "", "efforts": []},
+];

@@ -64,14 +64,15 @@ test("the UIX library separates installed sessions from course previews and pres
         await route.fulfill({ status: 503, json: { error: "Local server restarting" } });
       } else await route.continue();
     });
-    await page.route("**/api/local/agents", route => route.fulfill({ json: agentDefinitions.filter(agent => inventoryAvailable && ["claude", "pi", "codex"].includes(agent.id) && (agent.id !== "pi" || piInstalled))
+    await page.route("**/api/local/agents", route => route.fulfill({ json: agentDefinitions.filter(agent => inventoryAvailable && ["claude", "pi", "codex", "cursor"].includes(agent.id) && (agent.id !== "pi" || piInstalled))
       .map(agent => ({ ...agent, found: true, executable: `/mock/${agent.command}` })) }));
     await page.goto(origin);
     const loading = page.getByRole("status", { name: "Starting Dojo", exact: true });
     await expect(loading).toBeVisible();
     const logo = await loading.getByRole("img", { name: "Dojo.foo", exact: true }).boundingBox();
-    expect(Math.abs(logo!.x + logo!.width / 2 - 720)).toBeLessThan(2);
-    expect(Math.abs(logo!.y + logo!.height / 2 - 450)).toBeLessThan(2);
+    const screen = page.viewportSize()!;
+    expect(Math.abs(logo!.x + logo!.width / 2 - screen.width / 2)).toBeLessThan(2);
+    expect(Math.abs(logo!.y + logo!.height / 2 - screen.height / 2)).toBeLessThan(2);
     releaseSetup();
     await expect(page.getByRole("alert", { name: "Unable to start Dojo", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Try again", exact: true }).click();
@@ -82,6 +83,12 @@ test("the UIX library separates installed sessions from course previews and pres
     inventoryAvailable = true;
     const agentChoices = page.getByRole("group", { name: "Agents", exact: true });
     await expect(agentChoices.getByRole("checkbox", { name: /^Claude Code/ })).toBeVisible();
+    // Found, but Dojo doesn't teach through it yet: shown, and it can't be ticked
+    const cursor = agentChoices.getByRole("checkbox", { name: /^Cursor/ });
+    await expect(cursor).toHaveAttribute("aria-disabled", "true");
+    await expect(cursor).toHaveAccessibleDescription("Not supported yet");
+    await cursor.click({ force: true });
+    await expect(cursor).not.toBeChecked();
     await expect(agentChoices.getByRole("checkbox", { name: /^Pi/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Rescan", exact: true })).toHaveCount(0);
     piInstalled = true;

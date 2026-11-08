@@ -129,7 +129,8 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
   async function createKyoshi(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId): Promise<SessionRecord> {
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
     const now = new Date().toISOString();
-    const model = readAgentModel(path, agent);
+    const model = readAgentModel(path, agent) ?? await (createRequire(import.meta.url)("@dojofoo/agents/eve/models") as typeof import("@dojofoo/agents/eve/models"))
+      .configuredHarnessModel(agent).catch(() => undefined);
     const effort = readAgentEffort(path, agent);
     const record: SessionRecord = { id: session.id, agent, persona: "kyoshi", createdAt: now, ...(model ? { model } : {}), ...(effort ? { effort } : {}),
       revision: 0, lifecycle: { status: "idle", updatedAt: now } };

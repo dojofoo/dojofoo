@@ -51,6 +51,7 @@ const modelChoice = t.Object({
   description: t.Optional(t.String({ description: "The agent's one-line description of the model." })),
   efforts: t.Array(t.String()),
   defaultEffort: t.Optional(t.String()),
+  unavailable: t.Optional(t.String({ description: "Why the agent can't run the model now; absent when it can.", examples: ["Sign in to GitHub Copilot again: run pi, then /login"] })),
 });
 const details = (operationId: string, summary: string, description: string, tag: string) => ({ operationId, summary, description, tags: [tag] });
 const page = {
