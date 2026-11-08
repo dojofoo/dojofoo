@@ -6,7 +6,7 @@ import type * as Protocol from "@dojofoo/protocol";
 import type { AccessProvider, AgentId, AuthStatus } from "@dojofoo/protocol";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { codexAppServer } from "./models.js";
+import { codexAppServer, openCodeServer } from "./models.js";
 
 // Protocol's sign-in types are Pi's own in their JSON form (read-only lists as plain arrays, no signal): the build fails here when
 // a Pi update changes them
@@ -37,6 +37,7 @@ export interface AgentAccess {
 export function agentAccess(agent: AgentId, environment: NodeJS.ProcessEnv = process.env): AgentAccess | undefined {
   if (agent === "pi") return piAccess(environment.PI_CODING_AGENT_DIR ?? join(environment.HOME ?? homedir(), ".pi", "agent"));
   if (agent === "codex") return codexAccess();
+  if (agent === "opencode") return openCodeAccess();
   return undefined;
 }
 
@@ -122,6 +123,92 @@ export function codexAccess(executable = resolveAgentExecutable("codex") ?? "cod
       } finally {
         server.close();
       }
+    },
+  };
+}
+
+type OpenCodeCondition = { key: string; op: "eq" | "neq"; value: string };
+type OpenCodePrompt = { type: "text"; key: string; message: string; placeholder?: string; when?: OpenCodeCondition }
+  | { type: "select"; key: string; message: string; options: { label: string; value: string; hint?: string }[]; when?: OpenCodeCondition };
+type OpenCodeMethod = { type: "oauth" | "api"; label: string; prompts?: OpenCodePrompt[] };
+/** One of OpenCode's providers (`GET /provider`): `source` "env" when a variable named in `env` signs it in, "api" for a saved login */
+type OpenCodeProvider = { id: string; name: string; source?: string; env?: string[] };
+type OpenCodeCall = <R>(path: string, init?: RequestInit) => Promise<R>;
+
+/**
+ * OpenCode's own login through Sensei's OpenCode server (`GET /provider`, `/provider/auth`, `/provider/{id}/oauth/*`, `PUT /auth/{id}`),
+ * saved in the user's OpenCode data folder, which Sensei's OpenCode reads. Any provider takes an API key; the ones with sign-in methods
+ * of their own (ChatGPT, GitHub Copilot, …) sign in in the browser, after the method's questions.
+ */
+export function openCodeAccess(options: { executable?: string; environment?: NodeJS.ProcessEnv } = {}): AgentAccess {
+  const serve = async <T>(signal: AbortSignal, use: (call: OpenCodeCall) => Promise<T>) => {
+    // Boxed: undefined means OpenCode exited before it served, not that `use` returned nothing
+    const served = await openCodeServer(signal, async base => ({ value: await use(async <R>(path: string, init?: RequestInit) => {
+      const response = await fetch(`${base}${path}`, { ...init, signal, headers: { "content-type": "application/json" } });
+      const body = await response.json().catch(() => undefined) as { data?: { message?: unknown }; message?: unknown } | undefined;
+      if (!response.ok) {
+        throw new Error(typeof body?.data?.message === "string" ? body.data.message : typeof body?.message === "string" ? body.message
+          : `OpenCode answered ${response.status}`);
+      }
+      return body as R;
+    }) }), options);
+    if (served === undefined) throw new Error("OpenCode exited before it could sign in.");
+    return served.value;
+  };
+  const methodsOf = (call: OpenCodeCall) => call<Record<string, OpenCodeMethod[]>>("/provider/auth");
+  // A key with further questions (an account or resource id) is saved by OpenCode's own CLI only
+  const keyLogin = (methods: OpenCodeMethod[]) => methods.length === 0 || methods.some(method => method.type === "api" && !method.prompts?.length);
+
+  return {
+    providers: signal => serve(signal, async call => {
+      const [catalog, methods] = await Promise.all([call<{ all: OpenCodeProvider[]; connected: string[] }>("/provider"), methodsOf(call)]);
+      return catalog.all.map(provider => {
+        const own = methods[provider.id] ?? [];
+        const browser = own.filter(method => method.type === "oauth");
+        const variable = provider.source === "env" ? provider.env?.[0] : undefined;
+        const status: AuthStatus = !catalog.connected.includes(provider.id) ? { configured: false }
+          : provider.source === "env" ? { configured: true, source: "environment", ...(variable ? { label: variable } : {}) }
+            : provider.source === "api" ? { configured: true, source: "stored" } : { configured: true, source: "fallback" };
+        return { id: provider.id, name: provider.name, auth: {
+          apiKey: { name: `${provider.name} API key`, login: keyLogin(own) },
+          ...(browser.length ? { oauth: { name: provider.name, loginLabel: browser.length === 1 ? browser[0]!.label : `Sign in to ${provider.name}` } } : {}),
+        }, status };
+      });
+    }),
+    async login(providerId, type, interaction) {
+      const signal = interaction.signal ?? new AbortController().signal;
+      await serve(signal, async call => {
+        const methods = (await methodsOf(call))[providerId] ?? [];
+        const path = encodeURIComponent(providerId);
+        if (type === "api_key") {
+          if (!keyLogin(methods)) throw new Error("This provider's key needs OpenCode's own CLI: run opencode auth login.");
+          const key = await interaction.prompt({ type: "secret", message: "Enter your API key" });
+          await call(`/auth/${path}`, { method: "PUT", body: JSON.stringify({ type: "api", key }) });
+          return;
+        }
+        const browser = methods.flatMap((method, index) => method.type === "oauth" ? [{ method, index }] : []);
+        if (!browser.length) throw new Error("This provider has no browser sign-in in OpenCode.");
+        const picked = browser.length === 1 ? String(browser[0]!.index) : await interaction.prompt({ type: "select", message: "How do you want to sign in?",
+          options: browser.map(({ method, index }) => ({ id: String(index), label: method.label })) });
+        const chosen = browser.find(({ index }) => String(index) === picked);
+        if (!chosen) throw new Error("OpenCode has no such sign-in.");
+        // The method's own questions, each asked only while its condition on an earlier answer holds
+        const inputs: Record<string, string> = {};
+        for (const prompt of chosen.method.prompts ?? []) {
+          if (prompt.when && (inputs[prompt.when.key] === prompt.when.value) !== (prompt.when.op === "eq")) continue;
+          inputs[prompt.key] = prompt.type === "select"
+            ? await interaction.prompt({ type: "select", message: prompt.message,
+              options: prompt.options.map(option => ({ id: option.value, label: option.label, ...(option.hint ? { description: option.hint } : {}) })) })
+            : await interaction.prompt({ type: "text", message: prompt.message, ...(prompt.placeholder ? { placeholder: prompt.placeholder } : {}) });
+        }
+        const authorization = await call<{ url: string; method: "auto" | "code"; instructions?: string }>(`/provider/${path}/oauth/authorize`,
+          { method: "POST", body: JSON.stringify({ method: chosen.index, inputs }) });
+        interaction.notify({ type: "auth_url", url: authorization.url, ...(authorization.instructions ? { instructions: authorization.instructions } : {}) });
+        // "auto": OpenCode waits for the browser itself; "code": the page shows a code to paste back
+        const code = authorization.method === "code" ? await interaction.prompt({ type: "manual_code", message: "Paste the code the page shows" }) : undefined;
+        const done = await call<boolean>(`/provider/${path}/oauth/callback`, { method: "POST", body: JSON.stringify({ method: chosen.index, ...(code ? { code } : {}) }) });
+        if (done !== true) throw new Error("OpenCode could not finish the sign-in.");
+      });
     },
   };
 }
