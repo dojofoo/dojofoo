@@ -1,0 +1,3 @@
+@import "fumadocs-openapi/css/preset.css";
+@import "@dojofoo/uix/styles/api-reference.css";
+@reference "./site.css";

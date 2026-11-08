@@ -1,5 +1,7 @@
+import { loadMotionFeatures } from "../lib/lazy-motion";
+import * as motion from "motion/react-m";
 import {
-  motion,
+  LazyMotion,
   AnimatePresence,
   useReducedMotion,
   type Transition,
@@ -111,7 +113,7 @@ export function FluidHoverHighlight(props: FluidHoverHighlightProps) {
   // MotionConfig reduces too.
   const reduceMotion = useReducedMotion() ?? false;
   return (
-    <AnimatePresence>
+    <LazyMotion features={loadMotionFeatures}><AnimatePresence>
       {rect && (
         <motion.div
           key={session}
@@ -131,6 +133,6 @@ export function FluidHoverHighlight(props: FluidHoverHighlightProps) {
           transition={resolveHighlightTransition(transition, reduceMotion)}
         />
       )}
-    </AnimatePresence>
+    </AnimatePresence></LazyMotion>
   );
 }

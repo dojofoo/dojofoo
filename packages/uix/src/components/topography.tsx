@@ -293,7 +293,12 @@ export function Topography({
       };
     };
 
-    cleanup = setup();
+    let inView = false;
+    const visibility = new IntersectionObserver(([entry]) => {
+      inView = entry?.isIntersecting ?? false;
+      if (inView && !cleanup) cleanup = setup();
+    });
+    visibility.observe(canvas);
     const onLost = (e: Event) => {
       e.preventDefault();
       cleanup?.();
@@ -301,11 +306,12 @@ export function Topography({
     };
     const onRestored = () => {
       cleanup?.();
-      cleanup = setup();
+      cleanup = inView ? setup() : null;
     };
     canvas.addEventListener("webglcontextlost", onLost);
     canvas.addEventListener("webglcontextrestored", onRestored);
     return () => {
+      visibility.disconnect();
       canvas.removeEventListener("webglcontextlost", onLost);
       canvas.removeEventListener("webglcontextrestored", onRestored);
       cleanup?.();

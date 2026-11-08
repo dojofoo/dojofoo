@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Icon } from "../components/app-shell";
+import { Icon } from "../components/icon";
 import { ArrowDown01Icon, ArrowRight01Icon } from "../lib/icons";
-import { SiteStyles } from "./site";
 import { faviconLinks, questions, SITE, searchPages, socialMetadata, structuredData, type SearchPage } from "./seo";
 
 /*
@@ -157,8 +156,7 @@ export function SearchPreview() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [whatIf, setWhatIf] = useState(true);
   return (
-    <div className="ui-as ui-web">
-      <SiteStyles />
+    <div data-site-shell="" className="relative min-h-dvh bg-(--page) text-(--ink) [font-family:var(--font)]">
       <style href="ui-seo" precedence="default">{css}</style>
       <main className="ui-seo">
         <h1>Dojo.foo in search</h1>

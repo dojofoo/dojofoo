@@ -7,6 +7,7 @@
   "sideEffects": false,
   "scripts": {
     "assets:favicons": "node scripts/favicons.mjs",
+    "assets:learning": "node scripts/capture-learning-artwork.mjs",
     "predev": "rm -rf .tanstack",
     "dev": "portless dojofoo vite dev",
     "docs:generate": "bun scripts/generate-api-docs.ts",

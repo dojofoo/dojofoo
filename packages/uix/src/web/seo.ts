@@ -260,12 +260,6 @@ export const questions: Question[] = [
     source: "/docs",
   },
   {
-    question: "What does dojo mean?",
-    answer: "Dōjō (道場) is Japanese for \"place of the way\": the hall where a martial art is practised under a teacher. On Dojo.foo, a dojo is a course you install – the lessons, the code you practise in and the checks – and your coding agent becomes its sensei, who teaches it to you.",
-    status: "confirmed",
-    source: "/docs",
-  },
-  {
     question: "Is Dojo.foo free?",
     answer: "Yes. Besides premium courses for paying customers, most courses are free to install and take, and the full source code is available on GitHub. You bring your own coding agent or connect to your AI provider (ChatGPT).",
     status: "confirmed",
@@ -278,12 +272,6 @@ export const questions: Question[] = [
     source: "/docs/installation",
   },
   {
-    question: "How do I start a course?",
-    answer: "The easiest way is a Dojo.foo cloud subscription. To run courses locally, run npx dojofoo – it opens an onboarding dialog that guides you through the setup and courses.",
-    status: "confirmed",
-    source: "/docs/quickstart",
-  },
-  {
     question: "What does the sensei do?",
     answer: "The sensei is tailored to the dojo you install. A dojo can be a course that needs a patient teacher, a kata that needs coding guidance, or an interview that challenges you as a candidate. If you can imagine learning something in a conversation with someone, that's what the sensei does best.",
     status: "confirmed",
@@ -291,15 +279,9 @@ export const questions: Question[] = [
   },
   {
     question: "Is it safe to install a course?",
-    answer: "Before installing a course from GitHub, dojofoo asks Dojo.foo for the security checks of the exact version it downloaded. A version that failed them isn't installed, for example one that pipes a script from the internet. A version that hasn't been checked, or that runs code on install, needs your confirmation first. If the checks can't be reached, dojofoo says so and installs.",
+    answer: "Generally, yes. We run security checks from known providers, similar to skills.sh, to assess courses before you install them.",
     status: "confirmed",
     source: "/authoring/publish",
-  },
-  {
-    question: "Does Dojo.foo see my code?",
-    answer: "No. The CLI sends four anonymous events – a course installed, started, a kata completed, the course finished – and never file paths, your code or your agent's conversations. You can turn even those off.",
-    status: "confirmed",
-    source: "/docs/privacy",
   },
   {
     question: "Can I publish my own course?",

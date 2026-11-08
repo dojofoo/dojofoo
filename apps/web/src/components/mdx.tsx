@@ -1,10 +1,12 @@
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 import { Callout } from 'fumadocs-ui/components/callout';
 import type { MDXComponents } from 'mdx/types';
-import { isValidElement, type ComponentProps, type ReactNode } from 'react';
+import { isValidElement, lazy, type ComponentProps, type ReactNode } from 'react';
 import { InstallCommand } from './install-command';
-import { APIPage, APIPage as OpenAPIPage } from '@dojofoo/uix/components/api-reference';
 import { CodeWindowBlock } from '@dojofoo/uix/components/code-window';
+
+const APIPage = lazy(() => import('@dojofoo/uix/components/api-reference').then(module => ({ default: module.APIPage })));
+const OpenAPIPage = APIPage;
 
 /** The text of highlighted code: its spans' text, in order */
 function textOf(node: ReactNode): string {

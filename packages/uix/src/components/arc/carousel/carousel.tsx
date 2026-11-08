@@ -1,8 +1,12 @@
 "use client";
 
+import { loadMotionFeatures } from "../../../lib/lazy-motion";
+
+import * as motion from "motion/react-m";
+
 import { Children, isValidElement, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, ReactNode, Ref } from "react";
-import { AnimatePresence, animate, motion, motionValue, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { AnimatePresence, animate, LazyMotion, motionValue, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import type { AnimationPlaybackControls, MotionValue, TargetAndTransition } from "motion/react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
@@ -307,7 +311,7 @@ export function Carousel({ label, children, index: controlledIndex, defaultIndex
 
   const rootStyle = { "--carousel-slide": slideSize, "--carousel-start": startIndex } as CSSProperties;
 
-  return <section ref={rootRef} className={[styles.root, className].filter(Boolean).join(" ")} style={rootStyle} aria-roledescription="carousel" aria-label={label} onKeyDown={onKeyDown}
+  return <LazyMotion features={loadMotionFeatures}><section ref={rootRef} className={[styles.root, className].filter(Boolean).join(" ")} style={rootStyle} aria-roledescription="carousel" aria-label={label} onKeyDown={onKeyDown}
     onFocus={event => setFocusPaused(event.target !== playRef.current && event.target.matches(":focus-visible"))}
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusPaused(false); }}>
     <div ref={viewportRef} className={styles.viewport} role="group" aria-label="Slides" tabIndex={0} data-dragging={dragging || undefined} data-edge-fade={edgeFade || undefined}
@@ -338,7 +342,7 @@ export function Carousel({ label, children, index: controlledIndex, defaultIndex
       </div>}
     </div>}
     <span className={styles.visuallyHidden} aria-live="polite" aria-atomic="true">{announcement}</span>
-  </section>;
+  </section></LazyMotion>;
 }
 
 /** A slide shrinks and dims with its distance from the center, read straight from the track position so it never lags the finger. */

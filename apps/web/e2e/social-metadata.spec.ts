@@ -28,8 +28,15 @@ test("uses the Dojo.foo social card on the main website", async ({ page }) => {
   const graph = JSON.parse(await page.locator('script[type="application/ld+json"]').first().textContent() ?? "{}")["@graph"];
   expect(graph.map((node: { "@type": string }) => node["@type"])).toEqual(["WebSite", "Organization", "SoftwareApplication", "FAQPage"]);
   expect(graph[0]).toMatchObject({ name: "Dojo.foo", url: "https://dojo.foo/" });
-  // The questions the home page shows, the meaning of "dojo" among them
-  expect(graph[3].mainEntity.map((item: { name: string }) => item.name)).toContain("What does dojo mean?");
+  const faq = graph[3].mainEntity as { name: string; acceptedAnswer: { text: string } }[];
+  const names = faq.map(item => item.name);
+  for (const removed of ["What does dojo mean?", "How do I start a course?", "Does Dojo.foo see my code?"]) expect(names).not.toContain(removed);
+  expect(faq.find(item => item.name === "Is it safe to install a course?")?.acceptedAnswer.text).toBe("Generally, yes. We run security checks from known providers, similar to skills.sh, to assess courses before you install them.");
+  const displayed = await page.locator('[data-faq-item]').evaluateAll(items => items.map(item => ({
+    question: item.querySelector('[data-faq-trigger]')?.textContent,
+    answer: item.querySelector('[data-faq-answer] p')?.textContent,
+  })));
+  expect(displayed).toEqual(faq.map(item => ({ question: item.name, answer: item.acceptedAnswer.text })));
 });
 
 test("uses the Dojo.foo social card with page metadata in the docs", async ({ page }) => {

@@ -1,13 +1,13 @@
 import { NavigationLink } from "../components/navigation-link";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { Icon, ShellStyles } from "../components/app-shell";
+import { Icon } from "../components/icon";
 import { Avatar } from "../components/arc/avatar/avatar";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
 import { Cancel01Icon, Copy01Icon, CopyrightIcon, Menu01Icon, Search01Icon, Tick02Icon } from "../lib/icons";
 import { SidebarDrawer, SidebarProvider, SidebarTrigger, useSidebar } from "../components/epicat/sidebar";
 import { cn } from "../lib/utils";
-import makerPhoto from "../assets/tomhaxxx.jpg?url";
+import makerPhoto from "../assets/tomhaxxx-small.webp?url";
 import type { WebCourse } from "./catalog";
 import type { SearchScope } from "../components/site-search-palette";
 
@@ -66,18 +66,13 @@ export function SitePage({ current, children, window = true, full = false, backd
   onNavigate?: (section: SiteSection) => void;
 }) {
   return (
-    <div className={cn("ui-as ui-web", backdrop && "ui-web--ground")}>
-      <SiteStyles />
-      {subnav ? <div className="ui-web-bar"><SiteHeader current={current} menu={menu} />{subnav}</div> : <SiteHeader current={current} menu={menu} />}
-      <main className={cn("ui-web__main", window && "ui-web__window", full && "ui-web__main--full")}>{children}</main>
+    <div data-site-shell="" data-site-section={current} className={cn("relative min-h-dvh bg-(--page) text-(--ink) [font-family:var(--font)] text-[length:var(--fs-body)] [font-variation-settings:'opsz'_14] antialiased [&_svg]:block [&_svg]:shrink-0 [&_:focus-visible]:outline-2 [&_:focus-visible]:outline-(--accent) [&_:focus-visible]:outline-offset-2", subnav && "overflow-x-clip")}>
+      {subnav ? <div className="sticky top-0 z-30 before:absolute before:inset-y-0 before:inset-x-[calc(50%_-_50vw)] before:-z-1 before:bg-(--page)/80 before:backdrop-blur-[8px] before:content-['']"><SiteHeader current={current} menu={menu} />{subnav}</div> : <SiteHeader current={current} menu={menu} />}
+      <main data-site-main="" className={cn("mx-auto block", full ? "max-w-none" : "max-w-[1280px]", window && "rounded-(--radius-panel) bg-(--panel) shadow-(--shadow-3) [container:ui-web/inline-size] max-[1304px]:mx-3 min-[1304px]:max-w-[1280px]")}>{children}</main>
       {backdrop}
-      <SiteFooter current={current} />
+      <SiteFooter current={current} ground={Boolean(backdrop)} />
     </div>
   );
-}
-
-export function SiteStyles() {
-  return <><ShellStyles /><style href="ui-web" precedence="default">{css}</style></>;
 }
 
 export function SiteHeader({ current, as: Component = "header", mobileAction, menu }: { current?: SiteSection; as?: "header" | "div"; mobileAction?: ReactNode; menu?: ReactNode }) {
@@ -87,26 +82,26 @@ export function SiteHeader({ current, as: Component = "header", mobileAction, me
   const go = (section: SiteSection) => () => links.navigate(section);
   const getStarted = () => links.openDoc("/docs/quickstart");
   return (
-    <Component className="ui-web-head" data-site-navigation="">
-      <NavigationLink href={links.sectionHref("home")} className="ui-web-head__brand" aria-label="Dojo.foo home" onNavigate={go("home")}><BrandLogo className="aspect-[2567/1211] h-[30px] w-auto" /></NavigationLink>
+    <Component className="mx-auto grid h-[60px] max-w-[1280px] grid-cols-[1fr_auto_1fr] items-center gap-6 px-2 max-[1304px]:px-5 max-[761px]:grid-cols-[auto_1fr_auto] max-[761px]:gap-x-0" data-site-navigation="">
+      <NavigationLink href={links.sectionHref("home")} className="flex items-center justify-self-start text-(--ink-strong)" aria-label="Dojo.foo home" onNavigate={go("home")}><BrandLogo className="aspect-[2567/1211] h-[30px] w-auto" /></NavigationLink>
       {/* The search in the middle, the sections beside the way in */}
-      <button type="button" className="ui-web-head__search" aria-haspopup="dialog" aria-label={scope === "docs" ? "Search docs" : "Search courses"} onClick={() => links.openSearch(scope)}>
+      <button type="button" className="inline-flex h-10 w-80 items-center gap-2 rounded-(--box-radius) bg-(--box-surface) pr-3 pl-3.5 text-[length:var(--fs-body)] text-(--muted) shadow-(--box-shadow) hover:text-(--ink) [&>span]:flex-1 [&>span]:text-left [&>kbd]:font-[inherit] [&>kbd]:text-[length:var(--fs-caption)] max-[901px]:w-[200px] max-[761px]:w-10 max-[761px]:justify-self-end max-[761px]:justify-center max-[761px]:rounded-[calc(10px*var(--squircle-factor,1))] max-[761px]:bg-transparent max-[761px]:p-0 max-[761px]:shadow-none max-[761px]:active:bg-(--hover) max-[761px]:[&>span]:hidden max-[761px]:[&>kbd]:hidden" aria-haspopup="dialog" aria-label={scope === "docs" ? "Search docs" : "Search courses"} onClick={() => links.openSearch(scope)}>
         <Icon icon={Search01Icon} size={15} />
         <span>{scope === "docs" ? "Search docs" : "Search courses"}</span>
         <kbd>⌘K</kbd>
       </button>
-      <div className="ui-web-head__end">
-        <nav className="ui-web-head__nav" aria-label="Site">
+      <div className="flex items-center justify-self-end gap-2 max-[761px]:-mr-2.5 max-[761px]:gap-0">
+        <nav className="flex gap-0.5 max-[761px]:hidden" aria-label="Site">
           {sections.map((section) => (
-            <NavigationLink key={section.id} href={links.sectionHref(section.id)} className="ui-web-head__link" aria-current={current === section.id ? "page" : undefined} onNavigate={go(section.id)}>{section.label}</NavigationLink>
+            <NavigationLink key={section.id} href={links.sectionHref(section.id)} className="rounded-[calc(8px*var(--squircle-factor,1))] px-2.5 py-1.5 text-[length:var(--fs-subtitle)] font-medium text-(--muted) no-underline transition-colors duration-(--motion-fast) ease-(--ease-standard) hover:bg-(--hover) hover:text-(--ink) aria-[current=page]:text-(--ink)" aria-current={current === section.id ? "page" : undefined} onNavigate={go(section.id)}>{section.label}</NavigationLink>
           ))}
         </nav>
         {mobileAction}
-        <ButtonLink size="sm" className="ui-web-head__start" href="/docs/quickstart" onNavigate={getStarted}>Get started</ButtonLink>
+        <ButtonLink size="sm" className="max-[761px]:hidden!" href="/docs/quickstart" onNavigate={getStarted}>Get started</ButtonLink>
         {/* On a phone the sections and the way in fold into a menu beside the search (as Fumadocs' docs do) */}
         <SiteMenu>
-          <ButtonLink href="/docs/quickstart" className="ui-web-menu__start" onNavigate={getStarted}>Get started</ButtonLink>
-          <nav className="ui-web-menu__nav" aria-label="Site">
+          <ButtonLink href="/docs/quickstart" className="justify-center" onNavigate={getStarted}>Get started</ButtonLink>
+          <nav className="grid pt-2.5 pb-3.5 [&_a]:px-0.5 [&_a]:py-2.5 [&_a]:text-[17px] [&_a]:font-[550] [&_a]:text-(--ink) [&_a]:no-underline [&_a[aria-current=page]]:text-(--accent)" aria-label="Site">
             {sections.map((section) => (
               <NavigationLink key={section.id} href={links.sectionHref(section.id)} aria-current={current === section.id ? "page" : undefined} onNavigate={go(section.id)}>{section.label}</NavigationLink>
             ))}
@@ -136,14 +131,14 @@ function SiteMenuDrawer({ children }: { children: ReactNode }) {
   }, [open, setOpen]);
   return (
     <>
-      <SidebarTrigger className="ui-web-head__menu" aria-label="Menu" aria-expanded={open} aria-controls="nd-sidebar-mobile">
+      <SidebarTrigger className="hidden! size-10 place-items-center rounded-[calc(10px*var(--squircle-factor,1))] text-(--muted) transition-colors duration-(--motion-fast) ease-(--ease-standard) hover:text-(--ink) active:bg-(--hover) max-[761px]:grid!" aria-label="Menu" aria-expanded={open} aria-controls="nd-sidebar-mobile">
         <Icon icon={Menu01Icon} size={18} />
       </SidebarTrigger>
-      <SidebarDrawer className="ui-web-menu" aria-label="Menu" onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>
-        <SidebarTrigger className="ui-web-head__menu ui-web-menu__close" aria-label="Close menu">
+      <SidebarDrawer data-site-menu="" className="border-(--line) bg-(--page)! shadow-(--shadow-6)" aria-label="Menu" onClick={(event) => { if ((event.target as Element).closest("a")) setOpen(false); }}>
+        <SidebarTrigger className="hidden! size-10 place-items-center rounded-[calc(10px*var(--squircle-factor,1))] text-(--muted) transition-colors duration-(--motion-fast) ease-(--ease-standard) hover:text-(--ink) active:bg-(--hover) max-[761px]:grid! absolute top-2.5 right-2.5 grid!" aria-label="Close menu">
           <Icon icon={Cancel01Icon} size={18} />
         </SidebarTrigger>
-        <div className="ui-web-menu__body">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-5 pt-[60px] pb-8 [&>*]:flex-none">{children}</div>
       </SidebarDrawer>
     </>
   );
@@ -155,32 +150,32 @@ const footer = [
   { title: "Support", links: [["Help & Support", "/help"], ["Issues", "https://github.com/dojofoo/dojofoo/issues"], ["Roadmap", "https://github.com/dojofoo/dojofoo/blob/main/ROADMAP.md"]] },
 ] as const;
 
-export function SiteFooter({ current }: { current?: SiteSection }) {
+export function SiteFooter({ current, ground = false }: { current?: SiteSection; ground?: boolean }) {
   const links = useSite();
   // The maker's line for the section: owning up to the docs, daring the course browser
   const line = current === "help" || current === "docs" ? "No idea how that works, ask AI"
     : current === "courses" ? "If you're such a pro, make your own course!"
     : "I made dis";
   return (
-    <footer className="ui-web-foot">
-      <div className="ui-web-foot__about">
+    <footer data-site-footer="" className={cn("mx-auto grid max-w-[1280px] grid-cols-[1.4fr_repeat(3,1fr)] gap-8 px-2 pt-14 pb-7 max-[1304px]:px-5 max-[1304px]:pt-12 max-[761px]:grid-cols-2", ground && "relative z-1 pb-[120px]!")}>
+      <div className="grid content-start gap-3.5 text-(--ink-strong) [&_p]:m-0 [&_p]:max-w-64 [&_p]:text-[length:var(--fs-body)] [&_p]:leading-[1.55] [&_p]:text-(--muted)">
         <BrandLogo className="aspect-[2567/1211] h-6 w-auto" />
         <p>Deliberate practice, guided by the coding agent you already use.</p>
       </div>
       {(links.footerLinks ?? footer).map((column) => (
-        <nav key={column.title} className="ui-web-foot__col" aria-label={column.title}>
-          <span className="ui-web-foot__title">{column.title}</span>
+        <nav key={column.title} className="grid content-start gap-[9px] [&_a]:text-[length:var(--fs-body)] [&_a]:text-(--ink) [&_a]:no-underline [&_a:hover]:text-(--accent)" aria-label={column.title}>
+          <span className="mb-1 text-[length:var(--fs-caption)] font-semibold tracking-[0.05em] text-(--muted) uppercase">{column.title}</span>
           {column.links.map(([label, to]) => to.startsWith("http")
             ? <NavigationLink key={label} href={to} target="_blank" rel="noreferrer">{label}</NavigationLink>
             : <NavigationLink key={label} href={to.startsWith("/") ? to : links.sectionHref(to as SiteSection)} onNavigate={() => { if (to.startsWith("/")) links.openDoc(to); else links.navigate(to as SiteSection); }}>{label}</NavigationLink>)}
         </nav>
       ))}
-      <div className="ui-web-foot__base">
-        <span className="ui-web-foot__copy"><Icon icon={CopyrightIcon} size={15} /><span className="sr-only">Copyright</span>Dojo.foo{links.footerControls && <span className="ml-2">{links.footerControls}</span>}</span>
+      <div className="col-span-full flex items-center justify-between gap-4 pt-5 text-sm text-(--muted) [background:var(--ui-web-rule)_left_top/var(--ui-web-rule-size)_repeat-x] [&_a]:text-inherit [&_a]:no-underline [&_a:hover]:text-(--ink)">
+        <span className="inline-flex items-center gap-1.5"><Icon icon={CopyrightIcon} size={15} /><span className="sr-only">Copyright</span>Dojo.foo{links.footerControls && <span className="ml-2">{links.footerControls}</span>}</span>
         {/* The maker's line as a small quote (the testimonials' mark), his avatar after it, online */}
-        <NavigationLink className="ui-web-foot__maker" href="https://x.com/tomhaxxx" target="_blank" rel="noreferrer" aria-label={`${line} – Tom Siwik on X`}>
+        <NavigationLink className="inline-flex items-center gap-2.5 [&_[role=img]]:[corner-shape:round] [&_[role=img]_*]:[corner-shape:round] [&_q]:text-right [&_q]:text-[15px] [&_q]:font-[550] [&_q]:tracking-[-0.01em] [&_q]:text-balance [&_q]:text-(--ink) [&_q]:[quotes:none] hover:[&_q]:text-(--accent)" href="https://x.com/tomhaxxx" target="_blank" rel="noreferrer" aria-label={`${line} – Tom Siwik on X`}>
           {/* The mark inside the quote, so it opens its first line however the line wraps */}
-          <q><svg aria-hidden="true" viewBox="0 0 32 24" className="ui-web-foot__mark">
+          <q><svg aria-hidden="true" viewBox="0 0 32 24" className="inline-block h-[11px] w-3.5 mr-2.5 align-[0.45em] fill-(--muted) opacity-35">
             <path d="M0 24V14.4C0 6.6 4.2 1.8 12.4 0l1.4 3.4C9.4 4.8 7.3 7.6 7 11.2h6.2V24H0Zm18.2 0V14.4C18.2 6.6 22.4 1.8 30.6 0L32 3.4c-4.4 1.4-6.5 4.2-6.8 7.8h6.2V24H18.2Z" />
           </svg>{line}</q>
           <Avatar name="Tom Siwik" src={makerPhoto} size="md" status="online" />
@@ -200,12 +195,12 @@ export function CommandCopy({ command, label, prompt = false, className }: { com
     });
   };
   return (
-    <div className={cn("ui-web-cmd", prompt && "ui-web-cmd--prompt", className)}>
-      {label && <span className="ui-web-cmd__label">{label}</span>}
+    <div data-command="" className={cn("flex min-h-10 min-w-0 items-center gap-2 rounded-(--box-radius) bg-(--box-surface) pr-1.5 pl-3.5 text-left shadow-(--box-shadow)", prompt && "h-auto items-start py-2.5", className)}>
+      {label && <span className="text-[length:var(--fs-caption)] font-[550] text-(--muted) select-none">{label}</span>}
       {/* The prompt, out of the selection: selecting the line takes only the command */}
-      {!prompt && <span className="ui-web-cmd__prompt" aria-hidden="true">$</span>}
-      <code>{command}</code>
-      <button type="button" className="ui-web-cmd__copy" aria-label={copied ? "Copied" : prompt ? "Copy prompt" : `Copy ${command}`} onClick={copy}>
+      {!prompt && <span className="font-mono text-[13px] text-(--muted) select-none" aria-hidden="true">$</span>}
+      <code className={cn("min-w-0 flex-1 py-2.5 font-mono text-[13px] wrap-anywhere", prompt && "pt-1 [font-family:var(--font)] text-[13.5px] leading-normal whitespace-normal")}>{command}</code>
+      <button type="button" className="grid size-7 flex-none place-items-center rounded-[calc(4px*var(--squircle-factor,1))] text-(--muted) select-none hover:bg-(--hover) hover:text-(--ink)" aria-label={copied ? "Copied" : prompt ? "Copy prompt" : `Copy ${command}`} onClick={copy}>
         <Icon icon={copied ? Tick02Icon : Copy01Icon} size={14} />
       </button>
     </div>
@@ -215,124 +210,11 @@ export function CommandCopy({ command, label, prompt = false, className }: { com
 /** A page's head, as the learner pages set theirs: kicker, title, lead */
 export function PageHead({ kicker, title, lead, children }: { kicker?: string; title: ReactNode; lead?: ReactNode; children?: ReactNode }) {
   return (
-    <header className="ui-web-pagehead">
-      {kicker && <p className="ui-ob-kicker">{kicker}</p>}
-      <h1 className="ui-web-pagehead__title">{title}</h1>
-      {lead && <p className="ui-web-pagehead__lead">{lead}</p>}
+    <header className="max-w-[40rem]">
+      {kicker && <p className="text-[12.5px] leading-4 font-medium text-(--muted)">{kicker}</p>}
+      <h1 className="mt-1.5 mb-0 text-[32px] leading-[1.15] font-semibold tracking-[-0.02em] text-balance">{title}</h1>
+      {lead && <p className="mt-3 mb-0 text-[15px] leading-[1.55] text-pretty text-(--muted)">{lead}</p>}
       {children}
     </header>
   );
 }
-
-const css = /* css */ `
-/* The page: surface 1, the window on it as the app's main panel (surface 2, its radius and shadow) */
-.ui-web { position: relative; min-height: 100dvh; background: var(--page); color: var(--ink);
-  /* The site's horizontal rules: 1px dots, generously spaced – as a background, \`var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x\` */
-  --ui-web-rule: linear-gradient(to right, color-mix(in oklab, var(--ink) 30%, transparent) 0 1px, transparent 1px);
-  --ui-web-rule-size: 10px 1px; }
-/* The canvas, where the page's own scrollbar sits: the page's color, so the track doesn't show as a strip */
-:root:has(.ui-web) { background: var(--surface-1); }
-/* Over a backdrop: the footer above it, with room below for the map to show */
-.ui-web--ground .ui-web-foot { position: relative; z-index: 1; padding-bottom: 120px; }
-.ui-web__main { display: block; max-width: 1280px; margin: 0 auto; }
-.ui-web__main--full { max-width: none; }
-.ui-web__window { margin: 0 auto; border-radius: var(--radius-panel); background: var(--panel); box-shadow: var(--shadow-3); container: ui-web / inline-size; }
-@media (min-width: 1304px) { .ui-web__window { max-width: 1280px; } }
-@media (max-width: 1303px) { .ui-web__window { margin: 0 12px; } }
-
-/* With a subnav, the header and it are one bar at the top: the page's color, see-through and blurred, across the whole
-   window, the page sliding under it (as on the site, Fumadocs' notebook header) */
-.ui-web:has(> .ui-web-bar) { overflow-x: clip; }
-.ui-web-bar { position: sticky; top: 0; z-index: 30; }
-.ui-web-bar::before { position: absolute; inset: 0 calc(50% - 50vw); z-index: -1; background: color-mix(in oklab, var(--page) 80%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); content: ""; }
-
-/* Header: the brand, the sections, search and the way in – on the page, above the window */
-/* Header: the brand, the search centered, the sections beside the way in */
-.ui-web-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; max-width: 1280px; height: 60px; margin: 0 auto; padding: 0 8px; }
-@media (max-width: 1303px) { .ui-web-head { padding: 0 20px; } }
-.ui-web-head__brand { display: flex; justify-self: start; align-items: center; color: var(--ink-strong); }
-.ui-web-head__nav { display: flex; gap: 2px; }
-.ui-web-head__link { padding: 6px 10px; border-radius: calc(8px * var(--squircle-factor, 1)); color: var(--muted); font-size: var(--fs-subtitle); font-weight: 500; text-decoration: none; transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
-.ui-web-head__link:hover { background: var(--hover); color: var(--ink); }
-.ui-web-head__link[aria-current="page"] { color: var(--ink); }
-.ui-web-head__end { display: flex; justify-self: end; align-items: center; gap: 8px; }
-/* The search: a box, as the landing page's command */
-.ui-web-head__search { display: inline-flex; align-items: center; gap: 8px; width: 320px; height: 40px; padding: 0 12px 0 14px; border-radius: var(--box-radius); background: var(--box-surface); box-shadow: var(--box-shadow); color: var(--muted); font-size: var(--fs-body); }
-.ui-web-head__search span { flex: 1; text-align: left; }
-.ui-web-head__search kbd { font: inherit; font-size: var(--fs-caption); }
-@media (max-width: 900px) { .ui-web-head__search { width: 200px; } }
-@media (max-width: 760px) {
-  .ui-web-head { grid-template-columns: auto 1fr auto; }
-  .ui-web-head__nav { display: none; }
-  .ui-web-head__search { justify-self: end; justify-content: center; width: 40px; padding: 0; }
-  .ui-web-head__search :is(span, kbd) { display: none; }
-  .ui-web-head .ui-web-head__start { display: none; }
-}
-/* The menu's button beside the search: on a phone both are plain icons, their hit areas touching, the last one's icon
-   on the page's edge (as Fumadocs' header) */
-.ui-web-head__menu { display: none; place-items: center; width: 40px; height: 40px; border-radius: calc(10px * var(--squircle-factor, 1)); color: var(--muted); transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
-.ui-web-head__menu:hover, .ui-web-head__search:hover { color: var(--ink); }
-@media (max-width: 760px) {
-  .ui-web-head { column-gap: 0; }
-  .ui-web-head__end { gap: 0; margin-right: -10px; }
-  .ui-web-head__menu { display: grid; }
-  .ui-web-head__search { background: none; box-shadow: none; border-radius: calc(10px * var(--squircle-factor, 1)); }
-  .ui-web-head__menu:active, .ui-web-head__search:active { background: var(--hover); }
-}
-/* The menu: epicat's drawer (components/epicat/sidebar: 85%, at most 380px, from the right) on the page's color; its
-   close in the burger's place, the same button */
-.ui-web-menu { --ui-web-rule: linear-gradient(to right, color-mix(in oklab, var(--ink) 30%, transparent) 0 1px, transparent 1px); --ui-web-rule-size: 10px 1px;
-  background: var(--page); border-color: var(--line); box-shadow: var(--shadow-6); }
-.ui-web-menu__close { position: absolute; top: 10px; right: 10px; display: grid; }
-.ui-web-menu__close:active { background: var(--hover); }
-.ui-web-menu__body { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 6px; padding: 60px 20px 32px; overflow-y: auto; overscroll-behavior: contain; }
-.ui-web-menu__body > * { flex: none; }
-.ui-web-menu__start { justify-content: center; }
-.ui-web-menu__nav { display: grid; padding: 10px 0 14px; }
-.ui-web-menu__nav a { padding: 10px 2px; color: var(--ink); font-size: 17px; font-weight: 550; text-decoration: none; }
-.ui-web-menu__nav a[aria-current="page"] { color: var(--accent); }
-
-/* Footer: back on the page, under the window */
-.ui-web-foot { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 32px; max-width: 1280px; margin: 0 auto; padding: 56px 8px 28px; }
-@media (max-width: 1303px) { .ui-web-foot { padding: 48px 20px 28px; } }
-@media (max-width: 760px) { .ui-web-foot { grid-template-columns: 1fr 1fr; } }
-.ui-web-foot__about { display: grid; align-content: start; gap: 14px; color: var(--ink-strong); }
-.ui-web-foot__about p { max-width: 16rem; margin: 0; color: var(--muted); font-size: var(--fs-body); line-height: 1.55; }
-.ui-web-foot__col { display: grid; align-content: start; gap: 9px; }
-.ui-web-foot__title { margin-bottom: 4px; color: var(--muted); font-size: var(--fs-caption); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
-.ui-web-foot__col a { color: var(--ink); font-size: var(--fs-body); text-decoration: none; }
-.ui-web-foot__col a:hover { color: var(--accent); }
-.ui-web-foot__base { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 20px; background: var(--ui-web-rule) left top / var(--ui-web-rule-size) repeat-x; color: var(--muted); font-size: 14px; }
-.ui-web-foot__base a { color: inherit; text-decoration: none; }
-.ui-web-foot__copy { display: inline-flex; align-items: center; gap: 6px; }
-/* The maker: a quote at the testimonials' weight, its mark small and quiet, the avatar (online) to its right */
-.ui-web-foot__maker { display: inline-flex; align-items: center; gap: 10px; }
-/* The avatar (its tokens in styles/arc.css) and its status dot stay circles under the corners' squircle */
-.ui-web-foot__maker [role="img"], .ui-web-foot__maker [role="img"] * { corner-shape: round; }
-.ui-web-foot__mark { display: inline-block; width: 14px; height: 11px; margin-right: 10px; vertical-align: 0.45em; fill: var(--muted); opacity: 0.35; }
-.ui-web-foot__maker q { color: var(--ink); font-size: 15px; font-weight: 550; letter-spacing: -0.01em; quotes: none; text-align: right; text-wrap: balance; }
-.ui-web-foot__maker:hover q { color: var(--accent); }
-.ui-web-foot__base a:hover { color: var(--ink); }
-
-/* A command: monospace in a box (fluid.css), its copy button at the end */
-.ui-web-cmd { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 40px; padding: 0 6px 0 14px; text-align: left; border-radius: var(--box-radius); background: var(--box-surface); box-shadow: var(--box-shadow); }
-.ui-web-cmd__label { color: var(--muted); font-size: var(--fs-caption); font-weight: 550; user-select: none; }
-.ui-web-cmd__prompt { color: var(--muted); font-family: var(--font-mono); font-size: 13px; user-select: none; }
-.ui-web-cmd code { flex: 1; min-width: 0; padding-block: 10px; font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
-.ui-web-cmd__copy { display: grid; flex: none; place-items: center; user-select: none; width: 28px; height: 28px; border-radius: calc(4px * var(--squircle-factor, 1)); color: var(--muted); }
-.ui-web-cmd__copy:hover { background: var(--hover); color: var(--ink); }
-.ui-web-cmd--prompt { align-items: start; height: auto; padding: 10px 6px 10px 14px; }
-.ui-web-cmd--prompt code { padding-top: 4px; font-family: var(--font); font-size: 13.5px; line-height: 1.5; white-space: normal; text-wrap: pretty; }
-
-/* The app in a window: drawn at 1280×800 and scaled to it (AppPreview), with a window's corners and shadow */
-.ui-web-app { margin: 0; }
-.ui-web-app__frame { position: relative; overflow: hidden; border-radius: calc(16px * var(--squircle-factor, 1)); background: var(--page); box-shadow: var(--shadow-5), 0 0 0 1px var(--line); }
-.ui-web-app__scale { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
-/* The app sizes itself to the browser window (100dvh): here it fills the preview instead */
-.ui-web-app__scale > * { height: 100% !important; }
-
-/* A page's head, the learner pages' kicker and lead under a larger title */
-.ui-web-pagehead { max-width: 40rem; }
-.ui-web-pagehead__title { margin: 6px 0 0; font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
-.ui-web-pagehead__lead { margin: 12px 0 0; color: var(--muted); font-size: 15px; line-height: 1.55; text-wrap: pretty; }
-`;

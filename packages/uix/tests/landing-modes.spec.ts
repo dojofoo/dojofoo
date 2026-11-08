@@ -4,7 +4,7 @@ const landing = "/iframe.html?id=web-site--landing&viewMode=story";
 
 test("mode windows, carousel controls and keyboard selection stay synchronized on desktop and phone", async ({ page }) => {
   await page.goto(landing);
-  const section = page.locator(".ui-land-modes");
+  const section = page.locator("[data-learning-modes]");
   const carousel = page.getByRole("region", { name: "Learning modes", exact: true });
   await expect(carousel.getByRole("tab", { name: "Interview Mode", exact: true })).toHaveAttribute("aria-selected", "true");
   for (const width of [1440, 390]) {
@@ -33,7 +33,7 @@ test("autoplay keeps advancing on hover with synchronized windows and indicators
   await page.mouse.click(5, 5);
   await carousel.getByRole("group", { name: "Slides", exact: true }).hover();
   await expect(carousel.getByRole("tab", { name: "Course Mode", exact: true })).toHaveAttribute("aria-selected", "true", { timeout: 12_000 });
-  await expect(page.locator(".ui-land-modes").getByRole("button", { name: "Course Mode", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("[data-learning-modes]").getByRole("button", { name: "Course Mode", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(carousel.getByRole("heading", { name: "Learn anything with a tutor next to you", exact: true })).toBeVisible();
   await expect(carousel.getByRole("button")).toHaveCount(0);
   await expect(page.getByText("Three modes", { exact: true })).toHaveCount(0);

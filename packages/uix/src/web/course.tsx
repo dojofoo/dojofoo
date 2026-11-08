@@ -1,6 +1,6 @@
 import { NavigationLink } from "../components/navigation-link";
 import { useState, type ReactNode, type ComponentProps } from "react";
-import { Icon } from "../components/app-shell";
+import { Icon } from "../components/icon";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
 import { CourseCard } from "../components/course-card";

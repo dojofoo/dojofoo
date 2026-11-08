@@ -6,20 +6,22 @@ import {
 } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { RootProvider } from "fumadocs-ui/provider/tanstack"
-import SearchDialog from "@/components/search"
+import { lazy } from "react"
 import { DEFAULT_SOCIAL_DESCRIPTION, DEFAULT_TITLE, faviconLinks, socialMetadata } from "@/lib/social-metadata"
 import { SITE_URL } from "@/lib/site"
-import { ShapeProvider } from "@dojofoo/ui"
+import { ShapeProvider } from "@dojofoo/uix/lib/shape-context"
 import { documentTransitionScript } from "@dojofoo/uix/lib/view-transition"
 import { UIXProvider } from "@dojofoo/uix/provider"
-import appCss from "../styles.css?url"
-import uixCss from "@dojofoo/uix/styles.css?url"
-import uixFonts from "@dojofoo/uix/fonts.css?url"
+import appCss from "../site.css?url"
+import interLanding from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url"
+import interLatin from "@fontsource-variable/inter/files/inter-latin-opsz-normal.woff2?url"
 import { UIXSiteProvider } from "@/components/uix-site"
 import { RouterLink } from "@/components/router-link"
 
+const SearchDialog = lazy(() => import("@/components/search"))
+
 export const Route = createRootRoute({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
@@ -32,8 +34,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "stylesheet", href: uixCss },
-      { rel: "stylesheet", href: uixFonts },
+      { rel: "preload", href: matches.at(-1)?.pathname === "/" ? interLanding : interLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
       ...faviconLinks,
     ],
   }),
@@ -54,7 +55,7 @@ function RootLayout() {
         <UIXProvider link={RouterLink}>
           <RootProvider
             theme={{ defaultTheme: "dark" }}
-            search={{ SearchDialog }}
+            search={{ SearchDialog, preload: false }}
           >
             <ShapeProvider defaultShape="square">
               <UIXSiteProvider><Outlet /></UIXSiteProvider>
