@@ -2,12 +2,13 @@ import type { AccessProvider, AuthType, LoginState } from "@dojofoo/protocol";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, type ReactNode } from "react";
 import { AgentSignIn } from "../components/agent-sign-in";
-import { CodexIcon, PiIcon } from "../components/harness-icons";
+import { CodexIcon, OpenCodeIcon, PiIcon } from "../components/harness-icons";
 import { Composer } from "../containers/assistant-home";
-import { codexProviders, piProviders } from "./agent-providers";
+import { codexProviders, openCodeProviders, piProviders } from "./agent-providers";
 
 const pi = { name: "Pi", icon: <PiIcon size={22} color="currentColor" /> };
 const codex = { name: "Codex", icon: <CodexIcon size={22} color="currentColor" /> };
+const opencode = { name: "OpenCode", icon: <OpenCodeIcon size={22} color="currentColor" /> };
 const running = (login: Partial<LoginState>): LoginState =>
   ({ id: "login-1", agent: "pi", provider: "github-copilot", type: "oauth", status: "running", events: [], ...login });
 
@@ -54,6 +55,8 @@ type Story = StoryObj<typeof meta>;
 export const PiProviders: Story = { render: () => <SignInFlow agent={pi} providers={piProviders} /> };
 /** Codex signs in to OpenAI only: with ChatGPT or an API key */
 export const CodexProviders: Story = { render: () => <SignInFlow agent={codex} providers={codexProviders} /> };
+/** OpenCode's 225 providers: any takes an API key, seven sign in in the browser, and a key that needs more is left to its own CLI */
+export const OpenCodeProviders: Story = { render: () => <SignInFlow agent={opencode} providers={openCodeProviders} /> };
 export const Loading: Story = { args: { providers: [], loading: true } };
 export const ProvidersUnavailable: Story = { args: { providers: [], error: "Codex exited before reading the Codex sign-in completed" } };
 export const WaitingForTheBrowser: Story = { args: { login: running({ events: [

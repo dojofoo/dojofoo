@@ -17,6 +17,19 @@ test("lists the agent's providers, signed-in ones first, and searches a long lis
   await expect(dialog.getByText("No provider matches “no such provider”")).toBeVisible();
 });
 
+test("a provider whose sign-in dojo can't run here points to the agent's own terminal", async ({ page }) => {
+  await page.goto(story("open-code-providers"));
+  const dialog = page.getByRole("dialog", { name: "Sign in to OpenCode" });
+  const search = dialog.getByRole("searchbox", { name: "Search providers" });
+  await search.fill("azure");
+  const azure = dialog.getByRole("listitem").filter({ has: page.getByText("Azure", { exact: true }) });
+  await expect(azure.getByRole("button")).toHaveCount(0);
+  await expect(azure).toContainText("In OpenCode's own terminal");
+  await search.fill("github copilot");
+  const copilot = dialog.getByRole("listitem").filter({ has: page.getByText("GitHub Copilot", { exact: true }) });
+  await expect(copilot.getByRole("button")).toHaveText(["Login with GitHub Copilot"]);
+});
+
 test("a browser sign-in shows its page, waits, and ends signed in", async ({ page }) => {
   await page.goto(story("codex-providers"));
   await page.getByRole("button", { name: "Sign in with ChatGPT" }).click();

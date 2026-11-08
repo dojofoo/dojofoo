@@ -202,9 +202,10 @@ export function openCodeModels(signal: AbortSignal, options: { executable?: stri
   }, options);
 }
 
-/** The model OpenCode picks when none is set: its server's default for its first provider (`GET /config/providers`). It has no
- *  command that prints it, and its pick is neither the newest nor the first it lists. */
-export function openCodeDefaultModel(signal: AbortSignal, options: { executable?: string; environment?: NodeJS.ProcessEnv } = {}): Promise<string | undefined> {
+/** Sensei's OpenCode serving on a free loopback port while `use` runs with its base URL; undefined when OpenCode exits before it
+ *  serves. It reads the user's logins (XDG_DATA_HOME), so a login it saves is the one Sensei's OpenCode uses. */
+export function openCodeServer<T>(signal: AbortSignal, use: (base: string) => Promise<T>,
+  options: { executable?: string; environment?: NodeJS.ProcessEnv } = {}): Promise<T | undefined> {
   return withSenseiOpenCode(async (executable, env, cwd) => {
     const port = await new Promise<number>((resolvePort, reject) => {
       const server = createServer().once("error", reject).listen(0, "127.0.0.1", () => {
@@ -217,20 +218,26 @@ export function openCodeDefaultModel(signal: AbortSignal, options: { executable?
     let exited = false;
     child.once("exit", () => { exited = true; });
     child.once("error", () => { exited = true; });
+    const base = `http://127.0.0.1:${port}`;
     try {
       while (!exited) {
         signal.throwIfAborted();
-        const answer = await fetch(`http://127.0.0.1:${port}/config/providers`, { signal }).catch(() => undefined);
-        if (answer?.ok) {
-          const config = await answer.json() as { providers?: { id?: unknown }[]; default?: Record<string, unknown> };
-          const provider = config.providers?.[0]?.id;
-          const model = typeof provider === "string" ? config.default?.[provider] : undefined;
-          return typeof model === "string" ? `${provider}/${model}` : undefined;
-        }
+        if ((await fetch(`${base}/config/providers`, { signal }).catch(() => undefined))?.ok) return await use(base);
         await new Promise(resolveWait => setTimeout(resolveWait, 200));
       }
       return undefined;
     } finally { child.kill(); }
+  }, options);
+}
+
+/** The model OpenCode picks when none is set: its server's default for its first provider (`GET /config/providers`). It has no
+ *  command that prints it, and its pick is neither the newest nor the first it lists. */
+export function openCodeDefaultModel(signal: AbortSignal, options: { executable?: string; environment?: NodeJS.ProcessEnv } = {}): Promise<string | undefined> {
+  return openCodeServer(signal, async base => {
+    const config = await (await fetch(`${base}/config/providers`, { signal })).json() as { providers?: { id?: unknown }[]; default?: Record<string, unknown> };
+    const provider = config.providers?.[0]?.id;
+    const model = typeof provider === "string" ? config.default?.[provider] : undefined;
+    return typeof model === "string" ? `${provider}/${model}` : undefined;
   }, options);
 }
 

@@ -104,6 +104,7 @@ export function AgentSignIn({ open, onOpenChange, agent, providers, loading, err
                               API key
                             </Button>
                           )}
+                          {!item.auth.oauth && !item.auth.apiKey?.login && <span className="ui-signin__status">In {agent.name}'s own terminal</span>}
                         </span>
                       </li>
                     );
@@ -225,7 +226,11 @@ const css = /* css */ `
 .ui-signin__title { margin: 0; font-size: 1.05rem; font-weight: 600; }
 .ui-signin__lead, .ui-signin__muted { margin: 0; color: var(--fluid-muted); font-size: 0.875rem; }
 .ui-signin__search { width: 100%; }
-.ui-signin input { box-shadow: inset 0 0 0 1px var(--fluid-hairline); }
+/* The onboarding's field takes its ring from the onboarding's own colors; here it uses the dialog's */
+.ui-signin input.ui-ob-input { background: transparent; color: var(--fluid-foreground); box-shadow: 0 0 0 1px var(--fluid-hairline); }
+.ui-signin input.ui-ob-input:hover { box-shadow: 0 0 0 1px var(--fluid-muted); }
+.ui-signin input.ui-ob-input:focus { box-shadow: 0 0 0 1px var(--fluid-foreground), 0 0 0 4px var(--fluid-hover); }
+.ui-signin input.ui-ob-input::placeholder { color: var(--fluid-muted); }
 .ui-signin__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; overflow: auto; min-height: 0; }
 .ui-signin__row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--fluid-hairline); }
 .ui-signin__row:first-child { border-top: 0; }
