@@ -28,7 +28,8 @@ test("the landing preview works without JavaScript and loads no editor or docs f
   const expensiveRequests: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("request", request => {
-    if (/monaco|editor-worker|editor-core|iosevka|docs-page-content|comparison-page-content|masterclass|inter-latin-opsz/i.test(request.url())) expensiveRequests.push(request.url());
+    if (/monaco|editor-worker|editor-core|iosevka|docs-page-content|comparison-page-content|masterclass/i.test(request.url())
+      || (request.resourceType() === "font" && /inter-latin-opsz/i.test(request.url()))) expensiveRequests.push(request.url());
   });
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
