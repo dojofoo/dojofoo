@@ -1,5 +1,12 @@
 # @dojofoo/config
 
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [48af084]
+  - @dojofoo/protocol@0.1.2
+
 ## 0.3.2
 
 ### Patch Changes

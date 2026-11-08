@@ -1,5 +1,17 @@
 # @dojofoo/agents
 
+## 0.2.2
+
+### Patch Changes
+
+- f68cf54: Model discovery moves from `@dojofoo/agents` into `@dojofoo/harness`, where the runtime design puts it, and is exported from `@dojofoo/harness/adapters`. The `@dojofoo/agents/eve/models` entry is removed. Nothing changes for learners or authors.
+- Updated dependencies [48af084]
+- Updated dependencies [f68cf54]
+- Updated dependencies [bf7cd76]
+  - @dojofoo/harness@0.2.2
+  - @dojofoo/protocol@0.1.2
+  - @dojofoo/config@0.3.3
+
 ## 0.2.1
 
 ### Patch Changes

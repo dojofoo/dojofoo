@@ -1,6 +1,6 @@
 {
   "name": "@dojofoo/config",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "description": "Shared configuration and Vitest integration for dojofoo.",
   "license": "FSL-1.1-ALv2",
