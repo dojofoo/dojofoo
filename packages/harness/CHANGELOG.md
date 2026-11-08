@@ -1,5 +1,18 @@
 # @dojofoo/harness
 
+## 0.2.2
+
+### Patch Changes
+
+- 48af084: Sign a coding agent in from the composer. Pi and Codex list the accounts they can use and sign in to one: a browser sign-in shows its page (or a code to enter), an API key is asked for in a password field. The agent saves the login where it keeps its own and renews it itself. An agent signed in to nothing shows "Sign in to <agent>" where the model menu would be, the model menu has a "Sign in…" row, and a failed turn that needs a login offers the same sign-in. A lapsed Pi login now reads "Sign in to GitHub Copilot again".
+
+  The harness's sign-in is Pi's interface: `agentAccess(agent)` from `@dojofoo/harness/adapters` lists providers as Pi's model runtime does and logs in through Pi's `AuthInteraction` (events to show, questions to answer). Pi runs its own login; Codex runs its app-server's (`account/read`, `account/login/start`). The session API serves it under `/agents/{id}/providers` and `/logins`, with the page's launch token. Protocol carries Pi's sign-in types in their JSON form, and the harness build fails if they stop matching Pi's.
+- f68cf54: Model discovery moves from `@dojofoo/agents` into `@dojofoo/harness`, where the runtime design puts it, and is exported from `@dojofoo/harness/adapters`. The `@dojofoo/agents/eve/models` entry is removed. Nothing changes for learners or authors.
+- bf7cd76: OpenCode signs in from the composer too, through Sensei's OpenCode server: any of its providers takes an API key, and the ones with a sign-in of their own (ChatGPT, GitHub Copilot, GitLab, xAI, …) open it in the browser after their questions (GitHub.com or Enterprise, say), pasting back a code where the page shows one. OpenCode saves the login in the user's data folder, which Sensei's OpenCode reads. A provider whose key needs more than the key (Azure's resource name) points to OpenCode's own terminal. The sign-in dialog's fields get an outline outside the onboarding.
+- Updated dependencies [48af084]
+  - @dojofoo/protocol@0.1.2
+  - @dojofoo/config@0.3.3
+
 ## 0.2.1
 
 ### Patch Changes
