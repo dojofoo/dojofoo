@@ -405,7 +405,9 @@ export function createLocalAgentRuntime(options: {
     async models(workspaceId, agentId) {
       root(workspaceId);
       if (!isAgentId(agentId)) throw new AgentApiError(404, "agent_not_found", "This workspace has no such coding agent.");
-      const { harnessModels } = createRequire(import.meta.url)("@dojofoo/agents/eve/models") as typeof import("@dojofoo/agents/eve/models");
+      // Resolved from @dojofoo/agents, as the persona runtimes reach the adapters: the built CLI depends on agents, not on the harness
+      const { harnessModels } = createRequire(createRequire(import.meta.url).resolve("@dojofoo/agents/package.json"))("@dojofoo/harness/adapters") as
+        typeof import("@dojofoo/harness/adapters");
       try { return await harnessModels(agentId, AbortSignal.timeout(20_000)); }
       catch (error) { throw new AgentApiError(502, "models_unavailable", error instanceof Error ? error.message : String(error)); }
     },
