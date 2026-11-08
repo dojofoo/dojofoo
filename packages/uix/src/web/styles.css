@@ -13,6 +13,7 @@
 @source "./";
 @source "../docs";
 @source "../components/button.tsx";
+@source "../components/app-shell.tsx";
 @source "../components/navigation-link.tsx";
 @source "../components/brand-logo.tsx";
 @source "../components/logo-cloud-1.tsx";

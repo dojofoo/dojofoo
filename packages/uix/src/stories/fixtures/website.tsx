@@ -14,6 +14,7 @@ import { LearningIllustration } from "../../web/learning-illustration";
 import { CoursePage } from "../../web/course";
 import { CoursesPage } from "../../web/courses";
 import { LandingPage } from "../../web/landing";
+import { TopographyBackdrop } from "../../web/topography-backdrop";
 import { SiteContext, type SiteLinks } from "../../web/site";
 import { ThemeToggle, type ThemeMode } from "../../components/theme-toggle";
 import { APIPageFixture } from "./api-reference";
@@ -102,7 +103,7 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
       {page === "course" ? <CoursePage course={course} />
         : page === "courses" ? <CoursesPage courses={catalog} />
         : page === "docs" ? <DocsSite path={doc} content={docsContent} renderApiPage={page => <APIPageFixture page={page} />} />
-        : <LandingPage artwork={artwork} learning={8} courses={catalog} featureCourse={courseById("everyday-typescript")} preview={artwork ? illustration ? <LearningArtwork {...illustration} /> : <div className="h-full" /> : <LearningIllustration />} />}
+        : <LandingPage backdrop={<TopographyBackdrop />} artwork={artwork} learning={8} courses={catalog} featureCourse={courseById("everyday-typescript")} preview={artwork ? illustration ? <LearningArtwork {...illustration} /> : <div className="h-full" /> : <LearningIllustration />} />}
       <SearchDialog {...search} onClose={() => setSearch(state => ({ ...state, open: false }))} onOpenDoc={links.openDoc} onOpenCourse={links.openCourse} />
     </SiteContext.Provider>
   );

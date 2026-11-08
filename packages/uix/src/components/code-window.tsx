@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import "../styles/editor.css";
 import { EditorFrame, EditorTabs } from "./editor";
 import { editorAppearance } from "../lib/editor-appearance";
 import type { highlightCode } from "../lib/markdown";

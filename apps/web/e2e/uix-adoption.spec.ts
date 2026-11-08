@@ -20,7 +20,7 @@ test("shared site links use one router navigation and preserve Back and Forward"
   await expect(page.getByRole("heading", { name: "Find your dojo", exact: true })).toBeVisible();
   expect(await page.evaluate(() => history.length)).toBe(initialHistory + 1);
   await expect(page.locator("html")).toHaveAttribute("data-route-transitions", "1");
-  await page.locator(".ui-crs-grid").getByRole("link", { name: /^Effect TS/ }).click();
+  await page.locator("[data-course-grid]").getByRole("link", { name: /^Effect TS/ }).click();
   await expect(page).toHaveURL(/\/courses\/dojofoo\/effect-ts$/);
   await expect(page.getByRole("heading", { name: "Effect TS", exact: true })).toBeVisible();
   expect(await page.evaluate(() => history.length)).toBe(initialHistory + 2);
@@ -59,7 +59,7 @@ test("public course routes use the shared UIX presentation and one search owner"
     await expect(header.getByRole("link", { name: "Help", exact: true })).toHaveAttribute("href", "/docs");
     if (path === "/dojos") {
       const opened = page.context().waitForEvent("page");
-      await page.locator(".ui-crs-grid").getByRole("link", { name: /^Effect TS/ }).click({ modifiers: ["ControlOrMeta"] });
+      await page.locator("[data-course-grid]").getByRole("link", { name: /^Effect TS/ }).click({ modifiers: ["ControlOrMeta"] });
       const tab = await opened;
       await expect(tab).toHaveURL(/\/courses\/dojofoo\/effect-ts$/);
       await expect(tab.getByRole("heading", { name: "Effect TS", exact: true })).toBeVisible();

@@ -958,7 +958,7 @@ export function Popover({
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div ref={ref} className={["ui-as-popover", className].filter(Boolean).join(" ")} data-align={place.align} data-side={place.side} role="dialog">
+    <div ref={ref} className={["ui-as-popover absolute z-30 top-[calc(100%+6px)] left-0 origin-top-left animate-in fade-in-0 zoom-in-95 duration-(--motion-moderate) ease-(--ease-moderate) data-[align=end]:right-0 data-[align=end]:left-auto data-[align=end]:origin-top-right data-[side=top]:top-auto data-[side=top]:bottom-[calc(100%+6px)] data-[side=top]:origin-bottom-left data-[side=right]:top-auto data-[side=right]:bottom-0 data-[side=right]:left-[calc(100%+12px)] data-[side=right]:origin-bottom-left", className].filter(Boolean).join(" ")} data-align={place.align} data-side={place.side} role="dialog">
       {children}
     </div>
   );
@@ -979,7 +979,7 @@ export type MenuItem = {
 /** List of actions or choices inside a popover */
 export function MenuList({ items, onPick }: { items: MenuItem[]; onPick: () => void }) {
   return (
-    <div role="menu" className="ui-as-menu__list" onKeyDown={event => {
+    <div role="menu" className="ui-as-menu__list grid min-h-0 gap-px overflow-y-auto overscroll-contain" onKeyDown={event => {
       const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"]'));
       const index = items.indexOf(document.activeElement as HTMLButtonElement);
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onPick(); return; }
@@ -996,7 +996,7 @@ export function MenuList({ items, onPick }: { items: MenuItem[]; onPick: () => v
           type="button"
           role={item.checked === undefined ? "menuitem" : "menuitemradio"}
           aria-checked={item.checked}
-          className="ui-as-menu__item"
+          className="ui-as-menu__item flex min-h-8 w-full items-center gap-[9px] rounded-[calc(8px*var(--squircle-factor,1))] px-2.5 text-left text-[length:var(--fs-body)] whitespace-nowrap text-(--text) transition-colors duration-(--motion-fast) ease-(--ease-fast) hover:bg-(--hover) hover:text-(--ink) focus-visible:bg-(--hover) focus-visible:text-(--ink) aria-checked:font-[550] aria-checked:text-(--ink) aria-checked:[font-variation-settings:'opsz'_18] data-[danger]:text-red-600 data-[rich]:min-h-11 data-[rich]:py-1.5 [&>svg]:flex-none [&>svg]:text-(--muted) [&>svg:last-child:not(:first-child)]:ml-auto [&>svg:last-child:not(:first-child)]:text-(--ink) data-[danger]:[&>svg]:text-red-600"
           data-danger={item.danger || undefined}
           data-rich={item.description ? true : undefined}
           onClick={() => {
@@ -1005,7 +1005,7 @@ export function MenuList({ items, onPick }: { items: MenuItem[]; onPick: () => v
           }}
         >
           {item.icon && <Icon icon={item.icon} size={15} />}
-          <span className="ui-as-menu__label">
+          <span className="ui-as-menu__label grid min-w-0 flex-1 gap-px [&_small]:text-[length:var(--fs-caption)] [&_small]:leading-4 [&_small]:font-normal [&_small]:text-(--faint)">
             {item.label}
             {item.description && <small>{item.description}</small>}
           </span>
@@ -1051,13 +1051,13 @@ export function Dropdown({
     selected?.focus({ preventScroll: true });
   }, [open]);
   return (
-    <span ref={anchor} className={["ui-as-anchor", className].filter(Boolean).join(" ")}>
+    <span ref={anchor} className={["ui-as-anchor relative inline-flex", className].filter(Boolean).join(" ")}>
       {trigger({ open, toggle: () => setOpen((o) => !o) })}
-      <Popover open={open} onClose={() => setOpen(false)} align={align} side={side} className="ui-as-menu">
-        {header && <>{header}<hr className="ui-as-menu__rule" /></>}
-        {title && <span className="ui-as-menu__title">{title}</span>}
+      <Popover open={open} onClose={() => setOpen(false)} align={align} side={side} className="ui-as-menu flex max-h-[min(var(--ui-as-menu-max-height,calc(100dvh-12px)),calc(100dvh-12px))] min-w-[168px] flex-col rounded-[calc(12px*var(--squircle-factor,1))] bg-(--card) p-1 shadow-(--shadow-4)">
+        {header && <>{header}<hr className="ui-as-menu__rule mx-1.5 my-1 border-0 border-t border-(--line)" /></>}
+        {title && <span className="ui-as-menu__title block px-2.5 pt-1.5 pb-1 text-[length:var(--fs-caption)] font-[550] text-(--faint) [font-variation-settings:'opsz'_18]">{title}</span>}
         <MenuList items={items} onPick={pick} />
-        {footer && <><hr className="ui-as-menu__rule" />{footer(() => setOpen(false))}</>}
+        {footer && <><hr className="ui-as-menu__rule mx-1.5 my-1 border-0 border-t border-(--line)" />{footer(() => setOpen(false))}</>}
       </Popover>
     </span>
   );
@@ -1117,7 +1117,7 @@ export function MenuButton<T extends string>({ value, options, onChange, icon, a
 }) {
   const current = options.find(option => option.value === value);
   return <Dropdown align={align} items={options.map(option => ({ label: option.label, checked: option.value === value, onSelect: () => onChange(option.value) }))}
-    trigger={({ open, toggle }) => <button type="button" className={["ui-as-tool ui-as-tool--label", className].filter(Boolean).join(" ")} aria-label={label ? `${label}: ${current?.label ?? ""}` : undefined} aria-expanded={open} aria-haspopup="menu" disabled={disabled} onClick={toggle}>
+    trigger={({ open, toggle }) => <button type="button" className={["ui-as-tool ui-as-tool--label flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-[calc(9px*var(--squircle-factor,1))] bg-(--card) px-2.5 text-[length:var(--fs-body)] text-(--text) shadow-(--shadow-2) transition-[box-shadow,color] duration-(--motion-fast) ease-(--ease-fast) hover:text-(--ink) hover:shadow-(--shadow-3) [&>svg]:text-(--muted)", className].filter(Boolean).join(" ")} aria-label={label ? `${label}: ${current?.label ?? ""}` : undefined} aria-expanded={open} aria-haspopup="menu" disabled={disabled} onClick={toggle}>
       {icon && <Icon icon={icon} size={15} />}{current?.label}<Icon icon={ArrowDown01Icon} size={13} />
     </button>} />;
 }
@@ -1154,14 +1154,14 @@ export function SectionHead({ title, left, right }: { title: string; left?: Reac
   );
 }
 
-export function EmptyState({ title, text, action, tall }: { title: string; text: string; action?: ReactNode; tall?: boolean }) {
+export function EmptyState({ title, text, action, tall, icon = File02Icon }: { title: string; text: string; action?: ReactNode; tall?: boolean; icon?: IconGlyph }) {
   return (
-    <div className="ui-as-empty" data-tall={tall || undefined}>
-      <span className="ui-as-empty__icon">
-        <Icon icon={File02Icon} size={18} />
+    <div className="ui-as-empty mt-4 flex flex-col items-center rounded-[calc(14px*var(--squircle-factor,1))] border border-dashed border-(--line-strong) px-6 pt-12 pb-[52px] text-center data-[tall]:pb-12 max-[761px]:px-[18px] max-[761px]:pt-9 max-[761px]:pb-10 [&>.ui-button]:mt-[18px]!" data-tall={tall || undefined}>
+      <span className="ui-as-empty__icon grid size-[42px] place-items-center rounded-[calc(11px*var(--squircle-factor,1))] bg-(--chip) text-(--muted)">
+        <Icon icon={icon} size={18} />
       </span>
-      <b className="ui-as-empty__title">{title}</b>
-      <p className="ui-as-empty__text">{text}</p>
+      <b className="ui-as-empty__title mt-4 text-[length:var(--fs-subtitle)] leading-5 font-[550] text-(--ink) [font-variation-settings:'opsz'_18]">{title}</b>
+      <p className="ui-as-empty__text mt-1.5 mb-0 max-w-[430px] text-[length:var(--fs-body)] leading-[19px] text-balance text-(--muted)">{text}</p>
       {action}
     </div>
   );
@@ -2015,31 +2015,6 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
 }
 .ui-as-search input::-webkit-search-cancel-button { display: none; }
 
-/* Empty state in a dashed drop area */
-.ui-as-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 16px;
-  padding: 48px 24px 52px;
-  border: 1px dashed var(--line-strong);
-  border-radius: calc(14px * var(--squircle-factor, 1));
-  text-align: center;
-}
-.ui-as-empty[data-tall] { padding: 48px 24px 48px; }
-.ui-as-empty__icon {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: calc(11px * var(--squircle-factor, 1));
-  background: var(--chip);
-  color: var(--muted);
-}
-.ui-as-empty__title { margin-top: 16px; font-size: var(--fs-subtitle); line-height: 20px; font-weight: 550; font-variation-settings: "opsz" 18; color: var(--ink); }
-.ui-as-empty__text { max-width: 430px; margin: 6px 0 0; font-size: var(--fs-body); line-height: 19px; color: var(--muted); text-wrap: balance; }
-.ui-as-empty > .ui-button { margin-top: 18px; }
-
 /* Glass Folder from the library at icon size; hovering the whole card or row opens it like hovering the folder itself */
 .ui-as-folder-card__icon, .ui-as-folder-head__icon {
   position: relative;
@@ -2299,7 +2274,6 @@ a.ui-as-side__item { text-decoration: none; cursor: pointer; }
   .ui-as-toolbar__right > .ui-button:last-child { margin-left: auto; }
   .ui-as-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
   .ui-as-tabs__tab { flex: none; }
-  .ui-as-empty { padding: 36px 18px 40px; }
   .ui-as-popover--filter .ui-fm { width: 300px; }
   .ui-as-main .ui-as-file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 10px; }
   .ui-as-main .ui-as-file-grid .ui-as-template__preview { height: 128px; }

@@ -175,7 +175,7 @@ export function SiteFooter({ current, ground = false }: { current?: SiteSection;
         {/* The maker's line as a small quote (the testimonials' mark), his avatar after it, online */}
         <NavigationLink className="inline-flex items-center gap-2.5 [&_[role=img]]:[corner-shape:round] [&_[role=img]_*]:[corner-shape:round] [&_q]:text-right [&_q]:text-[15px] [&_q]:font-[550] [&_q]:tracking-[-0.01em] [&_q]:text-balance [&_q]:text-(--ink) [&_q]:[quotes:none] hover:[&_q]:text-(--accent)" href="https://x.com/tomhaxxx" target="_blank" rel="noreferrer" aria-label={`${line} – Tom Siwik on X`}>
           {/* The mark inside the quote, so it opens its first line however the line wraps */}
-          <q><svg aria-hidden="true" viewBox="0 0 32 24" className="inline-block h-[11px] w-3.5 mr-2.5 align-[0.45em] fill-(--muted) opacity-35">
+          <q><svg aria-hidden="true" viewBox="0 0 32 24" className="float-left mt-1 mr-2 h-[9px] w-3 fill-(--muted) opacity-35">
             <path d="M0 24V14.4C0 6.6 4.2 1.8 12.4 0l1.4 3.4C9.4 4.8 7.3 7.6 7 11.2h6.2V24H0Zm18.2 0V14.4C18.2 6.6 22.4 1.8 30.6 0L32 3.4c-4.4 1.4-6.5 4.2-6.8 7.8h6.2V24H18.2Z" />
           </svg>{line}</q>
           <Avatar name="Tom Siwik" src={makerPhoto} size="md" status="online" />

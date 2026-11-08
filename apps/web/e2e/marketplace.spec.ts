@@ -19,7 +19,7 @@ test("browses, filters, sorts, and opens courses from the catalog", async ({ pag
   await page.goto("/dojos");
   await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(page.getByRole("heading", { name: "Find your dojo", level: 1 })).toBeVisible();
-  const cards = page.locator(".ui-crs-grid > a");
+  const cards = page.locator("[data-course-grid] > a");
   await expect(cards).toHaveCount(3);
   await expect(cards.first()).toHaveAttribute("href", "/courses/dojofoo/effect-ts");
   const sort = page.getByRole("button", { name: /^Sort courses:/ });
@@ -46,7 +46,7 @@ test("browses, filters, sorts, and opens courses from the catalog", async ({ pag
   const search = page.getByRole("searchbox", { name: "Search courses" });
   await search.fill("no-such-course");
   await expect(cards).toHaveCount(0);
-  await page.locator(".ui-crs-count").getByRole("button", { name: "Clear filters", exact: true }).click();
+  await page.locator("[data-course-count]").getByRole("button", { name: "Clear filters", exact: true }).click();
   await expect(search).toHaveValue("");
   await expect(cards).toHaveCount(3);
 

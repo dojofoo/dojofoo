@@ -56,7 +56,7 @@ it("does not offer a shell command when the API has no installation source", () 
 });
 
 it("renders the real empty catalog without a sample course or pretend live telemetry", () => {
-  const markup = renderToStaticMarkup(createElement(SiteContext.Provider, { value: links }, createElement(LandingPage, { courses: [], preview: null })));
+  const markup = renderToStaticMarkup(createElement(SiteContext.Provider, { value: links }, createElement(LandingPage, { courses: [], preview: null, backdrop: null })));
   expect(markup).toContain("You can only fight the way you practice");
   expect(markup).toContain("No courses are available yet");
   expect(markup).not.toContain("people learning right now");
