@@ -2,32 +2,30 @@ import { expect, test } from "@playwright/test";
 
 const story = (id: string) => `/iframe.html?id=components-molecules-agent-sign-in--${id}&viewMode=story`;
 
-test("lists the agent's providers, signed-in ones first, and searches a long list", async ({ page }) => {
+test("lists the providers the agent signs in to in the browser, signed-in ones first, and offers no keys", async ({ page }) => {
   await page.goto(story("pi-providers"));
   const dialog = page.getByRole("dialog", { name: "Sign in to Pi" });
   const providers = dialog.getByRole("list", { name: "Providers" }).getByRole("listitem");
-  await expect(providers).toHaveCount(42);
-  await expect(providers.nth(0)).toContainText("Signed in with DEEPSEEK_API_KEY");
-  await expect(providers.nth(3)).not.toContainText("Signed in");
-  await dialog.getByRole("searchbox", { name: "Search providers" }).fill("copilot");
-  await expect(providers).toHaveCount(1);
-  await expect(providers.getByRole("button", { name: "Sign in with GitHub Copilot" })).toBeVisible();
-  await expect(providers.getByRole("button", { name: "Enter GitHub Copilot token" })).toBeVisible();
-  await dialog.getByRole("searchbox", { name: "Search providers" }).fill("no such provider");
-  await expect(dialog.getByText("No provider matches “no such provider”")).toBeVisible();
+  await expect(providers).toHaveCount(9);
+  await expect(providers.nth(0)).toContainText("GitHub Copilot");
+  await expect(providers.nth(0)).toContainText("Signed in");
+  await expect(dialog.getByRole("button", { name: /API key|Enter / })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Sign in with GitHub Copilot" })).toBeVisible();
 });
 
-test("a provider whose sign-in dojo can't run here points to the agent's own terminal", async ({ page }) => {
+test("opened from a model whose login lapsed, it lists only that provider", async ({ page }) => {
+  await page.goto(story("lapsed-login"));
+  const providers = page.getByRole("dialog", { name: "Sign in to Pi" }).getByRole("listitem");
+  await expect(providers).toHaveCount(1);
+  await expect(providers).toContainText("GitHub Copilot");
+});
+
+test("OpenCode lists its own browser sign-ins and no keys", async ({ page }) => {
   await page.goto(story("open-code-providers"));
   const dialog = page.getByRole("dialog", { name: "Sign in to OpenCode" });
-  const search = dialog.getByRole("searchbox", { name: "Search providers" });
-  await search.fill("azure");
-  const azure = dialog.getByRole("listitem").filter({ has: page.getByText("Azure", { exact: true }) });
-  await expect(azure.getByRole("button")).toHaveCount(0);
-  await expect(azure).toContainText("In OpenCode's own terminal");
-  await search.fill("github copilot");
-  const copilot = dialog.getByRole("listitem").filter({ has: page.getByText("GitHub Copilot", { exact: true }) });
-  await expect(copilot.getByRole("button")).toHaveText(["Login with GitHub Copilot"]);
+  await expect(dialog.getByRole("listitem")).toHaveCount(7);
+  await expect(dialog.getByRole("button", { name: "Login with GitHub Copilot" })).toBeVisible();
+  await expect(dialog.getByText("Azure", { exact: true })).toHaveCount(0);
 });
 
 test("a browser sign-in shows its page, waits, and ends signed in", async ({ page }) => {
@@ -39,20 +37,6 @@ test("a browser sign-in shows its page, waits, and ends signed in", async ({ pag
   await expect(dialog.getByText("Signed in.")).toBeVisible({ timeout: 10_000 });
   await dialog.getByRole("button", { name: "Done" }).click();
   await expect(page.locator("dialog[open]")).toHaveCount(0);
-});
-
-test("an API key is asked for as a password field and the provider then reads signed in", async ({ page }) => {
-  await page.goto(story("codex-providers"));
-  await page.getByRole("button", { name: "Enter OpenAI API key" }).click();
-  const key = page.getByLabel("Enter your OpenAI API key");
-  await expect(key).toHaveAttribute("type", "password");
-  await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
-  await key.fill("sk-story");
-  await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByText("Signed in.")).toBeVisible();
-  await page.getByRole("button", { name: "Done" }).click();
-  await page.getByRole("button", { name: "Sign in…" }).click();
-  await expect(page.getByRole("dialog", { name: "Sign in to Codex" }).getByRole("listitem")).toContainText("Signed in");
 });
 
 test("a failed sign-in says why and goes back to the providers", async ({ page }) => {

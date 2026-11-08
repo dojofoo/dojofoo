@@ -12,6 +12,10 @@ export interface ModelChoice {
   defaultEffort?: string;
   /** Why the agent can't run it now ("Sign in to GitHub Copilot again"); absent when it can */
   unavailable?: string;
+  /** The provider to sign in to again, when the reason it can't run is a lapsed login */
+  signIn?: string;
+  /** The model the agent runs when a conversation names none: its own configured default */
+  default?: boolean;
 }
 
 /** The harness could not resume a session from its checkpoint (D28). */

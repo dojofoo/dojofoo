@@ -4,10 +4,11 @@ import { Button, ButtonLink } from "./button";
 import { Input } from "./input";
 
 /*
- * Signing a coding agent in from the composer, in Pi's terms: the agent's providers, each with the sign-ins it offers (a browser
- * or device-code sign-in, an API key), then the sign-in itself as Pi's login interaction runs it – the page to open or the code to
- * enter, the question it asks, and how it ended. The agent saves the login where it keeps its own. A native modal dialog
- * (focus trap, Esc, top layer), surface 5 with shadow 5 like the command palette.
+ * Signing a coding agent in from the composer, when it can't run: signed in to nothing, or a provider's login lapsed. In Pi's terms:
+ * the providers the agent signs in to in the browser (an account or subscription; keys stay in the agent's own setup), then the
+ * sign-in as Pi's login interaction runs it – the page to open or the code to enter, the question it asks, and how it ended. The
+ * agent saves the login where it keeps its own and renews it. A native modal dialog (focus trap, Esc, top layer), surface 5 with
+ * shadow 5 like the command palette.
  */
 
 export type AgentSignInProps = {
@@ -21,7 +22,7 @@ export type AgentSignInProps = {
   error?: string;
   /** The sign-in running or just ended */
   login?: LoginState;
-  /** Listed first, e.g. the provider whose login lapsed */
+  /** The only one listed: the provider whose login lapsed */
   provider?: string;
   onStart: (provider: string, type: AuthType) => void;
   onAnswer: (promptId: string, value: string) => void;
@@ -57,8 +58,9 @@ export function AgentSignIn({ open, onOpenChange, agent, providers, loading, err
     onOpenChange(false);
   };
 
-  const listed = [...providers].sort((left, right) =>
-    Number(right.id === first) - Number(left.id === first) || Number(right.status.configured) - Number(left.status.configured));
+  // Browser sign-ins only, signed-in ones first; just the lapsed provider when one is named
+  const listed = providers.filter(item => item.auth.oauth && (!first || item.id === first))
+    .sort((left, right) => Number(right.status.configured) - Number(left.status.configured));
   const shown = query.trim() ? listed.filter(item => `${item.name} ${item.id}`.toLowerCase().includes(query.trim().toLowerCase())) : listed;
 
   return (
@@ -75,8 +77,8 @@ export function AgentSignIn({ open, onOpenChange, agent, providers, loading, err
 
       {!current ? (
         <>
-          <p className="ui-signin__lead">{agent.name} keeps the sign-in, as when you sign in from its own terminal, and renews it itself.</p>
-          {providers.length >= SEARCH_FROM && (
+          <p className="ui-signin__lead">{agent.name} keeps the sign-in and renews it itself, as when you sign in from its own terminal.</p>
+          {listed.length >= SEARCH_FROM && (
             <Input type="search" aria-label="Search providers" placeholder="Search providers" autoComplete="off" spellCheck={false}
               className="ui-signin__search" value={query} onChange={event => setQuery(event.target.value)} />
           )}
@@ -84,7 +86,8 @@ export function AgentSignIn({ open, onOpenChange, agent, providers, loading, err
             : loading ? <p className="ui-signin__muted" role="status">Reading {agent.name}'s accounts…</p>
               : (
                 <ul className="ui-signin__list" aria-label="Providers">
-                  {shown.length === 0 && <li className="ui-signin__muted">No provider matches “{query.trim()}”</li>}
+                  {listed.length === 0 ? <li className="ui-signin__muted">{agent.name} signs in from its own terminal.</li>
+                    : shown.length === 0 && <li className="ui-signin__muted">No provider matches “{query.trim()}”</li>}
                   {shown.map(item => {
                     const status = signedIn(item.status);
                     return (
@@ -99,12 +102,6 @@ export function AgentSignIn({ open, onOpenChange, agent, providers, loading, err
                               {item.auth.oauth.loginLabel ?? `Sign in with ${item.auth.oauth.name}`}
                             </Button>
                           )}
-                          {item.auth.apiKey?.login && (
-                            <Button size="sm" variant="secondary" aria-label={`Enter ${item.auth.apiKey.name}`} onClick={() => onStart(item.id, "api_key")}>
-                              API key
-                            </Button>
-                          )}
-                          {!item.auth.oauth && !item.auth.apiKey?.login && <span className="ui-signin__status">In {agent.name}'s own terminal</span>}
                         </span>
                       </li>
                     );

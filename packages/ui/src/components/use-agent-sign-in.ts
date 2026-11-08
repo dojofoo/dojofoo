@@ -21,6 +21,8 @@ export function useAgentSignIn(workspaceId: string, agent: string, onSignedIn: (
   const [providers, setProviders] = useState<AccessProvider[]>();
   const [error, setError] = useState<string>();
   const [open, setOpen] = useState(false);
+  // The provider whose login lapsed, when the sign-in opened from its model
+  const [provider, setProvider] = useState<string>();
   const [login, setLogin] = useState<LoginState>();
   const [revision, setRevision] = useState(0);
   const signedIn = useRef(onSignedIn);
@@ -63,9 +65,9 @@ export function useAgentSignIn(workspaceId: string, agent: string, onSignedIn: (
     available: Boolean(providers?.length),
     /** Signed in to none of its providers */
     needed: Boolean(providers?.length) && !providers!.some(provider => provider.status.configured),
-    show: () => setOpen(true),
+    show: (lapsed?: string) => { setProvider(lapsed); setOpen(true); },
     dialog: {
-      open, onOpenChange: setOpen, providers: providers ?? [], loading: providers === undefined, ...(error ? { error } : {}),
+      open, onOpenChange: setOpen, ...(provider ? { provider } : {}), providers: providers ?? [], loading: providers === undefined, ...(error ? { error } : {}),
       ...(login ? { login } : {}),
       onStart: (provider: string, type: AuthType) => { void send(`/agents/${encodeURIComponent(agent)}/logins`, json({ provider, type })); },
       onAnswer: (prompt: string, value: string) => { if (login) void send(`/logins/${encodeURIComponent(login.id)}/answer`, json({ prompt, value })); },

@@ -268,7 +268,11 @@ export function ChatMessages({
 /** `effort`: the level it runs at by default; `efforts`: the levels a coding agent lists for it (the model menu then offers them) */
 export type ComposerModel = { value?: string; name: string; effort?: string; efforts?: string[]; description: string; icon: IconGlyph;
   /** Why the agent can't run it now; the model menu shows it muted with this reason */
-  unavailable?: string };
+  unavailable?: string;
+  /** The provider to sign in to again, when its login lapsed: the model's row opens that sign-in */
+  signIn?: string;
+  /** The model the agent runs when none is chosen */
+  isDefault?: boolean };
 export type ComposerAgent = { value: string; name: string; icon: IconGlyph; description?: string };
 const defaultModels: ComposerModel[] = [
   { name: "Auto", description: "Picks the best model for each task", icon: AiMagicIcon },
@@ -312,8 +316,8 @@ export function Composer({
   effort?: string;
   /** Undefined: back to the model's default */
   onEffortChange?: (effort: string | undefined) => void;
-  /** Opens the coding agent's sign-in: a "Sign in…" row in the model menu */
-  onSignIn?: () => void;
+  /** Opens the coding agent's sign-in: for a provider whose login lapsed, or for the agent when it is signed in to nothing */
+  onSignIn?: (provider?: string) => void;
   /** The agent can't run any model until it is signed in: a sign-in button stands where the model menu would */
   signInNeeded?: boolean;
   /** Keep the + control visible but disabled when this connection cannot accept files. */
@@ -430,18 +434,20 @@ export function Composer({
             {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
           </ComposerPicker>}</>}
     controls={<>{agent && signInNeeded && onSignIn && !models.some(m => !m.unavailable) ? (
-              <button type="button" className="ui-as-ghost ui-as-ghost--model" disabled={disabled || busy || agentChanging} onClick={onSignIn}>
+              <button type="button" className="ui-as-ghost ui-as-ghost--model" disabled={disabled || busy || agentChanging} onClick={() => onSignIn()}>
                 Sign in to {agent.name}
               </button>
             ) : agent && models.length ? (
               // A coding agent's models: the model menu with each model's description, effort levels and why one can't run now
               <ModelPicker side="top" align="end" className="ui-as-composer__models" triggerClassName="ui-as-ghost ui-as-ghost--model" glyphs={false}
                 models={models.map(m => ({ id: m.value ?? m.name, name: m.name, description: m.description, efforts: m.efforts ?? [],
-                  ...(m.effort ? { defaultEffort: m.effort } : {}), ...(m.unavailable ? { unavailable: m.unavailable } : {}) }))}
+                  ...(m.effort ? { defaultEffort: m.effort } : {}), ...(m.unavailable ? { unavailable: m.unavailable } : {}),
+                  ...(m.signIn ? { signIn: true } : {}), ...(m.isDefault ? { isDefault: true } : {}) }))}
                 value={model} effort={effort} disabled={disabled || busy || modelChanging || loading || agentChanging}
                 {...(loading || agentChanging ? { placeholder: "Loading…" } : {})}
                 onChange={next => { if (onModelChange) onModelChange(next); else setSelected(next); }}
-                onEffortChange={next => onEffortChange?.(next)} {...(onSignIn ? { onSignIn } : {})} />
+                onEffortChange={next => onEffortChange?.(next)}
+                {...(onSignIn ? { onSignIn: (id: string) => onSignIn(models.find(m => (m.value ?? m.name) === id)?.signIn) } : {})} />
             ) : <ComposerPicker title="Model" model loading={loading || agentChanging || modelChanging}
               onPrepare={onModelPrepare} disabled={(!models.length && !onModelPrepare) || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
               items={models.map(m => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon,

@@ -33,10 +33,25 @@ test("models the agent can't run now are listed last, say why, and can't be pick
   await expect(page.getByRole("button", { name: /^Model: DeepSeek V4\.1 Flash/ })).toBeVisible();
 });
 
-test("a conversation without a model shows the agent's default and checks no model", async ({ page }) => {
+test("a conversation without a model names the agent's default and checks it", async ({ page }) => {
   const menu = await openMenu(page, "agent-default-model");
-  await expect(page.getByRole("button", { name: "Model: Agent default" })).toBeVisible();
-  await expect(menu.getByRole("option", { selected: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Model: Default (DeepSeek V4 Pro)" })).toBeVisible();
+  await expect(menu.getByRole("option", { selected: true })).toHaveAccessibleName(/^DeepSeek V4 Pro, Default · deepseek/);
+});
+
+test("Claude Code's own default names the model it runs, at that model's effort", async ({ page }) => {
+  await openMenu(page, "claude-code-models");
+  await expect(page.getByRole("button", { name: "Model: Default (Opus 5.5), Medium effort" })).toBeVisible();
+});
+
+test("the pointer marks only the row it is on, as in the account menu", async ({ page }) => {
+  const menu = await openMenu(page, "codex-models");
+  const rows = menu.getByRole("option");
+  await rows.nth(1).hover();
+  const look = (index: number) => rows.nth(index).evaluate(row => ({ background: getComputedStyle(row).backgroundColor, opacity: getComputedStyle(row).opacity }));
+  const [pointed, other] = [await look(1), await look(2)];
+  expect(pointed.background).not.toBe(other.background);
+  expect(other.opacity).toBe("1");
 });
 
 test("a model without a default level of its own runs at Default until a level is chosen", async ({ page }) => {

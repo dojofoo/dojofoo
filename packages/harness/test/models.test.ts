@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { acpModels, codexModels, configuredHarnessModel, fxModels, openCodeDefaultModel, parseFxModels, parseOpenCodeModels, piModels } from "../src/models.ts";
+import { acpModels, codexModels, configuredHarnessEffort, configuredHarnessModel, fxModels, openCodeDefaultModel, parseFxModels, parseOpenCodeModels, piModels } from "../src/models.ts";
 
 const createModelRuntime = vi.hoisted(() => vi.fn());
 const thinkingLevels = vi.hoisted(() => vi.fn());
@@ -43,6 +43,19 @@ describe("native model discovery", () => {
       expect(await configuredHarnessModel("claude", home)).toBeUndefined();
     } finally { await rm(home, { recursive: true, force: true }); }
   });
+  it("starts a conversation at the effort the agent is configured with: Codex's, and Pi's while the model takes it", async () => {
+    const home = await mkdtemp(join(tmpdir(), "dojo-effort-config-"));
+    const listed = [{ id: "zai/glm-5.3-flash", name: "GLM-5.3-Flash", efforts: ["off", "low", "high"] }, { id: "zai/plain", name: "Plain", efforts: [] }];
+    try {
+      expect(await configuredHarnessEffort("codex", "gpt-6.1-sol", home)).toBeUndefined();
+      await writeFile(join(home, "config.toml"), `model = "gpt-6.1-sol"\nmodel_reasoning_effort = "medium"\n`);
+      expect(await configuredHarnessEffort("codex", "gpt-6.1-sol", home)).toBe("medium");
+      await writeFile(join(home, "settings.json"), JSON.stringify({ defaultThinkingLevel: "high" }));
+      expect(await configuredHarnessEffort("pi", "zai/glm-5.3-flash", undefined, { piAgentDir: home, listPi: async () => listed })).toBe("high");
+      expect(await configuredHarnessEffort("pi", "zai/plain", undefined, { piAgentDir: home, listPi: async () => listed })).toBeUndefined();
+      expect(await configuredHarnessEffort("opencode", "deepseek/deepseek-v4-pro", home)).toBeUndefined();
+    } finally { await rm(home, { recursive: true, force: true }); }
+  });
   it("starts FX on the first model its CLI lists, and on libfx's own default when the CLI lists none or fails", async () => {
     const listed = [{ id: "gpt-6.1-sol", name: "gpt-6.1-sol", efforts: [] }, { id: "gpt-6-luna", name: "gpt-6-luna", efforts: [] }];
     expect(await configuredHarnessModel("fx", undefined, async () => listed)).toBe("gpt-6.1-sol");
@@ -76,8 +89,10 @@ describe("native model discovery", () => {
     })[provider]);
     expect(await piModels(AbortSignal.timeout(2000), "/fixture/pi", now)).toEqual([
       { id: "zai/glm-5.3", name: "GLM-5.3", description: "Z.ai", efforts: [] },
-      { id: "openai-codex/gpt-6.1-sol", name: "GPT-6.1 Sol", description: "ChatGPT", efforts: [], unavailable: "Sign in to ChatGPT again" },
-      { id: "github-copilot/claude-sonnet-5", name: "Claude Sonnet 5", description: "GitHub Copilot", efforts: [], unavailable: "Sign in to GitHub Copilot again" },
+      { id: "openai-codex/gpt-6.1-sol", name: "GPT-6.1 Sol", description: "ChatGPT", efforts: [], unavailable: "Sign in to ChatGPT again",
+        signIn: "openai-codex" },
+      { id: "github-copilot/claude-sonnet-5", name: "Claude Sonnet 5", description: "GitHub Copilot", efforts: [], unavailable: "Sign in to GitHub Copilot again",
+        signIn: "github-copilot" },
       { id: "github-copilot/gpt-6-astra", name: "GPT-6 Astra", description: "GitHub Copilot", efforts: [], unavailable: "Not in your GitHub Copilot plan" },
     ]);
   });
@@ -146,11 +161,11 @@ require("node:http").createServer((request, response) => response.end(JSON.strin
       request.method !== 'model/list' ? null : request.params.cursor ? {
         data: [{ model: 'second', displayName: 'Second', supportedReasoningEfforts: [] }], nextCursor: null
       } : {
-        data: [{ model: 'first', displayName: 'First', supportedReasoningEfforts: [{ reasoningEffort: 'high' }], defaultReasoningEffort: 'high' }], nextCursor: 'page2'
+        data: [{ model: 'first', displayName: 'First', supportedReasoningEfforts: [{ reasoningEffort: 'high' }], defaultReasoningEffort: 'high', isDefault: true }], nextCursor: 'page2'
       }
     `));
     expect(models).toEqual([
-      { id: "first", name: "First", efforts: ["high"], defaultEffort: "high" },
+      { id: "first", name: "First", efforts: ["high"], defaultEffort: "high", default: true },
       { id: "second", name: "Second", efforts: [], defaultEffort: undefined },
     ]);
   });

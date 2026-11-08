@@ -280,9 +280,10 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   useEffect(() => {
     const controller = new AbortController();
     // Each model with its own description, its effort levels and the one it runs at by default, as the agent lists them
-    void json<Page<{ id: string; name: string; description?: string; efforts: string[]; defaultEffort?: string; unavailable?: string }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
+    void json<Page<{ id: string; name: string; description?: string; efforts: string[]; defaultEffort?: string; unavailable?: string; signIn?: string; default?: boolean }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
       .then(page => setModels(page.data.map(choice => ({ value: choice.id, name: choice.name, description: choice.description ?? "", efforts: choice.efforts,
-        ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}), ...(choice.unavailable ? { unavailable: choice.unavailable } : {}), icon: AiMagicIcon }))),
+        ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}), ...(choice.unavailable ? { unavailable: choice.unavailable } : {}),
+        ...(choice.signIn ? { signIn: choice.signIn } : {}), ...(choice.default ? { isDefault: true } : {}), icon: AiMagicIcon }))),
         // An agent that can't list its models (signed out, say) offers none; the composer then offers its sign-in where it has one
         () => { if (!controller.signal.aborted) setModels([]); });
     return () => controller.abort();

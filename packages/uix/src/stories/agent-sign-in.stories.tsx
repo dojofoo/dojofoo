@@ -12,8 +12,8 @@ const opencode = { name: "OpenCode", icon: <OpenCodeIcon size={22} color="curren
 const running = (login: Partial<LoginState>): LoginState =>
   ({ id: "login-1", agent: "pi", provider: "github-copilot", type: "oauth", status: "running", events: [], ...login });
 
-/** The sign-in as the server runs it: a browser sign-in shows its page and finishes after a moment, a key is asked for, then saved */
-function SignInFlow({ agent, providers: initial }: { agent: { name: string; icon: ReactNode }; providers: AccessProvider[] }) {
+/** The sign-in as the server runs it: a browser sign-in shows its page and finishes after a moment */
+function SignInFlow({ agent, providers: initial, provider }: { agent: { name: string; icon: ReactNode }; providers: AccessProvider[]; provider?: string }) {
   const [open, setOpen] = useState(true);
   const [providers, setProviders] = useState(initial);
   const [login, setLogin] = useState<LoginState>();
@@ -23,18 +23,13 @@ function SignInFlow({ agent, providers: initial }: { agent: { name: string; icon
   };
   const start = (provider: string, type: AuthType) => {
     const id = `login-${Date.now()}`;
-    if (type === "api_key") {
-      const name = providers.find(item => item.id === provider)?.auth.apiKey?.name ?? "API key";
-      setLogin({ id, agent: "pi", provider, type, status: "running", events: [], prompt: { id: "key", type: "secret", message: `Enter your ${name}` } });
-      return;
-    }
     setLogin({ id, agent: "pi", provider, type, status: "running",
       events: [{ type: "auth_url", url: "https://example.com/oauth/authorize", instructions: "Sign in in the page that opens; this finishes when the page is done." }] });
     setTimeout(() => finish(provider), 2500);
   };
   return <div style={{ minHeight: "100dvh" }}>
     {!open && <button type="button" onClick={() => setOpen(true)} style={{ margin: 24 }}>Sign in…</button>}
-    <AgentSignIn open={open} onOpenChange={setOpen} agent={agent} providers={providers} {...(login ? { login } : {})}
+    <AgentSignIn open={open} onOpenChange={setOpen} agent={agent} providers={providers} {...(login ? { login } : {})} {...(provider ? { provider } : {})}
       onStart={start}
       onAnswer={() => { setLogin(current => current && { ...current, events: [{ type: "progress", message: "Saving the key…" }] }); setTimeout(() => login && finish(login.provider), 600); }}
       onCancel={() => setLogin(current => current && { ...current, status: "cancelled" })} />
@@ -51,12 +46,14 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Pi's 42 providers: signed-in ones first, a search field, a browser sign-in where the provider has one and an API key */
+/** Pi's providers with a browser sign-in of their own (keys stay in Pi's setup): signed-in ones first, with search */
 export const PiProviders: Story = { render: () => <SignInFlow agent={pi} providers={piProviders} /> };
-/** Codex signs in to OpenAI only: with ChatGPT or an API key */
+/** Codex signs in to OpenAI only, with ChatGPT */
 export const CodexProviders: Story = { render: () => <SignInFlow agent={codex} providers={codexProviders} /> };
-/** OpenCode's 225 providers: any takes an API key, seven sign in in the browser, and a key that needs more is left to its own CLI */
+/** OpenCode's seven providers with a browser sign-in of their own */
 export const OpenCodeProviders: Story = { render: () => <SignInFlow agent={opencode} providers={openCodeProviders} /> };
+/** Opened from a model whose login lapsed: only that provider */
+export const LapsedLogin: Story = { render: () => <SignInFlow agent={pi} providers={piProviders} provider="github-copilot" /> };
 export const Loading: Story = { args: { providers: [], loading: true } };
 export const ProvidersUnavailable: Story = { args: { providers: [], error: "Codex exited before reading the Codex sign-in completed" } };
 export const WaitingForTheBrowser: Story = { args: { login: running({ events: [
@@ -66,7 +63,6 @@ export const WaitingForTheBrowser: Story = { args: { login: running({ events: [
 export const DeviceCode: Story = { args: { login: running({ events: [
   { type: "device_code", userCode: "WDJB-MJHT", verificationUri: "https://github.com/login/device", expiresInSeconds: 900 },
 ] }) } };
-export const ApiKeyQuestion: Story = { args: { login: running({ provider: "mistral", type: "api_key", prompt: { id: "key", type: "secret", message: "Enter Mistral API key" } }) } };
 export const ChoiceQuestion: Story = { args: { login: running({ provider: "github-copilot", prompt: { id: "domain", type: "select", message: "Where is your GitHub account?",
   options: [{ id: "github.com", label: "GitHub.com" }, { id: "enterprise", label: "GitHub Enterprise", description: "your company's own GitHub" }] } }) } };
 export const PastedCode: Story = { args: { login: running({ provider: "anthropic", events: [
