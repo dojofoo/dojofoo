@@ -215,9 +215,9 @@ try {
   await expect.poll(() => carrying("Help me understand this lesson", count).length, { timeout: 60_000 }).toBeGreaterThan(0);
   assert.ok(JSON.stringify(carrying("Help me understand this lesson", count).at(-1)).includes("Count the tokens"), "the turn's context lacks the lesson");
   await expect.poll(() => status("first", first.id), { timeout: 60_000 }).toBe("idle");
-  await page.getByTestId("authoring-chat-composer").getByRole("button", { name: "Model", exact: true }).click();
+  await page.getByTestId("authoring-chat-composer").getByRole("button", { name: /^Model:/ }).click();
   const patched = page.waitForResponse(response => response.request().method() === "PATCH" && new URL(response.url()).pathname.endsWith(`/sessions/${first.id}`));
-  await page.getByRole("menuitemradio", { name: "openai/gpt-4o-mini", exact: true }).click();
+  await page.getByRole("option", { name: "openai/gpt-4o-mini", exact: true }).click();
   assert.equal((await patched).status(), 200);
   await expect.poll(async () => (await records("first"))[0]?.revision).toBe(1);
   assert.equal(JSON.parse(await readFile(join(workspace, ".dojo/runtimes.json"), "utf8")).models.opencode, "openai/gpt-4o-mini");

@@ -275,9 +275,9 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
   useEffect(() => {
     const controller = new AbortController();
     // Each model with its own description, its effort levels and the one it runs at by default, as the agent lists them
-    void json<Page<{ id: string; name: string; description?: string; efforts: string[]; defaultEffort?: string }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
+    void json<Page<{ id: string; name: string; description?: string; efforts: string[]; defaultEffort?: string; unavailable?: string }>>(agentApi(workspaceId, `/agents/${encodeURIComponent(session.agent)}/models?per_page=500`), { signal: controller.signal })
       .then(page => setModels(page.data.map(choice => ({ value: choice.id, name: choice.name, description: choice.description ?? "", efforts: choice.efforts,
-        ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}), icon: AiMagicIcon }))), () => {});
+        ...(choice.defaultEffort ? { effort: choice.defaultEffort } : {}), ...(choice.unavailable ? { unavailable: choice.unavailable } : {}), icon: AiMagicIcon }))), () => {});
     return () => controller.abort();
   }, [workspaceId, session.agent]);
   /** A model or effort change, saved on the session; it applies from the next turn (D26) */
@@ -360,7 +360,7 @@ function AgentConversation({ workspaceId, session, onReload, onEnded, embedded, 
     // Eve takes no input until the session has caught up
     inputDisabled={agent.status === "resuming"}
     model={model} models={models} effort={effort} modelChanging={modelChanging || turnOpen} onModelChange={changeModel}
-    onEffortChange={next => { if (next !== effort) void changeSession({ effort: next }); }}
+    onEffortChange={next => { if (next !== effort) void changeSession({ effort: next ?? null }); }}
     value={value} onValueChange={onValueChange} attachments files={files} onFilesChange={onFilesChange}
     onSend={send} onStop={() => { setFailure(undefined); void agent.cancel().catch(cause => setFailure({ error: cause, operation: "cancel" })); }} onAnswer={answer}
     error={failureView(shown, session.agent)} notice={readOnlyNotice ? <>{notice}{readOnlyNotice}</> : notice}

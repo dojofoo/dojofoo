@@ -3,7 +3,8 @@ import { useState } from "react";
 import { AppShell, Dropdown } from "../components/app-shell";
 import { BrandLogo } from "../components/brand-logo";
 import { ComposerSurface } from "../components/composer";
-import { ClaudeIcon, CodexIcon, OpenCodeIcon } from "../components/harness-icons";
+import { ClaudeIcon, CodexIcon, FxIcon, OpenCodeIcon, PiIcon } from "../components/harness-icons";
+import { fxModels, openCodeModels, piModels } from "./agent-models";
 import { Composer } from "../containers/assistant-home";
 
 function ControlledComposer({ disabled = false, longModels = false }: { disabled?: boolean; longModels?: boolean }) {
@@ -76,9 +77,10 @@ const codexModels = [
   { value: "gpt-6-astra", name: "GPT-6-Astra", description: "Frontier intelligence for the most demanding work.", efforts: ["low", "medium", "high", "xhigh", "max", "ultra"], effort: "medium" },
   { value: "gpt-6-luna", name: "GPT-6-Luna", description: "Fast and affordable model for easier tasks.", efforts: ["low", "medium", "high", "xhigh", "max"], effort: "medium" },
 ].map(model => ({ ...model, icon: CodexIcon }));
-type AgentModel = { value: string; name: string; description: string; efforts: string[]; effort?: string; icon: typeof CodexIcon };
-function AgentModels({ agent, models, initial }: { agent: { name: string; icon: typeof CodexIcon }; models: AgentModel[]; initial?: string }) {
-  const [model, setModel] = useState(initial ?? models[0]!.value);
+type AgentModel = { value: string; name: string; description: string; efforts?: string[]; effort?: string; unavailable?: string; icon: typeof CodexIcon };
+/** `initial` null: the agent runs its own default, which isn't one of the listed models */
+function AgentModels({ agent, models, initial }: { agent: { name: string; icon: typeof CodexIcon }; models: AgentModel[]; initial?: string | null }) {
+  const [model, setModel] = useState(initial === null ? undefined : initial ?? models[0]!.value);
   const [effort, setEffort] = useState<string>();
   return <div className="mx-auto flex min-h-[520px] w-full max-w-xl flex-col justify-end p-6">
     <Composer tray={false} dictation={false} plugins={false} attachments="unavailable" agent={agent} models={models}
@@ -87,3 +89,13 @@ function AgentModels({ agent, models, initial }: { agent: { name: string; icon: 
 }
 export const ClaudeCodeModels: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "Claude Code", icon: ClaudeIcon }} models={claudeModels} initial="default" /> };
 export const CodexModels: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "Codex", icon: CodexIcon }} models={codexModels} /> };
+/** Pi lists every model of every provider it's signed in to: the menu searches them, and a login that has expired shows its models
+ *  muted with what to do */
+export const PiModels: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "Pi", icon: PiIcon }} models={piModels.map(model => ({ ...model, icon: PiIcon }))} /> };
+/** OpenCode's models by name, with their reasoning variants as efforts; a new conversation starts on the model OpenCode picks itself */
+export const OpenCodeModels: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "OpenCode", icon: OpenCodeIcon }}
+  models={openCodeModels.map(model => ({ ...model, icon: OpenCodeIcon }))} initial="deepseek/deepseek-v4-pro" /> };
+/** A conversation without a model (the agent couldn't say which it picks): no row is checked and the agent's own default runs */
+export const AgentDefaultModel: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "OpenCode", icon: OpenCodeIcon }}
+  models={openCodeModels.map(model => ({ ...model, icon: OpenCodeIcon }))} initial={null} /> };
+export const FxModels: StoryObj<typeof meta> = { render: () => <AgentModels agent={{ name: "FX", icon: FxIcon }} models={fxModels.map(model => ({ ...model, icon: FxIcon }))} /> };

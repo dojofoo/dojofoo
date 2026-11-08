@@ -31,7 +31,7 @@ export function AuthoringChat({ messages, status, busy, inputDisabled = false, r
   onModelChange?(value: string): void;
   /** The chosen model's effort, from its `efforts` */
   effort?: string;
-  onEffortChange?(value: string): void;
+  onEffortChange?(value: string | undefined): void;
   placeholder?: string;
   messages: UIMessage[];
   status: string;

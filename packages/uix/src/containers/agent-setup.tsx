@@ -1,4 +1,4 @@
-import { agentRows, type AgentRow, type AgentId, type AgentInstallation } from "@dojofoo/protocol";
+import { agentRows, offeredAgents, type AgentRow, type AgentId, type AgentInstallation } from "@dojofoo/protocol";
 import { Switch } from "../components/switch";
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { AppearanceSettings } from "./appearance-settings";
@@ -80,7 +80,10 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
   onFinish: (values: SetupValues) => void;
 }) {
   const choices: Agent[] = local ? local.agents.map(agent => ({ ...agent, icon: agentIcons[agent.id] })) : agents;
-  const installed = choices.filter((item) => item.found);
+  // Dojo offers an agent once it has passed as both Sensei and Kyoshi; one found here that hasn't shows as not supported yet
+  const offered = new Set(offeredAgents().map(row => row.id));
+  const installed = choices.filter((item) => item.found && offered.has(item.id));
+  const unsupported = choices.filter((item) => item.found && !offered.has(item.id));
   const [chosenAgents, setAgents] = useState<string[] | null>(null);
   const defaults = installed.slice(0, 1).map(item => item.id);
   const selectedAgents = chosenAgents ?? defaults;
@@ -164,7 +167,7 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
 
             {id === "agent" && (
               <>
-                {installed.length > 0 && (
+                {installed.length + unsupported.length > 0 && (
                   <div className="ui-ob-templates ui-setup__agents" role="group" aria-label="Agents">
                     {installed.map((item, index) => (
                       <button key={item.id} type="button" role="checkbox" aria-checked={selectedAgents.includes(item.id)} className="ui-ob-template" style={{ "--i": index } as CSSProperties} onClick={() => toggleAgent(item.id)}>
@@ -172,6 +175,16 @@ export function AgentSetup({ step, done, courses, onNext, onBack, onSkip, onFini
                         <b className="ui-ob-template__name">{item.name}</b>
                         <span className="ui-ob-template__check rounded-sm" aria-hidden="true"><Icon icon={Tick02Icon} size={12} stroke={2.4} /></span>
                       </button>
+                    ))}
+                    {unsupported.map((item, index) => (
+                      <div key={item.id} role="checkbox" aria-checked="false" aria-disabled="true" aria-describedby={`setup-unsupported-${item.id}`} className="ui-ob-template ui-setup__agent--unsupported"
+                        style={{ "--i": installed.length + index } as CSSProperties}>
+                        <span className="ui-setup__agent-icon"><Icon icon={item.icon} size={20} /></span>
+                        <span className="ui-setup__agent-text">
+                          <b className="ui-ob-template__name">{item.name}</b>
+                          <small id={`setup-unsupported-${item.id}`}>Not supported yet</small>
+                        </span>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -288,6 +301,11 @@ const css = /* css */ `
 .ui-setup__agents .ui-ob-template { flex-direction: row; align-items: center; gap: 10px; padding: 14px; background: var(--surface-4, var(--card)); }
 .ui-setup__agents .ui-ob-template__check { margin-inline-start: auto; flex-shrink: 0; }
 .ui-setup__agent-icon { display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; color: var(--ink); }
+/* Found on this machine, but not one Dojo can teach through yet: muted, nothing to tick */
+.ui-setup__agents .ui-setup__agent--unsupported { box-shadow: none; background: transparent; cursor: default; }
+.ui-setup__agent--unsupported .ui-setup__agent-icon, .ui-setup__agent--unsupported .ui-ob-template__name { color: var(--muted); }
+.ui-setup__agent-text { display: grid; min-width: 0; }
+.ui-setup__agent-text small { font-size: 12px; line-height: 16px; color: var(--muted); }
 .ui-setup__or { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; color: var(--muted); font-size: 12px; }
 .ui-setup__or::before, .ui-setup__or::after { content: ""; flex: 1; height: 1px; background: var(--fluid-hairline); }
 .ui-setup__accounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 10px; }

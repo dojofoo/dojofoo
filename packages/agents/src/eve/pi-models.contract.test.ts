@@ -18,7 +18,7 @@ it("reads Pi 1.x native model configuration offline without exposing or changing
     await writeFile(join(directory, "auth.json"), auth);
     await writeFile(join(directory, "models.json"), models);
     const choices = await piModels(AbortSignal.timeout(5000), directory);
-    expect(choices).toContainEqual({ id: "fixture/offline", name: "Offline fixture", efforts: ["off"] });
+    expect(choices).toContainEqual({ id: "fixture/offline", name: "Offline fixture", description: expect.any(String), efforts: ["off"] });
     expect(JSON.stringify(choices)).not.toContain("fixture-only");
     expect(fetch).not.toHaveBeenCalled();
     expect(await readFile(join(directory, "auth.json"), "utf8")).toBe(auth);
