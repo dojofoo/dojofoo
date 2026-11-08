@@ -293,7 +293,7 @@ export function Composer({
   models = defaultModels,
   agent, agents, onAgentChange, agentChanging, loading,
   className, value, onValueChange, history, disabled, onStop, id, label, queueing,
-  model: controlledModel, onModelChange, modelChanging, onModelPrepare, effort, onEffortChange,
+  model: controlledModel, onModelChange, modelChanging, onModelPrepare, effort, onEffortChange, onSignIn, signInNeeded,
   attachments = true, files: controlledFiles, onFilesChange, dictation = true, plugins: pluginsEnabled = true,
 }: {
   value?: string;
@@ -312,6 +312,10 @@ export function Composer({
   effort?: string;
   /** Undefined: back to the model's default */
   onEffortChange?: (effort: string | undefined) => void;
+  /** Opens the coding agent's sign-in: a "Sign in…" row in the model menu */
+  onSignIn?: () => void;
+  /** The agent can't run any model until it is signed in: a sign-in button stands where the model menu would */
+  signInNeeded?: boolean;
   /** Keep the + control visible but disabled when this connection cannot accept files. */
   attachments?: boolean | "unavailable";
   files?: File[];
@@ -425,7 +429,11 @@ export function Composer({
             }))}>
             {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
           </ComposerPicker>}</>}
-    controls={<>{agent && models.length ? (
+    controls={<>{agent && signInNeeded && onSignIn && !models.some(m => !m.unavailable) ? (
+              <button type="button" className="ui-as-ghost ui-as-ghost--model" disabled={disabled || busy || agentChanging} onClick={onSignIn}>
+                Sign in to {agent.name}
+              </button>
+            ) : agent && models.length ? (
               // A coding agent's models: the model menu with each model's description, effort levels and why one can't run now
               <ModelPicker side="top" align="end" className="ui-as-composer__models" triggerClassName="ui-as-ghost ui-as-ghost--model" glyphs={false}
                 models={models.map(m => ({ id: m.value ?? m.name, name: m.name, description: m.description, efforts: m.efforts ?? [],
@@ -433,7 +441,7 @@ export function Composer({
                 value={model} effort={effort} disabled={disabled || busy || modelChanging || loading || agentChanging}
                 {...(loading || agentChanging ? { placeholder: "Loading…" } : {})}
                 onChange={next => { if (onModelChange) onModelChange(next); else setSelected(next); }}
-                onEffortChange={next => onEffortChange?.(next)} />
+                onEffortChange={next => onEffortChange?.(next)} {...(onSignIn ? { onSignIn } : {})} />
             ) : <ComposerPicker title="Model" model loading={loading || agentChanging || modelChanging}
               onPrepare={onModelPrepare} disabled={(!models.length && !onModelPrepare) || disabled || busy} icon={agent ? undefined : selectedModel?.icon ?? AiMagicIcon}
               items={models.map(m => ({ label: [m.name, m.effort].filter(Boolean).join(" "), description: m.description, icon: m.icon,

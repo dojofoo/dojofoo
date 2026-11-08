@@ -1,0 +1,53 @@
+import type {  AccessProvider  } from "@dojofoo/protocol";
+
+/** Pi 1.4's providers as its model runtime lists them (agentAccess("pi").providers), signed in to three as a learner might be */
+export const piProviders: AccessProvider[] = [
+  { id: "amazon-bedrock", name: "Amazon Bedrock", auth: { apiKey: { name: "AWS credentials or bearer token", login: true } }, status: { configured: false } },
+  { id: "ant-ling", name: "Ant Ling", auth: { apiKey: { name: "Ant Ling API key", login: true } }, status: { configured: false } },
+  { id: "anthropic", name: "Anthropic", auth: { apiKey: { name: "Anthropic API key", login: true }, oauth: { name: "Anthropic (Claude Pro/Max)", isSubscription: true } }, status: { configured: false } },
+  { id: "azure", name: "Azure", auth: { apiKey: { name: "Azure OpenAI API key", login: true } }, status: { configured: false } },
+  { id: "baseten", name: "Baseten", auth: { apiKey: { name: "Baseten API key", login: true } }, status: { configured: false } },
+  { id: "cerebras", name: "Cerebras", auth: { apiKey: { name: "Cerebras API key", login: true } }, status: { configured: false } },
+  { id: "cloudflare-ai-gateway", name: "Cloudflare AI Gateway", auth: { apiKey: { name: "Cloudflare API key", login: true } }, status: { configured: false } },
+  { id: "cloudflare-workers-ai", name: "Cloudflare Workers AI", auth: { apiKey: { name: "Cloudflare API key", login: true } }, status: { configured: false } },
+  { id: "deepseek", name: "DeepSeek", auth: { apiKey: { name: "DeepSeek API key", login: true } }, status: { configured: true, source: "environment", label: "DEEPSEEK_API_KEY" } },
+  { id: "fireworks", name: "Fireworks", auth: { apiKey: { name: "Fireworks API key", login: true } }, status: { configured: false } },
+  { id: "github-copilot", name: "GitHub Copilot", auth: { apiKey: { name: "GitHub Copilot token", login: true }, oauth: { name: "GitHub Copilot", isSubscription: true } }, status: { configured: true, source: "stored" } },
+  { id: "google", name: "Google", auth: { apiKey: { name: "Gemini API key", login: true } }, status: { configured: false } },
+  { id: "google-vertex", name: "Google Vertex AI", auth: { apiKey: { name: "Google Cloud credentials", login: true } }, status: { configured: false } },
+  { id: "groq", name: "Groq", auth: { apiKey: { name: "Groq API key", login: true } }, status: { configured: false } },
+  { id: "huggingface", name: "Hugging Face", auth: { apiKey: { name: "Hugging Face token", login: true } }, status: { configured: false } },
+  { id: "kimi-coding", name: "Kimi For Coding", auth: { apiKey: { name: "Kimi API key", login: true }, oauth: { name: "Kimi Code (subscription)", loginLabel: "Sign in with Kimi Code", isSubscription: true } }, status: { configured: false } },
+  { id: "meta", name: "Meta", auth: { apiKey: { name: "Meta Model API key", login: true }, oauth: { name: "Meta (Muse subscription)", loginLabel: "Sign in with Meta", isSubscription: true } }, status: { configured: false } },
+  { id: "minimax", name: "MiniMax", auth: { apiKey: { name: "MiniMax API key", login: true } }, status: { configured: false } },
+  { id: "minimax-cn", name: "MiniMax CN", auth: { apiKey: { name: "MiniMax CN API key", login: true } }, status: { configured: false } },
+  { id: "mistral", name: "Mistral", auth: { apiKey: { name: "Mistral API key", login: true } }, status: { configured: false } },
+  { id: "moonshotai", name: "Moonshot AI", auth: { apiKey: { name: "Moonshot AI API key", login: true } }, status: { configured: false } },
+  { id: "moonshotai-cn", name: "Moonshot AI CN", auth: { apiKey: { name: "Moonshot AI API key", login: true } }, status: { configured: false } },
+  { id: "nvidia", name: "NVIDIA", auth: { apiKey: { name: "NVIDIA API key", login: true } }, status: { configured: false } },
+  { id: "openai", name: "OpenAI", auth: { apiKey: { name: "OpenAI API key", login: true }, oauth: { name: "OpenAI (ChatGPT subscription)", loginLabel: "Sign in with ChatGPT", isSubscription: true } }, status: { configured: false } },
+  { id: "openai-codex", name: "OpenAI Codex (legacy)", auth: { oauth: { name: "OpenAI (ChatGPT Plus/Pro)", isSubscription: true } }, status: { configured: false } },
+  { id: "opencode", name: "OpenCode Zen", auth: { apiKey: { name: "OpenCode API key", login: true } }, status: { configured: false } },
+  { id: "opencode-go", name: "OpenCode Go", auth: { apiKey: { name: "OpenCode API key", login: true } }, status: { configured: false } },
+  { id: "openrouter", name: "OpenRouter", auth: { apiKey: { name: "OpenRouter API key", login: true }, oauth: { name: "OpenRouter OAuth", loginLabel: "Sign in with OpenRouter" } }, status: { configured: false } },
+  { id: "qwen-token-plan", name: "Qwen Token Plan", auth: { apiKey: { name: "Qwen Token Plan API key", login: true } }, status: { configured: false } },
+  { id: "qwen-token-plan-cn", name: "Qwen Token Plan CN", auth: { apiKey: { name: "Qwen Token Plan CN API key", login: true } }, status: { configured: false } },
+  { id: "qwen-token-plan-individual", name: "Qwen Token Plan Individual", auth: { apiKey: { name: "Qwen Token Plan Individual API key", login: true } }, status: { configured: false } },
+  { id: "radius", name: "Radius", auth: { apiKey: { name: "Radius API key", login: true }, oauth: { name: "Radius" } }, status: { configured: false } },
+  { id: "together", name: "Together", auth: { apiKey: { name: "Together API key", login: true } }, status: { configured: false } },
+  { id: "typesafe", name: "TypeSafe", auth: { apiKey: { name: "TypeSafe API key", login: true } }, status: { configured: false } },
+  { id: "vercel-ai-gateway", name: "Vercel AI Gateway", auth: { apiKey: { name: "Vercel AI Gateway API key", login: true } }, status: { configured: false } },
+  { id: "xai", name: "xAI", auth: { apiKey: { name: "xAI API key", login: true }, oauth: { name: "xAI (Grok/X subscription)", loginLabel: "Sign in with SuperGrok or X Premium", isSubscription: true } }, status: { configured: false } },
+  { id: "xiaomi", name: "Xiaomi", auth: { apiKey: { name: "Xiaomi API key", login: true } }, status: { configured: false } },
+  { id: "xiaomi-token-plan-ams", name: "Xiaomi Token Plan AMS", auth: { apiKey: { name: "Xiaomi Token Plan AMS API key", login: true } }, status: { configured: false } },
+  { id: "xiaomi-token-plan-cn", name: "Xiaomi Token Plan CN", auth: { apiKey: { name: "Xiaomi Token Plan CN API key", login: true } }, status: { configured: false } },
+  { id: "xiaomi-token-plan-sgp", name: "Xiaomi Token Plan SGP", auth: { apiKey: { name: "Xiaomi Token Plan SGP API key", login: true } }, status: { configured: false } },
+  { id: "zai", name: "Z.AI", auth: { apiKey: { name: "Z.AI API key", login: true } }, status: { configured: true, source: "stored" } },
+  { id: "zai-coding-cn", name: "Z.AI Coding CN", auth: { apiKey: { name: "Z.AI Coding CN API key", login: true } }, status: { configured: false } },
+];
+
+/** Codex's one provider (agentAccess("codex").providers), signed out */
+export const codexProviders: AccessProvider[] = [
+  { id: "openai", name: "OpenAI", auth: { oauth: { name: "ChatGPT", loginLabel: "Sign in with ChatGPT", isSubscription: true }, apiKey: { name: "OpenAI API key", login: true } },
+    status: { configured: false } },
+];
