@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { test as base, type Page } from "@playwright/test";
-import { createAgentApi, LAUNCH_TOKEN_HEADER, launchGuard, type Persona, type SessionRecord } from "@dojofoo/harness/api";
+import { createAgentApi, LAUNCH_TOKEN_HEADER, launchGuard, type AgentAccess, type Persona, type SessionRecord } from "@dojofoo/harness/api";
 import { Client, type MessageContent } from "@dojofoo/harness/client";
 import type { AgentId } from "@dojofoo/protocol";
 import { startEve, testLaunchToken, testRuntime } from "@dojofoo/harness/api/fixtures";
@@ -36,6 +36,8 @@ export interface MountOptions {
   agent?: AgentId;
   /** The tokens `GET /api/control/launch-token` serves in order (repeating the last), and the one select accepts */
   launch?: { served: string[]; accepted: string };
+  /** The coding agents' sign-in; none by default */
+  access?: (agent: AgentId) => AgentAccess | undefined;
 }
 export interface MountedAgentChat {
   runtime: ReturnType<typeof testRuntime>;
@@ -93,7 +95,7 @@ export async function startConversation(eve: Eve, runtime: ReturnType<typeof tes
 async function mount(page: Page, eve: Eve, servers: Server[], baseURL: string, options: MountOptions = {}): Promise<MountedAgentChat> {
   const id = options.workspaceId ?? workspaceId;
   const selectedDraft = options.draft ?? draft;
-  const runtime = testRuntime(eve, id, { persona: options.persona, agent: options.agent });
+  const runtime = testRuntime(eve, id, { persona: options.persona, agent: options.agent, ...(options.access ? { access: options.access } : {}) });
   const saved = options.existingSession === false ? undefined
     : await startConversation(eve, runtime, typeof options.existingSession === "string" ? options.existingSession : savedMessage, options.agent);
   const launch = options.launch ?? { served: [testLaunchToken], accepted: testLaunchToken };

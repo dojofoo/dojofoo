@@ -84,6 +84,8 @@ export type ModelPickerProps = {
   disabled?: boolean;
   /** The letter tile in front of each model without an icon; off for a coding agent's plain list */
   glyphs?: boolean;
+  /** A "Sign in…" row under the models, e.g. to sign a coding agent in to another provider; the menu closes first */
+  onSignIn?: () => void;
 };
 
 /* ---------- Helpers ---------- */
@@ -206,6 +208,12 @@ const SearchIcon = () => (
     <path d="m9.4 9.4 3 3" {...line} />
   </svg>
 );
+const KeyIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <circle cx="5.5" cy="10.5" r="3" {...line} />
+    <path d="M7.6 8.4 13 3m-2 2 1.5 1.5M9.5 6.5 11 8" {...line} />
+  </svg>
+);
 const GlobeIcon = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
     <circle cx="7" cy="7" r="5.3" {...line} />
@@ -246,6 +254,7 @@ export function ModelPicker(props: ModelPickerProps) {
   placeholder,
   disabled = false,
   glyphs = true,
+  onSignIn,
   } = props;
   const uid = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -674,6 +683,15 @@ export function ModelPicker(props: ModelPickerProps) {
               <span className="ui-mdp__toggle-label">Web search</span>
               <span className="ui-mdp__switch" aria-hidden="true" />
             </button>}
+          </div>}
+
+          {onSignIn && <div className="ui-mdp__settings">
+            <button type="button" className="ui-mdp__toggle" onClick={() => { setOpen(false, "trigger"); onSignIn(); }}>
+              <span className="ui-mdp__toggle-icon">
+                <KeyIcon />
+              </span>
+              <span className="ui-mdp__toggle-label">Sign in…</span>
+            </button>
           </div>}
         </div>
 

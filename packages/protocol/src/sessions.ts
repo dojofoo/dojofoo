@@ -10,7 +10,7 @@ export interface ModelChoice {
   description?: string;
   efforts: string[];
   defaultEffort?: string;
-  /** Why the agent can't run it now ("Sign in to GitHub Copilot again: run pi, then /login"); absent when it can */
+  /** Why the agent can't run it now ("Sign in to GitHub Copilot again"); absent when it can */
   unavailable?: string;
 }
 

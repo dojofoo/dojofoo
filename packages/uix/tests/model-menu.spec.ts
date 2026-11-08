@@ -22,7 +22,7 @@ test("a long model list can be searched, and Enter picks the first match", async
 
 test("models the agent can't run now are listed last, say why, and can't be picked", async ({ page }) => {
   const menu = await openMenu(page, "pi-models");
-  const expired = menu.getByRole("option", { name: "Claude Sonnet 5, Sign in to GitHub Copilot again: run pi, then /login" });
+  const expired = menu.getByRole("option", { name: "Claude Sonnet 5, Sign in to GitHub Copilot again" });
   await expect(expired).toHaveAttribute("aria-disabled", "true");
   await expect(menu.getByText("Unavailable", { exact: true })).toBeVisible();
   const names = await menu.getByRole("option").evaluateAll(options => options.map(option => option.getAttribute("aria-disabled") === "true"));

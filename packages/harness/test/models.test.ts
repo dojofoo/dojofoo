@@ -76,15 +76,15 @@ describe("native model discovery", () => {
     })[provider]);
     expect(await piModels(AbortSignal.timeout(2000), "/fixture/pi", now)).toEqual([
       { id: "zai/glm-5.3", name: "GLM-5.3", description: "Z.ai", efforts: [] },
-      { id: "openai-codex/gpt-6.1-sol", name: "GPT-6.1 Sol", description: "ChatGPT", efforts: [], unavailable: "Sign in to ChatGPT again: run pi, then /login" },
-      { id: "github-copilot/claude-sonnet-5", name: "Claude Sonnet 5", description: "GitHub Copilot", efforts: [], unavailable: "Sign in to GitHub Copilot again: run pi, then /login" },
+      { id: "openai-codex/gpt-6.1-sol", name: "GPT-6.1 Sol", description: "ChatGPT", efforts: [], unavailable: "Sign in to ChatGPT again" },
+      { id: "github-copilot/claude-sonnet-5", name: "Claude Sonnet 5", description: "GitHub Copilot", efforts: [], unavailable: "Sign in to GitHub Copilot again" },
       { id: "github-copilot/gpt-6-astra", name: "GPT-6 Astra", description: "GitHub Copilot", efforts: [], unavailable: "Not in your GitHub Copilot plan" },
     ]);
   });
   it("starts Sensei's Pi on the user's default model while it can run, else on the first that can", async () => {
     const agentDir = await mkdtemp(join(tmpdir(), "dojo-pi-settings-"));
     const listed = [
-      { id: "openai-codex/gpt-6.1-sol", name: "GPT-6.1 Sol", efforts: [], unavailable: "Sign in to ChatGPT again: run pi, then /login" },
+      { id: "openai-codex/gpt-6.1-sol", name: "GPT-6.1 Sol", efforts: [], unavailable: "Sign in to ChatGPT again" },
       { id: "deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro", efforts: [] },
       { id: "zai/glm-5.3-flash", name: "GLM-5.3-Flash", efforts: [] },
     ];

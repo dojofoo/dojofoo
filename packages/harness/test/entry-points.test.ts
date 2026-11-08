@@ -4,7 +4,7 @@ const barrels = {
   persona: [import("../src/persona.ts"), [import("../src/persona-host.ts"), import("../src/lifecycle.ts"), import("../src/process-groups.ts"),
     import("../src/file-guard.ts"), import("../src/read-only.ts")]],
   adapters: [import("../src/adapters.ts"), [import("../src/harness.ts"), import("../src/harness-model.ts"), import("../src/local-runtime.ts"),
-    import("../src/one-shot.ts"), import("../src/models.ts")]],
+    import("../src/one-shot.ts"), import("../src/models.ts"), import("../src/access.ts")]],
 } as const;
 
 describe("entry points", () => {

@@ -105,3 +105,4 @@ export * from "./tags.js";
 export * from "./sessions.js";
 export * from "./guard.js";
 export * from "./evaluation.js";
+export * from "./access.js";
