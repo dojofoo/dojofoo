@@ -1,5 +1,29 @@
 # @dojofoo/web
 
+## 0.0.5
+
+### Patch Changes
+
+- f08214c: The home page ends with the questions people ask about Dojo.foo, now including what "dojo" means, with FAQPage data.
+- 6458235: `add` reads the security checks of the exact version it downloaded, which the course API now runs first when it hasn't checked that version, asks before installing a version no check is for, checks with telemetry off too, and says so when the checks are unavailable.
+- 8b234ee: Mark the document with `data-hydrated` once the website has hydrated, so browser tests wait for an interactive page instead of an idle network.
+- b374515: Speed up the public website with responsive static AVIF/WebP preview artwork, smaller website-only styles and fonts, deferred documentation and animation code, and a single icon family in the website bundle. Preserve the shared app and Storybook icon choices, navigation, and brand themes. Keep Iosevka on the documentation route only and update the home page FAQ.
+- Updated dependencies [f08214c]
+- Updated dependencies [1af0002]
+- Updated dependencies [55cf41b]
+- Updated dependencies [f08214c]
+- Updated dependencies [f08214c]
+- Updated dependencies [f08214c]
+- Updated dependencies [6458235]
+- Updated dependencies [f08214c]
+- Updated dependencies [68d9304]
+- Updated dependencies [f08214c]
+- Updated dependencies [37b5b50]
+- Updated dependencies [881c61f]
+- Updated dependencies [b374515]
+  - @dojofoo/ui@0.2.0
+  - @dojofoo/uix@0.2.0
+
 ## 0.0.4
 
 ### Patch Changes

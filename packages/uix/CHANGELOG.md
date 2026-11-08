@@ -1,5 +1,27 @@
 # @dojofoo/uix
 
+## 0.2.0
+
+### Minor Changes
+
+- f08214c: The account menu opens pages of their own: Settings at /settings/theme and /settings/profile, Profile at /me, which shows the learner's courses with their progress and the courses they finished as certificates. A check card no longer says "Sensei saw this".
+
+### Patch Changes
+
+- 1af0002: Every coding agent gets the same model menu. A long model list can be searched, and a model the agent can't run now is listed last, muted, with what to do ("Sign in to GitHub Copilot again: run pi, then /login", "Not in your GitHub Copilot plan"). A conversation without a model no longer shows the first model as chosen, and a model without a default effort of its own shows Default until a level is picked.
+  
+  Pi starts a new conversation on the default model in its settings.json while that model can run, else on the first one that can, instead of on a model whose expired sign-in Sensei can't renew. OpenCode lists its models by name with their reasoning variants as efforts, from the copy Sensei runs, and a new conversation names the model OpenCode picks itself. Kyoshi's conversations start on the same configured model as Sensei's.
+  
+  Onboarding shows an agent found on this machine that Dojo can't teach through yet (Cursor, Antigravity) as not supported instead of offering it.
+- f08214c: The model menu shows only an effort the chosen model takes, so a level picked for another model no longer sticks after a switch, and the effort row shows no selection when none applies. A conversation whose effort is cleared by a model change also clears the workspace's saved effort, so the next conversation starts at its model's default.
+- f08214c: The home page ends with the questions people ask about Dojo.foo, now including what "dojo" means, with FAQPage data.
+- 6458235: `add` reads the security checks of the exact version it downloaded, which the course API now runs first when it hasn't checked that version, asks before installing a version no check is for, checks with telemetry off too, and says so when the checks are unavailable.
+- f08214c: Sensei's model menu shows each Claude Code model's default effort, picks the effort with the shared segmented control, drops the keyboard hints and Claude Code's "(recommended)" label; a cancelled question says so in the brand color and mutes its options.
+- b374515: Speed up the public website with responsive static AVIF/WebP preview artwork, smaller website-only styles and fonts, deferred documentation and animation code, and a single icon family in the website bundle. Preserve the shared app and Storybook icon choices, navigation, and brand themes. Keep Iosevka on the documentation route only and update the home page FAQ.
+- Updated dependencies [1af0002]
+- Updated dependencies [f08214c]
+  - @dojofoo/protocol@0.1.1
+
 ## 0.1.1
 
 ### Patch Changes
