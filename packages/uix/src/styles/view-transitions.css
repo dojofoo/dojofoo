@@ -19,12 +19,12 @@
      instead of swiping out and in */
   :root:active-view-transition-type(ui-navigation) .ui-as-side__menu { view-transition-name: var(--ui-as-menu-name, match-element); view-transition-class: ui-left ui-menu; }
   :root:active-view-transition-type(ui-pane) .ui-as-side { view-transition-name: match-element; view-transition-class: ui-left; }
-  :root:active-view-transition-type(ui-navigation) :is(.ui-as-main__scroll:not([aria-hidden="true"]), .ui-web__main:not(:has(.ui-docs-layout)), .ui-docs, #nd-page) { view-transition-name: match-element; view-transition-class: ui-main; }
-  :root:active-view-transition-type(ui-navigation) body:not(:has(.ui-as)) main:not(:has(main)) { view-transition-name: match-element; view-transition-class: ui-main; }
+  :root:active-view-transition-type(ui-navigation) :is(.ui-as-main__scroll:not([aria-hidden="true"]), [data-site-main]:not(:has(.ui-docs-layout)), .ui-docs, #nd-page) { view-transition-name: match-element; view-transition-class: ui-main; }
+  :root:active-view-transition-type(ui-navigation) body:not(:has(:is(.ui-as, [data-site-shell]))) main:not(:has(main)) { view-transition-name: match-element; view-transition-class: ui-main; }
   :root:active-view-transition-type(ui-pane) .ui-as-main { view-transition-name: match-element; view-transition-class: ui-main; }
   :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane)) :is(.ui-docs-side, #nd-toc, .ui-as-conversation-content:not([hidden])) { view-transition-name: match-element; view-transition-class: ui-right; }
   :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane)) :is(.ui-as-aside, .ui-as-end) > .ui-content-settings { view-transition-name: match-element; view-transition-class: ui-right ui-settings; }
-  :root:active-view-transition-type(ui-navigation) :is(.ui-web-head, body:not(:has(.ui-as)) main > header) { view-transition-name: match-element; view-transition-class: ui-stable; }
+  :root:active-view-transition-type(ui-navigation) :is([data-site-navigation], body:not(:has(:is(.ui-as, [data-site-shell]))) main > header) { view-transition-name: match-element; view-transition-class: ui-stable; }
 
   :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane), :active-view-transition-type(ui-card))::view-transition-old(root) { animation: none; opacity: 0; }
   :root:is(:active-view-transition-type(ui-navigation), :active-view-transition-type(ui-pane), :active-view-transition-type(ui-card))::view-transition-new(root) { animation: none; opacity: 1; }

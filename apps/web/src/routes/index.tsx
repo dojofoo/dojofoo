@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LandingPage } from "@dojofoo/uix/web/landing";
-import { LearningIllustration } from "@dojofoo/uix/web/learning-illustration";
-import { loadLearningIllustration } from "@/lib/learning-illustration.functions";
+import { LearningIllustration, learningImagePreloads } from "@dojofoo/uix/web/learning-illustration";
 import { loadMarketplaceCourses } from "@/lib/courses.functions";
 import { toUIXCourse } from "@/lib/uix-course";
 import { canonicalLink } from "@/lib/social-metadata";
@@ -10,17 +9,16 @@ import { questions } from "@dojofoo/uix/web/seo";
 
 export const Route = createFileRoute("/")({
   loader: async () => {
-    const [courses, illustration] = await Promise.all([loadMarketplaceCourses(), loadLearningIllustration()]);
-    return { courses, illustration };
+    return { courses: await loadMarketplaceCourses() };
   },
   staleTime: 60_000,
   // The home page names the site (WebSite) and the one keeping the brand in its title (the root's), and the questions it shows
-  head: () => ({ links: [canonicalLink("/")], scripts: [jsonLd(website, organization, cli, faqPage(questions.filter(item => item.status === "confirmed")))] }),
+  head: () => ({ links: [canonicalLink("/"), ...learningImagePreloads], scripts: [jsonLd(website, organization, cli, faqPage(questions.filter(item => item.status === "confirmed")))] }),
   component: HomePage,
 });
 
 function HomePage() {
-  const { courses: catalog, illustration } = Route.useLoaderData();
+  const { courses: catalog } = Route.useLoaderData();
   const courses = catalog.map(toUIXCourse);
-  return <LandingPage courses={courses} featureCourse={courses[0]} preview={<LearningIllustration {...illustration} />} />;
+  return <LandingPage courses={courses} featureCourse={courses[0]} preview={<LearningIllustration />} />;
 }

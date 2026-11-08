@@ -1,0 +1,59 @@
+/* Shared design tokens; no application layout or editor styles. */
+.ui-as, [data-site-shell], [data-site-menu] {
+  --tray: var(--surface-1);
+  --card: var(--surface-3);
+  /* Like the affectUI library: gray page, the main area is a rounded panel on it */
+  --page: var(--surface-1);
+  --panel: var(--surface-2);
+  --radius-panel: calc(12px * var(--squircle-factor, 1));
+  --frame-gap: 8px;
+  --ui-as-rail-width: 64px;
+  --line: var(--fluid-hairline);
+  --line-soft: var(--fluid-hairline);
+  --ink: var(--fluid-foreground);
+  /* The ink pushed toward the mode's extreme – brighter in dark, darker in light: the open sidebar row and the logo */
+  --ink-strong: color-mix(in oklab, var(--fluid-foreground), rgb(var(--overlay)) 40%);
+  --text: var(--fluid-foreground);
+  --muted: var(--fluid-muted);
+  --faint: var(--fluid-muted);
+  --placeholder: var(--fluid-muted);
+  --chip: var(--fluid-hover);
+  --chip-hover: var(--fluid-active);
+  --hover: var(--fluid-hover);
+  /* The theme's brand: highlights, progress, switches (styles/themes) */
+  --accent: var(--brand);
+  /* Buttons, disabled controls and switches: a theme may set them (--ui-*, see styles/themes/derive.css); the hand-made
+     themes keep these values */
+  --button: var(--ui-button, #262626);
+  --button-hover: var(--ui-button-hover, #333333);
+  --accent-soft: color-mix(in oklab, var(--brand) 12%, transparent);
+  --shadow: var(--shadow-2);
+  --line-strong: var(--fluid-border);
+  --subtle: var(--surface-2);
+  --on-ink: var(--ui-on-ink, #ffffff);
+  --ink-hover: #3a3a3a;
+  --select: var(--fluid-active);
+  --toggle-off: var(--ui-disabled, #e2e2e2);
+  --switch-on: var(--brand);
+  --logo-bg: #ffffff;
+  --ease: var(--ease-moderate);
+  --font: var(--ui-font, "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+}
+
+:where(.dark, [data-theme="dark"]) :is(.ui-as, [data-site-shell], [data-site-menu]) {
+  --button: var(--ui-button, #f4f4f5);
+  --button-hover: var(--ui-button-hover, #ffffff);
+  --on-ink: var(--ui-on-ink, #111113);
+  --ink-hover: #d4d4d8;
+  --toggle-off: var(--ui-disabled, #3a3a3f);
+  --switch-on: var(--brand);
+  --logo-bg: #2a2a2e;
+  color-scheme: dark;
+}
+
+[data-site-shell], [data-site-menu] {
+  --ui-web-rule: linear-gradient(to right, color-mix(in oklab, var(--ink) 30%, transparent) 0 1px, transparent 1px);
+  --ui-web-rule-size: 10px 1px;
+}
+
+:root:has([data-site-shell]) { background: var(--surface-1); }

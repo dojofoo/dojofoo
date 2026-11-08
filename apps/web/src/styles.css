@@ -1,88 +1,43 @@
-@import "tailwindcss";
-@import "@dojofoo/ui/styles.css";
-@import "@dojofoo/ui/view-transitions.css";
+@import "tailwindcss" source(none);
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "fumadocs-ui/css/shadcn.css";
+@import "@fontsource-variable/inter/opsz.css";
 
-@font-face {
-  font-family: "Iosevka";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url("@fontsource/iosevka/files/iosevka-latin-400-normal.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Khand";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url("@fontsource/khand/files/khand-latin-400-normal.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Khand";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 500;
-  src: url("@fontsource/khand/files/khand-latin-500-normal.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Khand";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 600;
-  src: url("@fontsource/khand/files/khand-latin-600-normal.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Khand";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 700;
-  src: url("@fontsource/khand/files/khand-latin-700-normal.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Hind";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url("@fontsource/hind/files/hind-latin-400-normal.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Hind";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 500;
-  src: url("@fontsource/hind/files/hind-latin-500-normal.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Hind";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 600;
-  src: url("@fontsource/hind/files/hind-latin-600-normal.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Hind";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 700;
-  src: url("@fontsource/hind/files/hind-latin-700-normal.woff2") format("woff2");
-}
+@source "./";
+@source "../content";
 
 @custom-variant dark (&:is(.dark *));
 
+/* Match Inter's text width and vertical metrics while its preloaded face arrives.
+   Metrics are derived from the shipped Inter font and Arial, rather than changing
+   the final typography to reserve space. */
+@font-face {
+  font-family: "Inter fallback";
+  src: local("Arial");
+  font-weight: 100 500;
+  size-adjust: 107.4014%;
+  ascent-override: 90.1990%;
+  descent-override: 22.4588%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Inter fallback";
+  src: local("Arial Bold");
+  font-weight: 501 900;
+  size-adjust: 105.2731%;
+  ascent-override: 92.0226%;
+  descent-override: 22.9129%;
+  line-gap-override: 0%;
+}
+
+:root {
+  --ui-font: "Inter Variable", Inter, "Inter fallback", ui-sans-serif, system-ui, sans-serif;
+}
+
 @theme inline {
   --font-display: var(--font-sans);
-  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Iosevka", monospace;
+  --font-sans: "Inter Variable", Inter, "Inter fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-prose: var(--font-sans);
   --radius-sm: calc((var(--radius-base) - 4px) * var(--squircle-factor));
   --radius-md: calc((var(--radius-base) - 2px) * var(--squircle-factor));
@@ -126,7 +81,12 @@
 
 .font-prose :where(pre, code),
 .font-prose :where(ol, ul) > li::marker {
-  font-family: "Iosevka", monospace;
+  font-family: var(--font-mono);
+}
+
+/* Website commands use local system fonts; the docs route loads its own CDN face. */
+html[data-ui-font] {
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .font-prose :where(pre, code) {
@@ -273,4 +233,21 @@
   font-weight: 500;
   line-height: 1;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+}
+
+/* The landing uses optical size 14 throughout. Keep Inter's full weight range
+   there without downloading its unused optical-size axis; other pages retain it. */
+@font-face {
+  font-family: "Inter Website";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+[data-site-section="home"] {
+  --font-sans: "Inter Website", "Inter Variable", Inter, "Inter fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-prose: var(--font-sans);
+  --ui-font: var(--font-sans);
 }

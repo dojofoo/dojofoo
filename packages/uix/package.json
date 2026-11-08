@@ -39,7 +39,8 @@
     "./web/seo": "./src/web/seo.ts",
     "./web/compare": "./src/web/compare.tsx",
     "./docs/layout": "./src/docs/docs-site.tsx",
-    "./docs/content": "./src/docs/content.ts"
+    "./docs/content": "./src/docs/content.ts",
+    "./web/styles.css": "./src/web/styles.css"
   },
   "scripts": {
     "ui:add": "pnpm dlx varlock@latest run --inject vars -- pnpm dlx shadcn@latest add",

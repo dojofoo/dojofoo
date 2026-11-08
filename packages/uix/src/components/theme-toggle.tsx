@@ -1,6 +1,6 @@
 import { Monitor } from "@mynaui/icons-react";
 import { Button, type ButtonProps } from "./button";
-import { Icon } from "./app-shell";
+import { Icon } from "./icon";
 import { MoonIcon, SunIcon } from "../lib/icons";
 
 export type ThemeMode = "light" | "dark" | "system";

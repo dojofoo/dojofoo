@@ -9,7 +9,7 @@ import type { WebCourse } from "../../web/catalog";
 import { docsContent } from "./docs";
 import { SearchDialog } from "./search";
 import type { SearchScope } from "../../components/site-search-palette";
-import { renderLearningIllustration } from "../../web/learning-preview";
+import { LearningArtwork, renderLearningIllustration } from "../../web/learning-preview";
 import { LearningIllustration } from "../../web/learning-illustration";
 import { CoursePage } from "../../web/course";
 import { CoursesPage } from "../../web/courses";
@@ -25,20 +25,23 @@ import { APIPageFixture } from "./api-reference";
 
 export type WebsiteStart = "landing" | "courses" | "course" | "docs";
 
-export function Website({ start = "landing", courseId = "effect-ts", docPath = "/docs" }: {
+export function Website({ start = "landing", courseId = "effect-ts", docPath = "/docs", artwork = false }: {
   start?: WebsiteStart;
   /** The course a "course" start opens */
   courseId?: string;
   /** The docs page a "docs" start opens, by its site path */
   docPath?: string;
+  /** The original UIX composition, used to regenerate the static marketing artwork. */
+  artwork?: boolean;
 }) {
   const [page, setPage] = useState<WebsiteStart>(start);
   const [illustration, setIllustration] = useState<Awaited<ReturnType<typeof renderLearningIllustration>>>();
   useEffect(() => {
+    if (!artwork) return;
     let current = true;
     void renderLearningIllustration().then(result => { if (current) setIllustration(result); });
     return () => { current = false; };
-  }, []);
+  }, [artwork]);
   const [course, setCourse] = useState<WebCourse>(() => courseById(courseId));
   const [doc, setDoc] = useState(docPath);
   const [search, setSearch] = useState<{ open: boolean; scope: SearchScope }>({ open: false, scope: "courses" });
@@ -99,7 +102,7 @@ export function Website({ start = "landing", courseId = "effect-ts", docPath = "
       {page === "course" ? <CoursePage course={course} />
         : page === "courses" ? <CoursesPage courses={catalog} />
         : page === "docs" ? <DocsSite path={doc} content={docsContent} renderApiPage={page => <APIPageFixture page={page} />} />
-        : <LandingPage learning={8} courses={catalog} featureCourse={courseById("everyday-typescript")} preview={illustration ? <LearningIllustration {...illustration} /> : <div className="h-full" />} />}
+        : <LandingPage artwork={artwork} learning={8} courses={catalog} featureCourse={courseById("everyday-typescript")} preview={artwork ? illustration ? <LearningArtwork {...illustration} /> : <div className="h-full" /> : <LearningIllustration />} />}
       <SearchDialog {...search} onClose={() => setSearch(state => ({ ...state, open: false }))} onOpenDoc={links.openDoc} onOpenCourse={links.openCourse} />
     </SiteContext.Provider>
   );

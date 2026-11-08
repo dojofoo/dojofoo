@@ -349,10 +349,10 @@ function OnThisPage({ toc, onOpen }: { toc: Toc; onOpen: (href: string) => void 
 
 const css = /* css */ `
 /* The header and the tabs are one bar at the top (SitePage's subnav): what stays in view starts under it */
-.ui-web:has(.ui-docs-tabs) { --ui-docs-bar: 108px; }
+[data-site-shell]:has(.ui-docs-tabs) { --ui-docs-bar: 108px; }
 /* With its column hidden, what's on the page is a bar under the tabs; on a phone the tabs go to the menu */
-@media (max-width: 1100px) { .ui-web:has(.ui-docs-tocbar) { --ui-docs-bar: 152px; } }
-@media (max-width: 760px) { .ui-web:has(.ui-docs-tabs) { --ui-docs-bar: 60px; } .ui-web:has(.ui-docs-tocbar) { --ui-docs-bar: 104px; } }
+@media (max-width: 1100px) { [data-site-shell]:has(.ui-docs-tocbar) { --ui-docs-bar: 152px; } }
+@media (max-width: 760px) { [data-site-shell]:has(.ui-docs-tabs) { --ui-docs-bar: 60px; } [data-site-shell]:has(.ui-docs-tocbar) { --ui-docs-bar: 104px; } }
 .ui-docs-tocbar { position: relative; display: none; max-width: 1280px; margin: 0 auto; padding: 0 8px; }
 @media (max-width: 1303px) { .ui-docs-tocbar { padding: 0 20px; } }
 @media (max-width: 1100px) { .ui-docs-tocbar { display: block; } }

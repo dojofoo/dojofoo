@@ -1,3 +1,4 @@
+import { Icon } from "./icon";
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode, type CSSProperties } from "react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { Tooltip } from "radix-ui";
@@ -48,9 +49,7 @@ import { SetupGuide, type SetupGroup } from "./setup-guide";
 
 /** Hugeicons, stroke + rounded with a slightly heavier stroke */
 /** A glyph from ~/lib/icons, drawn in the icon set that's switched on; without a stroke, the set's own */
-export const Icon = ({ icon: Glyph, size = 16, stroke, color = "currentColor" }: { icon: IconGlyph; size?: number; stroke?: number; color?: string }) => (
-  <Glyph size={size} stroke={stroke} color={color} />
-);
+export { Icon } from "./icon";
 
 export type ShellNavItem = { label: string; icon: IconGlyph; /** Small number at the end, e.g. unread items */ count?: number };
 /** A labelled list under the menu – replaces Projects when given */
@@ -1226,46 +1225,7 @@ function DocPreview({ type, color }: { type: FileType; color: "blue" | "rose" | 
 const css = /* css */ `
 /* Design tokens – the affectUI names, drawn from the Fluid Functionalism surfaces, text colors and states
    (styles/fluid.css): page = surface 1, panel = surface 2, cards = surface 3; two text colors; hairlines from the accent */
-.ui-as {
-  --tray: var(--surface-1);
-  --card: var(--surface-3);
-  /* Like the affectUI library: gray page, the main area is a rounded panel on it */
-  --page: var(--surface-1);
-  --panel: var(--surface-2);
-  --radius-panel: calc(12px * var(--squircle-factor, 1));
-  --frame-gap: 8px;
-  --ui-as-rail-width: 64px;
-  --line: var(--fluid-hairline);
-  --line-soft: var(--fluid-hairline);
-  --ink: var(--fluid-foreground);
-  /* The ink pushed toward the mode's extreme – brighter in dark, darker in light: the open sidebar row and the logo */
-  --ink-strong: color-mix(in oklab, var(--fluid-foreground), rgb(var(--overlay)) 40%);
-  --text: var(--fluid-foreground);
-  --muted: var(--fluid-muted);
-  --faint: var(--fluid-muted);
-  --placeholder: var(--fluid-muted);
-  --chip: var(--fluid-hover);
-  --chip-hover: var(--fluid-active);
-  --hover: var(--fluid-hover);
-  /* The theme's brand: highlights, progress, switches (styles/themes) */
-  --accent: var(--brand);
-  /* Buttons, disabled controls and switches: a theme may set them (--ui-*, see styles/themes/derive.css); the hand-made
-     themes keep these values */
-  --button: var(--ui-button, #262626);
-  --button-hover: var(--ui-button-hover, #333333);
-  --accent-soft: color-mix(in oklab, var(--brand) 12%, transparent);
-  --shadow: var(--shadow-2);
-  --line-strong: var(--fluid-border);
-  --subtle: var(--surface-2);
-  --on-ink: var(--ui-on-ink, #ffffff);
-  --ink-hover: #3a3a3a;
-  --select: var(--fluid-active);
-  --toggle-off: var(--ui-disabled, #e2e2e2);
-  --switch-on: var(--brand);
-  --logo-bg: #ffffff;
-  --ease: var(--ease-moderate);
-  --font: var(--ui-font, "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
-}
+
 
 /* Library components inside a screen follow the shell's scale: 13–13.5px text, 30px buttons, compact rows */
 .ui-as .ui-pl { font-size: var(--fs-body); line-height: 19px; }
@@ -1296,16 +1256,7 @@ const css = /* css */ `
 
 /* Dark mode: follows a .dark class or data-theme="dark" on any ancestor, e.g. <html>.
    Every screen draws from these tokens, and the library parts inside switch on their own. */
-:where(.dark, [data-theme="dark"]) .ui-as {
-  --button: var(--ui-button, #f4f4f5);
-  --button-hover: var(--ui-button-hover, #ffffff);
-  --on-ink: var(--ui-on-ink, #111113);
-  --ink-hover: #d4d4d8;
-  --toggle-off: var(--ui-disabled, #3a3a3f);
-  --switch-on: var(--brand);
-  --logo-bg: #2a2a2e;
-  color-scheme: dark;
-}
+
 
 .ui-as, .ui-as *, .ui-as *::before, .ui-as *::after { box-sizing: border-box; }
 .ui-as {

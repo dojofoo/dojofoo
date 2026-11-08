@@ -43,11 +43,11 @@ test("public course routes use the shared UIX presentation and one search owner"
   page.on("pageerror", error => errors.push(error.message));
   for (const path of ["/", "/dojos", "/courses/dojofoo/effect-ts"]) {
     await page.goto(path, { waitUntil: "networkidle" });
-    await expect(page.locator(".ui-web")).toBeVisible();
-    expect(await page.locator(".ui-web").evaluate(element => getComputedStyle(element).fontFamily)).toContain("Inter");
+    await expect(page.locator("[data-site-shell]")).toBeVisible();
+    expect(await page.locator("[data-site-shell]").evaluate(element => getComputedStyle(element).fontFamily)).toContain("Inter");
     if (path === "/") {
       expect(await page.locator("h1").evaluate(element => getComputedStyle(element).fontFamily)).toContain("Inter");
-      const frame = await page.locator(".ui-web-app__frame").boundingBox();
+      const frame = await page.locator("[data-app-preview-frame]").boundingBox();
       expect(frame!.width / frame!.height).toBeCloseTo(16 / 9, 2);
       await page.screenshot({ path: testInfo.outputPath("uix-home-desktop.png"), animations: "disabled" });
     }
@@ -90,9 +90,9 @@ test("the static landing illustration keeps its narrow layout without mock contr
   await page.goto("/");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   // The static illustration keeps the app's narrow layout without exposing mock controls.
-  const preview = page.locator(".ui-web-app[data-phone]");
+  const preview = page.locator("[data-app-preview]");
   await expect(preview).toBeVisible();
-  const mobileFrame = await preview.locator(".ui-web-app__frame").boundingBox();
+  const mobileFrame = await preview.locator("[data-app-preview-frame]").boundingBox();
   expect(mobileFrame!.height).toBeGreaterThan(mobileFrame!.width);
   await expect(preview).toHaveAttribute("role", "img");
   await expect(preview.getByRole("button")).toHaveCount(0);
@@ -104,10 +104,26 @@ test("the static landing illustration keeps its narrow layout without mock contr
 test("missing courses keep their 404 status inside the shared website frame", async ({ page }) => {
   const response = await page.goto("/courses/dojofoo/no-such-course");
   expect(response?.status()).toBe(404);
-  await expect(page.locator(".ui-web")).toBeVisible();
+  await expect(page.locator("[data-site-shell]")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Page not found", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Back to docs", exact: true })).toHaveAttribute("href", "/docs");
   await page.getByRole("link", { name: "Back to docs", exact: true }).click();
   await expect(page).toHaveURL(/\/docs$/);
   await expect(page.getByRole("heading", { name: "Usage", exact: true })).toBeVisible();
+});
+
+
+test("the comparison page loads its own presentation and preserves navigation", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/vs/masterclass", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "A craft is best learned from a master", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What MasterClass does well", exact: true })).toBeVisible();
+  await page.locator("[data-site-navigation]").getByRole("link", { name: "Dojo.foo home" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: "You can only fight the way you practice" })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/vs\/masterclass$/);
+  await expect(page.getByRole("heading", { name: "A craft is best learned from a master", exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
 });

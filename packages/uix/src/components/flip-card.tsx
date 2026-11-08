@@ -1,9 +1,13 @@
 "use client";
 
+import { loadMotionFeatures } from "../lib/lazy-motion";
+
+import * as motion from "motion/react-m";
+
 import { useEffect, useRef, useState } from "react";
 import {
   animate,
-  motion,
+  LazyMotion,
   useMotionTemplate,
   useMotionValue,
   useSpring,
@@ -122,7 +126,7 @@ export function FlipCard({
     "absolute inset-0 z-10 cursor-pointer rounded-[inherit] outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-4 focus-visible:outline-foreground";
 
   return (
-    <div
+    <LazyMotion features={loadMotionFeatures}><div
       className={cn(
         "relative h-[420px] w-[min(320px,100%)] touch-manipulation select-none",
         className,
@@ -202,7 +206,7 @@ export function FlipCard({
           </div>
         </motion.div>
       </div>
-    </div>
+    </div></LazyMotion>
   );
 }
 

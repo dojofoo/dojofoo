@@ -1,4 +1,6 @@
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Topography } from "../components/topography";
 import { AgentChatWorkspace } from "../containers/agent-chat";
 import { ChatStyles, Composer } from "../containers/assistant-home";
 import { Icon, type ShellSection } from "../components/app-shell";
@@ -106,4 +108,23 @@ export async function renderLearningIllustration() {
     )} />, { identifierPrefix: "learning-illustration-" }),
     seed: cardSeed(metadata.repo),
   };
+}
+
+/** Storybook's source for the artwork pipeline. None of this renderer ships on the website. */
+export function LearningArtwork({ html, seed }: Awaited<ReturnType<typeof renderLearningIllustration>>) {
+  const root = useRef<HTMLDivElement>(null);
+  const [surface, setSurface] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const canvas = root.current?.querySelector<HTMLCanvasElement>(".lj-course canvas.ui-card__lines");
+    if (!canvas) return;
+    const host = document.createElement("div");
+    host.className = canvas.className;
+    canvas.replaceWith(host);
+    setSurface(host);
+    return () => { host.replaceWith(canvas); };
+  }, [html]);
+  return <>
+    <div ref={root} className="h-full" data-learning-artwork-source="" data-artwork-seed={seed} dangerouslySetInnerHTML={{ __html: html }} />
+    {surface && createPortal(<Topography color="#ffffff" interactive={false} speed={0} density={0.9} seed={seed} />, surface)}
+  </>;
 }

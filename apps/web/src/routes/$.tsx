@@ -3,13 +3,13 @@ import { createServerFn } from '@tanstack/react-start'
 import { staticFunctionMiddleware } from '@tanstack/start-static-server-functions'
 import { DocsSite } from '@dojofoo/uix/docs/layout'
 import { createDocsContent } from '@dojofoo/uix/docs/content'
-import browserCollections from 'collections/browser'
 import { Suspense, useMemo } from 'react'
 import { SITE_URL } from '@/lib/site'
 import { canonicalLink, DEFAULT_SOCIAL_DESCRIPTION, pageImage, socialMetadata } from '@/lib/social-metadata'
 import { breadcrumbs, jsonLd, techArticle } from '@/lib/structured-data'
-import { useMDXComponents } from '@/components/mdx'
-import { APIPage as OpenAPIPage, type APIPageProps } from '@dojofoo/uix/components/api-reference'
+import { DocsPageContent } from '@/components/docs-page-content'
+import docsFont from '../docs-font.css?url'
+import apiCss from '../api-reference.css?url'
 
 export const Route = createFileRoute('/$')({
   // A docs page's social card beside it, at its address + /og.webp; every other request is the page
@@ -28,7 +28,8 @@ export const Route = createFileRoute('/$')({
   loader: async ({ params }) => {
     const slugs = params._splat?.split('/') ?? []
     const data = await loader({ data: slugs })
-    await clientLoader.preload(data.path)
+    const { preloadDocsContent } = await import('@/components/docs-page-content')
+    await preloadDocsContent(data.path)
     return data
   },
   head: ({ loaderData }) => {
@@ -41,7 +42,7 @@ export const Route = createFileRoute('/$')({
         { title: loaderData.pageUrl.startsWith('/docs/commands/') ? `dojofoo ${title}` : title },
         ...socialMetadata({ title, description, url: ogUrl, type: 'article', image: pageImage(loaderData.pageUrl) }),
       ],
-      links: [canonicalLink(loaderData.pageUrl)],
+      links: [canonicalLink(loaderData.pageUrl), { rel: 'stylesheet', href: docsFont }, { rel: 'preconnect', href: 'https://cdnjs.cloudflare.com', crossOrigin: 'anonymous' }, ...(loaderData.apiPreloaded ? [{ rel: 'stylesheet', href: apiCss }] : [])],
       scripts: [jsonLd(
         techArticle({ headline: title, description: loaderData.description, path: loaderData.pageUrl }),
         breadcrumbs(loaderData.trail),
@@ -77,20 +78,6 @@ const loader = createServerFn({ method: 'GET' })
     }
   })
 
-const clientLoader = browserCollections.docs.createClientLoader({
-  component(
-    { frontmatter, default: MDX },
-    { apiPreloaded }: { apiPreloaded?: APIPageProps['preloaded'] },
-  ) {
-    const components = useMDXComponents({ OpenAPIPage: (props: Omit<APIPageProps, 'preloaded'>) => {
-      if (!apiPreloaded) throw new Error('Missing server-preloaded OpenAPI document.');
-      return <OpenAPIPage {...props} preloaded={apiPreloaded} />;
-    } })
-    return frontmatter._openapi ? <MDX components={components} />
-      : <div className="ui-docs__prose prose max-w-none"><div className="ui-result-markdown"><MDX components={components} /></div></div>
-  },
-})
-
 function Page() {
   const { slugs, path, pageUrl, sections, headings, apiPreloaded } = Route.useLoaderData()
   const location = useLocation()
@@ -101,6 +88,6 @@ function Page() {
   return <>
     <Link to={markdownUrl} hidden />
     <DocsSite path={docPath} content={content} toc={toc}
-      renderPage={() => <Suspense>{clientLoader.useContent(path, { apiPreloaded })}</Suspense>} />
+      renderPage={() => <Suspense><DocsPageContent path={path} apiPreloaded={apiPreloaded} /></Suspense>} />
   </>
 }

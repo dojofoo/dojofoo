@@ -18,7 +18,7 @@ test("docs hydrate and search opens", async ({ page }) => {
   await expect(footerItem.locator("span")).toHaveCSS("font-family", /Inter/);
   expect(await page.evaluate(() => {
     window.scrollTo(0, 200);
-    const navigation = document.querySelector<HTMLElement>(".ui-web-bar")!.getBoundingClientRect();
+    const navigation = document.querySelector<HTMLElement>("[data-site-navigation]")!.parentElement!.getBoundingClientRect();
     const sidebar = document.querySelector<HTMLElement>(".ui-docs-tree")!.getBoundingClientRect();
     return sidebar.top >= navigation.bottom - 1;
   })).toBe(true);

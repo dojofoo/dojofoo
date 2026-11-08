@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { EditorFrame, EditorTabs } from "./editor";
 import { editorAppearance } from "../lib/editor-appearance";
-import { highlightCode } from "../lib/markdown";
+import type { highlightCode } from "../lib/markdown";
 import { editorLineHeight, useEditorScheme, useUiPreferences } from "../lib/ui-preferences";
 
 /*
@@ -74,10 +74,14 @@ export function CodeLines({ code, lang = "text", fallback }: { code: string; lan
   const scheme = useEditorScheme();
   const [tokens, setTokens] = useState<{ theme: string; result: Tokens }>();
   useEffect(() => {
+    // MDX already supplies highlighted light/dark tokens. Keep that static
+    // output instead of loading a highlighter to repeat the build-time work.
+    if (fallback) return;
     let current = true;
-    highlightCode(code, lang, scheme.theme.name).then((result) => { if (current) setTokens({ theme: scheme.theme.name, result }); }, () => {});
+    import("../lib/markdown").then(({ highlightCode }) => highlightCode(code, lang, scheme.theme.name))
+      .then((result) => { if (current) setTokens({ theme: scheme.theme.name, result }); }, () => {});
     return () => { current = false; };
-  }, [code, lang, scheme.theme.name]);
+  }, [code, lang, scheme.theme.name, fallback]);
   const ready = tokens?.theme === scheme.theme.name ? tokens.result : undefined;
   return (
     <pre className="ui-cw-code scroll-fade-x" data-fallback={!ready && fallback ? "" : undefined}>

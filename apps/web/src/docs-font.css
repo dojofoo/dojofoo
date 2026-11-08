@@ -1,0 +1,16 @@
+@import "fumadocs-ui/css/shadcn.css";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@reference "./site.css";
+
+@font-face {
+  font-family: "Iosevka";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://cdnjs.cloudflare.com/ajax/libs/Iosevka/11.1.1/iosevka/woff2/iosevka-regular.woff2") format("woff2");
+}
+
+.ui-docs-layout {
+  --font-mono: "Iosevka", ui-monospace, monospace;
+}

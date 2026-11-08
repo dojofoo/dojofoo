@@ -16,6 +16,7 @@ const meta = {
     start: { table: { disable: true } },
     courseId: { name: "Course", control: "select", options: catalog.map((course) => course.id) },
     docPath: { table: { disable: true } },
+    artwork: { table: { disable: true } },
   },
   // Pages scroll as a website's do, not as the app's fixed window
   decorators: [(Story) => { document.body.classList.remove("overflow-hidden"); return <Story />; }],
@@ -50,3 +51,6 @@ export const Courses: Story = {
 };
 
 export const Course: Story = { args: { start: "course" } };
+
+/** The approved UIX source for the website's retina artwork. */
+export const LandingArtwork: Story = { args: { start: "landing", artwork: true } };

@@ -20,6 +20,8 @@ const docsPaths = globSync('**/*.mdx', { cwd: docsRoot }).map((file) => {
 });
 
 export default defineConfig({
+  // Public branding uses one icon family; app and Storybook builds retain their selector.
+  define: { "__UIX_ICON_SET__": JSON.stringify("mingcute") },
   server: {
     port: Number(process.env.PORT) || 3000,
     host: process.env.HOST || 'localhost',

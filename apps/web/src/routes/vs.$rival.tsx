@@ -1,26 +1,20 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import browserCollections from "collections/browser";
-import { Suspense } from "react";
-import { compareComponents, ComparePage, rivalMarks } from "@dojofoo/uix/web/compare";
+import { ComparisonPageContent } from "@/components/comparison-page-content";
 
 // Dojo.foo next to another way to learn, e.g. /vs/masterclass: a page of comparisons/<rival>.mdx. Hidden for now: not
 // linked from anywhere and kept out of search (noindex, not in the sitemap)
 export const Route = createFileRoute("/vs/$rival")({
   loader: async ({ params }) => {
     const data = await loader({ data: params.rival });
-    await clientLoader.preload(data.path);
+    const { preloadComparison } = await import("@/components/comparison-page-content");
+    await preloadComparison(data.path);
     return data;
   },
   head: ({ loaderData }) => loaderData ? { meta: [{ title: `Dojo.foo vs ${loaderData.rival.name}` }, { name: "robots", content: "noindex, nofollow" }] } : {},
   component: function Compare() {
     const { id, path, rival, headings } = Route.useLoaderData();
-    const toc = headings.map((heading) => ({ id: heading.id, text: <span dangerouslySetInnerHTML={{ __html: heading.html }} /> }));
-    return (
-      <ComparePage rival={rival} marks={rivalMarks[id]} toc={toc}>
-        <Suspense>{clientLoader.useContent(path)}</Suspense>
-      </ComparePage>
-    );
+    return <ComparisonPageContent id={id} path={path} rival={rival} headings={headings} />;
   },
 });
 
@@ -39,7 +33,3 @@ const loader = createServerFn({ method: "GET" })
       headings: page.toc.filter((heading) => heading.depth === 2).map((heading) => ({ id: heading.url.slice(1), html: renderToStaticMarkup(heading.title) })),
     };
   });
-
-const clientLoader = browserCollections.comparisons.createClientLoader({
-  component: ({ default: MDX }) => <MDX components={compareComponents} />,
-});
