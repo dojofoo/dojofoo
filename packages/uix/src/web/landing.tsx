@@ -10,7 +10,6 @@ import type { WebCourse } from "./catalog";
 import type { ReactNode } from "react";
 import { AppPreview } from "./app-preview";
 import { CommandCopy, SitePage, useSite } from "./site";
-import { TopographyBackdrop } from "./topography-backdrop";
 import { SiteQuestions } from "./questions";
 
 /*
@@ -31,19 +30,20 @@ const modes = [
   { title: "Authoring Mode", short: "Authoring", beta: "Open beta", headline: "Create your own tutor-guided learning or interview", text: "Build a course with Kyoshi, your authoring agent. Shape lessons, exercises, and learning material, then try it as a learner before you share it." },
 ] as const;
 
-export function LandingPage({ learning, courses, preview, artwork = false }: {
+export function LandingPage({ learning, courses, preview, backdrop, artwork = false }: {
   /** Optional live count supplied by a host with real presence data. */
   learning?: number;
   courses: WebCourse[];
   featureCourse?: WebCourse;
   preview: ReactNode;
+  backdrop: ReactNode;
   artwork?: boolean;
 }) {
   const links = useSite();
   const top = [...courses].sort((a, b) => a.trendingRank - b.trendingRank).slice(0, 4);
   const [mode, setMode] = useState<1 | 2 | 3>(1);
   return (
-    <SitePage current="home" window={false} full backdrop={<TopographyBackdrop />}>
+    <SitePage current="home" window={false} full backdrop={backdrop}>
       {artwork && <style href="ui-web-artwork" precedence="default">{artworkCss}</style>}
       <section className="mx-auto grid max-w-[760px] justify-items-center px-5 pt-[72px] pb-10 text-center">
         {learning !== undefined && <p className="mb-[22px] inline-flex items-center gap-2 rounded-full bg-(--surface-3) py-[5px] pr-3 pl-[9px] text-[length:var(--fs-caption)] font-[550] text-(--muted) shadow-(--shadow-1) [corner-shape:round]"><span className="grid size-3.5 place-items-center rounded-full border-[1.5px] border-[color-mix(in_oklab,var(--live)_45%,transparent)] [--live:var(--ev-pass,#16a34a)] dark:[--live:#4ade80] [corner-shape:round] after:size-1.5 after:rounded-full after:bg-(--live) after:[corner-shape:round]" aria-hidden="true" />{learning === 1 ? "1 person" : `${learning} people`} learning right now</p>}

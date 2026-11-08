@@ -7,8 +7,9 @@ import { createBundledHighlighter } from "shiki/dist/core.mjs";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import { bundledLanguages } from "shiki/langs";
 import { bundledThemes } from "shiki/themes";
-import { Children, isValidElement, useState, type ReactNode } from "react";
+import { useState, type CSSProperties } from "react";
 import { CodeLines, CodeWindow, CodeWindowBlock } from "./code-window";
+import { editorLineHeight, useUiPreferences } from "../lib/ui-preferences";
 
 const createHighlighter = createBundledHighlighter<string, string>({ langs: bundledLanguages, themes: bundledThemes, engine: () => createJavaScriptRegexEngine({ forgiving: true }) });
 const shiki = createShikiFactory({ init: options => createHighlighter({ themes: [], langs: [], langAlias: options?.langAlias }) });
@@ -36,12 +37,11 @@ const NativeAPIPage = createOpenAPIPageBase({
       {slots.responseTabs}
     </>,
     renderResponseTabs: ({ tabs }) => <Responses tabs={tabs} />,
-    renderOperationLayout(slots, { method }) {
-      const path = routeOf(slots.apiPlayground);
+    renderOperationLayout(slots, { method, path }) {
       return <div className="ui-api-operation">
-        <div className="ui-api-operation__body">
+        <div className="ui-api-operation__body [&>div:has(>[id^=parameters-])+div]:rounded-none [&>div:has(>[id^=parameters-])+div]:border-0 [&>div:has(>[id^=parameters-])+div]:bg-transparent [&>div:has(>[id^=parameters-])+div]:px-0 [&>div:has(>[id^=parameters-])+div]:shadow-none [&>div:has(>[id^=parameters-])+div>div]:border-0 [&>div:has(>[id^=parameters-])+div>div+div]:[background:var(--ui-web-rule)_left_top/var(--ui-web-rule-size)_repeat-x] [&>div:has(>[id^=parameters-])+div>div>div:first-child>code]:text-[length:var(--ui-cw-size)] [&>div:has(>[id^=parameters-])+div>div>div:first-child>code]:leading-[var(--ui-cw-line)] [&>div:has(>[id^=parameters-])+div>div>div:first-child>span.font-mono]:text-[length:var(--ui-cw-size)] [&>div:has(>[id^=parameters-])+div>div>div:first-child>span.font-mono]:leading-[var(--ui-cw-line)] [&>div:has(>[id^=parameters-])+div>div>div:first-child>span.font-mono]:text-(--muted) [&>div:has(>[id^=parameters-])+div>div>div:first-child>code>span:first-child]:text-(--ink) [&>div:has(>[id^=parameters-])+div>div>div:first-child>code>span+span]:text-(--muted) [&>div:has(>[id^=parameters-])+div>div>div:nth-child(2)_code]:text-sm!">
           {slots.header}
-          <div data-api-request>{path ? <RequestLine method={method.toUpperCase()} path={path} /> : slots.apiPlayground}</div>
+          <div data-api-request><RequestLine method={method.toUpperCase()} path={path} /></div>
           {/* The page lead already displays the operation description. */}
           {slots.authSchemes}{slots.parameters}{slots.body}{slots.callbacks}
         </div>
@@ -50,13 +50,6 @@ const NativeAPIPage = createOpenAPIPageBase({
     },
   },
 });
-
-/** The path on Fumadocs' request line (in the playground's place, with the playground off): its code's text */
-function routeOf(line: ReactNode) {
-  const parts = isValidElement<{ children?: ReactNode }>(line) ? Children.toArray(line.props.children) : [];
-  const code = parts.find(part => isValidElement(part) && part.type === "code");
-  return isValidElement<{ children?: ReactNode }>(code) && typeof code.props.children === "string" ? code.props.children : undefined;
-}
 
 /** The request line as the examples show code: a window with no tabs, the method in its color, then the path */
 function RequestLine({ method, path }: { method: string; path: string }) {
@@ -78,8 +71,9 @@ function Responses({ tabs }: { tabs: { code: string; examples?: { sample: unknow
 export type APIPageProps = OpenAPIPageProps_Preloaded;
 
 export function APIPage(props: APIPageProps) {
+  const { editorSize } = useUiPreferences();
   if (!props.preloaded?.docs[props.document]) throw new Error(`Missing prepared Fumadocs OpenAPI document: ${props.document}.`);
-  return <div className="ui-api-reference not-prose">
+  return <div className="ui-api-reference not-prose" style={{ "--ui-cw-size": `${editorSize}px`, "--ui-cw-line": `${editorLineHeight(editorSize)}px` } as CSSProperties}>
     <NativeAPIPage {...props} />
   </div>;
 }

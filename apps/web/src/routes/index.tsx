@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Hydrate } from "@tanstack/react-start";
+import { visible } from "@tanstack/react-start/hydration";
 import { LandingPage } from "@dojofoo/uix/web/landing";
+import { TopographyBackdrop } from "@dojofoo/uix/web/topography-backdrop";
 import { LearningIllustration, learningImagePreloads } from "@dojofoo/uix/web/learning-illustration";
 import { loadMarketplaceCourses } from "@/lib/courses.functions";
 import { toUIXCourse } from "@/lib/uix-course";
@@ -20,5 +23,6 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const { courses: catalog } = Route.useLoaderData();
   const courses = catalog.map(toUIXCourse);
-  return <LandingPage courses={courses} featureCourse={courses[0]} preview={<LearningIllustration />} />;
+  return <LandingPage courses={courses} featureCourse={courses[0]} preview={<LearningIllustration />}
+    backdrop={<Hydrate when={visible({ rootMargin: "600px" })}><TopographyBackdrop /></Hydrate>} />;
 }

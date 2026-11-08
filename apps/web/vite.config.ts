@@ -47,6 +47,7 @@ export default defineConfig({
     mdx(await import('./source.config.js')),
     tailwindcss(),
     tanstackStart({
+      server: { build: { inlineCss: true } },
       prerender: {
         enabled: true,
         autoStaticPathsDiscovery: false,
