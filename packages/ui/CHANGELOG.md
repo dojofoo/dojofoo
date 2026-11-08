@@ -1,5 +1,42 @@
 # @dojofoo/ui
 
+## 0.2.0
+
+### Minor Changes
+
+- f08214c: The account menu opens pages of their own: Settings at /settings/theme and /settings/profile, Profile at /me, which shows the learner's courses with their progress and the courses they finished as certificates. A check card no longer says "Sensei saw this".
+
+### Patch Changes
+
+- 1af0002: Every coding agent gets the same model menu. A long model list can be searched, and a model the agent can't run now is listed last, muted, with what to do ("Sign in to GitHub Copilot again: run pi, then /login", "Not in your GitHub Copilot plan"). A conversation without a model no longer shows the first model as chosen, and a model without a default effort of its own shows Default until a level is picked.
+  
+  Pi starts a new conversation on the default model in its settings.json while that model can run, else on the first one that can, instead of on a model whose expired sign-in Sensei can't renew. OpenCode lists its models by name with their reasoning variants as efforts, from the copy Sensei runs, and a new conversation names the model OpenCode picks itself. Kyoshi's conversations start on the same configured model as Sensei's.
+  
+  Onboarding shows an agent found on this machine that Dojo can't teach through yet (Cursor, Antigravity) as not supported instead of offering it.
+- 55cf41b: Lesson checks now run without blocking the local UI server, so other requests, sockets and agent streams keep answering while a check runs.
+- f08214c: The authoring footer drops Evaluation settings and its dialog; Trial is its main button.
+- f08214c: The model menu shows only an effort the chosen model takes, so a level picked for another model no longer sticks after a switch, and the effort row shows no selection when none applies. A conversation whose effort is cleared by a model change also clears the workspace's saved effort, so the next conversation starts at its model's default.
+- f08214c: Kyoshi's composer has the same model and effort menu as Sensei's: Kyoshi runs on the conversation's model and effort from the next turn, and a new conversation starts on the workspace's last choice.
+- 68d9304: On a kata lesson, only the learner's own Check becomes a check card, and unsaved code is no longer lost: leaving the lesson asks first, and a refreshed lesson keeps it.
+- 37b5b50: A conversation no longer stays busy forever when the end of its turn goes unreported, and a lesson's opening turn that already ran isn't sent again.
+- 881c61f: Opening the UI while the same build of dojofoo already runs it, as `/kata` does, opens the running UI instead of replacing it, so its agent turns and evaluations keep going. A rebuilt or other version of the UI still replaces it, and a running UI started in another folder is named.
+- Updated dependencies [f08214c]
+- Updated dependencies [1af0002]
+- Updated dependencies [f08214c]
+- Updated dependencies [3e499bf]
+- Updated dependencies [f08214c]
+- Updated dependencies [f08214c]
+- Updated dependencies [6458235]
+- Updated dependencies [f08214c]
+- Updated dependencies [f08214c]
+- Updated dependencies [37b5b50]
+- Updated dependencies [b374515]
+  - @dojofoo/uix@0.2.0
+  - @dojofoo/agents@0.2.1
+  - @dojofoo/harness@0.2.1
+  - @dojofoo/protocol@0.1.1
+  - @dojofoo/config@0.3.2
+
 ## 0.1.1
 
 ### Patch Changes

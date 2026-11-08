@@ -1,5 +1,12 @@
 # @dojofoo/api
 
+## 0.0.3
+
+### Patch Changes
+
+- f685159: The events endpoint rejects an event whose `occurredAt` isn't a date and stores the time in ISO form; catalog reads leave out any stored event whose time isn't a date, so one bad event can no longer break the course list and the marketplace.
+- 6458235: `add` reads the security checks of the exact version it downloaded, which the course API now runs first when it hasn't checked that version, asks before installing a version no check is for, checks with telemetry off too, and says so when the checks are unavailable.
+
 ## 0.0.2
 
 ### Patch Changes
