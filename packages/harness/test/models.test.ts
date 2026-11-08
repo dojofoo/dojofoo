@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { acpModels, codexModels, configuredHarnessModel, fxModels, openCodeDefaultModel, parseFxModels, parseOpenCodeModels, piModels } from "./models.ts";
+import { acpModels, codexModels, configuredHarnessModel, fxModels, openCodeDefaultModel, parseFxModels, parseOpenCodeModels, piModels } from "../src/models.ts";
 
 const createModelRuntime = vi.hoisted(() => vi.fn());
 const thinkingLevels = vi.hoisted(() => vi.fn());

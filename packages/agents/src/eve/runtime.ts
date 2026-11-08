@@ -1,12 +1,11 @@
 import { readFile, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { agentAdapter } from "@dojofoo/harness/adapters";
+import { agentAdapter, configuredHarnessModel } from "@dojofoo/harness/adapters";
 import { prepareKyoshiApp, prepareKyoshiCommand, prepareKyoshiHarness, prepareKyoshiOutput } from "./prepare.ts";
 import { resolveAgent } from "@dojofoo/config/runtime";
 import { localStateDirectory, workspaceIdFor } from "@dojofoo/config/local-state";
 import type { AgentId } from "@dojofoo/protocol";
-import { configuredHarnessModel } from "./models.ts";
 import { closeSenseiRuntimes } from "../sensei/runtime.ts";
 
 /** Which host a composition root asks for: the workspace it serves and where its host port listens. */

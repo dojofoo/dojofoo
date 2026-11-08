@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { delimiter, join } from "node:path";
 import { tool } from "@ai-sdk/provider-utils";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
-import { HarnessAgent, agentAdapter, createLocalHarnessSandbox, createLocalSandbox, prepareHarnessEnvironment, ResumeFailedError } from "@dojofoo/harness/adapters";
+import { HarnessAgent, acpModels, agentAdapter, configuredHarnessModel, createLocalHarnessSandbox, createLocalSandbox, prepareHarnessEnvironment, ResumeFailedError } from "@dojofoo/harness/adapters";
 import { startHostPortFixture } from "@dojofoo/harness/host-port/fixture";
 import { createFileGuard, type GuardVerdict, lifecycleHandlers, readOnlyToolNames } from "@dojofoo/harness/persona";
 import type { AgentId, ResumeFailure } from "@dojofoo/protocol";
@@ -15,7 +15,6 @@ import {
   requestsCarrying, residentMemory, runHost, runKyoshiHost, runScriptedModel, runSenseiModel, scriptedCalls, seedMarkers, snapshotDirectory, stopAfterCancel, toolListExtras,
   userConfigSeeds, wiring, type AgentWiring, type CaseContext, type HostRun, type LoopbackEndpoint, type TierAAgent, type TierBContext, type ToolRequest,
 } from "./conformance.fixture";
-import { acpModels, configuredHarnessModel } from "./models";
 import { criterionIds, judgePanel, parseVerdict } from "../evaluation/judges";
 import { parseGeneratedFixture } from "../evaluation/learner-fixtures";
 import { evaluationPrompts } from "../evaluation/prompts";

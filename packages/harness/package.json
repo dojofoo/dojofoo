@@ -612,11 +612,16 @@
     "@ai-sdk/harness-opencode": "1.0.173",
     "@ai-sdk/harness-pi": "1.0.173",
     "@ai-sdk/provider": "4.0.35",
+    "@anthropic-ai/claude-agent-sdk": "0.3.290",
     "@dojofoo/config": "workspace:*",
     "@dojofoo/protocol": "workspace:*",
+    "@earendil-works/pi-ai": "1.4.0",
+    "@earendil-works/pi-coding-agent": "1.4.0",
     "ai": "7.0.159",
+    "json-rpc-2.0": "1.8.1",
     "just-bash": "3.6.0",
     "nitro": "3.0.260903-beta",
+    "smol-toml": "1.9.1",
     "undici": "8.12.3"
   },
   "devDependencies": {

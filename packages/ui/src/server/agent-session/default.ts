@@ -12,6 +12,10 @@ import { guardedLesson, verifyWindow } from "./guard";
 import { applyLifecycle, type TurnOutcome } from "./lifecycle";
 import { readRecords, saveRecord, updateRecord } from "./records";
 
+/** Resolved from @dojofoo/agents, as the persona runtimes reach the adapters: the built CLI depends on agents, not on the harness */
+const harnessAdapters = () => createRequire(createRequire(import.meta.url).resolve("@dojofoo/agents/package.json"))("@dojofoo/harness/adapters") as
+  typeof import("@dojofoo/harness/adapters");
+
 export interface DefaultSessionDeps {
   /** The workspace's folder; 404 workspace_not_found */
   root(workspaceId: string): string;
@@ -129,8 +133,7 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
   async function createKyoshi(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId): Promise<SessionRecord> {
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
     const now = new Date().toISOString();
-    const model = readAgentModel(path, agent) ?? await (createRequire(import.meta.url)("@dojofoo/agents/eve/models") as typeof import("@dojofoo/agents/eve/models"))
-      .configuredHarnessModel(agent).catch(() => undefined);
+    const model = readAgentModel(path, agent) ?? await harnessAdapters().configuredHarnessModel(agent).catch(() => undefined);
     const effort = readAgentEffort(path, agent);
     const record: SessionRecord = { id: session.id, agent, persona: "kyoshi", createdAt: now, ...(model ? { model } : {}), ...(effort ? { effort } : {}),
       revision: 0, lifecycle: { status: "idle", updatedAt: now } };
@@ -144,8 +147,7 @@ export function createDefaultSessions(deps: DefaultSessionDeps) {
   async function create(path: string, workspaceId: string, endpoint: AgentEndpoint, agent: AgentId, request: DefaultSessionRequest): Promise<SessionRecord> {
     if (request.course === undefined) return createKyoshi(path, workspaceId, endpoint, agent);
     const { session } = await new Client(endpoint).sessions.create({ signal: AbortSignal.timeout(20_000) });
-    const model = readAgentModel(path, agent) ?? await (createRequire(import.meta.url)("@dojofoo/agents/eve/models") as typeof import("@dojofoo/agents/eve/models"))
-      .configuredHarnessModel(agent).catch(() => undefined);
+    const model = readAgentModel(path, agent) ?? await harnessAdapters().configuredHarnessModel(agent).catch(() => undefined);
     const effort = readAgentEffort(path, agent);
     const now = new Date().toISOString();
     const record: SessionRecord = {

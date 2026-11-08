@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
-import { piModels } from "./models";
+import { piModels } from "../src/models.ts";
 
 it("reads Pi 1.x native model configuration offline without exposing or changing credentials", async () => {
   const directory = await mkdtemp(join(tmpdir(), "dojo-pi-models-"));

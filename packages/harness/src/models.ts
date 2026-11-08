@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { JSONRPCClient } from "json-rpc-2.0";
 import { parse } from "smol-toml";
 import { agentRow, type AgentId, type ModelChoice } from "@dojofoo/protocol";
-import { readOnlyEnvironment } from "@dojofoo/harness/persona";
+import { readOnlyEnvironment } from "./read-only.js";
 
 /** Preserve the native CLI choice when the caller has not selected a model. In-process libfx's own default belongs to the
  *  gateway and fails on a subscription login, so FX starts on the first model the user's CLI lists for its active provider.
