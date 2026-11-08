@@ -1,8 +1,10 @@
 import { execFile, spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { resolveAgentExecutable } from "@dojofoo/config/agent-installations";
 import { promisify } from "node:util";
 import { createInterface } from "node:readline";
+import { createServer, type AddressInfo } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { JSONRPCClient } from "json-rpc-2.0";
@@ -11,10 +13,22 @@ import { agentRow, type AgentId, type ModelChoice } from "@dojofoo/protocol";
 import { readOnlyEnvironment } from "@dojofoo/harness/persona";
 
 /** Preserve the native CLI choice when the caller has not selected a model. In-process libfx's own default belongs to the
- *  gateway and fails on a subscription login, so FX starts on the first model the user's CLI lists for its active provider. */
+ *  gateway and fails on a subscription login, so FX starts on the first model the user's CLI lists for its active provider.
+ *  Sensei's Pi and OpenCode run without the user's settings, so their sessions name a model too: Pi the default in the user's
+ *  settings.json while it can run, else the first one that can; OpenCode the one it picks itself. */
 export async function configuredHarnessModel(harness: string, codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex"),
-  listFx = () => fxModels(AbortSignal.timeout(15_000))): Promise<string | undefined> {
+  listFx = () => fxModels(AbortSignal.timeout(15_000)), options: { piAgentDir?: string; listPi?: () => Promise<HarnessModelChoice[]>;
+    openCodeDefault?: () => Promise<string | undefined> } = {}): Promise<string | undefined> {
   if (harness === "fx") return (await listFx().catch(() => []))[0]?.id;
+  if (harness === "opencode") return (options.openCodeDefault ?? (() => openCodeDefaultModel(AbortSignal.timeout(30_000))))().catch(() => undefined);
+  if (harness === "pi") {
+    const agentDir = options.piAgentDir ?? process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
+    const usable = (await (options.listPi ?? (() => piModels(AbortSignal.timeout(15_000), agentDir)))().catch(() => [])).filter(model => !model.unavailable);
+    const settings = await readFile(join(agentDir, "settings.json"), "utf8").then(source => JSON.parse(source) as Record<string, unknown>, (): Record<string, unknown> => ({}));
+    const preferred = typeof settings.defaultProvider === "string" && typeof settings.defaultModel === "string"
+      ? `${settings.defaultProvider}/${settings.defaultModel}` : undefined;
+    return (usable.find(model => model.id === preferred) ?? usable[0])?.id;
+  }
   if (harness !== "codex") return undefined;
   let source: string;
   try { source = await readFile(join(codexHome, "config.toml"), "utf8"); }
@@ -38,11 +52,7 @@ export async function harnessModels(agent: AgentId, signal: AbortSignal): Promis
   if (agent === "codex") return codexModels(signal);
   if (agent === "fx") return fxModels(signal);
   if (agent === "pi") return piModels(signal);
-  if (agent === "opencode") {
-    const executable = process.env.OPENCODE_BIN ?? resolveAgentExecutable("opencode") ?? "opencode";
-    const { stdout } = await promisify(execFile)(executable, ["models"], { signal, timeout: 15_000, maxBuffer: 1024 * 1024 });
-    return parseOpenCodeModels(stdout);
-  }
+  if (agent === "opencode") return openCodeModels(signal);
   throw new Error(`${agentRow(agent).name} model discovery is not available here yet. Use its native CLI to select a model.`);
 }
 
@@ -171,10 +181,76 @@ function grokModels(available: unknown): HarnessModelChoice[] {
 
 const unique = (choices: HarnessModelChoice[]) => choices.filter((choice, index) => choices.findIndex(other => other.id === choice.id) === index);
 
+/** OpenCode as Sensei runs it: the copy the adapter installs under ~/.ai-sdk-harness, in Sensei's private home, so it answers with the
+ *  models a turn can use. Before a first turn installs that copy, the user's own OpenCode answers. */
+async function withSenseiOpenCode<T>(run: (executable: string | undefined, environment: NodeJS.ProcessEnv, cwd: string) => Promise<T>,
+  options: { executable?: string; environment?: NodeJS.ProcessEnv }): Promise<T> {
+  const bundled = join(homedir(), ".ai-sdk-harness", ".harness-bootstrap", "opencode", "node_modules", ".bin", "opencode");
+  const executable = options.executable ?? process.env.OPENCODE_BIN ?? (existsSync(bundled) ? bundled : undefined);
+  const state = await mkdtemp(join(tmpdir(), "dojo-opencode-models-home-"));
+  try {
+    return await run(executable, options.environment ?? await readOnlyEnvironment("opencode", process.env, { stateDirectory: state, eveSessionId: "model-probe" }), state);
+  } finally { await rm(state, { recursive: true, force: true, maxRetries: 3 }); }
+}
+
+/** OpenCode's models with their names and reasoning variants (`models --verbose`); the user's own OpenCode lists only ids */
+export function openCodeModels(signal: AbortSignal, options: { executable?: string; environment?: NodeJS.ProcessEnv } = {}): Promise<HarnessModelChoice[]> {
+  return withSenseiOpenCode(async (executable, env, cwd) => {
+    const run = (command: string, args: string[]) => promisify(execFile)(command, args, { signal, timeout: 30_000, maxBuffer: 16 * 1024 * 1024, env, cwd });
+    const { stdout } = executable ? await run(executable, ["models", "--verbose"]) : await run(resolveAgentExecutable("opencode") ?? "opencode", ["models"]);
+    return parseOpenCodeModels(stdout);
+  }, options);
+}
+
+/** The model OpenCode picks when none is set: its server's default for its first provider (`GET /config/providers`). It has no
+ *  command that prints it, and its pick is neither the newest nor the first it lists. */
+export function openCodeDefaultModel(signal: AbortSignal, options: { executable?: string; environment?: NodeJS.ProcessEnv } = {}): Promise<string | undefined> {
+  return withSenseiOpenCode(async (executable, env, cwd) => {
+    const port = await new Promise<number>((resolvePort, reject) => {
+      const server = createServer().once("error", reject).listen(0, "127.0.0.1", () => {
+        const { port: free } = server.address() as AddressInfo;
+        server.close(() => resolvePort(free));
+      });
+    });
+    const child = spawn(executable ?? resolveAgentExecutable("opencode") ?? "opencode", ["serve", "--port", String(port), "--hostname", "127.0.0.1"],
+      { cwd, env, stdio: "ignore" });
+    let exited = false;
+    child.once("exit", () => { exited = true; });
+    child.once("error", () => { exited = true; });
+    try {
+      while (!exited) {
+        signal.throwIfAborted();
+        const answer = await fetch(`http://127.0.0.1:${port}/config/providers`, { signal }).catch(() => undefined);
+        if (answer?.ok) {
+          const config = await answer.json() as { providers?: { id?: unknown }[]; default?: Record<string, unknown> };
+          const provider = config.providers?.[0]?.id;
+          const model = typeof provider === "string" ? config.default?.[provider] : undefined;
+          return typeof model === "string" ? `${provider}/${model}` : undefined;
+        }
+        await new Promise(resolveWait => setTimeout(resolveWait, 200));
+      }
+      return undefined;
+    } finally { child.kill(); }
+  }, options);
+}
+
+/** `opencode models`: one provider/model id a line; with --verbose each id is followed by its details as JSON */
 export function parseOpenCodeModels(output: string): HarnessModelChoice[] {
-  const ids = output.split(/\r?\n/u).map(line => line.trim()).filter(Boolean);
-  if (ids.some(id => !/^[\w.-]+\/[^\s]+$/u.test(id))) throw new Error("OpenCode returned an invalid model catalog");
-  return [...new Set(ids)].map(id => ({ id, name: id, efforts: [] }));
+  const entries: { id: string; details: string[] }[] = [];
+  for (const line of output.split(/\r?\n/u)) {
+    if (/^[\w.-]+\/\S+$/u.test(line.trim()) && !line.startsWith(" ")) entries.push({ id: line.trim(), details: [] });
+    else if (line.trim() && entries.length) entries.at(-1)!.details.push(line);
+    else if (line.trim()) throw new Error("OpenCode returned an invalid model catalog");
+  }
+  const choices = entries.map(({ id, details }) => {
+    let model: { name?: unknown; providerID?: unknown; variants?: unknown } = {};
+    if (details.length) {
+      try { model = JSON.parse(details.join("\n")); } catch { throw new Error("OpenCode returned an invalid model catalog"); }
+    }
+    const efforts = model.variants && typeof model.variants === "object" ? Object.keys(model.variants) : [];
+    return { id, name: typeof model.name === "string" ? model.name : id, ...(typeof model.providerID === "string" ? { description: model.providerID } : {}), efforts };
+  });
+  return choices.filter((choice, index) => choices.findIndex(other => other.id === choice.id) === index);
 }
 
 /** FX on Eve runs libfx in-process and has no catalog; the installed CLI lists its active provider's models. */
@@ -245,18 +321,31 @@ export async function codexModels(signal: AbortSignal, executable = resolveAgent
   }
 }
 
-export async function piModels(signal: AbortSignal, agentDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent")): Promise<HarnessModelChoice[]> {
-  const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");
+/** Pi's models of every provider it's signed in to, each with its provider's name. Sensei reads Pi's logins without writing them, so
+ *  a login past (or within Pi's five minutes of) its expiry can't be renewed in a turn: its models are listed as needing a new sign-in.
+ *  A signed-in provider's models its plan leaves out (GitHub Copilot's) are listed as not in the plan. */
+export async function piModels(signal: AbortSignal, agentDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"),
+  now = Date.now()): Promise<HarnessModelChoice[]> {
+  const { ModelRuntime, readStoredCredential } = await import("@earendil-works/pi-coding-agent");
   const { getSupportedThinkingLevels } = await import("@earendil-works/pi-ai/models");
-  const runtime = await ModelRuntime.create({
-    authPath: join(agentDir, "auth.json"), modelsPath: join(agentDir, "models.json"),
-    allowModelNetwork: false, signal,
-  });
+  const authPath = join(agentDir, "auth.json");
+  const runtime = await ModelRuntime.create({ authPath, modelsPath: join(agentDir, "models.json"), allowModelNetwork: false, signal });
   if (runtime.getError()) throw new Error(runtime.getError());
-  return runtime.getAvailableSnapshot().map(model => ({
-    id: `${model.provider}/${model.id}`, name: model.name,
+  const available = runtime.getAvailableSnapshot();
+  const providers = [...new Set(available.map(model => model.provider))];
+  const providerName = (id: string) => runtime.getProvider(id)?.name ?? id;
+  const lapsed = new Set(providers.filter(provider => {
+    const credential = readStoredCredential(provider, authPath);
+    return credential?.type === "oauth" && typeof credential.expires === "number" && credential.expires <= now + 5 * 60_000;
+  }));
+  const listed = new Set(available.map(model => `${model.provider}/${model.id}`));
+  const choice = (model: (typeof available)[number], unavailable?: string): HarnessModelChoice => ({
+    id: `${model.provider}/${model.id}`, name: model.name, description: providerName(model.provider),
     // Use the same capability resolver as Pi's own AgentSession. Custom
     // providers can advertise different levels; a reasoning boolean is not enough.
     efforts: getSupportedThinkingLevels(model),
-  }));
+    ...(unavailable ? { unavailable } : lapsed.has(model.provider) ? { unavailable: `Sign in to ${providerName(model.provider)} again: run pi, then /login` } : {}),
+  });
+  return [...available.map(model => choice(model)), ...providers.flatMap(provider => runtime.getModels(provider)
+    .filter(model => !listed.has(`${model.provider}/${model.id}`)).map(model => choice(model, `Not in your ${providerName(provider)} plan`)))];
 }

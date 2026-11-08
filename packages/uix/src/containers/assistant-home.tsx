@@ -266,7 +266,9 @@ export function ChatMessages({
 
 /** Models in the composer's picker – the first one is selected */
 /** `effort`: the level it runs at by default; `efforts`: the levels a coding agent lists for it (the model menu then offers them) */
-export type ComposerModel = { value?: string; name: string; effort?: string; efforts?: string[]; description: string; icon: IconGlyph };
+export type ComposerModel = { value?: string; name: string; effort?: string; efforts?: string[]; description: string; icon: IconGlyph;
+  /** Why the agent can't run it now; the model menu shows it muted with this reason */
+  unavailable?: string };
 export type ComposerAgent = { value: string; name: string; icon: IconGlyph; description?: string };
 const defaultModels: ComposerModel[] = [
   { name: "Auto", description: "Picks the best model for each task", icon: AiMagicIcon },
@@ -308,7 +310,8 @@ export function Composer({
   modelChanging?: boolean;
   /** The chosen model's effort, from the levels its `efforts` list; the model's default effort when absent */
   effort?: string;
-  onEffortChange?: (effort: string) => void;
+  /** Undefined: back to the model's default */
+  onEffortChange?: (effort: string | undefined) => void;
   /** Keep the + control visible but disabled when this connection cannot accept files. */
   attachments?: boolean | "unavailable";
   files?: File[];
@@ -343,7 +346,8 @@ export function Composer({
   const field = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState(models[0]?.value ?? models[0]?.name);
-  const model = controlledModel ?? selected;
+  // A host that owns the model passes none while the agent runs its own default: no model is shown as chosen then
+  const model = onModelChange ? controlledModel : controlledModel ?? selected;
   const selectedModel = models.find(item => (item.value ?? item.name) === model);
   const [plugins, setPlugins] = useState<string[]>([]);
   const [folder, setFolder] = useState<string | null>(null);
@@ -421,10 +425,11 @@ export function Composer({
             }))}>
             {agent?.name ?? (plugins.length ? `Plugins · ${plugins.length}` : "Plugins")}
           </ComposerPicker>}</>}
-    controls={<>{agent && models.some(m => m.efforts?.length) ? (
-              // A coding agent that lists its models' efforts: the model menu with each model's description and effort levels
+    controls={<>{agent && models.length ? (
+              // A coding agent's models: the model menu with each model's description, effort levels and why one can't run now
               <ModelPicker side="top" align="end" className="ui-as-composer__models" triggerClassName="ui-as-ghost ui-as-ghost--model" glyphs={false}
-                models={models.map(m => ({ id: m.value ?? m.name, name: m.name, description: m.description, efforts: m.efforts ?? [], ...(m.effort ? { defaultEffort: m.effort } : {}) }))}
+                models={models.map(m => ({ id: m.value ?? m.name, name: m.name, description: m.description, efforts: m.efforts ?? [],
+                  ...(m.effort ? { defaultEffort: m.effort } : {}), ...(m.unavailable ? { unavailable: m.unavailable } : {}) }))}
                 value={model} effort={effort} disabled={disabled || busy || modelChanging || loading || agentChanging}
                 {...(loading || agentChanging ? { placeholder: "Loading…" } : {})}
                 onChange={next => { if (onModelChange) onModelChange(next); else setSelected(next); }}

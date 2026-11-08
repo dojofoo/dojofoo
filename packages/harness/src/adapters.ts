@@ -24,8 +24,9 @@ const factories: Record<Exclude<AdapterId, "pi">, (settings: Settings) => Cached
   opencode: settings => createOpenCode({ port: 0, ...settings }),
 };
 
-/** The setting each adapter takes a model's effort as; OpenCode and Cursor take none */
-const effortSetting: Partial<Record<AdapterId, string>> = { "claude-code": "effort", codex: "reasoningEffort", fx: "effort", "grok-build": "reasoningEffort", pi: "thinkingLevel" };
+/** The setting each adapter takes a model's effort as (OpenCode's is the model's reasoning variant); Cursor takes none */
+const effortSetting: Partial<Record<AdapterId, string>> = { "claude-code": "effort", codex: "reasoningEffort", fx: "effort", "grok-build": "reasoningEffort",
+  opencode: "reasoningVariant", pi: "thinkingLevel" };
 
 // Read-only settings other than Pi's come from the registry row alone, so one adapter per agent, mode and effort serves every call.
 const adapters = new Map<string, CachedAdapter>();

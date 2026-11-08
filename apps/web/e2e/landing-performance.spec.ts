@@ -30,7 +30,8 @@ test("the landing preview works without JavaScript and loads no editor or docs f
   page.on("request", request => {
     if (/monaco|editor-worker|editor-core|iosevka|docs-page-content|comparison-page-content|masterclass|inter-latin-opsz/i.test(request.url())) expensiveRequests.push(request.url());
   });
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".ui-logos__mark")).toHaveCount(3);
   await page.waitForLoadState("networkidle");

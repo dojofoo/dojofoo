@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 test("shared site links use one router navigation and preserve Back and Forward", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await page.evaluate(() => {
     document.documentElement.dataset.navigationProbe = "same-document";
     const original = document.startViewTransition.bind(document);
@@ -42,7 +43,8 @@ test("public course routes use the shared UIX presentation and one search owner"
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   for (const path of ["/", "/dojos", "/courses/dojofoo/effect-ts"]) {
-    await page.goto(path, { waitUntil: "networkidle" });
+    await page.goto(path);
+    await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
     await expect(page.locator("[data-site-shell]")).toBeVisible();
     expect(await page.locator("[data-site-shell]").evaluate(element => getComputedStyle(element).fontFamily)).toContain("Inter");
     if (path === "/") {

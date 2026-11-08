@@ -41,6 +41,8 @@ export type PickerModel = {
   efforts?: string[];
   /** The level it runs at when none is chosen */
   defaultEffort?: string;
+  /** Why it can't run now, e.g. "Not in your GitHub Copilot plan": the row says so, stays muted and can't be picked */
+  unavailable?: string;
 };
 
 /** A level from the model's `efforts`, or low / medium / high */
@@ -48,7 +50,7 @@ export type ModelEffort = string;
 
 export type ModelPickerProps = {
   models: PickerModel[];
-  /** Id of the chosen model (controlled) */
+  /** Id of the chosen model (controlled); passed as undefined, no model is chosen and the agent's own default runs */
   value?: string;
   defaultValue?: string;
   onChange?: (id: string) => void;
@@ -63,7 +65,8 @@ export type ModelPickerProps = {
   /** How hard the model thinks – only shown while extended thinking is on */
   effort?: ModelEffort;
   defaultEffort?: ModelEffort;
-  onEffortChange?: (effort: ModelEffort) => void;
+  /** Undefined: back to the agent's default, for a model without a default level of its own */
+  onEffortChange?: (effort: ModelEffort | undefined) => void;
   /** Controlled open state of the menu */
   open?: boolean;
   defaultOpen?: boolean;
@@ -86,6 +89,11 @@ export type ModelPickerProps = {
 /* ---------- Helpers ---------- */
 
 const CLASSIC_EFFORTS = ["low", "medium", "high"];
+const DEFAULT_LEVEL = "Default";
+/** From this many models the menu has a search field */
+const SEARCH_FROM = 9;
+const matches = (model: PickerModel, query: string) =>
+  query.trim().toLowerCase().split(/\s+/u).every((word) => `${model.name} ${model.id} ${model.description ?? ""}`.toLowerCase().includes(word));
 /** "xhigh" reads "X-High"; every other level is capitalised */
 const effortLabel = (level: string) => level === "xhigh" ? "X-High" : level.charAt(0).toUpperCase() + level.slice(1);
 /** How much longer the first token takes while the model thinks first: more the higher the level */
@@ -192,6 +200,12 @@ const ThinkIcon = () => (
     <path d="M5.3 10.6h3.4M5.8 12.3h2.4M7 1.7a3.9 3.9 0 0 0-2.3 7c.4.3.6.7.6 1.1v.1h3.4v-.1c0-.4.2-.8.6-1.1A3.9 3.9 0 0 0 7 1.7Z" {...line} />
   </svg>
 );
+const SearchIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+    <circle cx="6.2" cy="6.2" r="4.2" {...line} />
+    <path d="m9.4 9.4 3 3" {...line} />
+  </svg>
+);
 const GlobeIcon = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
     <circle cx="7" cy="7" r="5.3" {...line} />
@@ -207,7 +221,8 @@ function Glyph({ model }: { model: PickerModel }) {
   );
 }
 
-export function ModelPicker({
+export function ModelPicker(props: ModelPickerProps) {
+  const {
   models,
   value,
   defaultValue,
@@ -231,7 +246,7 @@ export function ModelPicker({
   placeholder,
   disabled = false,
   glyphs = true,
-}: ModelPickerProps) {
+  } = props;
   const uid = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -243,13 +258,14 @@ export function ModelPicker({
   const [innerSearch, setInnerSearch] = useState(defaultWebSearch);
   const [innerEffort, setInnerEffort] = useState<ModelEffort | undefined>(defaultEffort);
   const [innerOpen, setInnerOpen] = useState(defaultOpen);
-  const chosenId = value ?? innerValue;
+  // A host that passes `value` owns the choice, also while it is none (the agent's own default runs)
+  const chosenId = "value" in props ? value : innerValue;
   const isThinking = thinking ?? innerThinking;
   const isSearching = webSearch ?? innerSearch;
   const isOpen = open ?? innerOpen;
 
-  const chosenIndex = Math.max(0, models.findIndex((m) => m.id === chosenId));
-  const chosen = models[chosenIndex];
+  // A value the list doesn't hold (the agent's own default) checks no row
+  const chosen = models.find((m) => m.id === chosenId);
 
   // Models that list their own efforts (a coding agent's) get a plain effort row with those levels; without any, the classic
   // menu: Low / Medium / High under the thinking switch, and the web search switch
@@ -259,38 +275,50 @@ export function ModelPicker({
   // for another model never shows on one without it
   const effortNow = [effort, innerEffort, chosen?.defaultEffort].find((level) => level !== undefined && levels.includes(level))
     ?? (classic ? "medium" : undefined);
+  // A model that names no default level of its own runs at the agent's default until a level is chosen, and says so
+  const agentDefault = !classic && levels.length > 0 && !chosen?.defaultEffort;
   const showThinking = classic || onThinkingChange !== undefined;
   const showSearch = classic || onWebSearchChange !== undefined;
   const anyRated = models.some((m) => m.speed !== undefined || m.quality !== undefined || m.cost !== undefined);
 
+  // Models that can run come first; a long list can be searched
+  const searchable = models.length >= SEARCH_FROM;
+  const [query, setQuery] = useState("");
+  const ordered = [...models.filter((m) => !m.unavailable), ...models.filter((m) => m.unavailable)];
+  const visible = searchable && query ? ordered.filter((m) => matches(m, query)) : ordered;
+  const chosenIndex = visible.findIndex((m) => m.id === chosen?.id);
+  const firstUnavailable = visible.findIndex((m) => m.unavailable);
+  const searchRef = useRef<HTMLInputElement>(null);
+
   /** The row the arrows (or the pointer) are on, and whether someone is actually pointing at a row */
-  const [active, setActive] = useState(chosenIndex);
+  const [active, setActive] = useState(Math.max(0, chosenIndex));
   const [pointing, setPointing] = useState(false);
   /** A switch under the pointer or the focus – the tray then talks about it */
   const [hint, setHint] = useState<"search" | null>(null);
 
-  const lit = models[pointing ? active : chosenIndex] ?? chosen;
+  const lit = (pointing ? visible[active] : undefined) ?? chosen;
 
   /* ---------- Opening and closing ---------- */
 
   const setOpen = (next: boolean, focus?: "list" | "trigger") => {
     if (next !== isOpen) {
       if (next) {
-        setActive(chosenIndex);
+        setQuery("");
+        setActive(Math.max(0, ordered.findIndex((m) => m.id === chosen?.id)));
         setPointing(false);
       } else setHint(null);
       setInnerOpen(next);
       onOpenChange?.(next);
     }
     // Focus only moves for people – a parent opening the menu through `open` leaves the focus where it is
-    if (focus === "list") requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
+    if (focus === "list") requestAnimationFrame(() => (searchRef.current ?? listRef.current)?.focus({ preventScroll: true }));
     if (focus === "trigger") triggerRef.current?.focus({ preventScroll: true });
   };
   // The parent may open the menu itself – start on the chosen row
   const wasOpen = useRef(isOpen);
   useEffect(() => {
     if (isOpen && !wasOpen.current) {
-      setActive(chosenIndex);
+      setActive(Math.max(0, chosenIndex));
       setPointing(false);
     }
     wasOpen.current = isOpen;
@@ -299,27 +327,30 @@ export function ModelPicker({
   // Near the edge of the screen the menu slides in just enough to stay whole
   const popRef = useRef<HTMLDivElement>(null);
   const [shift, setShift] = useState(0);
+  /** The height the menu has between the trigger and the edge of the screen it opens towards */
+  const [room, setRoom] = useState<number>();
   useLayoutEffect(() => {
     if (!isOpen) return;
     const measure = () => {
       const trigger = triggerRef.current?.getBoundingClientRect();
       const width = popRef.current?.offsetWidth ?? 0;
       if (!trigger || !width) return;
-      const room = document.documentElement.clientWidth;
+      const across = document.documentElement.clientWidth;
       const left = align === "end" ? trigger.right - width : trigger.left;
       const margin = 12;
       setShift(
         left < margin
           ? margin - left
-          : left + width > room - margin
-            ? Math.min(0, room - margin - (left + width))
+          : left + width > across - margin
+            ? Math.min(0, across - margin - (left + width))
             : 0,
       );
+      setRoom(Math.floor(side === "top" ? trigger.top - 6 - margin : window.innerHeight - trigger.bottom - 6 - margin));
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [isOpen, align]);
+  }, [isOpen, align, side]);
 
   // While open, a press outside closes it
   useEffect(() => {
@@ -336,8 +367,8 @@ export function ModelPicker({
   /* ---------- Changing things ---------- */
 
   const pick = (index: number) => {
-    const m = models[index];
-    if (!m) return;
+    const m = visible[index];
+    if (!m || m.unavailable) return;
     setInnerValue(m.id);
     if (m.id !== chosenId) onChange?.(m.id);
     setOpen(false, focusInside() ? "trigger" : undefined);
@@ -350,7 +381,7 @@ export function ModelPicker({
     setInnerSearch(!isSearching);
     onWebSearchChange?.(!isSearching);
   };
-  const chooseEffort = (next: ModelEffort) => {
+  const chooseEffort = (next: ModelEffort | undefined) => {
     setInnerEffort(next);
     if (next !== effortNow) onEffortChange?.(next);
   };
@@ -364,7 +395,7 @@ export function ModelPicker({
     }
   };
   const onListKey = (e: KeyboardEvent) => {
-    const n = models.length;
+    const n = visible.length;
     if (!n) return;
     const move = (to: number) => {
       e.preventDefault();
@@ -372,14 +403,14 @@ export function ModelPicker({
       setActive(next);
       setPointing(true);
       // A long list scrolls: the row the arrows reach stays in view
-      const id = models[next] ? `${uid}-opt-${models[next].id}` : undefined;
+      const id = visible[next] ? `${uid}-opt-${visible[next].id}` : undefined;
       if (id) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "nearest" }));
     };
     if (e.key === "ArrowDown") move(active + 1);
     else if (e.key === "ArrowUp") move(active - 1);
-    else if (e.key === "Home") move(0);
-    else if (e.key === "End") move(n - 1);
-    else if (e.key === "Enter" || e.key === " ") {
+    else if (e.key === "Home" && e.currentTarget === listRef.current) move(0);
+    else if (e.key === "End" && e.currentTarget === listRef.current) move(n - 1);
+    else if (e.key === "Enter" || (e.key === " " && e.currentTarget === listRef.current)) {
       e.preventDefault();
       pick(active);
     }
@@ -405,10 +436,14 @@ export function ModelPicker({
     caption = isSearching ? "Looks things up on the web when it helps" : "Answers from what it already knows";
     captionKey = `search-${isSearching}`;
     spoken = caption as string;
+  } else if (!lit) {
+    spoken = "The agent's own default model";
+    caption = spoken;
+    captionKey = "agent-default";
   } else if (!hasStats) {
-    caption = lit?.description ?? lit?.name ?? "";
+    caption = lit.unavailable ?? lit.description ?? lit.name;
     captionKey = `plain-${lit?.id}`;
-    spoken = `${lit?.name ?? ""}: ${caption as string}`;
+    spoken = `${lit.name}: ${caption as string}`;
   } else {
     const parts: ReactNode[] = [];
     const words: string[] = [];
@@ -426,7 +461,7 @@ export function ModelPicker({
     spoken = `${lit.name}: ${words.join(", ")}`;
   }
 
-  const activeId = models[active] ? `${uid}-opt-${models[active].id}` : undefined;
+  const activeId = visible[active] ? `${uid}-opt-${visible[active].id}` : undefined;
 
   return (
     <div
@@ -452,13 +487,13 @@ export function ModelPicker({
         aria-expanded={isOpen}
         aria-controls={`${uid}-menu`}
         disabled={disabled}
-        aria-label={`Model: ${placeholder ?? chosen?.name ?? "none"}${!classic && effortNow ? `, ${effortLabel(effortNow)} effort` : ""}${isThinking ? ", extended thinking" : ""}`}
+        aria-label={`Model: ${placeholder ?? chosen?.name ?? (chosenId ?? "Agent default")}${!classic && effortNow ? `, ${effortLabel(effortNow)} effort` : ""}${isThinking ? ", extended thinking" : ""}`}
         onClick={() => setOpen(!isOpen, isOpen ? undefined : "list")}
         onKeyDown={onTriggerKey}
       >
         {chosen && !placeholder && (glyphs || chosen.icon) && <Glyph model={chosen} />}
         <span className="ui-mdp__name">
-          <Swap id={placeholder ?? chosen?.id ?? "none"}>{placeholder ?? chosen?.name ?? "Choose a model"}</Swap>
+          <Swap id={placeholder ?? chosenId ?? "none"}>{placeholder ?? chosen?.name ?? chosenId ?? "Agent default"}</Swap>
         </span>
         {/* A coding agent's model shows the effort it runs at, on the same line */}
         {!classic && !placeholder && effortNow && <span className="ui-mdp__trigger-effort">{effortLabel(effortNow)}</span>}
@@ -475,7 +510,7 @@ export function ModelPicker({
         id={`${uid}-menu`}
         ref={popRef}
         className="ui-mdp__pop"
-        style={shift ? { translate: `${shift}px 0` } : undefined}
+        style={{ ...(shift ? { translate: `${shift}px 0` } : {}), ...(room ? { ["--ui-mdp-room" as string]: `${room}px` } : {}) }}
         role="dialog"
         aria-label="Model settings"
         inert={!isOpen}
@@ -492,29 +527,59 @@ export function ModelPicker({
             )}
           </div>
 
+          {searchable && (
+            <div className="ui-mdp__search">
+              <SearchIcon />
+              <input
+                ref={searchRef}
+                type="search"
+                aria-label="Search models"
+                aria-controls={`${uid}-list`}
+                aria-activedescendant={isOpen && pointing ? activeId : undefined}
+                placeholder="Search models"
+                autoComplete="off"
+                spellCheck={false}
+                value={query}
+                onChange={(e) => {
+                  // The first match is the one Enter picks
+                  setQuery(e.target.value);
+                  setActive(0);
+                  setPointing(e.target.value.trim() !== "");
+                }}
+                onKeyDown={onListKey}
+              />
+            </div>
+          )}
+
           <div
             ref={listRef}
+            id={`${uid}-list`}
             className="ui-mdp__list"
             role="listbox"
             aria-label="Model"
-            tabIndex={0}
+            tabIndex={searchable ? -1 : 0}
             aria-activedescendant={isOpen ? activeId : undefined}
             data-pointing={pointing ? "" : undefined}
             onKeyDown={onListKey}
             onPointerLeave={() => setPointing(false)}
           >
-            {models.map((m, i) => {
+            {visible.length === 0 && <div className="ui-mdp__empty">No model matches “{query.trim()}”</div>}
+            {visible.map((m, i) => {
               const rated = m.speed !== undefined || m.quality !== undefined || m.cost !== undefined;
+              const detail = m.unavailable ?? m.description;
               return (
+                <div key={m.id} role="presentation" className="ui-mdp__row">
+                {i === firstUnavailable && <div className="ui-mdp__group" role="presentation">Unavailable</div>}
                 <div
-                  key={m.id}
                   id={`${uid}-opt-${m.id}`}
                   role="option"
                   aria-selected={i === chosenIndex}
-                  aria-label={`${m.name}${m.description ? `, ${m.description}` : ""}${rated ? `. Speed ${m.speed ?? 0}, quality ${m.quality ?? 0}, cost ${m.cost ?? 0} of 5` : ""}`}
+                  aria-disabled={m.unavailable ? true : undefined}
+                  aria-label={`${m.name}${detail ? `, ${detail}` : ""}${rated ? `. Speed ${m.speed ?? 0}, quality ${m.quality ?? 0}, cost ${m.cost ?? 0} of 5` : ""}`}
                   className="ui-mdp__option"
                   data-active={i === active ? "" : undefined}
                   data-lit={m.id === lit?.id ? "" : undefined}
+                  data-unavailable={m.unavailable ? "" : undefined}
                   onPointerEnter={(e) => {
                     if (e.pointerType !== "mouse") return;
                     setActive(i);
@@ -528,7 +593,7 @@ export function ModelPicker({
                       <span className="ui-mdp__title-name">{m.name}</span>
                       {i === chosenIndex && <CheckIcon />}
                     </span>
-                    {m.description && <span className="ui-mdp__desc">{m.description}</span>}
+                    {detail && <span className="ui-mdp__desc">{detail}</span>}
                   </span>
                   {rated ? (
                     <span className="ui-mdp__bars" aria-hidden="true">
@@ -553,6 +618,7 @@ export function ModelPicker({
                       Varies
                     </span>
                   ) : null}
+                </div>
                 </div>
               );
             })}
@@ -583,9 +649,9 @@ export function ModelPicker({
                   <SegmentedControl
                     size="compact"
                     label="Effort"
-                    options={levels.map(effortLabel)}
-                    value={effortNow ? effortLabel(effortNow) : ""}
-                    onChange={(label) => chooseEffort(levels.find((level) => effortLabel(level) === label)!)}
+                    options={[...(agentDefault ? [DEFAULT_LEVEL] : []), ...levels.map(effortLabel)]}
+                    value={effortNow ? effortLabel(effortNow) : agentDefault ? DEFAULT_LEVEL : ""}
+                    onChange={(label) => chooseEffort(levels.find((level) => effortLabel(level) === label))}
                   />
                 </div>
               </div>
@@ -678,6 +744,10 @@ const css = /* css */ `
   top: calc(100% + 6px);
   left: 0;
   width: min(340px, calc(100vw - 32px));
+  /* A short screen: the list gives up height, the rest of the menu stays whole */
+  display: flex;
+  flex-direction: column;
+  max-height: var(--ui-mdp-room, none);
   container-type: inline-size;
   /* The same box as every other menu (the account menu's .ui-as-menu): one card, its radius and its shadow */
   padding: 4px;
@@ -695,7 +765,9 @@ const css = /* css */ `
 .ui-mdp[data-side="top"][data-align="end"] .ui-mdp__pop { transform-origin: bottom right; }
 .ui-mdp[data-open] .ui-mdp__pop { opacity: 1; visibility: visible; transform: none; transition: opacity 200ms ease, transform 320ms var(--ui-mdp-ease), visibility 0s; }
 
-.ui-mdp__card { padding: 0; }
+.ui-mdp__card { display: flex; flex-direction: column; min-height: 0; padding: 0; }
+.ui-mdp__card > *, .ui-mdp__foot { flex: none; }
+.ui-mdp__card > .ui-mdp__list { flex: 0 1 auto; min-height: 96px; }
 .ui-mdp__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 24px; padding: 0 10px; font-size: 11px; line-height: 16px; color: var(--ui-mdp-muted); }
 .ui-mdp__cols { display: grid; grid-template-columns: repeat(3, 34px); gap: 8px; }
 .ui-mdp__cols > span { display: flex; justify-content: center; white-space: nowrap; }
@@ -712,6 +784,18 @@ const css = /* css */ `
 .ui-mdp__title-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ui-mdp__check { color: var(--ui-mdp-ink); animation: ui-mdp-pop 320ms var(--ui-mdp-ease) both; }
 .ui-mdp__desc { overflow: hidden; font-size: 12px; line-height: 17px; color: var(--ui-mdp-muted); white-space: nowrap; text-overflow: ellipsis; }
+
+/* Search, groups and models that can't run now */
+.ui-mdp__search { display: flex; align-items: center; gap: 8px; height: 34px; margin-bottom: 4px; padding: 0 10px; border-radius: calc(10px * var(--squircle-factor, 1)); background: var(--ui-mdp-well); color: var(--ui-mdp-muted); }
+.ui-mdp__search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; font: inherit; color: var(--ui-mdp-ink); }
+.ui-mdp__search input::placeholder { color: var(--ui-mdp-muted); }
+.ui-mdp__search input::-webkit-search-cancel-button { display: none; }
+.ui-mdp__search:focus-within { box-shadow: inset 0 0 0 1.5px var(--ui-mdp-focus); }
+.ui-mdp__row { display: contents; }
+.ui-mdp__group { padding: 8px 10px 2px; font-size: 11px; line-height: 16px; color: var(--ui-mdp-muted); }
+.ui-mdp__empty { padding: 14px 10px; font-size: 12.5px; color: var(--ui-mdp-muted); }
+.ui-mdp__option[data-unavailable] { cursor: default; }
+.ui-mdp__option[data-unavailable] .ui-mdp__title { color: var(--ui-mdp-muted); }
 
 /* Strength bars: five small segments each. The lit row fills them one after another */
 .ui-mdp__bars { display: grid; flex: none; grid-template-columns: repeat(3, 34px); gap: 8px; }

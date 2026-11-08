@@ -88,8 +88,8 @@ for (const operation of ["save", "reset", "model"] as const) test(`a delayed ${o
         await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
       }
     } else {
-      await composer.getByRole("button", { name: "Model", exact: true }).click();
-      await page.getByRole("menuitemradio", { name: /^GPT/ }).click();
+      await composer.getByRole("button", { name: /^Model:/ }).click();
+      await page.getByRole("option", { name: /^GPT/ }).click();
     }
     const request = await requested;
     await page.getByRole("button", { name: /^Second lesson \(done\)/u }).click();
@@ -100,8 +100,8 @@ for (const operation of ["save", "reset", "model"] as const) test(`a delayed ${o
     reply.resolve();
     await request.response();
     const secondComposer = page.getByTestId("authoring-chat-composer");
-    await secondComposer.getByRole("button", { name: "Model", exact: true }).click();
-    await expect(page.getByRole("menuitemradio", { name: /^DeepSeek/ })).toBeChecked({ timeout: 5000 });
+    await secondComposer.getByRole("button", { name: /^Model:/ }).click();
+    await expect(page.getByRole("option", { name: /^DeepSeek/ })).toHaveAttribute("aria-selected", "true", { timeout: 5000 });
     await page.keyboard.press("Escape");
     // The page's address names the course run, not the lesson (step 4, decision 42): the lesson shows in its material
     await expect(page.getByTestId("lesson-pane")).toContainText("Second lesson");
@@ -118,8 +118,8 @@ test("a reopened conversation sends no automatic turn", async ({ page, mountAgen
   const composer = page.getByTestId("authoring-chat-composer");
   await expect(page.getByText("Echo: Hello from first", { exact: true })).toBeVisible({ timeout: 15_000 });
   await composer.getByRole("textbox").fill("Pick up where we left off");
-  await composer.getByRole("button", { name: "Model", exact: true }).click();
-  await expect(page.getByRole("menuitemradio", { name: /^DeepSeek/ })).toBeVisible();
+  await composer.getByRole("button", { name: /^Model:/ }).click();
+  await expect(page.getByRole("option", { name: /^DeepSeek/ })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(composer.getByRole("textbox")).toHaveValue("Pick up where we left off");
   expect(sent).toEqual([]);
@@ -155,10 +155,10 @@ for (const operation of ["save", "reset"] as const) test(`a delayed file-${opera
     const requested = page.waitForRequest(request => request.method() === "PUT" && new URL(request.url()).pathname.endsWith("/files/solution"));
     const saveButton = page.getByRole("button", { name: "Save", exact: true });
     if (operation === "save") { await saveButton.click(); await requested; }
-    const modelButton = page.getByTestId("authoring-chat-composer").getByRole("button", { name: "Model", exact: true, includeHidden: true });
+    const modelButton = page.getByTestId("authoring-chat-composer").getByRole("button", { name: /^Model:/, includeHidden: true });
     const modelResponse = page.waitForResponse(response => response.request().method() === "PATCH" && new URL(response.url()).pathname.endsWith(`/sessions/${first}`));
     await modelButton.click();
-    await page.getByRole("menuitemradio", { name: /^GPT/ }).click();
+    await page.getByRole("option", { name: /^GPT/ }).click();
     if (operation === "reset") {
       await page.getByRole("button", { name: "Reset", exact: true }).click();
       await page.getByRole("dialog", { name: "Reset this lesson?", exact: true }).getByRole("button", { name: "Reset lesson", exact: true }).click();

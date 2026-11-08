@@ -177,8 +177,8 @@ test("a picked Sensei conversation on the selected agent opens with its own mode
   await expect(page.getByText("Echo: An earlier lesson", { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page).toHaveURL(new RegExp(`/learn/learn-run/first\\?session=${records[1]!.id}$`, "u"));
   const composer = page.getByTestId("authoring-chat-composer");
-  await composer.getByRole("button", { name: "Model", exact: true }).click();
-  await expect(page.getByRole("menuitemradio", { name: /^GPT/ })).toBeChecked({ timeout: 5000 });
+  await composer.getByRole("button", { name: /^Model:/ }).click();
+  await expect(page.getByRole("option", { name: /^GPT/ })).toHaveAttribute("aria-selected", "true", { timeout: 5000 });
   await page.keyboard.press("Escape");
 });
 

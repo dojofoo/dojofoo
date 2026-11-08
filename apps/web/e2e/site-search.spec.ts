@@ -3,14 +3,12 @@ import { expect, test } from "@playwright/test";
 test("the shared palette searches docs and marketplace courses and opens results", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/docs", { waitUntil: "networkidle" });
+  await page.goto("/docs");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   const opener = page.getByRole("button", { name: "Search docs", exact: true }).first();
   const palette = page.locator("dialog.ui-as-palette[open]");
-  // A click before hydration has no handler yet; retry until the palette opens.
-  await expect(async () => {
-    await opener.click();
-    await expect(palette).toBeVisible({ timeout: 1_000 });
-  }).toPass();
+  await opener.click();
+  await expect(palette).toBeVisible();
   const input = palette.getByRole("combobox");
   await expect(input).toBeFocused();
   await expect(palette.getByRole("tab", { name: "Docs", exact: true })).toHaveAttribute("aria-selected", "true");

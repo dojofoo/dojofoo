@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as preparation from "@dojofoo/config/project-preparation";
 import { addNotice } from "../agent-session/guard-store";
@@ -8,7 +8,7 @@ import { createLessonSocket } from "./lesson-socket";
 
 vi.mock("node:child_process", async importOriginal => {
   const actual = await importOriginal<typeof import("node:child_process")>();
-  return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
+  return { ...actual, execFile: vi.fn(actual.execFile) };
 });
 const roots: string[] = [];
 const cleanups: Array<() => void> = [];
@@ -46,7 +46,7 @@ describe("the lesson socket", () => {
     const session = record({ lifecycle: { status: "working", updatedAt: new Date().toISOString() } });
     await saveRecord(root, session);
     vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
-    vi.mocked(execFileSync).mockImplementationOnce((() => JSON.stringify({ total: 2, passed: 0, failed: 2, tests: [{ name: "a", status: "failed" }, { name: "b", status: "failed" }], error: null })) as never);
+    vi.mocked(execFile).mockImplementationOnce(((_command: string, _args: string[], _options: unknown, done: (error: null, stdout: string) => void) => { done(null, JSON.stringify({ total: 2, passed: 0, failed: 2, tests: [{ name: "a", status: "failed" }, { name: "b", status: "failed" }], error: null })); return {}; }) as never);
     const tab = peer(page);
     await socket.open(tab);
     await socket.message(tab, JSON.stringify({ jsonrpc: "2.0", id: 1, method: "lesson.check", params: { courseId: "starter", lessonId: "001-first" } }));
@@ -59,7 +59,7 @@ describe("the lesson socket", () => {
   it("a check's notifications carry its request's id, so the page that asked tells them from Sensei's", async () => {
     const { socket, peer, page } = setup();
     vi.spyOn(preparation, "prepareWorkspace").mockResolvedValue(undefined as never);
-    vi.mocked(execFileSync).mockImplementationOnce((() => JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "a", status: "passed" }], error: null })) as never);
+    vi.mocked(execFile).mockImplementationOnce(((_command: string, _args: string[], _options: unknown, done: (error: null, stdout: string) => void) => { done(null, JSON.stringify({ total: 1, passed: 1, failed: 0, tests: [{ name: "a", status: "passed" }], error: null })); return {}; }) as never);
     const tab = peer(page);
     const other = peer(page);
     await socket.open(tab);

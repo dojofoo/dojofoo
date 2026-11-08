@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { courseTitle } from "@dojofoo/config/course-installations";
 import { prepareWorkspace } from "@dojofoo/config/project-preparation";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -350,7 +350,7 @@ export async function advanceLesson(root: string, courseId: string, lessonId: st
 /** The lesson's checks on whatever its file holds, recording nothing: no completion, no web.json result (an evaluation's fixtures). */
 export async function runLessonTests(root: string, courseId: string, lessonId: string): Promise<TestReport> {
   await prepareWorkspace(root);
-  return parseTestReport(runDojo(root, ["kata", lessonId, "--check", "--course", courseId, "--no-record", "--reporter=json"]));
+  return parseTestReport(await runDojo(root, ["kata", lessonId, "--check", "--course", courseId, "--no-record", "--reporter=json"]));
 }
 
 export async function checkLesson(
@@ -363,7 +363,7 @@ export async function checkLesson(
   // Trials enter through the server rather than the CLI's startup preparation.
   // Reuse the same cached mise contract before invoking the prepared-only CLI.
   await prepareWorkspace(root);
-  const output = runDojo(root, ["kata", lessonId, "--check", "--course", courseId, "--reporter=json"]);
+  const output = await runDojo(root, ["kata", lessonId, "--check", "--course", courseId, "--reporter=json"]);
   const report = parseTestReport(output);
   const webState = readWebState(root);
   const key = lessonKey(courseId, lessonId);
@@ -425,15 +425,21 @@ function lessonTarget(root: string, courseId: string, lessonId: string) {
   return lesson;
 }
 
-function runDojo(root: string, args: string[]): string {
+/** Asynchronous: a check runs for up to 90 s, and every other request, socket and agent stream shares this event loop. */
+function runDojo(root: string, args: string[]): Promise<string> {
   const configured = dojoCliPath();
   const command = configured ? process.execPath : "npx";
   const commandArgs = configured ? [configured, ...args] : ["dojofoo", ...args];
-  return execFileSync(command, commandArgs, {
-    cwd: root,
-    encoding: "utf8",
-    env: { ...process.env, DOJO_PROJECT_ROOT: root, DOJO_SKIP_PREPARE: "1" },
-    timeout: 90_000,
+  return new Promise((resolveRun, reject) => {
+    const child = execFile(command, commandArgs, {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, DOJO_PROJECT_ROOT: root, DOJO_SKIP_PREPARE: "1" },
+      timeout: 90_000,
+    }, (error, stdout, stderr) => error ? reject(Object.assign(error, { stdout, stderr })) : resolveRun(stdout));
+    // As execFileSync did: the child's stdin ends at once (nothing waits on input) and its stderr also reaches the server's
+    child.stdin?.end();
+    child.stderr?.on("data", (chunk: string) => process.stderr.write(chunk));
   });
 }
 

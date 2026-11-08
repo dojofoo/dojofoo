@@ -8,7 +8,8 @@ test("docs hydrate and search opens", async ({ page }) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
 
-  await page.goto("/docs", { waitUntil: "networkidle" });
+  await page.goto("/docs");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await expect(page.getByRole("heading", { name: "Usage", level: 1 })).toHaveCSS("font-family", /Inter/);
   await expect(page.getByText("Dojo.foo turns your coding agent into a teacher.", { exact: false })).toHaveCSS("font-family", /Inter/);
   await expect(page.locator("pre").first()).toHaveCSS("font-family", /Iosevka/);
