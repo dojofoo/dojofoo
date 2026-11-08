@@ -76,7 +76,7 @@ describe("bundled dojo UI", () => {
       await new Promise<void>(accept => proxy.close(() => accept()));
     }
   });
-  it("comes up at dojo.<tld> on a TLS proxy whose TLDs don't include localhost", async () => {
+  it("leaves other TLDs' names alone and says how to restart a TLS proxy that doesn't serve localhost", async () => {
     const root = mkdtempSync(join(tmpdir(), "dojo-proxy-tls-"));
     temporaryRoots.push(root);
     const state = join(root, "portless");
@@ -95,27 +95,27 @@ describe("bundled dojo UI", () => {
     writeFileSync(join(state, "proxy.tls"), "");
     writeFileSync(join(state, "proxy.tld"), "td");
     mkdirSync(join(root, "dist/ui/server"), { recursive: true });
-    writeFileSync(join(root, "dist/ui/server/index.mjs"), `
-      import { createServer } from 'node:http';
-      createServer((request, response) => {
-        response.setHeader('content-type', 'application/json');
-        response.end(JSON.stringify({ ok: true, instance: process.env.DOJO_UI_INSTANCE }));
-      }).listen(Number(process.env.PORT), process.env.HOST);
-    `);
+    writeFileSync(join(root, "dist/ui/server/index.mjs"), "");
     vi.stubEnv("PORTLESS_STATE_DIR", state);
     vi.stubEnv("DOJOFOO_HOME", join(root, "home"));
     vi.stubEnv("DOJO_UI_DISABLE_PORTLESS", "");
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
-      await ui(root, ["--background", "--no-open"], pathToFileURL(join(root, "dist/index.js")).href);
-      expect(log.mock.calls).toEqual([[`Go to https://dojo.td:${proxyPort}`]]);
-      expect(store.loadRoutes()).toEqual([expect.objectContaining({ hostname: "dojo.td" })]);
+      await expect(ui(root, ["--background", "--no-open"], pathToFileURL(join(root, "dist/index.js")).href))
+        .rejects.toThrow("PORTLESS_TLD=td,localhost portless proxy start");
+      expect(store.loadRoutes()).toEqual([]);
     } finally {
-      const route = store.loadRoutes().find(route => route.hostname === "dojo.td");
-      if (route?.pid) { try { process.kill(-route.pid, "SIGTERM"); } catch {} }
       await new Promise<void>(accept => proxy.close(() => accept()));
     }
-  }, 60_000);
+  });
+
+  it("prints its flags for --help instead of starting a UI", async () => {
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const spawned = vi.mocked(childProcess.spawn);
+    spawned.mockClear();
+    await ui(tmpdir(), ["--help"], pathToFileURL(join(tmpdir(), "missing/dist/index.js")).href);
+    expect(String(write.mock.calls[0]?.[0])).toMatch(/^Usage: dojofoo ui \[flags\]\n[\s\S]*--background/u);
+    expect(spawned).not.toHaveBeenCalled();
+  });
 
   it("runs its ESM-only Portless dependency without a global executable", () => {
     const version = execFileSync(process.execPath, [resolvePortlessEntry(), "--version"], { encoding: "utf8" });

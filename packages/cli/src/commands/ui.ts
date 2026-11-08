@@ -27,6 +27,18 @@ export function resolveAuthoringRoot(cwd: string, workspace: string): string {
 }
 
 export async function ui(cwd: string, args: string[], moduleUrl = import.meta.url): Promise<void> {
+  if (args.includes("--help") || args.includes("-h")) {
+    process.stdout.write(`Usage: dojofoo ui [flags]
+
+  --authoring         Open the current workspace in Kyoshi authoring mode
+  --background        Keep the UI daemon running after this command exits
+  --no-open           Print the URL without opening a browser
+  --no-portless       Use a direct localhost port (diagnostics only)
+  --port <port>       Change the direct port
+  --skill             Print the skill that controls the UI from scripts and agents
+`);
+    return;
+  }
   if (args.includes("--skill")) {
     const skill = resolveUiSkill();
     if (!skill) throw new Error("Could not locate the bundled Dojofoo UI skill.");
@@ -97,8 +109,14 @@ export async function ui(cwd: string, args: string[], moduleUrl = import.meta.ur
       if (!await proxyRunning(proxy)) throw new Error("Portless did not start its local proxy.");
     }
     const defaultPort = proxy.tls ? 443 : 80;
-    // dojo.localhost, unless a TLS proxy started elsewhere serves only other TLDs: it refuses a certificate for any other name
-    const hostname = !proxy.tls || proxy.tlds.includes("localhost") ? "dojo.localhost" : `dojo.${proxy.tlds[0]}`;
+    // Always dojo.localhost: dojo.<other tld> can belong to another project. A TLS proxy started elsewhere refuses certificates
+    // for TLDs it doesn't serve, so it has to be restarted with .localhost
+    if (proxy.tls && !proxy.tlds.includes("localhost")) {
+      const tlds = [...proxy.tlds, "localhost"].join(",");
+      throw new Error(`Portless serves only ${proxy.tlds.map(tld => `.${tld}`).join(", ")}, so it can't serve dojo.localhost. `
+        + `Restart it with .localhost (Portless 0.15 or newer): portless proxy stop, then PORTLESS_TLD=${tlds} portless proxy start`);
+    }
+    const hostname = "dojo.localhost";
     const baseUrl = `${proxy.tls ? "https" : "http"}://${hostname}${proxy.port === defaultPort ? "" : `:${proxy.port}`}`;
     // A healthy server of this build keeps running and keeps its route: replacing it would stop its agent turns and evaluations
     const running = await runningUi(baseUrl, version, build, proxy.ca);
