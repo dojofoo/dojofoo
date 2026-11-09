@@ -20,7 +20,7 @@ export const SITE = {
 
 /** Shared by the website head and the search sandbox. Raster icons come from favicon.svg. */
 export const faviconLinks = [
-  { rel: "icon", type: "image/x-icon", sizes: "16x16 32x32 48x48 256x256", href: "/favicon.ico" },
+  { rel: "icon", type: "image/x-icon", sizes: "16x16 32x32 48x48 64x64 96x96 128x128 256x256", href: "/favicon.ico" },
   { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16x16.png" },
   { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32x32.png" },
   { rel: "icon", type: "image/png", sizes: "96x96", href: "/favicon-96x96.png" },
