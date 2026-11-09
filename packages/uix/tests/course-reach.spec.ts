@@ -10,7 +10,7 @@ test("a long course's chart fits on a desktop and scrolls its plot alone on a ph
   const plot = reach.getByRole("group", { name: /^Lessons/ });
   expect(await plot.evaluate(el => el.parentElement!.scrollWidth <= el.parentElement!.clientWidth)).toBe(true);
   // The axis names the first lesson and every tenth, the last one too
-  await expect(reach.locator(".ui-crp-reach__x span")).toHaveText(["1", ...Array.from({ length: 16 }, (_, index) => `${(index + 1) * 10}`)]);
+  await expect(reach.locator("[data-axis=x] span")).toHaveText(["1", ...Array.from({ length: 16 }, (_, index) => `${(index + 1) * 10}`)]);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await reach.scrollIntoViewIfNeeded();

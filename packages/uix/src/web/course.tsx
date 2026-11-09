@@ -1,5 +1,5 @@
 import { NavigationLink } from "../components/navigation-link";
-import { useEffect, useRef, useState, type ComponentProps, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ComponentProps, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { Icon } from "../components/icon";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
@@ -128,6 +128,7 @@ const stepLine = (values: number[], top: number) =>
 function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<{ kata: string; started: number; finished: number }> }) {
   const [active, setActive] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const id = useId();
   // The plot's width, for the axis's labels; a guess until it's measured
   const [width, setWidth] = useState(800);
   useEffect(() => {
@@ -170,35 +171,61 @@ function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<
   };
   const shown = active === null ? undefined : reach[active];
 
+  // The pale area: the projects that reached a lesson and didn't finish it
+  const reachedFill = "fill-[color-mix(in_oklab,var(--brand)_22%,transparent)]";
+  // A step wide, every second step
+  const stripes = reach.map((_, index) => index % 2 === 1 && <rect key={index} x={index} width={1} height={100} />);
+  // Each label stacked on the axis's one cell and moved to its line: the top, the middle, the baseline
+  const yLabel = "[grid-area:1/1]";
   return (
-    <section className="ui-crp-panel ui-crp-reach" aria-labelledby="ui-crp-reach">
-      <div className="ui-crp-reach__head">
-        <h2 id="ui-crp-reach">{Unit} by {unit}</h2>
-        <ul className="ui-crp-reach__legend" aria-label="Legend">
-          <li data-series="reached">Reached</li>
-          <li data-series="finished">Finished</li>
+    <section className="rounded-[calc(20px*var(--squircle-factor,1))] bg-(--surface-3) px-5 pt-5 pb-[18px] shadow-(--shadow-3)" aria-labelledby={`${id}-title`}>
+      {/* The title and the line under it, the legend beside both – on a phone, the line under both too */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1">
+        <h2 id={`${id}-title`} className="m-0 text-[length:var(--fs-subtitle)] font-semibold">{Unit} by {unit}</h2>
+        <ul className="col-start-2 row-span-2 row-start-1 m-0 mt-0.5 flex list-none gap-3.5 p-0 text-[length:var(--fs-caption)] text-(--muted) @max-[560px]/ui-web:row-span-1" aria-label="Legend">
+          <li className="flex items-center gap-1.5 whitespace-nowrap before:size-[9px] before:rounded-full before:bg-[color-mix(in_oklab,var(--brand)_22%,transparent)] before:shadow-[inset_0_0_0_1.5px_var(--brand)] before:content-['']">Reached</li>
+          <li className="flex items-center gap-1.5 whitespace-nowrap before:size-[9px] before:rounded-full before:bg-(--brand) before:content-['']">Finished</li>
         </ul>
-        {/* What the picked lesson says: one line, its numbers before its name, so a long name is what's cut */}
-        <p aria-live="polite">{shown && active !== null
+        {/* What the picked lesson says: one line, its numbers before its name, so a long name is what's cut and
+            picking a lesson doesn't move the chart */}
+        <p className="col-start-1 m-0 truncate text-[length:var(--fs-body)] text-(--muted) tabular-nums @max-[560px]/ui-web:col-span-2" aria-live="polite">{shown && active !== null
           ? `${Unit} ${active + 1}: ${compactNumber(shown.started)} reached, ${compactNumber(shown.finished)} finished · ${shown.kata}`
           : total === 0 ? "No projects yet." : `Projects per ${unit}.`}</p>
       </div>
-      <div className="ui-crp-reach__chart">
-        <div className="ui-crp-reach__y" aria-hidden="true"><span>{compactNumber(top)}</span><span>{compactNumber(top / 2)}</span><span>0</span></div>
-        <div ref={scroller} className="ui-crp-reach__scroll scroll-fade-x">
-          <div className="ui-crp-reach__plot" style={{ minWidth: count * minStep }} tabIndex={0} role="group"
-            aria-label={`${Unit}s – use the arrow keys to read each ${unit}`} data-active={active !== null || undefined}
+      {/* The axis beside the plot, which alone scrolls */}
+      <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] gap-2.5">
+        <div className="grid h-[168px] text-right text-[length:var(--fs-caption)] leading-none text-(--muted) tabular-nums" aria-hidden="true">
+          <span className={`${yLabel} self-start -translate-y-1/2`}>{compactNumber(top)}</span>
+          <span className={`${yLabel} self-center`}>{compactNumber(top / 2)}</span>
+          <span className={`${yLabel} self-end translate-y-1/2`}>0</span>
+        </div>
+        <div ref={scroller} className="scroll-fade-x overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
+          <div className="relative cursor-crosshair touch-pan-x pb-[22px] outline-none focus-visible:rounded-[4px] focus-visible:shadow-[0_0_0_2px_var(--focus-ring)]"
+            style={{ minWidth: count * minStep }} tabIndex={0} role="group" aria-label={`${Unit}s – use the arrow keys to read each ${unit}`}
             onPointerMove={(event) => setActive(indexAt(event))} onPointerDown={(event) => setActive(indexAt(event))}
             onPointerLeave={() => setActive(null)} onBlur={() => setActive(null)} onKeyDown={onKey}>
-            <svg viewBox={`0 0 ${Math.max(count, 1)} 100`} preserveAspectRatio="none" aria-hidden="true">
-              <path className="ui-crp-reach__reached" d={stepArea(reach.map((item) => item.started), top)} />
-              <path className="ui-crp-reach__finished" d={stepArea(reach.map((item) => item.finished), top)} />
-              <path className="ui-crp-reach__edge" d={stepLine(reach.map((item) => item.started), top)} vectorEffect="non-scaling-stroke" />
-              {active !== null && <rect className="ui-crp-reach__pick" x={active} width={1} y={0} height={100} />}
+            {/* The grid's lines, under the areas: the top, the middle, the baseline */}
+            <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-(--line)" aria-hidden="true" />
+            <span className="pointer-events-none absolute inset-x-0 top-[84px] h-px bg-(--line)" aria-hidden="true" />
+            <span className="pointer-events-none absolute inset-x-0 top-[167px] h-px bg-(--line)" aria-hidden="true" />
+            <svg className="relative block h-[168px] w-full overflow-visible forced-color-adjust-none" viewBox={`0 0 ${Math.max(count, 1)} 100`} preserveAspectRatio="none" aria-hidden="true">
+              <path className={reachedFill} d={stepArea(reach.map((item) => item.started), top)} />
+              <path className="fill-(--brand)" d={stepArea(reach.map((item) => item.finished), top)} />
+              {/* Every second step a shade off, as a table's every second row, so the steps read apart: in its own hue
+                  each – pinker on the pale area, darker on the brand's – clipped to the areas */}
+              <defs>
+                <clipPath id={`${id}-reached`}><path d={stepArea(reach.map((item) => item.started), top)} /></clipPath>
+                <clipPath id={`${id}-finished`}><path d={stepArea(reach.map((item) => item.finished), top)} /></clipPath>
+              </defs>
+              <g className="fill-(--brand) opacity-12 [shape-rendering:crispEdges]" clipPath={`url(#${id}-reached)`}>{stripes}</g>
+              <g className="fill-black opacity-8 [shape-rendering:crispEdges]" clipPath={`url(#${id}-finished)`}>{stripes}</g>
+              <path className="fill-none stroke-(--brand) [stroke-linejoin:round] [stroke-width:1.5]" d={stepLine(reach.map((item) => item.started), top)} vectorEffect="non-scaling-stroke" />
+              {active !== null && <rect className="fill-(--ink) opacity-10" x={active} width={1} y={0} height={100} />}
             </svg>
-            <div className="ui-crp-reach__x" aria-hidden="true">
+            <div className="absolute inset-x-0 bottom-0 h-3.5 text-[length:var(--fs-caption)] leading-none text-(--muted) tabular-nums" data-axis="x" aria-hidden="true">
               {/* Under its step's middle; at the plot's ends, where a narrow step would push it past the edge, in from it */}
               {ticks.map((index) => <span key={index} style={{ left: `${((index + 0.5) / count) * 100}%` }}
+                className="absolute top-0 -translate-x-1/2 whitespace-nowrap data-[edge=end]:left-full! data-[edge=end]:-translate-x-full data-[edge=start]:left-0! data-[edge=start]:translate-x-0"
                 data-edge={step < 24 ? index === 0 ? "start" : index === count - 1 ? "end" : undefined : undefined}>{index + 1}</span>)}
             </div>
           </div>
@@ -332,43 +359,6 @@ const css = /* css */ `
 
 .ui-crp-panel { padding: 20px 20px 18px; border-radius: calc(20px * var(--squircle-factor, 1)); background: var(--surface-3); box-shadow: var(--shadow-3); }
 .ui-crp-panel > p { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-body); }
-
-/* Lesson by lesson: the title and the line under it, the legend beside both (on a phone, the line under both too);
-   the line stays one line, so picking a lesson doesn't move the chart */
-.ui-crp-reach__head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px 16px; }
-.ui-crp-reach__head p { grid-column: 1; margin: 0; overflow: hidden; color: var(--muted); font-size: var(--fs-body); font-variant-numeric: tabular-nums; white-space: nowrap; text-overflow: ellipsis; }
-.ui-crp-reach__legend { grid-row: 1 / span 2; grid-column: 2; display: flex; gap: 14px; margin: 2px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: var(--fs-caption); }
-.ui-crp-reach__legend li { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-.ui-crp-reach__legend li::before { width: 10px; height: 10px; border-radius: 3px; corner-shape: round; background: var(--ui-crp-finished); content: ""; }
-.ui-crp-reach__legend li[data-series="reached"]::before { background: var(--ui-crp-reached); box-shadow: inset 0 1.5px 0 var(--brand); }
-@container ui-web (max-width: 560px) {
-  .ui-crp-reach__legend { grid-row: 1; }
-  .ui-crp-reach__head p { grid-column: 1 / -1; }
-}
-
-/* The axis beside the plot, which alone scrolls; its labels level with the plot's top, middle and baseline */
-.ui-crp-reach { --ui-crp-reached: color-mix(in oklab, var(--brand) 22%, transparent); --ui-crp-finished: var(--brand); --ui-crp-plot: 168px; }
-.ui-crp-reach__chart { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; margin-top: 20px; }
-.ui-crp-reach__y { position: relative; display: grid; height: var(--ui-crp-plot); color: var(--muted); font-size: var(--fs-caption); font-variant-numeric: tabular-nums; line-height: 1; text-align: right; }
-/* Each on its line: the widest sets the column, the others stacked over it and moved down to theirs */
-.ui-crp-reach__y span { grid-area: 1 / 1; align-self: start; translate: 0 -50%; }
-.ui-crp-reach__y span:nth-child(2) { align-self: center; translate: 0; }
-.ui-crp-reach__y span:nth-child(3) { align-self: end; translate: 0 50%; }
-.ui-crp-reach__scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
-.ui-crp-reach__plot { position: relative; padding-bottom: 22px; outline: none; cursor: crosshair; touch-action: pan-x; }
-/* The grid's three lines, under the areas */
-.ui-crp-reach__plot::before { position: absolute; inset: 0 0 22px; background: linear-gradient(var(--line), var(--line)) 0 0 / 100% 1px no-repeat, linear-gradient(var(--line), var(--line)) 0 50% / 100% 1px no-repeat; border-bottom: 1px solid var(--line); content: ""; pointer-events: none; }
-.ui-crp-reach__plot svg { position: relative; display: block; width: 100%; height: var(--ui-crp-plot); overflow: visible; }
-.ui-crp-reach__reached { fill: var(--ui-crp-reached); }
-.ui-crp-reach__finished { fill: var(--ui-crp-finished); }
-.ui-crp-reach__edge { fill: none; stroke: var(--brand); stroke-width: 1.5; stroke-linejoin: round; }
-.ui-crp-reach__pick { fill: var(--ink); opacity: 0.1; }
-.ui-crp-reach__plot:focus-visible { box-shadow: 0 0 0 2px var(--focus-ring); border-radius: 4px; }
-.ui-crp-reach__x { position: absolute; right: 0; bottom: 0; left: 0; height: 14px; color: var(--muted); font-size: var(--fs-caption); line-height: 1; font-variant-numeric: tabular-nums; }
-.ui-crp-reach__x span { position: absolute; top: 0; translate: -50% 0; white-space: nowrap; }
-.ui-crp-reach__x span[data-edge="start"] { left: 0 !important; translate: 0; }
-.ui-crp-reach__x span[data-edge="end"] { left: 100% !important; translate: -100% 0; }
-@media (forced-colors: active) { .ui-crp-reach svg path { forced-color-adjust: none; } }
 
 /* The side column, skills.sh's: small caps labels over plain values, rules between */
 .ui-crp-side { position: sticky; top: 88px; display: grid; }

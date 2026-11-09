@@ -67,7 +67,7 @@ test("browses, filters, sorts, and opens courses from the catalog", async ({ pag
   // One chart for the lessons: reached and finished, a step each, the axis every fifth, the legend naming both
   const reach = page.getByRole("region", { name: "Lesson by lesson" });
   await expect(reach.getByRole("listitem").filter({ hasText: /^Lesson \d+,/ })).toHaveCount(40);
-  await expect(reach.locator(".ui-crp-reach__x span")).toHaveText(["1", "5", "10", "15", "20", "25", "30", "35", "40"]);
+  await expect(reach.locator("[data-axis=x] span")).toHaveText(["1", "5", "10", "15", "20", "25", "30", "35", "40"]);
   await expect(reach.getByRole("list", { name: "Legend" })).toHaveText(/Reached\s*Finished/);
   await expect(page.getByRole("heading", { name: "Weekly activity" })).toHaveCount(0);
 });
@@ -84,7 +84,6 @@ test("server-renders course data without route loading screens", async ({ reques
   expect(course.status()).toBe(200);
   expect(course.headers()["cache-control"]).toContain("s-maxage=300");
   const courseHtml = await course.text();
-  expect(courseHtml).toContain('class="ui-crp-reach__reached"');
   expect(courseHtml.match(/<li>Lesson \d+, /g)).toHaveLength(40);
   expect(courseHtml).not.toContain("Loading course");
 
