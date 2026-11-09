@@ -9,6 +9,9 @@ export type TeachingMode = "katas" | "interactive" | "explorative" | "mentor" | 
 export type CourseAudit = { provider: string; slug: string; status: "pass" | "warn" | "fail"; summary: string; auditedAt: string; riskLevel?: string };
 
 export type KataProgress = { kata: string; started: number; finished: number; active: number };
+/** A chapter: the next `lessons` of the course's lessons, in order; `started` counts the projects that reached any of
+    them, `finished` those that finished every one */
+export type ChapterProgress = { title: string; lessons: number; started: number; finished: number };
 export type WeeklyActivity = { week: string; installs: number; started: number; finished: number };
 
 export type WebCourse = {
@@ -39,8 +42,8 @@ export type WebCourse = {
   /** When the marketplace first saw it */
   firstSeen?: string;
   audits?: CourseAudit[];
-  /** The chapters, in order: the metrics count how many reached each */
-  chapters?: string[];
+  /** The chapters, in order, over `metrics.kataProgress`'s lessons */
+  chapters?: ChapterProgress[];
   metrics: {
     installs: number;
     started: number;

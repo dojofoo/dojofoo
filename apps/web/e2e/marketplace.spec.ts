@@ -64,12 +64,11 @@ test("browses, filters, sorts, and opens courses from the catalog", async ({ pag
   await copy.click();
   await expect(page.getByRole("button", { name: "Copied", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Course activity" })).toBeVisible();
-  // One bar chart for the lessons: a bar each, the axis every fifth, switched between reaching and finishing
-  const reach = page.getByRole("region", { name: "Reaching each lesson" });
-  await expect(reach.getByRole("listitem")).toHaveCount(40);
-  await expect(reach.locator(".ui-crp-reach__x").filter({ hasText: /\d/ })).toHaveText(["1", "5", "10", "15", "20", "25", "30", "35", "40"]);
-  await reach.getByRole("tab", { name: "Finished" }).click();
-  await expect(page.getByRole("region", { name: "Finishing each lesson" }).getByRole("listitem")).toHaveCount(40);
+  // One chart for the lessons: reached and finished, a step each, the axis every fifth, the legend naming both
+  const reach = page.getByRole("region", { name: "Lesson by lesson" });
+  await expect(reach.getByRole("listitem").filter({ hasText: /^Lesson \d+,/ })).toHaveCount(40);
+  await expect(reach.locator("[data-axis=x] span")).toHaveText(["1", "5", "10", "15", "20", "25", "30", "35", "40"]);
+  await expect(reach.getByRole("list", { name: "Legend" })).toHaveText(/Reached\s*Finished/);
   await expect(page.getByRole("heading", { name: "Weekly activity" })).toHaveCount(0);
 });
 
@@ -85,9 +84,7 @@ test("server-renders course data without route loading screens", async ({ reques
   expect(course.status()).toBe(200);
   expect(course.headers()["cache-control"]).toContain("s-maxage=300");
   const courseHtml = await course.text();
-  const reach = /<ol class="ui-crp-reach__bars"[^>]*>([\s\S]*?)<\/ol>/.exec(courseHtml);
-  expect(reach).not.toBeNull();
-  expect(reach![1].match(/<li\b/g)).toHaveLength(40);
+  expect(courseHtml.match(/<li>Lesson \d+, /g)).toHaveLength(40);
   expect(courseHtml).not.toContain("Loading course");
 
   const legacyCourse = await request.get("/courses/dojocho/effect-ts");
