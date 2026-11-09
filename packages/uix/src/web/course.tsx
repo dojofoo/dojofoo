@@ -1,5 +1,5 @@
 import { NavigationLink } from "../components/navigation-link";
-import { useState, type ReactNode, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { Icon } from "../components/icon";
 import { BrandLogo } from "../components/brand-logo";
 import { ButtonLink } from "../components/button";
@@ -12,8 +12,8 @@ import { CommandCopy, SitePage, useSite } from "./site";
 /*
  * A course's page, as skills.sh lays out a skill's: its course card beside what it is, how to
  * install it – the command, or a prompt that has your agent install and start it – and its numbers as the site shows
- * them today (apps/web/src/routes/courses.$source.$slug.tsx): started against finished, then one bar chart of how many
- * projects reach – or finish – each lesson or chapter (the weekly installs are the sparkline beside it). Beside it all, what you'd check before installing: installs,
+ * them today (apps/web/src/routes/courses.$source.$slug.tsx): started against finished, then a chart of how many
+ * projects reach and finish each lesson or chapter (the weekly installs are the sparkline beside it). Beside it all, what you'd check before installing: installs,
  * the repository, its stars, when the marketplace first saw it, and the security audits of its files. The charts are
  * Dojofoo's: its pink and its neutrals.
  */
@@ -99,50 +99,115 @@ export function CoursePage({ course }: { course: WebCourse }) {
   );
 }
 
-const reachSeries = ["Reached", "Finished"] as const;
+/** The narrowest a lesson's step gets before the chart scrolls instead */
+const minStep = 3;
 
-/** One bar chart for the lessons (or chapters): how many projects reached each, or switched, how many finished it –
-    each bar on its track, rounded, in the brand's pink; the axis names every fifth; past what fits, it scrolls */
+/** Every k-th lesson the axis names, besides the first: the fewest that keeps its labels apart at this step width */
+const tickEvery = (step: number) => [1, 5, 10, 20, 25, 50, 100, 200, 500].find((k) => step * k >= 32 && (k === 1 || step * (k - 1) >= 24)) ?? 1000;
+
+/** The top of the axis, rounded up to a value that halves cleanly, as the KPI chart's; at least 2, so an empty
+    chart still counts whole projects (2, 1, 0) */
+function axisTop(max: number) {
+  const half = Math.max(max, 2) / 2;
+  const pow = 10 ** Math.floor(Math.log10(half));
+  return ([1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((step) => step * pow >= half) ?? 10) * pow * 2;
+}
+
+/** A stepped area along the lessons: one flat step per lesson at its value, closed along the baseline */
+const stepArea = (values: number[], top: number) =>
+  `M0 100${values.map((value, index) => ` V${100 - (value / top) * 100} H${index + 1}`).join("")} V100 Z`;
+const stepLine = (values: number[], top: number) =>
+  values.map((value, index) => `${index ? "V" : "M0 "}${100 - (value / top) * 100} H${index + 1}`).join(" ");
+
+/**
+ * How far projects get, lesson by lesson (or chapter by chapter): how many reached each, and of them how many
+ * finished it, as two stepped areas – a step per lesson, side by side, so any number of lessons draws one shape.
+ * The legend and the axis stay put; past `minStep` a lesson, only the plot scrolls, fading at its edges. Pointing at
+ * it, or the arrow keys, picks a lesson and the line under the title reads it out.
+ */
 function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<{ kata: string; started: number; finished: number }> }) {
-  const [series, setSeries] = useState<(typeof reachSeries)[number]>("Reached");
-  const [hover, setHover] = useState<number | null>(null);
-  const value = (item: (typeof reach)[number]) => (series === "Reached" ? item.started : item.finished);
-  // The axis's top rounded up to a value that halves cleanly, as the KPI chart's
-  const top = (() => {
-    // At least 2, so an empty chart's axis still counts in whole projects (2, 1, 0)
-    const half = Math.max(...reach.map(value), 2) / 2;
-    const pow = 10 ** Math.floor(Math.log10(half || 1));
-    return ([1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((step) => step * pow >= half) ?? 10) * pow * 2;
-  })();
-  const shown = hover ?? null;
-  const verb = series === "Reached" ? "reached" : "finished";
-  const total = reach.reduce((sum, item) => sum + value(item), 0);
+  const [active, setActive] = useState<number | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  // The plot's width, for the axis's labels; a guess until it's measured
+  const [width, setWidth] = useState(800);
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => entry && setWidth(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const count = reach.length;
+  const Unit = unit === "lesson" ? "Lesson" : "Chapter";
+  const top = axisTop(Math.max(0, ...reach.map((item) => item.started)));
+  const step = Math.max(width / Math.max(count, 1), minStep);
+  const every = tickEvery(step);
+  const ticks = reach.map((_, index) => index).filter((index) => index === 0 || (index + 1) % every === 0);
+  const total = reach.reduce((sum, item) => sum + item.started, 0);
+
+  // Picking a lesson keeps it in view when the plot scrolls
+  const pick = (index: number) => {
+    setActive(index);
+    const element = scroller.current;
+    if (!element) return;
+    const left = index * step, right = left + step, margin = 48;
+    if (left < element.scrollLeft + margin) element.scrollLeft = left - margin;
+    else if (right > element.scrollLeft + element.clientWidth - margin) element.scrollLeft = right - element.clientWidth + margin;
+  };
+  const indexAt = (event: PointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    return Math.min(count - 1, Math.max(0, Math.floor(((event.clientX - box.left) / box.width) * count)));
+  };
+  const onKey = (event: KeyboardEvent) => {
+    const from = active ?? (event.key === "ArrowLeft" ? count : -1);
+    if (event.key === "ArrowRight") pick(Math.min(count - 1, from + 1));
+    else if (event.key === "ArrowLeft") pick(Math.max(0, from - 1));
+    else if (event.key === "Home") pick(0);
+    else if (event.key === "End") pick(count - 1);
+    else if (event.key === "Escape") setActive(null);
+    else return;
+    event.preventDefault();
+  };
+  const shown = active === null ? undefined : reach[active];
+
   return (
     <section className="ui-crp-panel ui-crp-reach" aria-labelledby="ui-crp-reach">
       <div className="ui-crp-reach__head">
-        <h2 id="ui-crp-reach">{series === "Reached" ? `Reaching each ${unit}` : `Finishing each ${unit}`}</h2>
-        <SegmentedControl size="compact" kind="tabs" label="Show" options={reachSeries} value={series} onChange={(next) => setSeries(next as typeof series)} />
-        {/* What a bar says, as you point at it: one line, its number before its name, so a long name is what's cut */}
-        <p aria-live="polite">{shown === null
-          ? total === 0 ? "No projects yet." : `Projects that ${verb} each ${unit}.`
-          : `${unit === "lesson" ? "Lesson" : "Chapter"} ${shown + 1}: ${compactNumber(value(reach[shown]))} ${verb} · ${reach[shown].kata}`}</p>
+        <h2 id="ui-crp-reach">{Unit} by {unit}</h2>
+        <ul className="ui-crp-reach__legend" aria-label="Legend">
+          <li data-series="reached">Reached</li>
+          <li data-series="finished">Finished</li>
+        </ul>
+        {/* What the picked lesson says: one line, its numbers before its name, so a long name is what's cut */}
+        <p aria-live="polite">{shown && active !== null
+          ? `${Unit} ${active + 1}: ${compactNumber(shown.started)} reached, ${compactNumber(shown.finished)} finished · ${shown.kata}`
+          : total === 0 ? "No projects yet." : `Projects per ${unit}.`}</p>
       </div>
       <div className="ui-crp-reach__chart">
         <div className="ui-crp-reach__y" aria-hidden="true"><span>{compactNumber(top)}</span><span>{compactNumber(top / 2)}</span><span>0</span></div>
-        {/* Only the bars scroll, the axis and the switch staying put; focusable, so a keyboard can scroll them too */}
-        <div className="ui-crp-reach__scroll scroll-fade-x" tabIndex={0} role="group" aria-label={`Bars, one per ${unit}`}>
-          <ol className="ui-crp-reach__bars" style={{ ["--count" as string]: reach.length }} onPointerLeave={() => setHover(null)}>
-            {reach.map((item, index) => (
-              <li key={item.kata} aria-label={`${unit === "lesson" ? "Lesson" : "Chapter"} ${index + 1}, ${item.kata}: ${value(item)} ${verb}`}
-                data-active={hover === index || undefined} onPointerEnter={() => setHover(index)}>
-                <span className="ui-crp-reach__track"><b style={{ height: `${(value(item) / top) * 100}%` }} /></span>
-                {/* The axis names the first and every fifth */}
-                <span className="ui-crp-reach__x" aria-hidden="true">{index === 0 || (index + 1) % 5 === 0 ? index + 1 : ""}</span>
-              </li>
-            ))}
-          </ol>
+        <div ref={scroller} className="ui-crp-reach__scroll scroll-fade-x">
+          <div className="ui-crp-reach__plot" style={{ minWidth: count * minStep }} tabIndex={0} role="group"
+            aria-label={`${Unit}s – use the arrow keys to read each ${unit}`} data-active={active !== null || undefined}
+            onPointerMove={(event) => setActive(indexAt(event))} onPointerDown={(event) => setActive(indexAt(event))}
+            onPointerLeave={() => setActive(null)} onBlur={() => setActive(null)} onKeyDown={onKey}>
+            <svg viewBox={`0 0 ${Math.max(count, 1)} 100`} preserveAspectRatio="none" aria-hidden="true">
+              <path className="ui-crp-reach__reached" d={stepArea(reach.map((item) => item.started), top)} />
+              <path className="ui-crp-reach__finished" d={stepArea(reach.map((item) => item.finished), top)} />
+              <path className="ui-crp-reach__edge" d={stepLine(reach.map((item) => item.started), top)} vectorEffect="non-scaling-stroke" />
+              {active !== null && <rect className="ui-crp-reach__pick" x={active} width={1} y={0} height={100} />}
+            </svg>
+            <div className="ui-crp-reach__x" aria-hidden="true">
+              {/* Under its step's middle; at the plot's ends, where a narrow step would push it past the edge, in from it */}
+              {ticks.map((index) => <span key={index} style={{ left: `${((index + 0.5) / count) * 100}%` }}
+                data-edge={step < 24 ? index === 0 ? "start" : index === count - 1 ? "end" : undefined : undefined}>{index + 1}</span>)}
+            </div>
+          </div>
         </div>
       </div>
+      {/* The numbers themselves, for a screen reader */}
+      <ol className="sr-only">
+        {reach.map((item, index) => <li key={`${index}:${item.kata}`}>{`${Unit} ${index + 1}, ${item.kata}: ${item.started} reached, ${item.finished} finished`}</li>)}
+      </ol>
     </section>
   );
 }
@@ -225,7 +290,7 @@ function Sparkline({ values }: { values: number[] }) {
 
 const css = /* css */ `
 /* On the page, as wide as its header and footer */
-.ui-crp { --ui-crp-brand-soft: color-mix(in oklab, var(--brand) 40%, var(--surface-3)); padding: 28px 8px 64px; container: ui-web / inline-size; }
+.ui-crp { padding: 28px 8px 64px; container: ui-web / inline-size; }
 @media (max-width: 1203px) { .ui-crp { padding-inline: 20px; } }
 @media (max-width: 720px) { .ui-crp { padding-block: 24px 48px; } }
 .ui-crp__back { margin-left: -10px; }
@@ -268,30 +333,42 @@ const css = /* css */ `
 .ui-crp-panel { padding: 20px 20px 18px; border-radius: calc(20px * var(--squircle-factor, 1)); background: var(--surface-3); box-shadow: var(--shadow-3); }
 .ui-crp-panel > p { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-body); }
 
-/* Reaching each lesson: a bar per lesson on its own rounded track, the axis every fifth, scrolling past what fits */
-/* The title and the line under it, the switch beside both; the switch keeps its width (a narrow panel wraps the title
-   instead) and the line stays one line, so pointing at a bar doesn't move the chart. On a phone the line takes the
-   panel's width, under the switch too */
+/* Lesson by lesson: the title and the line under it, the legend beside both (on a phone, the line under both too);
+   the line stays one line, so picking a lesson doesn't move the chart */
 .ui-crp-reach__head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px 16px; }
-.ui-crp-reach__head > [role="tablist"], .ui-crp-reach__head > .ui-seg { grid-row: 1 / span 2; grid-column: 2; }
 .ui-crp-reach__head p { grid-column: 1; margin: 0; overflow: hidden; color: var(--muted); font-size: var(--fs-body); font-variant-numeric: tabular-nums; white-space: nowrap; text-overflow: ellipsis; }
+.ui-crp-reach__legend { grid-row: 1 / span 2; grid-column: 2; display: flex; gap: 14px; margin: 2px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: var(--fs-caption); }
+.ui-crp-reach__legend li { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ui-crp-reach__legend li::before { width: 10px; height: 10px; border-radius: 3px; corner-shape: round; background: var(--ui-crp-finished); content: ""; }
+.ui-crp-reach__legend li[data-series="reached"]::before { background: var(--ui-crp-reached); box-shadow: inset 0 1.5px 0 var(--brand); }
 @container ui-web (max-width: 560px) {
-  .ui-crp-reach__head > [role="tablist"], .ui-crp-reach__head > .ui-seg { grid-row: 1; }
+  .ui-crp-reach__legend { grid-row: 1; }
   .ui-crp-reach__head p { grid-column: 1 / -1; }
 }
+
+/* The axis beside the plot, which alone scrolls; its labels level with the plot's top, middle and baseline */
+.ui-crp-reach { --ui-crp-reached: color-mix(in oklab, var(--brand) 22%, transparent); --ui-crp-finished: var(--brand); --ui-crp-plot: 168px; }
 .ui-crp-reach__chart { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; margin-top: 20px; }
-.ui-crp-reach__y { display: flex; flex-direction: column; justify-content: space-between; height: 160px; color: var(--muted); font-size: var(--fs-caption); font-variant-numeric: tabular-nums; text-align: right; }
-.ui-crp-reach__y span { line-height: 1; }
-.ui-crp-reach__scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; border-radius: 6px; }
-.ui-crp-reach__scroll:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.ui-crp-reach__bars { display: grid; grid-template-columns: repeat(var(--count), minmax(12px, 1fr)); gap: 5px; min-width: calc(var(--count) * 17px); margin: 0; padding: 0; list-style: none; }
-.ui-crp-reach__bars li { display: grid; grid-template-rows: 160px auto; gap: 8px; }
-.ui-crp-reach__track { position: relative; display: block; overflow: hidden; border-radius: 6px; corner-shape: round; background: var(--chip); transition: background-color var(--motion-fast) var(--ease-standard); }
-.ui-crp-reach__track b { position: absolute; right: 0; bottom: 0; left: 0; border-radius: inherit; background: var(--brand); transition: height var(--motion-moderate) var(--ease-moderate); }
-.ui-crp-reach__bars li[data-active] .ui-crp-reach__track { background: var(--ui-crp-brand-soft); }
-.ui-crp-reach__x { height: 1em; color: var(--muted); font-size: var(--fs-caption); line-height: 1; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
-@media (prefers-reduced-motion: reduce) { .ui-crp-reach__track b { transition: none; } }
-@media (forced-colors: active) { .ui-crp-reach__track, .ui-crp-reach__track b { forced-color-adjust: none; } }
+.ui-crp-reach__y { position: relative; display: grid; height: var(--ui-crp-plot); color: var(--muted); font-size: var(--fs-caption); font-variant-numeric: tabular-nums; line-height: 1; text-align: right; }
+/* Each on its line: the widest sets the column, the others stacked over it and moved down to theirs */
+.ui-crp-reach__y span { grid-area: 1 / 1; align-self: start; translate: 0 -50%; }
+.ui-crp-reach__y span:nth-child(2) { align-self: center; translate: 0; }
+.ui-crp-reach__y span:nth-child(3) { align-self: end; translate: 0 50%; }
+.ui-crp-reach__scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.ui-crp-reach__plot { position: relative; padding-bottom: 22px; outline: none; cursor: crosshair; touch-action: pan-x; }
+/* The grid's three lines, under the areas */
+.ui-crp-reach__plot::before { position: absolute; inset: 0 0 22px; background: linear-gradient(var(--line), var(--line)) 0 0 / 100% 1px no-repeat, linear-gradient(var(--line), var(--line)) 0 50% / 100% 1px no-repeat; border-bottom: 1px solid var(--line); content: ""; pointer-events: none; }
+.ui-crp-reach__plot svg { position: relative; display: block; width: 100%; height: var(--ui-crp-plot); overflow: visible; }
+.ui-crp-reach__reached { fill: var(--ui-crp-reached); }
+.ui-crp-reach__finished { fill: var(--ui-crp-finished); }
+.ui-crp-reach__edge { fill: none; stroke: var(--brand); stroke-width: 1.5; stroke-linejoin: round; }
+.ui-crp-reach__pick { fill: var(--ink); opacity: 0.1; }
+.ui-crp-reach__plot:focus-visible { box-shadow: 0 0 0 2px var(--focus-ring); border-radius: 4px; }
+.ui-crp-reach__x { position: absolute; right: 0; bottom: 0; left: 0; height: 14px; color: var(--muted); font-size: var(--fs-caption); line-height: 1; font-variant-numeric: tabular-nums; }
+.ui-crp-reach__x span { position: absolute; top: 0; translate: -50% 0; white-space: nowrap; }
+.ui-crp-reach__x span[data-edge="start"] { left: 0 !important; translate: 0; }
+.ui-crp-reach__x span[data-edge="end"] { left: 100% !important; translate: -100% 0; }
+@media (forced-colors: active) { .ui-crp-reach svg path { forced-color-adjust: none; } }
 
 /* The side column, skills.sh's: small caps labels over plain values, rules between */
 .ui-crp-side { position: sticky; top: 88px; display: grid; }
