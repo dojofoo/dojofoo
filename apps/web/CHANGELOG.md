@@ -1,5 +1,18 @@
 # @dojofoo/web
 
+## 0.0.7
+
+### Patch Changes
+
+- 7e45612: Keep a long course's reach chart readable on narrow screens. The Reached and Finished switch keeps its full words on phones. Pointing at a bar names it on one line, number first, so the chart no longer moves. The keyboard can scroll the bars. As before, only the bars scroll and fade at their edges, and the axis stays in place.
+- d5ab06a: Generate smoother small favicons from the SVG and provide seven ICO resolutions, with matching website and Storybook metadata.
+- Updated dependencies [7e45612]
+- Updated dependencies [584bd27]
+- Updated dependencies [d5ab06a]
+- Updated dependencies [a356c40]
+  - @dojofoo/uix@0.2.2
+  - @dojofoo/ui@0.2.2
+
 ## 0.0.6
 
 ### Patch Changes
