@@ -1,5 +1,20 @@
 # @dojofoo/uix
 
+## 0.2.2
+
+### Patch Changes
+
+- 7e45612: Keep a long course's reach chart readable on narrow screens. The Reached and Finished switch keeps its full words on phones. Pointing at a bar names it on one line, number first, so the chart no longer moves. The keyboard can scroll the bars. As before, only the bars scroll and fade at their edges, and the axis stays in place.
+- 584bd27: The model menu names what runs. A conversation without a model shows the agent's own default as "Default (Opus 5.5)" with its effort, and checks it in the list; the agent's default is Claude Code's own "Default", the model a new conversation starts on (Codex's config.toml, Pi's settings, OpenCode's own pick), else the one Codex's catalog marks. A new conversation also starts at the effort the agent is configured with (Codex's model_reasoning_effort, Pi's defaultThinkingLevel), which Sensei, run without the user's configuration, didn't use before.
+
+  Sign-in appears only when the agent can't run: "Sign in to <agent>" when it is signed in to nothing, a model whose login lapsed opens that provider's sign-in, and a failed turn that needs a login offers it. The model menu has no "Sign in…" row, and the dialog offers only the agent's own browser or subscription sign-ins, no API keys.
+
+  The model menu's rows, labels and hover match the account menu's: 32px rows (44px with a second line), the body size in the text color, the hover color behind only the row under the pointer, the chosen row in a heavier weight. A coding agent's effort levels fit on a line of their own without shortening.
+- d5ab06a: Generate smoother small favicons from the SVG and provide seven ICO resolutions, with matching website and Storybook metadata.
+- a356c40: Show the local UI error's trace in the docs' code window, the editor-styled box the docs and API reference use, instead of the plain code block.
+- Updated dependencies [584bd27]
+  - @dojofoo/protocol@0.1.3
+
 ## 0.2.1
 
 ### Patch Changes

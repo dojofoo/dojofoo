@@ -1,6 +1,6 @@
 {
   "name": "@dojofoo/agents",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Course authoring tools and Kyoshi agents for Dojofoo.",
   "license": "FSL-1.1-ALv2",

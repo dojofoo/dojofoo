@@ -1,5 +1,15 @@
 # @dojofoo/evals
 
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [584bd27]
+  - @dojofoo/harness@0.2.3
+  - @dojofoo/protocol@0.1.3
+  - @dojofoo/agents@0.2.3
+  - @dojofoo/config@0.3.4
+
 ## 0.0.7
 
 ### Patch Changes

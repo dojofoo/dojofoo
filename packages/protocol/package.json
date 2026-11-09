@@ -1,6 +1,6 @@
 {
   "name": "@dojofoo/protocol",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "license": "FSL-1.1-ALv2",
   "type": "module",
