@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { catalog } from "./fixtures/catalog";
+import { catalog, longCourses } from "./fixtures/catalog";
 import { Website } from "./fixtures/website";
 
 /**
@@ -14,7 +14,7 @@ const meta = {
   args: { start: "landing", courseId: "effect-ts" },
   argTypes: {
     start: { table: { disable: true } },
-    courseId: { name: "Course", control: "select", options: catalog.map((course) => course.id) },
+    courseId: { name: "Course", control: "select", options: [...catalog, ...longCourses].map((course) => course.id) },
     docPath: { table: { disable: true } },
     artwork: { table: { disable: true } },
   },
@@ -51,6 +51,10 @@ export const Courses: Story = {
 };
 
 export const Course: Story = { args: { start: "course" } };
+/** A course of 48 chapters: the chart scrolls sideways past what fits, its axis and switch staying put */
+export const CourseWithManyChapters: Story = { args: { start: "course", courseId: "many-chapters" } };
+/** A course of 160 lessons and no chapters: the chart counts lessons */
+export const CourseWithManyLessons: Story = { args: { start: "course", courseId: "many-lessons" } };
 
 /** The approved UIX source for the website's retina artwork. */
 export const LandingArtwork: Story = { args: { start: "landing", artwork: true } };

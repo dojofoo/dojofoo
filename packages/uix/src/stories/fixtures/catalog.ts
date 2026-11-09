@@ -87,4 +87,15 @@ function build({ installs, finishRate, risk: _risk, ...seed }: Seed): WebCourse 
 
 export const catalog: WebCourse[] = seeds.map(build);
 
-export const courseById = (id: string) => catalog.find((course) => course.id === id) ?? catalog[0];
+/** Long courses for stress-testing the course page's chart, kept out of the catalog: many chapters, and many lessons
+    with no chapters (the chart counts lessons then) */
+const long = (id: string, name: string, count: number): Seed => ({ ...seeds[0]!, id, name, repository: `dojofoo/${id}`,
+  installs: 18400, chapters: Array.from({ length: count }, (_, index) => `${topics[index % topics.length]}${index < topics.length ? "" : ` ${Math.floor(index / topics.length) + 1}`}`) });
+const topics = ["Foundations", "Errors and recovery", "Modelling the domain", "Services, layers and dependency injection", "Schema", "Concurrency",
+  "Resources", "Streams and backpressure", "Observability", "HTTP clients", "Testing effects", "Capstone"];
+export const longCourses: WebCourse[] = [
+  build(long("many-chapters", "Many chapters", 48)),
+  { ...build(long("many-lessons", "Many lessons", 160)), chapters: undefined },
+];
+
+export const courseById = (id: string) => [...catalog, ...longCourses].find((course) => course.id === id) ?? catalog[0];
