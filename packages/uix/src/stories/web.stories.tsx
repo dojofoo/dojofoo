@@ -51,10 +51,9 @@ export const Courses: Story = {
 };
 
 export const Course: Story = { args: { start: "course" } };
-/** A course of 48 chapters: a step per chapter, all of them in view */
-export const CourseWithManyChapters: Story = { args: { start: "course", courseId: "many-chapters" } };
-/** A course of 160 lessons and no chapters: the chart counts lessons; on a phone its plot scrolls, the axis and legend staying put */
 export const CourseWithManyLessons: Story = { args: { start: "course", courseId: "many-lessons" } };
+/** Lessons with no chapters, as the marketplace's courses are today */
+export const CourseWithoutChapters: Story = { args: { start: "course", courseId: "no-chapters" } };
 
 /** The approved UIX source for the website's retina artwork. */
 export const LandingArtwork: Story = { args: { start: "landing", artwork: true } };

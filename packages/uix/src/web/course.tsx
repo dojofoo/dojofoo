@@ -6,7 +6,7 @@ import { ButtonLink } from "../components/button";
 import { CourseCard } from "../components/course-card";
 import { SegmentedControl } from "../components/segmented-control";
 import { ArrowLeft01Icon, BookOpen01Icon } from "../lib/icons";
-import { cardInfo, compactNumber, installCommand, installPrompt, teachingModes, type CourseAudit, type WebCourse } from "./catalog";
+import { cardInfo, compactNumber, installCommand, installPrompt, teachingModes, type ChapterProgress, type CourseAudit, type WebCourse } from "./catalog";
 import { CommandCopy, SitePage, useSite } from "./site";
 
 /*
@@ -65,7 +65,7 @@ export function CoursePage({ course }: { course: WebCourse }) {
                 <Stat label="Finished" value={compactNumber(metrics.finished)} note={`${metrics.completionRate}% of starts`} />
               </section>
 
-              <ReachChart unit={course.chapters ? "chapter" : "lesson"} reach={reach} />
+              <ReachChart reach={reach} {...(course.chapters ? { chapters: course.chapters } : {})} />
             </div>
           </div>
 
@@ -101,6 +101,8 @@ export function CoursePage({ course }: { course: WebCourse }) {
 
 /** The narrowest a lesson's step gets before the chart scrolls instead */
 const minStep = 3;
+/** The height of the axis rows above the plot (the chapters) and below it (the lessons), in pixels */
+const axisRow = 22;
 
 /** Every k-th lesson the axis names, besides the first: the fewest that keeps its labels apart at this step width */
 const tickEvery = (step: number) => [1, 5, 10, 20, 25, 50, 100, 200, 500].find((k) => step * k >= 32 && (k === 1 || step * (k - 1) >= 24)) ?? 1000;
@@ -120,13 +122,16 @@ const stepLine = (values: number[], top: number) =>
   values.map((value, index) => `${index ? "V" : "M0 "}${100 - (value / top) * 100} H${index + 1}`).join(" ");
 
 /**
- * How far projects get, lesson by lesson (or chapter by chapter): how many reached each, and of them how many
- * finished it, as two stepped areas – a step per lesson, side by side, so any number of lessons draws one shape.
- * The legend and the axis stay put; past `minStep` a lesson, only the plot scrolls, fading at its edges. Pointing at
- * it, or the arrow keys, picks a lesson and the line under the title reads it out.
+ * How far projects get, lesson by lesson: how many reached each, and of them how many finished it, as two stepped
+ * areas – a step per lesson, side by side, so any number of lessons draws one shape. A course's chapters are dotted
+ * lines between their lessons, named under them: where a chapter's first line meets the areas is how many reached
+ * it. The legend and the axis stay put; past `minStep` a lesson, only the plot scrolls, fading at its edges. Pointing
+ * at a lesson, or the arrow keys, picks it, and pointing at a chapter's name picks the chapter; the line under the
+ * title reads it out.
  */
-function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<{ kata: string; started: number; finished: number }> }) {
+function ReachChart({ reach, chapters }: { reach: Array<{ kata: string; started: number; finished: number }>; chapters?: ChapterProgress[] }) {
   const [active, setActive] = useState<number | null>(null);
+  const [chapter, setChapter] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const id = useId();
   // The plot's width, for the axis's labels; a guess until it's measured
@@ -139,7 +144,12 @@ function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<
     return () => observer.disconnect();
   }, []);
   const count = reach.length;
-  const Unit = unit === "lesson" ? "Lesson" : "Chapter";
+  // Each chapter's first lesson and the one after its last
+  const spans = (chapters ?? []).reduce<Array<ChapterProgress & { start: number; end: number }>>((list, item) => {
+    const start = list.at(-1)?.end ?? 0;
+    return [...list, { ...item, start, end: Math.min(start + item.lessons, count) }];
+  }, []).filter((span) => span.end > span.start);
+  const chapterOf = (lesson: number) => spans.findIndex((span) => lesson >= span.start && lesson < span.end);
   const top = axisTop(Math.max(0, ...reach.map((item) => item.started)));
   const step = Math.max(width / Math.max(count, 1), minStep);
   const every = tickEvery(step);
@@ -159,7 +169,15 @@ function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<
     const box = event.currentTarget.getBoundingClientRect();
     return Math.min(count - 1, Math.max(0, Math.floor(((event.clientX - box.left) / box.width) * count)));
   };
+  // On the chapters' axis above the plot, a chapter; on the plot, a lesson
+  const pointAt = (event: PointerEvent<HTMLDivElement>) => {
+    const lesson = indexAt(event);
+    const onNames = spans.length > 0 && event.clientY - event.currentTarget.getBoundingClientRect().top < axisRow;
+    setChapter(onNames ? chapterOf(lesson) : null);
+    setActive(onNames ? null : lesson);
+  };
   const onKey = (event: KeyboardEvent) => {
+    setChapter(null);
     const from = active ?? (event.key === "ArrowLeft" ? count : -1);
     if (event.key === "ArrowRight") pick(Math.min(count - 1, from + 1));
     else if (event.key === "ArrowLeft") pick(Math.max(0, from - 1));
@@ -170,6 +188,13 @@ function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<
     event.preventDefault();
   };
   const shown = active === null ? undefined : reach[active];
+  const inChapter = active === null ? -1 : chapterOf(active);
+  const picked = chapter === null ? undefined : spans[chapter];
+  const readout = picked && chapter !== null
+    ? `Chapter ${chapter + 1} · ${picked.title}: ${compactNumber(picked.started)} reached it, ${compactNumber(picked.finished)} finished it`
+    : shown && active !== null
+      ? `Lesson ${active + 1}${inChapter >= 0 ? `, chapter ${inChapter + 1}` : ""}: ${compactNumber(shown.started)} reached, ${compactNumber(shown.finished)} finished · ${shown.kata}`
+      : total === 0 ? "No projects yet." : "Projects per lesson.";
 
   // The pale area: the projects that reached a lesson and didn't finish it
   const reachedFill = "fill-[color-mix(in_oklab,var(--brand)_22%,transparent)]";
@@ -181,29 +206,35 @@ function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<
     <section className="rounded-[calc(20px*var(--squircle-factor,1))] bg-(--surface-3) px-5 pt-5 pb-[18px] shadow-(--shadow-3)" aria-labelledby={`${id}-title`}>
       {/* The title and the line under it, the legend beside both – on a phone, the line under both too */}
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1">
-        <h2 id={`${id}-title`} className="m-0 text-[length:var(--fs-subtitle)] font-semibold">{Unit} by {unit}</h2>
+        <h2 id={`${id}-title`} className="m-0 text-[length:var(--fs-subtitle)] font-semibold">Lesson by lesson</h2>
         <ul className="col-start-2 row-span-2 row-start-1 m-0 mt-0.5 flex list-none gap-3.5 p-0 text-[length:var(--fs-caption)] text-(--muted) @max-[560px]/ui-web:row-span-1" aria-label="Legend">
           <li className="flex items-center gap-1.5 whitespace-nowrap before:size-[9px] before:rounded-full before:bg-[color-mix(in_oklab,var(--brand)_22%,transparent)] before:shadow-[inset_0_0_0_1.5px_var(--brand)] before:content-['']">Reached</li>
           <li className="flex items-center gap-1.5 whitespace-nowrap before:size-[9px] before:rounded-full before:bg-(--brand) before:content-['']">Finished</li>
         </ul>
-        {/* What the picked lesson says: one line, its numbers before its name, so a long name is what's cut and
-            picking a lesson doesn't move the chart */}
-        <p className="col-start-1 m-0 truncate text-[length:var(--fs-body)] text-(--muted) tabular-nums @max-[560px]/ui-web:col-span-2" aria-live="polite">{shown && active !== null
-          ? `${Unit} ${active + 1}: ${compactNumber(shown.started)} reached, ${compactNumber(shown.finished)} finished · ${shown.kata}`
-          : total === 0 ? "No projects yet." : `Projects per ${unit}.`}</p>
+        {/* What the picked lesson or chapter says: one line, its numbers before its name, so a long name is what's
+            cut and picking doesn't move the chart */}
+        <p className="col-start-1 m-0 truncate text-[length:var(--fs-body)] text-(--muted) tabular-nums @max-[560px]/ui-web:col-span-2" aria-live="polite">{readout}</p>
       </div>
       {/* The axis beside the plot, which alone scrolls */}
       <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] gap-2.5">
-        <div className="grid h-[168px] text-right text-[length:var(--fs-caption)] leading-none text-(--muted) tabular-nums" aria-hidden="true">
+        <div className={`grid h-[168px] text-right ${spans.length ? "mt-[22px]" : ""} text-[length:var(--fs-caption)] leading-none text-(--muted) tabular-nums`} aria-hidden="true">
           <span className={`${yLabel} self-start -translate-y-1/2`}>{compactNumber(top)}</span>
           <span className={`${yLabel} self-center`}>{compactNumber(top / 2)}</span>
           <span className={`${yLabel} self-end translate-y-1/2`}>0</span>
         </div>
         <div ref={scroller} className="scroll-fade-x overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
-          <div className="relative cursor-crosshair touch-pan-x pb-[22px] outline-none focus-visible:rounded-[4px] focus-visible:shadow-[0_0_0_2px_var(--focus-ring)]"
-            style={{ minWidth: count * minStep }} tabIndex={0} role="group" aria-label={`${Unit}s – use the arrow keys to read each ${unit}`}
-            onPointerMove={(event) => setActive(indexAt(event))} onPointerDown={(event) => setActive(indexAt(event))}
-            onPointerLeave={() => setActive(null)} onBlur={() => setActive(null)} onKeyDown={onKey}>
+          <div className={`relative cursor-crosshair touch-pan-x pb-[22px] outline-none ${spans.length ? "pt-[22px]" : ""} focus-visible:rounded-[4px] focus-visible:shadow-[0_0_0_2px_var(--focus-ring)]`}
+            style={{ minWidth: count * minStep }} tabIndex={0} role="group" aria-label="Lessons – use the arrow keys to read each lesson"
+            onPointerMove={pointAt} onPointerDown={pointAt}
+            onPointerLeave={() => { setActive(null); setChapter(null); }} onBlur={() => { setActive(null); setChapter(null); }} onKeyDown={onKey}>
+            {/* The chapters' axis: each chapter's number over its lessons; pointing at it reads its name and numbers out */}
+            {spans.length > 0 && <div className="absolute inset-x-0 top-0 h-[22px] text-[length:var(--fs-caption)] leading-none text-(--muted) tabular-nums" data-axis="chapters" aria-hidden="true">
+              {spans.map((span, index) => <span key={span.start} data-active={chapter === index || undefined}
+                className="absolute top-0 text-center whitespace-nowrap data-active:text-(--ink)"
+                style={{ left: `${(span.start / count) * 100}%`, width: `${((span.end - span.start) / count) * 100}%` }}>
+                {index + 1}</span>)}
+            </div>}
+            <div className="relative h-[168px]">
             {/* The grid's lines, under the areas: the top, the middle, the baseline */}
             <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-(--line)" aria-hidden="true" />
             <span className="pointer-events-none absolute inset-x-0 top-[84px] h-px bg-(--line)" aria-hidden="true" />
@@ -221,9 +252,15 @@ function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<
               <g className="fill-black opacity-8 [shape-rendering:crispEdges]" clipPath={`url(#${id}-finished)`}>{stripes}</g>
               <path className="fill-none stroke-(--brand) [stroke-linejoin:round] [stroke-width:1.5]" d={stepLine(reach.map((item) => item.started), top)} vectorEffect="non-scaling-stroke" />
               {active !== null && <rect className="fill-(--ink) opacity-10" x={active} width={1} y={0} height={100} />}
+              {picked && <rect className="fill-(--ink) opacity-6" x={picked.start} width={picked.end - picked.start} y={0} height={100} />}
             </svg>
+            </div>
+            {/* Where a chapter starts, a dotted line from its number down to the baseline */}
+            {spans.slice(1).map((span) => <span key={span.start} aria-hidden="true" className="pointer-events-none absolute top-0 bottom-[22px] border-l border-dotted border-(--muted)"
+              style={{ left: `${(span.start / count) * 100}%` }} />)}
+            {/* The lessons' axis: under its step's middle; at the plot's ends, where a narrow step would push it past the
+                edge, in from it */}
             <div className="absolute inset-x-0 bottom-0 h-3.5 text-[length:var(--fs-caption)] leading-none text-(--muted) tabular-nums" data-axis="x" aria-hidden="true">
-              {/* Under its step's middle; at the plot's ends, where a narrow step would push it past the edge, in from it */}
               {ticks.map((index) => <span key={index} style={{ left: `${((index + 0.5) / count) * 100}%` }}
                 className="absolute top-0 -translate-x-1/2 whitespace-nowrap data-[edge=end]:left-full! data-[edge=end]:-translate-x-full data-[edge=start]:left-0! data-[edge=start]:translate-x-0"
                 data-edge={step < 24 ? index === 0 ? "start" : index === count - 1 ? "end" : undefined : undefined}>{index + 1}</span>)}
@@ -233,8 +270,11 @@ function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<
       </div>
       {/* The numbers themselves, for a screen reader */}
       <ol className="sr-only">
-        {reach.map((item, index) => <li key={`${index}:${item.kata}`}>{`${Unit} ${index + 1}, ${item.kata}: ${item.started} reached, ${item.finished} finished`}</li>)}
+        {reach.map((item, index) => <li key={`${index}:${item.kata}`}>{`Lesson ${index + 1}, ${item.kata}: ${item.started} reached, ${item.finished} finished`}</li>)}
       </ol>
+      {spans.length > 0 && <ol className="sr-only">
+        {spans.map((span, index) => <li key={span.start}>{`Chapter ${index + 1}, ${span.title}, lessons ${span.start + 1} to ${span.end}: ${span.started} reached it, ${span.finished} finished it`}</li>)}
+      </ol>}
     </section>
   );
 }
