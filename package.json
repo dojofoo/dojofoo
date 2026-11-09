@@ -43,9 +43,9 @@
     "@xmldom/xmldom": "^0.9.12",
     "dependency-cruiser": "18.7.2",
     "husky": "^9.1.7",
-    "turbo": "^2.11.9",
+    "turbo": "^2.11.10",
     "typescript": "6.0.3",
-    "vitest": "^5.0.5",
+    "vitest": "^5.1.0",
     "youch": "^4.1.1"
   }
 }

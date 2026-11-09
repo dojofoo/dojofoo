@@ -625,13 +625,13 @@
     "undici": "8.12.3"
   },
   "devDependencies": {
-    "eve": "1.0.0-rc.1",
+    "eve": "1.0.0-rc.6",
     "@ai-sdk/sandbox-just-bash": "1.0.170",
     "@tanstack/ai": "1.0.1",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "elysia": "^1.4.30",
     "exact-mirror": "0.2.7",
     "typescript": "6.0.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   }
 }
