@@ -1,7 +1,7 @@
 import { ShellStyles } from "../components/app-shell";
 import { BrandLogo } from "../components/brand-logo";
 import { Button } from "../components/button";
-import { CodeBlock } from "../components/code-block";
+import { CodeWindowBlock } from "../components/code-window";
 
 /** The local router supplies the diagnostic and recovery action; UIX owns the screen. */
 export function LocalErrorPage({ trace, onRetry }: { trace: string; onRetry(): void }) {
@@ -20,7 +20,7 @@ export function LocalErrorPage({ trace, onRetry }: { trace: string; onRetry(): v
             <p className="mt-3 mb-0 text-sm leading-relaxed text-(--muted)">Dojo couldn’t open this page. Try again, or return to your courses.</p>
           </header>
           <div className="ui-local-error__trace" aria-label="Error details">
-            <CodeBlock code={trace} lang="text" />
+            <CodeWindowBlock code={trace} lang="text" />
           </div>
           <div className="flex flex-wrap items-center gap-5">
             <Button onClick={onRetry}>Try again</Button>
@@ -37,5 +37,7 @@ const css = `
 .ui-local-error__content { width: 100%; max-width: 44rem; min-width: 0; margin-inline: auto; }
 .ui-local-error .ui-local-error__card { display: grid; gap: 24px; min-width: 0; padding: clamp(20px, 4vw, 32px); }
 .ui-local-error__trace { min-width: 0; }
-.ui-local-error__trace pre.ui-code { max-height: min(48dvh, 28rem); margin: 0; overflow: auto; }
+/* The docs' code window, flush in the card's grid; a long trace scrolls inside it */
+.ui-local-error__trace .ui-cw { margin: 0; }
+.ui-local-error__trace .ui-cw-code { max-height: min(48dvh, 28rem); overflow-y: auto; }
 `;
