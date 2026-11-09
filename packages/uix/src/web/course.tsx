@@ -120,18 +120,17 @@ function ReachChart({ unit, reach }: { unit: "lesson" | "chapter"; reach: Array<
   return (
     <section className="ui-crp-panel ui-crp-reach" aria-labelledby="ui-crp-reach">
       <div className="ui-crp-reach__head">
-        <div>
-          <h2 id="ui-crp-reach">{series === "Reached" ? `Reaching each ${unit}` : `Finishing each ${unit}`}</h2>
-          {/* What a bar says, as you point at it */}
-          <p aria-live="polite">{shown === null
-            ? total === 0 ? "No projects yet." : `Projects that ${verb} each ${unit}.`
-            : `${unit === "lesson" ? "Lesson" : "Chapter"} ${shown + 1} · ${reach[shown].kata}: ${compactNumber(value(reach[shown]))} ${verb}`}</p>
-        </div>
+        <h2 id="ui-crp-reach">{series === "Reached" ? `Reaching each ${unit}` : `Finishing each ${unit}`}</h2>
         <SegmentedControl size="compact" kind="tabs" label="Show" options={reachSeries} value={series} onChange={(next) => setSeries(next as typeof series)} />
+        {/* What a bar says, as you point at it: one line, its number before its name, so a long name is what's cut */}
+        <p aria-live="polite">{shown === null
+          ? total === 0 ? "No projects yet." : `Projects that ${verb} each ${unit}.`
+          : `${unit === "lesson" ? "Lesson" : "Chapter"} ${shown + 1}: ${compactNumber(value(reach[shown]))} ${verb} · ${reach[shown].kata}`}</p>
       </div>
       <div className="ui-crp-reach__chart">
         <div className="ui-crp-reach__y" aria-hidden="true"><span>{compactNumber(top)}</span><span>{compactNumber(top / 2)}</span><span>0</span></div>
-        <div className="ui-crp-reach__scroll scroll-fade-x">
+        {/* Only the bars scroll, the axis and the switch staying put; focusable, so a keyboard can scroll them too */}
+        <div className="ui-crp-reach__scroll scroll-fade-x" tabIndex={0} role="group" aria-label={`Bars, one per ${unit}`}>
           <ol className="ui-crp-reach__bars" style={{ ["--count" as string]: reach.length }} onPointerLeave={() => setHover(null)}>
             {reach.map((item, index) => (
               <li key={item.kata} aria-label={`${unit === "lesson" ? "Lesson" : "Chapter"} ${index + 1}, ${item.kata}: ${value(item)} ${verb}`}
@@ -270,12 +269,21 @@ const css = /* css */ `
 .ui-crp-panel > p { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-body); }
 
 /* Reaching each lesson: a bar per lesson on its own rounded track, the axis every fifth, scrolling past what fits */
-.ui-crp-reach__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.ui-crp-reach__head p { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-body); font-variant-numeric: tabular-nums; }
+/* The title and the line under it, the switch beside both; the switch keeps its width (a narrow panel wraps the title
+   instead) and the line stays one line, so pointing at a bar doesn't move the chart. On a phone the line takes the
+   panel's width, under the switch too */
+.ui-crp-reach__head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px 16px; }
+.ui-crp-reach__head > [role="tablist"], .ui-crp-reach__head > .ui-seg { grid-row: 1 / span 2; grid-column: 2; }
+.ui-crp-reach__head p { grid-column: 1; margin: 0; overflow: hidden; color: var(--muted); font-size: var(--fs-body); font-variant-numeric: tabular-nums; white-space: nowrap; text-overflow: ellipsis; }
+@container ui-web (max-width: 560px) {
+  .ui-crp-reach__head > [role="tablist"], .ui-crp-reach__head > .ui-seg { grid-row: 1; }
+  .ui-crp-reach__head p { grid-column: 1 / -1; }
+}
 .ui-crp-reach__chart { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; margin-top: 20px; }
 .ui-crp-reach__y { display: flex; flex-direction: column; justify-content: space-between; height: 160px; color: var(--muted); font-size: var(--fs-caption); font-variant-numeric: tabular-nums; text-align: right; }
 .ui-crp-reach__y span { line-height: 1; }
-.ui-crp-reach__scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.ui-crp-reach__scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; border-radius: 6px; }
+.ui-crp-reach__scroll:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .ui-crp-reach__bars { display: grid; grid-template-columns: repeat(var(--count), minmax(12px, 1fr)); gap: 5px; min-width: calc(var(--count) * 17px); margin: 0; padding: 0; list-style: none; }
 .ui-crp-reach__bars li { display: grid; grid-template-rows: 160px auto; gap: 8px; }
 .ui-crp-reach__track { position: relative; display: block; overflow: hidden; border-radius: 6px; corner-shape: round; background: var(--chip); transition: background-color var(--motion-fast) var(--ease-standard); }
