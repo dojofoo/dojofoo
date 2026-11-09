@@ -45,21 +45,21 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1",
-    "@storybook/addon-a11y": "10.6.3",
-    "@storybook/react-vite": "10.6.3",
-    "@types/node": "^26.6.5",
+    "@playwright/test": "^1.65.0",
+    "@storybook/addon-a11y": "10.6.6",
+    "@storybook/react-vite": "10.6.6",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.187.0",
-    "@vitejs/plugin-react": "^6.1.2",
-    "msw": "^3.0.3",
+    "@vitejs/plugin-react": "^6.2.1",
+    "msw": "^3.0.4",
     "msw-storybook-addon": "^3.0.3",
     "nitro": "3.0.260903-beta",
-    "storybook": "10.6.3",
+    "storybook": "10.6.6",
     "tm-grammars": "1.32.22",
     "typescript": "6.0.3",
-    "vite": "^8.3.4"
+    "vite": "^8.3.6"
   },
   "dependencies": {
     "@a2a-js/sdk": "0.3.14",
