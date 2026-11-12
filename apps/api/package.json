@@ -12,11 +12,11 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@elysiajs/openapi": "1.4.16",
+    "@elysiajs/openapi": "1.4.17",
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
-    "elysia": "^1.4.30",
-    "exact-mirror": "0.2.7",
+    "elysia": "^1.4.31",
+    "exact-mirror": "1.2.7",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
