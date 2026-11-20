@@ -41,11 +41,11 @@
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "@xmldom/xmldom": "^0.9.12",
-    "dependency-cruiser": "18.7.2",
+    "dependency-cruiser": "18.8.0",
     "husky": "^9.1.7",
-    "turbo": "^2.11.9",
+    "turbo": "^2.11.11",
     "typescript": "6.0.3",
-    "vitest": "^5.0.5",
+    "vitest": "^5.1.0",
     "youch": "^4.1.1"
   }
 }
