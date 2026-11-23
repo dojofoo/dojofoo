@@ -54,8 +54,8 @@
     "@dojofoo/config": "workspace:*",
     "giget": "^3.3.1",
     "jiti": "^2.7.0",
-    "just-bash": "3.6.0",
-    "portless": "0.15.12",
+    "just-bash": "3.6.1",
+    "portless": "0.18.1",
     "typescript": "6.0.3",
     "yaml": "^2.9.1",
     "zod": "^4.4.3"
