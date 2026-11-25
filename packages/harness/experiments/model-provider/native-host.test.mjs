@@ -50,11 +50,11 @@ test("Eve HTTP host restores a real OpenCode question after host restart", { tim
           });
           return { model: experimental_createHarnessModel({
             sandbox,
-            model: "openai/gpt-4o", sandboxConfig: { workDir: "course" },
+            model: "openai/fixture-first", sandboxConfig: { workDir: "course" },
             harness: createOpenCode({
-              auth: { OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: ${JSON.stringify(endpoint.baseURL)} },
+              auth: { AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: ${JSON.stringify(endpoint.baseURL)} },
               provider: "openai", port: 0, startupTimeoutMs: 30000,
-              openCodeConfig: { small_model: "openai/gpt-4o", enabled_providers: ["openai"] },
+              openCodeConfig: { small_model: "openai/fixture-first", enabled_providers: ["openai"] },
             }),
           }, { mode: "full" }).model, modelContextWindowTokens: 32000 };
         }),

@@ -30,6 +30,12 @@ Keep these compatibility boundaries:
   for Slidev's `@comark/markdown-it` peer range. Exact Mirror 0.2.9 satisfies
   Elysia's `>=0.2.9 <1` peer range.
 
+The CLI bundles the patched native adapters, whose exact `ws@8.21.0` dependency
+must match the agents package during assembly. Keep that version until the
+adapters move together. The package assembly captures up to 64 MiB of pnpm
+listing output, matching the existing packed-install verifier. OpenCode loopback
+checks register mock model IDs rather than relying on its public model catalog.
+
 Security overrides update the vulnerable transitive versions of gRPC,
 image-size, Undici, DOMPurify, KaTeX, MCP server, glob, minimatch and
 fast-xml-parser. Undici is scoped to its importing packages so OpenAI's broader

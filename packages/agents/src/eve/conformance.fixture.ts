@@ -43,6 +43,8 @@ type Auth = Record<string, string>;
 const authoring = fileURLToPath(new URL("../..", import.meta.url));
 const gatewayBase = (endpoint: LoopbackEndpoint) => endpoint.baseURL.replace(/\/v1$/u, "");
 const openai = (endpoint: LoopbackEndpoint): Auth => ({ OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL });
+// Explicit mock model IDs keep OpenCode independent of its changing public catalog.
+const opencodeAuth = (endpoint: LoopbackEndpoint): Auth => ({ AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: endpoint.baseURL });
 
 /** Grok searches for a deferred tool, then calls it through use_tool (as runtime-turn.test.ts). */
 function grokSelect({ name, input }: ToolRequest) {
@@ -136,19 +138,19 @@ export const wiring: Record<TierAAgent, AgentWiring> = {
     askedOnce: requestedTools => requestedTools.filter(name => name === "use_tool").length === 1,
   },
   opencode: {
-    adapter: endpoint => createOpenCode({ port: 0, auth: openai(endpoint), provider: "openai",
-      openCodeConfig: { small_model: "openai/gpt-4o", enabled_providers: ["openai"] } }),
-    readOnly: (endpoint, settings) => createOpenCode({ port: 0, ...settings, auth: openai(endpoint), provider: "openai",
-      openCodeConfig: { small_model: "openai/gpt-4o", enabled_providers: ["openai"] } }),
-    auth: openai,
+    adapter: endpoint => createOpenCode({ port: 0, auth: opencodeAuth(endpoint), provider: "openai",
+      openCodeConfig: { small_model: "openai/fixture-first", enabled_providers: ["openai"] } }),
+    readOnly: (endpoint, settings) => createOpenCode({ port: 0, ...settings, auth: opencodeAuth(endpoint), provider: "openai",
+      openCodeConfig: { small_model: "openai/fixture-first", enabled_providers: ["openai"] } }),
+    auth: opencodeAuth,
     environment: home => ({ XDG_CONFIG_HOME: join(home, ".config"), XDG_DATA_HOME: join(home, ".local/share"), XDG_CACHE_HOME: join(home, ".cache") }),
     prepareHome: async home => {
       for (const directory of [".config", ".local/share", ".cache"]) await mkdir(join(home, directory), { recursive: true });
     },
     loopback: toolRequest => (toolRequest ? { toolRequest } : {}),
-    firstModel: "openai/gpt-4o", firstWire: /^gpt-4o$/u,
-    secondModel: { selection: "openai/gpt-4.1", wire: /^gpt-4\.1$/u },
-    hostModel: "openai/gpt-4o",
+    firstModel: "openai/fixture-first", firstWire: /^fixture-first$/u,
+    secondModel: { selection: "openai/fixture-second", wire: /^fixture-second$/u },
+    hostModel: "openai/fixture-first",
     outOfProcess: true,
     compaction: "native",
     askedOnce: requestedTools => requestedTools.length === 1,
