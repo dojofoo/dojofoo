@@ -1011,8 +1011,8 @@ importers:
         specifier: ^4.3.5
         version: 4.3.5
       tm-grammars:
-        specifier: 1.32.22
-        version: 1.32.22
+        specifier: 1.31.15
+        version: 1.31.15
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -9444,6 +9444,9 @@ packages:
   tldts@7.5.5:
     resolution: {integrity: sha512-Hy6IImaWALzJOgCIss4gIFi4G0M9lqk95pFKCUVxQPZw+biZ1Pv6f28JpYgahpJB+BufA0HYsIU/aP/WIx3KRg==}
     hasBin: true
+
+  tm-grammars@1.31.15:
+    resolution: {integrity: sha512-B0DZ06cAD3J/bW4TVDmrl/mYqCwuH9C/cf7IHiLcLkfktmjSf3t1faENrL4Im5/umH+SxTi6z9F/36mzXdf6pw==}
 
   tm-grammars@1.32.22:
     resolution: {integrity: sha512-VKWL+UiqlGqbGHonRbrBc0kkqDIHUUiVO/A2rBTBz5LBXKA8Fe2f34O1YiBI7ED37tTUlT3MGmLf9+0F/H4/Ww==}
@@ -20019,6 +20022,8 @@ snapshots:
   tldts@7.5.5:
     dependencies:
       tldts-core: 7.5.5
+
+  tm-grammars@1.31.15: {}
 
   tm-grammars@1.32.22: {}
 

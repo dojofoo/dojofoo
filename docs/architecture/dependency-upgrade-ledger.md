@@ -30,6 +30,10 @@ Keep these compatibility boundaries:
   for Slidev's `@comark/markdown-it` peer range. Exact Mirror 0.2.9 satisfies
   Elysia's `>=0.2.9 <1` peer range.
 
+Modern-monaco 0.4.2 requests `tm-grammars@1.31.15` by versioned URL. Keep the
+asset builder on that exact grammar version; 1.32.22 creates different URLs and
+causes local grammar 404s when opening the editor.
+
 The CLI bundles the patched native adapters, whose exact `ws@8.21.0` dependency
 must match the agents package during assembly. Keep that version until the
 adapters move together. The package assembly captures up to 64 MiB of pnpm
