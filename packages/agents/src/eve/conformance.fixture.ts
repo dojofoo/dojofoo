@@ -146,6 +146,13 @@ export const wiring: Record<TierAAgent, AgentWiring> = {
     environment: home => ({ XDG_CONFIG_HOME: join(home, ".config"), XDG_DATA_HOME: join(home, ".local/share"), XDG_CACHE_HOME: join(home, ".cache") }),
     prepareHome: async home => {
       for (const directory of [".config", ".local/share", ".cache"]) await mkdir(join(home, directory), { recursive: true });
+      await mkdir(join(home, ".config/opencode"), { recursive: true });
+      await writeFile(join(home, ".config/opencode/opencode.json"), JSON.stringify({
+        provider: { openai: { models: {
+          "fixture-first": { name: "Fixture first" },
+          "fixture-second": { name: "Fixture second" },
+        } } },
+      }));
     },
     loopback: toolRequest => (toolRequest ? { toolRequest } : {}),
     firstModel: "openai/fixture-first", firstWire: /^fixture-first$/u,
