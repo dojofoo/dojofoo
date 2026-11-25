@@ -44,10 +44,10 @@ const cli = join(repo, "packages/cli/dist/index.js");
 // Model discovery runs `$OPENCODE_BIN models`; a fixed catalog keeps the composer's menu the same on every machine (as test:interactive)
 const discovery = join(scratch, "bin/opencode");
 await mkdir(join(scratch, "bin"), { recursive: true });
-await writeFile(discovery, '#!/bin/sh\n[ "$1" = models ] && printf "openai/gpt-4o\\nopenai/gpt-4o-mini\\n" && exit 0\nexit 1\n', { mode: 0o755 });
+await writeFile(discovery, '#!/bin/sh\n[ "$1" = models ] && printf "openai/fixture-first\\nopenai/fixture-second\\n" && exit 0\nexit 1\n', { mode: 0o755 });
 const environment = { ...process.env, DOJOFOO_HOME: stateHome, DO_NOT_TRACK: "1", OPENCODE_BIN: discovery,
   XDG_CONFIG_HOME: join(scratch, "config"), XDG_DATA_HOME: join(scratch, "data"), XDG_CACHE_HOME: join(scratch, "cache"),
-  OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "", NODE_PATH: undefined, CI: "", TEST: "" };
+  OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: endpoint.baseURL, VERCEL_OIDC_TOKEN: "", NODE_PATH: undefined, CI: "", TEST: "" };
 delete environment.OPENCODE_CONFIG_CONTENT;
 let server;
 let output = "";
@@ -81,7 +81,7 @@ try {
   execFileSync(process.execPath, [cli, "add", source], { cwd: workspace, env: environment, stdio: "pipe", timeout: 30_000 });
   // The workspace's coding agent and its last model, as the composer's menus save them
   await mkdir(join(workspace, ".dojo"), { recursive: true });
-  await writeFile(join(workspace, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode", models: { opencode: "openai/gpt-4o" } }));
+  await writeFile(join(workspace, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode", models: { opencode: "openai/fixture-first" } }));
   observeLocalContext(workspace, { stateHome });
   const reservation = createServer();
   reservation.listen(0, "127.0.0.1");
@@ -162,7 +162,7 @@ try {
   failureEvents = () => snapshot(first.id);
   assert.equal(first.courseId, course);
   assert.equal(first.lessonId, "first");
-  assert.equal(first.model, "openai/gpt-4o");
+  assert.equal(first.model, "openai/fixture-first");
   await expect(chatPane()).toContainText("Ready to teach.", { timeout: 120_000 });
   const begin = carrying("Begin the lesson.");
   assert.ok(begin.length >= 1, "the begin turn reached no main-loop request");
@@ -217,10 +217,10 @@ try {
   await expect.poll(() => status("first", first.id), { timeout: 60_000 }).toBe("idle");
   await page.getByTestId("authoring-chat-composer").getByRole("button", { name: /^Model:/ }).click();
   const patched = page.waitForResponse(response => response.request().method() === "PATCH" && new URL(response.url()).pathname.endsWith(`/sessions/${first.id}`));
-  await page.getByRole("option", { name: "openai/gpt-4o-mini", exact: true }).click();
+  await page.getByRole("option", { name: "openai/fixture-second", exact: true }).click();
   assert.equal((await patched).status(), 200);
   await expect.poll(async () => (await records("first"))[0]?.revision).toBe(1);
-  assert.equal(JSON.parse(await readFile(join(workspace, ".dojo/runtimes.json"), "utf8")).models.opencode, "openai/gpt-4o-mini");
+  assert.equal(JSON.parse(await readFile(join(workspace, ".dojo/runtimes.json"), "utf8")).models.opencode, "openai/fixture-second");
   const cancelQuestion = "Hold this response until I stop it";
   const stopped = endpoint.holdNextResponse(request => JSON.stringify(request.input ?? []).includes(cancelQuestion));
   let connectionClosed = false;
@@ -228,7 +228,7 @@ try {
   try {
     await send(cancelQuestion);
     await stopped.started;
-    assert.equal(endpoint.requestedModels.at(-1), "gpt-4o-mini", "the next request must use the selected model");
+    assert.equal(endpoint.requestedModels.at(-1), "fixture-second", "the next request must use the selected model");
     await page.getByRole("button", { name: "Stop", exact: true }).click();
     await expect.poll(() => connectionClosed, { timeout: 15_000 }).toBe(true);
   } finally { stopped.release(); }

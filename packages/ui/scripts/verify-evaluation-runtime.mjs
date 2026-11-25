@@ -87,10 +87,10 @@ const cli = join(repo, "packages/cli/dist/index.js");
 // Model discovery runs `$OPENCODE_BIN models`; a fixed catalog keeps it the same on every machine (as test:lesson)
 const discovery = join(scratch, "bin/opencode");
 await mkdir(join(scratch, "bin"), { recursive: true });
-await writeFile(discovery, '#!/bin/sh\n[ "$1" = models ] && printf "openai/gpt-4o\\nopenai/gpt-4o-mini\\n" && exit 0\nexit 1\n', { mode: 0o755 });
+await writeFile(discovery, '#!/bin/sh\n[ "$1" = models ] && printf "openai/fixture-first\\nopenai/fixture-second\\n" && exit 0\nexit 1\n', { mode: 0o755 });
 const environment = { ...process.env, DOJOFOO_HOME: stateHome, DO_NOT_TRACK: "1", OPENCODE_BIN: discovery, DOJOFOO_EVAL_TURN_INTERVAL_MS: "0",
   XDG_CONFIG_HOME: join(scratch, "config"), XDG_DATA_HOME: join(scratch, "data"), XDG_CACHE_HOME: join(scratch, "cache"),
-  OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "", NODE_PATH: undefined, CI: "", TEST: "" };
+  OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: endpoint.baseURL, VERCEL_OIDC_TOKEN: "", NODE_PATH: undefined, CI: "", TEST: "" };
 delete environment.OPENCODE_CONFIG_CONTENT;
 let server;
 let output = "";
@@ -118,7 +118,7 @@ try {
   await writeFile(join(draft, "src", lesson, "kata.ts"), 'export function sum(values: number[]): number {\n  throw new Error("Add the values");\n}\n');
   await writeFile(join(draft, "src", lesson, "kata.test.ts"), 'import { sum } from "./kata";\ntest("adds the values", () => expect(sum([1, 2, 3])).toBe(6));\ntest("an empty list sums to zero", () => expect(sum([])).toBe(0));\n');
   await mkdir(join(draft, ".dojo"), { recursive: true });
-  await writeFile(join(draft, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode", models: { opencode: "openai/gpt-4o" } }));
+  await writeFile(join(draft, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode", models: { opencode: "openai/fixture-first" } }));
   await writeFile(join(draft, ".dojo/evaluation-settings.json"), JSON.stringify({ enabled: true }));
   const draftId = observeWorkspacePath(draft, { stateHome, kind: "draft" });
   const reservation = createServer();
