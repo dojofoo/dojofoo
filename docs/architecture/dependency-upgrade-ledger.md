@@ -43,6 +43,14 @@ optional peer range is preserved. `pnpm audit` reports no known vulnerabilities;
 this is the workspace dependency audit, not certification of native login or
 live model behavior.
 
+The clean npm-installed CLI still reports eight transitive advisories (seven
+moderate, one high). Root pnpm overrides do not follow a package into an npm
+consumer. The separate public runtime dependency graph identifies the retained
+Pi dependency, minimatch and guarded-fetch/Undici under just-bash; eliminating
+that exposure requires updating the coupled runtime or changing how its
+transitive dependencies are packaged. Do not describe the published CLI as
+having a clean audit on the strength of the workspace audit.
+
 ## Eve 0.81.1 audit — 2026-10-24
 
 The merged dependency update changed `eve` from 0.80.1 to 0.81.1 without
