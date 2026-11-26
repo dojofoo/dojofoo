@@ -43,6 +43,15 @@ async function current(destination, hash, label) {
   }
 }
 
+// The trace copies the Claude Agent SDK's native binary for the building machine (~220 MB a server, the build's platform
+// only). Nothing runs it: model discovery passes the installed CLI as pathToClaudeCodeExecutable, and the Claude Code
+// adapter's bridge installs its own. Kept, two servers put the dojofoo tarball over npm's publish limit (E413).
+async function prune(destination) {
+  const scope = join(destination, "server/node_modules/@anthropic-ai");
+  const entries = await readdir(scope).catch(error => error.code === "ENOENT" ? [] : Promise.reject(error));
+  for (const name of entries.filter(name => name.startsWith("claude-agent-sdk-"))) await rm(join(scope, name), { recursive: true, force: true });
+}
+
 async function build({ persona, source, destination, hash, label }) {
   const scratch = await mkdtemp(join(tmpdir(), "dojo-agent-package-"));
   const isolated = join(scratch, "application");
@@ -74,6 +83,7 @@ try {
   if (await agentSourceHash(source) !== hash) throw new Error("Agent definitions changed during preparation. Save again to prepare the current version.");
   await rm(destination, { recursive: true, force: true });
   await cp(output, destination, { recursive: true, verbatimSymlinks: true });
+  await prune(destination);
   await writeFile(join(destination, "source.sha256"), hash);
   await writeFile(join(destination, "build.json"), JSON.stringify(label, null, 2) + "\n");
 } finally {
@@ -95,6 +105,7 @@ for (const persona of ["kyoshi", "sensei"]) {
   };
   if (await current(destination, hash, label)) {
     console.info(`${names[persona]} source and release match; reusing the prepared build.`);
+    await prune(destination);
     continue;
   }
   await build({ persona, source, destination, hash, label });
