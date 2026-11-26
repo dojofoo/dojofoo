@@ -2,7 +2,7 @@ import { NavigationLink } from "../components/navigation-link";
 import { followLink } from "../lib/link-event";
 import { useEditorScheme, usePageMode } from "../lib/ui-preferences";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import { Dropdown, Icon, MenuList, Popover, type MenuItem } from "../components/app-shell";
+import { Dropdown, Icon, type MenuItem } from "../components/app-shell";
 import { Markdown } from "../components/markdown";
 import { codeCss } from "../components/code-block";
 import { ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ChatAiIcon, Copy01Icon, File01Icon, LeftToRightListBulletIcon, PencilEdit02Icon, SparklesIcon, Tick02Icon } from "../lib/icons";
@@ -217,7 +217,6 @@ function Tree({ active, children }: { active: string; children: ReactNode }) {
     assistant, or to edit */
 function PageTools({ page }: { page: DocPage }) {
   const [copied, setCopied] = useState(false);
-  const [open, setOpen] = useState(false);
   const markdown = `# ${page.title}\n\n${page.description ? `${page.description}\n\n` : ""}${page.body.trim()}\n`;
   const markdownUrl = page.onSite ? `${SITE}/llms.mdx/docs${page.path}/index.mdx` : `${REPO}/blob/main/${page.source}`;
   const ask = page.onSite ? `Read ${markdownUrl}, I want to ask questions about it.` : `${markdown}\n\nI want to ask questions about this page of the dojofoo docs.`;
@@ -238,12 +237,11 @@ function PageTools({ page }: { page: DocPage }) {
       <button type="button" className="ui-docs-tools__btn" onClick={copy} aria-live="polite">
         <Icon icon={copied ? Tick02Icon : Copy01Icon} size={14} />{copied ? "Copied" : "Copy Markdown"}
       </button>
-      <span className="ui-as-anchor">
-        <button type="button" className="ui-docs-tools__btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+      <Dropdown align="end" items={items} className="ui-docs-tools__open" trigger={({ open, toggle }) => (
+        <button type="button" className="ui-docs-tools__btn" aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
           Open<Icon icon={ArrowDown01Icon} size={13} />
         </button>
-        <Popover open={open} onClose={() => setOpen(false)} align="end"><div className="ui-as-menu ui-docs-tools__menu"><MenuList items={items} onPick={() => setOpen(false)} /></div></Popover>
-      </span>
+      )} />
     </div>
   );
 }
@@ -444,7 +442,7 @@ const css = /* css */ `
 .ui-docs-tools { display: flex; gap: 6px; margin-left: auto; }
 .ui-docs-tools__btn { display: inline-flex; flex: none; align-items: center; gap: 6px; height: 28px; white-space: nowrap; padding: 0 10px; border-radius: calc(8px * var(--squircle-factor, 1)); background: var(--surface-3); box-shadow: var(--shadow-1); color: var(--muted); font-size: var(--fs-body); font-weight: 500; transition: color var(--motion-fast) var(--ease-standard); }
 .ui-docs-tools__btn:hover, .ui-docs-tools__btn[aria-expanded="true"] { color: var(--ink); }
-.ui-docs-tools__menu { min-width: 260px; }
+.ui-docs-tools__open .ui-as-menu { min-width: 260px; }
 
 /* The page's Markdown, set for reading: the app's text, a little larger, code in the editor's font and theme */
 .ui-docs__prose { max-width: 40rem; margin-top: 32px; }
