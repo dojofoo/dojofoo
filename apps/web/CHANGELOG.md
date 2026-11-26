@@ -1,5 +1,17 @@
 # @dojofoo/web
 
+## 0.0.8
+
+### Patch Changes
+
+- 98f2f8a: Show a "Praised and Featured on" section on the landing page after Top courses, with the VibeKing badge. In dark mode the badge drops its box, border and "Featured on" line, and shows VibeKing's logo beside its wordmark, flush with the heading.
+- 318c4d3: Refresh workspace dependencies, upgrade the website and UI frameworks, and use patched transitive dependencies for the known security advisories. Retain the audited Eve runtime and native adapter versions and their compatibility patches.
+- 8435ed5: Send security headers with every page of the website: a starter Content-Security-Policy that stops other sites framing it and blocks plugins and base-URL rewrites, X-Frame-Options for older browsers, and X-Content-Type-Options.
+- Updated dependencies [98f2f8a]
+- Updated dependencies [318c4d3]
+  - @dojofoo/uix@0.2.3
+  - @dojofoo/ui@0.2.3
+
 ## 0.0.7
 
 ### Patch Changes

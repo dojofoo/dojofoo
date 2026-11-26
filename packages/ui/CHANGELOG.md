@@ -1,5 +1,19 @@
 # @dojofoo/ui
 
+## 0.2.3
+
+### Patch Changes
+
+- 318c4d3: Refresh workspace dependencies, upgrade the website and UI frameworks, and use patched transitive dependencies for the known security advisories. Retain the audited Eve runtime and native adapter versions and their compatibility patches.
+- Updated dependencies [98f2f8a]
+- Updated dependencies [318c4d3]
+  - @dojofoo/uix@0.2.3
+  - @dojofoo/agents@0.2.4
+  - @dojofoo/avatar@0.0.2
+  - @dojofoo/config@0.3.5
+  - @dojofoo/harness@0.2.4
+  - @dojofoo/protocol@0.1.4
+
 ## 0.2.2
 
 ### Patch Changes
