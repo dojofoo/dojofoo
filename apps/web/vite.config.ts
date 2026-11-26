@@ -74,6 +74,15 @@ export default defineConfig({
       traceDeps: ['react', '@takumi-rs/core'],
       minify: true,
       routeRules: {
+        // No other site may frame the pages (clickjacking); a starter policy that leaves the inline scripts of the
+        // prerendered pages alone – they would need per-request nonces for a script allowlist
+        '/**': {
+          headers: {
+            'content-security-policy': "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+            'x-frame-options': 'SAMEORIGIN',
+            'x-content-type-options': 'nosniff',
+          },
+        },
         '/assets/**': {
           headers: { 'cache-control': 'public, max-age=31536000, immutable' },
         },
