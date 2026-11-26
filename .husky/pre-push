@@ -1,0 +1,2 @@
+# The fast checks CI runs on a pull request (scripts/check.mjs); turbo skips the build when nothing changed
+pnpm build:check --output-logs=errors-only && pnpm check

@@ -1,0 +1,181 @@
+name: Nightly
+
+# The slow suites that left pull requests (verify.yml runs the fast checks): agent runs, conformance tier A and the
+# browser suites. A scheduled run tests only the packages changed since the last green run, with their dependents; a
+# manual run tests everything.
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      agents: ${{ steps.affected.outputs.agents }}
+      harness: ${{ steps.affected.outputs.harness }}
+      cli: ${{ steps.affected.outputs.cli }}
+      ui: ${{ steps.affected.outputs.ui }}
+      web: ${{ steps.affected.outputs.web }}
+      any: ${{ steps.affected.outputs.any }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - id: affected
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          last=$(gh run list --workflow nightly.yml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha // empty')
+          echo "Last green nightly: ${last:-none}"
+          if [ "$EVENT" = workflow_dispatch ] || [ -z "$last" ] || ! git cat-file -e "$last^{commit}" 2>/dev/null; then
+            names="@dojofoo/agents @dojofoo/harness dojofoo @dojofoo/ui @dojofoo/web"
+          elif ! git diff --quiet "$last" HEAD -- pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json .bun-version .github/workflows/nightly.yml; then
+            # Workspace-wide inputs: every package is affected
+            names="@dojofoo/agents @dojofoo/harness dojofoo @dojofoo/ui @dojofoo/web"
+          else
+            # The changed packages and every package that depends on them; release notes alone change nothing
+            names=$(pnpm --filter "...[$last]" --changed-files-ignore-pattern "**/CHANGELOG.md" --changed-files-ignore-pattern ".changeset/**" ls --depth -1 --json \
+              | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s||'[]').map(p=>p.name).join(' ')))")
+          fi
+          echo "Affected: ${names:-nothing}"
+          any=false
+          for pair in agents:@dojofoo/agents harness:@dojofoo/harness cli:dojofoo ui:@dojofoo/ui web:@dojofoo/web; do
+            case " $names " in *" ${pair#*:} "*) value=true any=true ;; *) value=false ;; esac
+            echo "${pair%%:*}=$value" | tee -a "$GITHUB_OUTPUT"
+          done
+          echo "any=$any" | tee -a "$GITHUB_OUTPUT"
+
+  suites:
+    needs: changes
+    if: needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          install: false
+      - uses: pnpm/action-setup@v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Both prepared personas: cold open and resume, a relocated copy, no compiler, Sensei's tools and hook
+      - run: pnpm --filter @dojofoo/agents test:prepared
+        if: needs.changes.outputs.agents == 'true'
+      - run: pnpm --filter @dojofoo/harness test
+        if: needs.changes.outputs.harness == 'true'
+      # A clean consumer installed from registry.npmjs.org; no coding-agent CLI or login is needed
+      - run: pnpm --filter dojofoo test:package
+        if: needs.changes.outputs.cli == 'true'
+      - run: pnpm --filter @dojofoo/web exec playwright install --with-deps chromium
+        if: needs.changes.outputs.web == 'true' || needs.changes.outputs.ui == 'true' || needs.changes.outputs.cli == 'true'
+      - run: pnpm --filter @dojofoo/web test:e2e
+        if: needs.changes.outputs.web == 'true'
+      - run: pnpm --filter @dojofoo/web test:production
+        if: needs.changes.outputs.web == 'true'
+      - run: pnpm --filter @dojofoo/ui test:library
+        if: needs.changes.outputs.ui == 'true'
+      # The specs answer the API themselves; the built UI only serves the pages. Specs join and leave by
+      # the steps of docs/designs/agent-runtime.md.
+      - name: Verify the UI in the browser
+        if: needs.changes.outputs.cli == 'true'
+        env:
+          DOJOFOO_HOME: ${{ runner.temp }}/dojofoo-home
+          DO_NOT_TRACK: "1"
+          DOJO_SKIP_PREPARE: "1"
+          DOJO_UI_BASE_URL: http://127.0.0.1:4567
+        run: |
+          mkdir -p "$RUNNER_TEMP/dojofoo-ui"
+          (cd "$RUNNER_TEMP/dojofoo-ui" && HOST=127.0.0.1 node "$GITHUB_WORKSPACE/packages/cli/dist/index.js" ui --no-open --no-portless --port 4567 > "$RUNNER_TEMP/dojofoo-ui.log" 2>&1 &)
+          for _ in $(seq 60); do curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" && break; sleep 1; done
+          curl -sf -o /dev/null "$DOJO_UI_BASE_URL/api/health" || { cat "$RUNNER_TEMP/dojofoo-ui.log"; exit 1; }
+          pnpm --filter @dojofoo/ui exec playwright test agent-chat.spec.ts eve-authoring.spec.ts learner-pages.spec.ts workspace-loading.spec.ts agent-selector.spec.ts learner-agent-picker.spec.ts page-addressing.spec.ts history-menu.spec.ts workspace-account-settings.spec.ts appearance-mode.spec.ts agent-sign-in.spec.ts
+      - name: Verify kata lessons on Eve with local inference
+        if: needs.changes.outputs.ui == 'true'
+        run: pnpm --filter @dojofoo/ui test:lesson
+      - name: Verify interactive courses on Eve with local inference
+        if: needs.changes.outputs.ui == 'true'
+        run: pnpm --filter @dojofoo/ui test:interactive
+      - name: Verify course evaluation in the UI server with local inference
+        if: needs.changes.outputs.ui == 'true'
+        run: pnpm --filter @dojofoo/ui test:evaluation
+      - name: Preserve failed browser traces
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-failure
+          path: |
+            apps/web/test-results
+            packages/ui/test-results
+            /tmp/dojo-lesson-runtime-evidence-*
+            /tmp/dojo-interactive-runtime-evidence-*
+            /tmp/dojo-evaluation-runtime-evidence-*
+          if-no-files-found: ignore
+          retention-days: 3
+
+  conformance:
+    needs: changes
+    if: needs.changes.outputs.agents == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+    env:
+      DO_NOT_TRACK: "1"
+      DOJO_HARNESS_LIFECYCLE: "1"
+      DOJO_CONFORMANCE_COMMIT: ${{ github.sha }}
+    steps:
+      # A job's env cannot read the runner context, so the runner-temp paths are exported here
+      - run: |
+          echo "DOJO_CONFORMANCE_HOME=$RUNNER_TEMP/conformance-home" >> "$GITHUB_ENV"
+          echo "DOJO_CONFORMANCE_OUT=$RUNNER_TEMP/conformance" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          install: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@dojofoo/agents..." build
+      # Tier A against the loopback model (docs/designs/agent-runtime.md, "Conformance tiers"). Each adapter installs
+      # its own pinned CLI into DOJO_CONFORMANCE_HOME; FX and Pi run in-process. No login and no secret.
+      - run: pnpm --filter @dojofoo/agents conformance:install
+      - run: pnpm --filter @dojofoo/agents conformance:run
+      # Fails only for agents whose committed record passes, and when the record is not append-only.
+      - run: pnpm --filter @dojofoo/agents conformance:compare
+      - name: Keep the conformance report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: conformance
+          path: ${{ runner.temp }}/conformance
+          if-no-files-found: ignore
+          retention-days: 7
