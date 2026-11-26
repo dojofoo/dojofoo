@@ -1,7 +1,7 @@
 import type { CourseAudit, WebCourse } from "../../web/catalog";
 
 /** Deterministic preview data; never a production marketplace source. */
-type Seed = Omit<WebCourse, "slug" | "source" | "repositoryUrl" | "installUrl" | "metrics" | "kataCount" | "stars" | "firstSeen" | "audits"> & { chapters: string[]; installs: number; finishRate: number; stars: number; firstSeen: string; risk?: "low" | "medium" };
+type Seed = Omit<WebCourse, "slug" | "source" | "repositoryUrl" | "installUrl" | "metrics" | "kataCount" | "stars" | "firstSeen" | "audits" | "chapters"> & { chapters: string[]; lessonsPerChapter?: [number, number]; installs: number; finishRate: number; stars: number; firstSeen: string; risk?: "low" | "medium" };
 
 const seeds: Seed[] = [
   { id: "effect-ts", stars: 1840, firstSeen: "2026-03-02", shader: "opal", name: "Effect-TS", description: "Master Effect-TS through hands-on katas, from Effect.succeed to managed runtimes.", version: "1.3.0", publishedAt: "2026-09-18", repository: "dojofoo/effect-ts", author: "Dojo.foo", language: "TypeScript", framework: "Effect", tags: ["effect", "functional", "concurrency"], mode: "katas", trendingRank: 1, rating: 4.9, hours: 14, art: { hue: 270, glyph: "FX" }, installs: 4820, finishRate: 0.31,
@@ -47,23 +47,34 @@ function auditsOf(seed: Seed): CourseAudit[] {
   ];
 }
 
-function build({ installs, finishRate, risk: _risk, ...seed }: Seed): WebCourse {
+/** What a chapter's lessons are about, in turn */
+const parts = ["First steps", "In practice", "Edge cases", "Refactoring", "Under the hood", "Review", "Challenge", "Patterns", "Pitfalls", "Recap", "Going further", "Project", "Bonus"];
+
+function build({ installs, finishRate, risk: _risk, lessonsPerChapter: [fewest, most] = [3, 6], ...seed }: Seed): WebCourse {
   const next = random(seed.id);
   const [source, slug] = seed.repository.split("/");
   const started = Math.round(installs * (0.62 + next() * 0.12));
   const finished = Math.round(started * finishRate);
-  // Each chapter keeps most of those who reached the one before, falling evenly (give or take) to the last one's
-  // readers – whoever finished the course finished its last chapter, so a few more than them reached it
-  const count = seed.chapters.length;
+  // Each chapter a few lessons; each lesson keeps most of those who reached the one before, falling evenly (give or
+  // take) to the last one's readers – whoever finished the course finished its last lesson, so a few more reached it
+  const sizes = seed.chapters.map(() => fewest + Math.floor(next() * (most - fewest + 1)));
+  const lessons = seed.chapters.flatMap((chapter, index) => Array.from({ length: sizes[index]! }, (_, at) => `${chapter}: ${parts[at % parts.length]}`));
+  const count = lessons.length;
   const lastReached = Math.round(finished * 1.12);
   const step = count > 1 ? (lastReached / started) ** (1 / (count - 1)) : 1;
   let reached = started;
-  const kataProgress = seed.chapters.map((kata, index) => {
+  const kataProgress = lessons.map((kata, index) => {
     const last = index === count - 1;
     if (last) reached = lastReached;
     else if (index > 0) reached = Math.max(Math.round(reached * step * (0.97 + next() * 0.06)), lastReached);
     const done = last ? finished : Math.round(reached * (0.78 + next() * 0.12));
     return { kata, started: reached, finished: done, active: reached - done };
+  });
+  // A chapter: those who reached its first lesson, and, of them, a few less than finished its least finished one
+  let at = 0;
+  const chapters = seed.chapters.map((title, index) => {
+    const own = kataProgress.slice(at, (at += sizes[index]!));
+    return { title, lessons: own.length, started: own[0]!.started, finished: Math.round(Math.min(...own.map((item) => item.finished)) * (0.9 + next() * 0.06)) };
   });
   // Twelve weeks up to the course's last update, rising toward it
   const end = new Date("2026-10-19T00:00:00Z");
@@ -75,11 +86,12 @@ function build({ installs, finishRate, risk: _risk, ...seed }: Seed): WebCourse 
   });
   return {
     ...seed,
+    chapters,
     slug,
     source,
     repositoryUrl: `https://github.com/${seed.repository}`,
     installUrl: seed.repository,
-    kataCount: seed.chapters.length * 4 + Math.round(next() * 6),
+    kataCount: count,
     audits: auditsOf({ installs, finishRate, risk: _risk, ...seed }),
     metrics: { installs, started, progressing: started - finished, finished, completionRate: Math.round((finished / started) * 1000) / 10, kataProgress, weeklyActivity },
   };
@@ -87,15 +99,15 @@ function build({ installs, finishRate, risk: _risk, ...seed }: Seed): WebCourse 
 
 export const catalog: WebCourse[] = seeds.map(build);
 
-/** Long courses for stress-testing the course page's chart, kept out of the catalog: many chapters, and many lessons
-    with no chapters (the chart counts lessons then) */
-const long = (id: string, name: string, count: number): Seed => ({ ...seeds[0]!, id, name, repository: `dojofoo/${id}`,
-  installs: 18400, chapters: Array.from({ length: count }, (_, index) => `${topics[index % topics.length]}${index < topics.length ? "" : ` ${Math.floor(index / topics.length) + 1}`}`) });
+/** Courses for stress-testing the course page's chart, kept out of the catalog: many lessons in chapters, and
+    lessons with no chapters, as the marketplace's courses are today */
 const topics = ["Foundations", "Errors and recovery", "Modelling the domain", "Services, layers and dependency injection", "Schema", "Concurrency",
-  "Resources", "Streams and backpressure", "Observability", "HTTP clients", "Testing effects", "Capstone"];
+  "Resources", "Streams and backpressure", "Observability", "HTTP clients", "Testing effects", "Scheduling", "Configuration", "Capstone"];
+const long = (id: string, name: string, chapters: number, lessonsPerChapter: [number, number]): Seed => ({ ...seeds[0]!, id, name, repository: `dojofoo/${id}`,
+  installs: 18400, chapters: topics.slice(0, chapters), lessonsPerChapter });
 export const longCourses: WebCourse[] = [
-  build(long("many-chapters", "Many chapters", 48)),
-  { ...build(long("many-lessons", "Many lessons", 160)), chapters: undefined },
+  build(long("many-lessons", "Many lessons", 14, [9, 14])),
+  { ...build(long("no-chapters", "No chapters", 10, [4, 4])), chapters: undefined },
 ];
 
 export const courseById = (id: string) => [...catalog, ...longCourses].find((course) => course.id === id) ?? catalog[0];
