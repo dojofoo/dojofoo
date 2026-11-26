@@ -21,6 +21,12 @@ import { SiteQuestions } from "./questions";
 /** The command that starts dojo: the lesson workspace in the browser – agents and courses are installed from there */
 const START = "npx dojofoo";
 
+/** VibeKing's badge snippet, verbatim */
+const VIBEKING_BADGE = `<a href="https://vibeking.fun/product/dojo-foo" target="_blank" rel="noopener"><img src="https://vibeking.fun/badge/5443.svg" alt="Featured on VibeKing" width="250" height="60"></a>`;
+
+/** VibeKing's logo without its text, verbatim from their site */
+const VIBEKING_LOGO = `<svg viewBox="0 0 100 100" width="24" height="24" fill="none" aria-hidden="true"><path d="M20 25 L50 55 L80 25" stroke="url(#vkcGa)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"></path><path d="M20 50 L50 80 L80 50" stroke="url(#vkcGb)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"></path><defs><linearGradient id="vkcGa" x1="20" y1="25" x2="80" y2="55" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#10B981"></stop><stop offset="100%" stop-color="#059669"></stop></linearGradient><linearGradient id="vkcGb" x1="20" y1="50" x2="80" y2="80" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#34D399"></stop><stop offset="100%" stop-color="#6EE7B7"></stop></linearGradient></defs></svg>`;
+
 const CourseTile = lazy(() => import("./course-tile").then(module => ({ default: module.CourseTile })));
 
 /** The three ways to use a dojo – interview first. */
@@ -112,6 +118,19 @@ export function LandingPage({ learning, courses, preview, backdrop, artwork = fa
           {top.length > 0 ? <div className="mt-7 grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-x-4 gap-y-5">
             <Suspense>{top.map((course) => <CourseTile key={course.id} course={course} href={links.courseHref(course)} onOpen={links.openCourse} shader />)}</Suspense>
           </div> : <p className="mt-2.5 max-w-[36rem] text-[14.5px] leading-[1.6] text-pretty text-(--muted) max-[721px]:m-0 max-[721px]:max-w-none max-[721px]:pt-10 max-[721px]:pb-4 max-[721px]:text-center">No courses are available yet.</p>}
+        </section>
+
+        <section className="py-16 max-[721px]:py-11 [&+section]:[background:var(--ui-web-rule)_left_top/var(--ui-web-rule-size)_repeat-x]" aria-labelledby="ui-land-featuring">
+          <p className="m-0 text-[length:var(--fs-caption)] font-semibold tracking-[0.05em] text-(--muted) uppercase">Praised and</p>
+          <h2 id="ui-land-featuring" className="mt-2 text-[26px] leading-[1.2] font-semibold tracking-[-0.02em]">Featured on</h2>
+          {/* The badge snippet as provided, untouched: the wrapper clips the SVG's outline stroke and top highlight and, in dark mode,
+              pushes its near-black box to black and blends it into the page (lighten keeps whichever is lighter). Its square icon is
+              clipped off too, with its "Featured on" line, and VibeKing's bare logo laid beside the wordmark, centred on it –
+              clicks pass through to the link – flush with the heading */}
+          <div className="relative mt-6 dark:mt-3">
+            <div className="dark:-ml-[25.5px] [&_a]:inline-block [&_img]:block [&_img]:[clip-path:inset(6%_1%_round_12px)] dark:[&_img]:[clip-path:inset(45%_1%_6%_21%_round_12px)] dark:[&_img]:mix-blend-lighten dark:[&_img]:contrast-125" dangerouslySetInnerHTML={{ __html: VIBEKING_BADGE }} />
+            <div className="pointer-events-none absolute top-[18px] -left-[5px] hidden dark:block [&_svg]:size-[34px]" dangerouslySetInnerHTML={{ __html: VIBEKING_LOGO }} />
+          </div>
         </section>
 
         <SiteQuestions className="py-16 max-[721px]:py-11 [&+section]:[background:var(--ui-web-rule)_left_top/var(--ui-web-rule-size)_repeat-x]" intro="What people ask about Dojo.foo, answered from its docs." />
