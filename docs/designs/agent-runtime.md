@@ -292,7 +292,7 @@ One registry row per agent in `protocol` (data) and one adapter factory per agen
 
 ### Conformance tiers (D1, D24)
 
-*   **Tier A** runs on every pull request against the loopback model, for every agent whose CLI can be pointed at it; merging is blocked on it.
+*   **Tier A** runs nightly against the loopback model (`.github/workflows/nightly.yml`), for every agent whose CLI can be pointed at it, when `@dojofoo/agents` or a package it depends on changed since the last green run; a manual run tests every agent. Pull requests run only the fast checks (`pnpm check`).
 *   **Tier B** runs against real models with the user's logins, for agents tier A cannot drive (Cursor today) and as a release check for every offered agent at the release commit, at a recorded CLI version.
 *   In addition to the cases step 3 adds, cases include a model switch (D7), switching away and back to continue an old conversation (D31), switching agents and then opening the page to assert that the new agent got a new session id (D29), an agent switch during a working turn, a host start after an Eve version change with a session left `working` (reconciliation closes its window), and, for agents without user-config isolation, a write attempt through a write-capable MCP server in the user's own config.
 *   Tier B also opens N lessons in quick succession and records the native process count and token use, to show that leaving cancels begin turns that are still working.

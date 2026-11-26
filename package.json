@@ -9,6 +9,8 @@
     "prepare": "husky",
     "assets:logo": "node scripts/assets/build-logo.mjs",
     "build": "turbo build",
+    "build:check": "turbo build --filter=!@dojofoo/web",
+    "check": "node scripts/check.mjs",
     "ui": "pnpm --filter dojofoo exec node dist/index.js ui",
     "ui:build": "pnpm --filter dojofoo build",
     "containers:prune": "node scripts/vercel/prune-container-images.mjs",
