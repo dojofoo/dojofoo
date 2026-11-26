@@ -13,9 +13,9 @@ export async function createRuntime(root, baseURL) {
   } });
   return { sandboxSession, runtime: {
     sandboxConfig: { workDir: "course" },
-    model: "openai/gpt-4o", harness: createOpenCode({
-      auth: { OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: baseURL },
-      openCodeConfig: { small_model: "openai/gpt-4o", enabled_providers: ["openai"] },
+    model: "openai/fixture-first", harness: createOpenCode({
+      auth: { AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: baseURL },
+      openCodeConfig: { small_model: "openai/fixture-first", enabled_providers: ["openai"] },
       provider: "openai", port: 0, startupTimeoutMs: 30000,
     }),
   } };

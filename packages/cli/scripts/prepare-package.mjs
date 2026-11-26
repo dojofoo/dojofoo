@@ -42,7 +42,7 @@ try {
       dependencies[name] = version;
     }
     const packed = JSON.parse(execFileSync("pnpm", ["pack", "--json", "--pack-destination", scratch], {
-      cwd: directory, encoding: "utf8",
+      cwd: directory, encoding: "utf8", maxBuffer: 64 * 1024 * 1024,
     }));
     const target = resolve(destination, "node_modules", pkg.name);
     mkdirSync(target, { recursive: true });

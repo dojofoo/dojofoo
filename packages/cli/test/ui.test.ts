@@ -119,7 +119,7 @@ describe("bundled dojo UI", () => {
 
   it("runs its ESM-only Portless dependency without a global executable", () => {
     const version = execFileSync(process.execPath, [resolvePortlessEntry(), "--version"], { encoding: "utf8" });
-    expect(version.trim()).toBe("0.15.12");
+    expect(version.trim()).toBe("0.18.1");
   });
   it("opens the installed master from its course directory or the workspace selection", () => {
     const workspace = mkdtempSync(join(tmpdir(), "dojo-authoring-root-"));

@@ -10,7 +10,7 @@ const source = fileURLToPath(new URL("../../", import.meta.url));
 try {
   const manifest = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
   const [packed] = JSON.parse(execFileSync("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", root], {
-    cwd: source, encoding: "utf8",
+    cwd: source, encoding: "utf8", maxBuffer: 64 * 1024 * 1024,
   }));
   assert.ok(packed.files.some(file => file.path === "dist/eve/NOTICE"));
   assert.ok(packed.files.some(file => file.path === "dist/eve/bin/eve.js"));

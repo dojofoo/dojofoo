@@ -57,8 +57,8 @@ it.each(process.env.DOJO_HARNESS_LIFECYCLE === "1" ? selections : selections.sli
     const config = join(home, "config", "opencode");
     await mkdir(config, { recursive: true });
     await writeFile(join(config, "opencode.json"), JSON.stringify({
-      model: "openai/gpt-4o",
-      small_model: "openai/gpt-4o",
+      model: "openai/fixture-first",
+      small_model: "openai/fixture-first",
       enabled_providers: ["openai"],
       provider: { openai: { options: { baseURL: endpoint.baseURL, apiKey: "fixture-only" } } },
     }));
@@ -79,7 +79,10 @@ it.each(process.env.DOJO_HARNESS_LIFECYCLE === "1" ? selections : selections.sli
   vi.stubEnv("GROK_XAI_API_BASE_URL", endpoint.baseURL);
   vi.stubEnv("GROK_MODELS_BASE_URL", endpoint.baseURL);
   vi.stubEnv("GROK_HOME", join(home, ".grok"));
-  vi.stubEnv("AI_GATEWAY_API_KEY", selection === "fx" ? "fixture-only" : "");
+  // The OpenCode gateway adapter registers the loopback model instead of relying on the live catalog.
+  const gateway = selection === "fx" || selection === "runtime" || selection === "native";
+  vi.stubEnv("AI_GATEWAY_API_KEY", gateway ? "fixture-only" : "");
+  if (selection === "runtime" || selection === "native") vi.stubEnv("AI_GATEWAY_BASE_URL", endpoint.baseURL);
   if (selection === "fx") {
     const base = endpoint.baseURL.replace(/\/v1$/, "");
     vi.stubEnv("AI_GATEWAY_BASE_URL", base);
@@ -96,10 +99,10 @@ it.each(process.env.DOJO_HARNESS_LIFECYCLE === "1" ? selections : selections.sli
   vi.stubEnv("PATH", `${fileURLToPath(new URL("../../node_modules/.bin", import.meta.url))}:${process.env.PATH}`);
   let runtime: Awaited<ReturnType<typeof createKyoshiRuntime>> | undefined;
   try {
-    runtime = await createKyoshiRuntime(root, selection === "runtime" ? { model: "openai/gpt-4o" } : {});
+    runtime = await createKyoshiRuntime(root, selection === "runtime" ? { model: "openai/fixture-first" } : {});
     const { url, auth } = await runtime.start();
     const configuration = JSON.parse(await readFile(join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json"), "utf8"));
-    expect(configuration.model).toBe(selection === "runtime" ? "openai/gpt-4o" : selection === "codex" ? "fixture-codex" : undefined);
+    expect(configuration.model).toBe(selection === "runtime" ? "openai/fixture-first" : selection === "codex" ? "fixture-codex" : undefined);
     expect(JSON.stringify(configuration)).not.toContain("fixture-only");
     const created = await new Client({ baseUrl: url, auth }).sessions.create({
       message: "Help me author a course.", signal: AbortSignal.timeout(120_000),
@@ -138,12 +141,12 @@ it.each(process.env.DOJO_HARNESS_LIFECYCLE === "1" ? selections : selections.sli
       // Selection changes apply at the next normal native turn boundary.
       const path = join(root, ".dojo/kyoshi-app/agents/kyoshi/runtime.json");
       const live = JSON.parse(await readFile(path, "utf8"));
-      await writeFile(path, JSON.stringify({ ...live, model: "openai/gpt-4.1" }));
+      await writeFile(path, JSON.stringify({ ...live, model: "openai/fixture-second" }));
       const continued = await (await session.send("Continue with the selected model.", {
         signal: AbortSignal.timeout(60_000),
       })).result();
       expect(continued.reply).toBe("Ready to teach.");
-      const switched = endpoint.requests.find((request: { model?: string }) => request.model === "gpt-4.1");
+      const switched = endpoint.requests.find((request: { model?: string }) => request.model === "fixture-second");
       expect(switched, "The native harness must actually request the newly selected model").toBeDefined();
       expect(JSON.stringify(switched)).toContain("Help me author a course.");
       expect(JSON.stringify(switched)).toContain("Beginner");

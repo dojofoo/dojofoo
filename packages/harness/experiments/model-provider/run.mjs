@@ -44,14 +44,14 @@ try {
   }
   // pnpm rewrites the workspace:* dependencies (protocol, config) to versions
   const packed = JSON.parse(execFileSync("pnpm", ["pack", "--json", "--pack-destination", root], {
-    cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8",
+    cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8", maxBuffer: 64 * 1024 * 1024,
   }));
   assert.ok(packed.files.every(({ path }) => path.startsWith("dist/") || path.startsWith("patches/") || ["package.json", "README.md"].includes(path)));
   assert.ok(packed.files.some(({ path }) => path === `patches/eve@${versions.devDependencies.eve}.patch`));
   const localPackages = { "@dojofoo/harness": `file:${packed.filename}` };
   for (const name of ["agents", "config", "protocol"]) {
     const artifact = JSON.parse(execFileSync("pnpm", ["pack", "--json", "--pack-destination", root], {
-      cwd: fileURLToPath(new URL(`../../../${name}/`, import.meta.url)), encoding: "utf8",
+      cwd: fileURLToPath(new URL(`../../../${name}/`, import.meta.url)), encoding: "utf8", maxBuffer: 64 * 1024 * 1024,
     }));
     localPackages[artifact.name] = `file:${artifact.filename}`;
   }

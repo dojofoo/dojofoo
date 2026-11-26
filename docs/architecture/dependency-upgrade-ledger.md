@@ -4,6 +4,57 @@ Execution of [the staged upgrade plan](./dependency-upgrade-plan.md). No paid
 model calls are permitted. Native authentication and teaching quality require
 separate live acceptance tests; offline passes do not establish either.
 
+## Workspace refresh — 2026-11-25
+
+Base: `cb08649e` on `main`. Refresh the website, shared UI, build tools and
+compatible library versions, including Fumadocs core/UI 16.19.7, MDX 15.6.4,
+OpenAPI 12.6.7, TanStack Start 1.169.7, Storybook 10.6.8, Vitest 5.1.1 and
+pnpm 10.34.9. No new lint system is introduced: the existing dependency-boundary
+and retired-package-name checks remain the gates.
+
+Keep these compatibility boundaries:
+
+- Eve stays at the audited `1.0.0-rc.1`, and the native adapter set stays aligned.
+  Inspecting the published Eve 1.4.0 artifact found four removed exports and
+  removed internal development-server modules used by the shutdown patch. None
+  of the five assembled-runtime patches apply unchanged. The latest FX and
+  OpenCode adapters also fail their patch applicability checks; the ACP patch
+  applies, but upgrading that adapter alone would split the tested set.
+- Nitro and the harness's direct Undici pin remain those declared by the audited
+  Eve artifact. Updating Eve requires a runtime rebase and the existing native
+  conformance gates, not replacing the integrity check.
+- TypeScript and the A2A SDK retain the major-version exclusions already in
+  `.github/dependabot.yml`. The lesson editor uses TypeScript's language service.
+- Markdown Exit remains 1.3.0 because `@shikijs/markdown-exit@4.6.0` still depends
+  on 1.x; 2.1.3 fails the teaching-markdown type check. Markdown-it remains 14.3.3
+  for Slidev's `@comark/markdown-it` peer range. Exact Mirror 0.2.9 satisfies
+  Elysia's `>=0.2.9 <1` peer range.
+
+Modern-monaco 0.4.2 requests `tm-grammars@1.31.15` by versioned URL. Keep the
+asset builder on that exact grammar version; 1.32.22 creates different URLs and
+causes local grammar 404s when opening the editor.
+
+The CLI bundles the patched native adapters, whose exact `ws@8.21.0` dependency
+must match the agents package during assembly. Keep that version until the
+adapters move together. The package assembly captures up to 64 MiB of pnpm
+listing output, matching the existing packed-install verifier. OpenCode loopback
+checks register mock model IDs rather than relying on its public model catalog.
+
+Security overrides update the vulnerable transitive versions of gRPC,
+image-size, Undici, DOMPurify, KaTeX, MCP server, glob, minimatch and
+fast-xml-parser. Undici is scoped to its importing packages so OpenAI's broader
+optional peer range is preserved. `pnpm audit` reports no known vulnerabilities;
+this is the workspace dependency audit, not certification of native login or
+live model behavior.
+
+The clean npm-installed CLI still reports eight transitive advisories (seven
+moderate, one high). Root pnpm overrides do not follow a package into an npm
+consumer. The separate public runtime dependency graph identifies the retained
+Pi dependency, minimatch and guarded-fetch/Undici under just-bash; eliminating
+that exposure requires updating the coupled runtime or changing how its
+transitive dependencies are packaged. Do not describe the published CLI as
+having a clean audit on the strength of the workspace audit.
+
 ## Eve 0.81.1 audit — 2026-10-24
 
 The merged dependency update changed `eve` from 0.80.1 to 0.81.1 without

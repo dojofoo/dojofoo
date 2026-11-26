@@ -13,7 +13,7 @@
    the final typography to reserve space. */
 @font-face {
   font-family: "Inter fallback";
-  src: local("Arial");
+  src: local("Arial"), local("Liberation Sans");
   font-weight: 100 500;
   size-adjust: 107.4014%;
   ascent-override: 90.1990%;
@@ -22,7 +22,7 @@
 }
 @font-face {
   font-family: "Inter fallback";
-  src: local("Arial Bold");
+  src: local("Arial Bold"), local("Liberation Sans Bold");
   font-weight: 501 900;
   size-adjust: 105.2731%;
   ascent-override: 92.0226%;

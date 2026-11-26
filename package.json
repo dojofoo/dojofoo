@@ -2,7 +2,7 @@
   "name": "@dojofoo/workspace",
   "version": "0.0.1",
   "private": true,
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@10.34.9",
   "type": "module",
   "license": "FSL-1.1-ALv2",
   "scripts": {
@@ -24,7 +24,17 @@
   },
   "pnpm": {
     "overrides": {
-      "@ai-sdk/harness-pi>@earendil-works/pi-coding-agent": "1.3.0"
+      "@ai-sdk/harness-pi>@earendil-works/pi-coding-agent": "1.3.0",
+      "@grpc/grpc-js@<1.14.5": "^1.14.5",
+      "image-size@<2.0.3": "^2.0.3",
+      "dompurify@<3.4.17": "^3.4.17",
+      "katex@<0.18.2": "^0.19.1",
+      "@modelcontextprotocol/server@<2.3.0": "^2.4.0",
+      "glob@>=9 <14.0.2": "^14.0.2",
+      "minimatch@>=7 <11.0.1": "^11.0.1",
+      "fast-xml-parser@<5.12.0": "^5.12.1",
+      "guarded-fetch>undici": "^7.30.1",
+      "@earendil-works/pi-coding-agent>undici": "^8.13.1"
     },
     "onlyBuiltDependencies": [
       "esbuild"
@@ -41,11 +51,11 @@
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "@xmldom/xmldom": "^0.9.12",
-    "dependency-cruiser": "18.7.2",
+    "dependency-cruiser": "18.9.0",
     "husky": "^9.1.7",
-    "turbo": "^2.11.9",
+    "turbo": "^2.11.13",
     "typescript": "6.0.3",
-    "vitest": "^5.0.5",
+    "vitest": "^5.1.1",
     "youch": "^4.1.1"
   }
 }

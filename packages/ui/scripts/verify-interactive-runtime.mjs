@@ -33,11 +33,11 @@ const cli = join(repo, "packages/cli/dist/index.js");
 // their own; a fixed catalog keeps the composer's menu the same everywhere. The conversation itself runs the adapter's own OpenCode.
 const discovery = join(scratch, "bin/opencode");
 await mkdir(join(scratch, "bin"), { recursive: true });
-await writeFile(discovery, '#!/bin/sh\n[ "$1" = models ] && printf "openai/gpt-4o\\nopenai/gpt-4o-mini\\n" && exit 0\nexit 1\n', { mode: 0o755 });
+await writeFile(discovery, '#!/bin/sh\n[ "$1" = models ] && printf "openai/fixture-first\\nopenai/fixture-second\\n" && exit 0\nexit 1\n', { mode: 0o755 });
 // OpenCode reads the OpenAI variables, as in tier A's host child; the adapter writes its own config
 const environment = { ...process.env, DOJOFOO_HOME: stateHome, DO_NOT_TRACK: "1", OPENCODE_BIN: discovery,
   XDG_CONFIG_HOME: join(scratch, "config"), XDG_DATA_HOME: join(scratch, "data"), XDG_CACHE_HOME: join(scratch, "cache"),
-  OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "", NODE_PATH: undefined, CI: "", TEST: "" };
+  OPENAI_API_KEY: "fixture-only", OPENAI_BASE_URL: endpoint.baseURL, AI_GATEWAY_API_KEY: "fixture-only", AI_GATEWAY_BASE_URL: endpoint.baseURL, VERCEL_OIDC_TOKEN: "", NODE_PATH: undefined, CI: "", TEST: "" };
 delete environment.OPENCODE_CONFIG_CONTENT;
 let server;
 // Reads the Sensei session's events for a failure's evidence, once the page has opened it
@@ -65,7 +65,7 @@ try {
   }
   // The workspace's coding agent and its last model, as the composer's menus save them
   await mkdir(join(workspace, ".dojo"), { recursive: true });
-  await writeFile(join(workspace, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode", models: { opencode: "openai/gpt-4o" } }));
+  await writeFile(join(workspace, ".dojo/runtimes.json"), JSON.stringify({ agent: "opencode", models: { opencode: "openai/fixture-first" } }));
   const sourceBefore = await readFile(join(scratch, "first/lesson.json"), "utf8");
   observeLocalContext(workspace, { stateHome });
   const reservation = createServer();
@@ -139,7 +139,7 @@ try {
   const [initial] = await records();
   failureEvents = () => snapshot(initial.id);
   assert.equal(initial.courseId, "first");
-  assert.equal(initial.model, "openai/gpt-4o");
+  assert.equal(initial.model, "openai/fixture-first");
 
   // 2. The begin turn reaches the model with the course's guidance, and the chat hides it
   await expect(chatPane()).toContainText("Ready to teach.", { timeout: 120_000 });
@@ -185,11 +185,11 @@ try {
   // 6. Model switch: from the next turn, kept as the workspace's last model for OpenCode
   await page.getByTestId("authoring-chat-composer").getByRole("button", { name: /^Model:/ }).click();
   const patched = page.waitForResponse(response => response.request().method() === "PATCH" && new URL(response.url()).pathname.endsWith(`/sessions/${initial.id}`));
-  await page.getByRole("option", { name: "openai/gpt-4o-mini", exact: true }).click();
+  await page.getByRole("option", { name: "openai/fixture-second", exact: true }).click();
   assert.equal((await patched).status(), 200);
   await expect.poll(async () => (await records())[0]?.revision).toBe(1);
-  assert.equal((await records())[0].model, "openai/gpt-4o-mini");
-  assert.equal(JSON.parse(await readFile(join(workspace, ".dojo/runtimes.json"), "utf8")).models.opencode, "openai/gpt-4o-mini");
+  assert.equal((await records())[0].model, "openai/fixture-second");
+  assert.equal(JSON.parse(await readFile(join(workspace, ".dojo/runtimes.json"), "utf8")).models.opencode, "openai/fixture-second");
 
   // 7. Cancel: the held request's connection closes, the turn settles cancelled and the native processes go
   const cancelQuestion = "Hold this response until I stop it";
@@ -199,7 +199,7 @@ try {
   try {
     await send(cancelQuestion);
     await held.started;
-    assert.equal(endpoint.requestedModels.at(-1), "gpt-4o-mini", "the next actual request must use the selected model");
+    assert.equal(endpoint.requestedModels.at(-1), "fixture-second", "the next actual request must use the selected model");
     await page.getByRole("button", { name: "Stop", exact: true }).click();
     await expect.poll(() => connectionClosed, { timeout: 15_000 }).toBe(true);
   } finally { held.release(); }
@@ -242,7 +242,7 @@ try {
   await expect(composer()).toBeEnabled({ timeout: 60_000 });
   const restored = await records();
   assert.deepEqual(restored.map(record => record.id), [initial.id]);
-  assert.equal(restored[0].model, "openai/gpt-4o-mini");
+  assert.equal(restored[0].model, "openai/fixture-second");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".ui-as-app")).toHaveAttribute("data-narrow", "true");
   await expect.poll(() => page.locator(".ui-as-side").evaluate(node => node.getBoundingClientRect().right)).toBeLessThanOrEqual(0);

@@ -619,19 +619,19 @@
     "@earendil-works/pi-coding-agent": "1.4.0",
     "ai": "7.0.159",
     "json-rpc-2.0": "1.8.1",
-    "just-bash": "3.6.0",
+    "just-bash": "3.6.1",
     "nitro": "3.0.260903-beta",
     "smol-toml": "1.9.1",
     "undici": "8.12.3"
   },
   "devDependencies": {
-    "eve": "1.0.0-rc.1",
     "@ai-sdk/sandbox-just-bash": "1.0.170",
-    "@tanstack/ai": "1.0.1",
-    "@types/node": "^26.6.5",
-    "elysia": "^1.4.30",
-    "exact-mirror": "0.2.7",
+    "@tanstack/ai": "1.8.0",
+    "@types/node": "^26.6.7",
+    "elysia": "^1.4.32",
+    "eve": "1.0.0-rc.1",
+    "exact-mirror": "0.2.9",
     "typescript": "6.0.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.1"
   }
 }
