@@ -7,6 +7,49 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
+  # The website's release is its version tag: when a Version Packages merge bumps @dojofoo/web, the commit that set the
+  # version is promoted to dojo.foo (its staged build), then tagged @dojofoo/web@<version>. Production follows only these
+  # tags, so Vercel's rollback to the previous production deployment is the previous tag. Independent of the npm publish:
+  # a failed promote leaves the tag out and the next push to main retries it, on the same commit.
+  web:
+    name: Web release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: version
+        run: |
+          version=$(node -p 'require("./apps/web/package.json").version')
+          tag="@dojofoo/web@$version"
+          if git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+            echo "$tag is released"
+            exit 0
+          fi
+          # The commit that set the version (the Version Packages merge), not whatever main points at now
+          commit=$(git log -1 --format=%H -G'"version":' -- apps/web/package.json)
+          echo "Releasing $tag from $commit"
+          { echo "tag=$tag"; echo "commit=$commit"; } >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v7
+        if: steps.version.outputs.tag
+        with:
+          node-version: 24
+      - name: Promote the release to production
+        if: steps.version.outputs.tag
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node scripts/vercel/promote-release.mjs "${{ steps.version.outputs.commit }}"
+      - name: Tag the release
+        if: steps.version.outputs.tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          COMMIT: ${{ steps.version.outputs.commit }}
+        run: |
+          git tag "$TAG" "$COMMIT"
+          git push origin "refs/tags/$TAG"
+
   release:
     name: Release
     runs-on: ubuntu-latest
@@ -52,10 +95,3 @@ jobs:
           release_version=$(node -p 'require("./packages/cli/package.json").version')
           npm exec --yes --package="dojofoo@$release_version" -- dojofoo --help
 
-      # A version tag is production: the tagged commit's staged deployment takes dojo.foo. A release of the private
-      # packages alone (the website, uix, ui) counts: Changesets tags them, and the action reports their tags as published
-      - name: Promote the release to production
-        if: steps.changesets.outputs.published == 'true'
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: node scripts/vercel/promote-release.mjs "$GITHUB_SHA"
