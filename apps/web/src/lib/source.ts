@@ -1,4 +1,4 @@
-import { type InferPageType, loader, type LoaderPlugin } from 'fumadocs-core/source';
+import { type InferPageType, llms, loader, type LoaderPlugin } from 'fumadocs-core/source';
 import { docs } from 'collections/server';
 import { createElement, Fragment } from 'react';
 
@@ -43,6 +43,9 @@ export async function getLLMText(page: InferPageType<typeof source>) {
 
 ${processed}`;
 }
+
+// Fumadocs' llms.txt files: each page's Markdown at its address + .md (routes/{$}[.]md.ts)
+export const docsLlms = llms(source, { renderPage: getLLMText });
 
 // Canonical site URL for absolute meta tags. Override with SITE_URL env var
 // for non-Vercel hosts; otherwise fall back to the production hostname.

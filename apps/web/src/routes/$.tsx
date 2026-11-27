@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound, useLocation } from '@tanstack/react-router'
+import { createFileRoute, notFound, useLocation } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { staticFunctionMiddleware } from '@tanstack/start-static-server-functions'
 import { DocsSite } from '@dojofoo/uix/docs/layout'
@@ -42,7 +42,8 @@ export const Route = createFileRoute('/$')({
         { title: loaderData.pageUrl.startsWith('/docs/commands/') ? `dojofoo ${title}` : title },
         ...socialMetadata({ title, description, url: ogUrl, type: 'article', image: pageImage(loaderData.pageUrl) }),
       ],
-      links: [canonicalLink(loaderData.pageUrl), { rel: 'stylesheet', href: docsFont }, { rel: 'preconnect', href: 'https://cdnjs.cloudflare.com', crossOrigin: 'anonymous' }, ...(loaderData.apiPreloaded ? [{ rel: 'stylesheet', href: apiCss }] : [])],
+      // Its Markdown and the llms.txt that covers it (llmstxt.org), for agents that read the HTML
+      links: [canonicalLink(loaderData.pageUrl), { rel: 'alternate', type: 'text/markdown', href: `${loaderData.pageUrl}.md` }, { rel: 'describedby', href: '/llms.txt' }, { rel: 'stylesheet', href: docsFont }, { rel: 'preconnect', href: 'https://cdnjs.cloudflare.com', crossOrigin: 'anonymous' }, ...(loaderData.apiPreloaded ? [{ rel: 'stylesheet', href: apiCss }] : [])],
       scripts: [jsonLd(
         techArticle({ headline: title, description: loaderData.description, path: loaderData.pageUrl }),
         breadcrumbs(loaderData.trail),
@@ -79,14 +80,12 @@ const loader = createServerFn({ method: 'GET' })
   })
 
 function Page() {
-  const { slugs, path, pageUrl, sections, headings, apiPreloaded } = Route.useLoaderData()
+  const { path, pageUrl, sections, headings, apiPreloaded } = Route.useLoaderData()
   const location = useLocation()
   const docPath = pageUrl + (location.pathname.replace(/\/$/, '') === pageUrl && location.hash ? `#${location.hash}` : '')
   const content = useMemo(() => createDocsContent(sections), [sections])
   const toc = useMemo(() => headings.map(heading => ({ id: heading.id, depth: heading.depth, text: <span dangerouslySetInnerHTML={{ __html: heading.html }} /> })), [headings])
-  const markdownUrl = `/llms.mdx/docs/${[...slugs, 'index.mdx'].join('/')}`
   return <>
-    <Link to={markdownUrl} hidden />
     <DocsSite path={docPath} content={content} toc={toc}
       renderPage={() => <Suspense><DocsPageContent path={path} apiPreloaded={apiPreloaded} /></Suspense>} />
   </>

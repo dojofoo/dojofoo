@@ -9,7 +9,7 @@ export type DocPage = {
   body: string;
   /** Its file in the repository */
   source: string;
-  /** It's on the website (its Markdown is served at /llms.mdx/docs…); the Help pages aren't yet */
+  /** It's on the website (its Markdown is served at its path + .md); the Help pages aren't yet */
   onSite: boolean;
   apiPage?: string;
   /** An API page's operation, as its sidebar entry shows it: "GET" and "/health", its path under /api/v1 */
