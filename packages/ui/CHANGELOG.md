@@ -1,5 +1,16 @@
 # @dojofoo/ui
 
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [4c3c616]
+- Updated dependencies [3960f2e]
+- Updated dependencies [523272c]
+- Updated dependencies [2821986]
+  - @dojofoo/agents@0.2.5
+  - @dojofoo/uix@0.2.4
+
 ## 0.2.3
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @dojofoo/evals
 
+## 0.0.10
+
+### Patch Changes
+
+- Updated dependencies [4c3c616]
+  - @dojofoo/agents@0.2.5
+
 ## 0.0.9
 
 ### Patch Changes
