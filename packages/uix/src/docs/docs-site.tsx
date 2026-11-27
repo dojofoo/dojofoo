@@ -218,7 +218,7 @@ function Tree({ active, children }: { active: string; children: ReactNode }) {
 function PageTools({ page }: { page: DocPage }) {
   const [copied, setCopied] = useState(false);
   const markdown = `# ${page.title}\n\n${page.description ? `${page.description}\n\n` : ""}${page.body.trim()}\n`;
-  const markdownUrl = page.onSite ? `${SITE}/llms.mdx/docs${page.path}/index.mdx` : `${REPO}/blob/main/${page.source}`;
+  const markdownUrl = page.onSite ? `${SITE}${page.path}.md` : `${REPO}/blob/main/${page.source}`;
   const ask = page.onSite ? `Read ${markdownUrl}, I want to ask questions about it.` : `${markdown}\n\nI want to ask questions about this page of the dojofoo docs.`;
   const copy = () => {
     void navigator.clipboard?.writeText(markdown).then(() => {

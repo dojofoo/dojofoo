@@ -18,6 +18,11 @@ const docsPaths = globSync('**/*.mdx', { cwd: docsRoot }).map((file) => {
     .replace(/\.mdx$/, '');
   return `/${slug}`;
 });
+// The docs pages (routes/$.tsx), not their .md, .txt or social card; /dojos itself is the catalog (routes/dojos.tsx)
+const docsPages = '^/(?!.*\\.(?:md|txt|webp)$)(?:(?:docs|authoring|developers)(?:/.*)?|dojos/.+)$';
+// The prerendered HTML would answer first, so a request that may prefer Markdown goes to the server (start.ts). Nitro's
+// type leaves out the Build Output API's `has`, which it passes on as written
+const markdownRequests = { src: docsPages, has: [{ type: 'header', key: 'accept', value: '.*text/(?:markdown|x-markdown|plain).*' }], dest: '/__server' };
 
 export default defineConfig({
   // Public branding uses one icon family; app and Storybook builds retain their selector.
@@ -64,6 +69,14 @@ export default defineConfig({
           runtime: 'nodejs22.x',
           architecture: 'arm64',
           supportsResponseStreaming: true,
+        },
+        // Ahead of nitro's routes: a docs page answers in HTML or, to an agent that asks for it, in Markdown (start.ts)
+        config: {
+          version: 3,
+          routes: [
+            { src: docsPages, headers: { vary: 'Accept' }, continue: true },
+            markdownRequests,
+          ],
         },
       },
       compressPublicAssets: {

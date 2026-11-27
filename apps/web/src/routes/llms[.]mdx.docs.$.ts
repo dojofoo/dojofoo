@@ -1,21 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { getLLMText, source } from '@/lib/source';
+import { source } from '@/lib/source';
 
+// The page's Markdown moved to its address + .md ({$}[.]md.ts); links to the former address still land there
 export const Route = createFileRoute('/llms.mdx/docs/$')({
   server: {
     handlers: {
-      GET: async ({ params }) => {
+      GET: async ({ params, request }) => {
         const slugs = (params._splat ?? '').split('/');
-        // remove the appended "index.mdx" to avoid build issues
+        // remove the appended "index.mdx"
         slugs.pop();
         const page = source.getPage(slugs);
         if (!page) return new Response("Page not found", { status: 404 });
-
-        return new Response(await getLLMText(page), {
-          headers: {
-            'Content-Type': 'text/markdown',
-          },
-        });
+        return Response.redirect(new URL(`${page.url}.md`, request.url), 301);
       },
     },
   },

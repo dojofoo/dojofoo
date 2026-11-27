@@ -73,12 +73,27 @@ test("native documentation uses UIX while the host keeps URLs, content and brows
 });
 
 test("Markdown endpoints preserve real content and return 404 for missing pages", async ({ request }) => {
-  const usage = await request.get("/llms.mdx/docs/docs/index.mdx");
+  const usage = await request.get("/docs.md");
   expect(usage.status()).toBe(200);
   expect(usage.headers()["content-type"]).toContain("text/markdown");
+  expect(usage.headers()["link"]).toBe('</llms.txt>; rel="describedby"');
   expect(await usage.text()).toContain("# Usage");
-  const missing = await request.get("/llms.mdx/docs/no-such-page/index.mdx");
-  expect(missing.status()).toBe(404);
+  expect((await request.get("/docs/no-such-page.md")).status()).toBe(404);
+  // The former address still leads there
+  const former = await request.get("/llms.mdx/docs/docs/index.mdx", { maxRedirects: 0 });
+  expect(former.status()).toBe(301);
+  expect(new URL(former.headers()["location"]).pathname).toBe("/docs.md");
+  expect((await request.get("/llms.mdx/docs/no-such-page/index.mdx")).status()).toBe(404);
+});
+
+test("a docs page links its Markdown, which an agent can also ask for", async ({ request }) => {
+  const html = await (await request.get("/docs/quickstart")).text();
+  expect(html).toContain('<link rel="alternate" type="text/markdown" href="/docs/quickstart.md"/>');
+  expect(html).toContain('<link rel="describedby" href="/llms.txt"/>');
+  const asked = await request.get("/docs/quickstart", { headers: { accept: "text/markdown" }, maxRedirects: 0 });
+  expect(asked.status()).toBe(307);
+  expect(asked.headers()["location"]).toBe("/docs/quickstart.md");
+  expect((await request.get("/docs/quickstart", { headers: { accept: "text/html,*/*;q=0.8" } })).headers()["content-type"]).toContain("text/html");
 });
 
 
